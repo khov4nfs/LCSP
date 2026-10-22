@@ -1,0 +1,1 @@
+{"gate":"ASSESSMENT HITL mechanics","checks":79,"result":"PASS","sameThread":"54859df9-91db-4e30-ac38-deb7843e58ef","checkpoint":"1f1cdf59-f0b8-6272-8018-25392e48c943","crashThread":"c0b81891-23e8-41ae-855c-3eb1b36ef6b4","proof":"real migrated DB/API/PostgresSaver; scripted model; separate processes"}

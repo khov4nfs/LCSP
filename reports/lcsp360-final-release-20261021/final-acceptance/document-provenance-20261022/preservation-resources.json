@@ -1,0 +1,60 @@
+{
+  "checkedAt": "2026-10-22T09:06:07.779377+00:00",
+  "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
+  "protectedWipSha256": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "unchangedRuntimeAndRecoverySources": {
+    "deepagents/tests/vertical/live_preparation.py": true,
+    "deepagents/rule_set_preparation/agent.py": true,
+    "deepagents/rule_set_preparation/runner.py": true,
+    "deepagents/rule_set_preparation/semantic_audit.py": true,
+    "deepagents/middleware/model_governance.py": true,
+    "deepagents/middleware/usage_metering.py": true,
+    "deepagents/middleware/usage_recovery.py": true,
+    "deepagents/config/model_routes.yaml": true,
+    "tests/release-images.py": true,
+    "tests/staging-stack.py": true,
+    "tests/staging-browser-flow.mjs": true,
+    "reports/lcsp360-final-release-20261021/final-acceptance/probes/verify_live_artifacts.py": true,
+    "reports/lcsp360-final-release-20261021/final-acceptance/probes/live_api_smoke.mjs": true
+  },
+  "ownedAndHistoricalContainers": [
+    {
+      "name": "lcsp360-source-digest-20261022-pg-55503",
+      "id": "d39477b4dc0e92f871856796aaf5142d73a83f7ba8465ccb6f5c10232b2037db",
+      "state": "exited",
+      "mounts": [
+        {
+          "type": "volume",
+          "name": "lcsp360-source-digest-20261022-pg-55503",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ],
+      "memoryMaxBytes": 268435456
+    },
+    {
+      "name": "lcsp360-final-20261022-pg-55502",
+      "id": "0ecb45ba3ef9a1204c883ad327df8c2fe5b364aec0026df6da651a94516997ab",
+      "state": "exited",
+      "mounts": [
+        {
+          "type": "volume",
+          "name": "lcsp360-final-20261022-pg-55502",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ],
+      "memoryMaxBytes": 1073741824
+    }
+  ],
+  "historicalPort55441": "NOT_STARTED_OR_QUERIED",
+  "historicalFailedDatabase55502": "NOT_STARTED_OR_MODIFIED",
+  "redAndGreenDatabases": "RETAINED in task-owned 55503 volume",
+  "freeDiskBytes": 16239558656,
+  "freeDiskGiB": 15.12,
+  "deletedResources": [],
+  "paidModelCalls": 0,
+  "historicalUsageAndCost": "UNAVAILABLE"
+}

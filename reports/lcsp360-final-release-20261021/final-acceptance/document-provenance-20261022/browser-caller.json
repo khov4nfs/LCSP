@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "database": "lcsp_assessment_browser",
+  "hostPort": 55503,
+  "persisted": {
+    "sourceVersionId": "3308e78a-4f67-48af-8a13-943dff397f57",
+    "sourceSha256": "sha256:5b6bdadbcbf6fe4bbe66b1352c81354ccf7a501102dd5d6951f9c00fa47022cf",
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "chunks": 15
+  },
+  "sourceByteSha256": "5b6bdadbcbf6fe4bbe66b1352c81354ccf7a501102dd5d6951f9c00fa47022cf",
+  "browserJourney": "NOT_RUN; fixture startup/seeding only",
+  "providerCalls": 0,
+  "previousFixtureFilePreserved": true
+}

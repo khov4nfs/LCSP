@@ -1,0 +1,17 @@
+{
+  "database": "lcsp_source_digest_green",
+  "sourceVersionId": "720da2e1-45f1-4513-babe-92640203580d",
+  "document": [
+    {
+      "id": "465eba14-de62-42d1-acb7-044221cf185e",
+      "legalSourceVersionId": "720da2e1-45f1-4513-babe-92640203580d",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "sourceSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+    }
+  ],
+  "sourceFileSha256": "a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+  "fixtureNameSha256": "aed7f946fafbfd246e42241abd3df1e0a8635590a8ef4e5c38bd57969541bc6b",
+  "verifiedChunks": 3,
+  "documentMatchesSource": true,
+  "documentDiffersFromName": true
+}

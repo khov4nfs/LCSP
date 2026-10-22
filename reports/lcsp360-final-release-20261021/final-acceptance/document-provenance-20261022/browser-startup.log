@@ -1,0 +1,1 @@
+{"fixture":"/home/khovan/Workplaces/LCSP/tmp/browser-browser-fixture.json","api":"http://127.0.0.1:3415","control":"http://127.0.0.1:3452","database":"lcsp_assessment_browser","proof":"real API/PostgreSQL/PostgresSaver; scripted model; no browser responses mocked"}

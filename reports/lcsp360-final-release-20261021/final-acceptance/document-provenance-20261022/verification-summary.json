@@ -1,0 +1,188 @@
+{
+  "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
+  "status": "BLOCKED",
+  "firstUnresolvedGate": "SHARED_PAID_INFERENCE_ADMISSION",
+  "documentDigestBinding": "PASS",
+  "regressions": {
+    "initialOldContract": {
+      "expectedFailures": 11,
+      "exit": 1
+    },
+    "correctedPostgres": {
+      "passed": 19,
+      "exit": 0
+    },
+    "pythonGuards": {
+      "passed": 102,
+      "exit": 0
+    },
+    "complianceChecks": 77,
+    "assessmentChecks": 145,
+    "hitlChecks": 79,
+    "unresolvableHitlChecks": 72
+  },
+  "paidModelCalls": 0,
+  "paidInputTokens": 0,
+  "paidOutputTokens": 0,
+  "paidCostUSD": 0,
+  "historicalUsageAndCost": "UNAVAILABLE",
+  "semanticAcceptance": "NOT_EVALUATED",
+  "evaluationRunId": null,
+  "activatedRuleSetVersion": null,
+  "historicalSection15AndBlockerPreserved": true,
+  "files": {
+    "database-source-hmac-preflight.json": {
+      "bytes": 2203,
+      "sha256": "eb04faa155794df47996173f0f135cf195a24ac41ebfafd8747d06b758b19f3a"
+    },
+    "independent-postgres-verification.json": {
+      "bytes": 1845,
+      "sha256": "eec06536ba07b324e167aebf64c762a90d0dbad470f4dab6843eafac58e02bf3"
+    },
+    "preservation-resources.json": {
+      "bytes": 2576,
+      "sha256": "8445de9351afea61f629533c3452737ac5c839d5107f6229ed454cda4a935514"
+    },
+    "budget-boundary.json": {
+      "bytes": 1463,
+      "sha256": "0363d3284cd42580456ffb60c03038067e631388a06a0628d6d30c7387b18b16"
+    },
+    "budget_boundary_probe.py": {
+      "bytes": 3225,
+      "sha256": "fb077edc39246dd3f39168641f11e3bfa580f15f0e3287a60c2f71aa8006244c"
+    },
+    "budget-boundary.log": {
+      "bytes": 3320,
+      "sha256": "206c08c58469ba364f624177c5d6af927e3a90efefa9b38e1ef89872a6b4f6f9"
+    },
+    "browser-caller.json": {
+      "bytes": 544,
+      "sha256": "f5977a7ce524c42b29ab926258959e3f2b15214c26318b9129e01712ddde6fbc"
+    },
+    "browser-startup.log": {
+      "bytes": 266,
+      "sha256": "2ac632f6f49803ec6e2346246a3a9beaa1b35c0413ebd91f1fd6ed544c10d1a2"
+    },
+    "compliance.log": {
+      "bytes": 137,
+      "sha256": "454744b0e159db51a5148559aa56217fbcbb401de51a45aac974490221576e54"
+    },
+    "assessment.log": {
+      "bytes": 247,
+      "sha256": "a9e4d70efe134e9b6b4ed8ef9604f0fce2ffa5096688c0c12421c0b97b158c44"
+    },
+    "hitl.log": {
+      "bytes": 303,
+      "sha256": "1d139917bab674c45cca28a251a3d8e5a5e0f9686b915da1434d1c0979c3ee55"
+    },
+    "unresolvable.log": {
+      "bytes": 322,
+      "sha256": "ba6d4e7d54f406e18b5435eeba87d59c34c6dafcd5f2a6afa02f6224debcb09c"
+    },
+    "nonpaid_preflight.mjs": {
+      "bytes": 5485,
+      "sha256": "d2bd0c565e6b84c1e63025b94dd960353520b62a7a7ab42b5feaaa7ad3a2a45f"
+    },
+    "preflight_claim.py": {
+      "bytes": 1810,
+      "sha256": "07e52f7c031ee446e196edb00f2650f319f609bd2f124a4d5df681641685ed33"
+    },
+    "verify_postgres.py": {
+      "bytes": 3815,
+      "sha256": "38550d2dd07c84102a5054dac5e12521d6ee3623d6288dd6370492126957e0f3"
+    },
+    "nonpaid-preflight.log": {
+      "bytes": 1959,
+      "sha256": "686c4aadc0f1ef7e8250751f177d63de6752d9e0374567fa7945e42e02289f2f"
+    },
+    "python-guards.xml": {
+      "bytes": 16725,
+      "sha256": "7d0281a8190e0e6600e771efbc11f9988bb092d9d0e96ee5f422a512e8a7fde3"
+    },
+    "red.log.gz": {
+      "bytes": 1342,
+      "sha256": "6f2397e1eb1aa0478066c77a5a7ef692b95762915518b52f6b6f4e84fbdb4984"
+    },
+    "green.log.gz": {
+      "bytes": 782,
+      "sha256": "229f78e8b57915984711134d90325c69c7f70d2a2b8e37aca723be6e0b313447"
+    },
+    "python-guards.log.gz": {
+      "bytes": 2829,
+      "sha256": "bd5d4aacd2eee64babafd0bf855e4654b9668ba97b992a0a2cd581009625ec72"
+    },
+    "raw-log-archives.json": {
+      "bytes": 596,
+      "sha256": "380077c9f1f85029c428b266ce34d68e1012da1b29e1a3dc0fcdc291485ec823"
+    },
+    "graphify-update.log": {
+      "bytes": 2476,
+      "sha256": "3c41a30833a9bdeab400de4cdc298de6cf6b50b7aaf0d47b04e400309eacb56d"
+    },
+    "red/control.json": {
+      "bytes": 680,
+      "sha256": "079cb3e4f2faf5ae44e7f1688c06ad08dad08ddbc2373aa89bf3ed56a36a050b"
+    },
+    "red/pinned.json": {
+      "bytes": 681,
+      "sha256": "752962a424edb1bd256f69afa5d0ed1d0f8c08c746dae4f34f32bcf03a32861c"
+    },
+    "red/prefixed.json": {
+      "bytes": 681,
+      "sha256": "23b85845c566bced3aec1f322aec8f17a8ff3d3481582f2bed38790eb89adf6d"
+    },
+    "green/control.json": {
+      "bytes": 680,
+      "sha256": "f0c2a4c58fa92f89e0df3b9e6d6edfa458ab19966f7abfea62e104b5b913510a"
+    },
+    "green/pinned.json": {
+      "bytes": 681,
+      "sha256": "901f8012d902d0a720168087c175142f624e64ada4e2ad24eee99995dd9665de"
+    },
+    "green/prefixed.json": {
+      "bytes": 681,
+      "sha256": "6b11f3fd365b861cd16b45ac7fae2f0b3811c58069ceba2691d3d7a8216676e6"
+    },
+    "green/root-bounded-absence-gapped.json": {
+      "bytes": 680,
+      "sha256": "3f7f66cc06eecc2782232952b960fd7a3d25063a46dd77205ed4d5c4c21dd45c"
+    },
+    "green/root-bounded-absence.json": {
+      "bytes": 680,
+      "sha256": "ea679be0e1134d82ecce3095e03488d77f4d4ea8409be71be378c24709d31135"
+    },
+    "green/root-fallback-found.json": {
+      "bytes": 680,
+      "sha256": "f2b45fa6f4e89418150bc21b3d48ef3e904dc4816922f236286febb64072d85f"
+    },
+    "green/root-human.json": {
+      "bytes": 680,
+      "sha256": "5d2b5303324ba4943a84a2f564c70d60c85eb2c7022a61b589d8a55472c4910f"
+    },
+    "green/root-mixed.json": {
+      "bytes": 680,
+      "sha256": "73ddcfbe9d0d30d35c158f82708d44990bb531eeda35ee1c7545c5d0c8d31a94"
+    },
+    "green/root-not-applicable.json": {
+      "bytes": 680,
+      "sha256": "20cfbe84e049d4de9b142a14ef0c4d663ec8e3fc27cae6fbd408fef1eed80f12"
+    },
+    "green/root-single.json": {
+      "bytes": 680,
+      "sha256": "345295e38322988613837a108dddd6ce783e97aef7d688e109843dff87ba77e5"
+    },
+    "green/root-source-answerable.json": {
+      "bytes": 680,
+      "sha256": "2f03e94b18af2b31fb4ce7bbf9321265c4b35f201d79f3db1f7d12c289024fda"
+    },
+    "ci-code-candidate.json": {
+      "bytes": 13903,
+      "sha256": "9cb563eb12d0df12363d342694c6714648dd1835cc7960d12a9b1adf625c7086"
+    }
+  },
+  "ciCodeCandidate": {
+    "status": "PASS",
+    "checks": 36,
+    "receipt": "ci-code-candidate.json"
+  }
+}

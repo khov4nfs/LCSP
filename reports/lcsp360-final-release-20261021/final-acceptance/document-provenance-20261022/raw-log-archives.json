@@ -1,0 +1,23 @@
+[
+  {
+    "rawFile": "red.log",
+    "archive": "red.log.gz",
+    "bytes": 10491,
+    "sha256": "746fc5ff207105f921c7fa653fe6021f850e9e151d9b988cfaa6a233d4a77006",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "green.log",
+    "archive": "green.log.gz",
+    "bytes": 4028,
+    "sha256": "41156aa02267bcb76057c2857dd131ba8e16965fcd7b6ecd82728ed5eeee8c8f",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "python-guards.log",
+    "archive": "python-guards.log.gz",
+    "bytes": 15189,
+    "sha256": "292a880b40b28637ca6b8d04c9786724bc954b8e311eecfbaadafcc0f7d7cdbe",
+    "roundTrip": "PASS"
+  }
+]

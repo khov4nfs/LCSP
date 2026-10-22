@@ -1,0 +1,17 @@
+{
+  "database": "lcsp_source_digest_green",
+  "sourceVersionId": "25861510-5927-4695-ac47-f9c5bec67607",
+  "document": [
+    {
+      "id": "9f7654e7-d9ee-4ae4-87df-3fdb5f8bdc16",
+      "legalSourceVersionId": "25861510-5927-4695-ac47-f9c5bec67607",
+      "documentId": "P10-multilingual-unfamiliar",
+      "sourceSha256": "sha256:a7a4331fc5ce4d46362a7f58ba9e7cc63d15898ea0813c19cf5894bcd63e0ff9"
+    }
+  ],
+  "sourceFileSha256": "a7a4331fc5ce4d46362a7f58ba9e7cc63d15898ea0813c19cf5894bcd63e0ff9",
+  "fixtureNameSha256": "1be0d980aeec6717f36e3f467b4d7e67e30d03e5fdfae75a242f6719339a01aa",
+  "verifiedChunks": 1,
+  "documentMatchesSource": true,
+  "documentDiffersFromName": true
+}

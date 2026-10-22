@@ -4,10 +4,10 @@
   "status": "BLOCKED",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
-  "freezeRef": "refs/lcsp360/acceptance-envelope-20261022-6f37b38c2",
-  "firstFailedGate": "DOCUMENT_SOURCE_BYTE_DIGEST_BINDING",
-  "blockerReceipt": "document-digest-blocker.json",
+  "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
+  "freezeRef": "refs/lcsp360/document-provenance-20261022",
+  "firstFailedGate": "SHARED_PAID_INFERENCE_ADMISSION",
+  "blockerReceipt": "../document-provenance-20261022/budget-boundary.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -25,7 +25,7 @@
       "Full inventory -> typed Requirements/Rules -> Validator -> persistence -> atomic activation",
       "Independent semantic and artifact verification, API/auth/tenant/pinning negative controls"
     ],
-    "unfamiliarControls": "P07/P10 frozen text/oracles retained in repository; not silently substituted for full case, not run in this pass, and additional paid preparations need separate scope authorization"
+    "unfamiliarControls": "P07/P10 frozen text/oracles retained. P10 ingestion/document binding verified provider-free in this repair; no semantic model evaluation or additional paid Preparation. Additional paid scope requires authorization."
   },
   "routes": {
     "rule-set-preparation": [
@@ -134,7 +134,7 @@
     "approvedMaximumProviderDispatches": 0,
     "approvedMaximumTokens": 0,
     "approvedMaximumSpendingUSD": 0,
-    "source": "Latest user Phase B: non-paid readiness only; no explicit approval and enforceable budget exists",
+    "source": "Latest user: no paid calls permitted in provenance repair; proposed limits remain unapproved",
     "quotaIsAuthorization": false
   },
   "enforcement": {
@@ -151,23 +151,33 @@
       "Global/per-stage deadline supervision and process-tree/resource/output-allocation ceilings described by this proposal"
     ],
     "requirements": [
-      "Fix source document digest binding first; then freeze a new candidate and run focused provenance regression/preflight",
+      "Document-byte contract repaired and independently verified on the frozen candidate; archived failed databases/receipts remain unchanged",
       "Before paid approval becomes executable, implement/reuse and provider-free verify shared admission controls. Completion-only callbacks are not a hard spending cap",
       "Pre-reserve worst-case admitted input/cache/output cost, count attempts atomically and fail closed before exceeding approved ceilings; unavailable tariff/usage must block further dispatch",
       "Budget exhaustion is terminal failure, never an accepted inventory or fabricated semantic verdict. Do not use generic forced-finalize prompting to bypass legal completion."
     ],
-    "productionCodeChanged": false
+    "productionCodeChanged": false,
+    "identifiedReusePoint": "Run-scoped atomic admission/reservation at UsageMeteringMiddleware before sync/async downstream handlers; metering is innermost under application retries, credential rotation and provider fallback. SDK-internal retries also need attempt-level interception or a verified conservative reservation upper bound before a financial cap can be claimed.",
+    "providerFreeDiagnostic": "../document-provenance-20261022/budget-boundary.json: 3 synthetic downstream attempts, 2 committed responses; completion accounting is not admission"
   },
   "isolation": {
     "newOwnedPostgresContainerRequired": true,
-    "proposedLoopbackDatabasePort": 55503,
+    "proposedLoopbackDatabasePort": 55504,
     "proposedApiPort": 3459,
-    "database": "lcsp_compliance_rule_set_live on a NEW empty PostgreSQL instance; shared helper would reset this fixed name, so never point it at retained 55441 or existing databases",
+    "database": "NEW empty owned PostgreSQL instance required for any future approved evaluation. Port 55503 now contains retained provenance regressions and must not be reused/reset by the live helper.",
     "sourceVersionId": null,
     "runId": null,
     "ruleSetVersionId": null,
     "ephemeralAuditKey": "Generate random 32-byte key and explicitly share API/worker; no default fixture key; publish fingerprint only",
-    "noConcurrentRuntimeEdits": true
+    "noConcurrentRuntimeEdits": true,
+    "provenancePreflightOnly": {
+      "database": "lcsp360_document_preflight_7a02137e7775",
+      "container": "lcsp360-source-digest-20261022-pg-55503",
+      "port": 55503,
+      "apiPort": 3461,
+      "state": "STOPPED_VOLUME_RETAINED",
+      "receipt": "../document-provenance-20261022/database-source-hmac-preflight.json"
+    }
   },
   "resources": {
     "processTreeMemoryMaxBytes": 3221225472,
@@ -221,5 +231,24 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "Fix document source-byte digest propagation and add the focused regression before another provenance preflight; do not start inference."
+  "nextAction": "Implement and provider-free verify shared pre-dispatch admission with verified provider charge bounds; proposed paid limits remain unapproved and launch stays disabled.",
+  "updatedAt": "2026-10-22T09:06:57.283602+00:00",
+  "historicalDocumentDigestFailure": {
+    "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
+    "receipt": "document-digest-blocker.json",
+    "status": "FAIL_PRESERVED",
+    "supersededBy": "../document-provenance-20261022/independent-postgres-verification.json"
+  },
+  "documentSourceByteDigestBinding": {
+    "status": "PASS",
+    "receipt": "../document-provenance-20261022/independent-postgres-verification.json",
+    "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
+  },
+  "ciCodeCandidate": {
+    "status": "PASS",
+    "sha": "bf3bc2a409944746dc0185b6afa6693b75565089",
+    "checks": 36,
+    "receipt": "../document-provenance-20261022/ci-code-candidate.json",
+    "evidencePublicationHead": "Must pass its own push-triggered checks; exact SHA/results recorded in PR checkpoint comment"
+  }
 }

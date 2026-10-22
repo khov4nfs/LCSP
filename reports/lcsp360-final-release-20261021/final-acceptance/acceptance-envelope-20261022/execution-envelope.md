@@ -1,12 +1,20 @@
 # LCSP-360 final acceptance envelope — BLOCKED
 
-Candidate: `6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a`, locally frozen at `refs/lcsp360/acceptance-envelope-20261022-6f37b38c2`. PR #427 remains Draft. This is a **non-executable proposal**, not an authorization or acceptance receipt. See `execution-envelope.json` for all limits, prerequisites and gate criteria.
+Candidate: `bf3bc2a409944746dc0185b6afa6693b75565089`, locally frozen at `refs/lcsp360/document-provenance-20261022`. Historical failed candidate: `6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a`. PR #427 remains Draft. This is a **non-executable proposal**, not an authorization or acceptance receipt. See `execution-envelope.json` for all limits, prerequisites and gate criteria.
 
-## First failed gate: document source-byte digest binding
+## Current checkpoint: provenance PASS; shared admission BLOCKED
+
+The shared seeder now requires the original source bytes and an explicit digest, validates their equality before writes, and stores the canonical `sha256:` digest. All six active callers propagate actual source bytes/digests. The frozen candidate passed 19 PostgreSQL regressions, 102 focused Python guards and the affected provider-free journeys. A new isolated database and an independent read-only PostgreSQL check establish the document binding that the earlier preflight omitted. See [new receipts](../document-provenance-20261022/independent-postgres-verification.json) and release report section 16. The historical failed database/receipt below are unchanged.
+
+**First unresolved hard gate: shared paid-inference admission.** The existing innermost `UsageMeteringMiddleware` can host run-scoped pre-dispatch admission shared through `AgentRunState` and existing durable recovery. It currently checks identity/context/cancellation and records completed responses afterward. The provider-free [boundary probe](../document-provenance-20261022/budget-boundary.json) observes 3 synthetic dispatches but 2 completed usage records, including Producer, Auditor and an unanswered failure. It does not implement or prove a financial cap.
+
+Before execution, add atomic attempt/token/cost reservations at that boundary, with verified conservative upper bounds and provider tariffs for every configured route; cover both sync/async paths and SDK-internal retries (currently Google has a configured retry). Application retry, rotation and fallback already wrap this shared metering boundary. Unknown or unbounded charges must reject dispatch; crashes must retain outstanding reservations; exhaustion must be terminal rather than invoke forced-finalization prompts. No new pipeline, provider price assumption or generic completion-counter shortcut is justified. The minimal shared reuse point is identified; financial enforcement remains unimplemented. Paid authorization is separately absent.
+
+## Historical failed gate: document source-byte digest binding
 
 **Root cause:** `fixture_chunks.py` supplies the verified source digest, but `tests/compliance-rule-set-live-eval.mjs:128` passes only the document ID and chunks into `seedLegalSource`. `tests/support/compliance-rule-set-stack.mjs:120` writes `contentHash(name)` as `LegalSourceDocument.sourceSha256`. The digest identifies a fixture name rather than the source bytes. Earlier checks verified chunks, graph support and signatures; they did not establish this document-level binding.
 
-**Required fix, not performed:** Pass the independently verified source-byte digest through the seeder, persist it as the document digest, and add a focused provider-free regression. Recheck the affected provenance gate and freeze a new candidate. Existing databases and accepted/historical receipts must remain unchanged. Stop-on-blocker applies; this pass contains no runtime fix or evaluation retry.
+**Historical required fix, now completed in section 16:** Pass the independently verified source-byte digest through the seeder, persist it as the document digest, and add a focused provider-free regression. Recheck the affected provenance gate and freeze a new candidate. Existing databases and accepted/historical receipts must remain unchanged. Stop-on-blocker applies; this pass contains no runtime fix or evaluation retry.
 
 Read-only persisted proof, `document-digest-blocker.json`:
 
@@ -30,7 +38,7 @@ Database: `lcsp360_pypdf_preflight_7a3088043efe`, owned container on loopback 55
 
 **Enforcement is incomplete:** the harness has timeout/kill/recovery, not a shared pre-dispatch call/token/cost reservation. `LiveUsage.record` observes completed responses. Generic `AgentRunBudgetMiddleware` is a per-agent graph/context finalizer and is not a shared financial limiter for this standalone Producer/Auditor journey. Tariffs/settlement conversion are unverified. Before a paid run, approved ceilings must be enforced atomically across every role, provider and attempt; unknown rates or usage must fail closed. Do not alter legal prompts or force a positive conclusion when a budget is exhausted. No runnable launch command is published.
 
-Future isolation: a **new empty** PostgreSQL container on loopback 55503, API 3459, explicit fresh random HMAC key shared by API/worker. The helper resets its fixed database name, so it must never target retained 55441, a reused cluster or production. Run/source/version IDs are assigned only after authorization and a passing corrected preflight. No database is provisioned by this proposal.
+Future isolation: a **new empty** PostgreSQL container on a newly verified free loopback port (proposed 55504; retained provenance resources now occupy 55503), API 3459, explicit fresh random HMAC key shared by API/worker. The helper resets its fixed database name, so it must never target retained 55441, a reused cluster or production. Run/source/version IDs are assigned only after authorization and a passing corrected preflight. No paid-evaluation database is provisioned. The task-owned provenance cluster on 55503 is stopped and retained; do not reset it for a later evaluation.
 
 ## Resource findings
 
@@ -45,10 +53,10 @@ Historical release images total **8.63 GiB**; the largest sequential rootfs expo
 | Gate | Status | Evidence / limitation |
 |---|---|---|
 | Candidate, Draft PR, protected WIP | PASS | Exact checkpoint; all 3 WIP hashes preserved; no concurrent source edits observed |
-| CI/security | PASS | Retained 39 exact-head successes; no rerun; `ci-retained-checkpoint.json` |
+| CI/security | PASS | All 36 checks on exact code candidate `bf3bc2a40`; new receipt `../document-provenance-20261022/ci-code-candidate.json`. Publication-head verification is recorded separately in PR checkpoint |
 | Source file and 15 chunk hashes | PASS | Independent recomputation, `source-snapshot.json` |
-| Stored document source-byte digest | **FAIL** | Read-only persisted mismatch, `document-digest-blocker.json` |
-| Canonical effects, graph support, HMAC/auth | PASS | Retained provider-free checkpoint; does not cover failed document digest |
+| Stored document source-byte digest | **PASS** | Fresh frozen-candidate read-only verification; old failure remains below |
+| Canonical effects, graph support, HMAC/auth | PASS | New isolated preflight: 15 chunks, 20 nodes, 18 supports, Node/Python HMAC and rejection controls |
 | Novelty, independent Auditor, duplicate claim, timeout/recovery | PASS | Source inspection plus retained focused/CI evidence; real runtime behavior still unproven |
 | Provider readiness | PASS | Fresh read-only quota/catalog/credential-presence check; no inference or live fallback proof |
 | Paid authorization and aggregate enforcement | BLOCKED | No approved limits, global admission guard or verified cost tariff |
@@ -68,4 +76,4 @@ Historical release images total **8.63 GiB**; the largest sequential rootfs expo
 
 New evaluation run ID / activated version: **none / none**. New paid calls/input/output/cost: **0 / 0 / 0 / USD 0**. Historical aborted-run usage and cost remain **UNAVAILABLE**.
 
-Next action: **fix document source-byte digest propagation and its focused regression before another provenance preflight**. The proposed paid envelope remains blocked; do not execute it.
+Next action: **implement and provider-free verify shared pre-dispatch admission using verified provider charge bounds, covering every configured retry/fallback path**. The proposed paid envelope remains blocked; do not execute it.

@@ -1,0 +1,17 @@
+{
+  "database": "lcsp_source_digest_red",
+  "sourceVersionId": "956e6ad2-5942-4287-8640-fd254494c947",
+  "document": [
+    {
+      "id": "d9298f54-f1db-4a2d-956c-305020c899d2",
+      "legalSourceVersionId": "956e6ad2-5942-4287-8640-fd254494c947",
+      "documentId": "P10-multilingual-unfamiliar",
+      "sourceSha256": "sha256:9bd399155fbca207b4b93150586eca85748a11d679237a99c85ee21ec8161bc6"
+    }
+  ],
+  "sourceFileSha256": "a7a4331fc5ce4d46362a7f58ba9e7cc63d15898ea0813c19cf5894bcd63e0ff9",
+  "fixtureNameSha256": "9bd399155fbca207b4b93150586eca85748a11d679237a99c85ee21ec8161bc6",
+  "verifiedChunks": 1,
+  "documentMatchesSource": false,
+  "documentDiffersFromName": false
+}

@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**BLOCKED — document source-byte digest binding** on acceptance candidate `6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a`. The retained preflight checked chunks/supports but missed that the seeder stores the fixture-name hash as the document hash. A read-only query confirms the mismatch; see section 15. The pypdf repair and 39 passing CI/security checks remain valid historical evidence. No paid evaluation was dispatched; PR remains Draft.
+**BLOCKED — shared paid-inference admission remains unimplemented.** Document source-byte binding is repaired on frozen candidate `bf3bc2a409944746dc0185b6afa6693b75565089` and independently verified in a new isolated database; see section 16. Section 15 preserves the historical failed result. Proposed paid ceilings remain unapproved and unenforceable by completion accounting alone. No paid evaluation was dispatched; PR remains Draft.
 
 - Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
@@ -308,3 +308,80 @@ Paid authorization remains **0 calls / 0 tokens / USD 0**. The harness lacks sha
 New real-model run ID / activated Rule Set version: **none / none**. New paid model calls/input/output/cost: **0 / 0 / 0 / USD 0**. Historical aborted-run usage and cost remain **UNAVAILABLE**. Stopped at the first verified integrity failure, as instructed; no paid retry, source patch or acceptance bypass followed.
 
 Evidence and exact commands/results: [`acceptance-envelope-20261022/execution-envelope.md`](acceptance-envelope-20261022/execution-envelope.md), machine-readable `execution-envelope.json`, `document-digest-blocker.json` (full SQL and values), `source-snapshot.json`, resource/preservation/provider receipts, retained exact-head CI identities and checkpoint hashes. Raw host-wide inventories remain local with hashes in the resource receipt. **Next action: fix document source-byte digest propagation and add its focused regression before another provenance preflight.** PR remains Draft; status **BLOCKED**.
+
+## 16. Document source-byte contract repair and corrected non-paid provenance checkpoint
+
+Takeover/evidence HEAD: `604c4285c07229713e214d8bd37f62080975a91a`. Frozen code candidate: **`bf3bc2a409944746dc0185b6afa6693b75565089`**, local ref `refs/lcsp360/document-provenance-20261022`. **DOCUMENT_SOURCE_BYTE_DIGEST_BINDING: PASS. Release status: BLOCKED at shared paid-inference admission.** No paid authorization, model invocation, staging, deployment, merge or Draft removal occurred. Evidence publication adds receipts/documentation only; exact publication-head CI results are recorded in the PR checkpoint comment.
+
+**Root cause:** `seedLegalSource` in `tests/support/compliance-rule-set-stack.mjs` wrote `contentHash(name)` as the document digest. Live callers dropped the fixture generator's source digest. Valid chunk hashes could not bind the document to the original source bytes. Section 15 and its failed database/receipt remain unchanged.
+
+**Fix:** The shared helper requires original `Buffer` bytes plus an explicit raw or single-prefixed lowercase SHA-256. It validates presence, syntax and independently hashed byte equality before the first database write, then stores the canonical single `sha256:` prefix. No fixture-name/ID/chunk/metadata fallback exists. Missing bytes, missing/malformed digests and a well-formed digest for different bytes reject without changing any source/document/chunk/index row counts. The pinned generator reads raw bytes, checks the frozen pin before parsing and transports those same bytes with their digest. The unfamiliar control transports the actual ingestion bytes. In-memory fixture documents define reproducible UTF-8 bytes before deriving their existing chunks.
+
+Changed contract/fixture/test/config files: `tests/support/compliance-rule-set-stack.mjs`; `deepagents/tests/vertical/{fixture_chunks,control_chunks,root_semantic_fixture}.py`; `tests/source-document-provenance.integration.mjs`; `deepagents/tests/test_fixture_source_bytes.py`; `.github/workflows/test.yml` (adds the PostgreSQL regression to the existing required Assessment Root job). Six active caller updates:
+
+| Caller | Correct source representation / compatibility |
+|---|---|
+| `tests/compliance-rule-set-live-eval.mjs` | Verified pinned bytes/digest or actual unfamiliar-control ingestion bytes/digest |
+| `tests/assessment-root-live-eval.mjs` | Exact original Root in-memory text bytes/digest; saved-run resume does not reseed |
+| `tests/compliance-rule-set-vertical.mjs` | Deterministic UTF-8 source lines; existing locator content/chunk hashes retained |
+| `tests/assessment-domain-vertical.mjs` | Variant-specific deterministic source lines; assessment/pinning semantics retained |
+| `tests/assessment-hitl-vertical.mjs` | Deterministic source lines; existing Human Resolution/negative controls retained |
+| `tests/assessment-browser-stack.mjs` | Deterministic source lines; scripted preparation starts and document digest matches |
+
+All active direct/indirect seed callers were inspected. Four archived historical report probes retain their original source as evidence; they are superseded by the new `document-provenance-20261022/nonpaid_preflight.mjs` and fail closed if used without the new contract. They must not be used to mutate historical databases. No production legal interpretation, effects, Rule generation, HITL behavior, tenant boundary, audit code, metering/recovery code, model routes or security policy changed.
+
+Focused provider-free commands/results (all actual process exits as stated):
+
+| Command / gate | Result |
+|---|---|
+| `LCSP_TEST_PG_PORT=55503 LCSP_SOURCE_PROVENANCE_DATABASE=lcsp_source_digest_red ... node --test tests/source-document-provenance.integration.mjs`, before helper repair | **Expected FAIL**, exit 1: all 11 initial document-contract cases reproduce old name-hash/missing-validation defects against real PostgreSQL. Original rows/log retained in `red/` and `red.log` |
+| Same test after repair, fresh `lcsp_source_digest_green`, separate `green/` output | **19/19 PASS**, exit 0: pinned/control, prefix, invalid/missing/mismatched digest, absent bytes and all eight Root fixture modes |
+| `node tests/compliance-rule-set-vertical.mjs` with owned PG port 55503 | **77 checks PASS**, exit 0 |
+| `node tests/assessment-domain-vertical.mjs` with owned PG port 55503 | **145 checks PASS**, exit 0 |
+| `node tests/assessment-hitl-vertical.mjs` and `node tests/assessment-hitl-vertical.mjs --unresolvable-only`, sequential on 55503 | **79 and 72 checks PASS**, exits 0; audited freeze/typed authoring and negative controls retained |
+| `PYTHON_DOTENV_DISABLED=1 PYTHONPATH=deepagents:deepagents/tests deepagents/.venv/bin/python -m pytest deepagents/tests/test_fixture_source_bytes.py deepagents/tests/test_legal_source_files_provenance.py deepagents/tests/test_legal_source_graph.py deepagents/tests/test_semantic_auditor.py deepagents/tests/test_single_pass_review.py -q --tb=short --junitxml=.../python-guards.xml` | **102 passed**, exit 0; pin-tampering rejection, provenance/graph, independent semantic-audit/HMAC guards |
+| `node tests/assessment-browser-stack.mjs` controlled startup on 55503 | PASS: fixture creation, scripted preparation and direct persisted-digest assertion. Owned process stopped; previous browser fixture file restored. Actual browser journey **NOT_RUN** |
+| `node .../document-provenance-20261022/nonpaid_preflight.mjs`, ephemeral random HMAC environment, frozen code candidate | **PASS**, exit 0; new database only, no model loader/inference |
+| `python .../document-provenance-20261022/verify_postgres.py` | **PASS**, exit 0; independent Python SHA-256 and read-only `psql` query of document/chunks/materialization/nodes/mappings |
+| JS syntax checks (8 changed scripts), workflow YAML parse, `node scripts/check-import-policy.mjs`, `git diff --check` | PASS |
+| `graphify update .` | PASS AST update, exit 0. Optional SQL extraction dependency and oversized HTML warnings retained; no semantic/paid graph labeling requested |
+
+Independent source-byte results:
+
+| Value | Pinned source | Unfamiliar P10 source |
+|---|---|---|
+| Actual source SHA-256 | `b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1` | `a7a4331fc5ce4d46362a7f58ba9e7cc63d15898ea0813c19cf5894bcd63e0ff9` |
+| Persisted `sourceSha256` | `sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1` | `sha256:a7a4331fc5ce4d46362a7f58ba9e7cc63d15898ea0813c19cf5894bcd63e0ff9` |
+| Green-regression source version | `29e87344-ecc1-4cb3-8082-5eefe03f6bb5` | `25861510-5927-4695-ac47-f9c5bec67607` |
+| Verified original chunks | 15 | 1 |
+
+Frozen-candidate corrected preflight database **`lcsp360_document_preflight_7a02137e7775`**, owned loopback **55503**, diagnostic API **3461**:
+
+- Source version **`04c26c33-a408-45a4-aa09-0ce1728ca98c`**, document `SYNTHETIC-NOTICE-INSTRUMENT`, document row `9c2b5412-2e17-4864-979c-df68cc16677f`.
+- 1,185 source bytes independently hash to `b69a7113…0cc1`; PostgreSQL stores the exact prefixed digest above. Name `document-preflight-1792659826070` hashes to **`76623909f6f4f6a1ad6f58026766f1331d6a3cc556e7fd70cc9975a60f596fc6`**, which differs from the stored digest.
+- Diagnostic preparation ID **`2e07850a-4f00-416b-8bc0-dc225b634230`**, graph materialization **`2924ffb8a2bb46adc64f5765b1a5f8d3d6d56be73445e988f11705c2e1656e79`**. This is a source-claim diagnostic, **not a real-model evaluation**.
+- All **15** persisted chunk hashes/content/document references, **20 EFFECTIVE graph nodes**, **15 chunk-to-node mappings**, source version/materialization/document identities and **18 independently recomputed source-support hashes** pass. Read-only SQL and full comparisons are in `independent-postgres-verification.json`.
+- Python signing plus independent Node HMAC verification pass with an ephemeral random shared key; tamper and wrong-run checks reject; missing worker authentication returns 401. Only key fingerprint/signature retained. Signed receipt verdict is **NOT_EVALUATED**, purpose `HMAC_PREFLIGHT_ONLY`; it proves integrity only. **Zero persisted semantic audits, zero Rule Set versions**, no inventory freeze or activation in this diagnostic.
+
+**Remaining root cause — shared admission:** `UsageMeteringMiddleware._prepare` checks cancellation, identity and context; downstream handler dispatch precedes `_record`. The existing durable `LiveUsage` persists completed reported usage correctly, but does not admit/reserve future attempts, tokens or money. `AgentRunBudgetMiddleware` is an individual graph/context finalizer. The provider-free boundary probe exercises real shared metering plus durable record/recovery with an offline handler: **3 synthetic attempts** across Producer/Auditor, only **2 committed responses**, with the third unanswered failure. Its fixture totals (20 input / 6 output) are explicitly synthetic, not paid usage. Diagnostic PASS does **not** establish a financial admission gate.
+
+**Smallest justified next fix identified:** Extend the existing shared innermost metering boundary with atomic run-scoped pre-dispatch reservations, shared through `AgentRunState` and existing durable recovery. It already sits inside application retries, credential rotation and provider fallback. Prove sync/async and internal reader/summarization coverage; separately intercept SDK-internal retries or reserve verified worst-case bounds for all attempts (Google currently allows an SDK retry). Freeze authoritative provider tariff/charge upper bounds and conservative token/cache/reasoning reservations. Unknown/unbounded charges must fail closed; unresolved reservations survive crash; budget denial terminates without generic forced-finalization or fabricated acceptance. No provider tariffs were invented and no new accounting/agent architecture was added. This mechanism remains **NOT_IMPLEMENTED / NOT_PROVEN**, so overall status is **BLOCKED**, not PREFLIGHT_READY or AWAITING_PAID_AUTHORIZATION yet.
+
+The execution envelope remains non-executable, with no launch command. Proposed **256 dispatches / 4,000,000 input-cache tokens / 256,000 output-reasoning tokens / USD 25**, existing **3,600-second worker / 600-second provider** and proposed **4,200-second overall** limits remain **unapproved**. Authorized/actual paid calls, input/output tokens and spending this task: **0 / 0 / 0 / USD 0**. Historical aborted usage/cost remain **UNAVAILABLE**. Model routes/provider credentials were not changed; earlier read-only quota/catalog evidence is point-in-time only, not fresh liveness or spending authority.
+
+| Acceptance gate | Current result |
+|---|---|
+| Document/source-byte digest binding | **PASS** on new frozen candidate, independently read-only verified |
+| Chunk provenance/effects, graph/source/support identities | **PASS** provider-free |
+| Signed receipt integrity / authentication rejection | **PASS** provider-free; semantic verdict NOT_EVALUATED |
+| Shared seeder callers, claim-first Root/HITL/Validator fixture journey | **PASS** provider-free, including negative controls |
+| Durable accounting/recovery and semantic runtime preservation | PASS source-hash preservation; prior accounting regressions retained; current Python CI required |
+| Exact-code-candidate CI/security | **PASS: all 36 checks** on `bf3bc2a409944746dc0185b6afa6693b75565089`, including V2 required gate, Assessment Root, Docker E2E, Python/API/web/Playwright, Trivy, Trustabl and CodeQL; `ci-code-candidate.json` |
+| Paid admission / budget authorization | **BLOCKED**: shared enforceable reservation absent; no paid approval |
+| Fresh real-model semantic inventory, Requirements/Rules, persistence/activation, API/tenant assessment acceptance | **NOT_RUN** |
+| Release-image / staging / browser acceptance | **NOT_RUN**; semantic gate first, later build headroom still below prior planning floor |
+| Merge / production | **NOT_RUN**, unauthorized |
+
+Resource/preservation receipt: `preservation-resources.json`. Remaining free disk approximately **15.12 GiB** (97% used); no large build or cleanup. Only the new task-owned PostgreSQL container/volume was created with **256 MiB** memory cap. Red/green/corrected-preflight databases and volume are retained; diagnostic API and owned container are stopped. Historical 55441 was never started/queried; retained failed 55502 was never started/modified. All three protected WIP hashes match, and no protected file is staged. Production, semantic-audit, durable accounting/recovery and provider-route source hashes remain unchanged. Section 15 and the original digest-blocker JSON remain historical evidence.
+
+Evidence: [`document-provenance-20261022/independent-postgres-verification.json`](document-provenance-20261022/independent-postgres-verification.json), `database-source-hmac-preflight.json`, red/green receipts and logs, focused JUnit/log, affected-journey logs, browser-startup receipt, complete exact-code-candidate CI receipt, provider-free budget-boundary probe/receipt, preservation/resources receipt and replayable non-paid probes. The original red/green/Python logs are archived byte-for-byte as `.log.gz`; `raw-log-archives.json` verifies their hashes and decompression round trips. All acceptance claims are scoped above; fixture success does not prove real-model semantics. **Single next action: implement and provider-free verify the identified shared pre-dispatch admission mechanism with verified provider charge bounds before seeking paid approval.** PR remains Draft.

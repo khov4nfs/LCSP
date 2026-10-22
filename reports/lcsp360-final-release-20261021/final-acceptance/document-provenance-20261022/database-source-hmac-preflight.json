@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-10-22T09:03:49.548Z",
+  "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
+  "paidModelCalls": 0,
+  "status": "PASS",
+  "database": {
+    "name": "lcsp360_document_preflight_7a02137e7775",
+    "hostPort": 55503,
+    "container": "lcsp360-source-digest-20261022-pg-55503",
+    "isolatedFromHistoricalPort": 55441
+  },
+  "preflightRunId": "2e07850a-4f00-416b-8bc0-dc225b634230",
+  "sourceVersionId": "04c26c33-a408-45a4-aa09-0ce1728ca98c",
+  "chunks": 15,
+  "documentSourceBinding": {
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "documentRowId": "9c2b5412-2e17-4864-979c-df68cc16677f",
+    "sourceVersionId": "04c26c33-a408-45a4-aa09-0ce1728ca98c",
+    "sourceFileSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "persistedDocumentSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "fixtureName": "document-preflight-1792659826070",
+    "fixtureNameSha256": "76623909f6f4f6a1ad6f58026766f1331d6a3cc556e7fd70cc9975a60f596fc6",
+    "sourceBytes": 1185,
+    "matchesOriginalBytes": true,
+    "differsFromName": true,
+    "allChunkReferencesMatch": true
+  },
+  "canonicalChunkEffects": true,
+  "provenanceReferences": true,
+  "chunkHashes": true,
+  "legalSourceVersionId": "04c26c33-a408-45a4-aa09-0ce1728ca98c",
+  "materializationId": "2924ffb8a2bb46adc64f5765b1a5f8d3d6d56be73445e988f11705c2e1656e79",
+  "graphNodes": 20,
+  "statuses": [
+    "EFFECTIVE"
+  ],
+  "sourceSupportHashesVerified": 18,
+  "receipt": {
+    "sourceNodeId": "d7c1f057ac91d4f63cb5c410386d614405c31f58f287360b8aa2f694cddbe07e",
+    "verdict": "NOT_EVALUATED",
+    "purpose": "HMAC_PREFLIGHT_ONLY",
+    "attestation": "hmac-sha256:2b6abd959a7469e41105e7d99ca387cb83e2f9e50c82f9b1364d7d6f0bed5bb6"
+  },
+  "hmacRoundTrip": true,
+  "tamperRejected": true,
+  "wrongRunRejected": true,
+  "independentNodeHmac": true,
+  "keyFingerprint": "85cfe10df962b69f656dc8ce0383e3e3f82a0a2633327bc4d6ed3105c95072d7",
+  "keySource": "ephemeral random preflight key shared through API/worker environment",
+  "unauthenticatedWorkerRequestRejected": true,
+  "ruleSetVersions": 0,
+  "semanticAuditRows": 0,
+  "semanticAcceptance": "NOT_EVALUATED"
+}
