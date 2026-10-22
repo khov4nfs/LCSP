@@ -1,4 +1,5 @@
 """Reviewed synthetic obligations and source facts for Root semantic evaluation."""
+import base64
 import json
 import sys
 from vertical.scripted_preparation import build_packet, DOC
@@ -108,7 +109,9 @@ def fixture(mode):
     # The integrity validator requires every leaf in the seeded legal_source to be covered.
     # Keep only chunks this focused one-rule packet actually cites.
     locators = [locator for locator in locators if locator in referenced_locators]
-    return {"documentId":DOC,"hashes":hashes,"chunks":[{"locator":l,"content":text,"contentSha256":hashes[l]} for l in locators],"packet":packet,"files":files,"fixture":mode,
+    return {"documentId":DOC,"sourceSha256":hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "sourceBytesBase64":base64.b64encode(text.encode("utf-8")).decode("ascii"),
+            "hashes":hashes,"chunks":[{"locator":l,"content":text,"contentSha256":hashes[l]} for l in locators],"packet":packet,"files":files,"fixture":mode,
             # Ownership may be documented in the repository or supplied as a confirmed human fact.
             "assessability": {"LR-PERSON": "MIXED"} if mode in {"source-answerable", "human"} else {},
             "semanticFrames": {"LR-PERSON": {

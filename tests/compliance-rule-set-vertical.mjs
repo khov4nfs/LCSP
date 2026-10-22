@@ -61,16 +61,21 @@ const { q, base, post, get, stop, seedLegalSource, activateLegalSource } = await
 
 try {
   // ---- seed: two pinned corpora (B changes art-5::cl-1) with valid retrieval indexes -------------
-  const seed = (name, variant, status) =>
-    seedLegalSource({
+  const seed = (name, variant, status) => {
+    const sourceBytes = Buffer.from(LOCATORS.map((locator) => contentFor(locator, variant)).join("\n") + "\n", "utf8");
+    const lines = sourceBytes.toString("utf8").split("\n");
+    return seedLegalSource({
       name,
       status,
       documentId: DOC,
-      chunks: LOCATORS.map((locator) => {
-        const content = contentFor(locator, variant);
+      sourceBytes,
+      sourceSha256: contentHash(sourceBytes),
+      chunks: LOCATORS.map((locator, index) => {
+        const content = lines[index];
         return { locator, content, contentSha256: contentHash(content) };
       }),
     });
+  };
   // Every Legal Source is ACTIVE (ACTIVE) when its activation event arrives; each scenario below
   // that needs its own automatic preparation gets its own source, since one source has one run.
   let sourceCounter = 0;

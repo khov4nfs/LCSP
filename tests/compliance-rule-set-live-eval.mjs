@@ -125,7 +125,8 @@ async function gradeControl(runId, id) {
 }
 
 try {
-  const legalSourceId = await stack.seedLegalSource({ name: `live-${control ?? "synthetic-v1"}`, status: "ACTIVE", documentId: fixture.documentId, chunks: fixture.chunks });
+  const legalSourceId = await stack.seedLegalSource({ name: `live-${control ?? "synthetic-v1"}`, status: "ACTIVE", documentId: fixture.documentId, chunks: fixture.chunks,
+    sourceBytes: Buffer.from(fixture.sourceBytesBase64, "base64"), sourceSha256: fixture.sourceSha256 });
   const started = await stack.activateLegalSource(legalSourceId);
   const runId = started.preparationRunId;
   const usageFile = path.join(mkdtempSync(path.join(outDir, `${stem}.usage-`)), "usage.json");

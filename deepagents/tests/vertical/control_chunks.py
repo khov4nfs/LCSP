@@ -5,6 +5,7 @@ usage: control_chunks.py <control-id>   (source: tests/fixtures/semantic-control
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import sys
@@ -25,6 +26,7 @@ def main() -> None:
     print(json.dumps({
         "documentId": control,
         "sourceSha256": hashlib.sha256(data).hexdigest(),
+        "sourceBytesBase64": base64.b64encode(data).decode("ascii"),
         "chunks": [
             {"locator": c["locator"], "content": c["content"], "contentSha256": c["contentSha256"], "hierarchy": c.get("hierarchy", {})}
             for c in result["chunks"]

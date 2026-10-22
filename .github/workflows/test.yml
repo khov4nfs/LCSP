@@ -460,7 +460,9 @@ jobs:
           retention-days: 7
 
       - name: Compliance Rule Set vertical
-        run: node tests/compliance-rule-set-vertical.mjs
+        run: |
+          node --test tests/source-document-provenance.integration.mjs
+          node tests/compliance-rule-set-vertical.mjs
 
       - name: Assessment Root and same-thread Human Resolution verticals
         run: |

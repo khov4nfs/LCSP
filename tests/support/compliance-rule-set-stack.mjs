@@ -107,7 +107,12 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   const get = (route, key = workerKey) => call("GET", route, undefined, key);
 
   /** Seeds one pinned legalSource (document + chunks + VALID retrieval index). chunks: {locator, content, contentSha256}. */
-  async function seedLegalSource({ name, status, documentId, chunks }) {
+  async function seedLegalSource({ name, status, documentId, chunks, sourceBytes, sourceSha256 }) {
+    assert.ok(Buffer.isBuffer(sourceBytes), "sourceBytes must contain the original document bytes");
+    assert.equal(typeof sourceSha256, "string", "sourceSha256 is required");
+    assert.match(sourceSha256, /^(?:sha256:)?[a-f0-9]{64}$/, "sourceSha256 must be a SHA-256 digest");
+    const canonicalSourceDigest = sourceSha256.startsWith("sha256:") ? sourceSha256 : `sha256:${sourceSha256}`;
+    assert.equal(canonicalSourceDigest, contentHash(sourceBytes), "sourceSha256 must match the original source bytes");
     const legalSourceId = randomUUID();
     await q(
       `INSERT INTO "LegalSourceVersion"(id, version, status, "sourceManifest") VALUES ($1,$2,$3::"LegalSourceLifecycleStatus",'{}')`,
@@ -117,7 +122,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
     await q(
       `INSERT INTO "LegalSourceDocument"(id,"legalSourceVersionId","documentId",title,"sourceUrl","sourceSha256","sourceEffectStatus")
        VALUES ($1,$2,$3,'Synthetic notice','https://example.invalid/n',$4,'IN_FORCE')`,
-      [documentRow, legalSourceId, documentId, contentHash(name)],
+      [documentRow, legalSourceId, documentId, canonicalSourceDigest],
     );
     for (const chunk of chunks) {
       await q(
