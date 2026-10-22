@@ -1,0 +1,91 @@
+{
+  "checkedAt": "2026-10-22T10:47:49.786584+00:00",
+  "candidateSha": "1ed318e4257d93b7ea89973832afedad766a036a",
+  "status": "BLOCKED",
+  "firstUnresolvedGate": "VERIFIED_ACCOUNT_CHARGE_AND_TOKEN_BOUND_CONTRACTS",
+  "verifiedProductionPolicies": 0,
+  "providerInferenceRequests": 0,
+  "authorization": "NONE",
+  "routes": [
+    {
+      "provider": "miraiapi",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-5",
+      "routeIds": [
+        "primary",
+        "semantic-primary"
+      ],
+      "authoritativePublicSource": "https://miraiapi.com/usage/",
+      "observedFacts": "Public UI describes quota consumption as (input + 5 * output) times a model ratio. Quota is not a USD charge contract.",
+      "missing": [
+        "Account-specific quota-to-USD conversion and all gateway charges",
+        "Cache/read/write and reasoning accounting guarantees",
+        "Strict all-request charged-token upper bounds, minimum fees/rounding and effective contract validity"
+      ],
+      "verifiedPolicyFingerprint": null,
+      "effectiveDate": "NOT_ESTABLISHED",
+      "admission": "DENIED_UNKNOWN_TARIFF"
+    },
+    {
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "routeIds": [
+        "fallback"
+      ],
+      "authoritativePublicSource": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+      "observedFacts": "Official announcement lists standard input/output tariffs plus a launch promotion and a 260K context size. This is insufficient proof of the exact account contract and strict charged-input bound.",
+      "missing": [
+        "Account/promotion applicability and effective period",
+        "Cache/write/reasoning billing and fees/rounding completeness",
+        "Guaranteed charged-token bound covering serialized tools/system/overhead and failed requests"
+      ],
+      "verifiedPolicyFingerprint": null,
+      "effectiveDate": "NOT_ESTABLISHED_FOR_ACCOUNT",
+      "admission": "DENIED_UNKNOWN_TARIFF"
+    },
+    {
+      "provider": "google_genai",
+      "protocol": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "routeIds": [
+        "fallback-01"
+      ],
+      "authoritativePublicSource": "https://ai.google.dev/gemini-api/docs/pricing",
+      "observedFacts": "Official Standard schedule lists input, output including thinking, cache-read and cache-storage prices; other tiers differ. The exact configured accounts/tier and complete charging-bound contract remain unverified.",
+      "missing": [
+        "Every credential account/tier binding and effective billing contract",
+        "Complete charging rules including caching duration and any other enabled features",
+        "Guaranteed all-request input/cache and output/reasoning limits suitable for pre-dispatch reservation"
+      ],
+      "verifiedPolicyFingerprint": null,
+      "effectiveDate": "NOT_ESTABLISHED_FOR_ACCOUNT",
+      "admission": "DENIED_UNKNOWN_TARIFF"
+    },
+    {
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "routeIds": [
+        "fallback-02",
+        "semantic-final"
+      ],
+      "authoritativePublicSource": "https://apmix.ai/pricing",
+      "observedFacts": "Official page describes plans, weighted-token multipliers, taxes/top-ups and a one-time free allowance for this model. A free model name does not establish an account-specific zero-charge guarantee.",
+      "missing": [
+        "Configured credential accounts and binding zero-dollar/plan/multiplier/overage terms",
+        "Cache/reasoning/fee/rounding completeness",
+        "Strict charged-token bounds and contract effective dates"
+      ],
+      "verifiedPolicyFingerprint": null,
+      "effectiveDate": "NOT_ESTABLISHED_FOR_ACCOUNTS",
+      "admission": "DENIED_UNKNOWN_TARIFF"
+    }
+  ],
+  "policyContract": "RunBudget schema 2 pins each reviewed ChargePolicy and random credential salt. Exact USD rates, fixed/minimum/rounding charges and strict provider hard token bounds are required. Complex or incomplete tariffs are not approximated as actual charges. No real ChargePolicy was fabricated.",
+  "sdkAttemptCorrection": "Configured Google max_retries=1 is total attempts=1, not one retry. Native sync/async mock-HTTP tests verify one physical request for all three protocol families. Bounded Google calls explicitly disable automatic function calling and force one candidate; OpenAI-compatible calls force n=1.",
+  "nextAction": "Obtain and independently verify complete account-specific charging and strict token-bound contracts for all configured routes, starting with Mirai; pin approved policy evidence before paid authorization.",
+  "reviewedOnSha": "af28dff97a8952572c87215d607dfac57cdc1570",
+  "routingUnchangedSinceReview": true,
+  "reviewFingerprint": "b9ef8499378a59bf4af464f9f5d7f0b6f2821587672a9047a481b571312050c3"
+}

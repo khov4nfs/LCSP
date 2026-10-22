@@ -1,0 +1,51 @@
+[
+  {
+    "rawFile": "frozen-focused-tests.log",
+    "archive": "frozen-focused-tests.log.gz",
+    "bytes": 64868,
+    "sha256": "770bc42aec17156bb348a3c33f7fece8c6068934e717877343f7ebc7c68cb390",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "final-v2-bound-tests.log",
+    "archive": "final-v2-bound-tests.log.gz",
+    "bytes": 9823,
+    "sha256": "2706ef7e2be121d4821a48a61ca9f18eeb50058e391318b7d7130a24be22b8c4",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "ci-sdk-transport-fixed.log",
+    "archive": "ci-sdk-transport-fixed.log.gz",
+    "bytes": 3415,
+    "sha256": "c0049d338c1390e379a80c705d1fbadc5fdc6d4f8ff18c3af101f6dad3607b7f",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "python-worker-initial-failure.log",
+    "archive": "python-worker-initial-failure.log.gz",
+    "bytes": 544032,
+    "sha256": "0bf543fc98e354c55d50c16f1bdf188d08504efe226f54561f307f5499098ac5",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "final-rehearsal.log",
+    "archive": "final-rehearsal.log.gz",
+    "bytes": 7514,
+    "sha256": "fa4a47ad9a559abb01bfd9b9315cd1d654401aaa9d702a8dadaef8cd4c1fc2e9",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "reconciled-focused-tests.log",
+    "archive": "reconciled-focused-tests.log.gz",
+    "bytes": 65342,
+    "sha256": "7bff70f70b620eac93c78488b8009777ec8e27390ce50f16ea798968df882477",
+    "roundTrip": "PASS"
+  },
+  {
+    "rawFile": "reconciled-rehearsal.log",
+    "archive": "reconciled-rehearsal.log.gz",
+    "bytes": 7514,
+    "sha256": "6bb01b3e61a1b19d1df2ce44295015d6d7a2202b1d34fda63cc8c60c9d435913",
+    "roundTrip": "PASS"
+  }
+]

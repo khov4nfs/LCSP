@@ -4,10 +4,10 @@
   "status": "BLOCKED",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
-  "freezeRef": "refs/lcsp360/document-provenance-20261022",
-  "firstFailedGate": "SHARED_PAID_INFERENCE_ADMISSION",
-  "blockerReceipt": "../document-provenance-20261022/budget-boundary.json",
+  "candidateSha": "1ed318e4257d93b7ea89973832afedad766a036a",
+  "freezeRef": "refs/lcsp360/paid-admission-reconciled-20261022",
+  "firstFailedGate": "VERIFIED_ACCOUNT_CHARGE_AND_TOKEN_BOUND_CONTRACTS",
+  "blockerReceipt": "../paid-admission-20261022/tariff-review.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -35,7 +35,10 @@
         "model": "claude-sonnet-5",
         "protocol": "anthropic",
         "credentialSlots": 1,
-        "sdkMaxRetries": 0
+        "sdkMaxRetries": 0,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback",
@@ -43,7 +46,10 @@
         "model": "mercury-2.5",
         "protocol": "openai",
         "credentialSlots": 14,
-        "sdkMaxRetries": 0
+        "sdkMaxRetries": 0,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback-01",
@@ -51,7 +57,10 @@
         "model": "gemini-3.5-flash-lite",
         "protocol": "google_genai",
         "credentialSlots": 6,
-        "sdkMaxRetries": 1
+        "sdkMaxRetries": 1,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback-02",
@@ -59,7 +68,10 @@
         "model": "claude-sonnet-4-6-free",
         "protocol": "anthropic",
         "credentialSlots": 9,
-        "sdkMaxRetries": 0
+        "sdkMaxRetries": 0,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       }
     ],
     "legal-semantic-auditor": [
@@ -69,7 +81,10 @@
         "model": "claude-sonnet-5",
         "protocol": "anthropic",
         "credentialSlots": 1,
-        "sdkMaxRetries": 0
+        "sdkMaxRetries": 0,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback",
@@ -77,7 +92,10 @@
         "model": "mercury-2.5",
         "protocol": "openai",
         "credentialSlots": 14,
-        "sdkMaxRetries": 0
+        "sdkMaxRetries": 0,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback-01",
@@ -85,7 +103,10 @@
         "model": "gemini-3.5-flash-lite",
         "protocol": "google_genai",
         "credentialSlots": 6,
-        "sdkMaxRetries": 1
+        "sdkMaxRetries": 1,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "semantic-final",
@@ -93,7 +114,10 @@
         "model": "claude-sonnet-4-6-free",
         "protocol": "anthropic",
         "credentialSlots": 9,
-        "sdkMaxRetries": 0
+        "sdkMaxRetries": 0,
+        "maximumPhysicalSdkAttempts": 1,
+        "verifiedProductionChargePolicy": null,
+        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
       }
     ]
   },
@@ -138,27 +162,33 @@
     "quotaIsAuthorization": false
   },
   "enforcement": {
-    "status": "BLOCKED",
+    "status": "OFFLINE_ADMISSION_PASS_REAL_POLICY_BLOCKED",
     "existing": [
       "Worker SIGKILL timeout waits for exit before durable SQLite recovery",
       "Duplicate run claim exits before model construction",
       "Novelty/no-progress guard and unchanged deterministic/semantic rejection gates",
-      "Per-provider configured SDK retry/output settings and governed fallback"
+      "Per-provider configured SDK retry/output settings and governed fallback",
+      "Immutable run budget plus durable SQLite ADMITTED/IN_FLIGHT/SETTLED/OUTCOME_UNKNOWN/DENIED records in the existing usage journal",
+      "BEGIN IMMEDIATE and synchronous=FULL pre-dispatch call/input/output/maximum-charge reservation, including concurrent processes",
+      "Terminal admission denial fences application retry/credential rotation/provider fallback; unanswered attempts retain exposure",
+      "Salted PBKDF2 credential binding, actual SDK/account/endpoint/version fingerprints and native output caps; bounded Google AFC disabled",
+      "Idempotent late settlement and crash reconciliation from committed usage evidence; old policy versions retained without repricing"
     ],
     "notPresent": [
-      "Shared pre-dispatch attempt/token/spending reservation over Producer, Auditor, source reader, summarization, SDK retries and fallback",
-      "Frozen provider tariff/settlement evidence for actual-cost reconciliation",
-      "Global/per-stage deadline supervision and process-tree/resource/output-allocation ceilings described by this proposal"
+      "Verified real account/provider charging contracts and all-request hard input/cache/output/reasoning bounds for every configured route",
+      "Approved paid ceilings and production ChargePolicy evidence fingerprints",
+      "Global/per-stage deadline supervision and process-tree/resource ceilings proposed by the envelope still need execution-time verification"
     ],
     "requirements": [
-      "Document-byte contract repaired and independently verified on the frozen candidate; archived failed databases/receipts remain unchanged",
-      "Before paid approval becomes executable, implement/reuse and provider-free verify shared admission controls. Completion-only callbacks are not a hard spending cap",
-      "Pre-reserve worst-case admitted input/cache/output cost, count attempts atomically and fail closed before exceeding approved ceilings; unavailable tariff/usage must block further dispatch",
-      "Budget exhaustion is terminal failure, never an accepted inventory or fabricated semantic verdict. Do not use generic forced-finalize prompting to bypass legal completion."
+      "Document/source-byte gate remains passed and source/semantic/route/dependency inputs unchanged",
+      "Pin independently reviewed exact account/route/endpoint/SDK ChargePolicy evidence; unknown tariffs or strict token bounds deny dispatch",
+      "Input reservation uses the full provider-guaranteed charged-input bound, never the local estimator; output/native reasoning/candidate limits must be covered by that contract",
+      "Only complete authoritative usage buckets and exact verified charging rules may refund unused capacity; unknown or contradictory outcomes retain conservative exposure and terminate on bound breach",
+      "No paid execution without separate explicit authorization; quota or an offline fixture policy is not authorization"
     ],
-    "productionCodeChanged": false,
-    "identifiedReusePoint": "Run-scoped atomic admission/reservation at UsageMeteringMiddleware before sync/async downstream handlers; metering is innermost under application retries, credential rotation and provider fallback. SDK-internal retries also need attempt-level interception or a verified conservative reservation upper bound before a financial cap can be claimed.",
-    "providerFreeDiagnostic": "../document-provenance-20261022/budget-boundary.json: 3 synthetic downstream attempts, 2 committed responses; completion accounting is not admission"
+    "productionCodeChanged": true,
+    "identifiedReusePoint": "IMPLEMENTED in UsageMeteringMiddleware and AgentRunState, using the same LiveUsage SQLite file and existing usage recovery connector; no new agent pipeline or customer-credit reservation.",
+    "providerFreeDiagnostic": "../paid-admission-20261022/reconciled-rehearsal/rehearsal.json"
   },
   "isolation": {
     "newOwnedPostgresContainerRequired": true,
@@ -231,8 +261,8 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "Implement and provider-free verify shared pre-dispatch admission with verified provider charge bounds; proposed paid limits remain unapproved and launch stays disabled.",
-  "updatedAt": "2026-10-22T09:06:57.283602+00:00",
+  "nextAction": "Obtain and independently verify complete account-specific charging and strict token-bound contracts for every configured route, starting with Mirai, then pin reviewed policies; no inference is authorized.",
+  "updatedAt": "2026-10-22T10:52:43.055415+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
     "receipt": "document-digest-blocker.json",
@@ -245,10 +275,31 @@
     "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
   },
   "ciCodeCandidate": {
-    "status": "PASS",
-    "sha": "bf3bc2a409944746dc0185b6afa6693b75565089",
-    "checks": 36,
-    "receipt": "../document-provenance-20261022/ci-code-candidate.json",
-    "evidencePublicationHead": "Must pass its own push-triggered checks; exact SHA/results recorded in PR checkpoint comment"
+    "status": "PUBLICATION_HEAD_CHECKS_REQUIRED",
+    "historicalReceipt": "../document-provenance-20261022/ci-code-candidate.json",
+    "note": "Prior 38 checks do not prove these changes. Fresh exact publication HEAD status and links are recorded in the PR checkpoint comment."
+  },
+  "previousAdmissionCheckpoint": {
+    "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
+    "status": "NOT_IMPLEMENTED",
+    "receipt": "../document-provenance-20261022/budget-boundary.json",
+    "historicalReportSection": 16
+  },
+  "admissionImplementation": {
+    "schemaVersion": 2,
+    "sourceCandidate": "1ed318e4257d93b7ea89973832afedad766a036a",
+    "initialCommit": "f9f189040d456afdb621f0269b483a700262b3c8",
+    "credentialSecurityAndSdkFix": "af28dff97a8952572c87215d607dfac57cdc1570",
+    "tests": "445 final focused tests, including 65 admission cases; 6 isolated newer-SDK transport cases",
+    "realPricingPolicies": 0,
+    "ledger": "same usage.json.sqlite3; immutable inference_budgets + inference_attempts tables",
+    "credentialSalt": "A fresh random 32-byte salt is required in an approved run envelope; published c*64 values are offline fixtures only",
+    "configurationKeys": [
+      "LCSP_LIVE_BUDGET_FILE",
+      "LCSP_LIVE_BUDGET_SHA256"
+    ],
+    "launchEnabled": false,
+    "providerPricingReceipt": "../paid-admission-20261022/tariff-review.json",
+    "cacheReconciliation": "Normalized OpenAI-compatible gateway cache buckets subtracted once; independent journal arithmetic verifies synthetic settlements"
   }
 }

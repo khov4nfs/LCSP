@@ -1,0 +1,104 @@
+{
+  "environment": {
+    "PYTHON_DOTENV_DISABLED": "1",
+    "PYTHONPATH": "deepagents:deepagents/tests"
+  },
+  "initialFocused": {
+    "argv": [
+      "deepagents/.venv/bin/python",
+      "-m",
+      "pytest",
+      "deepagents/tests/test_paid_admission.py",
+      "deepagents/tests/test_usage_metering.py",
+      "deepagents/tests/test_usage_telemetry.py",
+      "deepagents/tests/test_live_preparation_usage.py",
+      "deepagents/tests/test_provider_fallback.py",
+      "deepagents/tests/test_token_fallback.py",
+      "deepagents/tests/test_runtime_control.py",
+      "deepagents/tests/test_typed_auth_failure_policy.py",
+      "deepagents/tests/test_model_unavailable_failure_policy.py",
+      "deepagents/tests/test_output_cap_reaches_provider.py",
+      "deepagents/tests/test_rule_set_preparation_governance.py",
+      "deepagents/tests/test_semantic_auditor.py",
+      "deepagents/tests/test_anthropic_stream_usage.py",
+      "-q",
+      "--tb=short",
+      "--junitxml=reports/lcsp360-final-release-20261021/final-acceptance/paid-admission-20261022/frozen-focused-tests.xml"
+    ],
+    "sourceCandidate": "f9f189040d456afdb621f0269b483a700262b3c8",
+    "exit": 0,
+    "tests": 441
+  },
+  "finalAdmission": {
+    "argv": [
+      "deepagents/.venv/bin/python",
+      "-m",
+      "pytest",
+      "deepagents/tests/test_paid_admission.py",
+      "-q",
+      "--tb=short",
+      "--junitxml=reports/lcsp360-final-release-20261021/final-acceptance/paid-admission-20261022/final-v2-bound-tests.xml"
+    ],
+    "sourceCandidate": "15402a8cdd6ffeb66775a964b710f498664a791f",
+    "exit": 0,
+    "tests": 64
+  },
+  "newerSdkDiagnostic": {
+    "versions": {
+      "anthropic": "1.17.0",
+      "langchain-anthropic": "1.7.6"
+    },
+    "overlay": "/tmp/lcsp360-ci-sdk-overlay",
+    "argv": [
+      "deepagents/.venv/bin/python",
+      "-m",
+      "pytest",
+      "deepagents/tests/test_paid_admission.py",
+      "-k",
+      "native_sdk",
+      "-q",
+      "--tb=short"
+    ],
+    "exit": 0,
+    "tests": 6,
+    "limitations": "Older local langchain-core remains in overlay diagnostic; two profile warnings retained. Full fresh CI is separate."
+  },
+  "finalRehearsal": {
+    "argv": [
+      "deepagents/.venv/bin/python",
+      "deepagents/tests/vertical/bounded_admission_rehearsal.py",
+      "reports/lcsp360-final-release-20261021/final-acceptance/paid-admission-20261022/reconciled-rehearsal"
+    ],
+    "sourceCandidate": "1ed318e4257d93b7ea89973832afedad766a036a",
+    "exit": 0,
+    "offlineHandlerDispatches": 7,
+    "paidModelCalls": 0
+  },
+  "finalReconciledFocused": {
+    "argv": [
+      "deepagents/.venv/bin/python",
+      "-m",
+      "pytest",
+      "deepagents/tests/test_paid_admission.py",
+      "deepagents/tests/test_usage_metering.py",
+      "deepagents/tests/test_usage_telemetry.py",
+      "deepagents/tests/test_live_preparation_usage.py",
+      "deepagents/tests/test_provider_fallback.py",
+      "deepagents/tests/test_token_fallback.py",
+      "deepagents/tests/test_runtime_control.py",
+      "deepagents/tests/test_typed_auth_failure_policy.py",
+      "deepagents/tests/test_model_unavailable_failure_policy.py",
+      "deepagents/tests/test_output_cap_reaches_provider.py",
+      "deepagents/tests/test_rule_set_preparation_governance.py",
+      "deepagents/tests/test_semantic_auditor.py",
+      "deepagents/tests/test_anthropic_stream_usage.py",
+      "-q",
+      "--tb=short",
+      "--junitxml=reports/lcsp360-final-release-20261021/final-acceptance/paid-admission-20261022/reconciled-focused-tests.xml"
+    ],
+    "sourceCandidate": "1ed318e4257d93b7ea89973832afedad766a036a",
+    "exit": 0,
+    "tests": 445,
+    "admissionCases": 65
+  }
+}

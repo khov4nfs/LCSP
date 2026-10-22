@@ -1,0 +1,41 @@
+{
+  "checkedAt": "2026-10-22T10:37:34.518858+00:00",
+  "candidateSha": "f9f189040d456afdb621f0269b483a700262b3c8",
+  "protectedWipSha256": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "unchangedProvenanceSemanticRoutesAndDependencies": {
+    "deepagents/tests/fixtures/compliance_rule_set_context/synthetic-notice-v1.txt": true,
+    "tests/support/compliance-rule-set-stack.mjs": true,
+    "deepagents/rule_set_preparation/semantic_audit.py": true,
+    "deepagents/rule_set_preparation/source_graph.py": true,
+    "deepagents/config/model_routes.yaml": true,
+    "deepagents/pyproject.toml": true,
+    "deepagents/uv.lock": true
+  },
+  "historicalContainers": [
+    {
+      "name": "lcsp360-final-20261022-pg-55502",
+      "id": "0ecb45ba3ef9a1204c883ad327df8c2fe5b364aec0026df6da651a94516997ab",
+      "state": "exited"
+    },
+    {
+      "name": "lcsp360-source-digest-20261022-pg-55503",
+      "id": "d39477b4dc0e92f871856796aaf5142d73a83f7ba8465ccb6f5c10232b2037db",
+      "state": "exited"
+    }
+  ],
+  "historical55441": "NOT_STARTED_OR_QUERIED",
+  "historical55502and55503": "NOT_STARTED_OR_MODIFIED",
+  "freeDiskBytes": 16242290688,
+  "newDockerResources": [],
+  "deletedResources": [],
+  "newDatabases": [],
+  "testResources": "Isolated task-owned SQLite files only",
+  "paidModelCalls": 0,
+  "paidTokens": 0,
+  "paidCostUSD": 0,
+  "historicalUsageAndCost": "UNAVAILABLE"
+}
