@@ -2,19 +2,6 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 
-function resolveComponent(comp: unknown) {
-  let current = comp;
-  while (current && typeof current === "object" && "default" in current) {
-    current = (current as { default: unknown }).default;
-  }
-  return typeof current === "function" || typeof current === "string"
-    ? current
-    : "img";
-}
-
-const ImageComponent = resolveComponent(Image) as React.ElementType;
-
-
 import {
   LCSP_LOGO_SIZES,
   LCSP_LOGO_VARIANTS,
@@ -74,7 +61,7 @@ export function LCSPLogo({
       style={{ width: dimensions.width, height: dimensions.height }}
       {...accessibilityProps}
     >
-      <ImageComponent
+      <Image
         src={asset.light}
         width={asset.width}
         height={asset.height}
@@ -83,7 +70,7 @@ export function LCSPLogo({
         unoptimized
         className="absolute inset-0 block size-full dark:hidden"
       />
-      <ImageComponent
+      <Image
         src={asset.dark}
         width={asset.width}
         height={asset.height}

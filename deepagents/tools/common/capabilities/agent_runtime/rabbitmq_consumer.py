@@ -300,7 +300,12 @@ def _reconcile_local_agent_server_stale_runs(
 ) -> None:
     """Clear persisted local-dev runs that predate the current Agent Server process."""
     server_url = os.getenv("LCSP_AGENT_SERVER_URL", DEFAULT_AGENT_SERVER_URL).rstrip("/")
-    default_enabled = server_url.startswith(("http://127.0.0.1:", "http://localhost:"))
+    production = (
+        os.getenv("LCSP_AGENT_RUNTIME_MODE", "").strip().lower() == "production"
+        or os.getenv("NODE_ENV", "").strip().lower() == "production"
+    )
+    # The production server restores durable runs itself; dev reconciliation would interrupt them.
+    default_enabled = not production and server_url.startswith(("http://127.0.0.1:", "http://localhost:"))
     if not _read_bool(
         "LCSP_AGENT_RUNTIME_RECONCILE_STALE_RUNS",
         default_enabled,

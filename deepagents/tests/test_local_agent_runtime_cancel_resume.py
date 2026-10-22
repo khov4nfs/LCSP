@@ -37,6 +37,44 @@ def _runtime_with_graph(graph: FakeGraph) -> local_server.LocalAgentRuntime:
     return runtime
 
 
+def test_production_recovery_resumes_saved_superstep_once_and_preserves_stopped_runs():
+    from langgraph.store.memory import InMemoryStore
+    store = InMemoryStore()
+    for status in ("running", "success", "error", "interrupted"):
+        store.put((local_server.RUN_NAMESPACE, "restore-" + status), status, {
+            "run": {"thread_id": "restore-" + status, "run_id": status, "status": status,
+                    "created_at": "2026-01-01T00:00:00Z", "metadata": {}},
+            "payload": {"input": {"messages": ["original input must not be appended again"]}},
+        })
+    graph = FakeGraph(chunks=[{"restored": True}], pending_next=("continue",))
+    original_get_state = graph.get_state
+    def saved_state(config):
+        snapshot = original_get_state(config)
+        snapshot.metadata = {"lcsp_runtime_run_id": "running"}
+        return snapshot
+    graph.get_state = saved_state
+    first = local_server.LocalAgentRuntime(store=store)
+    first.graph = graph
+    try:
+        first._restore_runs()
+        for future in first._run_futures.values():
+            future.result(timeout=5)
+        assert len(graph.stream_calls) == 1
+        assert graph.stream_calls[0][0] is None
+        for status in ("success", "error", "interrupted"):
+            assert first.get_run("restore-" + status, status)["status"] == status
+    finally:
+        first.close()
+    second = local_server.LocalAgentRuntime(store=store)
+    second.graph = graph
+    try:
+        second._restore_runs()
+        assert second._run_futures == {}
+        assert len(graph.stream_calls) == 1
+    finally:
+        second.close()
+
+
 def test_run_graph_returns_last_streamed_chunk_when_not_interrupted() -> None:
     graph = FakeGraph(chunks=[{"messages": [1]}, {"messages": [1, 2]}])
     runtime = _runtime_with_graph(graph)
