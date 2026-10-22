@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.10.6 AS uv
+FROM ghcr.io/astral-sh/uv:0.10.12 AS uv
 
 FROM python:3.11-slim-trixie
 
