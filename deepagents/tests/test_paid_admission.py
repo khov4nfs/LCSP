@@ -513,6 +513,7 @@ def test_every_configured_route_uses_single_attempt_and_native_output_cap(tmp_pa
     seen = []
     invoke(state, model, lambda r: (seen.append(r.model_settings), answer())[1])
     assert len(seen) == 1
+    assert snapshot(state)["chargeExposureNanoUSD"] == policy_for(model).charge(10, 2, 1, 3, 1)
     if model_route_config(model).protocol == "google_genai":
         assert seen[0]["max_retries"] == 1 and seen[0]["max_output_tokens"] == 65536
         prepared = model._prepare_request([HumanMessage("offline")], **seen[0])["config"]
@@ -520,6 +521,13 @@ def test_every_configured_route_uses_single_attempt_and_native_output_cap(tmp_pa
         assert prepared.automatic_function_calling.disable
     else:
         assert seen[0]["max_tokens"] > 0
+
+
+def test_openai_gateway_normalization_counts_cache_buckets_once():
+    model = native("fallback")
+    usage = usage_metering.extract_provider_usage(answer(), model)
+    assert (usage["inputTokens"], usage["cachedInputTokens"], usage["cacheWriteTokens"]) == ("10", "2", "1")
+    assert sum(int(usage[k]) for k in ["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"]) == int(usage["totalTokens"])
 
 
 @pytest.mark.parametrize("route", ["primary", "fallback", "fallback-01"])

@@ -1138,9 +1138,10 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
     cached_input = int(result.get("cachedInputTokens", "0"))
     cache_write = int(result.get("cacheWriteTokens", "0"))
     provider, _ = provider_identity(model, response)
-    # LangChain Anthropic totals include cache slices; raw Anthropic usage excludes them.
+    # LangChain totals include cache slices for native and gateway protocols;
+    # raw Anthropic usage excludes them.
     if provider in {"OPENAI", "GOOGLE_GENAI"} or (
-        model_protocol(model) == "anthropic" and normalized
+        model_protocol(model) in {"anthropic", "openai"} and normalized
     ):
         if cached_input + cache_write > input_tokens:
             return None
