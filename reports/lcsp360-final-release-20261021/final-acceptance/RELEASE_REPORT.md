@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**RELEASE BLOCKED; PREFLIGHT_READY (non-paid checks)** — durable token accounting is repaired and verified on `9cf033e099225300ffe98247eb3717e254a79232`. No fresh real-model evaluation was dispatched. PR remains Draft; current CI/security and real-model/staging acceptance remain release gates.
+**BLOCKED** — the 2026-10-22 final release attempt stopped at Trivy policy on `bca42bfe7a109f30f7014e5eac11237617692a6a`: locked `pypdf 6.20.1` is flagged for CVE-2026-113786 (patched in `6.21.1`). Trustabl is repaired and passes. No fresh real-model evaluation was dispatched. PR remains Draft; see section 13.
 
 - Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
@@ -105,7 +105,8 @@ Staging image/browser verification has **not run for the recovered candidate**. 
 
 ## 7. Remaining release blockers
 
-1. The original live evaluation timed out before freeze and activation. The seeder defect and subsequent durable-accounting preflight blocker are fixed; non-paid preflight passes on `9cf033e09` (section 12). Real-model semantic/runtime acceptance remains unproven. The latest instruction explicitly prohibits starting evaluation, staging or deployment; none was started.
+0. Current first failed gate: Trivy policy, `pypdf` CVE-2026-113786. The latest attempt stopped before candidate freeze or model dispatch (section 13). Earlier non-paid readiness does not establish current release readiness.
+1. The original live evaluation timed out before freeze and activation. The seeder defect and subsequent durable-accounting preflight blocker are fixed; historical non-paid preflight passed on `9cf033e09` (section 12). Real-model semantic/runtime acceptance remains unproven. The latest conditional evaluation authorization stopped at Trivy policy before dispatch (section 13).
 2. After semantic/runtime acceptance passes (CI/security now pass), build stable release images and complete disposable staging/browser verification with the repository tooling. Do not use production secrets.
 3. Token usage for the aborted run cannot be recovered from the retained artifacts. Canonical usage remains unavailable; do not invent totals.
 
@@ -208,3 +209,27 @@ Diagnostic Preparation row `bcc4449a-945f-4362-a68e-14b548fcc146` was used only 
 CI/security workflows for `9cf033e09` are in progress at evidence capture; the 39 passing checks on `3768b9abf` are retained historical evidence, not current-head proof. No smoke matrix or manual CI rerun was launched. PR remains Draft.
 
 Evidence directory: `durable-token-accounting/`. `preflight-summary.json` pins source/WIP hashes and limitations; source/HMAC/database, provider quota/catalog and reconciliation receipts are separate JSONs. Focused JUnit reports, timeout output, replayable non-paid probe sources and the synthetic usage snapshot are retained. All protected WIP hashes match the prior receipt. Release still requires current CI/security, separately authorized real-model acceptance and subsequent release-image/staging/browser acceptance.
+
+## 13. Final acceptance attempt, 2026-10-22 — security preflight stopped
+
+Takeover HEAD: `73018c13527593207f209775ba48abefec008ee0`. Security-fix candidate: `bca42bfe7a109f30f7014e5eac11237617692a6a`. The user authorized one bounded real-model evaluation only after all gates pass, and required stopping at the first preflight/acceptance failure. **No candidate was frozen for evaluation and no model was dispatched.**
+
+**Root cause — Trustabl (fixed):** Alert [#82](https://github.com/khov4nfs/LCSP/security/code-scanning/82), LC-019, identified the 27-character description on `fixture_tool` in `test_live_preparation_usage.py`. This new resampling fixture omitted its input/output contract from the description. All other 36 checks passed at takeover, including the scanner job; the separate `trustabl` policy check correctly failed.
+
+**Fix:** The fixture description now states its integer input, string result and provider-free resampling purpose. The affected regression passed (**1 test**). No production semantics, security configuration or alert dismissal changed. On `bca42bfe7`, the `trustabl` policy check [119625733067](https://github.com/khov4nfs/LCSP/runs/119625733067) passed; the PR instance of #82 is fixed.
+
+**Root cause — first subsequent gate failure (unfixed):** Trivy policy check [119625693303](https://github.com/khov4nfs/LCSP/runs/119625693303) flags [alert #85](https://github.com/khov4nfs/LCSP/security/code-scanning/85): `deepagents/uv.lock` selects `pypdf 6.20.1`, within CVE-2026-113786's affected range `<6.21.1`. The upstream [maintainer advisory](https://github.com/py-pdf/pypdf/security/advisories/GHSA-5hx5-vpf9-5wcv) confirms the image-parser selection issue and fix in `6.21.1`. The existing project constraint `pypdf>=5,<7` permits that patched version; the lock has not been updated.
+
+Baseline and applicability: pypdf is absent from the PR base `597f9c72212d5676326e56598e1982319ae1d600`, so this dependency is introduced by the overall PR. Version `6.20.1` was already present in takeover HEAD `73018c135`; the Trustabl description fix did not change the lock. The advisory requires loading image data through optional Pillow. Pillow is absent from the current lock and local Python environment. Release-image applicability was not inspected after this failed gate; no blanket claim of runtime exploitability or non-exploitability is made. The package-version finding remains open; no policy exclusion, severity reduction or dismissal was applied.
+
+**Fix required, not executed under the stop instruction:** Resolve pypdf to a patched version, run focused PDF extraction regressions, and obtain passing required checks on the resulting exact HEAD before repeating preflight. No dependency change, paid evaluation or automatic paid retry followed this failure.
+
+Other observations before stopping:
+
+- Candidate API build passed. The durable-accounting runtime and recovery/harness sources match the prior verified hashes; the only accounting-test change is the fixture description. The protected historical report JSONs and orphan-reconciliation spec retain their hashes.
+- Read-only primary-provider readiness passed: configured Producer/Auditor model advertised, unexpired Mirai key, **4,692,038 quota units remaining**. Configured fallback credentials are present; balances/live-provider behavior remain unverified. No inference endpoint was called.
+- A fresh PostgreSQL container was prepared on loopback **55502**, then stopped after the CI failure. No source or evaluation database was seeded there. Historical **55441** and its evidence were untouched. An unused random HMAC key remains in a private mode-0600 temporary runtime file; no key value is published.
+- Fresh source/HMAC/database preflight execution, real-model workflow/semantics/artifact/API/tenant verification, release-image, staging and browser acceptance were **NOT_RUN** after failure. Rule Set version: **none**; activation: **not reached**; fresh real-model run ID: **none**; new provider calls/tokens: **0**. Historical paid usage remains unavailable.
+- Other current-candidate CI jobs were still running at capture; their eventual success cannot override the failing Trivy policy. No broad local suite or manual CI rerun was launched.
+
+Evidence: `release-20261022/security-takeover.json`, `blocker-summary.json` (exact check IDs/SHAs, baseline and applicability, source/WIP hashes, stop boundary), `upstream-advisory.json`, `provider-readiness.json`, `api-build.log`. Prepared non-paid probe sources are retained but were not executed. PR #427 remains Draft. Status: **BLOCKED**.
