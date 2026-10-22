@@ -1,0 +1,92 @@
+{
+  "capturedAt": "2026-10-22T17:40:45.821026+00:00",
+  "ownedServiceUnitsStopped": [
+    "lcsp360-real-api-20261022.service",
+    "lcsp360-real-web-20261022.service",
+    "lcsp360-real-agent-20261022.service",
+    "lcsp360-real-bridge-20261022.service"
+  ],
+  "containers": [
+    {
+      "name": "lcsp360-real-runtime-20261022-pg-55506",
+      "id": "00ee2248591922bc39bf69030b87bbb0a05282242f0def1bbe3360d5df9d35b3",
+      "status": "exited",
+      "retainedMounts": [
+        {
+          "type": "volume",
+          "name": "0f47475a973317a8b2c843fee627d5b2c609c2375cac72ce9e51c08ba7282d2b",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    {
+      "name": "lcsp360-real-runtime-20261022-rabbit",
+      "id": "bdf0fced0c3e0a94ddcaddabfc4ad2c5f684d336ca7a86c9554d68fc1f302d07",
+      "status": "exited",
+      "retainedMounts": [
+        {
+          "type": "volume",
+          "name": "79ec0bd91da1a8a284c926968716ff7b7523585781958aa058250bbc36c18962",
+          "destination": "/var/lib/rabbitmq"
+        }
+      ]
+    },
+    {
+      "name": "lcsp360-runtime-ready-20261022-pg-55505",
+      "id": "4606a26e0475bcf6734ce19be1a0f4d1987d1f5b5e075cdfb58d2646801c40ab",
+      "status": "exited",
+      "retainedMounts": [
+        {
+          "type": "volume",
+          "name": "285d1254c991be813840681eb1aff8a57b5ffdeafd9600080041bb2cacd1ccf6",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    {
+      "name": "lcsp360-admin-usage-20261022-pg-55504",
+      "id": "6958d52d3250f53ef8c7524d14b06ac7bc30915bf6f42ca01c6690755b1a3441",
+      "status": "exited",
+      "retainedMounts": [
+        {
+          "type": "volume",
+          "name": "aeb048fa8b2f3d7adc3a2e947e6e37cd1facbcad8b695705cdf0cc7891cb5972",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    {
+      "name": "lcsp360-source-digest-20261022-pg-55503",
+      "id": "d39477b4dc0e92f871856796aaf5142d73a83f7ba8465ccb6f5c10232b2037db",
+      "status": "exited",
+      "retainedMounts": [
+        {
+          "type": "volume",
+          "name": "lcsp360-source-digest-20261022-pg-55503",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    {
+      "name": "lcsp360-final-20261022-pg-55502",
+      "id": "0ecb45ba3ef9a1204c883ad327df8c2fe5b364aec0026df6da651a94516997ab",
+      "status": "exited",
+      "retainedMounts": [
+        {
+          "type": "volume",
+          "name": "lcsp360-final-20261022-pg-55502",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    }
+  ],
+  "resourcesDeleted": [],
+  "historical55441": "Never started, queried, reset or modified in this task",
+  "protectedWip": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "diskFreeBytes": 15898030080,
+  "memAvailable": "MemAvailable:   10994016 kB"
+}

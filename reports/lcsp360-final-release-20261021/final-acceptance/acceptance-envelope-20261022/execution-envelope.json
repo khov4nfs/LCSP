@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "BLOCKED_EXTERNAL_CI",
+  "status": "BLOCKED_LIVE_AUTHORIZATION_AND_REPOSITORY_CONNECTION",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
-  "freezeRef": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
-  "firstFailedGate": "EXACT_PUBLICATION_HEAD_CI_SECURITY_PENDING",
-  "blockerReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
+  "candidateSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "freezeRef": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "firstFailedGate": "PAID_LIVE_TEST_AUTHORIZATION_ABSENT",
+  "blockerReceipt": "../real-runtime-20261023/verification-summary.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -184,8 +184,7 @@
       "Idempotent late settlement and crash reconciliation from committed usage evidence; old policy versions retained without repricing"
     ],
     "notPresent": [
-      "Approved live-evaluation call/token/time/resource ceilings",
-      "Frozen new-candidate run context and global/per-stage supervision"
+      "Separate approved live call/token/deadline/resource envelope; quota is not authorization"
     ],
     "requirements": [
       "One immutable schema-3 run envelope pins candidate, routes, actual native SDK/endpoint/credential identities and conservative per-request technical allowances; schema-2 actual-financial mode remains separate",
@@ -200,11 +199,11 @@
   },
   "isolation": {
     "newOwnedPostgresContainerRequired": false,
-    "proposedLoopbackDatabasePort": 55505,
-    "proposedApiPort": 3459,
-    "database": "lcsp360_final_readiness_f73fbd05",
-    "sourceVersionId": "2574ea77-bc63-4f58-b8de-ec8dcddbb8e0",
-    "runId": "5a281ff0-b5dc-4ffa-8562-f31da37e1050",
+    "proposedLoopbackDatabasePort": 55506,
+    "proposedApiPort": 3462,
+    "database": "lcsp360_final_browser_ready_9e71b914",
+    "sourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+    "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
     "ruleSetVersionId": null,
     "ephemeralAuditKey": "Private task-owned mode-600 key retained outside Git; fingerprint pinned in prepared context",
     "noConcurrentRuntimeEdits": true,
@@ -216,9 +215,9 @@
       "state": "STOPPED_VOLUME_RETAINED",
       "receipt": "../document-provenance-20261022/database-source-hmac-preflight.json"
     },
-    "container": "lcsp360-runtime-ready-20261022-pg-55505",
-    "port": 55505,
-    "preparedState": "QUEUED_NOT_CLAIMED"
+    "container": "lcsp360-real-runtime-20261022-pg-55506",
+    "port": 55506,
+    "preparedState": "QUEUED_NOT_CLAIMED_STOPPED_VOLUME_RETAINED"
   },
   "resources": {
     "processTreeMemoryMaxBytes": 3221225472,
@@ -232,9 +231,9 @@
     "postgresAllocationBytes": 1073741824,
     "limitsApplied": true,
     "freshAdmissionRequired": true,
-    "resourceReceipt": "resource-readiness.json",
+    "resourceReceipt": "../real-runtime-20261023/preservation-and-owned-shutdown.json",
     "exactFuturePeak": "UNAVAILABLE; no live inference/load or release build run was performed",
-    "latestNonPaidReceipt": "../runtime-readiness-20261022/runtime-preflight-proof.json",
+    "latestNonPaidReceipt": "../real-runtime-20261023/candidate-provenance-preflight.json",
     "offlineCgroupCapability": "PASS prepared-only same runtime harness under 3 GiB/200% CPU cgroup; no model inference",
     "diskEnforcement": "8 GiB startup / 4 GiB remaining-space admission and periodic stop; no hard filesystem quota or measured live peak"
   },
@@ -275,8 +274,8 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "Allow queued exact-publication CI to finish after GitHub Actions recovery; diagnose any real failure before seeking paid authorization",
-  "updatedAt": "2026-10-22T16:27:39.095845+00:00",
+  "nextAction": "Separately authorize exactly one bounded live Preparation using the new request, conditional on exact-publication CI/security, matching budget validity/identity and fresh resource admission",
+  "updatedAt": "2026-10-22T17:43:44.150193+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
     "receipt": "document-digest-blocker.json",
@@ -289,13 +288,14 @@
     "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
   },
   "ciCodeCandidate": {
-    "status": "BLOCKED_EXTERNAL_CI",
-    "sourceCandidate": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+    "status": "FRESH_SOURCE_AND_PUBLICATION_RESULTS_REQUIRED_IN_PR_CHECKPOINT",
+    "sourceCandidate": "bc990176cbb046ea95e12a94fc29e81bc8869653",
     "historicalReceipt": "../admin-usage-analytics-20261022/initial-ci-static-failure.log",
     "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots.",
-    "reviewedPublicationSha": "09efdfbbda43e16442765b56a7b045e9ff9485d5",
+    "reviewedPublicationSha": null,
     "externalReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
-    "incidentUrl": "https://www.githubstatus.com/incidents/wq8305lppdc2"
+    "incidentUrl": "https://www.githubstatus.com/incidents/wq8305lppdc2",
+    "currentReceipt": "../real-runtime-20261023/source-ci-at-publication.json"
   },
   "previousAdmissionCheckpoint": {
     "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
@@ -353,7 +353,10 @@
     "referenceCostLabel": "Estimated cost (official model pricing)",
     "billingContractRequired": false,
     "financialHardCap": "OPTIONAL_SEPARATE_CAPABILITY",
-    "newAdmissionSchema": 3
+    "newAdmissionSchema": 3,
+    "actualRuntime": "PASS_EMPTY_DATASET_FILTERS_AUTH_OUTAGE_RECOVERY",
+    "authenticNonzeroUsageReconciliation": "NOT_DEMONSTRATED_NO_AUTHENTIC_USAGE",
+    "actualRuntimeReceipt": "../real-runtime-20261023/browser-runtime.json"
   },
   "acceptanceGates": [
     "DURABLE_PROVIDER_USAGE",
@@ -380,11 +383,11 @@
     "financialEnforcement": "DISABLED",
     "actualProviderChargeCap": null,
     "historicalUSD25Proposal": "Not enabled by official-reference pricing or this token-only proposal; separate explicit strict-financial approval requires schema-2 verified contracts",
-    "budgetFile": "../runtime-readiness-20261022/token-envelope-6336350cd9/token-budget.UNAPPROVED.json",
-    "budgetFingerprint": "4b538198dc6410494a0c5033f975ec4e44ca86263d568ec4e71f4b60fbb8da0a",
-    "preparedContextFile": "../runtime-readiness-20261022/prepare-6336350cd9/prepared-context.json",
-    "preparedContextSha256": "e958a69d60009e6ba971a63997b104de370dce0c8cd2276caba54eaf6b16fb56",
-    "requestFile": "../runtime-readiness-20261022/live-authorization.REQUEST.json",
+    "budgetFile": "../real-runtime-20261023/token-envelope-bc990176cb/token-budget.UNAPPROVED.json",
+    "budgetFingerprint": "498f7ff6f243f748f6ae43ebf0c7a6e3f3eabe2089ac9515a3d8aa891bcf1bd3",
+    "preparedContextFile": "../real-runtime-20261023/prepare-bc990176cb/prepared-context.json",
+    "preparedContextSha256": "c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718",
+    "requestFile": "../real-runtime-20261023/live-authorization.REQUEST.json",
     "configuredBindings": 40,
     "distinctCredentials": 30,
     "inputReservationAllowancePerAttempt": 1048576,
@@ -399,5 +402,88 @@
       "Fresh resource/cgroup admission",
       "Separate explicit one-run authorization and approved call/token/deadline limits"
     ]
+  },
+  "historical6336350RuntimeCheckpoint": {
+    "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+    "freezeRef": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+    "status": "BLOCKED_EXTERNAL_CI",
+    "firstFailedGate": "EXACT_PUBLICATION_HEAD_CI_SECURITY_PENDING",
+    "blockerReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
+    "ciCodeCandidate": {
+      "status": "FRESH_SOURCE_AND_PUBLICATION_RESULTS_REQUIRED_IN_PR_CHECKPOINT",
+      "sourceCandidate": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+      "historicalReceipt": "../admin-usage-analytics-20261022/initial-ci-static-failure.log",
+      "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots.",
+      "reviewedPublicationSha": null,
+      "externalReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
+      "incidentUrl": "https://www.githubstatus.com/incidents/wq8305lppdc2",
+      "currentReceipt": "../real-runtime-20261023/source-ci-at-publication.json"
+    },
+    "isolation": {
+      "newOwnedPostgresContainerRequired": false,
+      "proposedLoopbackDatabasePort": 55506,
+      "proposedApiPort": 3462,
+      "database": "lcsp360_final_browser_ready_9e71b914",
+      "sourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "ruleSetVersionId": null,
+      "ephemeralAuditKey": "Private task-owned mode-600 key retained outside Git; fingerprint pinned in prepared context",
+      "noConcurrentRuntimeEdits": true,
+      "provenancePreflightOnly": {
+        "database": "lcsp360_document_preflight_7a02137e7775",
+        "container": "lcsp360-source-digest-20261022-pg-55503",
+        "port": 55503,
+        "apiPort": 3461,
+        "state": "STOPPED_VOLUME_RETAINED",
+        "receipt": "../document-provenance-20261022/database-source-hmac-preflight.json"
+      },
+      "container": "lcsp360-real-runtime-20261022-pg-55506",
+      "port": 55506,
+      "preparedState": "QUEUED_NOT_CLAIMED_STOPPED_VOLUME_RETAINED"
+    },
+    "tokenOnlyExecutionProposal": {
+      "status": "UNAPPROVED",
+      "policySchema": 3,
+      "financialEnforcement": "DISABLED",
+      "actualProviderChargeCap": null,
+      "historicalUSD25Proposal": "Not enabled by official-reference pricing or this token-only proposal; separate explicit strict-financial approval requires schema-2 verified contracts",
+      "budgetFile": "../real-runtime-20261023/token-envelope-bc990176cb/token-budget.UNAPPROVED.json",
+      "budgetFingerprint": "498f7ff6f243f748f6ae43ebf0c7a6e3f3eabe2089ac9515a3d8aa891bcf1bd3",
+      "preparedContextFile": "../real-runtime-20261023/prepare-bc990176cb/prepared-context.json",
+      "preparedContextSha256": "c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718",
+      "requestFile": "../real-runtime-20261023/live-authorization.REQUEST.json",
+      "configuredBindings": 40,
+      "distinctCredentials": 30,
+      "inputReservationAllowancePerAttempt": 1048576,
+      "outputAllowance": "Unchanged native route limits: primary/semantic-primary4096; Mercury32768; Gemini65536; APX64000",
+      "inputBoundLimitation": "Technical reservation; no gateway monetary guarantee. Never replace with local byte/token estimator. Missing usage retains full allowance; reported breach terminal.",
+      "providerAvailability": "Credentials/native transports present; remote account quota and inference acceptance not tested; no credential submitted to billing/key-check pages",
+      "requiredAtLaunch": [
+        "Exact frozen source match including evidence-only descendant check",
+        "Every required exact-publication-HEAD CI/security result PASS",
+        "Budget identities and dates still valid",
+        "Matching source/run/key fingerprints and QUEUED state",
+        "Fresh resource/cgroup admission",
+        "Separate explicit one-run authorization and approved call/token/deadline limits"
+      ]
+    }
+  },
+  "realBrowserRuntime": {
+    "status": "PARTIAL_REAL_RUNTIME_PASS",
+    "receipt": "../real-runtime-20261023/verification-summary.json",
+    "appDatabase": "lcsp360_real_runtime_44ed8d07",
+    "ports": {
+      "web": 3360,
+      "api": 4460,
+      "agent": 20246,
+      "postgres": 55506,
+      "broker": 55675
+    },
+    "assessmentId": "89852b83-a22d-48ae-bf9a-8ff75b194498",
+    "rootThreadId": "b0dd156a-b132-4e5b-b36a-ffa3d6b4e97c",
+    "agentExecution": "NOT_RUN",
+    "repositoryCredential": "NOT_PROVIDED",
+    "activeRuleSet": null,
+    "ownedServices": "STOPPED_RESOURCES_RETAINED"
   }
 }

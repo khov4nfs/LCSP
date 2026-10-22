@@ -1,6 +1,22 @@
-> Current external gate: **BLOCKED_EXTERNAL_CI**. Required exact-publication results are queued/pending during GitHub's [Actions incident](https://www.githubstatus.com/incidents/wq8305lppdc2). See [captured receipt](../runtime-readiness-20261022/external-ci-blocker.json) and Release Report 19.3. No paid launch is permitted; AWAITING_LIVE_TEST_AUTHORIZATION applies only after these checks pass.
+# Current real-runtime checkpoint — 2026-10-23
 
-# Current token-only execution proposal — 2026-10-22
+**PARTIAL_REAL_RUNTIME_PASS / RELEASE BLOCKED.** Frozen source **`bc990176cbb046ea95e12a94fc29e81bc8869653`**. Real Chromium interactions drove supplied Admin/User UI sign-in, assessment creation, real API/DB/outbox/SSE, persisted reload, usage empty/filter/error/recovery, provenance download and role/ownership/logout isolation. No mock API, auth bypass, artificial usage or model output was inserted. Actual usage count is zero; nonzero cost/unknown/unpriced drill-down is NOT_DEMONSTRATED. See [Release Report Section 20](../RELEASE_REPORT.md#20-real-runtime-acceptance--2026-10-23-local--2026-10-22-utc) and [runtime evidence](../real-runtime-20261023/verification-summary.json). The two evidence matrices remain separate.
+
+The complete 15-chunk/12-unit controlled source is newly prepared, not evaluated: DB `lcsp360_final_browser_ready_9e71b914` on owned 55506, run `4ae336f3-35b4-4393-ba42-cb4eeb4d500f`, source `8353b79d-9d82-4360-b9c0-74f11f80bbb1`. All source-byte/chunk/version references, 20 graph-support hashes and HMAC tamper/wrong-run controls pass. [Prepared context](../real-runtime-20261023/prepare-bc990176cb/prepared-context.json) SHA-256 `c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718`; semantic verdict NOT_EVALUATED, no audits/version/activation/paid dispatch.
+
+The [refreshed schema-3 budget](../real-runtime-20261023/token-envelope-bc990176cb/token-budget.UNAPPROVED.json) and [request](../real-runtime-20261023/live-authorization.REQUEST.json) remain **UNAPPROVED, non-executable**. Fingerprint `498f7ff6f243f748f6ae43ebf0c7a6e3f3eabe2089ac9515a3d8aa891bcf1bd3`. All 40 native bindings / 30 credentials pass separate offline admission with zero network attempts; this is not a provider request or quota guarantee. Proposed limits remain 256 physical attempts / 4,000,000 inclusive input/cache tokens / 256,000 output/reasoning tokens / 3,600 s worker / 600 s provider / 4,200 s overall; unchanged cumulative stage ceilings below. The old 6336350 context/budget is historical and cannot launch this candidate. Validity dates/identities, exact-publication CI and fresh resources must pass at any future dispatch.
+
+Account billing contracts are **not an Admin reference-cost prerequisite**. Official model estimates are not gateway invoices or a guaranteed charge cap. Optional strict-financial schema 2 retains its evidence requirements; schema 3 does not enable the historical unapproved USD 25 actual-charge proposal.
+
+All owned runtime services and two containers were stopped after logout and idle-work checks; DBs/volumes/evidence and historical resources remain retained. Current free disk about 14.81 GiB admits only the small bounded preflight, not the later 24 GiB release-build floor. Actual 3 GiB/200% supervised prepare-only process passed in 13.232 s (749.2 MiB peak); this is not a measured live peak. No paid authorization, repository PAT or ACTIVE Rule Set exists. Scanner/Interview/HITL/legal pipeline and final assessment report are NOT_RUN; the UI's provenance download is not a completed report. Release-image/staging/production/merge/Draft removal remain unperformed or unauthorized.
+
+Exact source/publication CI/security is recorded in the PR checkpoint; older green checks do not establish the new HEAD. **Single next action: authorize exactly one bounded live Preparation under the refreshed request, acknowledging that reference estimates do not guarantee actual provider charges.** A later full User journey also needs the owner to connect an authorized repository through the secure UI; no credential should be posted in chat or Git.
+
+---
+
+> Historical external gate at the 19.3 capture: **BLOCKED_EXTERNAL_CI**. Required exact-publication results are queued/pending during GitHub's [Actions incident](https://www.githubstatus.com/incidents/wq8305lppdc2). See [captured receipt](../runtime-readiness-20261022/external-ci-blocker.json) and Release Report 19.3. No paid launch is permitted; AWAITING_LIVE_TEST_AUTHORIZATION applies only after these checks pass.
+
+# Historical 6336350 token-only proposal — superseded candidate
 
 Frozen source candidate: `6336350cd900fe1f270475aab1b2b69ae43b8f5d`. Evidence-only descendant publications are permitted only after an exact tracked non-report source comparison. Exact final publication CI/security results belong to the PR checkpoint; earlier HEAD results are historical.
 

@@ -1,0 +1,803 @@
+{
+  "captureDate": "2026-10-22T17:27:56.092Z",
+  "tool": "Playwright MCP / Chromium, real Next/Nest/PG/worker services",
+  "sessions": {
+    "admin": "separate-context-admin",
+    "user": "separate-context-user",
+    "control": "separate-context-owned-customer-control"
+  },
+  "network": [
+    {
+      "role": "admin",
+      "path": "/api/auth/sign-in",
+      "method": "POST",
+      "status": 200,
+      "at": "2026-10-22T17:02:46.783Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:02:47.184Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/sign-in",
+      "method": "POST",
+      "status": 200,
+      "at": "2026-10-22T17:02:47.190Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/overview",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:02:47.191Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:02:47.607Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:02:47.697Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:02:47.713Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:02:47.714Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:03:57.442Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:03:57.478Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:03:57.483Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:03:57.503Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "POST",
+      "status": 201,
+      "at": "2026-10-22T17:06:41.511Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:41.562Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:41.893Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:42.292Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:42.565Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/human-requests",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:43.087Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:43.188Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:43.302Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/provider-credentials",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:43.430Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/repository-setup",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:06:43.436Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.209Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.218Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/repository-setup",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.500Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.511Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.511Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/human-requests",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.511Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.695Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.794Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/provider-credentials",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:30.815Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.008Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.012Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/human-requests",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.016Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/repository-setup",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.092Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.095Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.133Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.224Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/human-requests",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.287Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/repository-setup",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.290Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.294Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:10:31.296Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/1bcdfb5f-cddb-4a74-9611-45ff5d0dcb10",
+      "method": "GET",
+      "status": 404,
+      "at": "2026-10-22T17:14:22.291Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:15:09.162Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:15:56.606Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/provenance",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:16:02.484Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:16:13.655Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 503,
+      "at": "2026-10-22T17:16:16.706Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 503,
+      "at": "2026-10-22T17:16:17.299Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 503,
+      "at": "2026-10-22T17:16:17.719Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:16:55.051Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:17:59.620Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:17:59.846Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:17:59.901Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:17:59.902Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:17:59.902Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/repository-setup",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:17:59.903Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/provenance",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:17:59.908Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:18:00.804Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:18:00.814Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/sign-out",
+      "method": "POST",
+      "status": 200,
+      "at": "2026-10-22T17:20:15.746Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:20:15.980Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/auth/sign-out",
+      "method": "POST",
+      "status": 200,
+      "at": "2026-10-22T17:21:34.293Z",
+      "correlation": null
+    },
+    {
+      "role": "admin",
+      "path": "/api/admin/usage",
+      "method": "GET",
+      "status": 401,
+      "at": "2026-10-22T17:21:34.515Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/sign-in",
+      "method": "POST",
+      "status": 200,
+      "at": "2026-10-22T17:22:45.714Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:45.996Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:46.055Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:46.064Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:46.070Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/human-requests",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:48.291Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:48.296Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:48.299Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498/repository-setup",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:48.330Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/workspace/runtime-events",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:48.390Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/provider-credentials",
+      "method": "GET",
+      "status": 200,
+      "at": "2026-10-22T17:22:48.491Z",
+      "correlation": null
+    },
+    {
+      "role": "user",
+      "path": "/api/auth/sign-out",
+      "method": "POST",
+      "status": 200,
+      "at": "2026-10-22T17:26:47.413Z",
+      "correlation": null
+    }
+  ],
+  "filter": {
+    "status": 200,
+    "query": "?from=2026-10-01T00%3A00%3A00.000Z&to=2026-10-23T23%3A59%3A59.999Z&provider=miraiapi&model=claude-sonnet-5&agentRole=rule-set-preparation&assessmentId=89852b83-a22d-48ae-bf9a-8ff75b194498&attemptStatus=OUTCOME_UNKNOWN&page=1&pageSize=25",
+    "summary": {
+      "calls": 0,
+      "successfulResponses": 0,
+      "failedAttempts": 0,
+      "unresolvedAttempts": 0,
+      "usageUnknownInvocations": 0,
+      "unpricedInvocations": 0,
+      "incompleteCostInvocations": 0,
+      "tokens": {
+        "inputTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "inputTokensIncludingCache": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "cachedInputTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "cacheWriteTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "cacheWrite5mTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "cacheWrite1hTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "outputTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "visibleOutputTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "reasoningTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        },
+        "totalTokens": {
+          "known": "0",
+          "unknownInvocations": 0
+        }
+      },
+      "knownEstimatedCostUsd": "0",
+      "estimatedCostUsd": "0"
+    },
+    "totalCount": 0
+  },
+  "cookies": {
+    "distinctContexts": true,
+    "distinctSessionValues": true,
+    "metadata": [
+      {
+        "name": "lcsp_session",
+        "path": "/",
+        "httpOnly": true,
+        "secure": false,
+        "sameSite": "Lax"
+      }
+    ]
+  },
+  "stream": {
+    "status": "PASS",
+    "type": "workspace.runtime",
+    "assessmentIds": [
+      "89852b83-a22d-48ae-bf9a-8ff75b194498"
+    ],
+    "canonicalEventCount": 1,
+    "agentStreamEventCount": 0,
+    "emittedAt": "2026-10-22T17:22:48.347Z"
+  },
+  "outage": {
+    "status": 503,
+    "ok": false,
+    "code": "UPSTREAM_UNAVAILABLE",
+    "visibleError": "Unable to load usage.\n\nRetry",
+    "recoveryStatus": 200
+  },
+  "download": {
+    "suggestedFilename": "assessment-89852b83-a22d-48ae-bf9a-8ff75b194498-provenance.json",
+    "failed": null
+  },
+  "logout": {
+    "userCookieRemoved": true,
+    "adminStillAuthenticated": 200,
+    "adminCookieRemoved": true,
+    "adminOtherTabRedirect": "http://127.0.0.1:3360/sign-in?next=%2Fassessments%2Fnew",
+    "unauthAdminApi": {
+      "status": 401,
+      "code": "SESSION_INVALID"
+    },
+    "userFinalLogout": {
+      "url": "http://127.0.0.1:3360/sign-in",
+      "sessionCookiePresent": false
+    },
+    "controlFinalLogout": {
+      "url": "http://127.0.0.1:3360/sign-in",
+      "sessionCookiePresent": false
+    }
+  },
+  "expectedConsoleDuringNegativeControls": [
+    {
+      "role": "user",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "role": "admin",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "role": "user",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "role": "admin",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+  ],
+  "postRecoveryConsole": [
+    {
+      "role": "admin",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "role": "admin",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "role": "user",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "role": "user",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "role": "admin",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "role": "user",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "role": "admin",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "role": "user",
+      "type": "warning",
+      "text": "The resource http://127.0.0.1:3360/_next/static/chunks/%5Broot-of-the-server%5D__0b75zr4._.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+    },
+    {
+      "role": "admin",
+      "type": "warning",
+      "text": "The resource http://127.0.0.1:3360/_next/static/chunks/%5Broot-of-the-server%5D__0b75zr4._.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+    }
+  ],
+  "assessmentId": "89852b83-a22d-48ae-bf9a-8ff75b194498",
+  "foreignAssessmentId": "1bcdfb5f-cddb-4a74-9611-45ff5d0dcb10",
+  "paidModelDispatches": 0,
+  "agentStreamEvents": 0,
+  "coverage": "Actual runtime through PREPARING/QUEUED; no repository credential, ACTIVE rule set or paid authorization. No inserted usage records or model outputs."
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "candidateSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "publicationSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "fixture": "synthetic",
+  "database": "lcsp360_final_browser_ready_9e71b914",
+  "dbPort": 55506,
+  "apiPort": 3462,
+  "sourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+  "chunks": 15,
+  "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+  "graphDigest": "c0fee6080f5319b0a3aad7a0a67a4c19bc8829da987b7edc09d4e7c4a85a2461",
+  "resourceAdmission": {
+    "memoryMaxBytes": 3221225472,
+    "cpuCores": 2,
+    "availableMemoryBytes": 10434859008,
+    "freeDiskBytes": 15907332096
+  },
+  "auditKeySha256": "69e603f46babb79538dd4d83acbb4286376f9006ee7d8e63e624a75224e8a57c",
+  "executionState": "QUEUED",
+  "proof": {
+    "status": "PASS",
+    "sourceSupportHashesVerified": 20,
+    "hmacRoundTrip": true,
+    "tamperRejected": true,
+    "wrongRunRejected": true,
+    "receipt": {
+      "sourceNodeId": "fbd8bdfc0a5881995b1d1b2a63b49c376afadcaaf3a0863ee111f8b00be76817",
+      "verdict": "NOT_EVALUATED",
+      "purpose": "RUNTIME_PREFLIGHT_ONLY",
+      "attestation": "hmac-sha256:e592c192198b01b0fc48d9ff1c792ffd34fc728217c97da7d5d109ecb789aa3e"
+    },
+    "paidModelCalls": 0,
+    "semanticAcceptance": "NOT_EVALUATED"
+  },
+  "paidCalls": 0,
+  "ruleSetVersions": 0
+}

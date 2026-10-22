@@ -1,0 +1,112 @@
+{
+  "status": "PASS_READ_ONLY_REAL_BROWSER_STATE",
+  "sourceSha": "786006775dfc17d0e3994079f23d1d719104b935",
+  "capturedAt": "2026-10-22T17:21:32.831118+00:00",
+  "database": "lcsp360_real_runtime_44ed8d07",
+  "port": 55506,
+  "assessments": [
+    {
+      "id": "89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "name": "LCSP-360 real browser runtime acceptance",
+      "ownerId": "30b71c8b-537a-485f-bd58-fb5a840b2e43",
+      "lifecycleState": "PREPARING",
+      "threadId": "b0dd156a-b132-4e5b-b36a-ffa3d6b4e97c",
+      "executionState": "QUEUED",
+      "eventSequence": 1,
+      "ruleSetVersionId": null
+    },
+    {
+      "id": "1bcdfb5f-cddb-4a74-9611-45ff5d0dcb10",
+      "name": "LCSP-360 foreign-owner isolation control",
+      "ownerId": "fc8c7f36-1420-44f7-89aa-5e6f7a75973a",
+      "lifecycleState": "PREPARING",
+      "threadId": "1140d69a-7f99-437c-b68e-1850277551fa",
+      "executionState": "QUEUED",
+      "eventSequence": 1,
+      "ruleSetVersionId": null
+    }
+  ],
+  "events": [
+    {
+      "eventId": "e0c20565-a08d-4468-b411-931c62693de7",
+      "assessmentId": "1bcdfb5f-cddb-4a74-9611-45ff5d0dcb10",
+      "sequence": 1,
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+    },
+    {
+      "eventId": "ee745eaf-625f-4828-9d30-a27abfafc6b0",
+      "assessmentId": "89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "sequence": 1,
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+    }
+  ],
+  "outbox": [
+    {
+      "id": "outbox:b183db376b4f669995908b8c50bb4e3e6ebaec632e90df8a11a1fcf549248684",
+      "aggregateId": "89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "eventType": "event.assessment.lifecycle-changed.v1",
+      "status": "PUBLISHED",
+      "attempts": 0,
+      "publishedAt": "2026-10-22 17:06:41.904000"
+    },
+    {
+      "id": "outbox:24ea47d3f61f92d5b7d9a13f8d3c772e4c099aced75831b13869544c959e1743",
+      "aggregateId": "89852b83-a22d-48ae-bf9a-8ff75b194498",
+      "eventType": "event.assessment.created.v1",
+      "status": "PUBLISHED",
+      "attempts": 0,
+      "publishedAt": "2026-10-22 17:06:41.907000"
+    },
+    {
+      "id": "outbox:c5ce9f65073502a88da9c9afdc929e15d81e5cdef47bc93d7f5e587410b9682f",
+      "aggregateId": "1bcdfb5f-cddb-4a74-9611-45ff5d0dcb10",
+      "eventType": "event.assessment.lifecycle-changed.v1",
+      "status": "PUBLISHED",
+      "attempts": 0,
+      "publishedAt": "2026-10-22 17:14:22.339000"
+    },
+    {
+      "id": "outbox:1429bfa2134ecedd53d83363ce4d67d80fec5f2c8d7b2ce75cb92114583dfc2f",
+      "aggregateId": "1bcdfb5f-cddb-4a74-9611-45ff5d0dcb10",
+      "eventType": "event.assessment.created.v1",
+      "status": "PUBLISHED",
+      "attempts": 0,
+      "publishedAt": "2026-10-22 17:14:22.342000"
+    }
+  ],
+  "sessionsAfterUserLogout": [
+    {
+      "id": "3c225b3a-2742-4c6a-8b11-14f66289f776",
+      "userId": "44f8f03c-02aa-430a-b291-1f07e8b85d5f",
+      "role": "ADMIN",
+      "expiresAt": "2026-10-23 01:02:46.751000",
+      "revokedAt": null
+    },
+    {
+      "id": "be6eb4f2-a517-4001-96d8-ea1f48f3dc29",
+      "userId": "30b71c8b-537a-485f-bd58-fb5a840b2e43",
+      "role": "CUSTOMER",
+      "expiresAt": "2026-10-23 01:02:47.168000",
+      "revokedAt": "2026-10-22 17:20:15.727000"
+    },
+    {
+      "id": "93b5c556-060c-4e99-b2e8-4a7306c5d70a",
+      "userId": "fc8c7f36-1420-44f7-89aa-5e6f7a75973a",
+      "role": "CUSTOMER",
+      "expiresAt": "2026-10-23 01:14:21.126000",
+      "revokedAt": null
+    }
+  ],
+  "counts": {
+    "usage": 0,
+    "repositoryCredentials": 0,
+    "snapshots": 0,
+    "scanJobs": 0,
+    "ruleSetVersions": 0
+  },
+  "provenanceRecomputedSha256": "72f8adab428dee0555804a9c94ce18914a5ebffbb2d559089f4ba1367c4cf703",
+  "browserDownloadedFileSha256": "f4651b68a49d4e99fb5c6114c1635e6e056cf86e33810abd5628e77bc328aef0",
+  "dataInsertion": "Account bootstrap only using existing scripts; assessments created through UI; no usage/results inserted",
+  "verificationCorrection": "UUID converted to canonical string and SQL aliases quoted; original diagnostic comparison failure did not indicate application data drift",
+  "paidCalls": 0
+}

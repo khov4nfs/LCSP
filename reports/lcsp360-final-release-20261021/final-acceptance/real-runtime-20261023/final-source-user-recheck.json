@@ -1,0 +1,15 @@
+{
+  "sourceSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "capturedAt": "2026-10-22T17:39:04.152Z",
+  "url": "http://127.0.0.1:3360/assessments/89852b83-a22d-48ae-bf9a-8ff75b194498",
+  "reloadPreserved": true,
+  "adminApi": {
+    "status": 403,
+    "code": "RBAC_DENIED"
+  },
+  "foreignAssessment": {
+    "status": 404,
+    "code": "ASSESSMENT_NOT_FOUND"
+  },
+  "loggedOut": true
+}

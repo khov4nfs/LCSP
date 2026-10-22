@@ -1,0 +1,59 @@
+{
+  "status": "PARTIAL_REAL_RUNTIME_PASS_RELEASE_BLOCKED",
+  "sourceCandidate": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "sourceCommits": [
+    "786006775dfc17d0e3994079f23d1d719104b935",
+    "6610d1fed",
+    "bc990176cbb046ea95e12a94fc29e81bc8869653"
+  ],
+  "recordedAt": "2026-10-22T17:43:44.151976+00:00",
+  "matrixA": {
+    "pythonRuntimeRegressions": {
+      "passed": 71,
+      "receipt": "python-runtime-71.log"
+    },
+    "webBrandAndLocale": {
+      "passed": 12,
+      "receipt": "brand-locale-12.log"
+    },
+    "webTypecheck": "PASS",
+    "nativeBindingsOffline": {
+      "passed": 40,
+      "networkAttempts": 0,
+      "receipt": "token-envelope-bc990176cb/binding-readiness.json"
+    },
+    "candidatePrepare": "PREPARED_NO_INFERENCE",
+    "ci": "EXACT_SOURCE_AND_PUBLICATION_LINKS_IN_PR_CHECKPOINT"
+  },
+  "matrixB": {
+    "adminLoginNavigation": "PASS",
+    "userLoginCreateAssessment": "PASS",
+    "persistReloadApiRestart": "PASS",
+    "canonicalSse": "PASS_ONE_EVENT_ZERO_AGENT_EVENTS",
+    "outboxPersistence": "PASS",
+    "usageAnalytics": "PASS_EMPTY_FILTERS_OUTAGE_RECOVERY_ONLY",
+    "authenticNonzeroUsageReconciliation": "NOT_DEMONSTRATED",
+    "roleOwnershipLogoutIsolation": "PASS",
+    "provenanceDownload": "PASS",
+    "repositoryScan": "NOT_RUN_NO_AUTHORIZED_CREDENTIAL",
+    "interviewHitlLegalPipeline": "NOT_RUN_NO_PAID_AUTHORIZATION_OR_ACTIVE_RULE_SET",
+    "releaseImageStaging": "NOT_RUN"
+  },
+  "preparedRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "activatedRuleSet": null,
+  "newPaidUsage": {
+    "calls": 0,
+    "tokens": 0,
+    "costUSD": "0"
+  },
+  "historicalMissingUsage": "UNAVAILABLE",
+  "receiptPolicy": "No fixture/model-free evidence promoted to real semantic acceptance",
+  "authorization": "ABSENT",
+  "blockingBoundaries": [
+    "Separate live-model authorization with approved call/token/deadline limits",
+    "Authorized repository credential supplied through secure UI for later scan",
+    "Live semantic Rule Set acceptance and activation before full User journey",
+    "Later release-image resources and staging authorization"
+  ],
+  "nextAction": "Separately authorize one bounded live Preparation after exact publication CI/security passes"
+}

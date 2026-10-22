@@ -1,0 +1,55 @@
+{
+  "sourceCandidate": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "recordedAt": "2026-10-22T17:45:22.448702+00:00",
+  "sourcePublicationPolicy": "Evidence-only descendant; require unchanged tracked non-report bytes against source candidate",
+  "protectedWip": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "artifacts": {
+    "admin-actual-upstream-outage.png": "6d6f828d59665a241054b3ad3dc173786516dc51bb4c9d519989332fa21867dc",
+    "admin-usage-empty-filtered.png": "67cc91883fdcb578863b0efe61c02c9bda039d8732be18c15b9d2675c7089e37",
+    "admin-usage-final-source.png": "e00c9e9eac75c5f88b75c93b26b33c4e7609bc59a38114a319fd747f90733245",
+    "brand-locale-12.log": "790617cf75ebd4023578bb819bf726cf3b00eb908376f5d3fc66ed90eb6c5f39",
+    "browser-downloaded-assessment-provenance.json": "f4651b68a49d4e99fb5c6114c1635e6e056cf86e33810abd5628e77bc328aef0",
+    "browser-runtime.json": "4941559296dedb45b2ca5db81acf910f94c2596b20986619adfd75089f1d18a8",
+    "candidate-provenance-preflight.json": "43d3a939ef4144c69d13d14387922a875b3befd9342e8a99346ce23b5323354e",
+    "final-source-browser-recheck.json": "296efdaeaf5abbee6070b06ff4a451646c811ef4febf6b5f1f761fc94c29f65a",
+    "final-source-user-recheck.json": "f64fa7d976b80313647bd5ffb7e2c4d842a5edca13456b7b3f0172de9dbc851c",
+    "foreign-assessment-denied.png": "6b04ad1fc645ff8647d43abcf72ac8c7a04a79d59998afe2f4757f9d9650dfa9",
+    "independent-postgres.json": "191a8fffbe8d20cd7f9d372d9aee86c50fa357d0d1bb3bb4d4939e6d42b38764",
+    "live-authorization.REQUEST.json": "97fc2a9a893e105410ee5b37a753cbea5dbf4507c2e4ff28b54ea675180b9886",
+    "prepare-bc990176cb/prepared-context.json": "c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718",
+    "preservation-and-owned-shutdown.json": "f5fd2b557e235e230badf3eafeee85d65593e35d68c157e13cb80e82273e4005",
+    "python-runtime-71.log": "bff51cee604b3ff7a512aa30fd055dc73b61cc8fab96152a29e18ee17b02c258",
+    "repair-history.json": "6cb3d2fa7e63491634aeaa1b4dd7fcd25fbc9db8473b17056523b420499980ca",
+    "runtime-infrastructure.json": "7c7be209e89b75f2107c645bbf0296e0370050a98481c51c11a8f50d8c1f341e",
+    "source-ci-at-publication.json": "61adba835638cdba827976f615c58106fcab9df7bbc79680cf43d1c2f881ad15",
+    "token-envelope-bc990176cb/binding-readiness.json": "e9d79022ed1e2c5e2675858c2f844e3858200d3b5d2820e1845d0dbf3021f8ca",
+    "token-envelope-bc990176cb/token-budget.UNAPPROVED.json": "142178f87795bef7508a317181f1ca76a1e4bd7b6503ca4cdfd89603031d36c3",
+    "user-after-relogin-and-api-restart.png": "8438ccc22b32b235a82ac0bc3c10bdb478c6588fd85ec47455b6875c5fbca143",
+    "user-assessment-persisted.png": "18e02ce72f63a5274a4ae12f5806456b6a04d7f4e5cff500f9053bc66689dcb7",
+    "user-final-source.png": "e7e5bcc6469922ac9e21ad29223a5f134a4aeeefa8ef10a9d2a077695e87420c",
+    "user-real-provenance.png": "ec9b302a16e387a6b8054740b76a6988c190666e619945e63e93cbad2d6a411e",
+    "verification-summary.json": "aaf30bbd76bd3de5dec4b8338111479fbeefb6ca8dd83034e02a8d1f18a8a217",
+    "verify_runtime_state.py": "ca02f4fefb514f5edba84bbd96e62e9ae028395bf79562a69e99dc16d58c701b"
+  },
+  "excluded": [
+    "preflight-bundle.json (controlled corpus payload, retained locally)",
+    "private environment/account/key files",
+    "raw credential/HTTP body traces"
+  ],
+  "localChecks": {
+    "pythonRuntimeTests": 71,
+    "brandLocaleTests": 12,
+    "webTypecheck": "PASS",
+    "canonicalTerminology": "PASS_ZERO_DEFECTS",
+    "diffCheck": "PASS",
+    "graphify": "PASS_AST_ONLY_OPTIONAL_SQL_DEPENDENCY_MISSING_EXISTING_SMOKE_PARSE_WARNING"
+  },
+  "logNormalization": {
+    "python-runtime-71.log": "Trailing whitespace stripped only; private raw output retained",
+    "rawSha256": "76d19f27054589909e2cc33be18c3685b057e4345ebf6821097f2f7aaa4351a5"
+  }
+}
