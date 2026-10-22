@@ -2,6 +2,16 @@
 import assert from "node:assert/strict";
 import { CLAIM_PREPARATION_PHASES as P } from "@lcsp/contracts/compliance-rule-set";
 import { readFileSync, statfsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+export function verifyFrozenCandidate(root, candidateSha) {
+  assert.match(candidateSha ?? "", /^[a-f0-9]{40}$/, "Exact frozen candidate must be supplied");
+  const git = args => execFileSync("git", args, {cwd:root,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
+  const publicationSha = git(["rev-parse","HEAD"]);
+  git(["merge-base","--is-ancestor",candidateSha,publicationSha]);
+  // Evidence publication may advance HEAD; every tracked non-report byte must stay frozen.
+  git(["diff","--exit-code",candidateSha,"--",".",":(exclude)reports"]);
+  return {candidateSha,publicationSha};
+}
 export const LIVE_STAGE_LIMITS_MS = {
   PROVISION: 120000, MATERIALIZE: 120000, DISCOVERY_AUDIT: 2400000,
   INVENTORY_FREEZE: 180000, AUTHOR_VALIDATE: 720000, PERSIST_ACTIVATE: 180000, INDEPENDENT_VERIFY: 300000,

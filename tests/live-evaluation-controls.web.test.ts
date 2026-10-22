@@ -1,11 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { createLiveEvaluationControls } from "./support/live-evaluation-controls.mjs";
+import { spawnSync, execFileSync } from "node:child_process";
+import {
+  createLiveEvaluationControls,
+  verifyFrozenCandidate,
+} from "./support/live-evaluation-controls.mjs";
 import { runPython } from "./support/compliance-rule-set-stack.mjs";
+
+test("frozen candidate permits evidence publication and rejects committed or dirty source changes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "lcsp360-frozen-"));
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+  git("init", "--quiet");
+  git("config", "user.name", "Offline fixture");
+  git("config", "user.email", "fixture@example.invalid");
+  mkdirSync(path.join(dir, "reports"));
+  writeFileSync(path.join(dir, "source.txt"), "frozen");
+  git("add", ".");
+  git("commit", "--quiet", "-m", "source");
+  const candidate = git("rev-parse", "HEAD");
+  writeFileSync(path.join(dir, "reports/receipt.json"), "{}");
+  git("add", ".");
+  git("commit", "--quiet", "-m", "evidence");
+  assert.equal(
+    verifyFrozenCandidate(dir, candidate).publicationSha,
+    git("rev-parse", "HEAD"),
+  );
+  writeFileSync(path.join(dir, "source.txt"), "changed");
+  assert.throws(() => verifyFrozenCandidate(dir, candidate));
+  git("add", ".");
+  git("commit", "--quiet", "-m", "changed source");
+  assert.throws(() => verifyFrozenCandidate(dir, candidate));
+});
 
 test("global and cumulative stage deadlines abort without stage-reset bypass", async () => {
   const controls = createLiveEvaluationControls({

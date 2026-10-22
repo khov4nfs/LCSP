@@ -15,8 +15,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } f
 import path from "node:path";
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { createLiveEvaluationControls, verifyLiveResourceAdmission } from "./support/live-evaluation-controls.mjs";
+import { createLiveEvaluationControls, verifyLiveResourceAdmission, verifyFrozenCandidate } from "./support/live-evaluation-controls.mjs";
 
 import { root, runPython, startStack, workerKey } from "./support/compliance-rule-set-stack.mjs";
 
@@ -25,9 +24,7 @@ const control = fixtureId.startsWith("control:") ? fixtureId.slice("control:".le
 const prepareOnly = process.env.LCSP_LIVE_PREPARE_ONLY === "1";
 const preparedFile = process.env.LCSP_LIVE_PREPARED_CONTEXT;
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
-const candidateSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
-assert.equal(process.env.LCSP_LIVE_CANDIDATE_SHA, candidateSha, "Exact frozen candidate must be supplied");
-execFileSync("git", ["diff","--exit-code","HEAD","--","apps/api/src","deepagents","packages/contracts","tests/support","tests/compliance-rule-set-live-eval.mjs"], {cwd:root,stdio:"pipe"});
+const {candidateSha, publicationSha} = verifyFrozenCandidate(root, process.env.LCSP_LIVE_CANDIDATE_SHA);
 const key = process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY;
 assert.match(key ?? "", /^[a-f0-9]{64}$/);
 assert.notEqual(key, "7c".repeat(32), "An ephemeral audit key is required");
@@ -207,7 +204,7 @@ try {
     assert.equal(attestation,"hmac-sha256:"+createHmac("sha256",Buffer.from(key,"hex")).update(`LCSP-SEMANTIC-AUDIT-HMAC-V1\n${runId}\n${digest}`).digest("hex"));
     const counts=(await stack.q(`SELECT (SELECT count(*) FROM "ComplianceRuleSetVersion")::int AS versions,(SELECT count(*) FROM "RuleSetPreparationSemanticAudit")::int AS audits`)).rows[0];
     assert.equal(counts.versions,0);assert.equal(counts.audits,0);
-    const context={schemaVersion:1,candidateSha,fixture:fixtureId,database,dbPort,apiPort,sourceVersionId:legalSourceId,runId,
+    const context={schemaVersion:1,candidateSha,publicationSha,fixture:fixtureId,database,dbPort,apiPort,sourceVersionId:legalSourceId,runId,
       sourceSha256:fixture.sourceSha256,documentId:fixture.documentId,chunks:chunks.length,materializationId:graph.materializationId,graphDigest:graph.graphDigest,
       resourceAdmission,auditKeySha256:hash(Buffer.from(key,"hex")),executionState:persisted.executionState,proof,paidCalls:0,ruleSetVersions:0};
     const target=path.join(outDir,"prepared-context.json");writeFileSync(target,JSON.stringify(context,null,2)+"\n",{flag:"wx"});
