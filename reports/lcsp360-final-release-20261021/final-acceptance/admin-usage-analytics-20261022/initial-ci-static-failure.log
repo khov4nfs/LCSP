@@ -1,0 +1,25 @@
+Workspace static checks	Typecheck workspace	﻿2026-10-22T15:45:35.1928385Z ##[group]Run pnpm run typecheck
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.1928723Z ^[[36;1mpnpm run typecheck^[[0m
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.1989126Z shell: /usr/bin/bash -e {0}
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.1989393Z env:
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.1990243Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.1990666Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.1990979Z ##[endgroup]
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.2253755Z $ node scripts/with-check-memory.mjs pnpm run typecheck:run
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.2711621Z $ pnpm run prisma:generate && pnpm exec tsc -b
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.2893427Z $ pnpm --filter @lcsp/api prisma:generate
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:35.3107847Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:36.3027274Z Loaded Prisma config from prisma.config.ts.
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:36.3029049Z
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:36.3754800Z Prisma schema loaded from prisma/schema.prisma.
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:37.4677008Z
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:37.4679665Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 680ms
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:37.4681126Z
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:37.4681704Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:37.4682345Z
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:37.4682356Z
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:41.3275408Z ##[error]packages/i18n/src/locales/en/pages.ts(2306,7): error TS2353: Object literal may only specify known properties, and 'navUsage' does not exist in type '{ adminBadge: string; navOverview: string; navUserAccounts: string; navComplianceRuleSets: string; navLegalSources: string; navBilling: string; administrationLabel: string; administrationDescription: string; ... 5 more ...; soonLabel: string; }'.
+Workspace static checks	Typecheck workspace	2026-10-22T15:45:41.3295983Z ##[error]packages/i18n/src/locales/vi/pages.ts(2305,7): error TS2353: Object literal may only specify known properties, and 'navUsage' does not exist in type '{ adminBadge: string; navOverview: string; navUserAccounts: string; navComplianceRuleSets: string; navLegalSources: string; navBilling: string; administrationLabel: string; administrationDescription: string; ... 5 more ...; soonLabel: string; }'.
+Workspace static checks	Typecheck workspace	2026-10-22T15:46:15.6275400Z [ELIFECYCLE] Command failed with exit code 2.
+Workspace static checks	Typecheck workspace	2026-10-22T15:46:15.6328138Z [ELIFECYCLE] Command failed with exit code 2.
+Workspace static checks	Typecheck workspace	2026-10-22T15:46:15.6346965Z ##[error]Process completed with exit code 2.

@@ -122,3 +122,11 @@ test("context tiers require measured inclusive input and exact precision survive
     estimate("INCEPTION", "mercury-2.5", now, { inputTokens: "-1" }),
   );
 });
+
+test("decimal formatter trims adversarial zero tails in a bounded scan", () => {
+  const value = BigInt("1" + "0".repeat(10000) + "1");
+  assert.equal(
+    attodollarsToUsd(value),
+    `${value.toString().slice(0, -18)}.000000000000000001`,
+  );
+});

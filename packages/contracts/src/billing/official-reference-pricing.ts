@@ -201,7 +201,12 @@ export const OFFICIAL_REFERENCE_PRICES: readonly OfficialReferencePrice[] = [
 /** Exact decimal USD; one attodollar is 10^-18 USD. No binary floating-point accumulation. */
 export function attodollarsToUsd(value: bigint): string {
   const digits = value.toString().padStart(19, "0");
-  return `${digits.slice(0, -18)}.${digits.slice(-18)}`.replace(/\.?0+$/, "");
+  let fractionEnd = digits.length;
+  while (fractionEnd > digits.length - 18 && digits[fractionEnd - 1] === "0")
+    fractionEnd--;
+  const whole = digits.slice(0, -18),
+    fraction = digits.slice(-18, fractionEnd);
+  return fraction ? `${whole}.${fraction}` : whole;
 }
 function ratePerToken(ratePerMillion: string): bigint {
   if (!/^\d+(\.\d{1,12})?$/.test(ratePerMillion))

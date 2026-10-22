@@ -13,13 +13,63 @@
 //                                               drops would otherwise wait for the 3600 s timeout configured in .env)
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import assert from "node:assert/strict";
+import { createHash, createHmac } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { createLiveEvaluationControls, verifyLiveResourceAdmission } from "./support/live-evaluation-controls.mjs";
 
 import { root, runPython, startStack, workerKey } from "./support/compliance-rule-set-stack.mjs";
 
 const fixtureId = process.env.LCSP_LIVE_EVAL_FIXTURE ?? "synthetic";
 const control = fixtureId.startsWith("control:") ? fixtureId.slice("control:".length) : null;
-const database = control ? "lcsp_compliance_rule_set_live_control" : "lcsp_compliance_rule_set_live";
-const apiPort = Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_API_PORT ?? (control ? 3413 : 3412));
+const prepareOnly = process.env.LCSP_LIVE_PREPARE_ONLY === "1";
+const preparedFile = process.env.LCSP_LIVE_PREPARED_CONTEXT;
+const hash = bytes => createHash("sha256").update(bytes).digest("hex");
+const candidateSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+assert.equal(process.env.LCSP_LIVE_CANDIDATE_SHA, candidateSha, "Exact frozen candidate must be supplied");
+execFileSync("git", ["diff","--exit-code","HEAD","--","apps/api/src","deepagents","packages/contracts","tests/support","tests/compliance-rule-set-live-eval.mjs"], {cwd:root,stdio:"pipe"});
+const key = process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY;
+assert.match(key ?? "", /^[a-f0-9]{64}$/);
+assert.notEqual(key, "7c".repeat(32), "An ephemeral audit key is required");
+const preparedBytes = preparedFile ? readFileSync(preparedFile) : null;
+if (preparedBytes) assert.equal(hash(preparedBytes), process.env.LCSP_LIVE_PREPARED_CONTEXT_SHA256, "Prepared context identity changed");
+const prepared = preparedBytes ? JSON.parse(preparedBytes) : null;
+assert.ok(prepareOnly || prepared, "Prepare a fresh isolated context before live execution");
+if (prepared) {
+  assert.equal(prepared.candidateSha, candidateSha);
+  assert.equal(prepared.fixture, fixtureId);
+  assert.equal(prepared.auditKeySha256, hash(Buffer.from(key, "hex")));
+}
+const database = prepared?.database ?? process.env.LCSP_LIVE_EVAL_DATABASE;
+const dbPort = Number(prepared?.dbPort ?? process.env.LCSP_LIVE_EVAL_DB_PORT);
+assert.match(database ?? "", /^lcsp360_final_[a-z0-9_]+$/);
+assert.ok(Number.isInteger(dbPort) && dbPort >= 55000 && dbPort <= 55999 && ![55441,55502,55503,55504].includes(dbPort), "A new owned evaluation PostgreSQL port is required");
+if (!prepareOnly) {
+  const approvalBytes = readFileSync(process.env.LCSP_LIVE_TEST_AUTHORIZATION_FILE);
+  assert.equal(hash(approvalBytes), process.env.LCSP_LIVE_TEST_AUTHORIZATION_SHA256);
+  const approval = JSON.parse(approvalBytes);
+  assert.equal(approval.candidateSha, candidateSha); assert.equal(approval.runId, prepared.runId);
+  assert.equal(approval.paidInferenceApproved, true); assert.equal(approval.evaluationCount, 1);
+  assert.ok(typeof approval.approvalReference === "string" && approval.approvalReference.length > 0);
+  const budget = JSON.parse(readFileSync(process.env.LCSP_LIVE_BUDGET_FILE));
+  assert.equal(budget.run_id, prepared.runId); assert.equal(budget.candidate_sha, candidateSha);
+  for (const field of ["maximum_calls", "maximum_input_tokens", "maximum_output_tokens"])
+    assert.ok(Number.isSafeInteger(approval[field]) && approval[field] > 0 && budget[field] <= approval[field], "Budget exceeds approved limits");
+  if (approval.maximum_charge_nano_usd !== undefined) {
+    assert.equal(budget.schema_version,2,"A requested actual financial cap requires strict verified charging enforcement");
+    assert.ok(budget.maximum_charge_nano_usd <= approval.maximum_charge_nano_usd);
+  }
+  assert.ok(Number.isSafeInteger(approval.workerTimeoutMs) && Number.isSafeInteger(approval.providerTimeoutSeconds));
+  assert.ok(Number.isSafeInteger(approval.overallTimeoutMs));
+  assert.ok(Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_TIMEOUT_MS ?? 3600000) <= approval.workerTimeoutMs);
+  assert.ok(Number(process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? 600) <= approval.providerTimeoutSeconds);
+  assert.ok(Number(process.env.LCSP_LIVE_OVERALL_TIMEOUT_MS ?? 4200000) <= approval.overallTimeoutMs);
+}
+const resourceAdmission = verifyLiveResourceAdmission(root);
+const supervisor = createLiveEvaluationControls({overallMs:Number(process.env.LCSP_LIVE_OVERALL_TIMEOUT_MS ?? 4200000)});
+supervisor.checkDisk(root,8*1024**3);
+supervisor.enter("PROVISION");
+const apiPort = Number(prepared?.apiPort ?? process.env.LCSP_RULE_SET_PREPARATION_EVAL_API_PORT ?? 3459);
 const outDir = process.env.LCSP_RULE_SET_PREPARATION_EVAL_OUT ?? path.join(root, "reports", "lcsp360-final-release-20261021");
 const tests = path.join(root, "deepagents/tests/vertical");
 const timeoutMs = Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_TIMEOUT_MS ?? 60 * 60 * 1000);
@@ -28,11 +78,17 @@ const stem = `live-eval-${control ?? "synthetic"}`;
 mkdirSync(outDir, { recursive: true });
 const progressFile = path.join(outDir, `${stem}.progress.jsonl`);
 const traceFile = path.join(outDir, `${stem}.trace.jsonl`);
-writeFileSync(progressFile, "");
-writeFileSync(traceFile, "");
+if (!prepareOnly) {
+  writeFileSync(progressFile, "", {flag:"wx"}); writeFileSync(traceFile, "", {flag:"wx"});
+}
 
-const fixture = await runPython(path.join(tests, control ? "control_chunks.py" : "fixture_chunks.py"), control ? [control] : []);
-const stack = await startStack({ database, apiPort });
+const fixture = await runPython(path.join(tests, control ? "control_chunks.py" : "fixture_chunks.py"), control ? [control] : [], {timeoutMs:120000,signal:supervisor.signal,ownedProcessGroup:true});
+const sourceBytes = Buffer.from(fixture.sourceBytesBase64,"base64");
+assert.equal(hash(sourceBytes), fixture.sourceSha256);
+if (!control) assert.equal(fixture.sourceSha256,"b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1");
+if (prepared) assert.equal(prepared.sourceSha256,fixture.sourceSha256);
+const stack = await startStack({ database, apiPort, dbPort, resetDatabase:false, createOnlyDatabase:prepareOnly,
+  operationTimeoutMs:120000, signal:supervisor.signal });
 let stopped = false;
 const stopOnce = async (s) => {
   if (s === stack && stopped) return;
@@ -52,6 +108,8 @@ async function sample(runId, t0) {
       [runId],
     )
   ).rows[0];
+  if (row?.phase) supervisor.phase(row.phase);
+  supervisor.checkDisk(root);
   const line = { t: Math.round((Date.now() - t0) / 1000), ...row };
   appendFileSync(progressFile, JSON.stringify(line) + "\n");
 }
@@ -88,7 +146,7 @@ async function verifyJourney(runId, result, started) {
   step("11_versionActivated", version?.state === "ACTIVE" && counts?.activations === 1 && active.status === 200 && JSON.stringify(activeBody).includes(version.id), { state: version?.state, httpStatus: active.status });
   // Reopen: a fresh API process on the same database must serve the identical active Rule Set.
   await stopOnce(stack);
-  const reopened = await startStack({ database, apiPort, resetDatabase: false });
+  const reopened = await startStack({ database, apiPort, dbPort, resetDatabase: false, signal:supervisor.signal, operationTimeoutMs:120000 });
   try {
     const again = await reopened.get("active");
     const sameBody = again.status === 200 && JSON.stringify(again.body.data) === JSON.stringify(activeBody);
@@ -125,17 +183,45 @@ async function gradeControl(runId, id) {
 }
 
 try {
-  const legalSourceId = await stack.seedLegalSource({ name: `live-${control ?? "synthetic-v1"}`, status: "ACTIVE", documentId: fixture.documentId, chunks: fixture.chunks,
-    sourceBytes: Buffer.from(fixture.sourceBytesBase64, "base64"), sourceSha256: fixture.sourceSha256 });
-  const started = await stack.activateLegalSource(legalSourceId);
+  supervisor.enter("MATERIALIZE");
+  const legalSourceId = prepared?.sourceVersionId ?? await stack.seedLegalSource({ name: `live-${Date.now()}`, status: "ACTIVE", documentId: fixture.documentId, chunks: fixture.chunks,
+    sourceBytes, sourceSha256: fixture.sourceSha256 });
+  const started = prepared ? {preparationRunId:prepared.runId} : await stack.activateLegalSource(legalSourceId);
   const runId = started.preparationRunId;
+  const graph = await stack.materializeLegalSource(legalSourceId);
+  const persisted = (await stack.q(`SELECT "executionState","legalSourceVersionId" FROM "RuleSetPreparationRun" WHERE id=$1`,[runId])).rows[0];
+  assert.equal(persisted.executionState,"QUEUED","A previously claimed/evaluated run cannot be dispatched again");
+  assert.equal(persisted.legalSourceVersionId,legalSourceId);
+  if (prepared) {assert.equal(prepared.materializationId,graph.materializationId);assert.equal(prepared.graphDigest,graph.graphDigest);}
+  const documents=(await stack.q(`SELECT * FROM "LegalSourceDocument" WHERE "legalSourceVersionId"=$1`,[legalSourceId])).rows;
+  const chunks=(await stack.q(`SELECT id AS "chunkId",* FROM "LegalDocumentChunk" WHERE "legalSourceVersionId"=$1 ORDER BY locator`,[legalSourceId])).rows;
+  assert.equal(documents.length,1);assert.equal(documents[0].sourceSha256,`sha256:${fixture.sourceSha256}`);
+  assert.equal(chunks.length,fixture.chunks.length);
+  for(const chunk of chunks){assert.equal(chunk.legalSourceDocumentId,documents[0].id);assert.equal(chunk.contentSha256,`sha256:${hash(chunk.content)}`);assert.equal(chunk.legalEffectStatus,"EFFECTIVE");}
+  if (prepareOnly) {
+    const bundleFile=path.join(outDir,"preflight-bundle.json");
+    writeFileSync(bundleFile,JSON.stringify({legalSourceVersionId:legalSourceId,documentGraph:graph,documents:documents.map(d=>({...d,chunks:chunks.filter(c=>c.legalSourceDocumentId===d.id)}))}),{flag:"wx",mode:0o600});
+    const proof=await runPython(path.join(tests,"runtime_preflight.py"),[bundleFile,runId],{timeoutMs:120000,signal:supervisor.signal,ownedProcessGroup:true});
+    const {attestation,...unsigned}=proof.receipt;
+    const digest=hash(JSON.stringify(Object.fromEntries(Object.entries(unsigned).sort(([a],[b])=>a.localeCompare(b)))));
+    assert.equal(attestation,"hmac-sha256:"+createHmac("sha256",Buffer.from(key,"hex")).update(`LCSP-SEMANTIC-AUDIT-HMAC-V1\n${runId}\n${digest}`).digest("hex"));
+    const counts=(await stack.q(`SELECT (SELECT count(*) FROM "ComplianceRuleSetVersion")::int AS versions,(SELECT count(*) FROM "RuleSetPreparationSemanticAudit")::int AS audits`)).rows[0];
+    assert.equal(counts.versions,0);assert.equal(counts.audits,0);
+    const context={schemaVersion:1,candidateSha,fixture:fixtureId,database,dbPort,apiPort,sourceVersionId:legalSourceId,runId,
+      sourceSha256:fixture.sourceSha256,documentId:fixture.documentId,chunks:chunks.length,materializationId:graph.materializationId,graphDigest:graph.graphDigest,
+      resourceAdmission,auditKeySha256:hash(Buffer.from(key,"hex")),executionState:persisted.executionState,proof,paidCalls:0,ruleSetVersions:0};
+    const target=path.join(outDir,"prepared-context.json");writeFileSync(target,JSON.stringify(context,null,2)+"\n",{flag:"wx"});
+    console.log(JSON.stringify({status:"PREPARED_NO_INFERENCE",contextFile:target,contextSha256:hash(readFileSync(target)),runId,paidCalls:0}));
+    await stopOnce(stack);supervisor.close();process.exit(0);
+  }
   const usageFile = path.join(mkdtempSync(path.join(outDir, `${stem}.usage-`)), "usage.json");
   const t0 = Date.now();
-  const poll = setInterval(() => sample(runId, t0).catch(() => undefined), 30_000);
+  supervisor.enter("DISCOVERY_AUDIT");
+  const poll = setInterval(() => sample(runId,t0).catch(() => supervisor.abort("PROGRESS_SUPERVISION_FAILED")),1000);
   let result;
   try {
     result = await runPython(path.join(tests, "live_preparation.py"), [stack.base, workerKey, runId, usageFile], {
-      timeoutMs,
+      timeoutMs, signal:supervisor.signal, ownedProcessGroup:true,
       env: { LCSP_LIVE_TRACE_FILE: traceFile, LLM_PROVIDER_TIMEOUT_SECONDS: process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? "600" },
     });
   } catch (error) {
@@ -147,7 +233,7 @@ try {
   }
   let usage;
   try {
-    usage = await runPython(path.join(tests, "live_preparation.py"), ["--recover-usage", usageFile, runId]);
+    usage = await runPython(path.join(tests, "live_preparation.py"), ["--recover-usage", usageFile, runId], {timeoutMs:30000,ownedProcessGroup:true});
   } catch (error) {
     usage = { runId, accountingState: "RECOVERY_FAILED", modelCalls: null, inputTokens: null, outputTokens: null, profileKey: null };
     result = { state: "RUN_ABORTED", failureReason: `durable usage recovery failed: ${String(error).slice(0, 500)}` };
@@ -156,7 +242,9 @@ try {
   const run = (await stack.q(`SELECT "executionState","failureReason" FROM "RuleSetPreparationRun" WHERE id=$1`, [runId])).rows[0];
   const invalid = (await stack.q(`SELECT "validationFailures" FROM "ComplianceRuleSetVersion" WHERE "preparationRunId"=$1`, [runId])).rows[0];
   const grading = control ? await gradeControl(runId, control).catch((error) => ({ graded: false, reason: String(error).slice(0, 300) })) : null;
-  const journey = await verifyJourney(runId, result, started);
+  let journey;
+  if (supervisor.signal.aborted) journey = {complete:false,steps:{runtimeDeadline:{ok:false,detail:String(supervisor.signal.reason)}}};
+  else {supervisor.enter("INDEPENDENT_VERIFY");journey=await verifyJourney(runId,result,started);}
 
   const output = {
     generatedAt: new Date().toISOString(), fixture: fixtureId, model: usage.profileKey, usage, usageFile, accountingComplete, runId, run, result, journey, grading,
@@ -168,6 +256,7 @@ try {
   process.exitCode = journey.complete && accountingComplete && (!grading || (grading.graded && grading.noExtraOperativeClaim && grading.facts.every((f) => f.ok))) ? 0 : 1;
 } finally {
   await stopOnce(stack);
+  supervisor.close();
 }
 // Child servers and pooled clients can keep the loop alive after the evidence is written; the verdict is in the exit code.
 process.exit(process.exitCode ?? 0);

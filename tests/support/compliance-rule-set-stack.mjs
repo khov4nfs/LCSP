@@ -17,7 +17,7 @@ export const sha = (text) => createHash("sha256").update(text).digest("hex");
 export const contentHash = (text) => `sha256:${sha(text)}`; // legalSource representation of chunk hashes
 const { Client } = createRequire(path.join(apiDir, "package.json"))("pg");
 
-export async function startStack({ database, apiPort, dbPort = Number(process.env.LCSP_TEST_PG_PORT ?? 55441), resetDatabase = true }) {
+export async function startStack({ database, apiPort, dbPort = Number(process.env.LCSP_TEST_PG_PORT ?? 55441), resetDatabase = true, createOnlyDatabase = false, signal, operationTimeoutMs = 0 }) {
   const host = "127.0.0.1";
   const databaseUrl = `postgresql://postgres:postgres@${host}:${dbPort}/${database}?schema=public`;
   const base = `http://${host}:${apiPort}`;
@@ -25,7 +25,13 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   const adminClient = new Client({ connectionString: `postgresql://postgres:postgres@${host}:${dbPort}/postgres` });
   await adminClient.connect();
   try {
-    if (resetDatabase) {
+    signal?.throwIfAborted();
+    if (createOnlyDatabase) {
+      assert.match(database, /^lcsp360_final_[a-z0-9_]+$/);
+      const existing = await adminClient.query("SELECT 1 FROM pg_database WHERE datname=$1", [database]);
+      assert.equal(existing.rowCount, 0, "Create-only evaluation database already exists; preserve it");
+      await adminClient.query(`CREATE DATABASE "${database}"`);
+    } else if (resetDatabase) {
       await adminClient.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
       await adminClient.query(`CREATE DATABASE "${database}"`);
     } else {
@@ -36,14 +42,15 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
     await adminClient.end();
   }
   const migrate = spawnSync("pnpm", ["--dir", apiDir, "exec", "prisma", "migrate", "deploy"], {
-    cwd: root, encoding: "utf8", env: { ...process.env, DATABASE_URL: databaseUrl },
+    cwd: root, encoding: "utf8", timeout: operationTimeoutMs, env: { ...process.env, DATABASE_URL: databaseUrl },
   });
   assert.equal(migrate.status, 0, migrate.stdout + migrate.stderr);
 
-  const db = new Client({ connectionString: databaseUrl });
+  const db = new Client({ connectionString: databaseUrl, ...(operationTimeoutMs ? { query_timeout: operationTimeoutMs, statement_timeout: operationTimeoutMs } : {}) });
   await db.connect();
   const q = (text, values = []) => db.query(text, values);
 
+  if (signal?.aborted) { await db.end(); signal.throwIfAborted(); }
   const log = [];
   const apiEnv = {
       ...process.env,
@@ -73,7 +80,10 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   });
   server.stdout.on("data", (d) => log.push(String(d)));
   server.stderr.on("data", (d) => log.push(String(d)));
+  const abortServer = () => server.kill("SIGKILL");
+  signal?.addEventListener("abort", abortServer, { once: true });
   const stop = async () => {
+    signal?.removeEventListener("abort", abortServer);
     if (server.exitCode === null && server.signalCode === null) {
       server.kill("SIGTERM");
       await new Promise((resolve) => server.once("exit", resolve));
@@ -82,6 +92,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   };
 
   for (let i = 0; ; i += 1) {
+    if (signal?.aborted) { await stop(); signal.throwIfAborted(); }
     try {
       if ((await fetch(`${base}/health`)).ok) break;
     } catch {
@@ -96,7 +107,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
 
   const call = async (method, route, body, key) => {
     const response = await fetch(`${base}/internal/compliance-rule-set/${route}`, {
-      method,
+      method, signal,
       headers: { "content-type": "application/json", ...(key ? { "x-worker-api-key": key } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -146,7 +157,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   async function activateLegalSource(legalSourceId, { times = 1, concurrent = false } = {}) {
     const events = Array.from({ length: times }, () => ({ legalSourceVersionId: legalSourceId, correlationId: randomUUID() }));
     const delivered = spawnSync("node", [path.join(root, "tests/support/deliver-legal-source-activation.mjs"), JSON.stringify({ events, concurrent })], {
-      cwd: root, encoding: "utf8", env: apiEnv,
+      cwd: root, encoding: "utf8", timeout: operationTimeoutMs, env: apiEnv,
     });
     assert.equal(delivered.status, 0, delivered.stdout + delivered.stderr);
     const result = JSON.parse(delivered.stdout.trim().split("\n").filter((line) => line.startsWith("{")).pop());
@@ -156,32 +167,44 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
     return { ...result, runs, preparationRunId: runs[0]?.id ?? null };
   }
 
-  return { db, q, base, post, get, stop, seedLegalSource, activateLegalSource, databaseUrl, logs: log };
+  const materializeLegalSource = async source => {
+    const result = spawnSync("node", [path.join(root, "tests/support/materialize-legal-document-graph.mjs"), source], {
+      cwd: root, encoding: "utf8", timeout: operationTimeoutMs, env: apiEnv });
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout.trim().split("\n").filter(line => line.startsWith("{")).pop());
+  };
+  return { db, q, base, post, get, stop, seedLegalSource, activateLegalSource, materializeLegalSource, databaseUrl, logs: log };
 }
 
 /** Runs a Python script with the repo PYTHONPATH; resolves with the last JSON line it prints. */
-export function runPython(script, args, { env = {}, timeoutMs = 0 } = {}) {
+/** @param {string} script @param {string[]} args
+ * @param {{env?: Record<string,string>, timeoutMs?:number, signal?:AbortSignal, ownedProcessGroup?:boolean, executable?:string}} [options] */
+export function runPython(script, args, { env = {}, timeoutMs = 0, signal, ownedProcessGroup = false, executable = python } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(python, [script, ...args], {
-      cwd: root,
-      timeout: timeoutMs,
-      killSignal: "SIGKILL",
-      env: {
-        ...process.env,
-        PYTHONPATH: pythonPath,
-        LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY: process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY || "7c".repeat(32),
-        ...env,
-      },
+    signal?.throwIfAborted();
+    const child = spawn(executable, [script, ...args], {
+      cwd: root, detached: ownedProcessGroup,
+      env: { ...process.env, PYTHONPATH: pythonPath,
+        LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY: process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY || "7c".repeat(32), ...env },
     });
-    let out = "";
-    let err = "";
-    child.stdout.on("data", (d) => (out += d));
-    child.stderr.on("data", (d) => (err += d));
-    child.on("error", reject);
-    child.on("close", (code, signal) => {
-      if (code !== 0) return reject(new Error(`python ${path.basename(script)} exited ${code} signal=${signal} budgetMs=${timeoutMs}\n${err.slice(-3000)}`));
-      const line = out.trim().split("\n").filter((l) => l.startsWith("{")).pop();
-      resolve(JSON.parse(line));
+    let out = "", err = "", failure;
+    const kill = () => {
+      try { process.kill(ownedProcessGroup ? -child.pid : child.pid, "SIGKILL"); }
+      catch (error) { if (error.code !== "ESRCH") failure = error; }
+    };
+    const abort = () => { failure = signal.reason; kill(); };
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+    const timer = timeoutMs ? setTimeout(() => { failure = new Error(`Worker deadline ${timeoutMs}ms`); kill(); }, timeoutMs) : null;
+    child.stdout.on("data", d => { out += d; });
+    child.stderr.on("data", d => { err += d; });
+    child.on("error", error => { failure = error; });
+    child.on("close", (code, exitSignal) => {
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      if (failure || code !== 0) return reject(failure ?? new Error(`python ${path.basename(script)} exited ${code} signal=${exitSignal} budgetMs=${timeoutMs}\n${err.slice(-3000)}`));
+      try { resolve(JSON.parse(out.trim().split("\n").filter(l => l.startsWith("{")).pop())); }
+      catch (error) { reject(error); }
     });
   });
 }
