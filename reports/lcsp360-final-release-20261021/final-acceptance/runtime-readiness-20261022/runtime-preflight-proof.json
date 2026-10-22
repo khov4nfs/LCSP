@@ -1,0 +1,90 @@
+{
+  "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+  "preparation": {
+    "schemaVersion": 1,
+    "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+    "publicationSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+    "fixture": "synthetic",
+    "database": "lcsp360_final_readiness_f73fbd05",
+    "dbPort": 55505,
+    "apiPort": 3459,
+    "sourceVersionId": "2574ea77-bc63-4f58-b8de-ec8dcddbb8e0",
+    "runId": "5a281ff0-b5dc-4ffa-8562-f31da37e1050",
+    "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "chunks": 15,
+    "materializationId": "aee6a15f7b466c53973d09d7715343d223340ded2d5fec27f471b402dc7f0954",
+    "graphDigest": "34eeaa468bdbfdb14116a7d4a83eaa96169f924edcc9ebc2f8c2165858417e3b",
+    "resourceAdmission": {
+      "memoryMaxBytes": 3221225472,
+      "cpuCores": 2,
+      "availableMemoryBytes": 6889136128,
+      "freeDiskBytes": 16072679424
+    },
+    "auditKeySha256": "12988b15104f31a7e27da0f79cc4da3b635d6f1b4d1c0c67e6c3a77e4f631845",
+    "executionState": "QUEUED",
+    "proof": {
+      "status": "PASS",
+      "sourceSupportHashesVerified": 20,
+      "hmacRoundTrip": true,
+      "tamperRejected": true,
+      "wrongRunRejected": true,
+      "receipt": {
+        "sourceNodeId": "3b55abd0dc2c3930f088aa4f13198379b813dd1d44a745a2dc634b083de79e32",
+        "verdict": "NOT_EVALUATED",
+        "purpose": "RUNTIME_PREFLIGHT_ONLY",
+        "attestation": "hmac-sha256:02a56faa7b27f66fd15b0120a41bd0bd470ffb5def3ef575458b83076423ff5e"
+      },
+      "paidModelCalls": 0,
+      "semanticAcceptance": "NOT_EVALUATED"
+    },
+    "paidCalls": 0,
+    "ruleSetVersions": 0
+  },
+  "contextSha256": "e958a69d60009e6ba971a63997b104de370dce0c8cd2276caba54eaf6b16fb56",
+  "paidCalls": 0,
+  "actualNewPaidTokens": 0,
+  "actualNewPaidCostUSD": 0,
+  "ruleSetActivation": "NOT_RUN",
+  "preservedDatabases": [
+    {
+      "ID": "4606a26e0475",
+      "Names": "lcsp360-runtime-ready-20261022-pg-55505",
+      "State": "running",
+      "Ports": "127.0.0.1:55505->5432/tcp"
+    },
+    {
+      "ID": "6958d52d3250",
+      "Names": "lcsp360-admin-usage-20261022-pg-55504",
+      "State": "running",
+      "Ports": "127.0.0.1:55504->5432/tcp"
+    },
+    {
+      "ID": "d39477b4dc0e",
+      "Names": "lcsp360-source-digest-20261022-pg-55503",
+      "State": "exited",
+      "Ports": ""
+    },
+    {
+      "ID": "0ecb45ba3ef9",
+      "Names": "lcsp360-final-20261022-pg-55502",
+      "State": "exited",
+      "Ports": ""
+    }
+  ],
+  "diskFreeBytes": 16063283200,
+  "memoryAvailableBytes": 6149906432,
+  "ownedPrepareUnit": "lcsp360-runtime-final-a138f61d",
+  "prepareExitCode": 0,
+  "prepareResourceSummary": [
+    "Finished with result: success",
+    "Main processes terminated with: code=exited, status=0/SUCCESS",
+    "CPU time consumed: 8.863s",
+    "Memory peak: 670M (swap: 0B)"
+  ],
+  "protectedWip": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  }
+}

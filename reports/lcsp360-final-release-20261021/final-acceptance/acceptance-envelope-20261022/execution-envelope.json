@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "IMPLEMENTATION_VERIFIED_CI_AND_RUNTIME_PENDING",
+  "status": "NON_PAID_GATES_PASS_PUBLICATION_CI_REQUIRED",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": null,
-  "freezeRef": null,
-  "firstFailedGate": "EXACT_HEAD_CI_AND_RUNTIME_READINESS",
-  "blockerReceipt": "../charging-contracts-20261022/charging-evidence-matrix.json",
+  "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+  "freezeRef": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+  "firstFailedGate": "PAID_AUTHORIZATION_AFTER_EXACT_PUBLICATION_CI_PASS",
+  "blockerReceipt": "../runtime-readiness-20261022/verification-summary.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -38,7 +38,7 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
@@ -50,7 +50,7 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
@@ -62,7 +62,7 @@
         "sdkMaxRetries": 1,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
@@ -74,7 +74,7 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       }
     ],
@@ -88,7 +88,7 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
@@ -100,7 +100,7 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
@@ -112,7 +112,7 @@
         "sdkMaxRetries": 1,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
@@ -124,7 +124,7 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "boundedAdmission": "PASS_OFFLINE_TOKEN_POLICY_UNAPPROVED",
         "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       }
     ]
@@ -171,7 +171,7 @@
     "quotaIsAuthorization": false
   },
   "enforcement": {
-    "status": "TOKEN_GOVERNANCE_PASS_CI_RUNTIME_PENDING",
+    "status": "TOKEN_ONLY_PASS_PROVIDER_FREE; NO_PAID_AUTHORIZATION",
     "existing": [
       "Worker SIGKILL timeout waits for exit before durable SQLite recovery",
       "Duplicate run claim exits before model construction",
@@ -188,7 +188,7 @@
       "Frozen new-candidate run context and global/per-stage supervision"
     ],
     "requirements": [
-      "One immutable schema-3 run envelope pins candidate, routes, actual native SDK/endpoint/credential identities and conservative per-request token allowances",
+      "One immutable schema-3 run envelope pins candidate, routes, actual native SDK/endpoint/credential identities and conservative per-request technical allowances; schema-2 actual-financial mode remains separate",
       "Reserve shared calls and input/output allowances atomically; unknown outcomes retain outstanding reservations; reported bound breaches stop further dispatch",
       "Official model reference pricing is reporting only and does not control call/token admission or claim actual gateway charges",
       "Optional schema-2 financial mode retains its independent all-charge contract requirements",
@@ -196,17 +196,17 @@
     ],
     "productionCodeChanged": true,
     "identifiedReusePoint": "IMPLEMENTED in UsageMeteringMiddleware and AgentRunState, using the same LiveUsage SQLite file and existing usage recovery connector; no new agent pipeline or customer-credit reservation.",
-    "providerFreeDiagnostic": "../paid-admission-20261022/reconciled-rehearsal/rehearsal.json"
+    "providerFreeDiagnostic": "../runtime-readiness-20261022/token-rehearsal-rehearsal.json"
   },
   "isolation": {
-    "newOwnedPostgresContainerRequired": true,
-    "proposedLoopbackDatabasePort": 55504,
+    "newOwnedPostgresContainerRequired": false,
+    "proposedLoopbackDatabasePort": 55505,
     "proposedApiPort": 3459,
-    "database": "NEW empty owned PostgreSQL instance required for any future approved evaluation. Port 55503 now contains retained provenance regressions and must not be reused/reset by the live helper.",
-    "sourceVersionId": null,
-    "runId": null,
+    "database": "lcsp360_final_readiness_f73fbd05",
+    "sourceVersionId": "2574ea77-bc63-4f58-b8de-ec8dcddbb8e0",
+    "runId": "5a281ff0-b5dc-4ffa-8562-f31da37e1050",
     "ruleSetVersionId": null,
-    "ephemeralAuditKey": "Generate random 32-byte key and explicitly share API/worker; no default fixture key; publish fingerprint only",
+    "ephemeralAuditKey": "Private task-owned mode-600 key retained outside Git; fingerprint pinned in prepared context",
     "noConcurrentRuntimeEdits": true,
     "provenancePreflightOnly": {
       "database": "lcsp360_document_preflight_7a02137e7775",
@@ -215,7 +215,10 @@
       "apiPort": 3461,
       "state": "STOPPED_VOLUME_RETAINED",
       "receipt": "../document-provenance-20261022/database-source-hmac-preflight.json"
-    }
+    },
+    "container": "lcsp360-runtime-ready-20261022-pg-55505",
+    "port": 55505,
+    "preparedState": "QUEUED_NOT_CLAIMED"
   },
   "resources": {
     "processTreeMemoryMaxBytes": 3221225472,
@@ -227,16 +230,17 @@
     "minimumRemainingFreeDiskBytes": 4294967296,
     "evidenceAllocationBytes": 1073741824,
     "postgresAllocationBytes": 1073741824,
-    "limitsApplied": false,
+    "limitsApplied": true,
     "freshAdmissionRequired": true,
     "resourceReceipt": "resource-readiness.json",
     "exactFuturePeak": "UNAVAILABLE; no live inference/load or release build run was performed",
-    "latestNonPaidReceipt": "../charging-contracts-20261022/resource-deadline-readiness.json",
-    "offlineCgroupCapability": "PASS 3 GiB / 200% CPU, owned tree terminated at deadline; not applied to evaluation"
+    "latestNonPaidReceipt": "../runtime-readiness-20261022/runtime-preflight-proof.json",
+    "offlineCgroupCapability": "PASS prepared-only same runtime harness under 3 GiB/200% CPU cgroup; no model inference",
+    "diskEnforcement": "8 GiB startup / 4 GiB remaining-space admission and periodic stop; no hard filesystem quota or measured live peak"
   },
   "cancellation": [
     "Any immutable source/SHA/HMAC mismatch, document authority/extraction gap, tampered/foreign receipt, failed mandatory gate or source-identity drift",
-    "Terminal runtime/semantic/no-progress error, approved dispatch/token/spend/deadline/resource ceiling, unresolved unknown provider charge, or unapproved provider transition",
+    "Terminal runtime/semantic/no-progress error, approved dispatch/token/spend/deadline/resource ceiling, unresolved attempts retained within technical token/call exposure, or unapproved provider transition",
     "Terminate owned process tree, wait for exit, recover SQLite records, capture database/trace/verdict and retain evidence; never automatically retry"
   ],
   "passCriteria": {
@@ -271,8 +275,8 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "Complete exact-head CI and non-paid frozen runtime/deadline readiness, then request authorization for exactly one bounded live evaluation.",
-  "updatedAt": "2026-10-22T14:13:37.102062+00:00",
+  "nextAction": "After exact-publication-head CI/security PASS, explicitly authorize one token/call/deadline-bounded live run; no guaranteed provider USD cap is represented",
+  "updatedAt": "2026-10-22T16:27:39.095845+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
     "receipt": "document-digest-blocker.json",
@@ -285,12 +289,10 @@
     "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
   },
   "ciCodeCandidate": {
-    "status": "PUBLICATION_HEAD_CHECKS_REQUIRED",
-    "historicalReceipt": "../document-provenance-20261022/ci-code-candidate.json",
-    "note": "38 PASS on 090775bb are verified historical admission-code evidence. This evidence-only publication requires its own push-triggered results, recorded in the new PR checkpoint; no manual broad reruns.",
-    "verifiedPublicationHead": "090775bb763b8bbcf43d524050b03de4424755fe",
-    "verifiedPublicationChecks": 38,
-    "checkpointComment": "https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6339425284"
+    "status": "FINAL_PUBLICATION_CHECKS_RECORDED_IN_PR_CHECKPOINT",
+    "sourceCandidate": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+    "historicalReceipt": "../admin-usage-analytics-20261022/initial-ci-static-failure.log",
+    "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots."
   },
   "previousAdmissionCheckpoint": {
     "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
@@ -336,11 +338,11 @@
   "deadlineReadiness": {
     "workerHelperOffline": "PASS_SIGKILL_250MS",
     "providerOverride": "Live harness overrides checkout 3600s request setting to 600s; native SDK propagation previously tested",
-    "global4200Seconds": "NOT_WIRED_TO_LIVE_ENTRYPOINT",
-    "perStageCeilings": "NOT_WIRED_TO_LIVE_ENTRYPOINT",
-    "evaluationProcessTreeCpuMemoryLimits": "NOT_APPLIED",
-    "diskWriteCeilings": "NOT_APPLIED",
-    "receipt": "../charging-contracts-20261022/resource-deadline-readiness.json"
+    "global4200Seconds": "WIRED_TO_LIVE_ENTRYPOINT_PASS_OFFLINE",
+    "perStageCeilings": "WIRED_CUMULATIVE_NO_RESET_BYPASS_PASS_OFFLINE",
+    "evaluationProcessTreeCpuMemoryLimits": "PASS_NON_PAID_PREPARE_ONLY_3_GIB_200_PERCENT_CPU",
+    "diskWriteCeilings": "HEADROOM_SUPERVISION_NO_HARD_FILESYSTEM_QUOTA",
+    "receipt": "../runtime-readiness-20261022/runtime-preflight-proof.json"
   },
   "adminUsageAnalytics": {
     "status": "PASS_PROVIDER_FREE",
@@ -359,5 +361,40 @@
     "REAL_MODEL_LEGAL_SEMANTIC_ACCEPTANCE",
     "RELEASE_IMAGE_STAGING_BROWSER_ACCEPTANCE"
   ],
-  "previousCandidateSha": "1ed318e4257d93b7ea89973832afedad766a036a"
+  "previousCandidateSha": "1ed318e4257d93b7ea89973832afedad766a036a",
+  "historicalDeadlineReadiness": {
+    "workerHelperOffline": "PASS_SIGKILL_250MS",
+    "providerOverride": "Live harness overrides checkout 3600s request setting to 600s; native SDK propagation previously tested",
+    "global4200Seconds": "NOT_WIRED_TO_LIVE_ENTRYPOINT",
+    "perStageCeilings": "NOT_WIRED_TO_LIVE_ENTRYPOINT",
+    "evaluationProcessTreeCpuMemoryLimits": "NOT_APPLIED",
+    "diskWriteCeilings": "NOT_APPLIED",
+    "receipt": "../charging-contracts-20261022/resource-deadline-readiness.json"
+  },
+  "tokenOnlyExecutionProposal": {
+    "status": "UNAPPROVED",
+    "policySchema": 3,
+    "financialEnforcement": "DISABLED",
+    "actualProviderChargeCap": null,
+    "historicalUSD25Proposal": "Not enabled by official-reference pricing or this token-only proposal; separate explicit strict-financial approval requires schema-2 verified contracts",
+    "budgetFile": "../runtime-readiness-20261022/token-envelope-6336350cd9/token-budget.UNAPPROVED.json",
+    "budgetFingerprint": "4b538198dc6410494a0c5033f975ec4e44ca86263d568ec4e71f4b60fbb8da0a",
+    "preparedContextFile": "../runtime-readiness-20261022/prepare-6336350cd9/prepared-context.json",
+    "preparedContextSha256": "e958a69d60009e6ba971a63997b104de370dce0c8cd2276caba54eaf6b16fb56",
+    "requestFile": "../runtime-readiness-20261022/live-authorization.REQUEST.json",
+    "configuredBindings": 40,
+    "distinctCredentials": 30,
+    "inputReservationAllowancePerAttempt": 1048576,
+    "outputAllowance": "Unchanged native route limits: primary/semantic-primary4096; Mercury32768; Gemini65536; APX64000",
+    "inputBoundLimitation": "Technical reservation; no gateway monetary guarantee. Never replace with local byte/token estimator. Missing usage retains full allowance; reported breach terminal.",
+    "providerAvailability": "Credentials/native transports present; remote account quota and inference acceptance not tested; no credential submitted to billing/key-check pages",
+    "requiredAtLaunch": [
+      "Exact frozen source match including evidence-only descendant check",
+      "Every required exact-publication-HEAD CI/security result PASS",
+      "Budget identities and dates still valid",
+      "Matching source/run/key fingerprints and QUEUED state",
+      "Fresh resource/cgroup admission",
+      "Separate explicit one-run authorization and approved call/token/deadline limits"
+    ]
+  }
 }

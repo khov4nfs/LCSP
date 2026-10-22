@@ -1,3 +1,27 @@
+# Current token-only execution proposal — 2026-10-22
+
+Frozen source candidate: `6336350cd900fe1f270475aab1b2b69ae43b8f5d`. Evidence-only descendant publications are permitted only after an exact tracked non-report source comparison. Exact final publication CI/security results belong to the PR checkpoint; earlier HEAD results are historical.
+
+**Execution disabled. No paid/live-test authorization exists.** The account-contract requirement below is superseded for Admin reference estimates and schema-3 call/token safety. It remains applicable only if a separately requested actual-provider financial hard cap is used. No actual USD hard cap is represented by this proposal; the historical USD 25 proposal is not approved or silently enforced by reference pricing.
+
+The unchanged full pinned fixture has 15 chunks / 12 expected review units. Producer and independent Auditor retain every configured route/fallback. The generated [UNAPPROVED schema-3 envelope](../runtime-readiness-20261022/token-envelope-6336350cd9/token-budget.UNAPPROVED.json) covers all 40 local credential bindings / 30 distinct credentials, with fresh salted native SDK/endpoint/credential identities. Each request reserves 1,048,576 inclusive-input tokens and its existing native output ceiling. This conservative technical allowance is not an exact tokenizer count or guaranteed provider charge; missing outcomes retain capacity and a reported bound breach stops the run.
+
+Proposed run ceilings remain **256 physical dispatches / 4,000,000 input/cache tokens / 256,000 output/reasoning tokens / 3,600 s worker / 600 s provider / 4,200 s overall**. No retry of the evaluation. Application retries, rotations and existing fallbacks consume shared reservations. Cumulative stage deadlines are PROVISION 120 s, MATERIALIZE 120 s, DISCOVERY_AUDIT 2,400 s, INVENTORY_FREEZE 180 s, AUTHOR_VALIDATE 720 s, PERSIST_ACTIVATE 180 s, INDEPENDENT_VERIFY 300 s. Authorize these explicitly before creating any launch-approved authorization file.
+
+Fresh non-paid prepared context: database `lcsp360_final_readiness_f73fbd05`, owned container/loopback **55505**, run `5a281ff0-b5dc-4ffa-8562-f31da37e1050`, source version `2574ea77-bc63-4f58-b8de-ec8dcddbb8e0`. The run is **QUEUED**, has no claim inventory/Rule Set version/activation, and has incurred no paid usage. Actual source version and integrity IDs are authoritative in [prepared-context.json](../runtime-readiness-20261022/prepare-6336350cd9/prepared-context.json). Key material remains in a private mode-600 local file; only its SHA-256 is public. Prepared context SHA-256: `e958a69d60009e6ba971a63997b104de370dce0c8cd2276caba54eaf6b16fb56`.
+
+**Runtime readiness PASS provider-free:** same real harness under a 3 GiB / 200% CPU cgroup, 4,200 s process-tree deadline, 5 s forced-stop allowance; peak prepare memory 670 MiB, CPU 8.863 s. Startup checks require 8 GiB disk and 4.25 GiB host available memory; periodic disk stop requires 4 GiB remaining. Captured disk was 16,063,283,200 bytes (~14.96 GiB), host available memory 6,149,906,432 bytes. Recheck at dispatch. These are headroom checks, not a filesystem quota or measured future live peak. The later 24 GiB release-build proposal is not admitted and remains deferred until live PASS.
+
+Source-byte/chunk/graph consistency, all 20 graph-support hashes and HMAC/tamper/wrong-run checks passed. The configured retry/fallback/concurrency rehearsal had seven offline dispatches, four responses, three retained unresolved attempts and no eighth dispatch. Forty current native bindings passed offline middleware admission with zero network requests. Remote endpoint acceptance/quota remain unproven; no API key was sent to a billing/key-check page. A provider failure during the one authorized run must stop/preserve evidence, not launch a new evaluation.
+
+The [authorization request](../runtime-readiness-20261022/live-authorization.REQUEST.json) is deliberately false/unapproved and cannot satisfy launch checks. The budget expires after 24 hours; identity, validity, queued state, HMAC and resource admission must still pass at any future launch. See [runtime proof](../runtime-readiness-20261022/runtime-preflight-proof.json), [offline binding receipt](../runtime-readiness-20261022/token-envelope-6336350cd9/binding-readiness.json), and Section 19.2 of RELEASE_REPORT.md.
+
+Admin fixture/UI success is not real-model legal acceptance. After one separately authorized successful live run, independent semantic/API/tenant validation and later release-image/staging/browser gates remain mandatory. PR stays Draft; no merge or production deployment authorized.
+
+---
+
+## Historical proposals and failed checkpoints (superseded where stated above)
+
 # LCSP-360 final acceptance envelope — BLOCKED
 
 Candidate: `1ed318e4257d93b7ea89973832afedad766a036a`, locally frozen at `refs/lcsp360/paid-admission-reconciled-20261022`. Prior provenance candidate: `bf3bc2a409944746dc0185b6afa6693b75565089`. Historical failed candidate: `6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a`. PR #427 remains Draft. This is a **non-executable proposal**, not an authorization or acceptance receipt. See `execution-envelope.json` for all limits, prerequisites and gate criteria.

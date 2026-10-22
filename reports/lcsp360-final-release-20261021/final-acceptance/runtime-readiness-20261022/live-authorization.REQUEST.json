@@ -1,0 +1,29 @@
+{
+  "paidInferenceApproved": false,
+  "approvalReference": null,
+  "evaluationCount": 1,
+  "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
+  "runId": "5a281ff0-b5dc-4ffa-8562-f31da37e1050",
+  "maximum_calls": 256,
+  "maximum_input_tokens": 4000000,
+  "maximum_output_tokens": 256000,
+  "workerTimeoutMs": 3600000,
+  "providerTimeoutSeconds": 600,
+  "overallTimeoutMs": 4200000,
+  "stageLimitsMs": {
+    "PROVISION": 120000,
+    "MATERIALIZE": 120000,
+    "DISCOVERY_AUDIT": 2400000,
+    "INVENTORY_FREEZE": 180000,
+    "AUTHOR_VALIDATE": 720000,
+    "PERSIST_ACTIVATE": 180000,
+    "INDEPENDENT_VERIFY": 300000
+  },
+  "actualProviderFinancialHardCap": "NOT_ENABLED; requires separate verified schema-2 contract if requested",
+  "referenceCost": "Observed provider usage valued at immutable official model price snapshots; not a payment obligation or guaranteed actual charge",
+  "budgetFile": "token-envelope-6336350cd9/token-budget.UNAPPROVED.json",
+  "budgetFingerprint": "4b538198dc6410494a0c5033f975ec4e44ca86263d568ec4e71f4b60fbb8da0a",
+  "budgetFileSha256": "235bfe6860ed1afab10b6033d3a9e9f0382dce906524d1dbf97730d1c2b19346",
+  "preparedContextSha256": "e958a69d60009e6ba971a63997b104de370dce0c8cd2276caba54eaf6b16fb56",
+  "authorization": "REQUEST_ONLY; cannot satisfy paid launch checks; validity must still hold when separately approved"
+}
