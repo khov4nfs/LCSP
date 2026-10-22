@@ -312,6 +312,19 @@ def test_provider_bound_breach_is_terminal_without_refund(tmp_path):
     with pytest.raises(PaidAdmissionError, match="PROVIDER_BOUND_BREACH"): invoke(state)
 
 
+def test_provider_overcharge_is_visible_even_when_it_breaks_the_contract(tmp_path):
+    model = native(); policy = policy_for(model)
+    state = state_for(tmp_path, model, maximum_charge_nano_usd=policy.exposure())
+    state.admission.admit("provider-breach", request_identity(model))
+    with pytest.raises(PaidAdmissionError, match="PROVIDER_BOUND_BREACH"):
+        state.admission.settle("provider-breach", {"inputTokens": 1000, "cachedInputTokens": 1000,
+            "cacheWriteTokens": 1000, "outputTokens": 262144, "reasoningTokens": 262144})
+    result = snapshot(state)
+    assert result["chargeExposureNanoUSD"] > policy.exposure()
+    assert result["actualChargeNanoUSD"] is None
+    assert result["terminalReason"] == "PROVIDER_BOUND_BREACH"
+
+
 def test_legacy_journal_is_not_retroactively_called_bounded(tmp_path):
     state = LiveUsage("legacy", str(tmp_path / "legacy.json"))
     assert recover_usage(str(tmp_path / "legacy.json"), "legacy")["admission"]["state"] == "LEGACY_UNBOUNDED"

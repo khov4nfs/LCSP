@@ -249,6 +249,10 @@ class RunAdmission:
                         or reasoning > output or charge > row["charge_exposure"]):
                     failure = PaidAdmissionError("PROVIDER_BOUND_BREACH", self.run_id, attempt_id)
                     db.execute("UPDATE inference_budgets SET stopped=? WHERE run_id=?", (failure.reason, self.run_id))
+                    if reasoning > output:
+                        charge = None  # Contradictory buckets cannot establish an actual charge.
+                    exposure = (max(row["input_exposure"], inputs + cached + written),
+                                max(row["output_exposure"], output), max(row["charge_exposure"], charge or 0))
                 else:
                     state, exposure = "SETTLED", (inputs + cached + written, output, charge)
             history = json.loads(row["history"]) + [{"state": state, "at": time.time()}]
