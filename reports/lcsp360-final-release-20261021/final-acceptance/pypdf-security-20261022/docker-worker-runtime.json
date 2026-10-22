@@ -1,0 +1,29 @@
+{
+  "candidateSha": "6baf188379b9f4beb119216f709504226d298ecd",
+  "tag": "lcsp-pypdf-worker:6baf188379b9",
+  "exitCode": 0,
+  "stdout": "{\"python\": \"3.11.17\", \"executable\": \"/usr/local/bin/python\", \"pypdfVersion\": \"6.21.2\", \"pypdfPath\": \"/usr/local/lib/python3.11/site-packages/pypdf/__init__.py\", \"installedAppRequires\": \"pypdf<7,>=6.21.1\", \"rejectsVulnerableVersion\": true, \"acceptsPatchedVersion\": true, \"rejectsNextMajor\": true, \"minimalPdfRoundTripPages\": 1, \"network\": \"not used\", \"providerCalls\": 0}\n",
+  "stderr": "",
+  "runtime": {
+    "python": "3.11.17",
+    "executable": "/usr/local/bin/python",
+    "pypdfVersion": "6.21.2",
+    "pypdfPath": "/usr/local/lib/python3.11/site-packages/pypdf/__init__.py",
+    "installedAppRequires": "pypdf<7,>=6.21.1",
+    "rejectsVulnerableVersion": true,
+    "acceptsPatchedVersion": true,
+    "rejectsNextMajor": true,
+    "minimalPdfRoundTripPages": 1,
+    "network": "not used",
+    "providerCalls": 0
+  },
+  "image": {
+    "Id": "sha256:0973387f4213510c4c4519929966dd89261ed209e516f72708f7eb2d16991ffe",
+    "Created": "2026-10-22T11:36:05.748128367+07:00",
+    "Config": {
+      "Labels": {
+        "org.opencontainers.image.revision": "6baf188379b9f4beb119216f709504226d298ecd"
+      }
+    }
+  }
+}

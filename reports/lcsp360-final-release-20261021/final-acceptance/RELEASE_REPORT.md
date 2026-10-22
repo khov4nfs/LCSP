@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**BLOCKED** — the 2026-10-22 final release attempt stopped at Trivy policy on `bca42bfe7a109f30f7014e5eac11237617692a6a`: locked `pypdf 6.20.1` is flagged for CVE-2026-113786 (patched in `6.21.1`). Trustabl is repaired and passes. No fresh real-model evaluation was dispatched. PR remains Draft; see section 13.
+**PREFLIGHT_READY (non-paid)** — CVE-2026-113786 is fixed on runtime candidate `6baf188379b9f4beb119216f709504226d298ecd`; all 36 exact-candidate CI/security checks and the focused PDF/runtime preflight pass. **Release remains BLOCKED** pending real-model semantic/runtime acceptance and subsequent release-image/staging/browser acceptance. No paid evaluation was dispatched. PR remains Draft; see section 14. Section 13 retains the earlier security failure.
 
 - Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
@@ -105,9 +105,9 @@ Staging image/browser verification has **not run for the recovered candidate**. 
 
 ## 7. Remaining release blockers
 
-0. Current first failed gate: Trivy policy, `pypdf` CVE-2026-113786. The latest attempt stopped before candidate freeze or model dispatch (section 13). Earlier non-paid readiness does not establish current release readiness.
-1. The original live evaluation timed out before freeze and activation. The seeder defect and subsequent durable-accounting preflight blocker are fixed; historical non-paid preflight passed on `9cf033e09` (section 12). Real-model semantic/runtime acceptance remains unproven. The latest conditional evaluation authorization stopped at Trivy policy before dispatch (section 13).
-2. After semantic/runtime acceptance passes (CI/security now pass), build stable release images and complete disposable staging/browser verification with the repository tooling. Do not use production secrets.
+0. No non-paid security/runtime preflight failure remains on `6baf188379b9` (section 14). This does not establish release readiness or authorize model dispatch.
+1. The original live evaluation timed out before freeze and activation. The seeder defect, durable-accounting blocker and latest security blocker are fixed. Real-model semantic/runtime acceptance remains unproven. The current instruction stops before paid evaluation.
+2. After separately authorized semantic/runtime acceptance passes, build stable release images and complete disposable staging/browser verification with the repository tooling. The dependency-image checks in section 14 do not substitute for that acceptance. Do not use production secrets.
 3. Token usage for the aborted run cannot be recovered from the retained artifacts. Canonical usage remains unavailable; do not invent totals.
 
 ## 8. Staging verification (prepared, not executed)
@@ -233,3 +233,38 @@ Other observations before stopping:
 - Other current-candidate CI jobs were still running at capture; their eventual success cannot override the failing Trivy policy. No broad local suite or manual CI rerun was launched.
 
 Evidence: `release-20261022/security-takeover.json`, `blocker-summary.json` (exact check IDs/SHAs, baseline and applicability, source/WIP hashes, stop boundary), `upstream-advisory.json`, `provider-readiness.json`, `api-build.log`. Prepared non-paid probe sources are retained but were not executed. PR #427 remains Draft. Status: **BLOCKED**.
+
+## 14. Trivy dependency repair and non-paid runtime preflight, 2026-10-22
+
+Takeover HEAD: `8c6cbd07a12edfc181d28fae8bc6f6ffdbced9cc`. Verified runtime candidate and dependency-fix commit: **`6baf188379b9f4beb119216f709504226d298ecd`**. **PREFLIGHT_READY for non-paid checks; release remains BLOCKED.** This section supersedes the unresolved security blocker in section 13. The current instruction explicitly stops before paid evaluation.
+
+**Root cause:** `uv.lock` selected vulnerable `pypdf 6.20.1`, while `pypdf>=5,<7` also allowed production pip installs to select affected releases. Updating only the lock would not protect `deepagents/Dockerfile`, which installs `/app/deepagents` with pip.
+
+**Fix:** Require **`pypdf>=6.21.1,<7`** in `deepagents/pyproject.toml`; regenerate with `uv lock --upgrade-package pypdf==6.21.1` (uv 0.11.26). Only pypdf changes version in the lock, from 6.20.1 to 6.21.1. No Dockerfile, accounting, semantic validation, audit, policy exclusion or advisory dismissal changed. Both pip and uv receive the patched minimum from the project metadata.
+
+| Gate | Verified result |
+|---|---|
+| Lock consistency | `uv lock --check` and `uv sync --frozen --extra dev` pass; local installed pypdf 6.21.1 |
+| Focused PDF regressions | **159 passed, zero failures/errors/skips**, covering managed ingestion/representation, official extraction/repository/consumer, legal-source ingestion/provenance and OCR PDF fixtures. Provider-free tests include corrupt/empty PDF controls |
+| Production pip worker | Clean `deepagents/Dockerfile` build passes; actual installed **pypdf 6.21.2**, `/usr/local/lib/python3.11/site-packages/pypdf`. `python -m pip check` passes |
+| Production uv Agent Server | Clean `deepagents-langgraph/Dockerfile` build passes; actual installed **pypdf 6.21.1**, `/app/deepagents/.venv/lib/python3.11/site-packages/pypdf`. `uv pip check` passes for 175 packages |
+| Installed dependency contract | Both images expose `pypdf<7,>=6.21.1` in installed `lcsp-agent-runtime` metadata; assertions reject 6.20.1 and 7.0.0 and accept the actual patched version |
+| Image PDF check | Both actual images import pypdf and write/read a one-page PDF, with **network disabled**, read-only rootfs and no provider credentials |
+| Required CI/security | **All 36 checks pass on exact SHA `6baf188379b9`**, including V2 required release gate, Assessment Root vertical, Docker sandbox E2E, API/Python/web/Playwright gates, Dependency Review and separate Trivy/Trustabl/CodeQL policies |
+| Trivy finding | [Alert #85](https://github.com/khov4nfs/LCSP/security/code-scanning/85) is **fixed** on the PR merge ref; dismissal fields are null. [Trivy policy passes](https://github.com/khov4nfs/LCSP/runs/119638031303), as do [Trustabl](https://github.com/khov4nfs/LCSP/runs/119638123265) and [CodeQL](https://github.com/khov4nfs/LCSP/runs/119638095804) |
+| Source provenance | Fresh disposable database: **15 canonical EFFECTIVE chunks**, fixture provenance and content hashes; **20 EFFECTIVE graph nodes**, **18 independently recomputed source-support hashes** |
+| HMAC/authentication | Ephemeral random key shared by diagnostic API/worker; Python and independent Node verification pass; tamper, wrong-run and missing-worker-key controls reject. Only fingerprint/signature evidence is retained |
+| Database isolation | New database `lcsp360_pypdf_preflight_7a3088043efe` on owned loopback **55502**; diagnostic API and container stopped afterward. Historical **55441** untouched |
+| Provider readiness | Read-only quota/catalog checks pass: primary Producer/Auditor model advertised, key unexpired, **4,692,038 quota units remaining**. Configured fallback credentials present; fallback balances/live behavior unverified |
+| Accounting/semantic preservation | Runtime/recovery/harness source hashes match the verified accounting candidate. The sole accounting-fixture difference is the prior Trustabl docstring repair. Current Python CI passes; prior interruption/reconciliation evidence in section 12 is retained |
+| WIP preservation | All three protected WIP files retain their recorded SHA-256 values; none is committed in this change |
+
+Images were built from a **clean `git archive` of the committed candidate**, with revision labels and hashed Dockerfiles/manifests; dirty WIP, `.env`, local virtual environments and historical reports were excluded. Exact image IDs, paths and installed metadata are in `docker-worker-runtime.json` and `docker-server-runtime.json`. Pip resolves independently of uv.lock, hence 6.21.2 versus the server's locked 6.21.1; both satisfy the patched floor. These are dependency/runtime checks, not a blanket image-vulnerability or staging acceptance claim.
+
+The first server dependency diagnostic could not create uv's cache on the read-only rootfs. That diagnostic failure is preserved. Providing only a temporary tmpfs cache, with network still disabled and the image still read-only, permits the check; all installed packages are compatible. No production image or gate was changed to accommodate the diagnostic.
+
+Provider-free diagnostic run: **`ed72c8ae-86a8-480c-afa2-1b9a5590855c`**, source version **`6887d934-139f-4e16-8a05-c5f897a57661`**, materialization **`fb091987e4daa0e7f69c7e95738b64d3ff98640961c3c30af3eeb06a21cdb8ad`**. This run only reads a pinned source bundle: **zero semantic-audit rows, zero Rule Set versions, no frozen inventory or activation**. Its signed `NOT_EVALUATED` HMAC fixture is not a semantic acceptance receipt.
+
+Fresh real-model evaluation run ID: **none**; new paid model calls/input/output tokens: **0/0/0**. Historical aborted-run usage remains unavailable. Full release-image matrix, staging, browser acceptance, merge and deployment were **NOT_RUN**. Quota is a point-in-time availability check, not a model-liveness or budget guarantee. No broad local suite or manual CI rerun was launched; normal push-triggered checks verify each published head. Disk was checked before builds and remains 97% full with approximately 16 GB free.
+
+Evidence: [`pypdf-security-20261022/preflight-summary.json`](pypdf-security-20261022/preflight-summary.json), lock-change receipt, focused test log/JUnit, clean-context source hashes, both build logs and installed-runtime/dependency receipts, complete `ci-candidate.json`, fixed-alert receipt, source/HMAC/database and provider-readiness snapshots, replayable provider-free probes and `preservation.json`. Raw worker-build and PDF-test logs are published as `.log.gz`, with byte-exact round-trip/hash receipts in `raw-log-archives.json`; original local logs remain unchanged. Evidence publication leaves runtime inputs unchanged; PR #427 records the exact publication head and its CI results separately. PR remains Draft. Next release gate requires a **separate authorization** for one bounded real-model evaluation; this task stops here.

@@ -1,0 +1,27 @@
+{
+  "number": 85,
+  "url": "https://github.com/khov4nfs/LCSP/security/code-scanning/85",
+  "ruleId": "CVE-2026-113786",
+  "branchInstances": {
+    "ref": "refs/pull/427/merge",
+    "analysis_key": ".github/workflows/security-quality.yml:trivy",
+    "environment": "{}",
+    "category": "trivy-repository",
+    "state": "fixed",
+    "commit_sha": "40e8435b6acf3e9edc5bbcd342b616ac0db32087",
+    "message": {
+      "text": "Package: pypdf\nInstalled Version: 6.20.1\nVulnerability CVE-2026-113786\nSeverity: LOW\nFixed Version: 6.21.1\nLink: [CVE-2026-113786](https://avd.aquasec.com/nvd/cve-2026-113786)",
+      "markdown": "Package: pypdf\nInstalled Version: 6.20.1\nVulnerability CVE-2026-113786\nSeverity: LOW\nFixed Version: 6.21.1\nLink: [CVE-2026-113786](https://avd.aquasec.com/nvd/cve-2026-113786)"
+    },
+    "location": {
+      "path": "deepagents/uv.lock",
+      "start_line": 1,
+      "end_line": 1,
+      "start_column": 1,
+      "end_column": 1
+    },
+    "classifications": []
+  },
+  "dismissedAt": null,
+  "dismissedReason": null
+}

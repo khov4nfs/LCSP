@@ -1,0 +1,26 @@
+Re-extracting code files in . (no LLM needed)...
+[graphify watch] 57 file(s) not classified (no supported extension or shebang), skipped: .dockerignore, .env.example, .fogewise-production.example, .gitattributes, .gitignore, .gitkeep (+51 more)
+  AST extraction: 100/1631 uncached files (6%) [16 workers]
+  AST extraction: 200/1631 uncached files (12%) [16 workers]
+  AST extraction: 300/1631 uncached files (18%) [16 workers]
+  AST extraction: 400/1631 uncached files (24%) [16 workers]
+  AST extraction: 500/1631 uncached files (30%) [16 workers]
+  AST extraction: 600/1631 uncached files (36%) [16 workers]
+  AST extraction: 700/1631 uncached files (42%) [16 workers]
+  AST extraction: 800/1631 uncached files (49%) [16 workers]
+  AST extraction: 900/1631 uncached files (55%) [16 workers]
+  AST extraction: 1000/1631 uncached files (61%) [16 workers]
+  AST extraction: 1100/1631 uncached files (67%) [16 workers]
+  AST extraction: 1200/1631 uncached files (73%) [16 workers]
+  AST extraction: 1300/1631 uncached files (79%) [16 workers]
+  AST extraction: 1400/1631 uncached files (85%) [16 workers]
+  AST extraction: 1500/1631 uncached files (91%) [16 workers]
+  AST extraction: 1600/1631 uncached files (98%) [16 workers]
+  AST extraction: 1631/1631 uncached files (100%) [16 workers]
+  warning: 122 .sql file(s) contributed nothing to the graph because a dependency is missing: tree_sitter_sql not installed. Install it with: pip install "graphifyy[sql]" (#1745)
+  warning: 1 file(s) had syntax errors and may be partially extracted: apps/api/test/smoke.e2e-spec.ts (first error at line 84, no symbols extracted)
+Graph has 35138 nodes (above 5000 limit). Building aggregated community view...
+[graphify watch] Stale graph.html left unchanged; regeneration will be retried: Graph has 12529 nodes - too large for HTML viz (limit: 5000). Use --no-viz, raise GRAPHIFY_VIZ_NODE_LIMIT, or reduce input size.
+[graphify watch] No code-graph topology changes detected; outputs left untouched.
+Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.
+Tip: set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini for semantic extraction.

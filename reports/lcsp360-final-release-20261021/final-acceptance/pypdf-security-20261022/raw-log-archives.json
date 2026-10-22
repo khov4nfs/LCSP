@@ -1,0 +1,18 @@
+{
+  "docker-worker-build.log": {
+    "rawSha256": "c197f4ed583478f46272ec0f843c59addd469fb7377dfff3965181eaa1152495",
+    "rawBytes": 92939,
+    "archive": "docker-worker-build.log.gz",
+    "archiveSha256": "c724186c0b4eda2cfbe9bb2acc587179fd081fdd38738e8eea4c55ae68feb211",
+    "roundTripExact": true,
+    "reason": "Preserve original carriage returns and trailing spaces in compressed raw evidence; local raw log remains unchanged"
+  },
+  "pdf-regressions.log": {
+    "rawSha256": "978fe1585dc8e357e11f9d78b5fb4c79fdc57b77053b523c876108103e495095",
+    "rawBytes": 24633,
+    "archive": "pdf-regressions.log.gz",
+    "archiveSha256": "cbffe7e1a6099282b983b226b54c8fbc27a3c57da98427afeaca6593f89ac989",
+    "roundTripExact": true,
+    "reason": "Preserve original carriage returns and trailing spaces in compressed raw evidence; local raw log remains unchanged"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "tag": "lcsp-pypdf-server:6baf188379b9",
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "Checked 175 packages in 45ms\nAll installed packages are compatible\n",
+  "temporaryCache": "tmpfs /tmp, UV_CACHE_DIR=/tmp/uv-cache; image remains read-only; network disabled"
+}

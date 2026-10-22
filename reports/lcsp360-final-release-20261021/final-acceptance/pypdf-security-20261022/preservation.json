@@ -1,0 +1,41 @@
+{
+  "accountingCandidate": "9cf033e099225300ffe98247eb3717e254a79232",
+  "candidateSha": "6baf188379b9f4beb119216f709504226d298ecd",
+  "sourceSha256": {
+    "deepagents/middleware/usage_recovery.py": {
+      "sha256": "148ae5c46f5d7a104b9d0f432a26ef4f51b5c5fcf4369a0cd0d3e9dbdd7a15df",
+      "matchesAccountingCandidate": true
+    },
+    "deepagents/tests/vertical/live_preparation.py": {
+      "sha256": "5a2061d6818b5164e49b9dc113bf854388b66b314737d0bd6783e3ebbf648e03",
+      "matchesAccountingCandidate": true
+    },
+    "deepagents/tests/test_live_preparation_usage.py": {
+      "sha256": "6190aa2b425976e28affc9a169f17ffd4cb81c337a813b5861b4cb493eff5016",
+      "matchesAccountingCandidate": false
+    },
+    "tests/compliance-rule-set-live-eval.mjs": {
+      "sha256": "b9e42864b8e4e03782288c425aa047258ab0e9e96d2b43750f8a88c55ac97dc6",
+      "matchesAccountingCandidate": true
+    },
+    "tests/support/compliance-rule-set-stack.mjs": {
+      "sha256": "61ce7076f06f4d021ed94a4cb87976e9ac189fc42df28801eac6bb341b07d968",
+      "matchesAccountingCandidate": true
+    },
+    "tests/live-usage-recovery.test.mjs": {
+      "sha256": "719701b4bff90ddbb36cf8ebb76bd6f6cbddd9bb73113f7dedd237c2d7482cdb",
+      "matchesAccountingCandidate": true
+    }
+  },
+  "onlyAccountingFixtureChange": "Trustabl tool docstring clarified in bca42bfe7; no functional accounting change",
+  "protectedWipSha256": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "changesFromTakeover": [
+    "deepagents/pyproject.toml",
+    "deepagents/uv.lock"
+  ],
+  "productionSemanticsAndAccountingUnmodified": true
+}
