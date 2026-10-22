@@ -2388,7 +2388,7 @@ describe("AssessmentTrackingLoader", () => {
     });
   });
 
-  describe("customer portfolio views", () => {
+  describe("customer tracking lists", () => {
     it("groups obligations by rule set and exposes only owner-scoped completed active reports", async () => {
       const assessedAt = new Date("2026-10-18T10:00:00.000Z");
       const observedAt = new Date("2026-10-18T11:00:00.000Z");

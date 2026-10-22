@@ -1,5 +1,5 @@
 import {
-  customerTrackingPortfolioQuerySchema,
+  customerTrackingListQuerySchema,
   customerTrackingReportsSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { proxyTrackingJson } from "@/lib/server/tracking-proxy";
@@ -9,7 +9,7 @@ export function GET(request: NextRequest) {
   return proxyTrackingJson(
     request,
     "/assessments/tracking/reports",
-    customerTrackingPortfolioQuerySchema,
+    customerTrackingListQuerySchema,
     customerTrackingReportsSchema,
   );
 }
