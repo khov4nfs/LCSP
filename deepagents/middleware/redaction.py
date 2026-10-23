@@ -38,6 +38,8 @@ SAFE_METADATA_KEY_NAMES = frozenset(
         "authorName",
         "authorized",
         "cacheWriteTokens",
+        "cacheWrite5mTokens",
+        "cacheWrite1hTokens",
         "cachedInputTokens",
         "countryCode",
         "credential_fingerprint",
@@ -54,6 +56,7 @@ SAFE_METADATA_KEY_NAMES = frozenset(
         "idempotencyKey",
         "idempotency_key",
         "inputTokens",
+        "inputTokensIncludingCache",
         "keyword",
         "maxInputTokens",
         "maxOutputTokens",
@@ -71,6 +74,7 @@ SAFE_METADATA_KEY_NAMES = frozenset(
         "totalTokens",
         "total_tokens",
         "usage_metadata",
+        "visibleOutputTokens",
     }
 )
 
