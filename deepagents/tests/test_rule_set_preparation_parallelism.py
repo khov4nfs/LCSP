@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
+from legal_graph_fixture import document_graph_for_bundle
+
 import hashlib
 import json
 import threading
@@ -48,18 +51,22 @@ def _bundle() -> dict[str, Any]:
                         "content": content,
                         "contentSha256": _sha(content),
                         "legalStatus": "IN_FORCE",
+                        "legalEffectStatus": "EFFECTIVE",
+                        "legalStatusSourceRef": "source-metadata:fixture",
                         "hierarchy": {"path": ["article-1", "clause-1"]},
                     }
                 ],
             }
         )
-    return {
+    bundle = {
         "preparationRunId": RUN_ID,
         "executionState": "RUNNING",
         "legalSourceVersionId": LEGAL_SOURCE_ID,
         "legalSourceVersion": "SYNTHETIC-TWO-DOCUMENT-V1",
         "documents": documents,
     }
+    bundle["documentGraph"] = document_graph_for_bundle(bundle)
+    return bundle
 
 
 class _Api:

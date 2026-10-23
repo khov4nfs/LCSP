@@ -1,4 +1,5 @@
 """Shared terminal failure classification for model calls and queue delivery."""
+from langchain_anthropic.chat_models import AnthropicModelNotFoundError
 from langchain.agents.structured_output import StructuredOutputError
 from langchain_core.exceptions import (
     ModelAuthenticationError,
@@ -44,6 +45,19 @@ _PROVIDER_MODEL_UNAVAILABLE_CODES = frozenset(
 )
 
 
+# A provider route's model declined to answer one sample ("I can't help with that request"). Some
+# gateways report it as a mid-stream error carrying a 400-like code, which reads exactly like a
+# rejected request but is the opposite: the request is fine and another sample or route answers it.
+_PROVIDER_REFUSAL_PHRASES = (
+    "can't help with that",
+    "cannot help with that",
+    "can't assist with that",
+    "cannot assist with that",
+    "unable to help with that",
+    "unable to assist with that",
+)
+
+
 class TerminalCredentialError(RuntimeError):
     """Every configured credential has failed; do not retry the list."""
 
@@ -68,6 +82,28 @@ class AgentRunBudgetExceeded(RuntimeError):
     Terminal for retry, credential rotation and queue delivery: replaying the same
     run would walk the same unbounded loop and spend the same budget again.
     """
+
+
+class PaidAdmissionError(AgentRunBudgetExceeded):
+    """Terminal bounded-inference denial; safe metadata only, never a provider fault."""
+
+    def __init__(self, reason: str, run_id: str, attempt_id: str | None = None):
+        self.reason, self.run_id, self.attempt_id = reason, run_id, attempt_id
+        super().__init__(f"Paid inference admission stopped: {reason}")
+
+
+def is_paid_admission_error(error: BaseException) -> bool:
+    seen: set[int] = set()
+    while error is not None and id(error) not in seen:
+        seen.add(id(error))
+        if isinstance(error, PaidAdmissionError):
+            return True
+        error = error.__cause__ or error.__context__
+    return False
+
+
+class NoProgressDetected(RuntimeError):
+    """The Agent repeated the same ineffective action after no-progress feedback."""
 
 
 class StructuredOutputRejected(TerminalSchemaError):
@@ -191,7 +227,31 @@ def is_provider_model_unavailable(error: BaseException) -> bool:
     on another provider is expected to succeed. Not retried on the same route
     either — a withdrawn or overloaded model does not come back within a turn.
     """
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, AnthropicModelNotFoundError):
+            return True
+        current = current.__cause__ or current.__context__
     return bool(_error_codes(error) & _PROVIDER_MODEL_UNAVAILABLE_CODES)
+
+
+def is_provider_refusal(error: BaseException) -> bool:
+    """Return whether the provider's model declined this one sample instead of failing the request.
+
+    Not a terminal task error: resampling or another route is expected to answer, and a task that
+    legitimately analyses statute text must not die on a route's occasional false-positive refusal.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        text = str(current).lower().replace("\u2019", "'")
+        if any(phrase in text for phrase in _PROVIDER_REFUSAL_PHRASES):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def is_terminal_task_error(error: BaseException) -> bool:
@@ -199,7 +259,7 @@ def is_terminal_task_error(error: BaseException) -> bool:
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        if isinstance(current, (TypeError, ValidationError, StructuredOutputError, TerminalSchemaError, TerminalCredentialError, AgentRunBudgetExceeded)):
+        if isinstance(current, (TypeError, ValidationError, StructuredOutputError, TerminalSchemaError, TerminalCredentialError, AgentRunBudgetExceeded, NoProgressDetected)):
             return True
         # Our own API rejected this payload. The boundary re-runs the model on every
         # redelivery, so requeueing an identical rejected decision is an unbounded spend
@@ -211,7 +271,11 @@ def is_terminal_task_error(error: BaseException) -> bool:
         # A model-unavailability code arrives with the same status but means the
         # route is down, not the request, so it stays non-terminal and falls back.
         status = getattr(current, "status_code", None) or getattr(current, "code", None)
-        if status in (400, 404, 422) and not is_provider_model_unavailable(current):
+        if (
+            status in (400, 404, 422)
+            and not is_provider_model_unavailable(current)
+            and not is_provider_refusal(current)
+        ):
             return True
         # A non-retryable credential rejection only rules out the same credential; it is
         # classified by is_auth_failure so credential/provider fallback can continue.
@@ -219,6 +283,7 @@ def is_terminal_task_error(error: BaseException) -> bool:
             isinstance(current, ModelError)
             and not current.is_retryable
             and not isinstance(current, _CREDENTIAL_MODEL_ERRORS)
+            and not is_provider_model_unavailable(current)
         ):
             return True
         current = current.__cause__ or current.__context__
@@ -251,7 +316,8 @@ def retry_model_error(error: Exception) -> bool:
     # Re-sending the same request with the same rejected credential cannot succeed.
     # Queue redelivery policy lives in is_terminal_boundary_error.
     return (
-        not is_terminal_task_error(error)
+        not is_paid_admission_error(error)
+        and not is_terminal_task_error(error)
         and not is_auth_failure(error)
         and not is_provider_capacity_failure(error)
         # Resending to a model the provider just called unavailable only burns

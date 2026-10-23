@@ -1,4 +1,10 @@
+import {
+  SourceReviewHandler,
+  StartClaimDiscoveryDiagnosticHandler,
+} from "./application/commands/source-review/source-review.handler.js";
 import { Module } from "@nestjs/common";
+import { ClaimInventoryHandler } from "./application/commands/claim-inventory/claim-inventory.handler.js";
+import { LegalSourceModule } from "../legal-source/legal-source.module.js";
 import { CqrsModule } from "@nestjs/cqrs";
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { ComplianceRuleSetAdminController } from "./presentation/http/compliance-rule-set-admin.controller.js";
@@ -15,26 +21,32 @@ import { SubmitComplianceRuleSetHandler } from "./application/commands/submit-co
 import { CancelRuleSetPreparationHandler } from "./application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.handler.js";
 import { GetActiveComplianceRuleSetHandler } from "./application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetComplianceRuleSetVersionHandler } from "./application/queries/get-compliance-rule-set-version/get-compliance-rule-set-version.handler.js";
-import { ValidateComplianceRuleSetHandler } from "./application/queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
+import { GetComplianceRuleSetResultHandler } from "./application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.handler.js";
+import { ValidateComplianceRuleSetHandler } from "./application/commands/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
 import { LegalSourceSnapshotLoader } from "./infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "./infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetReadModelLoader } from "./infrastructure/persistence/compliance-rule-set-read-model.service.js";
 import { LegalSourceActivatedConsumer } from "./infrastructure/messaging/legal-source-activated.consumer.js";
 import { ComplianceRuleSetController } from "./presentation/http/compliance-rule-set.controller.js";
 import { AgentServerPreparationControl } from "./infrastructure/runtime/agent-server-preparation-control.js";
+import { ReactivateComplianceRuleSetHandler } from "./application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.handler.js";
 
 /**
  * Source activation and an explicit Admin action start Rule Set Preparation; only a validated
  * result becomes the shared ACTIVE rule set. Other modules use its public queries.
  */
 @Module({
-  imports: [CqrsModule, OutboxModule, RbacModule],
+  imports: [CqrsModule, OutboxModule, RbacModule, LegalSourceModule],
   controllers: [ComplianceRuleSetController, ComplianceRuleSetAdminController],
   providers: [
+    ClaimInventoryHandler,
+    SourceReviewHandler,
+    StartClaimDiscoveryDiagnosticHandler,
     LegalSourceSnapshotLoader,
     ListComplianceRuleSetHistoryHandler,
     ComplianceRuleSetHistoryLoader,
     ComplianceRuleSetActivation,
+    ReactivateComplianceRuleSetHandler,
     ComplianceRuleSetReadModelLoader,
     StartRuleSetPreparationHandler,
     PrepareCurrentRuleSetHandler,
@@ -48,6 +60,7 @@ import { AgentServerPreparationControl } from "./infrastructure/runtime/agent-se
     ValidateComplianceRuleSetHandler,
     GetActiveComplianceRuleSetHandler,
     GetComplianceRuleSetVersionHandler,
+    GetComplianceRuleSetResultHandler,
   ],
 })
 export class ComplianceRuleSetModule {}

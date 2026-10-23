@@ -16,6 +16,7 @@ from middleware.failure_policy import (
     TerminalSchemaError,
     error_status,
     is_auth_failure,
+    is_paid_admission_error,
     is_provider_capacity_failure,
     is_provider_quota_exhaustion,
     is_terminal_task_error,
@@ -27,6 +28,7 @@ from provider_credentials import (
     NO_SDK_RETRY_MAX_RETRIES,
     apx_base_url,
     inception_base_url,
+    mirai_base_url,
     provider_token_source,
 )
 from tools.common.capabilities.platform.logging import get_logger
@@ -162,7 +164,7 @@ def credential_failure(error: BaseException) -> bool:
     Authentication failures are handled separately: they mark the failing slot dead for
     this process instead of being treated as a transient failure of the same slot.
     """
-    return is_provider_capacity_failure(error) or _is_retryable_transient_error(error)
+    return not is_paid_admission_error(error) and (is_provider_capacity_failure(error) or _is_retryable_transient_error(error))
 
 
 def model_provider(model) -> str | None:
@@ -182,6 +184,8 @@ def model_provider(model) -> str | None:
             return "inception"
         if base_url == apx_base_url("openai"):
             return "apx"
+        if base_url == mirai_base_url():
+            return "miraiapi"
         return "openai"
     if module.startswith("langchain_google_genai."):
         return "google_genai"
@@ -193,6 +197,8 @@ def model_provider(model) -> str | None:
         ).rstrip("/")
         if base_url == apx_base_url():
             return "apx"
+        if base_url == mirai_base_url("anthropic"):
+            return "miraiapi"
         return "anthropic"
     return None
 
@@ -255,9 +261,12 @@ class TokenFallbackMiddleware(AgentMiddleware):
     def wrap_model_call(self, request, handler):
         provider = model_provider(request.model)
         source = provider_token_source(provider) if provider else None
-        if source is None or len(source[1]) < 2:
+        if source is None:
             return handler(request)
         env_name, tokens = source
+        if len(tokens) < 2:
+            with self._attempt_context(0):
+                return handler(request)
         if provider == "apx":
             self._refresh_pool_identity(provider, env_name, tokens)
         return self._run_with_fallback(
@@ -272,9 +281,12 @@ class TokenFallbackMiddleware(AgentMiddleware):
     async def awrap_model_call(self, request, handler):
         provider = model_provider(request.model)
         source = provider_token_source(provider) if provider else None
-        if source is None or len(source[1]) < 2:
+        if source is None:
             return await handler(request)
         env_name, tokens = source
+        if len(tokens) < 2:
+            with self._attempt_context(0):
+                return await handler(request)
         if provider == "apx":
             self._refresh_pool_identity(provider, env_name, tokens)
         return await self._run_with_fallback(
@@ -290,6 +302,12 @@ class TokenFallbackMiddleware(AgentMiddleware):
         if index == 0:
             return request
         return request.override(model=model_with_token(request.model, provider, token))
+
+    @staticmethod
+    def _attempt_context(index: int):
+        from middleware.usage_metering import provider_attempt_context
+
+        return provider_attempt_context(credential_slot_safe_id=f"CREDENTIAL_SLOT_{index + 1:02d}")
 
     def _dead_slots(self, provider: str, env_name: str) -> set[int]:
         return _DEAD_CREDENTIAL_SLOTS.setdefault((provider, env_name), set())
@@ -686,7 +704,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
                 )
                 attempt_count += 1
                 try:
-                    response = handler(self._candidate_request(request, provider, tokens[index], index))
+                    with self._attempt_context(index):
+                        response = handler(self._candidate_request(request, provider, tokens[index], index))
                 except Exception as error:
                     if not self._record_failure(
                         provider=provider,
@@ -756,7 +775,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
                 )
                 attempt_count += 1
                 try:
-                    response = await handler(self._candidate_request(request, provider, tokens[index], index))
+                    with self._attempt_context(index):
+                        response = await handler(self._candidate_request(request, provider, tokens[index], index))
                 except Exception as error:
                     if not self._record_failure(
                         provider=provider,

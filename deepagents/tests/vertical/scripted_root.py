@@ -86,7 +86,8 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
                     "legal_context_ids": [{"ER-RET": "LR-RET", "ER-XREF": "LR-XREF"}[rule]],
                     "references": refs,
                     "criteria": [
-                        {"criterion_id": "C-1", "outcome": outcome, "rationale": "Based on the cited source.", "references": refs}
+                        {"criterion_id": criterion, "outcome": outcome, "rationale": "Based on the cited source.", "references": refs}
+                        for criterion in next(r for r in captured["rule_set"]["assessmentRules"] if r["assessmentRuleId"] == rule)["criterionIds"]
                     ],
                     "compliance": "COMPLIANT" if outcome == "MET" else "NON_COMPLIANT",
                 }
@@ -98,6 +99,13 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
                     "legal_context_ids": ["LR-DEF"],
                     "references": [{"type": "CONFIRMED_FACT", "id": fact["use_case"]}],
                 }
+            requirement = {"ER-RET": "LR-RET", "ER-XREF": "LR-XREF", "ER-DEF": "LR-DEF"}[rule]
+            args["applicability_basis"] = [{
+                "legal_requirement_id": requirement, "kind": "APPLICABILITY_CONDITION", "index": 0,
+                "finding": "ESTABLISHED" if applicable else "REFUTED",
+                "rationale": "The accepted fixture evidence establishes the scripted applicability finding.",
+                "references": args["references"],
+            }]
             return _call("submit_rule_decision", args, key)
 
         return step

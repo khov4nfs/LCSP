@@ -12,6 +12,27 @@ export function httpBodyParser(): RequestHandler {
       );
       return;
     }
+    if (
+      req.path.match(
+        /^\/admin\/legal-source-versions\/[^/]+\/documents\/upload$/,
+      )
+    ) {
+      // The upload body is the file itself; metadata travels in the query string.
+      (raw({ type: () => true, limit: "26mb" }) as RequestHandler)(
+        req,
+        res,
+        next,
+      );
+      return;
+    }
+    if (
+      req.path.match(
+        /^\/internal\/legal-sources\/documents\/[^/]+\/ingestion-result$/,
+      )
+    ) {
+      (json({ limit: "50mb" }) as RequestHandler)(req, res, next);
+      return;
+    }
     if (req.path.match(/^\/internal\/scan-jobs\/[^/]+\/callback$/)) {
       (json({ limit: "50mb" }) as RequestHandler)(req, res, next);
       return;

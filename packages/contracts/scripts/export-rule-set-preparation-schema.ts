@@ -9,7 +9,10 @@ const schema = {
   title: "ComplianceRuleSetToolInput",
   type: "object",
   properties: {
-    packet: z.toJSONSchema(complianceRuleSetPacketSchema, { target: "draft-7" }),
+    packet: z.toJSONSchema(complianceRuleSetPacketSchema, {
+      target: "draft-7",
+      io: "input",
+    }),
   },
   required: ["packet"],
   additionalProperties: false,

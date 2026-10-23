@@ -21,10 +21,14 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
+from langchain_core.exceptions import ModelError
 
 from middleware.token_fallback import model_protocol, model_provider
-from middleware.usage_recovery import enqueue_usage
+from middleware.usage_recovery import enqueue_usage, record_usage_evidence, drain
+from middleware.paid_admission import RunAdmission, prepare_admitted_request
+from middleware.failure_policy import PaidAdmissionError
 from model_policy import (
+    ResolvedModelConfig,
     attach_model_route,
     config_snapshot,
     distinct_runtime_identities,
@@ -68,10 +72,46 @@ class ModelIdentityMismatch(RuntimeError):
 _active_agent_role: ContextVar[str | None] = ContextVar(
     "active_agent_role", default=None
 )
+_active_model_operation_type: ContextVar[str | None] = ContextVar(
+    "active_model_operation_type", default=None
+)
 # One logical agent step. Retries, credential rotation and provider fallback of
 # the same step share it, so the live stream shows one row per step instead of
 # folding every model call of a run into a single ever-growing row.
 _active_model_step_id = active_model_step
+_active_provider_route_ordinal: ContextVar[int | None] = ContextVar(
+    "active_provider_route_ordinal", default=None
+)
+_active_credential_slot_safe_id: ContextVar[str | None] = ContextVar(
+    "active_credential_slot_safe_id", default=None
+)
+
+
+@contextmanager
+def provider_attempt_context(
+    *, route_ordinal: int | None = None, credential_slot_safe_id: str | None = None
+) -> Iterator[None]:
+    route_token = _active_provider_route_ordinal.set(route_ordinal) if route_ordinal is not None else None
+    slot_token = _active_credential_slot_safe_id.set(credential_slot_safe_id) if credential_slot_safe_id else None
+    try:
+        yield
+    finally:
+        if slot_token is not None:
+            _active_credential_slot_safe_id.reset(slot_token)
+        if route_token is not None:
+            _active_provider_route_ordinal.reset(route_token)
+
+
+def _active_logical_invocation_id() -> str | None:
+    summary = active_model_step_summary.get()
+    invocation_id = summary.get("invocation_id") if summary else None
+    return invocation_id if isinstance(invocation_id, str) else None
+
+
+def _active_metered_invocation_id() -> str | None:
+    summary = active_model_step_summary.get()
+    invocation_id = summary.get("settlement_invocation_id") if summary else None
+    return invocation_id if isinstance(invocation_id, str) else None
 
 
 @dataclass
@@ -85,7 +125,11 @@ class AgentRunState:
     run_id: str
     agent_role: str
     assessment_id: str | None = None
+    preparation_run_id: str | None = None
     api_client: WorkerApiClient | None = None
+    admission: RunAdmission | None = None
+    bounded: bool = False
+    _attempt_times: dict[str, str] = field(default_factory=dict, init=False)
     _disabled_provider_routes: set[str] = field(default_factory=set, init=False)
     _sticky_provider_routes: set[str] = field(default_factory=set, init=False)
 
@@ -105,81 +149,58 @@ class AgentRunState:
             and provider.strip().lower() in self._disabled_provider_routes
         )
 
-    def record(
-        self,
-        response: Any,
-        model: Any,
-        invocation_id: str,
-        *,
-        agent_role: str | None = None,
-    ) -> None:
-        """Report provider-reported token usage; best effort, never fails the run.
-
-        Nothing is posted when the provider returned no usage numbers (no invented
-        counts) or when the run has no assessment to attribute usage to.
-        """
-        if self.api_client is None or not self.assessment_id:
+    def record_attempt(self, model, invocation_id: str, status: str, *, agent_role=None, response=None, error=None):
+        """Commit physical attempt evidence before dispatch; never persist prompts or error text."""
+        if not (self.assessment_id or self.preparation_run_id or hasattr(self, "store")):
             return
-        usage = extract_provider_usage(response, model)
-        if usage is None:
-            return
-        provider, model_name = provider_identity(model, response)
+        started = self._attempt_times.setdefault(invocation_id, datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+        provider, name = provider_identity(model, response)
+        values = extract_provider_usage(response, model) or {} if response is not None else {}
         payload = SettledUsagePayload(
-            assessmentId=self.assessment_id,
-            runId=self.run_id,
-            invocationId=invocation_id,
-            agentRole=agent_role or self.agent_role,
-            providerResponseId=usage.pop("providerResponseId", None),
-            provider=provider,
-            model=model_name,
-            effectiveRuntimeModel=effective_runtime_model(
-                agent_role or self.agent_role,
-                provider,
-                model_name,
-                model_protocol(model),
-            ),
-            occurredAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            **usage,
-        )
+            assessmentId=self.assessment_id, preparationRunId=self.preparation_run_id,
+            runId=self.run_id, invocationId=invocation_id, agentRole=agent_role or self.agent_role,
+            provider=provider, model=name, attemptStatus=status,
+            failureClass=type(error).__name__ if error is not None else None,
+            effectiveRuntimeModel=effective_runtime_model(agent_role or self.agent_role, provider, name, model_protocol(model), model_route_config(model)),
+            occurredAt=started, **values)
+        path = getattr(self, "store", None) or resolve_usage_recovery_store_path()
         try:
-            self.api_client.post_settled_usage(payload)
-        except Exception as error:
-            # Usage is telemetry: the provider already answered, so failing (and
-            # replaying) the model call would only duplicate work.
-            logger.warning(
-                "MODEL_USAGE_DELIVERY_FAILED",
-                invocation_id=invocation_id,
-                error_type=type(error).__name__,
-            )
-            self._enqueue_for_recovery(payload, invocation_id)
+            record_usage_evidence(path, f"attempt:{self.run_id}:{invocation_id}:{status}", {
+                "event": "MODEL_ATTEMPT", **payload.model_dump(mode="json", exclude_none=True)})
+            if self.api_client is not None:
+                enqueue_usage(path, payload)
+        except Exception as commit_error:
+            raise ModelError("Durable usage commit failed; stop without replaying the model") from commit_error
+        if self.api_client is not None:
+            try:
+                drain(path, self.api_client)
+            except Exception as delivery_error:
+                logger.warning("MODEL_USAGE_DELIVERY_FAILED", invocation_id=invocation_id, error_type=type(delivery_error).__name__)
 
-    @staticmethod
-    def _enqueue_for_recovery(payload: SettledUsagePayload, invocation_id: str) -> None:
-        """Keep undelivered usage durable for the background drain; never raises."""
-        try:
-            enqueue_usage(resolve_usage_recovery_store_path(), payload)
-        except Exception as error:  # noqa: BLE001 - telemetry never fails the model call
-            logger.error(
-                "MODEL_USAGE_RECOVERY_ENQUEUE_FAILED",
-                invocation_id=invocation_id,
-                error_type=type(error).__name__,
-            )
+    def record(self, response, model, invocation_id: str, *, agent_role: str | None = None) -> None:
+        self.record_attempt(model, invocation_id, "COMPLETED", agent_role=agent_role, response=response)
 
 
 _active_state: ContextVar[AgentRunState | None] = ContextVar(
     "active_agent_run_state", default=None
 )
+_bounded_scope: ContextVar[AgentRunState | None] = ContextVar("bounded_inference_scope", default=None)
 
 
 @contextmanager
 def activate_agent_run_state(
     state: AgentRunState | None,
 ) -> Iterator[AgentRunState | None]:
+    parent = _bounded_scope.get()
+    if parent is not None and (state is None or state.run_id != parent.run_id or state.admission is not parent.admission):
+        raise PaidAdmissionError("BOUNDED_SCOPE_CHANGED", parent.run_id)
+    bounded_token = _bounded_scope.set(state if state and (state.bounded or state.admission) else parent)
     token = _active_state.set(state)
     try:
         yield state
     finally:
         _active_state.reset(token)
+        _bounded_scope.reset(bounded_token)
 
 
 def active_agent_run_state() -> AgentRunState | None:
@@ -455,10 +476,26 @@ def active_agent_role() -> str | None:
 
 
 @contextmanager
+def activate_model_operation(operation_type: str) -> Iterator[str]:
+    """Classify one logical model operation without retaining model input/output."""
+    token = _active_model_operation_type.set(operation_type)
+    try:
+        yield operation_type
+    finally:
+        _active_model_operation_type.reset(token)
+
+
+def active_model_operation() -> str | None:
+    return _active_model_operation_type.get()
+
+
+@contextmanager
 def activate_model_step(step_id: str | None = None) -> Iterator[str]:
     resolved = step_id or str(uuid4())
     token = _active_model_step_id.set(resolved)
-    summary_token = active_model_step_summary.set({"providers": []})
+    summary_token = active_model_step_summary.set(
+        {"providers": [], "invocation_id": str(uuid4())}
+    )
     try:
         yield resolved
     finally:
@@ -473,12 +510,16 @@ def active_model_step_id() -> str | None:
 class _ModelCallTelemetry:
     """Emit safe progress around one blocking provider call."""
 
-    def __init__(self, model: Any) -> None:
+    def __init__(self, model: Any, *, invocation_id: str | None = None) -> None:
         self.provider, self.model_name = provider_identity(model)
         self.protocol = model_protocol(model) or "unknown"
         self.timeout_seconds = llm_provider_timeout_seconds()
         self.model_step_id = active_model_step_id() or str(uuid4())
+        self.invocation_id = _active_logical_invocation_id() or invocation_id
+        self.settlement_invocation_id = invocation_id
+        self.logical_invocation_id = _active_logical_invocation_id()
         self.agent_role = active_agent_role()
+        self.operation_type = active_model_operation()
         self._started_at = time.monotonic()
         self._stop = Event()
         self._context = copy_context()
@@ -486,7 +527,9 @@ class _ModelCallTelemetry:
         # Each billed call is one provider-route attempt of the same logical step.
         self._summary = active_model_step_summary.get()
         note_model_step("provider_attempts")
+        self.attempt_ordinal = self._summary.get("provider_attempts") if self._summary else None
         if self._summary is not None:
+            self._summary["settlement_invocation_id"] = self.settlement_invocation_id
             self._summary["provider"] = self.provider.lower()
             self._summary["protocol"] = self.protocol
             self._summary["model"] = self.model_name
@@ -501,6 +544,8 @@ class _ModelCallTelemetry:
             "provider_attempts": provider_attempts,
             "credential_attempts": provider_attempts + summary.get("credential_rotations", 0),
             "fallback_used": provider_attempts > 1,
+            "route_ordinal": self._context.get(_active_provider_route_ordinal),
+            "credential_slot_safe_id": self._context.get(_active_credential_slot_safe_id),
         }
 
     def start(self) -> None:
@@ -543,12 +588,18 @@ class _ModelCallTelemetry:
             data_extra=extra,
         )
 
-    def fail(self, error: BaseException) -> None:
+    def fail(self, error: BaseException, *, record_attempt: bool = True) -> None:
         # A failed route attempt is infrastructure: stop the heartbeat only. The one
         # logical failure is published by the step owner if every route fails.
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=0.25)
+        if record_attempt and isinstance(error, Exception):
+            _publish_provider_attempt_failure(
+                error, provider=self.provider.lower(), protocol=self.protocol,
+                model=self.model_name, model_step_id=self.model_step_id,
+                invocation_id=self.invocation_id, attempt_ordinal=self.attempt_ordinal,
+            )
 
     def cancel(self) -> None:
         self._finish("MODEL_CALL_CANCELLED", status="STOPPED", text="Model step interrupted")
@@ -567,6 +618,8 @@ class _ModelCallTelemetry:
         data = self._data(elapsed_seconds=self._elapsed_seconds())
         if data_extra:
             data.update(data_extra)
+        if self.invocation_id:
+            data["invocation_id"] = self.invocation_id
         self._emit(event_type, status=status, text=text, data=data)
 
     def _heartbeat(self) -> None:
@@ -597,8 +650,16 @@ class _ModelCallTelemetry:
             "elapsed_seconds": elapsed_seconds,
             "model_step_id": self.model_step_id,
         }
+        if self.invocation_id:
+            data["invocation_id"] = self.invocation_id
+        if self.logical_invocation_id:
+            data["logical_invocation_id"] = self.logical_invocation_id
+        if self.settlement_invocation_id:
+            data["settlement_invocation_id"] = self.settlement_invocation_id
         if self.agent_role:
             data["agent_role"] = self.agent_role
+        if self.operation_type:
+            data["operation_type"] = self.operation_type
         return data
 
     def _emit(self, event_type: str, **fields: Any) -> None:
@@ -697,32 +758,105 @@ def _publish_terminal_model_failure(
         return
     attempts = summary.get("provider_attempts", 1)
     timeout = _is_timeout_error(error)
+    from middleware.failure_policy import error_status, retry_model_error
+    from middleware.provider_fallback import provider_fallback_failure
+
     publish_agent_stream_event(
         "MODEL_CALL_TIMEOUT" if timeout else "MODEL_CALL_FAILED",
         status="FAILED",
         text="model call timed out" if timeout else "model call failed",
         data={
             "model_step_id": step_id,
+            **({"invocation_id": summary["invocation_id"]} if isinstance(summary.get("invocation_id"), str) else {}),
             **({"agent_role": agent_role} if agent_role else {}),
             "provider": summary.get("provider"),
             "protocol": summary.get("protocol"),
             "model": summary.get("model"),
+            "operation_type": active_model_operation(),
             "error_type": type(error).__name__,
+            "http_status": error_status(error),
+            "retryability": "RETRYABLE" if retry_model_error(error) else "NOT_RETRYABLE",
+            "fallback_eligibility": provider_fallback_failure(error),
             "provider_attempts": attempts,
             "credential_attempts": attempts + summary.get("credential_rotations", 0),
             "providers_attempted": list(summary.get("providers", []))[:8],
+            "attempt_ordinal": summary.get("last_attempt_ordinal"),
+            "route_ordinal": summary.get("last_route_ordinal"),
+            "credential_slot_safe_id": summary.get("last_credential_slot_safe_id"),
+            "last_attempt_error_class": summary.get("last_error_class"),
+            "last_attempt_http_status": summary.get("last_http_status"),
+            "last_attempt_retryability": summary.get("last_retryability"),
+            "last_attempt_fallback_eligibility": summary.get(
+                "last_fallback_eligibility"
+            ),
         },
     )
+
+
+def _safe_provider_error_code(error: BaseException) -> str | None:
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        values = [getattr(current, key, None) for key in ("error_code", "code", "type")]
+        body = getattr(current, "body", None)
+        nested = body.get("error") if isinstance(body, dict) else None
+        if isinstance(nested, dict):
+            values.extend(nested.get(key) for key in ("code", "type"))
+        for value in values:
+            if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", value):
+                return value
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def _publish_provider_attempt_failure(
+    error: BaseException, *, provider: str, protocol: str, model: str,
+    model_step_id: str, invocation_id: str | None, attempt_ordinal: int | None,
+) -> None:
+    from middleware.failure_policy import error_status, retry_model_error
+    from middleware.provider_fallback import provider_fallback_failure
+
+    data = {
+        "provider": provider, "protocol": protocol, "model": model,
+        "model_step_id": model_step_id, "attempt_ordinal": attempt_ordinal,
+        "route_ordinal": _active_provider_route_ordinal.get(),
+        "credential_slot_safe_id": _active_credential_slot_safe_id.get(),
+        "error_class": type(error).__name__, "http_status": error_status(error),
+        "provider_error_code": _safe_provider_error_code(error),
+        "operation_type": active_model_operation(),
+        "retryability": "RETRYABLE" if retry_model_error(error) else "NOT_RETRYABLE",
+        "fallback_eligibility": provider_fallback_failure(error),
+    }
+    if invocation_id:
+        data["invocation_id"] = invocation_id
+    summary = active_model_step_summary.get()
+    if summary is not None:
+        summary.update(
+            {
+                "last_attempt_ordinal": attempt_ordinal,
+                "last_route_ordinal": data["route_ordinal"],
+                "last_credential_slot_safe_id": data["credential_slot_safe_id"],
+                "last_error_class": data["error_class"],
+                "last_http_status": data["http_status"],
+                "last_retryability": data["retryability"],
+                "last_fallback_eligibility": data["fallback_eligibility"],
+            }
+        )
+    publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={
+        **data, "durability": "DURABLE", "activity_kind": "MODEL_PROVIDER_ATTEMPT_FAILED",
+    })
 
 
 class AgentRoleMiddleware(AgentMiddleware):
     """Attach the canonical policy role to every model call of one agent."""
 
-    def __init__(self, agent_role: str):
+    def __init__(self, agent_role: str, *, operation_type: str = "AGENT_MODEL"):
         self.agent_role = agent_role
+        self.operation_type = operation_type
 
     def wrap_model_call(self, request, handler):
-        with activate_agent_role(self.agent_role), activate_model_step() as step_id:
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
             try:
                 return handler(request)
             except Exception as error:
@@ -730,7 +864,7 @@ class AgentRoleMiddleware(AgentMiddleware):
                 raise
 
     async def awrap_model_call(self, request, handler):
-        with activate_agent_role(self.agent_role), activate_model_step() as step_id:
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
             try:
                 return await handler(request)
             except Exception as error:
@@ -779,21 +913,54 @@ class UsageMeteringMiddleware(AgentMiddleware):
     def _record(self, response, model, invocation_id: str) -> None:
         state = active_agent_run_state()
         if state is not None:
-            state.record(response, model, invocation_id, agent_role=active_agent_role())
+            try:
+                state.record(response, model, invocation_id, agent_role=active_agent_role())
+            finally:
+                if state.admission is not None:
+                    state.admission.settle(invocation_id, extract_provider_usage(response, model))
+
+    @staticmethod
+    def _admit(request, invocation_id):
+        state = active_agent_run_state()
+        if state is not None and (state.bounded or state.admission is not None):
+            if state.admission is None or state.admission.run_id != state.run_id:
+                raise PaidAdmissionError("MISSING_RUN_BUDGET", state.run_id, invocation_id)
+            request = prepare_admitted_request(state.admission, request, invocation_id, active_agent_role() or state.agent_role)
+            state.admission.transition(invocation_id, "IN_FLIGHT")
+        elif _bounded_scope.get() is not None:
+            raise PaidAdmissionError("MISSING_RUN_BUDGET", _bounded_scope.get().run_id, invocation_id)
+        if state is not None:
+            state.record_attempt(request.model, invocation_id, "STARTED", agent_role=active_agent_role())
+        return request
+
+    @staticmethod
+    def _unknown(invocation_id, model, error):
+        state = active_agent_run_state()
+        if state is not None:
+            if state.admission is not None:
+                state.admission.transition(invocation_id, "OUTCOME_UNKNOWN")
+            code = getattr(error, "status_code", None)
+            status = "FAILED" if type(code) is int and 400 <= code <= 599 else "OUTCOME_UNKNOWN"
+            state.record_attempt(model, invocation_id, status, agent_role=active_agent_role(), error=error)
 
     def wrap_model_call(self, request, handler):
         request, model = self._prepare(request)
+        # Each answered attempt must survive the API's settlement idempotency key.
         invocation_id = str(uuid4())
-        telemetry = _ModelCallTelemetry(model)
+        request = self._admit(request, invocation_id)
+        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
             response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
             self._record(response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            telemetry.fail(error)
+            self._unknown(invocation_id, model, error)
+            from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
-            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+            cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
+            telemetry.fail(error, record_attempt=not cancelled)
+            if cancelled:
                 telemetry.cancel()
             raise
         self._log_response(response, model)
@@ -803,7 +970,8 @@ class UsageMeteringMiddleware(AgentMiddleware):
     async def awrap_model_call(self, request, handler):
         request, model = self._prepare(request)
         invocation_id = str(uuid4())
-        telemetry = _ModelCallTelemetry(model)
+        request = await asyncio.to_thread(self._admit, request, invocation_id)
+        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
             response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
@@ -812,9 +980,12 @@ class UsageMeteringMiddleware(AgentMiddleware):
             await asyncio.to_thread(self._record, response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            telemetry.fail(error)
+            await asyncio.to_thread(self._unknown, invocation_id, model, error)
+            from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
-            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+            cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
+            telemetry.fail(error, record_attempt=not cancelled)
+            if cancelled:
                 telemetry.cancel()
             raise
         self._log_response(response, model)
@@ -829,20 +1000,23 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
 
 def effective_runtime_model(
-    role: str, provider: str, model: str, protocol: str | None = None
+    role: str, provider: str, model: str, protocol: str | None = None,
+    route: ResolvedModelConfig | None = None,
 ) -> dict[str, str] | None:
     """Audit identity of the route that actually answered, scoped to the agent role.
 
-    The role's own route wins when it matches the used model; otherwise the configured
-    route for that provider/model (a fallback route) is hashed with the same role.
-    Unconfigured models report no identity rather than an invented one.
+    Attached route options are authoritative, including when several inference
+    policies share a physical model. Untagged clients use role/unique identity lookup.
+    Mismatched or unconfigured identities remain unknown.
     """
     canonical = provider.lower()  # inverse of provider_identity()'s UPPER ledger form; no aliasing
-    config = resolve_role(role)
+    config = route or resolve_role(role)
     if (
         (config.provider, config.model) != (canonical, model)
         or (protocol is not None and config.protocol != protocol)
     ):
+        if route is not None:
+            return None
         config = route_for_model(canonical, model, protocol)
     if config is None:
         return None
@@ -876,6 +1050,11 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
     metadata = _usage_metadata(response)
     if not isinstance(metadata, dict):
         return None
+    messages = getattr(response, "result", None)
+    normalized = metadata is getattr(response, "usage_metadata", None) or (
+        isinstance(messages, (list, tuple))
+        and any(metadata is getattr(message, "usage_metadata", None) for message in messages)
+    )
 
     input_tokens = _number(
         metadata,
@@ -892,16 +1071,18 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
         "candidatesTokenCount",
         "outputTokenCount",
     )
-    if input_tokens is None or output_tokens is None:
-        return None
-
-    result: dict[str, Any] = {"outputTokens": str(output_tokens)}
+    result: dict[str, Any] = {}
+    if output_tokens is not None:
+        result["outputTokens"] = str(output_tokens)
     nested_input = metadata.get("input_token_details")
     nested_output = metadata.get("output_token_details")
     if isinstance(nested_input, dict):
         metadata = {**metadata, **nested_input}
     if isinstance(nested_output, dict):
         metadata = {**metadata, **nested_output}
+    cache_creation = metadata.get("cache_creation")
+    if isinstance(cache_creation, dict):
+        metadata = {**metadata, **cache_creation}
     optional = (
         (
             "cachedInputTokens",
@@ -927,25 +1108,44 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
             "reasoning_tokens",
             "reasoning",
             "thoughts_token_count",
+            "thoughtsTokenCount",
             "reasoningTokenCount",
         ),
+        ("cacheWrite5mTokens", "ephemeral_5m_input_tokens"),
+        ("cacheWrite1hTokens", "ephemeral_1h_input_tokens"),
         ("totalTokens", "total_tokens", "total_token_count", "totalTokenCount"),
     )
     for target, *keys in optional:
         value = _number(metadata, *keys)
         if value is not None:
             result[target] = str(value)
-    cached_input = int(result.get("cachedInputTokens", "0"))
-    cache_write = int(result.get("cacheWriteTokens", "0"))
     provider, _ = provider_identity(model, response)
-    # OpenAI prompt_tokens is a total that includes cached and cache-write
-    # slices. Convert it to the disjoint canonical uncached bucket. Other
-    # providers already expose input_tokens as the uncached dimension.
-    if provider in {"OPENAI", "GOOGLE_GENAI"}:
-        if cached_input + cache_write > input_tokens:
-            return None
-        input_tokens = max(input_tokens - cached_input - cache_write, 0)
-    result["inputTokens"] = str(input_tokens)
+    if input_tokens is not None:
+        inclusive = provider in {"OPENAI", "GOOGLE_GENAI", "INCEPTION"} or (model_protocol(model) in {"anthropic", "openai"} and normalized)
+        cached = result.get("cachedInputTokens")
+        written = result.get("cacheWriteTokens")
+        if inclusive:
+            result["inputTokensIncludingCache"] = str(input_tokens)
+            # No cache-creation bucket exists in OpenAI-compatible/Google token usage.
+            if model_protocol(model) in {"openai", "google_genai"} and written is None:
+                written = "0"  # These protocols have no separate cache-creation input bucket.
+            if cached is not None and written is not None:
+                uncached = input_tokens - int(cached) - int(written)
+                if uncached < 0:
+                    return None
+                result["inputTokens"] = str(uncached)
+        else:
+            result["inputTokens"] = str(input_tokens)
+            if cached is not None and written is not None:
+                result["inputTokensIncludingCache"] = str(input_tokens + int(cached) + int(written))
+    if not normalized and provider == "GOOGLE_GENAI" and "candidatesTokenCount" in metadata:
+        result["visibleOutputTokens"] = str(output_tokens) if output_tokens is not None else None
+        if output_tokens is not None and "reasoningTokens" in result:
+            result["outputTokens"] = str(output_tokens + int(result["reasoningTokens"]))
+        else:
+            result.pop("outputTokens", None)
+    if not result:
+        return None
     response_id = _response_identity(response)
     if response_id:
         result["providerResponseId"] = response_id
@@ -1028,6 +1228,8 @@ def _usage_metadata(response: Any, *, include_root: bool = True) -> dict[str, An
     if isinstance(response_metadata, dict):
         candidates.extend(
             [
+                response_metadata.get("usage_metadata"),
+                response_metadata.get("usageMetadata"),
                 response_metadata.get("token_usage"),
                 response_metadata.get("usage"),
                 *([response_metadata] if include_root else []),

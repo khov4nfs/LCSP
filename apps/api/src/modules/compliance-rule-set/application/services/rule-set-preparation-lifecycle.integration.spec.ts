@@ -1,3 +1,5 @@
+import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
+import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
 import { randomUUID } from "node:crypto";
 
 import {
@@ -18,14 +20,19 @@ import {
   RepositoryScanTriggerSource,
   DecisionResolutionState,
 } from "@prisma/client";
-import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import {
+  AGENT_EXECUTION_STATES,
+  ARTIFACT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   RULE_SET_PREPARATION_SYSTEM_ACTOR,
   ruleSetPreparationIdempotencyKey,
+  sourceReviewOperationSchema,
 } from "@lcsp/contracts/compliance-rule-set";
+import { LEGAL_DOCUMENT_GRAPH } from "@lcsp/contracts/legal-source";
 
 import {
   legalSourceFactory,
@@ -50,6 +57,9 @@ import { SubmitComplianceRuleSetHandler } from "../commands/submit-compliance-ru
 import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetHistoryLoader } from "../../infrastructure/persistence/compliance-rule-set-history.loader.js";
 import { LegalSourceSnapshotLoader } from "../../infrastructure/persistence/legal-source-snapshot.service.js";
+import { seedReferenceDependencies } from "../../../../../test/support/seed-reference-dependencies.js";
+import { SourceReviewHandler } from "../commands/source-review/source-review.handler.js";
+import { SourceReviewCommand } from "../commands/source-review/source-review.command.js";
 import { LegalSourceActivatedConsumer } from "../../infrastructure/messaging/legal-source-activated.consumer.js";
 
 /**
@@ -76,6 +86,8 @@ describeDatabase(
     let consumer: LegalSourceActivatedConsumer;
     let startCommands = 0;
 
+    // Graph materialization needs the migration's deferrable parent FK.
+    beforeAll(ensureMigratedSchema, 180_000);
     beforeAll(async () => {
       prisma = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
       await prisma.$connect();
@@ -83,11 +95,17 @@ describeDatabase(
       const service = prisma as unknown as PrismaService;
       const outbox = new OutboxRepository(service);
       start = new StartRuleSetPreparationHandler(service, outbox);
-      claim = new ClaimRuleSetPreparationHandler(service);
+      claim = new ClaimRuleSetPreparationHandler(
+        service,
+        new LegalDocumentGraphService(service),
+      );
       fail = new FailRuleSetPreparationHandler(service);
       submit = new SubmitComplianceRuleSetHandler(
         service,
-        new LegalSourceSnapshotLoader(service),
+        new LegalSourceSnapshotLoader(
+          service,
+          new LegalDocumentGraphService(service),
+        ),
         new ComplianceRuleSetActivation(
           outbox,
           new AuditWriterService(service),
@@ -174,14 +192,17 @@ describeDatabase(
           randomUUID(),
         ),
       );
-    const submitPacket = (preparationRunId: string, packet = validPacket()) =>
+    const submitPacket = async (
+      preparationRunId: string,
+      packet = validPacket(),
+    ) =>
       submit.execute(
         new SubmitComplianceRuleSetCommand(
-          {
+          await pinFixtureRequest(prisma, {
             preparationRunId,
             idempotencyKey: `submit-${randomUUID()}`,
             packet,
-          },
+          }),
           "test-worker",
           randomUUID(),
         ),
@@ -292,6 +313,58 @@ describeDatabase(
       await expect(claimRun(run.id)).resolves.toMatchObject({
         executionState: "RUNNING",
       });
+    });
+
+    it("a run taken over after a parser revision bump keeps reading the graph its frontier pinned", async () => {
+      // The retained 94773fa8 run pinned a legal-structure-v1 materialization; the parser is now newer.
+      const seed = await seedReferenceDependencies(prisma, 2, [], true);
+      const pinned = seed.documentGraph.materializationId;
+      expect(seed.documentGraph.parserRevision).not.toBe(
+        LEGAL_DOCUMENT_GRAPH.parserRevision,
+      );
+      await prisma.ruleSetPreparationRun.update({
+        where: { id: seed.preparationRunId },
+        data: { startedAt: new Date(Date.now() - 3_600_000) },
+      });
+      const bundle = await claimRun(seed.preparationRunId);
+      expect(bundle.documentGraph).toMatchObject({
+        materializationId: pinned,
+        parserRevision: seed.documentGraph.parserRevision,
+      });
+      const service = prisma as unknown as PrismaService;
+      const graphs = new LegalDocumentGraphService(service);
+      const run = await prisma.ruleSetPreparationRun.findUniqueOrThrow({
+        where: { id: seed.preparationRunId },
+      });
+      const { snapshot } = await new LegalSourceSnapshotLoader(
+        service,
+        graphs,
+      ).load(run, {
+        legalRequirements: [],
+        assessmentRules: [],
+        contextRelations: [],
+      });
+      expect(snapshot.documentGraph?.materializationId).toBe(pinned);
+      expect(
+        (await graphs.export(run.legalSourceVersionId))?.materializationId,
+      ).not.toBe(pinned);
+      // A reopened inventory revision starts its frontier on the same pinned graph.
+      await prisma.ruleSetPreparationRun.update({
+        where: { id: run.id },
+        data: { claimInventoryRevision: 2 },
+      });
+      const next = await new SourceReviewHandler(service, graphs).execute(
+        new SourceReviewCommand(
+          sourceReviewOperationSchema.parse({
+            preparationRunId: run.id,
+            inventoryRevision: 2,
+            action: "NEXT",
+            operationId: randomUUID(),
+          }),
+          "pinned-graph-probe",
+        ),
+      );
+      expect(next).toMatchObject({ outcome: "PASSED", sourceRevision: pinned });
     });
 
     it("a successful preparation becomes the shared ACTIVE rule set and supersedes the previous one", async () => {
@@ -450,7 +523,7 @@ describeDatabase(
       );
     });
 
-    it("refuses Retry and hides retryability when a compatible ACTIVE rule set exists", async () => {
+    it("a failed replacement stays retryable while the previous rule set is ACTIVE, which it leaves untouched", async () => {
       const source = await createLegalSource();
       await makeEligibleSource(source);
       await consumer.handle(activation(source.id));
@@ -471,17 +544,27 @@ describeDatabase(
       await claimRun(second.preparationRunId);
       await failRun(second.preparationRunId);
 
-      await expectRefusal(
-        retryRun(second.preparationRunId),
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
-        RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
-      );
       const view = await history.load();
       expect(
         view.preparations.find(
           (run) => run.preparationRunId === second.preparationRunId,
         )?.retryable,
-      ).toBe(false);
+      ).toBe(true);
+      expect(view.preparation.canReplace).toBe(true);
+      const retried = await retryRun(second.preparationRunId);
+      expect(retried.preparationRunId).not.toBe(second.preparationRunId);
+      expect(retried.executionState).toBe(AGENT_EXECUTION_STATES.QUEUED);
+      // The ACTIVE rule set was never touched by the failed or the retried replacement.
+      expect(
+        (
+          await prisma.complianceRuleSetVersion.findFirstOrThrow({
+            where: {
+              legalSourceVersionId: source.id,
+              lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+            },
+          })
+        ).preparationRunId,
+      ).toBe(first.id);
     });
 
     it("the operations history exposes version, counts, digest, failures and retryability", async () => {
@@ -734,3 +817,4 @@ describeDatabase(
     });
   },
 );
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";

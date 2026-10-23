@@ -110,6 +110,10 @@ const expectedForeignKeys = {
     'FOREIGN KEY ("assessmentId", "threadId") REFERENCES "AssessmentRuntime"("assessmentId", "threadId") ON UPDATE RESTRICT ON DELETE CASCADE',
   AssessmentEvent_outboxMessageId_assessmentId_fkey:
     'FOREIGN KEY ("outboxMessageId", "assessmentId") REFERENCES "OutboxMessage"(id, "aggregateId") ON UPDATE RESTRICT ON DELETE RESTRICT',
+  // Database-only composite key (no Prisma relation). re_generate_db dropped it by mistake and
+  // 20261014090000_restore_human_request_resolved_fact_fk restores it.
+  AssessmentHumanRequest_resolved_fact_fkey:
+    'FOREIGN KEY ("resolvedFactId", "assessmentId") REFERENCES "AssessmentCaseFact"("factId", "assessmentId") ON UPDATE RESTRICT ON DELETE RESTRICT',
 };
 
 await ensureDatabase();

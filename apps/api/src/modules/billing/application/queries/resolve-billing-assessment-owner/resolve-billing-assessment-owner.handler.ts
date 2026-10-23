@@ -15,6 +15,8 @@ export class ResolveBillingAssessmentOwnerHandler implements IQueryHandler<Resol
   ) {}
 
   execute(query: ResolveBillingAssessmentOwnerQuery) {
-    return this.billing.resolveAssessmentOwner(query.assessmentId);
+    return query.assessmentId
+      ? this.billing.resolveAssessmentOwner(query.assessmentId)
+      : this.billing.resolvePreparationOwner(query.preparationRunId!);
   }
 }

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
@@ -12,6 +14,8 @@ from langchain.agents.structured_output import (
 )
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import BaseModel
+
+from middleware.tool_contracts import ORIGINAL_REQUEST_TOOLS
 
 GEMINI_MODULE_PREFIX = "langchain_google_genai."
 GEMINI_DISABLE_AUTOMATIC_FUNCTION_CALLING = {"disable": True}
@@ -187,6 +191,19 @@ class GeminiToolNullabilityMiddleware(AgentMiddleware):
         return await handler(request.override(tools=tools) if tools is not None else request)
 
 
+@contextmanager
+def _publish_original_tools(request: Any, tools_replacement: list[Any] | None) -> Iterator[None]:
+    """Expose the tools this middleware is about to rewrite to the checks running inside it."""
+    if tools_replacement is None:
+        yield
+        return
+    token = ORIGINAL_REQUEST_TOOLS.set(tuple(getattr(request, "tools", None) or ()))
+    try:
+        yield
+    finally:
+        ORIGINAL_REQUEST_TOOLS.reset(token)
+
+
 class ProviderSchemaCompatibilityMiddleware(AgentMiddleware):
     """Relax the provider-facing response schema where the provider cannot accept it."""
 
@@ -213,9 +230,10 @@ class ProviderSchemaCompatibilityMiddleware(AgentMiddleware):
         tools_replacement = gemini_compatible_tools(
             request.model, getattr(request, "tools", [])
         )
-        return handler(
-            self._override_request(request, replacement, tools_replacement)
-        )
+        with _publish_original_tools(request, tools_replacement):
+            return handler(
+                self._override_request(request, replacement, tools_replacement)
+            )
 
     async def awrap_model_call(self, request, handler):
         replacement = gemini_compatible_response_format(
@@ -224,6 +242,7 @@ class ProviderSchemaCompatibilityMiddleware(AgentMiddleware):
         tools_replacement = gemini_compatible_tools(
             request.model, getattr(request, "tools", [])
         )
-        return await handler(
-            self._override_request(request, replacement, tools_replacement)
-        )
+        with _publish_original_tools(request, tools_replacement):
+            return await handler(
+                self._override_request(request, replacement, tools_replacement)
+            )

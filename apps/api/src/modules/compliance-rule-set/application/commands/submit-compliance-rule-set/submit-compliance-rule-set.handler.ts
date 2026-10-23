@@ -3,6 +3,8 @@ import {
   type ComplianceRuleSetSubmitResult,
 } from "@lcsp/contracts/compliance-rule-set";
 import { HttpStatus } from "@nestjs/common";
+import { validateFrozenInventory } from "../../../domain/claim-inventory.js";
+import { frozenInventoryForRun } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
@@ -52,6 +54,13 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
       );
     }
 
+    if (run.claimDiscoveryOnly)
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+
     // Cheap replay before any validation work; re-checked inside the lock.
     const replay = await this.activation.findReplay(
       this.prisma,
@@ -62,10 +71,7 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
     );
     if (replay) return replay;
 
-    const legalSource = await this.legalSource.load(
-      run.legalSourceVersion.id,
-      request.packet,
-    );
+    const legalSource = await this.legalSource.load(run, request.packet);
     const validation = validateComplianceRuleSetPacket(
       request.packet,
       legalSource.snapshot,
@@ -73,6 +79,17 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
         legalSource.foreignHashes.has(
           `${sourceClaimKey(claim)}|${claim.contentSha256}`,
         ),
+    );
+    validation.failures.push(
+      ...validateFrozenInventory(
+        request.packet,
+        await frozenInventoryForRun(
+          this.prisma,
+          run.id,
+          run.claimInventoryRevision,
+        ),
+        run.claimInventoryRevision,
+      ),
     );
 
     const context: SubmitContext = {

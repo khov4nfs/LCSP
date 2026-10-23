@@ -3,6 +3,7 @@ import {
   BookOpenIcon,
   LayoutDashboardIcon,
   UsersIcon,
+  ActivityIcon,
   WalletCardsIcon,
 } from "lucide-react";
 
@@ -18,6 +19,11 @@ export const ADMIN_NAV_ITEMS = [
     icon: UsersIcon,
   },
   {
+    href: "/admin/usage",
+    labelKey: "pages.admin.sidebar.navUsage",
+    icon: ActivityIcon,
+  },
+  {
     href: "/admin/billing",
     labelKey: "pages.admin.sidebar.navBilling",
     icon: WalletCardsIcon,
@@ -25,6 +31,11 @@ export const ADMIN_NAV_ITEMS = [
   {
     href: "/admin/compliance-rule-sets",
     labelKey: "pages.admin.sidebar.navComplianceRuleSets",
+    icon: BookOpenIcon,
+  },
+  {
+    href: "/admin/legal-sources",
+    labelKey: "pages.admin.sidebar.navLegalSources",
     icon: BookOpenIcon,
   },
 ] satisfies { href: string; labelKey: MessageKey; icon: typeof BookOpenIcon }[];

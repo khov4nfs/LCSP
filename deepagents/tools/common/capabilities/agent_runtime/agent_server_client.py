@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Mapping
 from uuid import UUID, uuid5
+from urllib.parse import urlsplit
 
 import httpx
 from langgraph_sdk import get_sync_client
@@ -494,6 +495,13 @@ def _agent_server_process_started_at(server_url: str) -> datetime:
         if line.startswith(prefix):
             timestamp = float(line.removeprefix(prefix).strip())
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    # Older dev servers omit process metrics; the owning launcher supplies a safe pre-spawn cutoff.
+    generation = _parse_datetime(os.getenv("LCSP_AGENT_SERVER_GENERATION_STARTED_AT"))
+    production = any(os.getenv(key, "").strip().lower() == "production" for key in ("NODE_ENV", "LCSP_AGENT_RUNTIME_MODE"))
+    if (not production and urlsplit(server_url).hostname in {"127.0.0.1", "localhost", "::1"}
+            and server_url == os.getenv("LCSP_AGENT_SERVER_GENERATION_URL")
+            and generation is not None and generation <= datetime.now(timezone.utc)):
+        return generation
     raise RuntimeError("Agent Server metrics did not expose process_start_time_seconds")
 
 

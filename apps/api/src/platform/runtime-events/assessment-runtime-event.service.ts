@@ -332,10 +332,10 @@ export class AssessmentRuntimeEventService {
           preparationRunId,
           toolName: AGENT_STREAM_JOURNAL_TOOL_NAME,
         },
-        orderBy: [{ createdAt: "asc" }, { sequence: "asc" }],
+        orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
         take: AGENT_STREAM_DURABLE_REPLAY_TOTAL_LIMIT,
       });
-      return rows.flatMap((row) => {
+      return [...rows].reverse().flatMap((row) => {
         const event = agentStreamJournalEventFromRow(row);
         return event === null ? [] : [event];
       });

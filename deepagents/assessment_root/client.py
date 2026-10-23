@@ -51,12 +51,21 @@ class AssessmentRuntimeClient:
             headers[LEASE_HEADER] = self.lease_token
         return headers
 
-    def _call(self, method: str, path: str, body: Any = None, *, with_lease: bool = True) -> Any:
+    def _call(
+        self,
+        method: str,
+        path: str,
+        body: Any = None,
+        *,
+        with_lease: bool = True,
+        params: dict[str, str] | None = None,
+    ) -> Any:
         url = f"{self._base}/internal/assessment-runtime/{self.assessment_id}{path}"
         response = httpx.request(
             method,
             url,
             json=body,
+            params=params,
             headers=self._headers(with_lease=with_lease),
             timeout=self._timeout,
         )
@@ -109,6 +118,14 @@ class AssessmentRuntimeClient:
 
     def rule_set(self) -> dict[str, Any]:
         return self._call("GET", "/rule-set")
+
+    def legal_source_text(self, document_id: str, locator: str) -> dict[str, Any]:
+        """One provision of the Legal Source Version the pinned rule set was prepared from."""
+        return self._call("GET", "/legal-source/text", params={"documentId": document_id, "locator": locator})
+
+    def legal_source_search(self, query: str) -> dict[str, Any]:
+        """Keyword search over that same pinned Legal Source Version."""
+        return self._call("GET", "/legal-source/search", params={"query": query})
 
     # ---- governed writes -----------------------------------------------------------------------
 

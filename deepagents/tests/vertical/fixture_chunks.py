@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -16,11 +18,15 @@ def main() -> None:
     spec.loader.exec_module(parser)
     pins = json.loads((FIXTURE_DIR / "pins.json").read_text(encoding="utf-8"))
     pin = next(s for s in pins["sources"] if s["legalSourceVersion"] == "SYNTHETIC-LEGAL_SOURCE-V1")
-    text = (FIXTURE_DIR / pin["sourceFile"]).read_text(encoding="utf-8")
-    chunks = parser.parse_chunks(pin["documentId"], text)
+    data = (FIXTURE_DIR / pin["sourceFile"]).read_bytes()
+    source_sha256 = hashlib.sha256(data).hexdigest()
+    if source_sha256 != pin["sourceSha256"].removeprefix("sha256:"):
+        raise ValueError("Pinned source SHA-256 does not match the original source bytes")
+    chunks = parser.parse_chunks(pin["documentId"], data.decode("utf-8"))
     print(json.dumps({
         "documentId": pin["documentId"],
-        "sourceSha256": pin["sourceSha256"].removeprefix("sha256:"),
+        "sourceSha256": source_sha256,
+        "sourceBytesBase64": base64.b64encode(data).decode("ascii"),
         "chunks": [
             {"locator": c["locator"], "content": c["content"], "contentSha256": c["contentSha256"],
              "hierarchy": c.get("hierarchy", {})}

@@ -22,6 +22,7 @@ import type { RuleSetPreparationActionProps } from "../../types/compliance-rule-
 
 export function RuleSetPreparationAction({
   availability,
+  replaceActive = false,
 }: RuleSetPreparationActionProps) {
   const prepare = usePrepareRuleSetMutation();
   const cancelling =
@@ -33,7 +34,10 @@ export function RuleSetPreparationAction({
     cancelling ||
     availability.refusalReason ===
       RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS;
-  if (!availability.canStart && !running) return null;
+  const canPrepare = replaceActive
+    ? availability.canReplace
+    : availability.canStart;
+  if (!canPrepare && !running) return null;
   return (
     <div className="flex flex-col items-start gap-3">
       <Button
@@ -47,7 +51,9 @@ export function RuleSetPreparationAction({
             ? "pages.complianceRuleSets.cancelling"
             : running
               ? "pages.complianceRuleSets.preparing"
-              : "pages.complianceRuleSets.prepare",
+              : replaceActive
+                ? "pages.complianceRuleSets.prepareNewVersion"
+                : "pages.complianceRuleSets.prepare",
         )}
       </Button>
       {prepare.isError ? (
@@ -61,10 +67,18 @@ export function RuleSetPreparationAction({
         <DialogContent showCloseButton={false}>
           <DialogHeader className="flex-col">
             <DialogTitle>
-              {resolveAppMessage("pages.complianceRuleSets.confirmTitle")}
+              {resolveAppMessage(
+                replaceActive
+                  ? "pages.complianceRuleSets.confirmReplaceTitle"
+                  : "pages.complianceRuleSets.confirmTitle",
+              )}
             </DialogTitle>
             <DialogDescription>
-              {resolveAppMessage("pages.complianceRuleSets.confirmDescription")}
+              {resolveAppMessage(
+                replaceActive
+                  ? "pages.complianceRuleSets.confirmReplaceDescription"
+                  : "pages.complianceRuleSets.confirmDescription",
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-row justify-end pt-5">
@@ -72,13 +86,25 @@ export function RuleSetPreparationAction({
               {resolveAppMessage("pages.complianceRuleSets.cancel")}
             </Button>
             <Button
-              disabled={running || !availability.canStart}
+              disabled={running || !canPrepare}
               onClick={() => {
                 setConfirming(false);
-                prepare.mutate();
+                // Name the version on screen so a stale page cannot prepare a newer one by accident.
+                prepare.mutate({
+                  ...(replaceActive ? { replaceActive: true } : {}),
+                  ...(availability.legalSourceVersionId
+                    ? {
+                        legalSourceVersionId: availability.legalSourceVersionId,
+                      }
+                    : {}),
+                });
               }}
             >
-              {resolveAppMessage("pages.complianceRuleSets.confirmPrepare")}
+              {resolveAppMessage(
+                replaceActive
+                  ? "pages.complianceRuleSets.confirmReplace"
+                  : "pages.complianceRuleSets.confirmPrepare",
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

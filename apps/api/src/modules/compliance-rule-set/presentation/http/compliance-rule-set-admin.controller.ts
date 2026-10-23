@@ -15,6 +15,9 @@ import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  RULE_SET_REACTIVATION_ERROR_CODES,
+  complianceRuleSetReactivationRequestSchema,
+  type ComplianceRuleSetReactivationRequest,
   ruleSetPreparationAdminRequestSchema,
   type RuleSetPreparationAdminRequest,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -24,9 +27,11 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
+import { GetComplianceRuleSetResultQuery } from "../../application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.query.js";
 import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.query.js";
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
+import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 
 /**
  * Operations view of the shared Compliance Rule Sets. Preparation starts automatically with a
@@ -47,6 +52,22 @@ export class ComplianceRuleSetAdminController {
   list() {
     return this.queries
       .execute(new ListComplianceRuleSetHistoryQuery())
+      .then(resultEnvelope);
+  }
+
+  /** View result: one stored rule set version (ACTIVE or SUPERSEDED) with its source provenance. */
+  @Get(":ruleSetVersionId")
+  result(
+    @Param("ruleSetVersionId", new ParseUUIDPipe()) ruleSetVersionId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.queries
+      .execute(
+        new GetComplianceRuleSetResultQuery(
+          ruleSetVersionId,
+          req.correlationId || randomUUID(),
+        ),
+      )
       .then(resultEnvelope);
   }
 
@@ -92,12 +113,40 @@ export class ComplianceRuleSetAdminController {
         COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
       ),
     )
-    _request: RuleSetPreparationAdminRequest,
+    request: RuleSetPreparationAdminRequest,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.commands
       .execute(
         new PrepareCurrentRuleSetCommand(
+          req.rbacContext.userId,
+          req.correlationId || randomUUID(),
+          request.replaceActive === true,
+          request.legalSourceVersionId,
+        ),
+      )
+      .then(resultEnvelope);
+  }
+
+  @Post(":ruleSetVersionId/reactivate")
+  @HttpCode(HttpStatus.OK)
+  reactivate(
+    @Param("ruleSetVersionId", new ParseUUIDPipe())
+    targetRuleSetVersionId: string,
+    @Body(
+      new ZodValidationPipe(
+        complianceRuleSetReactivationRequestSchema,
+        RULE_SET_REACTIVATION_ERROR_CODES.REQUEST_INVALID,
+      ),
+    )
+    request: ComplianceRuleSetReactivationRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.commands
+      .execute(
+        new ReactivateComplianceRuleSetCommand(
+          targetRuleSetVersionId,
+          request,
           req.rbacContext.userId,
           req.correlationId || randomUUID(),
         ),

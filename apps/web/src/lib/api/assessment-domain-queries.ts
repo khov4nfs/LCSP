@@ -8,6 +8,7 @@ import {
   assessmentHumanRequestsResultSchema,
   assessmentProvenanceArtifactSchema,
   assessmentRepositorySetupSchema,
+  reconcileOrphanedAssessmentResultSchema,
   answerAssessmentHumanRequestSchema,
   answerAssessmentHumanRequestResultSchema,
   type AnswerAssessmentHumanRequest,
@@ -31,6 +32,25 @@ export function useAssessmentDetailQuery(id: string) {
         assessmentDetailSchema,
       ),
     enabled: Boolean(id),
+  });
+}
+
+export function useReconcileOrphanedAssessment(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/reconcile-orphaned`,
+        reconcileOrphanedAssessmentResultSchema,
+        { method: "POST" },
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: assessmentDomainKeys.detail(id) }),
+        client.invalidateQueries({ queryKey: assessmentDomainKeys.events(id) }),
+        client.invalidateQueries({ queryKey: assessmentDomainKeys.requests(id) }),
+      ]);
+    },
   });
 }
 export function useHumanRequestsQuery(id: string) {

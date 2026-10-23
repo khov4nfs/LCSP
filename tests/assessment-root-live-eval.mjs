@@ -147,6 +147,8 @@ try {
       status: "ACTIVE",
       documentId: fixture.documentId,
       chunks: fixture.chunks,
+      sourceBytes: Buffer.from(fixture.sourceBytesBase64, "base64"),
+      sourceSha256: fixture.sourceSha256,
     });
     const prep = await activateLegalSource(legalSource);
     assert.equal(prep.runs.length, 1, "one Legal Source -> one automatic preparation");

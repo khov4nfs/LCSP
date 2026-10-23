@@ -83,6 +83,9 @@ import {
   resolveAzureDevOpsCliExecutablePath,
 } from "./infrastructure/azure-devops/azure-devops-cli-runtime.validator.js";
 import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
+import { RuntimeHydrationTicketLifecycle } from "./application/services/runtime-hydration-ticket-lifecycle.service.js";
+import { FinalizeRuntimeHydrationTicketHandler } from "./application/commands/finalize-runtime-hydration-ticket/finalize-runtime-hydration-ticket.handler.js";
+import { ReconcileRuntimeHydrationTicketHandler } from "./application/commands/reconcile-runtime-hydration-ticket/reconcile-runtime-hydration-ticket.handler.js";
 
 /**
  * Wires per-user credential repository access (GitHub, GitLab, Bitbucket, Azure DevOps), immutable snapshot pinning/streaming, and mechanical sandbox hydration across HTTP, CQRS, and Prisma adapters.
@@ -93,6 +96,9 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
   providers: [
     PinSnapshotHandler,
     StreamSnapshotArchiveHandler,
+    RuntimeHydrationTicketLifecycle,
+    FinalizeRuntimeHydrationTicketHandler,
+    ReconcileRuntimeHydrationTicketHandler,
     ListRepositoryConnectionsHandler,
     DiscoverGitHubRepositoriesHandler,
     ConnectGitHubCliRepositoryHandler,

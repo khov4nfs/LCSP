@@ -1,7 +1,8 @@
-"""Drive the REAL Rule Set Preparation agent and API client with a scripted (provider-free) model.
+"""Drive the real claim-first Preparation journey with a provider-free model and fixture auditor.
 
 Used by tests/compliance-rule-set-vertical.mjs. The model is scripted; everything else is real:
 the Deep Agent graph, tool surface, WorkerApiClient HTTP calls, API, validator and PostgreSQL.
+Auditor verdicts are scripted mechanical fixtures, never legal-semantic acceptance evidence.
 
 usage: scripted_preparation.py <apiBase> <workerKey> <runId> <seedJson> <mode>
 modes: valid | stale | orphan | no-submit
@@ -19,7 +20,9 @@ from langchain_core.messages import AIMessage
 
 from rule_set_preparation import runner as runner_module
 from rule_set_preparation.runner import run_rule_set_preparation
-from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
+from authoring_memory_harness import ViewDrivenModel, last_result
+from structural_semantic_fixture import StructuralFixtureAuditor
+from rule_set_preparation.semantic_audit import FRAME_FIELDS
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 
 DOC = "SYNTHETIC-NOTICE-INSTRUMENT"
@@ -34,7 +37,7 @@ def _legal(rule_id: str, locators: list[str], hashes: dict[str, str], *, duty: b
         "legalRequirementId": rule_id,
         "title": f"Rule {rule_id}",
         "proposition": f"Proposition {rule_id}.",
-        "applicabilityConditions": [],
+        "applicabilityConditions": [] if duty else ["Applies to the service that stores notices."],
         "qualifiers": [],
         "exceptions": [],
         "nonRepositoryDuty": duty,
@@ -79,10 +82,10 @@ def build_packet(hashes: dict[str, str]) -> dict[str, Any]:
             _assessment_rule("ER-XREF", ["LR-XREF"], ["art-4::cl-1::pt-a"], hashes),
         ],
         "contextRelations": [
-            {"relationId": "REL-EXC", "kind": "EXCEPTION", "fromLegalRequirementId": "LR-RET",
+            {"relationId": "REL-EXC", "kind": "CROSS_REFERENCE", "fromLegalRequirementId": "LR-RET",
              "toLegalRequirementId": "LR-EXC", "toSourceRef": None},
-            {"relationId": "REL-DEF", "kind": "DEFINITION", "fromLegalRequirementId": "LR-XREF",
-             "toLegalRequirementId": None, "toSourceRef": _ref(hashes, "art-1::cl-1")},
+            {"relationId": "REL-DEF", "kind": "CROSS_REFERENCE", "fromLegalRequirementId": "LR-XREF",
+             "toLegalRequirementId": "LR-DEF", "toSourceRef": None},
         ],
     }
 
@@ -98,26 +101,129 @@ def main() -> int:
     api = WorkerApiClient(base, key)
 
     packet = seed.get("packet") or build_packet(hashes)
-    if mode == "stale":
-        packet["legalRequirements"][1]["sourceRefs"][0]["contentSha256"] = "sha256:" + "f" * 64
-    elif mode == "orphan":
-        packet["assessmentRules"][0]["legalRequirementIds"] = ["LR-MISSING"]
+    calls = []
+    context = None
 
-    if mode == "no-submit":
-        responses = [_call("report_rule_set_source_blocked", {
-            "reason": "SOURCE_PINS_INCONSISTENT", "path": "/legal-source/INDEX.md",
-        }, "blocked")]
-    else:
-        responses = [
-            _call("read_file", {"file_path": "/legal-source/INDEX.md"}, "read-index"),
-            _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
-            _call("submit_compliance_rule_set", {"packet": packet}, "submit"),
-            AIMessage(content="DONE"),
-        ]
-    model = RuleSetPreparationScriptedModel(responses=responses)
+    def journey():
+        yield "read_file", {"file_path": "/legal-source/INDEX.md"}
+        if mode == "no-submit":
+            yield "report_rule_set_source_blocked", {
+                "reason": "SOURCE_PINS_INCONSISTENT", "path": "/legal-source/INDEX.md"}
+            return
+        operands = {r["legalRequirementId"]: [] for r in packet["legalRequirements"]}
+        scopes = {key: [] for key in operands}
+        while True:
+            work = yield "get_next_review_unit", {}
+            assert work["outcome"] == "PASSED", work
+            unit = work["unit"]
+            if unit is None:
+                assert work["progress"]["discoveryCompleteEligible"], work
+                break
+            node_id = unit["sourceNodeId"]
+            source = context.source_graph
+            locators = {source.chunks[c]["locator"] for c in source.chunk_ids[node_id]}
+            authored = False
+            for row in packet["legalRequirements"]:
+                refs = [r for r in row["sourceRefs"] if r["locator"] in locators]
+                if not refs or operands[row["legalRequirementId"]]:
+                    continue
+                key = row["legalRequirementId"]
+                wanted = {r["locator"] for r in row["sourceRefs"]}
+                anchors = [nid for nid, chunks in source.chunk_ids.items()
+                           if any(source.chunks[c]["locator"] in wanted for c in chunks)]
+                support = [{"nodeId": nid, "startOffset": 0,
+                            "endOffset": len(source.nodes[nid]["content"].encode("utf-16-le")) // 2}
+                           for nid in anchors]
+                if mode == "stale":
+                    support[0]["contentSha256"] = "f" * 64
+                common = {"source_node_ids": anchors, "source_support": support,
+                          "semantic_authority": "LEGAL_NORMATIVE",
+                          "semantic_frame": {k: None for k in FRAME_FIELDS}}
+                scope = yield "register_semantic_claim", {
+                    **common, "identity_key": f"{key}-{node_id}-scope",
+                    "claim_type": "SCOPE", "statement": " ".join(row["applicabilityConditions"]) or "Applies to the synthetic notice service.",
+                    "assessability": "NON_ASSESSABLE"}
+                assert scope["outcome"] == "PASSED", scope
+                scopes[key].append(scope["claim"]["claimId"])
+                claim = yield "register_semantic_claim", {
+                    **common, "identity_key": f"{key}-{node_id}-duty", "claim_type": "DUTY",
+                    "statement": row["proposition"], "actor": "Synthetic notice operator",
+                    "action": row["proposition"],
+                    "semantic_frame": {**common["semantic_frame"], **seed.get("semanticFrames", {}).get(key, {})},
+                    "assessability": seed.get("assessability", {}).get(key,
+                        "EXTERNAL_FULFILLMENT" if row["nonRepositoryDuty"] else "REPOSITORY_VERIFIABLE")}
+                assert claim["outcome"] == "PASSED", claim
+                operands[key].append(claim["claim"]["claimId"])
+                relation = yield "link_semantic_claims", {
+                    "from_claim_id": scopes[key][-1], "to_claim_id": operands[key][-1], "kind": "CONDITION_OF"}
+                assert relation["outcome"] == "PASSED", relation
+                for edge in packet["contextRelations"]:
+                    if edge["fromLegalRequirementId"] == key:
+                        linked = yield "link_semantic_claims", {
+                            "from_claim_id": operands[key][-1],
+                            "to_claim_id": operands[edge["toLegalRequirementId"]][0],
+                            "kind": edge["kind"]}
+                        assert linked["outcome"] == "PASSED", linked
+                authored = True
+            for reference in unit["references"]:
+                result = yield "mark_reference_non_material", {
+                    "reference_id": reference["referenceId"],
+                    "reason": "Mechanical fixture defines each assertion locally; no incorporation is scripted."}
+                assert result["outcome"] == "PASSED", result
+            completed = yield "complete_source_review", {
+                "disposition": "CLAIMS_AUTHORED" if authored else "NO_RELEVANT_SEMANTIC_CLAIMS",
+                **({} if authored else {"reason": "Structural fixture unit outside the scripted assertions."})}
+            assert completed["outcome"] == "PASSED", completed
+        frozen = yield "finalize_semantic_claim_inventory", {}
+        assert frozen["outcome"] == "PASSED", frozen
+        started = yield "start_rule_authoring", {}
+        assert started["outcome"] == "PASSED", started
+        for row in packet["legalRequirements"]:
+            key = row["legalRequirementId"]
+            result = yield "author_legal_requirement", {
+                "requirement_key": key, "title": row["title"],
+                "operative_claim_ids": operands[key], "applicability_claim_ids": scopes[key],
+                "non_repository_duty": row["nonRepositoryDuty"]}
+            assert result["outcome"] == "PASSED", result
+        for row in packet["assessmentRules"]:
+            result = yield "author_assessment_rule", {
+                "assessment_rule_id": row["assessmentRuleId"], "concept": row["concept"],
+                "legal_requirement_ids": ["LR-MISSING"] if mode == "orphan" else row["legalRequirementIds"]}
+            if mode != "orphan":
+                assert result["outcome"] == "PASSED", result
+        validation = yield "validate_compliance_rule_set", {}
+        if mode == "valid":
+            assert validation["outcome"] == "PASSED", validation
+        yield "submit_compliance_rule_set", {}
+
+    script = journey()
+    first = True
+    def policy(messages, model):
+        nonlocal first
+        result = last_result(messages)
+        if calls and result is not None:
+            calls[-1]["result"] = {k: result[k] for k in ("outcome", "gaps", "fingerprint") if k in result}
+        try:
+            name, args = next(script) if first else script.send(result)
+        except StopIteration as error:
+            raise AssertionError("Scripted Preparation exhausted without an API terminal") from error
+        first = False
+        calls.append({"tool": name})
+        return _call(name, args, f"script-{len(calls)}")
+
+    model = ViewDrivenModel(policy=policy)
+    real_create = runner_module.create_rule_set_preparation_agent
+    def create(**kwargs):
+        nonlocal context
+        context = kwargs["context"]
+        # Only this CLI uses the mechanical auditor. The API still verifies signed receipts,
+        # freeze, typed authoring and Validator results; this proves no legal-model quality.
+        context.semantic_auditor = StructuralFixtureAuditor()
+        return real_create(**kwargs)
     # The offline model has no provider route; routing is covered by the SDK-backed governance tests.
     with ExitStack() as stack:
         stack.enter_context(patch("rule_set_preparation.agent.MODEL_GOVERNANCE_MIDDLEWARE", ()))
+        stack.enter_context(patch.object(runner_module, "create_rule_set_preparation_agent", create))
         if mode == "no-submit":
             # A source-blocking claim is only honored when the pinned source really is inconsistent, so
             # the scripted block is made true: one chunk file stops matching its INDEX pin.
@@ -132,6 +238,8 @@ def main() -> int:
 
             stack.enter_context(patch.object(runner_module, "materialize_legal_source", tampered))
         result = run_rule_set_preparation(api, run_id, model=model)
+    if mode != "no-submit":
+        result["scriptedCalls"] = calls
     print(json.dumps(result))
     return 0
 

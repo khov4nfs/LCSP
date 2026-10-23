@@ -663,6 +663,116 @@ describe("AssessmentRuntimeEventService", () => {
     });
   });
 
+  it("persists and replays safe provider-attempt slot metadata after sanitization", async () => {
+    const persistedRows: unknown[] = [];
+    const prisma = withTransaction({
+      assessmentRuntimeEvent: {
+        ...agentStreamPersistenceMock(persistedRows),
+        findMany: jest.fn(() => Promise.resolve(persistedRows)),
+      },
+    });
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await service.publishAgentStreamEvent({
+      eventId: "provider-attempt-1",
+      preparationRunId: "preparation-a",
+      runId: "preparation-a",
+      correlationId: "corr-a",
+      eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.customProgress,
+      data: {
+        activity_kind: "MODEL_PROVIDER_ATTEMPT_FAILED",
+        invocation_id: "invocation-a",
+        model_step_id: "step-a",
+        credential_slot_safe_id: "CREDENTIAL_SLOT_04",
+        credential_value: "private-credential-value",
+        api_key: "private-api-key",
+        authorization: "Bearer private-token-value",
+        raw_error_body: "private-provider-response",
+      },
+    });
+
+    const persisted = persistedRows[0] as {
+      outputSummaryJson: {
+        agentStreamEvent: { data: Record<string, unknown> };
+      };
+    };
+    expect(persisted.outputSummaryJson.agentStreamEvent.data).toMatchObject({
+      activity_kind: "MODEL_PROVIDER_ATTEMPT_FAILED",
+      credential_slot_safe_id: "CREDENTIAL_SLOT_04",
+      invocation_id: "invocation-a",
+      model_step_id: "step-a",
+      credential_value: "[REDACTED]",
+      api_key: "[REDACTED]",
+      authorization: "[REDACTED]",
+      raw_error_body: "[REDACTED]",
+    });
+
+    const replay = await (
+      service as unknown as {
+        getDurableAgentStreamEvents: (
+          ownerId: string,
+          assessmentId: string | null,
+          preparationRunId: string,
+        ) => Promise<
+          Array<{ eventType: string; data: Record<string, unknown> }>
+        >;
+      }
+    ).getDurableAgentStreamEvents(
+      "preparation:preparation-a",
+      null,
+      "preparation-a",
+    );
+    expect(replay[0]).toMatchObject({
+      eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.customProgress,
+      data: {
+        activity_kind: "MODEL_PROVIDER_ATTEMPT_FAILED",
+        credential_slot_safe_id: "CREDENTIAL_SLOT_04",
+        invocation_id: "invocation-a",
+        model_step_id: "step-a",
+      },
+    });
+  });
+
+  it("keeps preparation progress current after the durable replay window fills", async () => {
+    const persistedRows = Array.from({ length: 5_001 }, (_, i) =>
+      durableAgentStreamRow(i + 1),
+    );
+    const findMany = jest.fn(
+      ({
+        orderBy,
+        take,
+        where,
+      }: {
+        orderBy: unknown;
+        take: number;
+        where: unknown;
+      }) => {
+        expect(orderBy).toEqual([{ createdAt: "desc" }, { sequence: "desc" }]);
+        expect(where).toMatchObject({ preparationRunId: "preparation-a" });
+        return Promise.resolve([...persistedRows].reverse().slice(0, take));
+      },
+    );
+    const service = new AssessmentRuntimeEventService({
+      assessmentRuntimeEvent: { findMany },
+    } as never);
+    const replay = await (
+      service as unknown as {
+        getDurableAgentStreamEvents: (
+          owner: string,
+          assessment: null,
+          preparation: string,
+        ) => Promise<Array<{ sequence: number }>>;
+      }
+    ).getDurableAgentStreamEvents(
+      "preparation:preparation-a",
+      null,
+      "preparation-a",
+    );
+    expect(replay).toHaveLength(5_000);
+    expect(replay[0]?.sequence).toBe(2);
+    expect(replay.at(-1)?.sequence).toBe(5_001);
+  });
+
   it("replays the newest durable semantic history in chronological order", async () => {
     const persistedRows = Array.from({ length: 6_001 }, (_, index) =>
       durableAgentStreamRow(index + 1),

@@ -10,6 +10,7 @@ import { ASSESSMENT_RUNTIME_CONTROL_STATES } from "@lcsp/contracts/evidence";
 import { Button } from "@/components/ui/button";
 import { ChatInteractionBar } from "@/components/molecules/chat-interaction-bar";
 import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
+import { useReconcileOrphanedAssessment } from "@/lib/api/assessment-domain-queries";
 import {
   CUSTOMER_ASSESSMENT_STATES,
   type CustomerAssessmentState,
@@ -36,6 +37,7 @@ export function AssessmentInteractionBar({
   const { control, stop, resume } = useAssessmentRuntimeControl(
     assessment.assessment_id,
   );
+  const reconcile = useReconcileOrphanedAssessment(assessment.assessment_id);
   const runtime = assessment.runtime;
   const executionId = runtime?.currentExecutionId ?? undefined;
   const requested =
@@ -59,10 +61,14 @@ export function AssessmentInteractionBar({
     executionId !== undefined &&
     assessment.lifecycle?.state === ASSESSMENT_LIFECYCLE_STATES.PAUSED &&
     runtime?.executionState === AGENT_EXECUTION_STATES.PAUSED;
+  const isOrphanedQueued =
+    assessment.lifecycle?.state === ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
+    runtime?.executionState === AGENT_EXECUTION_STATES.QUEUED &&
+    runtime.currentExecutionId === null;
   const report = assessment.case?.artifacts.find(
     (artifact) => artifact.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
   );
-  const failed = stop.isError || resume.isError;
+  const failed = stop.isError || resume.isError || reconcile.isError;
 
   if (
     state === CUSTOMER_ASSESSMENT_STATES.UNAVAILABLE ||
@@ -76,7 +82,23 @@ export function AssessmentInteractionBar({
         data-bar-state={state}
         className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2"
       >
-        {state === CUSTOMER_ASSESSMENT_STATES.WORKING ||
+        {state === CUSTOMER_ASSESSMENT_STATES.WORKING && isOrphanedQueued ? (
+          <>
+            <p className="flex-1 text-sm text-muted-foreground">
+              {copy("bar.orphaned")}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={reconcile.isPending}
+              onClick={() => reconcile.mutate()}
+              data-runtime-action="reconcile-orphaned"
+            >
+              {copy(reconcile.isPending ? "bar.reconciling" : "bar.reconcile")}
+            </Button>
+          </>
+        ) : state === CUSTOMER_ASSESSMENT_STATES.WORKING ||
         state === CUSTOMER_ASSESSMENT_STATES.FINALIZING ? (
           <>
             <p className="flex min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground">

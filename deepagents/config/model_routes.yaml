@@ -4,8 +4,8 @@
 version: 1
 
 # A route = canonical provider + protocol + opaque model id (+ optional inference options).
-# provider must be exactly one of: openai, anthropic, google_genai, inception, apx.
-# protocol is the native API family; APX accepts anthropic or openai.
+# provider must be exactly one of: openai, anthropic, google_genai, inception, apx, miraiapi.
+# protocol is the native API family; APX and Mirai API accept anthropic or openai.
 # options (e.g. temperature, reasoning, max_output_tokens, context_window_tokens) are passed through;
 # omit them to get provider defaults. Credential/endpoint/header-like keys are rejected.
 routes:
@@ -15,24 +15,46 @@ routes:
   # streaming keeps bytes flowing during a multi-minute generation: a silent non-streaming
   # request that a gateway drops hangs until the provider timeout (3600 s) instead of failing fast.
   primary:
+    provider: miraiapi
+    protocol: anthropic
+    model: claude-sonnet-5
+    options:
+      streaming: true
+  fallback:
+    provider: inception
+    model: mercury-2.5
+    options:
+      max_output_tokens: 32768
+      streaming: true
+  fallback-01:
+    provider: google_genai
+    model: gemini-3.5-flash-lite
+    options:
+      max_output_tokens: 65536
+      streaming: true
+  fallback-02:
     provider: apx
     protocol: anthropic
     model: claude-sonnet-4-6-free
     options:
       max_output_tokens: 64000
       streaming: true
-  fallback:
-    provider: google_genai
-    model: gemini-3.5-flash-lite
+  semantic-primary:
+    provider: miraiapi
+    protocol: anthropic
+    model: claude-sonnet-5
     options:
-      max_output_tokens: 65536
       streaming: true
-  fallback-01:
-    provider: inception
-    model: mercury-2.5
+  semantic-final:
+    provider: apx
+    protocol: anthropic
+    model: claude-sonnet-4-6-free
     options:
-      max_output_tokens: 32768
+      max_output_tokens: 64000
       streaming: true
+      thinking:
+        type: adaptive
+      effort: high
 
 # Role -> route. `default` is required and used for any role not listed.
 roles:
@@ -41,8 +63,10 @@ roles:
   assessment-root: primary
   repository-researcher: primary
   rule-set-preparation: primary
-  response-transform: fallback
+  legal-semantic-auditor: semantic-primary
+  response-transform: fallback-01
 
 # Ordered fallback chain per route (optional; cycles are rejected).
 fallbacks:
-  primary: [fallback, fallback-01]
+  primary: [fallback, fallback-01, fallback-02]
+  semantic-primary: [fallback, fallback-01, semantic-final]

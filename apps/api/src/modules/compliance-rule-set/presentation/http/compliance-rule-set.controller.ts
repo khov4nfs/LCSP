@@ -1,4 +1,16 @@
 import { randomUUID } from "node:crypto";
+import {
+  claimInventoryOperationSchema,
+  sourceReviewOperationSchema,
+  claimDiscoveryDiagnosticRequestSchema,
+  type SourceReviewOperation,
+  type ClaimInventoryOperation,
+} from "@lcsp/contracts/compliance-rule-set";
+import {
+  SourceReviewCommand,
+  StartClaimDiscoveryDiagnosticCommand,
+} from "../../application/commands/source-review/source-review.command.js";
+import { ClaimInventoryCommand } from "../../application/commands/claim-inventory/claim-inventory.command.js";
 
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
@@ -32,7 +44,7 @@ import { ClaimRuleSetPreparationCommand } from "../../application/commands/claim
 import { FailRuleSetPreparationCommand } from "../../application/commands/fail-rule-set-preparation/fail-rule-set-preparation.command.js";
 import { SubmitComplianceRuleSetCommand } from "../../application/commands/submit-compliance-rule-set/submit-compliance-rule-set.command.js";
 import { GetActiveComplianceRuleSetQuery } from "../../application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.query.js";
-import { ValidateComplianceRuleSetQuery } from "../../application/queries/validate-compliance-rule-set/validate-compliance-rule-set.query.js";
+import { ValidateComplianceRuleSetCommand } from "../../application/commands/validate-compliance-rule-set/validate-compliance-rule-set.command.js";
 
 const RULE_SET_PREPARATION_WORKER = "rule-set-preparation-worker";
 const body = (schema: z.ZodTypeAny, includeIssuePaths = false) =>
@@ -45,9 +57,9 @@ const body = (schema: z.ZodTypeAny, includeIssuePaths = false) =>
 
 /**
  * Worker-authenticated rule set boundary: claim, fail, validate, one submit -> activate, and the
- * single runtime reader of the ACTIVE rule set. A preparation is never started here: it is
+ * single runtime reader of the ACTIVE rule set. Full Preparation is never started here: it is
  * started by Legal Source activation or the separate ADMIN action. Transport only: Zod validates the body and
- * each call is one Command/Query.
+ * each call is one Command/Query. Discovery-only sessions are disabled outside explicitly enabled isolated diagnostics.
  */
 @Controller("internal/compliance-rule-set")
 @UseGuards(WorkerApiKeyGuard)
@@ -59,6 +71,50 @@ export class ComplianceRuleSetController {
 
   private correlation(req: AuthenticatedRequest): string {
     return req.correlationId || randomUUID();
+  }
+
+  @Post("source-reviews")
+  @HttpCode(200)
+  async sourceReview(
+    @Body(body(sourceReviewOperationSchema, true))
+    request: SourceReviewOperation,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new SourceReviewCommand(request, this.correlation(req)),
+      ),
+    );
+  }
+
+  @Post("discovery-diagnostics")
+  @HttpCode(200)
+  async discoveryDiagnostic(
+    @Body(body(claimDiscoveryDiagnosticRequestSchema, true))
+    request: z.infer<typeof claimDiscoveryDiagnosticRequestSchema>,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new StartClaimDiscoveryDiagnosticCommand(
+          request.legalSourceVersionId,
+          request.idempotencyKey,
+        ),
+      ),
+    );
+  }
+
+  @Post("claim-inventories")
+  @HttpCode(200)
+  async inventory(
+    @Body(body(claimInventoryOperationSchema, true))
+    request: ClaimInventoryOperation,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ClaimInventoryCommand(request, this.correlation(req)),
+      ),
+    );
   }
 
   @Post("claims")
@@ -97,8 +153,8 @@ export class ComplianceRuleSetController {
     @Req() req: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.queryBus.execute(
-        new ValidateComplianceRuleSetQuery(request, this.correlation(req)),
+      await this.commandBus.execute(
+        new ValidateComplianceRuleSetCommand(request, this.correlation(req)),
       ),
     );
   }

@@ -315,12 +315,10 @@ async def test_exhausted_google_pool_with_typed_auth_moves_to_next_provider(monk
 
     assert result is response
     models = [call.args[0].model for call in handler.call_args_list]
-    assert [type(model).__name__ for model in models] == [
-        "ChatGoogleGenerativeAI",
-        "ChatGoogleGenerativeAI",
-        "ChatGoogleGenerativeAI",
-        "ChatAnthropic",
-    ]
+    from langchain_anthropic import ChatAnthropic
+    assert len(models) == 4
+    assert all(isinstance(model, ChatGoogleGenerativeAI) for model in models[:-1])
+    assert isinstance(models[-1], ChatAnthropic)
     assert models[-1].anthropic_api_key.get_secret_value() == "apx-only-test-token"
 
 
@@ -394,10 +392,16 @@ async def test_typed_auth_opens_provider_circuit_and_later_calls_skip_that_provi
     # Google is tried once, its run-scoped circuit opens, and the next call skips it.
     assert provider_calls == ["google_genai", "apx", "apx"]
     assert session.provider_route_disabled(route_key("google_genai", "future-model-v99", "google_genai")) is True
-    # Only the two answered apx calls report provider usage; the failed google attempt
-    # reports nothing (no invented zero-usage record).
-
-    assert [payload.provider for payload in client.payloads] == ["APX", "APX"]
+    assert [(payload.provider, payload.attemptStatus) for payload in client.payloads] == [
+        ("GOOGLE_GENAI", "STARTED"), ("GOOGLE_GENAI", "OUTCOME_UNKNOWN"),
+        ("APX", "STARTED"), ("APX", "COMPLETED"),
+        ("APX", "STARTED"), ("APX", "COMPLETED"),
+    ]
+    completed = [payload for payload in client.payloads if payload.attemptStatus == "COMPLETED"]
+    assert len({payload.invocationId for payload in client.payloads}) == len(provider_calls)
+    assert [payload.inputTokensIncludingCache for payload in completed] == ["3", "3"]
+    assert [payload.outputTokens for payload in completed] == ["2", "2"]
+    assert all(payload.totalTokens is None for payload in client.payloads if payload not in completed)
 
 @pytest.mark.parametrize("auth_error", [_google_auth_error, _google_permission_error])
 @pytest.mark.parametrize("asynchronous", [False, True])

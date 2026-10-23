@@ -93,7 +93,7 @@ const RETIRED = [
     /\b(requireApprovedReviewSignoff|legalChunkNormativeClass|LEGAL_ENGINEERING_OBLIGATION_TERMS)\b/,
     "human signoff / normative regex judge",
   ],
-  [/\bdiscardDraft\b|corpusDiscardReceipt\.create/, "human discard authority"],
+  [/corpusDiscardReceipt\.create/, "retired corpus discard receipt writer"],
   [
     /\b(legalRule|legalRuleCatalogVersion|ruleApprovalRecord)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\(/,
     "V1 LegalRule table writer",
@@ -153,6 +153,7 @@ for (const sample of [
   'export { formatEngineeringReason } from "./classification-runtime.ts"',
   "LCSP_AGENT_RUNTIME_CLEANUP_LEGACY_MDA_TOPOLOGY=true",
   '"legacy-migration": "node dist/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.js"',
+  "await prisma.corpusDiscardReceipt.create({ data: receipt })",
 ])
   assert.ok(
     RETIRED.some(([pattern]) => pattern.test(sample)),

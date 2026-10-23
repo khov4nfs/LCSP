@@ -1,5 +1,6 @@
 import json
 import os
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -28,6 +29,21 @@ from middleware.usage_metering import (
     activate_agent_run_state,
 )
 from provider_credentials import credential_init_kwargs
+
+@pytest.fixture(autouse=True)
+def provider_pauses(monkeypatch):
+    """Rate-limit backoff pauses are recorded, never slept."""
+    import middleware.provider_fallback as fallback_module
+
+    pauses: list[float] = []
+
+    async def _apause(delay):
+        pauses.append(delay)
+
+    monkeypatch.setattr(fallback_module, "_sleep", pauses.append)
+    monkeypatch.setattr(fallback_module, "_asleep", _apause)
+    return pauses
+
 
 ALPHA, GAMMA, FUTURE, DELTA = "model-alpha", "model-gamma", "future-model-v99", "model-delta"
 MODEL_FOR = {"openai": ALPHA, "apx": GAMMA, "google_genai": FUTURE, "inception": DELTA}
@@ -197,6 +213,51 @@ async def _async_chain(request, raw_handler):
     return await ProviderFallbackMiddleware().awrap_model_call(request, token_handler)
 
 
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("success_at", [0, 1, 2, 3, None])
+@pytest.mark.asyncio
+async def test_configured_workflow_chain_rotates_only_own_keys_in_provider_order(
+    monkeypatch, asynchronous, success_at
+):
+    import model_policy as policy
+
+    monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
+    policy.load_model_routes.cache_clear()
+    providers = ["miraiapi", "inception", "google_genai", "apx"]
+    for provider, name in zip(providers, ["MIRAI_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "APX_API_KEY"]):
+        monkeypatch.setenv(name, f"offline-{provider}-a,offline-{provider}-b")
+    calls = []
+
+    def handle(request):
+        provider = model_provider(request.model)
+        key = _model_api_key(request.model)
+        assert key in {f"offline-{provider}-a", f"offline-{provider}-b"}
+        calls.append((provider, key))
+        if success_at is not None and provider == providers[success_at]:
+            return "actual-selected-provider-result"
+        raise AllowanceExhaustedError()
+
+    async def ahandle(request):
+        return handle(request)
+
+    request = _FakeRequest(policy.resolve_agent_model("legal-semantic-auditor"))
+    state = AgentRunState(run_id="ordered-workflow-control", agent_role="legal-semantic-auditor")
+    with activate_agent_run_state(state):
+        if success_at is None:
+            with pytest.raises(TerminalCredentialError):
+                if asynchronous:
+                    await _async_chain(request, ahandle)
+                else:
+                    _sync_chain(request, handle)
+        else:
+            result = await _async_chain(request, ahandle) if asynchronous else _sync_chain(request, handle)
+            assert result == "actual-selected-provider-result"
+    expected = [(p, f"offline-{p}-{slot}") for p in providers[:success_at if success_at is not None else 4] for slot in ("a", "b")]
+    if success_at is not None:
+        expected.append((providers[success_at], f"offline-{providers[success_at]}-a"))
+    assert calls == expected
+
+
 def _usage_response() -> ModelResponse:
     return ModelResponse(
         result=[
@@ -287,9 +348,11 @@ def test_apx_402_fallback_reports_usage_of_the_answering_route_only(monkeypatch)
 
     assert isinstance(response, ModelResponse)
     assert provider_calls == ["apx", "google_genai"]
-    # Only the provider-answered attempt reports usage; the failed attempt has none.
-    assert [payload.provider for payload in payloads] == ["GOOGLE_GENAI"]
-    assert payloads[0].inputTokens == "3"
+    # Only the answered callback carries usage; both physical attempts retain lifecycle evidence.
+    assert [payload.provider for payload in payloads if payload.attemptStatus == "COMPLETED"] == ["GOOGLE_GENAI"]
+    payloads = [p for p in payloads if p.attemptStatus == "COMPLETED"]
+    assert payloads[0].inputTokens is None
+    assert payloads[0].inputTokensIncludingCache == "3"
     assert payloads[0].outputTokens == "2"
 
 
@@ -352,7 +415,7 @@ def test_apx_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
 
     assert provider_calls == ["apx", "google_genai", "google_genai"]
     assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
-    assert [payload.provider for payload in client.payloads] == [
+    assert [payload.provider for payload in client.payloads if payload.attemptStatus == "COMPLETED"] == [
         "GOOGLE_GENAI",
         "GOOGLE_GENAI",
     ]
@@ -460,7 +523,8 @@ def test_apx_upstream_unprocessable_fallback_preserves_tool_continuation_and_ope
     ]
     assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
     # No provider-reported usage on these responses: nothing is posted, no zeros invented.
-    assert client.payloads == []
+    assert len([p for p in client.payloads if p.attemptStatus == "COMPLETED"]) == 2
+    assert all(p.inputTokens is None and p.outputTokens is None for p in client.payloads)
     # Routing transitions are infrastructure, never assessment events.
     assert not {"PROVIDER_FALLBACK", "CREDENTIAL_ROTATION"} & {
         event_type for event_type, _ in stream_events
@@ -745,7 +809,7 @@ def test_schema_request_failure_does_not_cross_provider(monkeypatch):
     assert raw_handler.call_count == 1
 
 
-def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch):
+def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch, provider_pauses):
     _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-a,openai-b")
     monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
@@ -754,11 +818,13 @@ def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch):
 
     with pytest.raises(TerminalCredentialError, match="provider routes exhausted"):
         _sync_chain(request, raw_handler)
-    # The OpenAI pool tries both slots and hands over; the last (apx) pool tries
-    # both slots, waits once, and retries the soonest slot. Every failure was a
-    # plain rate limit, so the primary OpenAI pool then gets one waited retry of
-    # its own (bounded) before the task ends.
-    assert raw_handler.call_count == 8
+    # Every failure was a plain rate limit, so both pools are waited on through the whole bounded
+    # backoff (never forever) before the task ends.
+    from middleware.provider_fallback import _RATE_LIMIT_BACKOFF_SECONDS
+
+    assert provider_pauses == list(_RATE_LIMIT_BACKOFF_SECONDS)
+    # 8 initial invocations, then every backoff round re-runs both rate-limited pools.
+    assert raw_handler.call_count == 41
 
 
 def test_current_provider_is_not_reentered_from_fallback_chain(monkeypatch):
@@ -776,6 +842,61 @@ def test_current_provider_is_not_reentered_from_fallback_chain(monkeypatch):
     ]
 
 
+class _StreamedRefusal(Exception):
+    """Mid-stream provider error event: a refusal message carrying a 400-like code."""
+
+    def __init__(self, message="I'm sorry, but I can't help with that request."):
+        super().__init__(message)
+        self.code = 400
+
+
+def test_a_provider_refusal_is_a_resample_not_a_rejected_request():
+    from middleware.failure_policy import is_provider_refusal, is_terminal_task_error, retry_model_error
+
+    refusal = _StreamedRefusal()
+    assert is_provider_refusal(refusal) is True
+    assert is_provider_refusal(_StreamedRefusal("I\u2019m sorry, but I can\u2019t help with that request.")) is True
+    # Same shape, ordinary rejected request: stays terminal and is not retried.
+    rejected = _StreamedRefusal("messages.0: field required")
+    assert is_provider_refusal(rejected) is False
+    assert is_terminal_task_error(rejected) is True and retry_model_error(rejected) is False
+    # The refusal is neither terminal nor un-retryable, and another route may take it.
+    assert is_terminal_task_error(refusal) is False
+    assert retry_model_error(refusal) is True
+    assert provider_fallback_failure(refusal) is True
+
+
+def test_a_refusing_route_falls_back_to_the_next_route(monkeypatch):
+    _install_routes(monkeypatch)
+    calls: list[str] = []
+
+    def handler(request):
+        calls.append(request.model.provider)
+        if request.model.provider == "apx":
+            raise _StreamedRefusal()
+        return ModelResponse(result=[])
+
+    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    assert calls == ["apx", "google_genai"]
+
+
+def test_when_every_route_refuses_the_refusal_itself_surfaces_so_the_sample_is_retried(monkeypatch):
+    from middleware.failure_policy import retry_model_error
+
+    _install_routes(monkeypatch)
+
+    def handler(request):
+        raise _StreamedRefusal()
+
+    with pytest.raises(_StreamedRefusal) as raised:
+        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    # Not the terminal "routes exhausted" error: model retry may resample the request.
+    assert retry_model_error(raised.value) is True
+
+
 def test_structured_output_rejection_is_provider_scoped_not_retried():
     from middleware.failure_policy import (
         StructuredOutputRejected,
@@ -788,7 +909,7 @@ def test_structured_output_rejection_is_provider_scoped_not_retried():
     assert is_terminal_task_error(rejected) is True
     assert retry_model_error(rejected) is False
     assert provider_fallback_failure(rejected) is True
-    assert provider_circuit_breaker_failure(rejected) is True
+    assert provider_circuit_breaker_failure(rejected) is False
     # Other schema/request failures stay terminal without switching providers.
     generic = TerminalSchemaError("Tool argument schema validation failed")
     assert provider_fallback_failure(generic) is False
@@ -816,7 +937,7 @@ def _rejection_session(monkeypatch, routes=("google_genai",)):
 
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.asyncio
-async def test_apx_output_rejection_falls_back_and_opens_circuit(monkeypatch, asynchronous):
+async def test_apx_output_rejection_falls_back_without_poisoning_independent_questions(monkeypatch, asynchronous):
     # Regression: scan 581af151 — codestral (APX) returned an invalid
     # RepositoryAnalysisResult; the rejection killed the scan although Gemini was configured.
     from middleware.failure_policy import StructuredOutputRejected
@@ -843,8 +964,8 @@ async def test_apx_output_rejection_falls_back_and_opens_circuit(monkeypatch, as
                 result = fallback.wrap_model_call(request, provider_handler)
             assert isinstance(result, ModelResponse)
 
-    assert calls == ["apx", "google_genai", "google_genai"]
-    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
+    assert calls == ["apx", "google_genai", "apx", "google_genai"]
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is False
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -868,6 +989,43 @@ async def test_output_rejected_by_every_route_reraises_the_schema_error(monkeypa
                 await fallback.awrap_model_call(request, async_reject)
             else:
                 fallback.wrap_model_call(request, reject)
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.asyncio
+async def test_all_provider_output_rejections_in_one_question_do_not_poison_later_question(monkeypatch, asynchronous):
+    from middleware.failure_policy import StructuredOutputRejected
+
+    session = _rejection_session(monkeypatch)
+    call_count = {"n": 0}
+
+    def response(request):
+        call_count["n"] += 1
+        if call_count["n"] <= 2:
+            raise StructuredOutputRejected("Invalid response only for this source question")
+        return ModelResponse(result=[])
+
+    async def async_response(request):
+        return response(request)
+
+    fallback = ProviderFallbackMiddleware()
+    request = _FakeRequest(_FakeModel("apx"))
+    with activate_agent_run_state(session):
+        with pytest.raises(StructuredOutputRejected, match="this source question"):
+            if asynchronous:
+                await fallback.awrap_model_call(request, async_response)
+            else:
+                fallback.wrap_model_call(request, response)
+        # A different source unit is independently valid on the original primary.
+        if asynchronous:
+            result = await fallback.awrap_model_call(request, async_response)
+        else:
+            result = fallback.wrap_model_call(request, response)
+        assert isinstance(result, ModelResponse)
+
+    assert call_count["n"] == 3
+    assert not session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic"))
+    assert not session.provider_route_disabled(route_key("google_genai", MODEL_FOR["google_genai"], "unknown"))
 
 
 def test_rate_limited_apx_pool_moves_to_google_without_cooldown_wait(monkeypatch):
@@ -987,9 +1145,13 @@ def _rate_limited_primary(code: str | None = None) -> BaseException:
 
 
 def _install_routes(monkeypatch):
+    _routes(monkeypatch, "apx", "google_genai")
+    _install_fallback_models(monkeypatch)
+
+
+def _install_fallback_models(monkeypatch):
     import middleware.provider_fallback as fallback_module
 
-    _routes(monkeypatch, "apx", "google_genai")
     monkeypatch.setattr(
         fallback_module,
         "fallback_model",
@@ -1020,6 +1182,174 @@ def test_rate_limited_primary_waits_out_its_cooldown_instead_of_ending_the_task(
     # no later route: token fallback now waits for the cooldown and retries.
     assert calls == [("apx", True), ("google_genai", False), ("apx", False)]
 
+
+def test_apx_model_not_found_falls_back_to_google_without_provider_call(monkeypatch):
+    from langchain_anthropic.chat_models import AnthropicModelNotFoundError
+
+    _install_routes(monkeypatch)
+    response = httpx.Response(
+        404,
+        request=httpx.Request("POST", "https://provider.invalid/messages"),
+    )
+    error = AnthropicModelNotFoundError(
+        "synthetic not-found response",
+        response=response,
+        body={"type": "error", "error": {"type": "not_found_error"}},
+    )
+    providers = []
+
+    def handler(request):
+        providers.append(request.model.provider)
+        if request.model.provider == "apx":
+            raise error
+        return ModelResponse(result=[])
+
+    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    assert providers == ["apx", "google_genai"]
+
+
+
+def test_a_pool_that_is_rate_limited_on_every_route_is_waited_out_not_ended(monkeypatch, provider_pauses):
+    """Production shape: APX allowance gone, Gemini failing, Inception 429 on every slot."""
+    from middleware.token_fallback import _FURTHER_PROVIDER_ROUTE
+
+    _routes(monkeypatch, "apx", "google_genai", "inception")
+    _install_fallback_models(monkeypatch)
+    calls: list[tuple[str, bool]] = []
+    inception_attempts = 0
+
+    def handler(request):
+        nonlocal inception_attempts
+        provider = request.model.provider
+        calls.append((provider, _FURTHER_PROVIDER_ROUTE.get()))
+        if provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        if provider == "google_genai":
+            raise _StatusError(503)
+        inception_attempts += 1
+        if inception_attempts <= 2:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    # Only the route that actually hit a plain 429 is retried; apx (quota) and google (503) are not.
+    assert [provider for provider, _ in calls] == ["apx", "google_genai", "inception", "inception", "inception"]
+    assert all(further is False for _, further in calls[2:])
+    assert provider_pauses == [5.0, 15.0]
+
+
+def test_a_route_that_recovers_after_the_wait_is_not_made_sticky_disabled(monkeypatch, provider_pauses):
+    """Regression: the recovered route was in the call's failed list and got disabled for the run."""
+    import middleware.provider_fallback as fallback_module
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    stuck: list[list] = []
+    monkeypatch.setattr(fallback_module, "_stick_to_fallback", lambda failed: stuck.append(list(failed)))
+    inception_attempts = 0
+
+    def handler(request):
+        nonlocal inception_attempts
+        if request.model.provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        inception_attempts += 1
+        if inception_attempts == 1:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert provider_pauses == [5.0]
+    assert len(stuck) == 1
+    assert all("inception" not in str(route) for route in stuck[0])
+
+
+@pytest.mark.asyncio
+async def test_async_recovered_route_is_not_made_sticky_disabled(monkeypatch, provider_pauses):
+    import middleware.provider_fallback as fallback_module
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    stuck: list[list] = []
+    monkeypatch.setattr(fallback_module, "_stick_to_fallback", lambda failed: stuck.append(list(failed)))
+    inception_attempts = 0
+
+    async def handler(request):
+        nonlocal inception_attempts
+        if request.model.provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        inception_attempts += 1
+        if inception_attempts == 1:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    await ProviderFallbackMiddleware().awrap_model_call(_RouteRequest("apx"), handler)
+
+    assert all("inception" not in str(route) for route in stuck[0])
+
+
+def test_rate_limit_waiting_is_bounded_and_then_ends_the_task(monkeypatch, provider_pauses):
+    from middleware.failure_policy import TerminalCredentialError
+    from middleware.provider_fallback import _RATE_LIMIT_BACKOFF_SECONDS
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    calls: list[str] = []
+
+    def handler(request):
+        calls.append(request.model.provider)
+        raise _rate_limited_primary("insufficient_quota") if request.model.provider == "apx" else _rate_limited_primary()
+
+    with pytest.raises(TerminalCredentialError):
+        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert provider_pauses == list(_RATE_LIMIT_BACKOFF_SECONDS)
+    assert calls.count("inception") == 1 + len(_RATE_LIMIT_BACKOFF_SECONDS)
+    assert calls.count("apx") == 1
+
+
+def test_a_route_that_turns_into_quota_exhaustion_stops_being_waited_on(monkeypatch, provider_pauses):
+    from middleware.failure_policy import TerminalCredentialError
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    attempts = 0
+
+    def handler(request):
+        nonlocal attempts
+        attempts += 1
+        raise _rate_limited_primary("insufficient_quota" if attempts > 2 else None)
+
+    with pytest.raises(TerminalCredentialError):
+        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert attempts == 3 + 1  # apx, inception, then one retry round whose failure ends the waiting
+    assert provider_pauses == [5.0]
+
+
+@pytest.mark.asyncio
+async def test_async_rate_limited_pool_is_waited_out_too(monkeypatch, provider_pauses):
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    inception_attempts = 0
+
+    async def handler(request):
+        nonlocal inception_attempts
+        if request.model.provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        inception_attempts += 1
+        if inception_attempts == 1:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    result = await ProviderFallbackMiddleware().awrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    assert provider_pauses == [5.0]
 
 def test_an_exhausted_quota_is_not_waited_on(monkeypatch):
     from middleware.failure_policy import TerminalCredentialError
@@ -1120,7 +1450,7 @@ def test_auth_failure_semantics_unchanged_with_sticky_fallback(monkeypatch):
     assert _providers(handler) == ["openai", "openai", "apx"]
 
 
-def test_sticky_fallback_failure_stays_bounded(monkeypatch):
+def test_sticky_fallback_failure_stays_bounded(monkeypatch, provider_pauses):
     _sticky_env(monkeypatch)
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
@@ -1131,10 +1461,13 @@ def test_sticky_fallback_failure_stays_bounded(monkeypatch):
         failing = MagicMock(side_effect=QuotaError())
         with pytest.raises(TerminalCredentialError, match="provider routes exhausted"):
             _sync_chain(request, failing)
-    # Fallback pool makes its own bounded attempts, then the sticky-skipped primary
-    # gets one last-resort retry (its transient failure is not a permanent circuit).
-    assert set(_providers(failing)) == {"apx", "openai"}
-    assert failing.call_count <= 3
+    # The sticky-skipped primary is not retried; the fallback pool that actually hit the plain
+    # rate limit is, once per bounded backoff round, and then the task ends.
+    from middleware.provider_fallback import _RATE_LIMIT_BACKOFF_SECONDS
+
+    assert set(_providers(failing)) == {"apx"}
+    assert failing.call_count == 1 + len(_RATE_LIMIT_BACKOFF_SECONDS)
+    assert provider_pauses == list(_RATE_LIMIT_BACKOFF_SECONDS)
 
 
 def test_sticky_fallback_reports_usage_per_answered_attempt_without_extra_logical_turns(monkeypatch):
@@ -1176,9 +1509,54 @@ def test_sticky_fallback_reports_usage_per_answered_attempt_without_extra_logica
 
     # Turn 1: failed primary attempt + fallback success; turn 2: fallback only.
     assert calls == ["openai", "apx", "apx"]
-    # Only the answering route reports usage; the failed primary attempt reports none.
-    assert [p.provider for p in client.payloads] == ["APX", "APX"]
-    assert len({p.invocationId for p in client.payloads}) == 2
+    # The failed attempt remains observable without fabricated usage.
+    assert [p.provider for p in client.payloads if p.attemptStatus == "COMPLETED"] == ["APX", "APX"]
+    assert len({p.invocationId for p in client.payloads}) == 3
+    assert [p.attemptStatus for p in client.payloads] == ["STARTED", "FAILED", "STARTED", "COMPLETED", "STARTED", "COMPLETED"]
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.asyncio
+async def test_answered_schema_fallback_has_distinct_settlement_ids_in_one_logical_step(
+    monkeypatch, asynchronous
+):
+    import middleware.provider_fallback as fallback_module
+    from middleware.usage_metering import activate_model_step, _active_logical_invocation_id
+    from middleware.failure_policy import StructuredOutputRejected
+
+    _routes(monkeypatch, "openai", "apx")
+    monkeypatch.setattr(fallback_module, "fallback_model", lambda c: _FakeModel(c.provider, c.model))
+    payloads, logical_ids = [], []
+    client = SimpleNamespace(post_settled_usage=payloads.append)
+    state = AgentRunState(api_client=client, assessment_id="a", run_id="schema-billing", agent_role="root")
+    billing, fallback = UsageMeteringMiddleware(), ProviderFallbackMiddleware()
+
+    def handled(request):
+        logical_ids.append(_active_logical_invocation_id())
+        response = billing.wrap_model_call(request, lambda _: _usage_response())
+        if request.model.provider == "openai":
+            raise StructuredOutputRejected("invalid answered primary")
+        return response
+
+    async def ahandled(request):
+        logical_ids.append(_active_logical_invocation_id())
+        async def answer(_):
+            return _usage_response()
+        response = await billing.awrap_model_call(request, answer)
+        if request.model.provider == "openai":
+            raise StructuredOutputRejected("invalid answered primary")
+        return response
+
+    with activate_agent_run_state(state), activate_model_step("schema-fallback"):
+        request = _FakeRequest(_FakeModel("openai"))
+        if asynchronous:
+            await fallback.awrap_model_call(request, ahandled)
+        else:
+            fallback.wrap_model_call(request, handled)
+    assert [p.provider for p in payloads if p.attemptStatus == "COMPLETED"] == ["OPENAI", "APX"]
+    assert len(set(logical_ids)) == 1 and logical_ids[0]
+    assert len({p.invocationId for p in payloads}) == 2
+    assert len(payloads) == 4  # Two physical starts and two completed responses.
 
 
 def _raw_routes(monkeypatch, routes: dict, chain: list[str]) -> None:

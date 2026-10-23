@@ -1,9 +1,0 @@
-{
-  "scope": "W7_ISOLATED_STAGING",
-  "status": "FAIL",
-  "runId": "3e99dadafc054c62",
-  "failedStage": "isolated launch and readiness",
-  "errorType": "RuntimeError",
-  "productionDeployment": false,
-  "reason": "rabbitmq exited before readiness"
-}

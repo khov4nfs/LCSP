@@ -1,0 +1,711 @@
+{
+ "label": "0964420f",
+ "capturedFrom": "reports/lcsp360-authoring-memory-20261018 (uncommitted live evidence; indexed in retained-live-0964420f/EVIDENCE_INDEX.json)",
+ "identity": {
+  "preparationRunId": "0964420f-ab57-4f60-833b-c7f4a3029c63",
+  "correlationId": "b6c3bd74-6caa-4ec5-b1e1-c82bae1ba83d",
+  "legalSourceVersionId": "f0a53ccb-773a-4bc5-be37-b52b8aafe071",
+  "threadId": "dcd96331-4db9-5a09-b20b-683830b49116",
+  "nativeRunId": "2c2e7310-e01d-4d9a-b771-035b767500ed",
+  "nativeRunStatus": "success",
+  "checkpointIds": [
+   "1f1ca37c-0d4f-69a2-bfff-9abdd5c87901",
+   "1f1ca37c-0d57-6c5d-8000-759efcf76258",
+   "1f1ca37c-0d5b-6bc0-8001-9518f10dc8c4",
+   "1f1ca387-ffb3-678b-8002-c414f7a86b3d"
+  ],
+  "frozenInventory": {
+   "revision": 1,
+   "fingerprint": "82327ba2e55736ae6e1dcaad79f059541eba4d054983766ecf323cbdc7c67bac"
+  },
+  "dispatchedAt": "2026-10-17T14:33:41.259178+00:00"
+ },
+ "terminalReceipt": {
+  "executionState": "FAILED",
+  "failureReason": "RUNTIME_ERROR",
+  "claimPhase": "RULE_AUTHORING",
+  "startedAt": "2026-10-17T14:33:43.344",
+  "completedAt": "2026-10-17T14:39:03.895",
+  "requirementRows": 0,
+  "assessmentRuleRows": 0,
+  "ruleSetVersions": 0
+ },
+ "toolCalls": {
+  "authoringPhase": {
+   "author_legal_requirement": 21,
+   "author_assessment_rule": 0,
+   "remove_rule_candidate": 3,
+   "start_rule_authoring": 1,
+   "validate_compliance_rule_set": 0,
+   "submit_compliance_rule_set": 0
+  },
+  "all": {
+   "read_file": 1,
+   "get_next_review_unit": 15,
+   "register_semantic_claim": 36,
+   "get_review_progress": 4,
+   "get_claim_inventory": 6,
+   "complete_source_review": 27,
+   "inspect_semantic_reference_binding": 14,
+   "bind_semantic_reference": 11,
+   "follow_legal_reference": 3,
+   "link_semantic_claims": 1,
+   "author_legal_requirement": 21,
+   "finalize_semantic_claim_inventory": 1,
+   "start_rule_authoring": 1,
+   "remove_rule_candidate": 3
+  }
+ },
+ "authoringTimeline": [
+  {
+   "runtimeSequence": 573,
+   "createdAt": "2026-10-17T14:37:54.708",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 1,
+   "authoredRequirements": 0,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 6700,
+   "inventoryPagesSurfaced": 0,
+   "unreadClaimCount": 36
+  },
+  {
+   "runtimeSequence": 577,
+   "createdAt": "2026-10-17T14:37:56.596",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "CLAIM_INVENTORY_READY",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 579,
+   "createdAt": "2026-10-17T14:37:56.631",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 2,
+   "authoredRequirements": 0,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 6693,
+   "inventoryPagesSurfaced": 0,
+   "unreadClaimCount": 36
+  },
+  {
+   "runtimeSequence": 583,
+   "createdAt": "2026-10-17T14:37:58.421",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 3,
+   "authoredRequirements": 0,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 6757,
+   "inventoryPagesSurfaced": 1,
+   "unreadClaimCount": 25
+  },
+  {
+   "runtimeSequence": 587,
+   "createdAt": "2026-10-17T14:38:00.73",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_SCHEMA_INVALID": 1
+   },
+   "gapFingerprint": "770f10dcf84ab2ebab14672ae59a732b38fa7ef652b5fb4b81f6405e09fb1fa6",
+   "candidateFingerprint": "4fbe3706401621effb97b2f5222ff0282103865aabd25d32ef5fb7b932aa5841",
+   "accountingFingerprint": "7953d7c508703802d38d9015184afdbcf453dab534340a304e8d48ff4cfdfc33",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 588,
+   "createdAt": "2026-10-17T14:38:00.743",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 4,
+   "authoredRequirements": 0,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_SCHEMA_INVALID",
+   "digestBytes": 7006,
+   "inventoryPagesSurfaced": 1,
+   "unreadClaimCount": 25
+  },
+  {
+   "runtimeSequence": 592,
+   "createdAt": "2026-10-17T14:38:03.038",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 593,
+   "createdAt": "2026-10-17T14:38:03.051",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 5,
+   "authoredRequirements": 1,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 6256,
+   "inventoryPagesSurfaced": 1,
+   "unreadClaimCount": 25
+  },
+  {
+   "runtimeSequence": 601,
+   "createdAt": "2026-10-17T14:38:07.347",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 602,
+   "createdAt": "2026-10-17T14:38:07.361",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 7,
+   "authoredRequirements": 2,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 6109,
+   "inventoryPagesSurfaced": 1,
+   "unreadClaimCount": 25
+  },
+  {
+   "runtimeSequence": 606,
+   "createdAt": "2026-10-17T14:38:10.455",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 8,
+   "authoredRequirements": 2,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 6148,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 610,
+   "createdAt": "2026-10-17T14:38:12.748",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 611,
+   "createdAt": "2026-10-17T14:38:12.758",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 9,
+   "authoredRequirements": 3,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 5677,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 615,
+   "createdAt": "2026-10-17T14:38:14.755",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 616,
+   "createdAt": "2026-10-17T14:38:14.764",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 10,
+   "authoredRequirements": 4,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 5698,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 620,
+   "createdAt": "2026-10-17T14:38:16.732",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 621,
+   "createdAt": "2026-10-17T14:38:16.743",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 11,
+   "authoredRequirements": 5,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 5556,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 625,
+   "createdAt": "2026-10-17T14:38:19.158",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_REQUIREMENT_MISMATCH": 1
+   },
+   "gapFingerprint": "698ba4a501b4fbf32fec8a7db38e761c64c3ce5f7f004ceb98ddbe1ac0db8dc3",
+   "candidateFingerprint": "13ebd5d1da908d6c0b6332269f7e11c7ecd7d87e573d0d75eebd0f34342c4239",
+   "accountingFingerprint": "4b2ee3bafdcf828000b9740d0b4dc58d22b1311d71969831bd9ec8f0a0ed23db",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 626,
+   "createdAt": "2026-10-17T14:38:19.173",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 12,
+   "authoredRequirements": 5,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_REQUIREMENT_MISMATCH",
+   "digestBytes": 6006,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 630,
+   "createdAt": "2026-10-17T14:38:22.477",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 631,
+   "createdAt": "2026-10-17T14:38:22.488",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 13,
+   "authoredRequirements": 6,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 5274,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 635,
+   "createdAt": "2026-10-17T14:38:24.702",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 636,
+   "createdAt": "2026-10-17T14:38:24.716",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 14,
+   "authoredRequirements": 7,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 5119,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 640,
+   "createdAt": "2026-10-17T14:38:26.906",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 641,
+   "createdAt": "2026-10-17T14:38:26.914",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 15,
+   "authoredRequirements": 8,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 4967,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 646,
+   "createdAt": "2026-10-17T14:38:29.773",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 647,
+   "createdAt": "2026-10-17T14:38:29.793",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 16,
+   "authoredRequirements": 9,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 4809,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 651,
+   "createdAt": "2026-10-17T14:38:32.949",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_REQUIREMENT_MISMATCH": 1
+   },
+   "gapFingerprint": "a2f303e629b83ae65f4c33f76e568821265e7c613801236212e4c0696c7c7e37",
+   "candidateFingerprint": "f47d08e8288d608b13f270918c3fde01bf3987cced8f11d1d6252e683698fcec",
+   "accountingFingerprint": "9861285cbd4966e09ccf00c7d564991141445ea39f93f448c5efabc8f393c370",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 652,
+   "createdAt": "2026-10-17T14:38:32.958",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 17,
+   "authoredRequirements": 9,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_REQUIREMENT_MISMATCH",
+   "digestBytes": 5260,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 656,
+   "createdAt": "2026-10-17T14:38:35.083",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "OPERATIVE_PROPOSITION_REQUIRED": 1
+   },
+   "gapFingerprint": "e665c0da1d831fda90ce2d48369e51e2be3eca5184102f69cd2c3e8c7244edc6",
+   "candidateFingerprint": "f47d08e8288d608b13f270918c3fde01bf3987cced8f11d1d6252e683698fcec",
+   "accountingFingerprint": "9861285cbd4966e09ccf00c7d564991141445ea39f93f448c5efabc8f393c370",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 657,
+   "createdAt": "2026-10-17T14:38:35.106",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 18,
+   "authoredRequirements": 9,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "OPERATIVE_PROPOSITION_REQUIRED",
+   "digestBytes": 5141,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 661,
+   "createdAt": "2026-10-17T14:38:36.963",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_SCHEMA_INVALID": 1
+   },
+   "gapFingerprint": "fc888ef0897e3271d0af57e34c6c18ca7f53cbcb796f2ad275729981f8d28b64",
+   "candidateFingerprint": "f47d08e8288d608b13f270918c3fde01bf3987cced8f11d1d6252e683698fcec",
+   "accountingFingerprint": "9861285cbd4966e09ccf00c7d564991141445ea39f93f448c5efabc8f393c370",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 662,
+   "createdAt": "2026-10-17T14:38:36.971",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 19,
+   "authoredRequirements": 9,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "OPERATIVE_PROPOSITION_REQUIRED",
+   "digestBytes": 5298,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 666,
+   "createdAt": "2026-10-17T14:38:39.538",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_REQUIREMENT_MISMATCH": 1
+   },
+   "gapFingerprint": "a2f303e629b83ae65f4c33f76e568821265e7c613801236212e4c0696c7c7e37",
+   "candidateFingerprint": "f47d08e8288d608b13f270918c3fde01bf3987cced8f11d1d6252e683698fcec",
+   "accountingFingerprint": "9861285cbd4966e09ccf00c7d564991141445ea39f93f448c5efabc8f393c370",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 667,
+   "createdAt": "2026-10-17T14:38:39.546",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 20,
+   "authoredRequirements": 9,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_REQUIREMENT_MISMATCH",
+   "digestBytes": 5417,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 671,
+   "createdAt": "2026-10-17T14:38:41.882",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_REQUIREMENT_MISMATCH": 1
+   },
+   "gapFingerprint": "67c8cbe9b81ba2741ebe1639de9c69d0ac99d928a4f03cf689dba4dfdf25f323",
+   "candidateFingerprint": "f47d08e8288d608b13f270918c3fde01bf3987cced8f11d1d6252e683698fcec",
+   "accountingFingerprint": "9861285cbd4966e09ccf00c7d564991141445ea39f93f448c5efabc8f393c370",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 672,
+   "createdAt": "2026-10-17T14:38:41.898",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 21,
+   "authoredRequirements": 9,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_REQUIREMENT_MISMATCH",
+   "digestBytes": 5421,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 679,
+   "createdAt": "2026-10-17T14:38:46.252",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 680,
+   "createdAt": "2026-10-17T14:38:46.275",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 23,
+   "authoredRequirements": 10,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_SCHEMA_INVALID",
+   "digestBytes": 5030,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 684,
+   "createdAt": "2026-10-17T14:38:48.012",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 685,
+   "createdAt": "2026-10-17T14:38:48.034",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 24,
+   "authoredRequirements": 9,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 4809,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 689,
+   "createdAt": "2026-10-17T14:38:50.212",
+   "kind": "CLAIM_PHASE_TRANSITION",
+   "previousPhase": "RULE_AUTHORING",
+   "phase": "RULE_AUTHORING"
+  },
+  {
+   "runtimeSequence": 690,
+   "createdAt": "2026-10-17T14:38:50.242",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 25,
+   "authoredRequirements": 10,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": null,
+   "digestBytes": 4837,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 694,
+   "createdAt": "2026-10-17T14:38:52.721",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_SCHEMA_INVALID": 1
+   },
+   "gapFingerprint": "770f10dcf84ab2ebab14672ae59a732b38fa7ef652b5fb4b81f6405e09fb1fa6",
+   "candidateFingerprint": "e6b86854927aefa5be3299e5a2e031d815979fba4c3a6b2c4e13baddc3fe0722",
+   "accountingFingerprint": "65112f731603a857a28a8b6e3b1e4f6b26a8771b4c7e1dc929e7fa15d36505c4",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 695,
+   "createdAt": "2026-10-17T14:38:52.736",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 26,
+   "authoredRequirements": 10,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_SCHEMA_INVALID",
+   "digestBytes": 5086,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 699,
+   "createdAt": "2026-10-17T14:38:54.365",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_SCHEMA_INVALID": 1
+   },
+   "gapFingerprint": "fc888ef0897e3271d0af57e34c6c18ca7f53cbcb796f2ad275729981f8d28b64",
+   "candidateFingerprint": "e6b86854927aefa5be3299e5a2e031d815979fba4c3a6b2c4e13baddc3fe0722",
+   "accountingFingerprint": "65112f731603a857a28a8b6e3b1e4f6b26a8771b4c7e1dc929e7fa15d36505c4",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 700,
+   "createdAt": "2026-10-17T14:38:54.375",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 27,
+   "authoredRequirements": 10,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_SCHEMA_INVALID",
+   "digestBytes": 5251,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 709,
+   "createdAt": "2026-10-17T14:38:59.547",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_SCHEMA_INVALID": 1
+   },
+   "gapFingerprint": "770f10dcf84ab2ebab14672ae59a732b38fa7ef652b5fb4b81f6405e09fb1fa6",
+   "candidateFingerprint": "e6b86854927aefa5be3299e5a2e031d815979fba4c3a6b2c4e13baddc3fe0722",
+   "accountingFingerprint": "65112f731603a857a28a8b6e3b1e4f6b26a8771b4c7e1dc929e7fa15d36505c4",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 713,
+   "createdAt": "2026-10-17T14:39:01.764",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_REQUIREMENT_MISMATCH": 1
+   },
+   "gapFingerprint": "9b8ad19809719da786864ba93c9a39cd8d58d9e42cc7328e329b9bdc92b08b96",
+   "candidateFingerprint": "e6b86854927aefa5be3299e5a2e031d815979fba4c3a6b2c4e13baddc3fe0722",
+   "accountingFingerprint": "65112f731603a857a28a8b6e3b1e4f6b26a8771b4c7e1dc929e7fa15d36505c4",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 714,
+   "createdAt": "2026-10-17T14:39:01.773",
+   "kind": "RULE_AUTHORING_CONTEXT",
+   "authoringContextRevision": 30,
+   "authoredRequirements": 10,
+   "authoredAssessmentRules": 0,
+   "outstandingRejectionCode": "CLAIM_REQUIREMENT_MISMATCH",
+   "digestBytes": 5442,
+   "inventoryPagesSurfaced": 2,
+   "unreadClaimCount": 19
+  },
+  {
+   "runtimeSequence": 718,
+   "createdAt": "2026-10-17T14:39:03.908",
+   "kind": "RULE_AUTHORING_TOOL_REJECTED",
+   "gapCounts": {
+    "CLAIM_SCHEMA_INVALID": 1
+   },
+   "gapFingerprint": "770f10dcf84ab2ebab14672ae59a732b38fa7ef652b5fb4b81f6405e09fb1fa6",
+   "candidateFingerprint": "e6b86854927aefa5be3299e5a2e031d815979fba4c3a6b2c4e13baddc3fe0722",
+   "accountingFingerprint": "65112f731603a857a28a8b6e3b1e4f6b26a8771b4c7e1dc929e7fa15d36505c4",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  },
+  {
+   "runtimeSequence": 719,
+   "createdAt": "2026-10-17T14:39:03.916",
+   "kind": "NO_PROGRESS_DETECTED",
+   "gapCounts": {
+    "CLAIM_SCHEMA_INVALID": 1
+   },
+   "gapFingerprint": "770f10dcf84ab2ebab14672ae59a732b38fa7ef652b5fb4b81f6405e09fb1fa6",
+   "candidateFingerprint": "e6b86854927aefa5be3299e5a2e031d815979fba4c3a6b2c4e13baddc3fe0722",
+   "accountingFingerprint": "65112f731603a857a28a8b6e3b1e4f6b26a8771b4c7e1dc929e7fa15d36505c4",
+   "validationExecuted": false,
+   "ruleValidationAttempt": 0,
+   "envelopePresent": false
+  }
+ ],
+ "derived": {
+  "mutationCalls": 24,
+  "rejectedMutations": 12,
+  "successfulMutations": 12,
+  "ruleValidatorRuns": 0,
+  "requirementCountSeries": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   2,
+   2,
+   3,
+   4,
+   5,
+   5,
+   6,
+   7,
+   8,
+   9,
+   9,
+   9,
+   9,
+   9,
+   9,
+   10,
+   9,
+   10,
+   10,
+   10,
+   10
+  ],
+  "requirementIncrements": 11,
+  "requirementDecrements": 1,
+  "successfulRemovals": 1,
+  "rejectedRemovals": 2,
+  "rejectedAuthorLegalRequirement": 10,
+  "attributionAssumption": "every mutation call produced exactly one success transition or one rejection event; the accounting above ties out exactly, which supports it but does not prove which individual rejection came from which tool",
+  "dip": "the Requirement count fell exactly once (10 -> 9) and rose again; the only code path that deletes a Requirement is remove_rule_candidate, and exactly one of its three calls succeeded",
+  "assessmentRuleCalls": 0
+ },
+ "providerAccounting": {
+  "logicalCalls": 147,
+  "providerAttempts": 166,
+  "fallbackCalls": 8,
+  "routes": {
+   "google_genai/gemini-3.5-flash-lite": {
+    "completions": 147
+   }
+  },
+  "failedAttemptsByClass": {
+   "AnthropicRateLimitError:429:claude-sonnet-4-6-free": 9,
+   "GoogleRateLimitError:429:gemini-3.5-flash-lite": 7,
+   "GoogleAuthenticationError:401:gemini-3.5-flash-lite": 3
+  }
+ },
+ "notRetained": {
+  "rejectedArgumentBodies": "NOT_RETAINED",
+  "modelVisibleRejectionBodies": "NOT_RETAINED",
+  "fieldPathsAndDetails": "NOT_RETAINED (the retained rejection events carry only gap_counts and fingerprints)",
+  "toolCallIds": "NOT_RETAINED",
+  "reason": "the stack and Agent checkpoint were torn down; the checkpoint holds 4 coarse states and no container log carries tool bodies",
+  "instruction": "Do not reconstruct or invent these. Any replay of this failure uses synthetic bodies and must say so."
+ }
+}

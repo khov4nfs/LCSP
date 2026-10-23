@@ -87,6 +87,7 @@ function buildHandler(
         type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
         contentSha256: `sha256:${"b".repeat(64)}`,
         repositoryCommit: "a".repeat(40),
+        source: { path: "src/retention.py", startLine: 3, endLine: 9 },
       },
     ],
     facts: [],
@@ -97,6 +98,39 @@ function buildHandler(
   const tx = {
     assessmentArtifact: {
       findUnique: findExistingArtifact,
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    assessmentRule: {
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            assessmentRuleId: "ER-1",
+            concept: "Retention",
+            legalIntent: "Records are kept.",
+            applicabilityGuidance: "Applies to the keeper of a register.",
+            legalRequirementLinks: [
+              {
+                legalRequirement: {
+                  legalRequirementId: "LR-1",
+                  title: "Retention duty",
+                  applicabilityConditions: ["The system keeps a register."],
+                  qualifiers: [],
+                  exceptions: ["Unless the register is private."],
+                  ordinal: 0,
+                  provenance: [
+                    {
+                      documentId: "DOC-1",
+                      locator: "art-4::cl-1",
+                      contentSha256: `sha256:${"c".repeat(64)}`,
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ]),
+      ),
     },
   };
   const prisma = {
@@ -215,6 +249,69 @@ describe("SubmitAssessmentFinalReportHandler", () => {
       expect(tx.assessmentArtifact.findUnique).toHaveBeenCalledTimes(1);
     },
   );
+
+  it("binds the rule's source-derived basis and the cited evidence into every finding", async () => {
+    const { handler, writeImmutableArtifact } = buildHandler();
+    writeImmutableArtifact.mockImplementation((id: string, content: string) =>
+      Promise.resolve({
+        manifest: {
+          artifact_id: id,
+          total_size: Buffer.byteLength(content, "utf8"),
+          hash: sha256Hex(content),
+          chunks: ["artifact.chunk"],
+        },
+        sizeBytes: Buffer.byteLength(content, "utf8"),
+      }),
+    );
+
+    await handler.execute(
+      new SubmitAssessmentFinalReportCommand(
+        assessmentId,
+        randomUUID(),
+        requestFor({}),
+        randomUUID(),
+      ),
+    );
+
+    const stored = assessmentFinalReportArtifactSchema.parse(
+      JSON.parse(writeImmutableArtifact.mock.calls[0]?.[1] as string),
+    );
+    expect(stored.findings[0].legalBasis).toEqual({
+      concept: "Retention",
+      legalIntent: "Records are kept.",
+      applicabilityGuidance: "Applies to the keeper of a register.",
+      legalRequirements: [
+        {
+          legalRequirementId: "LR-1",
+          title: "Retention duty",
+          applicabilityConditions: ["The system keeps a register."],
+          qualifiers: [],
+          exceptions: ["Unless the register is private."],
+          sources: [
+            {
+              documentId: "DOC-1",
+              locator: "art-4::cl-1",
+              contentSha256: `sha256:${"c".repeat(64)}`,
+            },
+          ],
+        },
+      ],
+    });
+    expect(stored.findings[0].evidence).toEqual([
+      {
+        evidenceId,
+        type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+        repositoryCommit: "a".repeat(40),
+        path: "src/retention.py",
+        startLine: 3,
+        endLine: 9,
+      },
+    ]);
+    // The decision fingerprint still covers decisions only, so older reports keep verifying.
+    expect(stored.decisionFingerprint).toBe(
+      `sha256:${sha256Hex(canonicalJson([{ decisionId: stored.findings[0].decisionId, decisionRevision: 1, decision }]))}`,
+    );
+  });
 
   it("rejects unresolved text while replaying an immutable artifact", async () => {
     const request = requestFor({

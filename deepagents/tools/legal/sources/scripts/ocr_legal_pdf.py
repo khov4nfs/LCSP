@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -32,6 +33,26 @@ class OcrPage:
 class LegalPdfOcr:
     def __init__(self, run_command: RunCommand = subprocess.run) -> None:
         self._run_command = run_command
+
+    def extract_pages(
+        self, *, pdf_path: Path, page_numbers: Sequence[int], language: str = "vie+eng", dpi: int = 300,
+    ) -> list[OcrPage]:
+        """Recognize selected original pages with bounded temporary storage and subprocess lifetimes."""
+        self._require_command("pdftoppm")
+        self._require_command("tesseract")
+        self._require_language(language)
+        pages = []
+        for number in page_numbers:
+            if type(number) is not int or number < 1:
+                raise ValueError("OCR page numbers must be positive integers")
+            with tempfile.TemporaryDirectory(prefix="lcsp-legal-ocr-page-") as temporary:
+                prefix = Path(temporary) / "page"
+                self._run([
+                    "pdftoppm", "-png", "-r", str(dpi), "-f", str(number), "-l", str(number),
+                    "-singlefile", str(pdf_path), str(prefix),
+                ])
+                pages.append(self._ocr_page(number, prefix.with_suffix(".png"), language))
+        return pages
 
     def create_artifact(
         self,
@@ -131,6 +152,8 @@ class LegalPdfOcr:
             check=True,
             text=True,
             capture_output=True,
+            timeout=90,
+            env={**os.environ, "OMP_THREAD_LIMIT": "1"},
         )
 
     @staticmethod

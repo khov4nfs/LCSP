@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from langchain.agents import create_agent
 from langchain.agents.middleware import (
     AgentMiddleware,
     ModelRetryMiddleware,
@@ -17,12 +18,13 @@ from langchain.agents.structured_output import (
     ProviderStrategy,
     ToolStrategy,
 )
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from pydantic import ValidationError
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.provider_schema import ProviderSchemaCompatibilityMiddleware
+from middleware.tool_contracts import request_tool_contracts
 from middleware.token_fallback import TokenFallbackMiddleware
 from middleware.usage_metering import (
     AgentRoleMiddleware,
@@ -63,8 +65,26 @@ def _rejection_detail(response) -> str:
 logger = get_logger(__name__)
 
 
+class OneNativeSchemaRepair:
+    """Explicit per-invocation opt-in; the shared guard permits one native correction."""
+
+    def __call__(self, error):
+        detail = " ".join(_PYDANTIC_INPUT_VALUE.sub(", input_type=", str(error)).split())
+        return "Output contract rejected: " + detail[:400] + ". Correct the returned data to the supplied schema and identities."
+
+    def allow_feedback(self, messages, names):
+        # Native subagents reuse their compiled graph across concurrent task conversations.
+        return not any(
+            isinstance(message, ToolMessage)
+            and message.name in names
+            and isinstance(message.content, str)
+            and message.content.startswith("Output contract rejected:")
+            for message in messages
+        )
+
+
 class StopSchemaRepairMiddleware(AgentMiddleware):
-    """Stop auto-strategy repair before another model call, preserving native output."""
+    """Preserve native output and enforce the explicit request's schema repair policy."""
 
     @staticmethod
     def _check(request, response):
@@ -84,6 +104,8 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
         strategy = output_format if isinstance(output_format, ToolStrategy) else ToolStrategy(schema)
         names = {spec.name for spec in strategy.schema_specs}
         if any(isinstance(message, ToolMessage) and message.name in names for message in response.result):
+            if isinstance(strategy.handle_errors, OneNativeSchemaRepair) and strategy.handle_errors.allow_feedback(request.messages, names):
+                return response
             raise StructuredOutputRejected(
                 "Structured output schema validation failed; automatic repair disabled"
                 + _rejection_detail(response)
@@ -132,13 +154,11 @@ _OUTPUT_CAP_FINISH_REASONS = frozenset({"length", "max_tokens", "MAX_TOKENS"})
 
 
 def _malformed_tool_call_reason(request, response) -> str | None:
-    # A tool that answers invalid arguments itself (``handle_validation_error``) gives the model correction
-    # feedback; discarding its sample would only re-roll a mistake the model can fix with that feedback.
-    schemas = {
-        tool.name: tool.tool_call_schema
-        for tool in (getattr(request, "tools", None) or ())
-        if isinstance(tool, BaseTool) and not tool.handle_validation_error
-    }
+    # Tool contracts are read through one normalizer, so a sample is judged the same way whether the
+    # request carries native tools or the dicts a provider middleware rewrote them into (Gemini). A
+    # tool that answers invalid arguments itself (``handle_validation_error``) gives the model
+    # correction feedback; discarding its sample would only re-roll a mistake that feedback fixes.
+    contracts = request_tool_contracts(request)
     for message in response.result:
         if not isinstance(message, AIMessage):
             continue
@@ -153,18 +173,13 @@ def _malformed_tool_call_reason(request, response) -> str | None:
         if message.invalid_tool_calls:
             return "Model emitted unparseable tool-call arguments"
         for call in message.tool_calls:
-            schema = schemas.get(call["name"])
-            if schema is None or not hasattr(schema, "model_validate"):
+            contract = contracts.get(call["name"])
+            if contract is None or contract.answers_invalid_arguments:
                 continue
-            try:
-                schema.model_validate(call["args"])
-            except ValidationError as error:
-                # Field paths and error types only: never the model's argument values.
-                fields = "; ".join(
-                    f"{'.'.join(str(part) for part in item['loc'])}:{item['type']}"
-                    for item in error.errors()[:8]
-                )
-                return f"Model emitted invalid arguments for tool {call['name']} ({fields})"
+            problems = contract.problems(call["args"])
+            if problems:
+                # Field paths and error kinds only: never the model's argument values.
+                return f"Model emitted invalid arguments for tool {call['name']} ({'; '.join(problems)})"
     return None
 
 
@@ -236,6 +251,70 @@ MODEL_GOVERNANCE_MIDDLEWARE = (
     # expose their actual downstream response to one governed billing boundary.
     UsageMeteringMiddleware(),
 )
+
+
+
+class _GovernedInternalModelRunnable:
+    """Runnable for framework-owned LLM work through the exact LCSP agent stack."""
+
+    def __init__(self, model, *, role: str, operation_type: str) -> None:
+        # Use LangChain's own agent middleware composer rather than reimplementing
+        # wrap/before/after hook semantics. This graph has no tools and therefore
+        # performs exactly one governed model operation per summary request.
+        self._agent = create_agent(
+            model,
+            tools=[],
+            middleware=[
+                AgentRoleMiddleware(role, operation_type=operation_type),
+                *MODEL_GOVERNANCE_MIDDLEWARE,
+            ],
+            name=f"lcsp-internal-{operation_type.lower()}",
+        )
+
+    @staticmethod
+    def _message(result) -> AIMessage:
+        messages = result.get("messages", []) if isinstance(result, dict) else []
+        message = next(
+            (item for item in reversed(messages) if isinstance(item, AIMessage)), None
+        )
+        if message is None:
+            raise RuntimeError("governed internal model call returned no AI message")
+        return message
+
+    def invoke(self, prompt, config=None, **_kwargs):
+        if not isinstance(prompt, str):
+            raise TypeError("governed internal model prompt must be text")
+        result = self._agent.invoke(
+            {"messages": [HumanMessage(content=prompt)]}, config=config
+        )
+        return self._message(result)
+
+    async def ainvoke(self, prompt, config=None, **_kwargs):
+        if not isinstance(prompt, str):
+            raise TypeError("governed internal model prompt must be text")
+        result = await self._agent.ainvoke(
+            {"messages": [HumanMessage(content=prompt)]}, config=config
+        )
+        return self._message(result)
+
+
+def governed_summarization_middleware(model, *, backend, role: str):
+    """Route Deep Agents' framework-owned summary call through LCSP governance."""
+    from deepagents.middleware.summarization import create_summarization_middleware
+
+    middleware = create_summarization_middleware(model, backend)
+    helper = getattr(middleware, "_lc_helper", None)
+    if helper is None or not hasattr(helper, "_summary_model"):
+        raise RuntimeError(
+            "Deep Agents summarization internals changed; governance cannot be guaranteed"
+        )
+    # LangChain normally installs model.with_retry() here. Replace that direct
+    # provider runnable with the complete LCSP stack; ModelRetryMiddleware now owns
+    # bounded retry together with credential/provider fallback and usage metering.
+    helper._summary_model = _GovernedInternalModelRunnable(
+        model, role=role, operation_type="SUMMARIZATION"
+    )
+    return middleware
 
 
 

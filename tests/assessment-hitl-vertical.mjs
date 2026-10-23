@@ -97,16 +97,18 @@ try {
     "art-6",
     "art-6::cl-1",
   ];
-  const hashes = Object.fromEntries(
-    locators.map((l) => [l, contentHash(`content ${l}`)]),
-  );
+  const sourceBytes = Buffer.from(locators.map((locator) => `content ${locator}`).join("\n") + "\n", "utf8");
+  const lines = sourceBytes.toString("utf8").split("\n");
+  const hashes = Object.fromEntries(locators.map((locator, index) => [locator, contentHash(lines[index])]));
   const legalSource = await seedLegalSource({
     name: "assessment-hitl",
     status: "ACTIVE",
     documentId: "SYNTHETIC-NOTICE-INSTRUMENT",
-    chunks: locators.map((locator) => ({
+    sourceBytes,
+    sourceSha256: contentHash(sourceBytes),
+    chunks: locators.map((locator, index) => ({
       locator,
-      content: `content ${locator}`,
+      content: lines[index],
       contentSha256: hashes[locator],
     })),
   });

@@ -166,11 +166,11 @@ describe("Cancel Rule Set Preparation", () => {
     expect(commands.execute).not.toHaveBeenCalled();
   });
 
-  it("refuses cancellation if a rule set has already been activated", async () => {
-    const { handler, tx, runtime } = build(PrismaAgentExecutionState.RUNNING);
-    tx.complianceRuleSetVersion.findFirst.mockResolvedValue({
-      id: "active-id",
-    });
+  it("refuses cancellation of a run that already published its rule set", async () => {
+    const { handler, row, tx, runtime } = build(
+      PrismaAgentExecutionState.RUNNING,
+    );
+    row.ruleSet = { id: "published-by-this-run" };
 
     await expect(handler.execute(command())).rejects.toMatchObject({
       status: 409,
@@ -178,5 +178,19 @@ describe("Cancel Rule Set Preparation", () => {
 
     expect(runtime.cancel).not.toHaveBeenCalled();
     expect(tx.ruleSetPreparationRun.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("cancels a replacement run while the source's previous rule set stays ACTIVE", async () => {
+    const { handler, tx, runtime } = build(PrismaAgentExecutionState.RUNNING);
+    // An ACTIVE rule set of the same source belongs to an earlier run; it is neither read nor touched.
+    tx.complianceRuleSetVersion.findFirst.mockResolvedValue({
+      id: "v1-active",
+    });
+
+    const result = await handler.execute(command());
+
+    expect(result.executionState).toBe(AGENT_EXECUTION_STATES.CANCELLED);
+    expect(runtime.cancel).toHaveBeenCalledTimes(1);
+    expect(tx.complianceRuleSetVersion.findFirst).not.toHaveBeenCalled();
   });
 });

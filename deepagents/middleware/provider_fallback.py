@@ -5,15 +5,20 @@ keyed by route identity ``provider:model``.
 """
 from __future__ import annotations
 
+import asyncio
+import time
+
 from langchain.agents.middleware import AgentMiddleware
 
 from middleware.failure_policy import (
     TerminalCredentialError,
     error_status,
     is_auth_failure,
+    is_paid_admission_error,
     is_provider_capacity_failure,
     is_provider_model_unavailable,
     is_provider_quota_exhaustion,
+    is_provider_refusal,
     is_provider_route_incompatibility,
     is_structured_output_rejection,
     is_terminal_task_error,
@@ -41,6 +46,11 @@ from tools.common.capabilities.platform.logging import get_logger
 
 logger = get_logger(__name__)
 _PERMANENT_PROVIDER_ROUTE_STATUSES = frozenset({401, 402, 403})
+# A plain 429 across a whole pool is a per-minute window, not a fault: the routes that hit one are
+# retried after these pauses (bounded; about four minutes in all) before the task is ended.
+_RATE_LIMIT_BACKOFF_SECONDS = (5.0, 15.0, 30.0, 60.0, 60.0, 60.0)
+_sleep = time.sleep
+_asleep = asyncio.sleep
 
 
 def route_key(provider: str, model: str, protocol: str) -> str:
@@ -107,12 +117,17 @@ def _contains_terminal_credential_error(error: BaseException) -> bool:
 
 def provider_fallback_failure(error: BaseException) -> bool:
     """Return whether a provider-level route may be attempted for this failure."""
+    if is_paid_admission_error(error):
+        return False
     if _contains_terminal_credential_error(error):
         return True
     if is_provider_route_incompatibility(error):
         return True
     # The model route is down; the request is fine and another provider has it.
     if is_provider_model_unavailable(error):
+        return True
+    # One route's model declined the sample; another route (or another sample) may answer.
+    if is_provider_refusal(error):
         return True
     # The provider's model could not produce the contract; another provider may.
     if is_structured_output_rejection(error):
@@ -138,29 +153,27 @@ def _is_rate_limited_chain(error: BaseException) -> bool:
     return False
 
 
-def _primary_only_rate_limited(
-    current_provider: str | None, errors: list[BaseException]
-) -> bool:
-    """The primary (or a run-sticky-skipped primary) failed only on rate limits; a transient
-    permanent-circuit-free route may be waited on rather than ending the task."""
-    return (
-        current_provider is not None
-        and (not _provider_route_disabled(current_provider) or _provider_route_sticky(current_provider))
-        and bool(errors)
-        and _is_rate_limited_chain(errors[0])
-    )
-
-
 def _exhaustion_error(errors: list[BaseException]) -> BaseException:
     """Report exhaustion truthfully: a contract failure on every route stays a schema error."""
     if errors and all(is_structured_output_rejection(error) for error in errors):
+        return errors[0]
+    # Every route declined the sample: surface the refusal itself so the model retry resamples,
+    # instead of a terminal "exhausted" that no retry may follow.
+    if errors and all(is_provider_refusal(error) for error in errors):
         return errors[0]
     return TerminalCredentialError("All configured LLM provider routes exhausted; task stopped")
 
 
 def provider_circuit_breaker_failure(error: BaseException) -> bool:
     """Return whether this provider route should stay disabled for the active run."""
-    if is_provider_route_incompatibility(error) or is_structured_output_rejection(error):
+    if is_paid_admission_error(error):
+        return False
+    # A model-generated invalid structured answer belongs to one invocation,
+    # not to the provider route for every independent later source question.
+    # It still triggers bounded cross-provider fallback for this invocation.
+    if is_structured_output_rejection(error):
+        return False
+    if is_provider_route_incompatibility(error):
         return True
     # A model the provider has withdrawn or overloaded will not recover inside
     # this run, so stop re-selecting the route that just reported it.
@@ -208,8 +221,9 @@ def _stick_to_fallback(failed: list[str | None]) -> None:
     """Keep routes that failed transiently disabled for the rest of the active run.
 
     A credential cooldown expiring mid-run must not send later turns back through a
-    pool that just exhausted. The state lives on the run-scoped run state, so a
-    new run reconsiders every configured route; there is no process-wide blacklist.
+    pool that just exhausted. A model's malformed output/refusal is request-local
+    and must never add that route here. The state lives on the run-scoped run state,
+    so a new run reconsiders every configured route; there is no process-wide blacklist.
     """
     state = active_agent_run_state()
     if state is None:
@@ -250,8 +264,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         return current, chain
 
     @staticmethod
-    def _log_rate_limit_wait(provider: str | None) -> None:
-        logger.warning("MODEL_PROVIDER_RATE_LIMIT_WAIT", provider=provider or "unknown")
+    def _log_rate_limit_wait(routes: list[str], delay: float) -> None:
+        logger.warning("MODEL_PROVIDER_RATE_LIMIT_WAIT", providers=routes, wait_seconds=delay)
 
     @staticmethod
     def _log_attempt(*, current_provider: str | None, provider: str, index: int) -> None:
@@ -268,22 +282,30 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         # Routing transitions stay in infrastructure logs, never in the assessment stream.
 
     def wrap_model_call(self, request, handler):
+        from middleware.usage_metering import provider_attempt_context
+
         current_provider, routes = self._routes(request)
         first_error: BaseException | None = None
         errors: list[BaseException] = []
         failed: list[str | None] = []
+        # Routes whose last failure was a plain 429 (None is the request's own model).
+        limited: list[ResolvedModelConfig | None] = []
 
         if not _provider_route_disabled(current_provider):
             try:
-                with further_provider_route(bool(routes)):
-                    return handler(request)
+                with provider_attempt_context(route_ordinal=0):
+                    with further_provider_route(bool(routes)):
+                        return handler(request)
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
                 _trip_provider_circuit(current_provider, error)
                 first_error = error
                 errors.append(error)
-                failed.append(current_provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(current_provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(None)
         elif current_provider:
             self._log_circuit_skip(current_provider)
 
@@ -295,31 +317,54 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 index=index,
             )
             try:
-                with further_provider_route(index < len(routes)):
-                    response = handler(request.override(model=fallback_model(config)))
+                with provider_attempt_context(route_ordinal=index):
+                    with further_provider_route(index < len(routes)):
+                        response = handler(request.override(model=fallback_model(config)))
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
                 _trip_provider_circuit(provider, error)
                 first_error = first_error or error
                 errors.append(error)
-                failed.append(provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(config)
                 continue
             _stick_to_fallback(failed)
             return response
 
-        if _primary_only_rate_limited(current_provider, errors):
-            # The primary route only deferred its cooling credentials to a later
-            # route that also failed. Rate limits are transient: wait out the
-            # cooldown on the primary instead of ending the task.
-            self._log_rate_limit_wait(current_provider)
-            try:
-                with further_provider_route(False):
-                    return handler(request)
-            except Exception as error:
-                if not provider_fallback_failure(error):
-                    raise
-                errors.append(error)
+        for delay in _RATE_LIMIT_BACKOFF_SECONDS:
+            if not limited:
+                break
+            self._log_rate_limit_wait(
+                [_config_key(config) if config else current_provider or "unknown" for config in limited],
+                delay,
+            )
+            _sleep(delay)
+            for config in list(limited):
+                try:
+                    route_ordinal = next(
+                        (i for i, route in enumerate(routes, start=1)
+                         if config is not None and _config_key(route) == _config_key(config)),
+                        0 if config is None else None,
+                    )
+                    with provider_attempt_context(route_ordinal=route_ordinal):
+                        with further_provider_route(False):
+                            response = handler(
+                                request if config is None else request.override(model=fallback_model(config))
+                            )
+                except Exception as error:
+                    if not provider_fallback_failure(error):
+                        raise
+                    errors.append(error)
+                    if not _is_rate_limited_chain(error):
+                        limited.remove(config)
+                    continue
+                if config is not None:
+                    # The route that just recovered must stay available for later turns.
+                    _stick_to_fallback([item for item in failed if item != _config_key(config)])
+                return response
 
         exhausted = _exhaustion_error(errors)
         if exhausted is first_error:
@@ -327,22 +372,30 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         raise exhausted from first_error
 
     async def awrap_model_call(self, request, handler):
+        from middleware.usage_metering import provider_attempt_context
+
         current_provider, routes = self._routes(request)
         first_error: BaseException | None = None
         errors: list[BaseException] = []
         failed: list[str | None] = []
+        # Routes whose last failure was a plain 429 (None is the request's own model).
+        limited: list[ResolvedModelConfig | None] = []
 
         if not _provider_route_disabled(current_provider):
             try:
-                with further_provider_route(bool(routes)):
-                    return await handler(request)
+                with provider_attempt_context(route_ordinal=0):
+                    with further_provider_route(bool(routes)):
+                        return await handler(request)
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
                 _trip_provider_circuit(current_provider, error)
                 first_error = error
                 errors.append(error)
-                failed.append(current_provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(current_provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(None)
         elif current_provider:
             self._log_circuit_skip(current_provider)
 
@@ -354,28 +407,54 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 index=index,
             )
             try:
-                with further_provider_route(index < len(routes)):
-                    response = await handler(request.override(model=fallback_model(config)))
+                with provider_attempt_context(route_ordinal=index):
+                    with further_provider_route(index < len(routes)):
+                        response = await handler(request.override(model=fallback_model(config)))
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
                 _trip_provider_circuit(provider, error)
                 first_error = first_error or error
                 errors.append(error)
-                failed.append(provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(config)
                 continue
             _stick_to_fallback(failed)
             return response
 
-        if _primary_only_rate_limited(current_provider, errors):
-            self._log_rate_limit_wait(current_provider)
-            try:
-                with further_provider_route(False):
-                    return await handler(request)
-            except Exception as error:
-                if not provider_fallback_failure(error):
-                    raise
-                errors.append(error)
+        for delay in _RATE_LIMIT_BACKOFF_SECONDS:
+            if not limited:
+                break
+            self._log_rate_limit_wait(
+                [_config_key(config) if config else current_provider or "unknown" for config in limited],
+                delay,
+            )
+            await _asleep(delay)
+            for config in list(limited):
+                try:
+                    route_ordinal = next(
+                        (i for i, route in enumerate(routes, start=1)
+                         if config is not None and _config_key(route) == _config_key(config)),
+                        0 if config is None else None,
+                    )
+                    with provider_attempt_context(route_ordinal=route_ordinal):
+                        with further_provider_route(False):
+                            response = await handler(
+                                request if config is None else request.override(model=fallback_model(config))
+                            )
+                except Exception as error:
+                    if not provider_fallback_failure(error):
+                        raise
+                    errors.append(error)
+                    if not _is_rate_limited_chain(error):
+                        limited.remove(config)
+                    continue
+                if config is not None:
+                    # The route that just recovered must stay available for later turns.
+                    _stick_to_fallback([item for item in failed if item != _config_key(config)])
+                return response
 
         exhausted = _exhaustion_error(errors)
         if exhausted is first_error:

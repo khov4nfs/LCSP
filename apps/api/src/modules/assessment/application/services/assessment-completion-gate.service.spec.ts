@@ -303,6 +303,7 @@ function createFixture() {
           assessmentRuleVersion,
           criterionIds: new Set([criterionId]),
           legalContextIds: new Set([legalRequirementId]),
+          declaredElements: new Map(),
         },
         evidence: new Map(
           fixture.evidence.map((item) => [

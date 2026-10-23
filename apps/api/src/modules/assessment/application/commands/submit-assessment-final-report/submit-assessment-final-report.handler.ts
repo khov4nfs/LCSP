@@ -5,6 +5,8 @@ import {
   AGENTIC_RUNTIME_TRANSITION_GUARDS,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
+  RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
@@ -51,6 +53,128 @@ function deterministicUuid(value: string): string {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = bytes.toString("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+type Tx = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
+
+const textList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+
+/**
+ * The pinned rule and the source-derived elements (conditions, qualifiers, exceptions, source
+ * provisions) each decision was made against, read from the immutable rule set rows.
+ */
+async function loadLegalBasis(
+  tx: Tx,
+  ruleSetVersionId: string,
+  assessmentRuleIds: string[],
+) {
+  const rules = await tx.assessmentRule.findMany({
+    where: { ruleSetVersionId, assessmentRuleId: { in: assessmentRuleIds } },
+    select: {
+      assessmentRuleId: true,
+      concept: true,
+      legalIntent: true,
+      applicabilityGuidance: true,
+      legalRequirementLinks: {
+        select: {
+          legalRequirement: {
+            select: {
+              legalRequirementId: true,
+              title: true,
+              applicabilityConditions: true,
+              qualifiers: true,
+              exceptions: true,
+              ordinal: true,
+              provenance: {
+                orderBy: { ordinal: "asc" },
+                select: {
+                  documentId: true,
+                  locator: true,
+                  contentSha256: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  return new Map(
+    rules.map((rule) => [
+      rule.assessmentRuleId,
+      {
+        concept: rule.concept,
+        legalIntent: rule.legalIntent,
+        applicabilityGuidance: rule.applicabilityGuidance,
+        legalRequirements: rule.legalRequirementLinks
+          .map((link) => link.legalRequirement)
+          .sort((a, b) => a.ordinal - b.ordinal)
+          .map((requirement) => ({
+            legalRequirementId: requirement.legalRequirementId,
+            title: requirement.title,
+            applicabilityConditions: textList(
+              requirement.applicabilityConditions,
+            ),
+            qualifiers: textList(requirement.qualifiers),
+            exceptions: textList(requirement.exceptions),
+            sources: requirement.provenance,
+          })),
+      },
+    ]),
+  );
+}
+
+/** The evidence and facts a decision cites, resolved from the frozen accepted snapshot. */
+function citedRecords(
+  decision: AssessmentFinalReportArtifact["findings"][number]["decision"],
+  snapshot: {
+    evidence: Array<{
+      evidenceId: string;
+      type: string;
+      repositoryCommit: string;
+      source: { path: string; startLine: number; endLine: number } | null;
+    }>;
+    facts: Array<{
+      factId: string;
+      kind: string;
+      authority: string;
+      statement: string;
+      evidenceIds: string[];
+    }>;
+  },
+) {
+  const evidenceIds = new Set<string>();
+  const factIds = new Set<string>();
+  for (const reference of ruleDecisionReferences(decision)) {
+    if (reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
+      evidenceIds.add(reference.evidenceId);
+    } else {
+      factIds.add(reference.factId);
+    }
+  }
+  const facts = snapshot.facts.filter((fact) => factIds.has(fact.factId));
+  for (const fact of facts) {
+    for (const evidenceId of fact.evidenceIds) evidenceIds.add(evidenceId);
+  }
+  return {
+    evidence: snapshot.evidence
+      .filter((item) => evidenceIds.has(item.evidenceId))
+      .map((item) => ({
+        evidenceId: item.evidenceId,
+        type: item.type,
+        repositoryCommit: item.repositoryCommit,
+        ...(item.source ?? {}),
+      })),
+    facts: facts.map((fact) => ({
+      factId: fact.factId,
+      kind: fact.kind,
+      authority: fact.authority,
+      statement: fact.statement,
+    })),
+  };
 }
 
 function rejectUnresolvedLanguage(
@@ -218,6 +342,11 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         );
       }
 
+      const legalBasis = await loadLegalBasis(
+        tx,
+        snapshot.pins.ruleSetVersionId,
+        snapshot.decisions.map(({ decision }) => decision.assessmentRuleId),
+      );
       const artifactId = deterministicUuid(
         `${command.assessmentId}:${requestDigest}`,
       );
@@ -245,6 +374,8 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
             ...item,
             summary: narrative.summary,
             recommendations: narrative.recommendations,
+            legalBasis: legalBasis.get(item.decision.assessmentRuleId),
+            ...citedRecords(item.decision, snapshot),
           };
         }),
         provenance: {

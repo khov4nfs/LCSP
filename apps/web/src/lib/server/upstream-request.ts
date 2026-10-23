@@ -35,6 +35,7 @@ type UpstreamBinaryResult = {
   status: number;
   contentType?: string;
   contentDisposition?: string;
+  etag?: string;
   headers?: Headers;
 };
 
@@ -130,6 +131,7 @@ export async function upstreamBinaryRequest(
     contentType: response.headers.get("content-type") ?? undefined,
     contentDisposition:
       response.headers.get("content-disposition") ?? undefined,
+    etag: response.headers.get("etag") ?? undefined,
     headers: response.headers,
   };
 }

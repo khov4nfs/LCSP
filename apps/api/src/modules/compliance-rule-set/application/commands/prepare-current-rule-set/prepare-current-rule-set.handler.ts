@@ -36,13 +36,34 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
     if (
+      input.expectedLegalSourceVersionId &&
+      input.expectedLegalSourceVersionId !== availability.legalSourceVersionId
+    ) {
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+        input.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: {
+            reason:
+              RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
+          },
+        },
+      );
+    }
+    if (
       availability.refusalReason ===
         RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS &&
       availability.currentRun
     ) {
       return availability.currentRun;
     }
-    if (!availability.canStart || !availability.legalSourceVersionId) {
+    // An ACTIVE rule set is production history that may need a better successor, so it never
+    // blocks preparation for good: an explicit replacement is allowed. Without that intent the
+    // refusal stays, so a stale or racing request cannot start paid work by accident.
+    const allowed =
+      availability.canStart || (input.replaceActive && availability.canReplace);
+    if (!allowed || !availability.legalSourceVersionId) {
       throw problemException(
         COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
         input.correlationId,

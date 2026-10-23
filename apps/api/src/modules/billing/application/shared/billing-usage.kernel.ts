@@ -1,7 +1,11 @@
+import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
   LLM_USAGE_AVAILABILITY_REASONS,
   LLM_USAGE_STATUSES,
+  MODEL_ATTEMPT_STATUSES,
+  USAGE_TOKEN_FIELDS,
+  estimateOfficialReferenceCost,
 } from "@lcsp/contracts/billing";
 import {
   BillingDomainError,
@@ -23,21 +27,15 @@ export const BILLING_USAGE_KERNEL = Symbol("BILLING_USAGE_KERNEL");
 
 export type BillingUsagePort = {
   resolveAssessmentOwner(assessmentId: string): Promise<string>;
+  resolvePreparationOwner(runId: string): Promise<string | null>;
   recordUsage(input: LlmUsageRecordInput): Promise<unknown>;
 };
 
-const TOKEN_FIELDS = [
-  "inputTokens",
-  "cachedInputTokens",
-  "cacheWriteTokens",
-  "outputTokens",
-  "reasoningTokens",
-  "totalTokens",
-] as const;
+const TOKEN_FIELDS = USAGE_TOKEN_FIELDS;
 
 /**
  * Provider-reported token usage is telemetry only. Recording a model invocation
- * never reads a price, reserves or debits credits, or depends on the wallet:
+ * never reserves or debits credits, or depends on the wallet:
  * assessment execution is independent of balance.
  */
 @Injectable()
@@ -62,9 +60,26 @@ export class BillingUsageKernel {
     return assessment.ownerId;
   }
 
+  async resolvePreparationOwner(runId: string): Promise<string | null> {
+    const run = await this.prisma?.ruleSetPreparationRun.findUnique({
+      where: { id: runId },
+      select: { requestedBy: true },
+    });
+    if (!run)
+      throw new OwnershipMismatchError("Preparation run does not exist");
+    if (run.requestedBy === RULE_SET_PREPARATION_SYSTEM_ACTOR) return null;
+    const owner = await this.prisma!.user.findUnique({
+      where: { id: run.requestedBy },
+      select: { id: true },
+    });
+    if (!owner)
+      throw new OwnershipMismatchError("Preparation requester does not exist");
+    return owner.id;
+  }
+
   /** Idempotent on (userId, invocationId); stores only what the provider reported. */
   recordUsage(i: LlmUsageRecordInput) {
-    return this.transactions.runForUser(i.userId, async (repos) => {
+    return this.transactions.runForUser(i.userId ?? i.runId, async (repos) => {
       const { usage } = repos;
       if (!i.invocationId || !i.provider || !i.model)
         throw new BillingDomainError("Usage identity is required");
@@ -73,21 +88,92 @@ export class BillingUsageKernel {
       if (TOKEN_FIELDS.some((field) => (i[field] ?? 0n) < 0n))
         throw new BillingDomainError("Token counts cannot be negative");
 
-      const existing = await usage.findByInvocation(i.userId, i.invocationId);
+      const existing = await usage.findByInvocation(
+        i.userId,
+        i.invocationId,
+        i.runId,
+      );
       if (existing) {
         if (
           existing.provider !== i.provider ||
           existing.model !== i.model ||
           existing.agentRole !== i.agentRole ||
-          existing.assessmentId !== i.assessmentId ||
+          existing.assessmentId !== (i.assessmentId ?? null) ||
           existing.runId !== i.runId ||
-          TOKEN_FIELDS.some(
-            (field) => existing[field] !== (i[field] ?? null),
-          ) ||
-          existing.providerResponseId !== (i.providerResponseId ?? null) ||
           existing.occurredAt.getTime() !== i.occurredAt.getTime()
         )
+          throw new BillingIdempotencyConflictError(
+            "Usage identity replay differs",
+          );
+        // A response may arrive after timeout. Completed usage wins over delivery-order races.
+        if (
+          existing.attemptStatus &&
+          i.attemptStatus &&
+          existing.attemptStatus !== MODEL_ATTEMPT_STATUSES.COMPLETED
+        ) {
+          if (
+            i.attemptStatus !== MODEL_ATTEMPT_STATUSES.STARTED &&
+            i.attemptStatus !== existing.attemptStatus
+          ) {
+            if (i.providerResponseId) {
+              const response = await usage.findByProviderResponse(
+                i.provider,
+                i.providerResponseId,
+              );
+              if (response && response.id !== existing.id)
+                throw new BillingIdempotencyConflictError(
+                  "Provider response already recorded",
+                );
+            }
+            return usage.update(existing.id, {
+              attemptStatus: i.attemptStatus,
+              failureClass: i.failureClass,
+              providerResponseId: i.providerResponseId,
+              ...Object.fromEntries(
+                TOKEN_FIELDS.filter((f) => i[f] !== undefined).map((f) => [
+                  f,
+                  i[f],
+                ]),
+              ),
+              ...(i.attemptStatus === MODEL_ATTEMPT_STATUSES.COMPLETED
+                ? {
+                    referenceCostSnapshot: estimateOfficialReferenceCost(
+                      i.provider,
+                      i.model,
+                      i.occurredAt,
+                      i,
+                    ),
+                    status: TOKEN_FIELDS.some((f) => i[f] !== undefined)
+                      ? LLM_USAGE_STATUSES.SETTLED
+                      : LLM_USAGE_STATUSES.UNAVAILABLE,
+                    availabilityReason: TOKEN_FIELDS.some(
+                      (f) => i[f] !== undefined,
+                    )
+                      ? null
+                      : LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing,
+                  }
+                : {}),
+            });
+          }
+          return existing;
+        }
+        if (
+          i.attemptStatus &&
+          i.attemptStatus !== MODEL_ATTEMPT_STATUSES.COMPLETED
+        )
+          return existing;
+        if (
+          TOKEN_FIELDS.some((f) => (existing[f] ?? null) !== (i[f] ?? null)) ||
+          (existing.providerResponseId ?? null) !==
+            (i.providerResponseId ?? null)
+        )
           throw new BillingIdempotencyConflictError("Usage replay differs");
+        if (
+          existing.status === LLM_USAGE_STATUSES.SETTLED &&
+          existing.availabilityReason ===
+            LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing
+        )
+          return usage.update(existing.id, { availabilityReason: null });
         return existing;
       }
       if (i.providerResponseId) {
@@ -126,6 +212,18 @@ export class BillingUsageKernel {
         model: i.model,
         invocationId: i.invocationId,
         providerResponseId: i.providerResponseId,
+        attemptStatus: i.attemptStatus,
+        failureClass: i.failureClass,
+        referenceCostSnapshot: estimateOfficialReferenceCost(
+          i.provider,
+          i.model,
+          i.occurredAt,
+          i,
+        ),
+        inputTokensIncludingCache: i.inputTokensIncludingCache,
+        cacheWrite5mTokens: i.cacheWrite5mTokens,
+        cacheWrite1hTokens: i.cacheWrite1hTokens,
+        visibleOutputTokens: i.visibleOutputTokens,
         inputTokens: i.inputTokens,
         cachedInputTokens: i.cachedInputTokens,
         cacheWriteTokens: i.cacheWriteTokens,

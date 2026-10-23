@@ -1,0 +1,492 @@
+{
+  "provenance": "Retained live diagnostic a6a2e411-d6e6-423d-b124-5c4eb427fe38 at 12ef8f347128e40daef612580fdc3faa8d254245. Exact persisted claim payloads and structural edge identities; node content from the same review-frontier-source.json input.",
+  "runId": "a6a2e411-d6e6-423d-b124-5c4eb427fe38",
+  "graph": {
+    "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+    "materializationId": "2f35f269aad4c3e8e93424e316269c76615cc2addc2d962f9af51b181078a285",
+    "nodes": [
+      {
+        "nodeId": "185390f879be55d32380e81f08f94237dedf5c6ca05602aafc6d3f11df4cc936",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "documentId": "synthetic-discovery",
+        "nodeType": "ARTICLE",
+        "parentNodeId": null,
+        "ordinal": 0,
+        "label": "1",
+        "title": "Article 1 \u2014 Context",
+        "structuralPath": "/document/synthetic-discovery/article/1",
+        "sourcePath": "/document/synthetic-discovery/article/1",
+        "content": "Article 1 \u2014 Context\nThis instrument describes the record-sharing programme for participating services. This description supplies context and imposes no independent duty.",
+        "contentFingerprint": "c533f4900edf9f65002edb11a76ea0089b790e12f1bd1fe53868ca484a5fa276",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "synthetic-fixture:declared-in-force"
+        ],
+        "pageStart": null,
+        "pageEnd": null,
+        "charStart": null,
+        "charEnd": null
+      },
+      {
+        "nodeId": "9c3362a58cdd7a09d710aee2ebc724b522dcf5a9a7300323c982f25c100ad08d",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "documentId": "synthetic-discovery",
+        "nodeType": "ARTICLE",
+        "parentNodeId": null,
+        "ordinal": 1,
+        "label": "2",
+        "title": "Article 2 \u2014 Direct duty",
+        "structuralPath": "/document/synthetic-discovery/article/2",
+        "sourcePath": "/document/synthetic-discovery/article/2",
+        "content": "Article 2 \u2014 Direct duty\nA participating service must retain a receipt for each record transfer.",
+        "contentFingerprint": "957a20a342fb08255b5d6b387a802f6ba405747c64fbed0fcd12d1b36a049697",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "synthetic-fixture:declared-in-force"
+        ],
+        "pageStart": null,
+        "pageEnd": null,
+        "charStart": null,
+        "charEnd": null
+      },
+      {
+        "nodeId": "9a9d0ae862fcb2add8b0010ec97c15d6a22f6ffbe623bb095ea3dd9e1da42b7b",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "documentId": "synthetic-discovery",
+        "nodeType": "ARTICLE",
+        "parentNodeId": null,
+        "ordinal": 2,
+        "label": "3",
+        "title": "Article 3 \u2014 Mixed provision",
+        "structuralPath": "/document/synthetic-discovery/article/3",
+        "sourcePath": "/document/synthetic-discovery/article/3",
+        "content": "Article 3 \u2014 Mixed provision\nReceipt retention supports programme transparency. A participating service must configure access to receipts for the record subject. This access duty does not apply to receipts subject to a valid confidentiality order. The access duty begins on 1 January 2031.",
+        "contentFingerprint": "924716ef9761f97f38530e0072a81cfd063c164eff2ecd135a549f711a3e20fa",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "synthetic-fixture:declared-in-force"
+        ],
+        "pageStart": null,
+        "pageEnd": null,
+        "charStart": null,
+        "charEnd": null
+      },
+      {
+        "nodeId": "5c7db953572e506cb3a0cfae917fdc605920d01611661b3da113c23dbd1ce912",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "documentId": "synthetic-discovery",
+        "nodeType": "ARTICLE",
+        "parentNodeId": null,
+        "ordinal": 3,
+        "label": "4",
+        "title": "Article 4 \u2014 Referenced definition",
+        "structuralPath": "/document/synthetic-discovery/article/4",
+        "sourcePath": "/document/synthetic-discovery/article/4",
+        "content": "Article 4 \u2014 Referenced definition\nThe duty in Article 2 applies to each record transfer as defined in Article 6.",
+        "contentFingerprint": "fad2af4792f96a3be3c86fffce7874527aba1b5d702e5ec6e5dc4a9b5e690779",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "synthetic-fixture:declared-in-force"
+        ],
+        "pageStart": null,
+        "pageEnd": null,
+        "charStart": null,
+        "charEnd": null
+      },
+      {
+        "nodeId": "2b8d2e769c8abf075ded5d7532d002bffc8baadcbe45592c74cd798fc693edea",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "documentId": "synthetic-discovery",
+        "nodeType": "ARTICLE",
+        "parentNodeId": null,
+        "ordinal": 4,
+        "label": "5",
+        "title": "Article 5 \u2014 Temporal condition",
+        "structuralPath": "/document/synthetic-discovery/article/5",
+        "sourcePath": "/document/synthetic-discovery/article/5",
+        "content": "Article 5 \u2014 Temporal condition\nFor transfers initiated before 1 January 2031, receipt retention continues until 31 December 2031.",
+        "contentFingerprint": "0832303f417d9c20e637edd85178e621b4fcb6cd9424d6ccde819606bc9f96ca",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "synthetic-fixture:declared-in-force"
+        ],
+        "pageStart": null,
+        "pageEnd": null,
+        "charStart": null,
+        "charEnd": null
+      },
+      {
+        "nodeId": "7bce058664a182ce4a88264d4ae1065534b04794ecfd3e97e39a7c23d91399b8",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "documentId": "synthetic-discovery",
+        "nodeType": "ARTICLE",
+        "parentNodeId": null,
+        "ordinal": 5,
+        "label": "6",
+        "title": "Article 6 \u2014 Definition",
+        "structuralPath": "/document/synthetic-discovery/article/6",
+        "sourcePath": "/document/synthetic-discovery/article/6",
+        "content": "Article 6 \u2014 Definition\nA record transfer means delivery of a record by a participating service to another participating service.",
+        "contentFingerprint": "4059d5c9c884fbb2653a62123810ec4c6df9fc1c94866d188b65bdd667ff2145",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "synthetic-fixture:declared-in-force"
+        ],
+        "pageStart": null,
+        "pageEnd": null,
+        "charStart": null,
+        "charEnd": null
+      }
+    ],
+    "references": [
+      {
+        "referenceId": "9dfaad9ce48f5c0b6dac2c2b36bae4e57a6a9f975a28d6306ed75a59e8f34af0",
+        "materializationId": "2f35f269aad4c3e8e93424e316269c76615cc2addc2d962f9af51b181078a285",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "fromNodeId": "5c7db953572e506cb3a0cfae917fdc605920d01611661b3da113c23dbd1ce912",
+        "toNodeId": "9c3362a58cdd7a09d710aee2ebc724b522dcf5a9a7300323c982f25c100ad08d",
+        "text": "Article 2",
+        "charStart": 46,
+        "charEnd": 55,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "9c3362a58cdd7a09d710aee2ebc724b522dcf5a9a7300323c982f25c100ad08d"
+        ]
+      },
+      {
+        "referenceId": "8ea2cefba4f32ab52734220b23127d3b012fdde99d82b4d9c0aaf0d8debf059e",
+        "materializationId": "2f35f269aad4c3e8e93424e316269c76615cc2addc2d962f9af51b181078a285",
+        "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120",
+        "fromNodeId": "5c7db953572e506cb3a0cfae917fdc605920d01611661b3da113c23dbd1ce912",
+        "toNodeId": "7bce058664a182ce4a88264d4ae1065534b04794ecfd3e97e39a7c23d91399b8",
+        "text": "Article 6",
+        "charStart": 102,
+        "charEnd": 111,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "7bce058664a182ce4a88264d4ae1065534b04794ecfd3e97e39a7c23d91399b8"
+        ]
+      }
+    ],
+    "chunkMappings": [],
+    "retrievalUnits": [
+      {
+        "unitId": "fe099d2d2998d05578a786fb8a4b2a99d24f2b0eb9290d59537a2b76c30c9d34",
+        "legalDocumentNodeId": "185390f879be55d32380e81f08f94237dedf5c6ca05602aafc6d3f11df4cc936",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 169,
+        "content": "Article 1 \u2014 Context\nThis instrument describes the record-sharing programme for participating services. This description supplies context and imposes no independent duty.",
+        "contentSha256": "c533f4900edf9f65002edb11a76ea0089b790e12f1bd1fe53868ca484a5fa276"
+      },
+      {
+        "unitId": "133c4e8b253ccedb240b8c8a1d16f41844f2b633bea7c542965bc1748e4e9840",
+        "legalDocumentNodeId": "9c3362a58cdd7a09d710aee2ebc724b522dcf5a9a7300323c982f25c100ad08d",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 95,
+        "content": "Article 2 \u2014 Direct duty\nA participating service must retain a receipt for each record transfer.",
+        "contentSha256": "957a20a342fb08255b5d6b387a802f6ba405747c64fbed0fcd12d1b36a049697"
+      },
+      {
+        "unitId": "645db8cb55ae78ad0d74053fc383fe3d1ed3d77d4f076520520ce1994a28309a",
+        "legalDocumentNodeId": "9a9d0ae862fcb2add8b0010ec97c15d6a22f6ffbe623bb095ea3dd9e1da42b7b",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 288,
+        "content": "Article 3 \u2014 Mixed provision\nReceipt retention supports programme transparency. A participating service must configure access to receipts for the record subject. This access duty does not apply to receipts subject to a valid confidentiality order. The access duty begins on 1 January 2031.",
+        "contentSha256": "924716ef9761f97f38530e0072a81cfd063c164eff2ecd135a549f711a3e20fa"
+      },
+      {
+        "unitId": "0c5d0ee39466698995362951b059cc85176eb43c5d16709c8c060e8dc47df586",
+        "legalDocumentNodeId": "5c7db953572e506cb3a0cfae917fdc605920d01611661b3da113c23dbd1ce912",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 112,
+        "content": "Article 4 \u2014 Referenced definition\nThe duty in Article 2 applies to each record transfer as defined in Article 6.",
+        "contentSha256": "fad2af4792f96a3be3c86fffce7874527aba1b5d702e5ec6e5dc4a9b5e690779"
+      },
+      {
+        "unitId": "f2ef8487a8d4c2bd6bbd5ecbc4527a5d7d74bafb7b6914983cfd28843f7c87eb",
+        "legalDocumentNodeId": "2b8d2e769c8abf075ded5d7532d002bffc8baadcbe45592c74cd798fc693edea",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 129,
+        "content": "Article 5 \u2014 Temporal condition\nFor transfers initiated before 1 January 2031, receipt retention continues until 31 December 2031.",
+        "contentSha256": "0832303f417d9c20e637edd85178e621b4fcb6cd9424d6ccde819606bc9f96ca"
+      },
+      {
+        "unitId": "bff021846a82e981e1c48b5798c419cb9b9f311e042aeaada8da0dde8f9d01bd",
+        "legalDocumentNodeId": "7bce058664a182ce4a88264d4ae1065534b04794ecfd3e97e39a7c23d91399b8",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 128,
+        "content": "Article 6 \u2014 Definition\nA record transfer means delivery of a record by a participating service to another participating service.",
+        "contentSha256": "4059d5c9c884fbb2653a62123810ec4c6df9fc1c94866d188b65bdd667ff2145"
+      }
+    ]
+  },
+  "reviews": [
+    {
+      "sourceNodeId": "185390f879be55d32380e81f08f94237dedf5c6ca05602aafc6d3f11df4cc936",
+      "state": "REVIEWED_WITH_CLAIMS",
+      "claimIds": [
+        "9a2bbade88545b7fc3741a4c1be921ed6217b72dc976fe41dad4393d13c07667"
+      ],
+      "reason": "Article 1 is purely contextual and imposes no independent duties.",
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "9a2bbade88545b7fc3741a4c1be921ed6217b72dc976fe41dad4393d13c07667",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "This instrument describes the record-sharing programme for participating services, supplying context and imposing no independent duty.",
+            "sourceNodeIds": [
+              "185390f879be55d32380e81f08f94237dedf5c6ca05602aafc6d3f11df4cc936"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "9a2bbade88545b7fc3741a4c1be921ed6217b72dc976fe41dad4393d13c07667": "article_1_context_scope"
+        },
+        "referenceAccounting": []
+      }
+    },
+    {
+      "sourceNodeId": "9c3362a58cdd7a09d710aee2ebc724b522dcf5a9a7300323c982f25c100ad08d",
+      "state": "REVIEWED_WITH_CLAIMS",
+      "claimIds": [
+        "b41f203598953e85cad691a9b97bd9b2e387b0ab1414ad73e1fc91700152e62f"
+      ],
+      "reason": "Article 2 establishes a direct duty to retain a receipt for each record transfer.",
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "b41f203598953e85cad691a9b97bd9b2e387b0ab1414ad73e1fc91700152e62f",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "participating service",
+              "action": "retain a receipt for each record transfer",
+              "modality": "DUTY"
+            },
+            "statement": "A participating service must retain a receipt for each record transfer.",
+            "sourceNodeIds": [
+              "9c3362a58cdd7a09d710aee2ebc724b522dcf5a9a7300323c982f25c100ad08d"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "b41f203598953e85cad691a9b97bd9b2e387b0ab1414ad73e1fc91700152e62f": "article_2_retain_receipt_duty"
+        },
+        "referenceAccounting": []
+      }
+    },
+    {
+      "sourceNodeId": "9a9d0ae862fcb2add8b0010ec97c15d6a22f6ffbe623bb095ea3dd9e1da42b7b",
+      "state": "REVIEWED_WITH_CLAIMS",
+      "claimIds": [
+        "2cc38dc895e96455d92b74581b5cce99bd9b6c3ed78e3ddf9285a428868c8169",
+        "76561d98112ab33f0905862476577e211185c77c920c26ff81de305b7c3d3c5b",
+        "8d457dddb76e216de31d9fe65c58811a8b2bf4079b7eb04e72f95ab6623a4525",
+        "bab30baa83313fb8ae966b28dbf6b011704ceeb1139529653bdeda3f9ae24d6c"
+      ],
+      "reason": null,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "2cc38dc895e96455d92b74581b5cce99bd9b6c3ed78e3ddf9285a428868c8169",
+            "claimType": "EXCEPTION",
+            "operative": null,
+            "statement": "This access duty does not apply to receipts subject to a valid confidentiality order.",
+            "sourceNodeIds": [
+              "9a9d0ae862fcb2add8b0010ec97c15d6a22f6ffbe623bb095ea3dd9e1da42b7b"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "76561d98112ab33f0905862476577e211185c77c920c26ff81de305b7c3d3c5b",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "Record subject access provisions apply to digital record sharing under this section.",
+            "sourceNodeIds": [
+              "9a9d0ae862fcb2add8b0010ec97c15d6a22f6ffbe623bb095ea3dd9e1da42b7b"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "8d457dddb76e216de31d9fe65c58811a8b2bf4079b7eb04e72f95ab6623a4525",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "participating service",
+              "action": "configure access to receipts for the record subject",
+              "modality": "DUTY"
+            },
+            "statement": "A participating service must configure access to receipts for the record subject.",
+            "sourceNodeIds": [
+              "9a9d0ae862fcb2add8b0010ec97c15d6a22f6ffbe623bb095ea3dd9e1da42b7b"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "bab30baa83313fb8ae966b28dbf6b011704ceeb1139529653bdeda3f9ae24d6c",
+            "claimType": "TEMPORAL_RULE",
+            "operative": null,
+            "statement": "The duty begins on 1 January 2031.",
+            "sourceNodeIds": [
+              "9a9d0ae862fcb2add8b0010ec97c15d6a22f6ffbe623bb095ea3dd9e1da42b7b"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "2cc38dc895e96455d92b74581b5cce99bd9b6c3ed78e3ddf9285a428868c8169": "article_3_exception_confidentiality",
+          "76561d98112ab33f0905862476577e211185c77c920c26ff81de305b7c3d3c5b": "article_3_context",
+          "8d457dddb76e216de31d9fe65c58811a8b2bf4079b7eb04e72f95ab6623a4525": "article_3_duty_access",
+          "bab30baa83313fb8ae966b28dbf6b011704ceeb1139529653bdeda3f9ae24d6c": "article_3_temporal"
+        },
+        "referenceAccounting": []
+      }
+    },
+    {
+      "sourceNodeId": "5c7db953572e506cb3a0cfae917fdc605920d01611661b3da113c23dbd1ce912",
+      "state": "IN_REVIEW",
+      "claimIds": [
+        "065019d9b5c435f9026ac00644901f872b4a146b23e5008d761894c10a2c9a95",
+        "45111c7074326f5ca7a3a83c2e5bed87183aadb4d2565dd0b69da5e96f2a7914"
+      ],
+      "reason": "Reopen Article 4 review unit to correct claim relations and duplicate claims before validation.",
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "065019d9b5c435f9026ac00644901f872b4a146b23e5008d761894c10a2c9a95",
+            "claimType": "SCOPE",
+            "operative": null,
+            "statement": "The duty in Article 2 applies exclusively to each record transfer as defined in Article 6.",
+            "sourceNodeIds": [
+              "5c7db953572e506cb3a0cfae917fdc605920d01611661b3da113c23dbd1ce912"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "45111c7074326f5ca7a3a83c2e5bed87183aadb4d2565dd0b69da5e96f2a7914",
+            "claimType": "CROSS_REFERENCE",
+            "operative": null,
+            "statement": "Cross-reference to Article 6 defining record transfer.",
+            "sourceNodeIds": [
+              "5c7db953572e506cb3a0cfae917fdc605920d01611661b3da113c23dbd1ce912"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "45111c7074326f5ca7a3a83c2e5bed87183aadb4d2565dd0b69da5e96f2a7914",
+            "relationId": "f3fc3ad96649631e04ad6ee72a1eafd738fb74f93184842d16811d05dd47fabc",
+            "fromClaimId": "065019d9b5c435f9026ac00644901f872b4a146b23e5008d761894c10a2c9a95",
+            "referenceId": "8ea2cefba4f32ab52734220b23127d3b012fdde99d82b4d9c0aaf0d8debf059e"
+          }
+        ],
+        "identities": {
+          "065019d9b5c435f9026ac00644901f872b4a146b23e5008d761894c10a2c9a95": "article_4_scope",
+          "45111c7074326f5ca7a3a83c2e5bed87183aadb4d2565dd0b69da5e96f2a7914": "article_4_cross_ref_article_6"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "8ea2cefba4f32ab52734220b23127d3b012fdde99d82b4d9c0aaf0d8debf059e",
+            "relationIds": [
+              "f3fc3ad96649631e04ad6ee72a1eafd738fb74f93184842d16811d05dd47fabc"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": false,
+            "referenceId": "9dfaad9ce48f5c0b6dac2c2b36bae4e57a6a9f975a28d6306ed75a59e8f34af0",
+            "relationIds": [],
+            "nonMaterialReason": "Reference is purely illustrative and does not establish a material legal dependency."
+          }
+        ]
+      }
+    },
+    {
+      "sourceNodeId": "2b8d2e769c8abf075ded5d7532d002bffc8baadcbe45592c74cd798fc693edea",
+      "state": "REVIEWED_WITH_CLAIMS",
+      "claimIds": [
+        "2c863bfa605dc801900cd486713a9924f9f71edbdcbce09b7561821d6d12db76"
+      ],
+      "reason": null,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "2c863bfa605dc801900cd486713a9924f9f71edbdcbce09b7561821d6d12db76",
+            "claimType": "TEMPORAL_RULE",
+            "operative": null,
+            "statement": "For transfers initiated before 1 January 2031, receipt retention continues until 31 December 2031.",
+            "sourceNodeIds": [
+              "2b8d2e769c8abf075ded5d7532d002bffc8baadcbe45592c74cd798fc693edea"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "2c863bfa605dc801900cd486713a9924f9f71edbdcbce09b7561821d6d12db76": "article_5_temporal_retention_rule"
+        },
+        "referenceAccounting": []
+      }
+    },
+    {
+      "sourceNodeId": "7bce058664a182ce4a88264d4ae1065534b04794ecfd3e97e39a7c23d91399b8",
+      "state": "REVIEWED_WITH_CLAIMS",
+      "claimIds": [
+        "12ff1db191f504d0aaca9f8fc0cd7088e2c3b2973aa8ec26b5726901e30b188a"
+      ],
+      "reason": null,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "12ff1db191f504d0aaca9f8fc0cd7088e2c3b2973aa8ec26b5726901e30b188a",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "A record transfer means delivery of a record by a participating service to another participating service.",
+            "sourceNodeIds": [
+              "7bce058664a182ce4a88264d4ae1065534b04794ecfd3e97e39a7c23d91399b8"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "7327b686-9b10-412f-895f-b50e48c1d120"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "12ff1db191f504d0aaca9f8fc0cd7088e2c3b2973aa8ec26b5726901e30b188a": "article_6_definition_record_transfer"
+        },
+        "referenceAccounting": []
+      }
+    }
+  ]
+}

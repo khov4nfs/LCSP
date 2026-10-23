@@ -16,7 +16,7 @@ describe("CitationLocatorValidatorService", () => {
         legalSourceVersionId: string;
         documentId: string;
         locator: string;
-        legalStatus: string;
+        legalEffectStatus: string;
       } | null>
     >
   >;
@@ -32,7 +32,7 @@ describe("CitationLocatorValidatorService", () => {
           legalSourceVersionId: string;
           documentId: string;
           locator: string;
-          legalStatus: string;
+          legalEffectStatus: string;
         } | null>
       >()
       .mockResolvedValue({
@@ -40,7 +40,7 @@ describe("CitationLocatorValidatorService", () => {
         legalSourceVersionId: "v1",
         documentId: "doc1",
         locator: "art-1",
-        legalStatus: "ACTIVE",
+        legalEffectStatus: "EFFECTIVE",
       });
 
     prisma = {

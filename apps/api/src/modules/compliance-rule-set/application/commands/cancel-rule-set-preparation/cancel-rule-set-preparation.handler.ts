@@ -13,7 +13,6 @@ import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { CommandBus, CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   AgentExecutionState as PrismaAgentExecutionState,
-  ArtifactLifecycleState as PrismaArtifactLifecycleState,
   Prisma,
 } from "@prisma/client";
 
@@ -67,20 +66,9 @@ export class CancelRuleSetPreparationHandler implements ICommandHandler<CancelRu
           { status: HttpStatus.CONFLICT },
         );
       }
-      const activeRuleSet = await tx.complianceRuleSetVersion.findFirst({
-        where: {
-          legalSourceVersionId: run.legalSourceVersionId,
-          lifecycleState: PrismaArtifactLifecycleState.ACTIVE,
-        },
-        select: { id: true },
-      });
-      if (activeRuleSet) {
-        throw problemException(
-          COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
-          input.correlationId,
-          { status: HttpStatus.CONFLICT },
-        );
-      }
+      // A run that already published is refused above (`run.ruleSet`), and publication takes this
+      // same row lock. An ACTIVE rule set of the source says nothing about THIS run: a replacement
+      // preparation runs beside the ACTIVE version, which cancelling it must not touch.
 
       if (run.executionState === PrismaAgentExecutionState.RUNNING)
         await this.runtime.cancel(run.correlationId);

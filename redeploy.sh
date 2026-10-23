@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly APP=/srv/apps/lcsp-pm2
+readonly APP=/srv/apps/LCSP
 readonly ECOSYSTEM_FILE=ecosystem.config.cjs
 readonly API_HEALTH_URL=http://127.0.0.1:8080/health
-readonly WEB_HEALTH_URL=http://127.0.0.1:3001/
+readonly WEB_HEALTH_URL=http://127.0.0.1:3002/
 readonly LEGACY_PM2_APPS=(
   lcsp-scanner-worker
   lcsp-engineering-assessment-worker

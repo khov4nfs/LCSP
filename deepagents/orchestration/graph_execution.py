@@ -14,10 +14,8 @@ from deepagents.middleware import subagents
 # This is independent of source, repository, rule, token and model-call counts.
 # Explicit cancellation, native interrupts and provider failures remain operative.
 LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT = (1 << 31) - 1
-
-
 def agent_graph_config(config: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    """Preserve runtime/checkpoint config without reviving an old per-agent ceiling."""
+    """Preserve runtime/checkpoint config with the infrastructure ceiling."""
     return {
         **(config or {}),
         "recursion_limit": LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT,

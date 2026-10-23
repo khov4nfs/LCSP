@@ -3,13 +3,14 @@ import { Prisma } from "@prisma/client";
 import {
   DECISION_RESOLUTION_STATES,
   RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
-import { criterionIdsOf } from "../../domain/rule-criteria.js";
+import { criterionIdsOf, listLength } from "../../domain/rule-criteria.js";
 
 export const ROOT_AUDIT_ACTOR = {
   id: AUDIT_ACTOR_IDS.assessmentRootAgent,
@@ -172,7 +173,13 @@ export class AssessmentCaseSupport {
         legalRequirementLinks: {
           include: {
             legalRequirement: {
-              select: { id: true, legalRequirementId: true },
+              select: {
+                id: true,
+                legalRequirementId: true,
+                applicabilityConditions: true,
+                qualifiers: true,
+                exceptions: true,
+              },
             },
           },
         },
@@ -210,10 +217,7 @@ export class AssessmentCaseSupport {
         for (const row of related) legalContextIds.add(row.legalRequirementId);
       }
     }
-    const references = [
-      ...decision.references,
-      ...decision.criteria.flatMap((criterion) => criterion.references),
-    ];
+    const references = ruleDecisionReferences(decision);
     const factIds = [
       ...new Set(
         references.flatMap((r) =>
@@ -268,6 +272,18 @@ export class AssessmentCaseSupport {
             assessmentRuleVersion: rule.assessmentRuleVersion,
             criterionIds: new Set(criterionIdsOf(rule.criteria)),
             legalContextIds,
+            declaredElements: new Map(
+              rule.legalRequirementLinks.map((link) => [
+                link.legalRequirement.legalRequirementId,
+                {
+                  applicabilityConditions: listLength(
+                    link.legalRequirement.applicabilityConditions,
+                  ),
+                  qualifiers: listLength(link.legalRequirement.qualifiers),
+                  exceptions: listLength(link.legalRequirement.exceptions),
+                },
+              ]),
+            ),
           }
         : null,
       evidence: new Map(evidence.map((row) => [row.evidenceId, row])),

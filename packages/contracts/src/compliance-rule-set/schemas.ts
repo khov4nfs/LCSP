@@ -1,4 +1,24 @@
 import { z } from "zod";
+import {
+  claimInventoryBindingSchema,
+  type ClaimInventoryBinding,
+} from "./preparation-inventory.ts";
+import { legalDocumentGraphSchema } from "../legal-source/document-graph.ts";
+import {
+  legalClaimBindingSchema,
+  legalSemanticGraphSchema,
+  legalEvidenceBindingSchema,
+  DOWNSTREAM_SEMANTIC_AUTHORITIES,
+  LEGAL_EVIDENCE_REQUEST_KINDS,
+  deriveEvidenceRequests,
+  type LegalSemanticGraph,
+} from "./semantic-graph.ts";
+import {
+  deriveAssessmentApplicabilityGuidance,
+  assessmentSemanticContext,
+  deriveAssessmentLegalIntent,
+  resolveAssessmentContextBinding,
+} from "./applicability.ts";
 
 import {
   agentExecutionStateSchema,
@@ -8,12 +28,18 @@ import {
   ENGINEERING_GRAPH_QUERY_DIRECTIONS,
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  LEGAL_OPERATIVE_MODALITIES,
+  LEGAL_REQUIREMENT_CONTEXT_FIELDS,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
   COMPLIANCE_RULE_SET_LIMITS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
 } from "./constants.ts";
+import {
+  LEGAL_SOURCE_CHUNK_STATUSES,
+  type LegalSourceChunkStatus,
+} from "../legal-source/management.ts";
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -38,6 +64,10 @@ const textSchema = z
 const shortTextListSchema = z
   .array(shortTextSchema)
   .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems);
+// Parent text is already bounded; rendering its binding identity must not truncate that text.
+const derivedTextListSchema = z
+  .array(z.string().trim().min(1))
+  .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems);
 /** Raw hex digest computed by the server (rule set digest, source fingerprint). */
 const sha256Schema = z.string().regex(SHA256_PATTERN);
 /** Source content hash exactly as stored on the pinned legalSource chunk. */
@@ -61,8 +91,27 @@ export type ComplianceRuleSetSourceRef = z.infer<
 
 const sourceRefListSchema = z
   .array(complianceRuleSetSourceRefSchema)
-  .min(1)
-  .max(COMPLIANCE_RULE_SET_LIMITS.maxSourceRefsPerRule);
+  .max(COMPLIANCE_RULE_SET_LIMITS.maxSourceRefsPerRule)
+  .default([]);
+
+export const legalOperativePropositionSchema = z
+  .object({
+    actor: textSchema.describe(
+      "The source's actual addressee/subject, including a defined role's criteria. Non-repository and public-body duties still have an actor.",
+    ),
+    modality: z
+      .enum(LEGAL_OPERATIVE_MODALITIES)
+      .describe(
+        "Agent's interpretation of the normative force, not repository assessability.",
+      ),
+    action: textSchema.describe(
+      "The operative action and object/scope: what must, must not, or may be done. Preserve distinct propositions; do not describe citation coverage or generic context.",
+    ),
+    sourceRefs: sourceRefListSchema.describe(
+      "Optional exact legacy retrieval citations, also declared in the owning LegalRequirement sourceRefs. Claim bindings to immutable source nodes are the canonical provenance; use [] when a structural node has no legacy chunk.",
+    ),
+  })
+  .strict();
 
 /**
  * Structural invariant shared with the database CHECK LegalRequirement_coverage_reason_check:
@@ -116,11 +165,28 @@ export const legalRequirementCoverageSchema = z
 export const legalRequirementSchema = z
   .object({
     legalRequirementId: idSchema,
+    claimInventoryRevision: z.number().int().positive().optional(),
+    claimBindings: z.array(legalClaimBindingSchema).max(256).optional(),
+    semanticContext: shortTextListSchema.optional(),
     title: shortTextSchema,
     proposition: textSchema,
-    applicabilityConditions: shortTextListSchema,
-    qualifiers: shortTextListSchema,
-    exceptions: shortTextListSchema,
+    // Historical read models omit this field; new authoring is enforced by the deterministic Gate.
+    operativePropositions: z
+      .array(legalOperativePropositionSchema)
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems)
+      .optional()
+      .describe(
+        "Required for new Rule Set authoring, including NON_ASSESSABLE duties: at least one explicit actor/modality/action with pinned source bindings. Multiple propositions may be aggregated in one LegalRequirement. Context-only sources belong in typed contextRelations, never a placeholder requirement. Missing structure returns OPERATIVE_PROPOSITION_REQUIRED.",
+      ),
+    applicabilityConditions: shortTextListSchema.describe(
+      "Whom or what the source applies this provision to and what triggers it, as facts that evidence can establish or refute, in the source's own terms (any-of / all-of exactly as written). When the source names a role, class, category, status, threshold or sector and defines or enumerates its criteria, unpack those criteria here and cite the defining provision in sourceRefs; a label is never its own explanation. Required (at least one) when assessment rules cover the requirement; if the source adds no further condition, state the addressee it names.",
+    ),
+    qualifiers: shortTextListSchema.describe(
+      "Timing, actor, modality or degree limits the source places on the duty itself.",
+    ),
+    exceptions: shortTextListSchema.describe(
+      "Each exemption, exclusion or carve-out the source gives for THIS duty, with its own limiting words and the facts that would establish it. Empty when the source gives none.",
+    ),
     /** True for organizational/document duties that repository evidence cannot establish. */
     nonRepositoryDuty: z
       .boolean()
@@ -147,7 +213,27 @@ export const engineeringGraphQuerySchema = z
 export const assessmentRuleCriterionSchema = z
   .object({
     criterionId: idSchema,
-    statement: textSchema,
+    // Optional only for historical read models; the Gate requires explicit bindings for new authoring.
+    legalRequirementIds: z
+      .array(idSchema)
+      .min(1)
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems)
+      .optional()
+      .describe(
+        "Required for new authoring: parent LegalRequirement IDs whose complete normative propositions this criterion evaluates. Must be a subset of the AssessmentRule legalRequirementIds. All parent scope, purpose, conditions and exceptions are inherited; never independently rewrite a broader obligation.",
+      ),
+    statement: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Canonical normative statement derived from this criterion's legalRequirementIds, including the complete parent predicate and its limits. Not an independently authored technical obligation.",
+      ),
+    investigationFocus: textSchema
+      .optional()
+      .describe(
+        "Optional narrower evidence focus within the inherited normative statement, such as one storage surface or control. An investigation strategy, never a replacement legal predicate or a new obligation, exception or threshold.",
+      ),
   })
   .strict();
 
@@ -155,6 +241,10 @@ export const assessmentRuleCriterionSchema = z
 export const assessmentRuleSchema = z
   .object({
     assessmentRuleId: idSchema,
+    evidenceBindings: z.array(legalEvidenceBindingSchema).max(256).optional(),
+    semanticAuthority: z
+      .literal(DOWNSTREAM_SEMANTIC_AUTHORITIES.CLAIM_DERIVED)
+      .optional(),
     /** Every AssessmentRule belongs to at least one submitted LegalRequirement. */
     legalRequirementIds: z
       .array(idSchema)
@@ -164,13 +254,48 @@ export const assessmentRuleSchema = z
         "LegalRequirement IDs covered by this AssessmentRule; never reference a LegalRequirement declared NON_ASSESSABLE.",
       ),
     concept: shortTextSchema,
-    legalIntent: textSchema,
-    applicabilityGuidance: textSchema,
+    legalIntent: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Canonical intent from linked parent propositions; not independently reinterpreted.",
+      ),
+    contextRelationIds: z
+      .array(idSchema)
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxContextRelations)
+      .optional()
+      .describe(
+        "Canonical inherited directed context dependency IDs, including incorporation. Omit to derive; supplied omissions or reversals return APPLICABILITY_BINDING_MISMATCH.",
+      ),
+    unresolvedConditionBindings: z
+      .array(
+        z
+          .object({
+            legalRequirementId: idSchema,
+            field: z.enum(LEGAL_REQUIREMENT_CONTEXT_FIELDS),
+            index: z.number().int().min(0),
+          })
+          .strict(),
+      )
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems)
+      .optional()
+      .describe(
+        "Select parent context facts that require external/customer evidence using stable requirement ID, field and zero-based index. The server renders unresolvedConditions from these facts; no independently paraphrased actor, trigger, qualifier or exception.",
+      ),
+    // Derived output is bounded by its parent fields, not a second lossy text cap.
+    applicabilityGuidance: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Canonical rendering of linked LegalRequirement actor/action/condition/qualifier/exception bindings; never independently paraphrased. Evidence strategy belongs in investigationGoals and evidence fields.",
+      ),
     criteria: z
       .array(assessmentRuleCriterionSchema)
       .min(1)
       .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems),
-    investigationGoals: shortTextListSchema,
+    investigationGoals: derivedTextListSchema,
     startingNodeTypes: shortTextListSchema,
     targetNodeTypes: shortTextListSchema,
     edgeStrategies: shortTextListSchema,
@@ -181,14 +306,55 @@ export const assessmentRuleSchema = z
     commonApis: shortTextListSchema,
     commonLibraries: shortTextListSchema,
     patterns: shortTextListSchema,
-    requiredEvidence: shortTextListSchema,
-    supportingEvidence: shortTextListSchema,
-    negativeEvidence: shortTextListSchema,
-    unresolvedConditions: shortTextListSchema,
+    requiredEvidence: derivedTextListSchema,
+    supportingEvidence: derivedTextListSchema,
+    negativeEvidence: derivedTextListSchema,
+    unresolvedConditions: derivedTextListSchema.describe(
+      "Applicability conditions that repository evidence cannot establish, phrased as customer-answerable facts (never as a legal verdict).",
+    ),
     sourceRefs: sourceRefListSchema,
   })
   .strict();
 export type AssessmentRuleInput = z.infer<typeof assessmentRuleSchema>;
+
+const assessmentRuleAuthoringSchema = assessmentRuleSchema.extend({
+  legalIntent: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "Omit. Server derives intent from linked parent propositions; supplied contradictions return APPLICABILITY_BINDING_MISMATCH.",
+    ),
+  unresolvedConditions: derivedTextListSchema
+    .optional()
+    .describe(
+      "Omit. Select unresolvedConditionBindings instead; server renders the exact parent facts. An empty binding list means no separate unresolved facts, not unconditional applicability; complete parent context remains mandatory.",
+    ),
+  criteria: z
+    .array(
+      assessmentRuleCriterionSchema.extend({
+        statement: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe(
+            "Omit this field. The server derives the complete normative statement from this criterion's legalRequirementIds, retaining purpose/scope restrictions, conditions and exceptions. Supplied text must equal that rendering or returns APPLICABILITY_BINDING_MISMATCH. Put a narrower technical evidence focus in investigationFocus.",
+          ),
+      }),
+    )
+    .min(1)
+    .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems),
+  applicabilityGuidance: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "Omit this field. The server derives guidance from all linked legalRequirementIds, preserving their actors, direction, conditions, qualifiers and exceptions. Supplied text must equal that canonical rendering or returns APPLICABILITY_BINDING_MISMATCH; it is never silently replaced.",
+    ),
+});
 
 /** Relationship meaning between a rule and its context (definition, scope, qualifier, exception, cross-reference). */
 export const legalContextRelationSchema = z
@@ -223,6 +389,8 @@ export type LegalContextRelationInput = z.infer<
 
 export const complianceRuleSetPacketSchema = z
   .object({
+    semanticGraph: legalSemanticGraphSchema.optional(),
+    claimInventory: claimInventoryBindingSchema.optional(),
     legalRequirements: z
       .array(legalRequirementSchema)
       .max(COMPLIANCE_RULE_SET_LIMITS.maxLegalRequirements)
@@ -230,7 +398,7 @@ export const complianceRuleSetPacketSchema = z
         "Operative duties, prohibitions or permissions only. Context-only definitions, scope, exceptions and interpretive cross-references belong in contextRelations with toSourceRef, not standalone LegalRequirements. Source coverage does not require a LegalRequirement for every provision.",
       ),
     assessmentRules: z
-      .array(assessmentRuleSchema)
+      .array(assessmentRuleAuthoringSchema)
       .max(COMPLIANCE_RULE_SET_LIMITS.maxAssessmentRules),
     contextRelations: z
       .array(legalContextRelationSchema)
@@ -278,7 +446,120 @@ export const complianceRuleSetPacketSchema = z
         });
       }
     });
-  });
+  })
+  .transform(
+    (
+      packet,
+    ): {
+      legalRequirements: LegalRequirementInput[];
+      assessmentRules: AssessmentRuleInput[];
+      contextRelations: LegalContextRelationInput[];
+      semanticGraph?: LegalSemanticGraph;
+      claimInventory?: ClaimInventoryBinding;
+    } => ({
+      ...packet,
+      assessmentRules: packet.assessmentRules.map((rule) => ({
+        ...rule,
+        legalIntent:
+          rule.legalIntent ??
+          deriveAssessmentLegalIntent(
+            packet.legalRequirements.filter((parent) =>
+              rule.legalRequirementIds.includes(parent.legalRequirementId),
+            ),
+          ),
+        contextRelationIds:
+          rule.contextRelationIds ??
+          assessmentSemanticContext(
+            packet.legalRequirements.filter((parent) =>
+              rule.legalRequirementIds.includes(parent.legalRequirementId),
+            ),
+            packet.contextRelations,
+            packet.legalRequirements,
+          ).relations.map((edge) => edge.relationId),
+        unresolvedConditions:
+          rule.unresolvedConditions ??
+          (rule.unresolvedConditionBindings ?? []).flatMap((binding) => {
+            const context = assessmentSemanticContext(
+              packet.legalRequirements.filter((parent) =>
+                rule.legalRequirementIds.includes(parent.legalRequirementId),
+              ),
+              packet.contextRelations,
+              packet.legalRequirements,
+            );
+            const value = resolveAssessmentContextBinding(
+              binding,
+              context.requirements,
+            );
+            return value === null ? [] : [value];
+          }),
+        criteria: rule.criteria.map((criterion) => ({
+          ...criterion,
+          statement:
+            criterion.statement ??
+            deriveAssessmentApplicabilityGuidance(
+              (criterion.legalRequirementIds ?? []).flatMap((id) => {
+                const parent = packet.legalRequirements.find(
+                  (item) => item.legalRequirementId === id,
+                );
+                return parent ? [parent] : [];
+              }),
+              packet.contextRelations,
+              packet.legalRequirements,
+              packet.semanticGraph,
+            ),
+        })),
+        applicabilityGuidance:
+          rule.applicabilityGuidance ??
+          deriveAssessmentApplicabilityGuidance(
+            rule.legalRequirementIds.flatMap((id) => {
+              const parent = packet.legalRequirements.find(
+                (item) => item.legalRequirementId === id,
+              );
+              return parent ? [parent] : [];
+            }),
+            packet.contextRelations,
+            packet.legalRequirements,
+            packet.semanticGraph,
+          ),
+      })),
+    }),
+  )
+  .transform((packet) => ({
+    ...packet,
+    assessmentRules: packet.assessmentRules.map((rule) => {
+      if (!packet.semanticGraph) return rule;
+      return {
+        ...rule,
+        semanticAuthority:
+          rule.semanticAuthority ??
+          DOWNSTREAM_SEMANTIC_AUTHORITIES.CLAIM_DERIVED,
+        requiredEvidence: rule.requiredEvidence.length
+          ? rule.requiredEvidence
+          : deriveEvidenceRequests(
+              rule.criteria,
+              rule.evidenceBindings ?? [],
+              LEGAL_EVIDENCE_REQUEST_KINDS.REQUIRED,
+            ),
+        supportingEvidence: rule.supportingEvidence.length
+          ? rule.supportingEvidence
+          : deriveEvidenceRequests(
+              rule.criteria,
+              rule.evidenceBindings ?? [],
+              LEGAL_EVIDENCE_REQUEST_KINDS.SUPPORTING,
+            ),
+        negativeEvidence: rule.negativeEvidence.length
+          ? rule.negativeEvidence
+          : deriveEvidenceRequests(
+              rule.criteria,
+              rule.evidenceBindings ?? [],
+              LEGAL_EVIDENCE_REQUEST_KINDS.NEGATIVE,
+            ),
+        investigationGoals: rule.investigationGoals.length
+          ? rule.investigationGoals
+          : rule.criteria.map((c) => c.statement),
+      };
+    }),
+  }));
 export type ComplianceRuleSetPacket = z.infer<
   typeof complianceRuleSetPacketSchema
 >;
@@ -307,9 +588,23 @@ export const ruleSetPreparationRunSchema = z
   .strict();
 export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
 
-/** Admin supplies no source, idempotency key or generated rule-set content. */
+/**
+ * Admin supplies no source, idempotency key or generated rule-set content. `replaceActive` is the
+ * explicit intent to author a NEW version that supersedes the ACTIVE one once it validates and is
+ * submitted; without it Prepare keeps refusing while a rule set is ACTIVE, so a stale click or a
+ * racing request can never start paid work by accident. Retry of a failed run is a different
+ * operation and never needs it.
+ */
 export const ruleSetPreparationAdminRequestSchema = z
-  .strictObject({})
+  .strictObject({
+    replaceActive: z.boolean().optional(),
+    /**
+     * The Legal Source Version the operator is looking at. Preparation always targets the active
+     * version; naming it makes the request refuse (instead of silently preparing another version)
+     * when the active version changed in the meantime.
+     */
+    legalSourceVersionId: z.uuid().optional(),
+  })
   .default({});
 export type RuleSetPreparationAdminRequest = z.infer<
   typeof ruleSetPreparationAdminRequestSchema
@@ -318,7 +613,12 @@ export type RuleSetPreparationAdminRequest = z.infer<
 export const ruleSetPreparationAvailabilitySchema = z.strictObject({
   legalSourceVersionId: z.uuid().nullable(),
   legalSourceVersion: z.string().min(1).nullable(),
+  /** The ACTIVE rule set of the current source, which stays ACTIVE until a replacement activates. */
+  activeRuleSetVersionId: z.uuid().nullable(),
+  /** A first preparation may start: no ACTIVE rule set and nothing in progress. */
   canStart: z.boolean(),
+  /** An explicit replacement may start: an ACTIVE rule set exists and nothing is in progress. */
+  canReplace: z.boolean(),
   refusalReason: z.enum(RULE_SET_PREPARATION_REFUSAL_REASONS).nullable(),
   currentRun: ruleSetPreparationRunSchema.nullable(),
 });
@@ -388,12 +688,21 @@ export const complianceRuleSetResolvedSourceSchema = z
     locator: shortTextSchema,
     contentSha256: contentHashSchema,
     sourceEffectStatus: z.string().min(1),
+    legalEffectStatus: z.enum(
+      Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+        LegalSourceChunkStatus,
+        ...LegalSourceChunkStatus[],
+      ],
+    ),
+    legalStatusSourceRef: z.string().nullable(),
   })
   .strict();
 
 /** The single runtime reader contract: the explicit ACTIVE rule set. */
 export const complianceRuleSetReadModelSchema = z
   .object({
+    claimInventory: claimInventoryBindingSchema.optional(),
+    semanticGraph: legalSemanticGraphSchema.optional(),
     ruleSetVersionId: z.string().uuid(),
     version: z.string().min(1),
     legalSourceVersionId: z.string().uuid(),
@@ -419,7 +728,7 @@ export type ComplianceRuleSetReadModel = z.infer<
   typeof complianceRuleSetReadModelSchema
 >;
 
-/** Dry-run: same mechanical validation as submit, nothing is persisted. */
+/** Same mechanical validation as submit; records phase readiness without publishing authority. */
 export const complianceRuleSetValidateRequestSchema = z
   .object({
     preparationRunId: z.string().uuid(),
@@ -434,6 +743,24 @@ export const complianceRuleSetValidateResultSchema = z
   .object({
     outcome: z.enum(COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES),
     failures: z.array(complianceRuleSetValidationFailureSchema),
+    coverage: z
+      .strictObject({
+        retrieval: z.strictObject({
+          total: z.number().int(),
+          cited: z.number().int(),
+          derivedUnits: z.number().int(),
+        }),
+        structuralSource: z.strictObject({
+          total: z.number().int(),
+          accounted: z.number().int(),
+        }),
+        semanticClaims: z.strictObject({
+          relevant: z.number().int(),
+          accounted: z.number().int(),
+          unaccounted: z.number().int(),
+        }),
+      })
+      .optional(),
   })
   .strict();
 export type ComplianceRuleSetValidateResult = z.infer<
@@ -453,6 +780,7 @@ export type RuleSetPreparationClaimRequest = z.infer<
  */
 export const ruleSetPreparationLegalSourceBundleSchema = z
   .object({
+    documentGraph: legalDocumentGraphSchema,
     preparationRunId: z.string().uuid(),
     executionState: agentExecutionStateSchema,
     legalSourceVersionId: z.string().uuid(),
@@ -473,6 +801,13 @@ export const ruleSetPreparationLegalSourceBundleSchema = z
                 content: z.string(),
                 contentSha256: contentHashSchema,
                 legalStatus: z.string(),
+                legalEffectStatus: z.enum(
+                  Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+                    LegalSourceChunkStatus,
+                    ...LegalSourceChunkStatus[],
+                  ],
+                ),
+                legalStatusSourceRef: z.string().nullable(),
                 hierarchy: z.unknown(),
               })
               .strict(),
@@ -486,11 +821,16 @@ export type RuleSetPreparationLegalSourceBundle = z.infer<
   typeof ruleSetPreparationLegalSourceBundleSchema
 >;
 
-/** Marks a run FAILED when the agent could not produce a submission. */
+/**
+ * Marks a run FAILED when the agent could not produce a submission. NO_OPERATIVE_OBLIGATIONS is not reportable here:
+ * only the validated claim-inventory conclusion may record it.
+ */
 export const ruleSetPreparationFailRequestSchema = z
   .object({
     preparationRunId: z.string().uuid(),
-    reason: z.enum(RULE_SET_PREPARATION_FAILURE_REASONS),
+    reason: z
+      .enum(RULE_SET_PREPARATION_FAILURE_REASONS)
+      .exclude([RULE_SET_PREPARATION_FAILURE_REASONS.NO_OPERATIVE_OBLIGATIONS]),
   })
   .strict();
 export type RuleSetPreparationFailRequest = z.infer<
@@ -536,4 +876,31 @@ export const complianceRuleSetHistorySchema = z.strictObject({
 });
 export type ComplianceRuleSetHistory = z.infer<
   typeof complianceRuleSetHistorySchema
+>;
+
+/**
+ * Admin "View result": the stored rule set version exactly as persisted (requirements, assessment
+ * rules, context relations, source provenance) plus where it came from. A read-only projection of
+ * the canonical rows; it is never a second copy of rule-set state.
+ */
+export const complianceRuleSetResultSchema = z.strictObject({
+  ruleSet: complianceRuleSetReadModelSchema,
+  preparationRunId: z.uuid().nullable(),
+  createdAt: z.iso.datetime(),
+  supersededAt: z.iso.datetime().nullable(),
+  legalSourceVersion: z.strictObject({
+    legalSourceVersionId: z.uuid(),
+    version: z.string().min(1),
+    documents: z.array(
+      z.strictObject({
+        documentId: z.string().min(1),
+        title: z.string(),
+        sourceEffectStatus: z.string(),
+        chunkCount: z.number().int().nonnegative(),
+      }),
+    ),
+  }),
+});
+export type ComplianceRuleSetResult = z.infer<
+  typeof complianceRuleSetResultSchema
 >;

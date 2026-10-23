@@ -84,6 +84,32 @@ def test_post_settled_usage_sends_provider_reported_fields_without_reservation(c
         SettledUsagePayload(**{**payload.model_dump(), "reservationId": "r"})
 
 
+def test_post_settled_usage_preserves_every_reported_token_bucket_on_wire(client):
+    from middleware.redaction import redact_dict
+
+    counters = {
+        "inputTokens": "11", "inputTokensIncludingCache": "23",
+        "cachedInputTokens": "5", "cacheWriteTokens": "7",
+        "cacheWrite5mTokens": "3", "cacheWrite1hTokens": "4",
+        "outputTokens": "13", "visibleOutputTokens": "10",
+        "reasoningTokens": "3", "totalTokens": "36",
+    }
+    payload = SettledUsagePayload(
+        preparationRunId="run", runId="run", invocationId="attempt",
+        agentRole="legal-semantic-auditor", provider="MIRAIAPI", model="claude-sonnet-5",
+        attemptStatus="COMPLETED", occurredAt="2026-10-23T00:00:00Z", **counters,
+    )
+    with patch("tools.common.capabilities.platform.api_client.httpx.post",
+               return_value=httpx.Response(200, json={"ok": True, "data": {"accepted": True}})) as post:
+        client.post_settled_usage(payload)
+    wire = post.call_args.kwargs["json"]
+    assert {key: wire[key] for key in counters} == counters
+    assert "assessmentId" not in wire
+    assert redact_dict({**counters, "authToken": "private", "cache_token": "private"}) == {
+        **counters, "authToken": "", "cache_token": "",
+    }
+
+
 def test_t03_422_response(client, dummy_payload):
     """T03: 422 response is NOT retried, raises WorkerCallbackError immediately."""
     with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:

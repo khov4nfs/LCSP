@@ -3,17 +3,27 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import re
+import threading
+from functools import wraps
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
+from uuid import uuid4
 
 from langchain_core.tools import tool
 
+from middleware.failure_policy import NoProgressDetected
+from orchestration.agent_stream import DURABLE, SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
 from rule_set_preparation.legal_source_files import read_pins, refute_source_block
+from rule_set_preparation.source_graph import PinnedSourceGraph
+from rule_set_preparation.claim_inventory import ClaimInventory, AUTHORING, RULE_VALIDATION, SUBMISSION_READY, COMPLETION, grouped_gaps
+from rule_set_preparation.claim_tools import build_claim_tools
 
 logger = get_logger(__name__)
 
@@ -24,7 +34,13 @@ ITEM_ID_KEYS = {
     "legalRequirements": "legalRequirementId",
     "assessmentRules": "assessmentRuleId",
     "contextRelations": "relationId",
+    "semanticClaims": "claimId",
+    "claimRelations": "relationId",
+    "sourceAccounting": "sourceNodeId",
+    "referenceAccounting": "referenceId",
 }
+GRAPH_SECTIONS = {"semanticClaims": "claims", "claimRelations": "relations",
+                  "sourceAccounting": "sourceAccounting", "referenceAccounting": "referenceAccounting"}
 _PACKET_PROPERTIES = RULE_SET_INPUT_SCHEMA["properties"]["packet"]["properties"]
 # validate/submit take a complete packet or nothing (nothing = the draft / the validated draft). The
 # item contracts are carried once, by add_to_packet_draft; repeating the ~8k-token packet schema on both
@@ -40,7 +56,8 @@ OPTIONAL_PACKET_INPUT_SCHEMA = {
 }
 DRAFT_PART_SCHEMA = {
     "type": "object",
-    "properties": {key: _PACKET_PROPERTIES[key] for key in ITEM_ID_KEYS},
+    "properties": {key: (_PACKET_PROPERTIES["semanticGraph"]["properties"][GRAPH_SECTIONS[key]]
+                         if key in GRAPH_SECTIONS else _PACKET_PROPERTIES[key]) for key in ITEM_ID_KEYS},
     "additionalProperties": False,
 }
 DRAFT_REMOVAL_SCHEMA = {
@@ -51,10 +68,29 @@ DRAFT_REMOVAL_SCHEMA = {
     },
     "additionalProperties": False,
 }
+PREPARATION_PROGRESS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "establishedFindings": {"type": "array", "items": {"type": "string"}},
+        "unresolvedMaterialWork": {"type": "array", "items": {"type": "string"}},
+        "currentTarget": {"type": "string"},
+        "intendedAction": {"type": "string"},
+        "expectedInformationGain": {"type": "string"},
+    },
+    "required": [
+        "establishedFindings", "unresolvedMaterialWork", "currentTarget",
+        "intendedAction", "expectedInformationGain",
+    ],
+    "additionalProperties": False,
+}
 
 
 class RuleSetApi(Protocol):
     """The slice of the worker API client the agent tools use."""
+
+    def claim_inventory_operation(self, run_id: str, action: str, revision: int, **fields: Any) -> dict: ...
+
+    def source_review_operation(self, run_id: str, revision: int, action: str, **fields: Any) -> dict: ...
 
     def validate_compliance_rule_set(self, preparation_run_id: str, packet: dict) -> dict: ...
 
@@ -71,11 +107,29 @@ class RuleSetPreparationContext:
     api: RuleSetApi
     # Materialized pinned source; a source-blocking claim is checked against it when set.
     source_root: Path | None = None
+    source_graph: PinnedSourceGraph | None = None
+    frontier_enabled: bool = True
+    discovery_only: bool = False
+    authored_claim_ids: set[str] = field(default_factory=set)
+    inventory: ClaimInventory | None = None
+    authoring: Any = None
+    semantic_auditor: Any = None
+    semantic_audits: dict[str, dict[str, Any]] = field(default_factory=dict)
+    mutation_lock: Any = field(default_factory=threading.RLock, repr=False)
+    model_turn: int | None = None
+    # Ordering for authoring telemetry: never infer order from wall-clock time. event_sequence is monotonic per run; draft_revision
+    # advances exactly when the authored Requirement/AssessmentRule candidates change.
+    event_sequence: int = 0
+    draft_revision: int = 0
+    draft_fp: str | None = None
+    rejection_log: list[dict[str, Any]] = field(default_factory=list)
     submission: dict[str, Any] | None = None
     validation_calls: int = 0
     last_validation: dict[str, Any] | None = None
     validated_packet: dict[str, Any] | None = None
     source_blocked: dict[str, str] | None = None
+    # The API accepted the terminal no-operative-obligations conclusion (INV-C2): nothing further is authored or submitted.
+    concluded: dict[str, Any] | None = None
     errors: list[str] = field(default_factory=list)
     # The packet being authored in parts: section -> item label -> item, in insertion order.
     draft: dict[str, dict[str, dict[str, Any]]] = field(
@@ -85,15 +139,38 @@ class RuleSetPreparationContext:
     removable: set[tuple[str, str]] = field(default_factory=set)
     # add_to_packet_draft calls since the last validation: past a few, the result asks for one.
     adds_since_validation: int = 0
+    progress_revision: int = 0
+    completion_submission_ordinal: int = 0
+    last_completion_state_fingerprint: str | None = None
+    completion_feedback_state_fingerprint: str | None = None
+    pinned_source_version_id: str | None = None
+    progress_state: dict[str, Any] = field(default_factory=lambda: {
+        "establishedFindings": [],
+        "unresolvedMaterialWork": [],
+        "currentTarget": "",
+        "intendedAction": "",
+        "expectedInformationGain": "",
+    })
+    observations: dict[str, dict[str, Any]] = field(default_factory=dict)
+    observation_lock: Any = field(default_factory=threading.Lock, repr=False)
     # Per-call record of the governed tools (no packet content): what was validated/submitted
     # and which mechanical failure codes came back. Lets a failed run be diagnosed.
     trace: list[dict[str, Any]] = field(default_factory=list)
 
-    def draft_packet(self) -> dict[str, list[dict[str, Any]]]:
-        return {key: list(items.values()) for key, items in self.draft.items()}
+    def draft_packet(self) -> dict[str, Any]:
+        packet = {key: list(items.values()) for key, items in self.draft.items() if key not in GRAPH_SECTIONS}
+        if self.source_graph is not None:
+            packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V3", "semanticAudits": list(self.semantic_audits.values()), **self.source_graph.base(),
+                                       **{field: list(self.draft[key].values()) for key, field in GRAPH_SECTIONS.items()}}
+        if self.inventory is not None:
+            packet["semanticGraph"] = self.inventory.graph()
+        if self.inventory is not None and self.inventory.frozen is not None:
+            packet["semanticGraph"] = deepcopy(self.inventory.frozen)
+            packet["claimInventory"] = self.inventory.binding()
+        return packet
 
     def draft_counts(self) -> dict[str, int]:
-        return {key: len(items) for key, items in self.draft.items()}
+        return {key: len(items) for key, items in self.draft.items() if key not in GRAPH_SECTIONS or self.source_graph is not None or items}
 
     @property
     def idempotency_key(self) -> str:
@@ -136,6 +213,11 @@ def _model_view(result: dict, context: "RuleSetPreparationContext | None" = None
     failures = result.get("failures") or []
     uncovered = [f for f in failures if f.get("code") == COVERAGE_FAILURE]
     view = result
+    if len(failures) > UNCOVERED_LISTED and any(f.get("code") in {"INCOMPLETE_STRUCTURAL_ACCOUNTING", "UNACCOUNTED_SEMANTIC_CLAIM"} for f in failures):
+        counts: dict[str, int] = {}
+        for failure in failures:
+            counts[failure["code"]] = counts.get(failure["code"], 0) + 1
+        view = {**result, "failures": failures[:UNCOVERED_LISTED], "gapCounts": counts, "omittedFailureCount": len(failures) - UNCOVERED_LISTED}
     if uncovered:
         by_document: dict[str, list[str]] = {}
         for failure in uncovered[:UNCOVERED_LISTED]:
@@ -148,8 +230,10 @@ def _model_view(result: dict, context: "RuleSetPreparationContext | None" = None
                 "count": len(uncovered),
                 "listed": min(len(uncovered), UNCOVERED_LISTED),
                 "locatorsByDocumentId": by_document,
-                "how": "Cite each of these (or an ancestor chunk listed in INDEX.md) in sourceRefs of "
-                       "items you add, then validate again; more are listed as these are covered.",
+                "how": "Read each exact leaf in the pinned source. Preserve its actor/modality/action "
+                       "in operativePropositions with exact sourceRefs, or attach its actual context "
+                       "through a typed relation on an operative requirement. Citation attachment "
+                       "or an ancestor citation alone does not discharge coverage. Validate the repaired draft.",
             },
         }
     if context is not None and context.source_root is not None:
@@ -192,14 +276,149 @@ def _packet_stats(packet: dict) -> dict[str, int]:
     }
 
 
+_PROVENANCE_GAP_CODES = frozenset({
+    "RETRIEVAL_INDEX_NOT_VALID", "UNRESOLVED_SOURCE_REFERENCE", "STALE_SOURCE_HASH",
+    "REPEALED_SOURCE_REFERENCE", "NON_CURRENT_SOURCE_REFERENCE",
+    "UNDETERMINED_SOURCE_STATUS", "MIXED_SOURCE_VERSION", "SOURCE_STATUS_PROVENANCE_MISSING",
+})
+
+
+def _fingerprint(value: Any) -> str:
+    encoded = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _completion_gap_projection(gate: dict | None) -> tuple[list[str], list[str], str]:
+    structural: set[str] = set()
+    provenance: set[str] = set()
+    fingerprints: list[tuple[str, str | None]] = []
+    failures = gate.get("failures") if isinstance(gate, dict) else None
+    for failure in failures or ():
+        if not isinstance(failure, dict):
+            continue
+        code = failure.get("code")
+        if not isinstance(code, str) or not re.fullmatch(r"[A-Z0-9_]{1,80}", code):
+            continue
+        (provenance if code in _PROVENANCE_GAP_CODES else structural).add(code)
+        ref = failure.get("ref")
+        fingerprints.append((code, _fingerprint(ref) if isinstance(ref, str) else None))
+    uncovered = gate.get("uncoveredProvisions") if isinstance(gate, dict) else None
+    if isinstance(uncovered, dict) and isinstance(uncovered.get("count"), int) and uncovered["count"] > 0:
+        structural.add(COVERAGE_FAILURE)
+        locators = uncovered.get("locatorsByDocumentId")
+        if isinstance(locators, dict):
+            fingerprints.extend(
+                (COVERAGE_FAILURE, _fingerprint((doc_id, locator)))
+                for doc_id, values in locators.items() if isinstance(doc_id, str) and isinstance(values, list)
+                for locator in values if isinstance(locator, str)
+            )
+    return sorted(structural), sorted(provenance), _fingerprint(sorted(fingerprints))
+
+
+def _record_completion_submission(
+    context: RuleSetPreparationContext, candidate: Any, gate: dict | None, *, accepted: bool,
+    gate_rejected: bool,
+) -> tuple[bool, bool]:
+    structural, provenance, gap_fingerprint = _completion_gap_projection(gate)
+    candidate_fingerprint = _fingerprint(candidate) if isinstance(candidate, dict) else None
+    feedback = detected = False
+    with context.observation_lock:
+        context.completion_submission_ordinal += 1
+        ordinal = context.completion_submission_ordinal
+        state_fingerprint = _fingerprint({
+            "candidate": candidate_fingerprint, "gaps": gap_fingerprint,
+            "progressRevision": context.progress_revision,
+        })
+        if gate_rejected and candidate_fingerprint is not None:
+            if state_fingerprint == context.last_completion_state_fingerprint:
+                if context.completion_feedback_state_fingerprint == state_fingerprint:
+                    detected = True
+                else:
+                    feedback = True
+                    context.completion_feedback_state_fingerprint = state_fingerprint
+            else:
+                context.completion_feedback_state_fingerprint = None
+            context.last_completion_state_fingerprint = state_fingerprint
+        elif accepted:
+            context.last_completion_state_fingerprint = None
+            context.completion_feedback_state_fingerprint = None
+    publish_agent_stream_event(
+        "CUSTOM_PROGRESS", status="COMPLETED" if accepted else "RUNNING",
+        data={
+            "durability": DURABLE, "activity_kind": "COMPLETION_SUBMISSION",
+            "submission_id": str(uuid4()), "submission_ordinal": ordinal,
+            "candidate_fingerprint": candidate_fingerprint, "accepted": accepted,
+            "structural_gap_codes": structural, "provenance_gap_codes": provenance,
+            "gap_fingerprint": gap_fingerprint,
+            "completion_gate_outcome": (gate or {}).get("outcome"),
+        },
+    )
+    if detected:
+        publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={
+            "durability": DURABLE, "activity_kind": "NO_PROGRESS_DETECTED",
+            "source": "COMPLETION_SUBMISSION", "submission_ordinal": ordinal,
+            "candidate_fingerprint": candidate_fingerprint, "gap_fingerprint": gap_fingerprint,
+        })
+    return feedback, detected
+
+
 def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     """Bind validation, submission and explicit source-blocking to one run."""
+
+    if context.source_graph is not None and context.inventory is None:
+        context.inventory = ClaimInventory(context)
+    if context.inventory is not None and context.authoring is None:
+        from rule_set_preparation.authoring_state import AuthoringWorkingSet
+        context.authoring = AuthoringWorkingSet(context)
+
+    @tool(args_schema=PREPARATION_PROGRESS_SCHEMA)
+    def record_preparation_progress(
+        establishedFindings: list[str],
+        unresolvedMaterialWork: list[str],
+        currentTarget: str,
+        intendedAction: str,
+        expectedInformationGain: str,
+    ) -> str:
+        """Record concise source-grounded findings, unresolved work and the next factual investigation action.
+
+        This is an execution-local working ledger, not legal output or chain-of-thought. Do not include
+        private reasoning; cite source identifiers/locators when useful.
+        """
+        progress = {
+            "establishedFindings": establishedFindings,
+            "unresolvedMaterialWork": unresolvedMaterialWork,
+            "currentTarget": currentTarget,
+            "intendedAction": intendedAction,
+            "expectedInformationGain": expectedInformationGain,
+        }
+        with context.observation_lock:
+            if any(context.progress_state[key] != progress[key] for key in (
+                "establishedFindings", "unresolvedMaterialWork"
+            )):
+                context.progress_revision += 1
+            context.progress_state = progress
+        return json.dumps({"progressState": progress, "progressRevision": context.progress_revision})
 
     def run_validation(packet: dict | None = None) -> str:
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
-        context.validation_calls += 1
+        if context.concluded is not None:
+            return json.dumps({"error": "Preparation is already finished.", "concluded": context.concluded["failureReason"]})
+        if context.inventory is None:
+            context.validation_calls += 1
+        else:
+            inventory = context.inventory
+            if inventory.frozen is None or inventory.phase not in {AUTHORING, RULE_VALIDATION, SUBMISSION_READY}:
+                return json.dumps(inventory.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize inventory and start Rule authoring first"))
+            # An attempt exists only once the real Rule Validator is about to run; a refused call is not one.
+            context.validation_calls += 1
+            inventory.transition(RULE_VALIDATION)
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "RULE_VALIDATION_STARTED",
+                "rule_validation_attempt": context.validation_calls, "inventory_revision": inventory.revision,
+                "claim_inventory_fingerprint": inventory.frozen_fingerprint, **inventory.stamp()})
         context.adds_since_validation = 0
+        previous_validation = context.last_validation
         context.validated_packet = None
         context.last_validation = None
         try:
@@ -211,14 +430,41 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                     )})
                 packet = context.draft_packet()
             packet = _as_packet(packet)
-            result = context.api.validate_compliance_rule_set(context.run_id, packet)
+            known = context.authored_claim_ids | set(context.draft["semanticClaims"])
+            declared = {claim.get("claimId") for claim in (packet.get("semanticGraph") or {}).get("claims", [])}
+            if known - declared:
+                result = {"outcome": "FAILED", "failures": [{"code": "UNACCOUNTED_SEMANTIC_CLAIM", "ref": f"claim:{cid}",
+                    "detail": "An authored claim cannot disappear from a candidate; explicitly account for or classify it."} for cid in sorted(known - declared)]}
+            else:
+                context.authored_claim_ids.update(cid for cid in declared if isinstance(cid, str))
+                result = context.api.validate_compliance_rule_set(context.run_id, packet)
         except (ValueError, WorkerCallbackError) as error:
             context.errors.append(str(error))
             context.trace.append({"tool": "validate", "error": str(error)[:160]})
             logger.warning("RULE_SET_PREPARATION_VALIDATION_ERROR", run_id=context.run_id,
                            validation_call=context.validation_calls, error=str(error)[:300])
-            return json.dumps({"error": str(error)})
+            if context.inventory is None:
+                return json.dumps({"error": str(error)})
+            if isinstance(error, WorkerCallbackError) and error.status_code != 400:
+                raise
+            result = {"outcome": "FAILED", "failures": [{"code": "CLAIM_SCHEMA_INVALID", "ref": path, "detail": "Repair this candidate field using the typed authoring tool"}
+                      for path in sorted(set(re.findall(r"packet\.[A-Za-z0-9_.]+", str(error))))[:20]] or [{"code": "CLAIM_SCHEMA_INVALID", "ref": "packet", "detail": str(error)[:200]}]}
+        if context.inventory is not None:
+            result = context.inventory.observe_validation(result, RULE_VALIDATION, packet)
+            passed = result.get("outcome") == "PASSED"
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "RULE_VALIDATION_PASSED" if passed else "RULE_VALIDATION_FAILED",
+                "rule_validation_attempt": context.validation_calls, "inventory_revision": context.inventory.revision,
+                "gap_counts": {k: v["count"] for k, v in grouped_gaps(result)["gaps"].items()}, **context.inventory.stamp()})
+            context.inventory.transition(SUBMISSION_READY if passed else AUTHORING)
         context.last_validation = result
+        if result.get("coverage"):
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "activity_kind": "SEMANTIC_CLAIM_COVERAGE", "coverage": result["coverage"],
+                "gap_categories": sorted({f.get("code") for f in result.get("failures", []) if f.get("code")}),
+            })
+        if result != previous_validation:
+            context.progress_revision += 1
         context.removable = _items_named_by(result.get("failures") or [])
         if result.get("outcome") == "PASSED":
             context.validated_packet = deepcopy(packet)
@@ -229,13 +475,17 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         logger.info("RULE_SET_PREPARATION_VALIDATED", run_id=context.run_id,
                     validation_call=context.validation_calls, outcome=result.get("outcome"),
                     failure_codes=counts, packet=_packet_stats(packet), from_draft=from_draft)
-        return json.dumps(_model_view(result, context), ensure_ascii=False)
+        return json.dumps(grouped_gaps(result, context.draft["semanticClaims"]) if context.inventory else _model_view(result, context), ensure_ascii=False)
 
     @tool(args_schema=DRAFT_PART_SCHEMA)
     def add_to_packet_draft(
         legalRequirements: list | None = None,
         assessmentRules: list | None = None,
         contextRelations: list | None = None,
+        semanticClaims: list | None = None,
+        claimRelations: list | None = None,
+        sourceAccounting: list | None = None,
+        referenceAccounting: list | None = None,
         **ignored: Any,
     ) -> str:
         """Add one PART of the rule set packet to the draft, so a large source is authored in
@@ -244,10 +494,13 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         in the draft REPLACES it, which is how you correct an item. Nothing is checked here; call
         validate_compliance_rule_set with no arguments to validate the whole draft.
         """
-        if context.submission is not None or context.source_blocked is not None:
+        if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
+        if context.inventory is not None:
+            return json.dumps(context.inventory.rejected("CLAIM_PHASE_INVALID", "draft", "Use typed claim/review tools during discovery and typed Requirement/AssessmentRule tools after freeze"))
         part = {"legalRequirements": legalRequirements, "assessmentRules": assessmentRules,
-                "contextRelations": contextRelations}
+                "contextRelations": contextRelations, "semanticClaims": semanticClaims, "claimRelations": claimRelations,
+                "sourceAccounting": sourceAccounting, "referenceAccounting": referenceAccounting}
         problems = [
             f"{key}[{index}] has no {ITEM_ID_KEYS[key]} label"
             for key, items in part.items()
@@ -259,12 +512,20 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             return json.dumps({"error": "Nothing was added. " + "; ".join(problems[:10])})
         added: dict[str, int] = {}
         replaced = 0
+        changed = False
         for key, items in part.items():
             added[key] = len(items or ())
             for item in items or ():
                 label = item[ITEM_ID_KEYS[key]]
                 replaced += label in context.draft[key]
+                changed |= context.draft[key].get(label) != item
                 context.draft[key][label] = deepcopy(item)
+        if changed:
+            context.progress_revision += 1
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "activity_kind": "SEMANTIC_CLAIMS_AUTHORED", "semantic_claim_count": len(context.draft["semanticClaims"]),
+                "requirement_count": len(context.draft["legalRequirements"]),
+            })
         # Any change to the draft revokes an earlier PASSED: the validated packet no longer exists.
         context.validated_packet = None
         context.last_validation = None
@@ -289,7 +550,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     ) -> str:
         """Remove items from the packet draft by label. Only items named by the latest validation
         failures can be removed; to change any other item send it again with the same label."""
-        if context.submission is not None or context.source_blocked is not None:
+        if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
         removals = {"legalRequirements": legalRequirementIds, "assessmentRules": assessmentRuleIds,
                     "contextRelations": relationIds}
@@ -328,38 +589,70 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         detail, and uncovered source provisions are listed under "uncoveredProvisions". Fix every
         failure and validate again before the single submission.
         """
+        if context.inventory is not None and (packet is not None or ignored):
+            return json.dumps(context.inventory.rejected("CLAIM_SCHEMA_INVALID", "validate_compliance_rule_set", "No arguments: use typed authoring tools and validate the current frozen-inventory draft"))
         return run_validation(packet)
 
     @tool(args_schema=OPTIONAL_PACKET_INPUT_SCHEMA)
     def submit_compliance_rule_set(packet: dict | None = None, **ignored: Any) -> str:
-        """Submit the validated rule set packet once. It is validated and, when mechanically
-        valid, activated automatically in one atomic step. There is no review or approval.
+        """Claim completion for a packet, run the deterministic integrity gate, then submit once.
 
-        Call it with no arguments to submit exactly the draft or packet that last passed
-        validate_compliance_rule_set, or pass that exact packet. Any edit after the pass requires
-        the semantic self-check and validation again.
-
-        If the result is FAILED the attempted rule_set is NOT activated, the previous ACTIVE
-        rule_set stays in place and this run is finished: do not call this tool again.
+        A rejected gate returns its exact mechanical gaps to this same agent for repair. The gate
+        checks structure and provenance only; this agent owns legal interpretation and completeness.
+        A passing claim is submitted through the canonical atomic activation operation.
         """
+        if context.inventory is not None and (packet is not None or ignored):
+            return json.dumps(context.inventory.rejected("CLAIM_SCHEMA_INVALID", "submit_compliance_rule_set", "No arguments: explicitly submit the exact validated draft"))
         if context.submission is not None:
             return json.dumps({**context.submission, "alreadySubmitted": True}, ensure_ascii=False)
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
+        if context.concluded is not None:
+            return json.dumps({"error": "Preparation is already finished.", "concluded": context.concluded["failureReason"]})
+        candidate: Any = packet
+        gate: dict | None = None
         try:
-            packet = context.validated_packet if packet is None else _as_packet(packet)
-            if context.validated_packet is None or packet != context.validated_packet:
-                context.trace.append({"tool": "submit", "outcome": "VALIDATION_REQUIRED"})
-                return json.dumps({"error": "Validate this exact packet until PASSED before submitting."})
+            if packet is None:
+                packet = context.validated_packet or context.draft_packet()
+            else:
+                packet = _as_packet(packet)
+            candidate = packet
+            gate = (
+                _model_view(context.last_validation, context)
+                if packet == context.validated_packet
+                and (context.last_validation or {}).get("outcome") == "PASSED"
+                else json.loads(run_validation(packet))
+            )
+            if gate.get("outcome") != "PASSED":
+                context.trace.append({"tool": "completion_claim", "outcome": "REJECTED"})
+                feedback, detected = _record_completion_submission(
+                    context, candidate, gate, accepted=False, gate_rejected=True
+                )
+                result = {"completionClaim": "REJECTED", "gaps": gate}
+                if feedback:
+                    result["NO_PROGRESS"] = (
+                        "The same candidate, mechanical gate gaps, and preparation progress "
+                        "were submitted again. Change the candidate, resolve a listed gap, "
+                        "or advance source-backed preparation before submitting again."
+                    )
+                if detected:
+                    raise NoProgressDetected("NO_PROGRESS_DETECTED")
+                return json.dumps(result, ensure_ascii=False)
+            packet = context.validated_packet
             result = context.api.submit_compliance_rule_set(
                 context.run_id, context.idempotency_key, packet
             )
         except (ValueError, WorkerCallbackError) as error:
             context.errors.append(str(error))
-            context.trace.append({"tool": "submit", "outcome": "ERROR"})
+            context.trace.append({"tool": "completion_claim", "outcome": "REJECTED"})
+            _record_completion_submission(context, candidate, gate, accepted=False, gate_rejected=False)
             return json.dumps({"error": str(error)})
         context.submission = result
+        if context.inventory is not None:
+            context.inventory.transition(COMPLETION)
+        context.progress_revision += 1
         context.trace.append({"tool": "submit", "outcome": (result.get("validation") or {}).get("outcome")})
+        _record_completion_submission(context, packet, gate, accepted=True, gate_rejected=False)
         return json.dumps(result, ensure_ascii=False)
 
     @tool(args_schema={
@@ -402,13 +695,33 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                 "then submit the exact validated packet."
             )})
         context.source_blocked = {"reason": reason, "path": path}
+        context.progress_revision += 1
         context.trace.append({"tool": "source_blocked", **context.source_blocked})
         return json.dumps({"sourceBlocked": context.source_blocked})
 
-    return [
+    common = [
+        record_preparation_progress,
         validate_compliance_rule_set,
         submit_compliance_rule_set,
         report_rule_set_source_blocked,
         add_to_packet_draft,
         remove_from_packet_draft,
     ]
+    if context.inventory is not None:
+        # Runtime authoring is incremental; giant independently mutable packet tools are not exposed.
+        validate_compliance_rule_set.description = "Validate current Rule candidates against the frozen inventory revision, returning grouped claim/provenance/fidelity gaps. No arguments or replacement packet. A pass enters SUBMISSION_READY without publishing authority."
+        submit_compliance_rule_set.description = "Explicitly submit the exact validated frozen-inventory draft once through the Completion Gate. No arguments or replacement packet."
+        validate_compliance_rule_set.args_schema = {"type": "object", "properties": {}, "additionalProperties": False}
+        submit_compliance_rule_set.args_schema = {"type": "object", "properties": {}, "additionalProperties": False}
+        def serialize(function):
+            @wraps(function)
+            def invoke(*args, **kwargs):
+                with context.mutation_lock:
+                    return function(*args, **kwargs)
+            return invoke
+        for governed in common[:4]:
+            governed.func = serialize(governed.func)
+        tools = common[:4] + build_claim_tools(context)
+        return [t for t in tools if not (context.discovery_only and t.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"})]
+    # Isolated legacy tool unit tests have no source graph. The real runner always supplies one.
+    return common

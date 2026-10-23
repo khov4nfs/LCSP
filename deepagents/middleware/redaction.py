@@ -26,6 +26,7 @@ SENSITIVE_KEY_SEGMENTS = frozenset(
         "tokens",
     }
 )
+SENSITIVE_KEY_NAMES = frozenset({"raw_error_body"})
 
 # Governed callback field names whose segments look secret-denoting but carry
 # no credential: provider token counters and the server-minted replay key the
@@ -37,11 +38,14 @@ SAFE_METADATA_KEY_NAMES = frozenset(
         "authorName",
         "authorized",
         "cacheWriteTokens",
+        "cacheWrite5mTokens",
+        "cacheWrite1hTokens",
         "cachedInputTokens",
         "countryCode",
         "credential_fingerprint",
         "credential_slot",
         "credential_source",
+        "credential_slot_safe_id",
         "decoded",
         "encoded",
         "errorCode",
@@ -52,6 +56,7 @@ SAFE_METADATA_KEY_NAMES = frozenset(
         "idempotencyKey",
         "idempotency_key",
         "inputTokens",
+        "inputTokensIncludingCache",
         "keyword",
         "maxInputTokens",
         "maxOutputTokens",
@@ -69,6 +74,7 @@ SAFE_METADATA_KEY_NAMES = frozenset(
         "totalTokens",
         "total_tokens",
         "usage_metadata",
+        "visibleOutputTokens",
     }
 )
 
@@ -194,6 +200,10 @@ def _is_sensitive_key(key_text: str, redacted_keys: set[str] | None) -> bool:
     """Return whether a structured field name has a secret-denoting segment."""
     if key_text in SAFE_METADATA_KEY_NAMES:
         return False
+    if key_text in SENSITIVE_KEY_NAMES:
+        if redacted_keys is not None:
+            redacted_keys.add(key_text)
+        return True
     segments = _field_name_segments(key_text)
     if not any(segment in SENSITIVE_KEY_SEGMENTS for segment in segments):
         return False

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { validateFrozenInventory } from "../../domain/claim-inventory.js";
+import { frozenInventoryForRun } from "./preparation-inventory.persistence.js";
 
 import {
   AUDIT_ACTOR_TYPES,
@@ -21,6 +23,7 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   Prisma,
+  ClaimPreparationPhase,
   AgentExecutionState as PrismaAgentExecutionState,
   ArtifactLifecycleState as PrismaArtifactLifecycleState,
   RuleSetPreparationFailureReason as PrismaRuleSetPreparationFailureReason,
@@ -37,6 +40,7 @@ import {
   type LegalSourceChunkSnapshot,
 } from "../../domain/compliance-rule-set-integrity.validator.js";
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
+import { writeSemanticGraph } from "./semantic-graph.persistence.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
 
@@ -129,9 +133,13 @@ export class ComplianceRuleSetActivation {
     actorId: string,
   ): Promise<ComplianceRuleSetSubmitResult> {
     const [preparation] = await tx.$queryRaw<
-      Array<{ executionState: PrismaAgentExecutionState }>
+      Array<{
+        executionState: PrismaAgentExecutionState;
+        claimInventoryRevision: number;
+        claimPhase: ClaimPreparationPhase;
+      }>
     >(
-      Prisma.sql`SELECT "executionState" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
     );
     if (!preparation) {
       throw problemException(
@@ -157,6 +165,30 @@ export class ComplianceRuleSetActivation {
         { status: HttpStatus.CONFLICT },
       );
     }
+
+    // Reopening and publication serialize on the same row; a pre-lock validation cannot publish stale claims.
+    const inventoryGaps = validateFrozenInventory(
+      ctx.packet,
+      await frozenInventoryForRun(
+        tx,
+        ctx.runId,
+        preparation.claimInventoryRevision,
+      ),
+      preparation.claimInventoryRevision,
+    );
+    if (
+      ctx.failures.length === 0 &&
+      (inventoryGaps.length ||
+        preparation.claimPhase !== ClaimPreparationPhase.SUBMISSION_READY)
+    )
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+        ctx.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: { gaps: inventoryGaps.map((g) => g.code).join(",") },
+        },
+      );
 
     // Cancel and publication serialize on the preparation row; only one can become terminal.
     await acquireComplianceRuleSetActivationLock(tx);
@@ -210,6 +242,7 @@ export class ComplianceRuleSetActivation {
       data: valid
         ? {
             executionState: PrismaAgentExecutionState.SUCCEEDED,
+            claimPhase: ClaimPreparationPhase.COMPLETION,
             completedAt: now,
           }
         : {
@@ -314,6 +347,11 @@ export class ComplianceRuleSetActivation {
     ctx: SubmitContext,
   ): Promise<void> {
     const { packet, resolved, legalSource } = ctx;
+    if (!packet.semanticGraph)
+      throw new Error(
+        "Validated new Rule Set must have a semantic claim graph",
+      );
+    await writeSemanticGraph(tx, ruleSetVersionId, packet.semanticGraph);
     const ruleRowId = new Map(
       packet.legalRequirements.map((rule) => [
         rule.legalRequirementId,
@@ -334,6 +372,8 @@ export class ComplianceRuleSetActivation {
         legalRequirementId: rule.legalRequirementId,
         title: rule.title,
         proposition: rule.proposition,
+        operativePropositions: rule.operativePropositions,
+        semanticContext: rule.semanticContext,
         applicabilityConditions: rule.applicabilityConditions,
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,
@@ -343,6 +383,17 @@ export class ComplianceRuleSetActivation {
         contentDigest: sha256Hex(canonicalJson(rule)),
         ordinal,
       })),
+    });
+
+    await tx.legalRequirementClaimBinding.createMany({
+      data: packet.legalRequirements.flatMap((rule) =>
+        (rule.claimBindings ?? []).map((binding, ordinal) => ({
+          ...binding,
+          ordinal,
+          ruleSetVersionId,
+          legalRequirementRowId: ruleRowId.get(rule.legalRequirementId)!,
+        })),
+      ),
     });
 
     await tx.legalRequirementProvenance.createMany({
@@ -362,6 +413,8 @@ export class ComplianceRuleSetActivation {
               locator: chunk.locator,
               contentSha256: chunk.contentSha256,
               sourceEffectStatus: chunk.sourceEffectStatus,
+              legalEffectStatus: chunk.legalEffectStatus,
+              legalStatusSourceRef: chunk.legalStatusSourceRef,
               ordinal,
             },
           ];

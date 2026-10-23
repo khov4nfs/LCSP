@@ -13,6 +13,7 @@ import {
   complianceRuleSetReadModelSchema,
   complianceRuleSetSubmitRequestSchema,
   complianceRuleSetSubmitResultSchema,
+  declaresApplicabilityScope,
   ruleSetPreparationStartRequestSchema,
 } from "@lcsp/contracts/compliance-rule-set";
 
@@ -122,7 +123,10 @@ test("the packet is strict: agent-supplied authority fields are rejected", () =>
   ]) {
     const packet = validPacket();
     Object.assign(packet.legalRequirements[0]!, extra);
-    assert.equal(complianceRuleSetPacketSchema.safeParse(packet).success, false);
+    assert.equal(
+      complianceRuleSetPacketSchema.safeParse(packet).success,
+      false,
+    );
   }
   const packet = validPacket();
   Object.assign(packet, { ruleSetVersionId: UUID });
@@ -147,7 +151,10 @@ test("source claims need a well-formed hash and relations need exactly one targe
 
   const noSources = validPacket();
   noSources.legalRequirements[0]!.sourceRefs = [];
-  assert.equal(complianceRuleSetPacketSchema.safeParse(noSources).success, false);
+  assert.equal(
+    complianceRuleSetPacketSchema.safeParse(noSources).success,
+    false,
+  );
 });
 
 test("oversize packets are rejected at the trust boundary", () => {
@@ -199,8 +206,10 @@ test("submit request and result reuse the shared artifact lifecycle only", () =>
   );
   for (const lifecycleState of ["APPROVED", "REJECTED", "DRAFT", "ACTIVATED"]) {
     assert.equal(
-      complianceRuleSetSubmitResultSchema.safeParse({ ...result, lifecycleState })
-        .success,
+      complianceRuleSetSubmitResultSchema.safeParse({
+        ...result,
+        lifecycleState,
+      }).success,
       false,
     );
   }
@@ -222,4 +231,25 @@ test("no approval vocabulary exists in the ruleSet contract", () => {
     assert.equal(vocabulary.includes(forbidden), false, forbidden);
   }
   assert.equal(complianceRuleSetReadModelSchema.safeParse({}).success, false);
+});
+
+test("applicability scope: assessable requirements must declare one, in any wording", () => {
+  const covered = LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES;
+  const nonAssessable = LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE;
+
+  assert.equal(declaresApplicabilityScope(covered, []), false);
+  assert.equal(declaresApplicabilityScope(covered, ["   "]), false);
+  // The predicate never learns which roles or categories a legal source uses.
+  for (const scope of [
+    "Applies to the keeper of a register.",
+    "Gilt für Betreiber von Anlagen mit mehr als 50 Beschäftigten.",
+    "Every holder of a vessel licence",
+  ]) {
+    assert.equal(declaresApplicabilityScope(covered, [scope]), true, scope);
+  }
+  assert.equal(declaresApplicabilityScope(nonAssessable, []), true);
+  assert.equal(
+    COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
+    "APPLICABILITY_SCOPE_MISSING",
+  );
 });

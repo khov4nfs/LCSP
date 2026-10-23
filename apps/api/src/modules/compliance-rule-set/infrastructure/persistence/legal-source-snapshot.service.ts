@@ -1,7 +1,9 @@
 import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import { Injectable } from "@nestjs/common";
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { pinnedMaterializationId } from "./preparation-inventory.persistence.js";
 import {
   sourceClaimKey,
   type LegalSourceSnapshot,
@@ -10,12 +12,16 @@ import {
 /** Reads the pinned legalSource facts the deterministic integrity validator checks a packet against. */
 @Injectable()
 export class LegalSourceSnapshotLoader {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly graph: LegalDocumentGraphService,
+  ) {}
 
   async load(
-    legalSourceVersionId: string,
+    run: { id: string; legalSourceVersionId: string },
     packet: ComplianceRuleSetPacket,
   ): Promise<{ snapshot: LegalSourceSnapshot; foreignHashes: Set<string> }> {
+    const { legalSourceVersionId } = run;
     const [documents, chunks, validIndex] = await Promise.all([
       this.prisma.legalSourceDocument.findMany({
         where: { legalSourceVersionId: legalSourceVersionId },
@@ -29,6 +35,8 @@ export class LegalSourceSnapshotLoader {
           locator: true,
           contentSha256: true,
           legalStatus: true,
+          legalEffectStatus: true,
+          legalStatusSourceRef: true,
         },
       }),
       this.prisma.legalRetrievalIndex.findFirst({
@@ -84,6 +92,10 @@ export class LegalSourceSnapshotLoader {
     }
     return {
       snapshot: {
+        documentGraph: await this.graph.export(
+          legalSourceVersionId,
+          await pinnedMaterializationId(this.prisma, run.id),
+        ),
         legalSourceVersionId,
         retrievalIndexValid: validIndex !== null,
         chunks: chunks.map((chunk) => ({

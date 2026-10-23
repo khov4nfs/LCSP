@@ -5,6 +5,7 @@ import pytest
 from conftest import use_model_routes
 
 from middleware import usage_metering
+from middleware.token_fallback import TokenFallbackMiddleware
 from middleware.usage_metering import (
     AgentRunState,
     UsageMeteringMiddleware,
@@ -98,8 +99,9 @@ def test_reasoning_thinking_and_unknown_numeric_become_details_without_model_bra
         "thinking_tokens": 4,
     }
     assert isinstance(data["duration_ms"], int)
-    # usage payload semantics unchanged
-    assert session.api_client.payloads[0].inputTokens == "5"
+    # The event keeps the provider total; the ledger separates its cache slice.
+    assert [p for p in session.api_client.payloads if p.attemptStatus == "COMPLETED"][0].inputTokensIncludingCache == "5"
+    assert [p for p in session.api_client.payloads if p.attemptStatus == "COMPLETED"][0].cachedInputTokens == "1"
 
 
 def test_unsafe_or_untrusted_values_are_dropped():
@@ -303,3 +305,106 @@ def test_terminal_exhaustion_is_one_logical_failure(monkeypatch):
     assert failures[0]["data"]["provider_attempts"] == 3
     assert failures[0]["data"]["error_type"] == "RuntimeError"
     assert not _completed(events)
+
+
+def test_successful_completion_retains_safe_route_and_credential_slot(monkeypatch):
+    from middleware.usage_metering import provider_attempt_context
+
+    with provider_attempt_context(route_ordinal=2, credential_slot_safe_id="CREDENTIAL_SLOT_04"):
+        events = _stepped([lambda _r: _message({"input_tokens": 4, "output_tokens": 1})], monkeypatch)
+    data = _completed(events)[0]["data"]
+    assert data["route_ordinal"] == 2
+    assert data["credential_slot_safe_id"] == "CREDENTIAL_SLOT_04"
+
+
+def test_failed_provider_attempts_share_identity_and_emit_only_safe_metadata(monkeypatch):
+    from middleware.usage_metering import provider_attempt_context
+
+    class ApiError(RuntimeError):
+        status_code = 503
+        body = {"error": {"code": "upstream_unavailable", "message": "PRIVATE_BODY"}}
+
+    def fail(_request):
+        raise ApiError("PRIVATE_EXCEPTION")
+
+    with provider_attempt_context(route_ordinal=2, credential_slot_safe_id="CREDENTIAL_SLOT_04"):
+        events = _stepped([fail], monkeypatch)
+    started = next(fields["data"] for event, fields in events if event == "MODEL_CALL_STARTED")
+    failed = next(fields["data"] for event, fields in events if event == "MODEL_CALL_FAILED")
+    attempt = next(fields["data"] for event, fields in events
+                   if event == "CUSTOM_PROGRESS" and fields["data"].get("activity_kind") == "MODEL_PROVIDER_ATTEMPT_FAILED")
+    assert started["invocation_id"] == failed["invocation_id"] == attempt["invocation_id"]
+    assert attempt["http_status"] == 503
+    assert attempt["provider_error_code"] == "upstream_unavailable"
+    assert attempt["route_ordinal"] == 2
+    assert attempt["credential_slot_safe_id"] == "CREDENTIAL_SLOT_04"
+    assert "PRIVATE_BODY" not in json.dumps(events, default=str)
+    assert "PRIVATE_EXCEPTION" not in json.dumps(events, default=str)
+
+
+def test_safe_credential_slot_id_is_ordinal_and_stable_within_pool():
+    def slot_id(index):
+        with TokenFallbackMiddleware._attempt_context(index):
+            return usage_metering._active_credential_slot_safe_id.get()
+
+    assert slot_id(3) == "CREDENTIAL_SLOT_04"
+    assert slot_id(3) == "CREDENTIAL_SLOT_04"
+    assert slot_id(4) == "CREDENTIAL_SLOT_05"
+
+
+def test_provider_attempt_survives_actual_stream_redaction(monkeypatch):
+    from orchestration.agent_stream import AgentStreamSession
+
+    events = []
+    session = AgentStreamSession(
+        assessment_id=None,
+        run_id="run-safe",
+        correlation_id="corr-safe",
+        boundary_name="RULE_SET_PREPARATION",
+        emit_payload=events.append,
+        boundary_type="RULE_SET_PREPARATION",
+        boundary_id="prep-safe",
+        preparation_run_id="prep-safe",
+    )
+    session.emit(
+        "CUSTOM_PROGRESS",
+        data={
+            "activity_kind": "MODEL_PROVIDER_ATTEMPT_FAILED",
+            "invocation_id": "invocation-safe",
+            "model_step_id": "step-safe",
+            "credential_slot_safe_id": "CREDENTIAL_SLOT_04",
+            "credential_value": "private-credential-value",
+            "api_key": "private-api-key",
+            "authorization": "Bearer private-token-value",
+            "raw_error_body": "private-provider-response",
+        },
+    )
+
+    data = events[0]["data"]
+    assert data["credential_slot_safe_id"] == "CREDENTIAL_SLOT_04"
+    assert data["invocation_id"] == "invocation-safe"
+    assert data["model_step_id"] == "step-safe"
+    assert data["credential_value"] == ""
+    assert data["api_key"] == ""
+    assert data["authorization"] == ""
+    assert data["raw_error_body"] == ""
+    assert "private-" not in json.dumps(events)
+
+
+def test_twelve_provider_attempts_are_distinguishable_with_one_logical_id(monkeypatch):
+    class ApiError(RuntimeError):
+        status_code = 503
+
+    def fail(_request):
+        raise ApiError("unpersisted provider text")
+
+    events = _stepped([fail for _ in range(12)], monkeypatch)
+    attempts = [fields["data"] for event, fields in events
+                if event == "CUSTOM_PROGRESS" and fields["data"].get("activity_kind") == "MODEL_PROVIDER_ATTEMPT_FAILED"]
+    terminal = next(fields["data"] for event, fields in events if event == "MODEL_CALL_FAILED")
+    assert [attempt["attempt_ordinal"] for attempt in attempts] == list(range(1, 13))
+    assert len({attempt["invocation_id"] for attempt in attempts}) == 1
+    assert all(attempt["http_status"] == 503 for attempt in attempts)
+    assert terminal["invocation_id"] == attempts[0]["invocation_id"]
+    assert terminal["provider_attempts"] == 12
+    assert "unpersisted provider text" not in json.dumps(events, default=str)

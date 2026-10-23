@@ -6,6 +6,8 @@ queued predecessors) stalled a run for 10+ minutes right after the document fan-
 
 from __future__ import annotations
 
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
+
 from pathlib import Path
 from typing import Any
 

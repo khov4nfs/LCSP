@@ -1,0 +1,69 @@
+"""Scripted semantic verdicts for mechanical tests, NOT source-entailment evidence.
+
+Real governed verifier/model-quality tests live in test_semantic_auditor and the retained-source evaluations.
+"""
+from datetime import datetime, timezone
+from rule_set_preparation.semantic_audit import audit_identity, digest, ROLE, ASSERTION_CHECKS, RELATION_CHECKS, completeness_input, relation_batches, relation_input, relation_source_nodes, RELATION_CONTRACTS
+from rule_set_preparation.source_completeness import source_material_input, source_role_input
+
+
+def mechanical_catalog(value):
+    sha = digest(value)
+    catalog = {"sourceInputFingerprint": digest(source_material_input(value, RELATION_CONTRACTS)), "verifierOperationId": f"{sha[:8]}-{sha[8:12]}-4{sha[13:16]}-8{sha[17:20]}-{sha[20:32]}", "facts": [], "noMaterialReason": "Scripted mechanical fixture only; no source-semantic judgment"}
+    catalog["nonMaterialSpans"] = [{"spanId": span["id"], "reason": "Mechanical fixture only"} for span in source_material_input(value, RELATION_CONTRACTS)["sourceSpans"]]
+    catalog["initialReading"] = {k: catalog[k] for k in ["facts", "noMaterialReason", "nonMaterialSpans", "verifierOperationId"]}
+    catalog["reviewedReading"] = dict(catalog["initialReading"])
+    raw = {k: catalog[k] for k in ["facts", "noMaterialReason", "nonMaterialSpans"]}
+    catalog["dependencyAudit"] = None
+    catalog["classification"] = {"readings": [], "verifierOperationId": catalog["verifierOperationId"],
+                                 "inputFingerprint": digest(source_role_input(source_material_input(value, RELATION_CONTRACTS), raw))}
+    return catalog
+
+
+class StructuralFixtureAuditor:
+    def __init__(self):
+        self.calls = []
+
+    def audit(self, value):
+        self.calls.append(value)
+        sha = digest(value)
+        catalog = mechanical_catalog(value)
+        related = [{"sourceNodeId": nid, "catalog": mechanical_catalog({**value, "sourceNodeId": nid})} for nid in relation_source_nodes(value)]
+        from rule_set_preparation.source_concepts import concept_input
+        material = concept_input(value, related)
+        concepts = {"inputFingerprint": digest(material), "verifierOperationId": catalog["verifierOperationId"], "definitions": [], "factUses": []} if any(r["kind"] == "DEFINED_BY" for r in value["relations"]) else None
+        return {**{k: value[k] for k in ["schemaRevision", "sourceRevision", "inventoryRevision", "sourceNodeId"]}, **audit_identity(value),
+                "verifierOperationId": f"{sha[:8]}-{sha[8:12]}-4{sha[13:16]}-8{sha[17:20]}-{sha[20:32]}", "verifierRole": ROLE,
+                "relationAudits": [{"relationIds": [r["relationId"] for r in batch], "inputFingerprint": digest(relation_input(value, batch, related, concepts)), "verifierOperationId": f"{sha[:8]}-{sha[8:12]}-4{sha[13:16]}-8{sha[17:20]}-{sha[20:32]}", "verdict": "SUPPORTED", "gaps": []} for batch in relation_batches(value)],
+                "sourceCatalog": catalog, "relatedSourceCatalogs": related, "sourceConceptAudit": concepts,
+                "completenessAudit": {"inputFingerprint": digest(completeness_input(value, catalog)), "verifierOperationId": f"{sha[:8]}-{sha[8:12]}-4{sha[13:16]}-8{sha[17:20]}-{sha[20:32]}", "verdict": "SUPPORTED", "gaps": [], "coverage": []},
+                "verdict": "SUPPORTED", "reportedVerdict": "SUPPORTED", "gaps": [], "assertions": [{"id": c["claimId"], "fingerprint": digest(c), "checks": {k: "SUPPORTED" for k in ASSERTION_CHECKS}, "verdict": "SUPPORTED", "gapCodes": []} for c in value["claims"]],
+                "relations": [{"id": r["relationId"], "targetScopeReading": "EXACT_SOURCE_TARGET", **({"sourceContentReading": "ADOPTED_PERFORMANCE"} if r["kind"] == "INCORPORATES" else {}), "fingerprint": digest(r), "checks": {k: "SUPPORTED" for k in RELATION_CHECKS}, "verdict": "SUPPORTED", "gapCodes": []} for r in value["relations"]], "auditedAt": "2026-10-18T00:00:00.000Z"}
+
+
+def semantic_arguments(claim):
+    return {"source_support": claim["sourceSupport"], "semantic_authority": claim["semanticAuthority"], "semantic_frame": claim["semanticFrame"], "assessability": claim["assessability"]}
+
+
+def mechanical_arguments(context, arguments):
+    """Explicit synthetic support for scheduler/tool-mechanics fixtures, not legal entailment evidence."""
+    from rule_set_preparation.semantic_audit import canonical_support, FRAME_FIELDS
+    args = dict(arguments)
+    if "source_support" in args:
+        return args
+    nodes = args.get("source_node_ids")
+    if nodes is None:
+        existing = context.draft["semanticClaims"].get(args.get("claim_id"))
+        nodes = existing["sourceNodeIds"] if existing else [context.inventory.frontier.active["sourceNodeId"]]
+    kind = args["claim_type"]
+    supports = [{"nodeId": nid, "startOffset": 0, "endOffset": len(context.source_graph.nodes[nid]["content"].encode("utf-16-le")) // 2} for nid in nodes if nid in context.source_graph.nodes]
+    args.update(source_support=canonical_support(context.source_graph, nodes, supports) if nodes and supports else [],
+                semantic_authority="DEFINITION" if kind == "DEFINITION" else "LEGAL_NORMATIVE" if kind in {"DUTY", "PROHIBITION", "PERMISSION", "SCOPE", "CONDITION", "QUALIFIER", "EXCEPTION", "TEMPORAL_RULE", "TRANSITION_RULE"} else "CONTEXT",
+                assessability="REPOSITORY_VERIFIABLE" if kind in {"DUTY", "PROHIBITION", "PERMISSION"} else "NON_ASSESSABLE", semantic_frame={k: None for k in FRAME_FIELDS})
+    return args
+
+
+class MechanicalTools(dict):
+    def __init__(self, context, tools):
+        super().__init__((t.name, t) for t in tools)
+        self.context = context

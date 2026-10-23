@@ -127,16 +127,21 @@ const customerHttp = (method, route, token, body) =>
 
 try {
   // ---- compliance rule set P1 (legalSource A) through the real COMPLIANCE_RULE_SET path ---------------------------------
-  const seedLegalSourceVersion = (name, variant, status) =>
-    seedLegalSource({
+  const seedLegalSourceVersion = (name, variant, status) => {
+    const sourceBytes = Buffer.from(LOCATORS.map((locator) => contentFor(locator, variant)).join("\n") + "\n", "utf8");
+    const lines = sourceBytes.toString("utf8").split("\n");
+    return seedLegalSource({
       name,
       status,
       documentId: DOC,
-      chunks: LOCATORS.map((locator) => {
-        const content = contentFor(locator, variant);
+      sourceBytes,
+      sourceSha256: contentHash(sourceBytes),
+      chunks: LOCATORS.map((locator, index) => {
+        const content = lines[index];
         return { locator, content, contentSha256: contentHash(content) };
       }),
     });
+  };
   const legalSourceA = await seedLegalSourceVersion("assessment-a", "a", "ACTIVE");
   const legalSourceB = await seedLegalSourceVersion("assessment-b", "b", "ACTIVE");
   const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-vertical-"));
@@ -315,7 +320,7 @@ try {
   eq(first.captured.rejected.code, "ASSESSMENT_DECISION_VALIDATION_FAILED");
   for (const failure of [
     "UNKNOWN_LEGAL_CONTEXT:LR-NOT-LINKED",
-    "CRITERIA_INCOMPLETE:C-1",
+    ...first.captured.rule_set.assessmentRules.find((r) => r.assessmentRuleId === "ER-RET").criterionIds.map((id) => `CRITERIA_INCOMPLETE:${id}`),
     "UNKNOWN_CRITERION:C-9",
   ]) {
     ok(
@@ -329,6 +334,7 @@ try {
       first.captured.decision_ret.decisionRevision,
     ],
     [true, 1],
+    JSON.stringify(first.captured.decision_ret),
   );
 
   // every pinned rule is covered by exactly one accepted decision
@@ -1059,7 +1065,7 @@ try {
       expectedCaseRevision: deletionCaseRevision,
       idempotencyKey: "release-deletion-open-request",
       assessmentRuleId: "ER-RET",
-      criterionIds: ["C-1"],
+      criterionIds: first.captured.rule_set.assessmentRules.find((r) => r.assessmentRuleId === "ER-RET").criterionIds,
       question: "Who owns the external operational retention process?",
       unresolvedFact: "External organizational ownership",
       decisionImpact: ["Ownership determines the operational duty."],

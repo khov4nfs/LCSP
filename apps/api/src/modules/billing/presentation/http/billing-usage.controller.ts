@@ -35,7 +35,10 @@ export class BillingUsageController {
   ) {
     try {
       const userId = await this.queryBus.execute(
-        new ResolveBillingAssessmentOwnerQuery(body.assessmentId),
+        new ResolveBillingAssessmentOwnerQuery(
+          body.assessmentId,
+          body.preparationRunId,
+        ),
       );
       const result = await this.commandBus.execute(
         new RecordLlmUsageCommand(toLlmUsageRecordInput(body, userId)),

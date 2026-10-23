@@ -9,6 +9,7 @@ import {
   type AgentExecutionState,
 } from "@lcsp/contracts/assessment";
 import type { MessageKey } from "@lcsp/i18n";
+import { SEMANTIC_AUDIT } from "@lcsp/contracts/compliance-rule-set";
 
 const ACTIVITY_KEYS = {
   started: "pages.complianceRuleSets.activity.started",
@@ -19,6 +20,7 @@ const ACTIVITY_KEYS = {
   inspectingSource: "pages.complianceRuleSets.activity.inspectingSource",
   readerCompleted: "pages.complianceRuleSets.activity.readerCompleted",
   modelTurn: "pages.complianceRuleSets.activity.modelTurn",
+  semanticAudit: "pages.complianceRuleSets.activity.semanticAudit",
   synthesizing: "pages.complianceRuleSets.activity.synthesizing",
   validating: "pages.complianceRuleSets.activity.validating",
   validationPassed: "pages.complianceRuleSets.activity.validationPassed",
@@ -155,7 +157,13 @@ export function projectPreparationActivity(
       event.eventType === EVENT_TYPES.modelCallStarted ||
       event.eventType === EVENT_TYPES.modelCallCompleted
     ) {
-      const next = activity(event, ACTIVITY_KEYS.modelTurn, status);
+      const next = activity(
+        event,
+        data?.agent_role === SEMANTIC_AUDIT.role
+          ? ACTIVITY_KEYS.semanticAudit
+          : ACTIVITY_KEYS.modelTurn,
+        status,
+      );
       mergeActivity(drafts, byId, existingId, next);
       continue;
     }
@@ -215,6 +223,30 @@ export function preparationTokenUsage(
   return total;
 }
 
+/** Display only counters emitted by the selected run; absent telemetry is not zero progress. */
+export function preparationProgress(events: AssessmentAgentStreamEvent[]) {
+  for (const event of [...events].sort((a, b) => b.sequence - a.sequence)) {
+    if (
+      event.eventType !== EVENT_TYPES.customProgress ||
+      event.preparationRunId === null
+    )
+      continue;
+    const data = record(event.data);
+    const progress = record(record(data?.review_frontier)?.progress);
+    const reviewed = numberOrNull(data?.source_nodes_reviewed);
+    const total = numberOrNull(progress?.total);
+    if (reviewed === null || total === null) continue;
+    return {
+      reviewed,
+      total,
+      claims: numberOrNull(data?.claim_count),
+      requirements: numberOrNull(data?.requirement_count),
+      rules: numberOrNull(data?.assessment_rule_count),
+    };
+  }
+  return null;
+}
+
 function toolLabel(
   tool: string | null,
   eventType: string,
@@ -270,7 +302,7 @@ function activity(
     status,
     event,
     details: {
-      agent: event.agentName,
+      agent: stringValue(record(event.data)?.agent_role) ?? event.agentName,
       subagent: event.subagentName,
       provider: stringValue(record(event.data)?.provider),
       model: stringValue(record(event.data)?.model),

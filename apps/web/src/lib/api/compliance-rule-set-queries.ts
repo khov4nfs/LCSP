@@ -2,9 +2,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   complianceRuleSetHistorySchema,
+  complianceRuleSetResultSchema,
   ruleSetPreparationRunSchema,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   type ComplianceRuleSetHistory,
+  type RuleSetPreparationAdminRequest,
 } from "@lcsp/contracts/compliance-rule-set";
 import { apiValidated } from "./api-request";
 const historyKey = ["admin", "compliance-rule-sets"];
@@ -24,14 +26,28 @@ export function useComplianceRuleSetHistoryQuery() {
     refetchInterval: 5000,
   });
 }
+export function useComplianceRuleSetResultQuery(ruleSetVersionId: string) {
+  return useQuery({
+    queryKey: [...historyKey, "result", ruleSetVersionId],
+    queryFn: () =>
+      apiValidated(
+        `/api/admin/compliance-rule-sets/${encodeURIComponent(ruleSetVersionId)}`,
+        complianceRuleSetResultSchema,
+      ),
+  });
+}
 export function usePrepareRuleSetMutation() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: () =>
+    mutationFn: (request: RuleSetPreparationAdminRequest) =>
       apiValidated(
         "/api/admin/compliance-rule-sets/prepare",
         ruleSetPreparationRunSchema,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        },
       ),
     onSuccess: (run) => {
       client.setQueryData<ComplianceRuleSetHistory>(historyKey, (history) =>
@@ -41,6 +57,9 @@ export function usePrepareRuleSetMutation() {
               preparation: {
                 ...history.preparation,
                 canStart: false,
+                canReplace: false,
+                activeRuleSetVersionId:
+                  history.preparation.activeRuleSetVersionId,
                 refusalReason:
                   RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
                 currentRun: run,

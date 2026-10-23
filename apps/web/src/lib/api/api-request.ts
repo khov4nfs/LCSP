@@ -23,6 +23,19 @@ export type ApiRequestResult = {
   requiredAction?: RequiredAction;
 };
 
+type ApiProblem =
+  Exclude<AppResult, { ok: true }> extends { problem: infer P } ? P : never;
+
+export class ApiRequestError extends Error {
+  constructor(
+    readonly problemCode: string,
+    readonly problem?: ApiProblem,
+  ) {
+    super(problemCode);
+    this.name = "ApiRequestError";
+  }
+}
+
 export async function apiRequest(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -58,7 +71,7 @@ export async function apiRequest(
   return {
     result,
     payload,
-    ok: response.ok && result?.ok === true,
+    ok: response.status === 204 || (response.ok && result?.ok === true),
     status: response.status,
     problemCode,
     requiredAction,
@@ -79,14 +92,36 @@ export async function apiValidated<T>(
   init?: RequestInit,
 ): Promise<T> {
   const response = await apiRequest(input, init);
-  if (!response.ok)
-    throw new Error(
+  if (!response.ok) {
+    const problem =
+      response.result && !response.result.ok
+        ? response.result.problem
+        : undefined;
+    throw new ApiRequestError(
       response.problemCode ?? SHARED_ERROR_CODES.upstreamUnavailable,
+      problem,
     );
+  }
   const parsed = schema.safeParse(response.payload);
   if (!parsed.success)
-    throw new Error(SHARED_ERROR_CODES.upstreamResponseInvalid);
+    throw new ApiRequestError(SHARED_ERROR_CODES.upstreamResponseInvalid);
   return parsed.data;
+}
+
+export async function apiNoContent(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<void> {
+  const response = await apiRequest(input, init);
+  if (response.ok) return;
+  const problem =
+    response.result && !response.result.ok
+      ? response.result.problem
+      : undefined;
+  throw new ApiRequestError(
+    response.problemCode ?? SHARED_ERROR_CODES.upstreamUnavailable,
+    problem,
+  );
 }
 
 function toApiResult(payload: unknown): AppResult | null {

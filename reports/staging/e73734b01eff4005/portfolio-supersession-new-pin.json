@@ -1,9 +1,0 @@
-{
-  "scope": "EXACT_IMAGE_UI_CREATED_NEW_ASSESSMENT_PORTFOLIO_PIN",
-  "status": "PASS",
-  "runId": "e73734b01eff4005",
-  "assessmentId": "34739558-2460-4312-8f17-c78d103e1112",
-  "createdThrough": "PLAYWRIGHT_CREATE_ASSESSMENT_UI",
-  "actor": "other",
-  "newPortfolioVersionId": "56c73331-0cba-47f0-9db7-02bf474ad854"
-}

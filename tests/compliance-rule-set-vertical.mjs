@@ -10,7 +10,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import {
-  COMPLIANCE_RULE_SET_ERROR_CODES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
 
@@ -62,16 +61,21 @@ const { q, base, post, get, stop, seedLegalSource, activateLegalSource } = await
 
 try {
   // ---- seed: two pinned corpora (B changes art-5::cl-1) with valid retrieval indexes -------------
-  const seed = (name, variant, status) =>
-    seedLegalSource({
+  const seed = (name, variant, status) => {
+    const sourceBytes = Buffer.from(LOCATORS.map((locator) => contentFor(locator, variant)).join("\n") + "\n", "utf8");
+    const lines = sourceBytes.toString("utf8").split("\n");
+    return seedLegalSource({
       name,
       status,
       documentId: DOC,
-      chunks: LOCATORS.map((locator) => {
-        const content = contentFor(locator, variant);
+      sourceBytes,
+      sourceSha256: contentHash(sourceBytes),
+      chunks: LOCATORS.map((locator, index) => {
+        const content = lines[index];
         return { locator, content, contentSha256: contentHash(content) };
       }),
     });
+  };
   // Every Legal Source is ACTIVE (ACTIVE) when its activation event arrives; each scenario below
   // that needs its own automatic preparation gets its own source, since one source has one run.
   let sourceCounter = 0;
@@ -162,6 +166,34 @@ try {
     executionState: "SUCCEEDED",
     failureReason: null,
   });
+  const frozen = (
+    await q(
+      `SELECT fingerprint, graph FROM "RuleSetPreparationClaimInventory" WHERE "preparationRunId"=$1`,
+      [runA.preparationRunId],
+    )
+  ).rows;
+  eq(
+    frozen.length,
+    1,
+    "the journey freezes one inventory before typed authoring",
+  );
+  ok(
+    frozen[0].fingerprint && frozen[0].graph.semanticAudits.length > 0,
+    "frozen inventory retains the real audited review receipts",
+  );
+  ok(
+    first.scriptedCalls.some(
+      (step) =>
+        step.tool === "author_legal_requirement" &&
+        step.result?.outcome === "PASSED",
+    ) &&
+      first.scriptedCalls.some(
+        (step) =>
+          step.tool === "author_assessment_rule" &&
+          step.result?.outcome === "PASSED",
+      ),
+    "both typed authoring tools execute successfully",
+  );
   const counts = (
     await q(
       `SELECT (SELECT count(*)::int FROM "LegalRequirement" WHERE "ruleSetVersionId"=$1) AS rules,
@@ -251,43 +283,50 @@ try {
     5,
   );
 
-  // 8. invalid packets cannot reach submission; an exhausted offline model is a provider failure.
-  // The failed dry-run and refused submission preserve the ACTIVE rule set and write no rows.
-  const stale = await runPython(
-    (await startRun(await freshSource("b"))).preparationRunId,
-    "stale",
-  );
-  eq(stale.state, "FAILED");
-  eq(stale.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.MODEL_ERROR);
+  // 8. corrupt source support and unknown typed parents fail closed and preserve ACTIVE.
+  const staleRun = await startRun(await freshSource("b"));
+  const stale = await runPython(staleRun.preparationRunId, "stale");
+  eq(stale.state, AGENT_EXECUTION_STATES.FAILED);
+  eq(stale.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.RUNTIME_ERROR);
   eq(stale.submission, null);
   ok(
-    stale.trace.some(
+    stale.scriptedCalls.some(
       (step) =>
-        step.tool === "validate" && step.failureCodes?.STALE_SOURCE_HASH,
+        step.tool === "register_semantic_claim" &&
+        step.result?.gaps?.SOURCE_SUPPORT_INVALID,
     ),
-    "stale hash rejected",
+    "stale support hash rejected before freeze",
   );
-  ok(
-    stale.trace.some(
-      (step) =>
-        step.tool === "submit" && step.outcome === "VALIDATION_REQUIRED",
-    ),
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "ComplianceRuleSetVersion" WHERE "preparationRunId"=$1`,
+        [staleRun.preparationRunId],
+      )
+    ).rows[0].n,
+    0,
+    "stale source support never persists a Rule Set",
   );
   const orphanRun = await startRun(await freshSource("b"));
   const orphan = await runPython(orphanRun.preparationRunId, "orphan");
   eq(orphan.state, AGENT_EXECUTION_STATES.FAILED);
   eq(orphan.submission, null);
-  eq(orphan.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.MODEL_ERROR);
-  const orphanFeedback = orphan.trace.find(
-    (step) => step.tool === "validate",
-  )?.error;
+  eq(orphan.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.RUNTIME_ERROR);
   ok(
-    orphanFeedback?.includes(
-      COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
-    ) &&
-      orphanFeedback.includes("400") &&
-      orphanFeedback.includes("packet.legalRequirements.0.coverage.state"),
-    "orphan rejected at the shared contract with field-level 400 feedback",
+    orphan.scriptedCalls.some(
+      (step) =>
+        step.tool === "author_assessment_rule" &&
+        step.result?.gaps?.ORPHAN_ASSESSMENT_RULE,
+    ),
+    "unknown Requirement parent rejected by typed authoring",
+  );
+  ok(
+    orphan.scriptedCalls.some(
+      (step) =>
+        step.tool === "submit_compliance_rule_set" &&
+        step.result?.outcome !== "PASSED",
+    ),
+    "unvalidated draft cannot submit",
   );
   eq(
     (

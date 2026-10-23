@@ -10,6 +10,8 @@ import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.command.js";
+import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
+import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 
 /**
  * Claims a run for exactly one worker: QUEUED -> RUNNING. A duplicated or redelivered command
@@ -19,7 +21,10 @@ import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.com
  */
 @CommandHandler(ClaimRuleSetPreparationCommand)
 export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRuleSetPreparationCommand> {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly graph: LegalDocumentGraphService,
+  ) {}
 
   async execute(
     input: ClaimRuleSetPreparationCommand,
@@ -95,6 +100,8 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
                 content: true,
                 contentSha256: true,
                 legalStatus: true,
+                legalEffectStatus: true,
+                legalStatusSourceRef: true,
                 hierarchy: true,
               },
             },
@@ -102,7 +109,12 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         },
       },
     });
+    // A taken-over run resumes on the graph its review frontier pinned, even across a parser revision bump.
+    const pinned = await pinnedMaterializationId(this.prisma, run.id);
     return {
+      documentGraph: pinned
+        ? (await this.graph.export(legalSource.id, pinned))!
+        : await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
       executionState: state,
       legalSourceVersionId: legalSource.id,
@@ -112,6 +124,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         chunks: document.chunks.map(({ id, ...chunk }) => ({
           chunkId: id,
           ...chunk,
+          legalEffectStatus: chunk.legalEffectStatus,
         })),
       })),
     };

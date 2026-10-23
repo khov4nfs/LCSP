@@ -9,12 +9,16 @@ export type RuleSetPreparationRow =
 
 export type RuleSetPreparationListProps = {
   preparations: RuleSetPreparationRow[];
+  availability: RuleSetPreparationAvailability;
+  ruleSets: ComplianceRuleSetRow[];
 };
 export type RuleSetPreparationActionProps = {
   availability: RuleSetPreparationAvailability;
+  replaceActive?: boolean;
 };
 export type ComplianceRuleSetActiveCardProps = {
   ruleSet: ComplianceRuleSetRow | undefined;
+  availability: RuleSetPreparationAvailability;
 };
 export type ComplianceRuleSetHistoryTableProps = {
   ruleSets: ComplianceRuleSetRow[];

@@ -25,6 +25,10 @@ import {
   type OpenAssessmentHumanRequest,
   reportUnresolvableHumanFactRequestSchema,
   type ReportUnresolvableHumanFactRequest,
+  pinnedLegalSourceSearchRequestSchema,
+  pinnedLegalSourceTextRequestSchema,
+  type PinnedLegalSourceSearchRequest,
+  type PinnedLegalSourceTextRequest,
 } from "@lcsp/contracts/assessment-domain";
 import {
   Body,
@@ -35,6 +39,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -57,7 +62,9 @@ import { RequestAssessmentFinalizationCommand } from "../../application/commands
 import { StartRuleInvestigationCommand } from "../../application/commands/start-rule-investigation/start-rule-investigation.command.js";
 import { SubmitRuleDecisionCommand } from "../../application/commands/submit-rule-decision/submit-rule-decision.command.js";
 import { SubmitAssessmentFinalReportCommand } from "../../application/commands/submit-assessment-final-report/submit-assessment-final-report.command.js";
+import { GetPinnedLegalSourceTextQuery } from "../../application/queries/get-pinned-legal-source-text/get-pinned-legal-source-text.query.js";
 import { GetPinnedRuleSetQuery } from "../../application/queries/get-pinned-rule-set/get-pinned-rule-set.query.js";
+import { SearchPinnedLegalSourceQuery } from "../../application/queries/search-pinned-legal-source/search-pinned-legal-source.query.js";
 import { GetRootContextQuery } from "../../application/queries/get-root-context/get-root-context.query.js";
 import { GetRootControlQuery } from "../../application/queries/get-root-control/get-root-control.query.js";
 import {
@@ -220,6 +227,59 @@ export class AssessmentDomainController {
     return resultEnvelope(
       await this.queryBus.execute(
         new GetPinnedRuleSetQuery(assessmentId, lease, this.correlation(req)),
+      ),
+    );
+  }
+
+  /** One provision of the Legal Source Version the pinned rule set was prepared from. */
+  @Get("legal-source/text")
+  @UseGuards(AssessmentLeaseGuard)
+  async legalSourceText(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Query(bodyPipe(pinnedLegalSourceTextRequestSchema))
+    query: PinnedLegalSourceTextRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetPinnedLegalSourceTextQuery(
+          assessmentId,
+          lease,
+          query.documentId,
+          query.locator,
+          this.correlation(req),
+        ),
+      ),
+    );
+  }
+
+  /** Keyword search over that same pinned Legal Source Version. */
+  @Get("legal-source/search")
+  @UseGuards(AssessmentLeaseGuard)
+  async legalSourceSearch(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Query(bodyPipe(pinnedLegalSourceSearchRequestSchema))
+    query: PinnedLegalSourceSearchRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new SearchPinnedLegalSourceQuery(
+          assessmentId,
+          lease,
+          query.query,
+          this.correlation(req),
+        ),
       ),
     );
   }

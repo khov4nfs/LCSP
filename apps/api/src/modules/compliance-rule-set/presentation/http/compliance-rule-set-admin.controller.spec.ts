@@ -10,7 +10,10 @@ import {
 } from "@jest/globals";
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
-import { COMPLIANCE_RULE_SET_ERROR_CODES } from "@lcsp/contracts/compliance-rule-set";
+import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
+  RULE_SET_REACTIVATION_REASONS,
+} from "@lcsp/contracts/compliance-rule-set";
 import type { INestApplication } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
@@ -24,6 +27,7 @@ import { CancelRuleSetPreparationCommand } from "../../application/commands/canc
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
+import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 
 describe("Admin preparation HTTP authorization and command boundary", () => {
   let app: INestApplication<Server>;
@@ -111,6 +115,59 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
       .expect(401);
     expect(execute).not.toHaveBeenCalled();
   });
+
+  const target = "30f83523-f8a4-40d9-ab8f-3c4e878d8c60";
+  const reactivation = {
+    expectedActiveRuleSetVersionId: "43eaa343-9fbe-40ef-a6a9-935249bbcb1e",
+    idempotencyKey: "test-reactivation",
+    reason: RULE_SET_REACTIVATION_REASONS.SEMANTIC_AUTHORITY_CONTAINMENT,
+  };
+  it("ADMIN dispatches explicit reactivation with authenticated actor", async () => {
+    await supertest(app.getHttpServer())
+      .post(`/admin/compliance-rule-sets/${target}/reactivate`)
+      .set("Authorization", "Bearer admin")
+      .send(reactivation)
+      .expect(200);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0][0]).toBeInstanceOf(
+      ReactivateComplianceRuleSetCommand,
+    );
+    expect(execute.mock.calls[0][0]).toMatchObject({
+      targetRuleSetVersionId: target,
+      actorId: "owner-admin",
+      request: reactivation,
+    });
+  });
+  it("customer cannot reactivate", async () => {
+    await supertest(app.getHttpServer())
+      .post(`/admin/compliance-rule-sets/${target}/reactivate`)
+      .set("Authorization", "Bearer customer")
+      .send(reactivation)
+      .expect(403);
+    expect(execute).not.toHaveBeenCalled();
+  });
+  it("missing actor cannot reactivate", async () => {
+    await supertest(app.getHttpServer())
+      .post(`/admin/compliance-rule-sets/${target}/reactivate`)
+      .send(reactivation)
+      .expect(401);
+    expect(execute).not.toHaveBeenCalled();
+  });
+  it.each([
+    { ...reactivation, expectedActiveRuleSetVersionId: "bad" },
+    { ...reactivation, status: "ACTIVE" },
+    { ...reactivation, actorId: "attacker" },
+  ])(
+    "rejects malformed or generic status/actor mutation input %#",
+    async (body) => {
+      await supertest(app.getHttpServer())
+        .post(`/admin/compliance-rule-sets/${target}/reactivate`)
+        .set("Authorization", "Bearer admin")
+        .send(body)
+        .expect(400);
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
   it("rejects caller-selected source, identity or generated content", async () => {
     const response = await supertest(app.getHttpServer())
       .post("/admin/compliance-rule-sets/prepare")

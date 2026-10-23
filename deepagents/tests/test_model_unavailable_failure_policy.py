@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+from langchain_anthropic.chat_models import AnthropicModelNotFoundError
 
 from middleware.failure_policy import (
     is_provider_capacity_failure,
@@ -65,6 +66,16 @@ def _malformed_request() -> _ProviderError:
     return _ProviderError(f"Error code: 400 - {body}", 400, body)
 
 
+def _anthropic_model_not_found() -> AnthropicModelNotFoundError:
+    request = httpx.Request("POST", "https://provider.invalid/messages")
+    response = httpx.Response(404, request=request)
+    return AnthropicModelNotFoundError(
+        "synthetic not-found response",
+        response=response,
+        body={"type": "error", "error": {"type": "not_found_error"}},
+    )
+
+
 # -- classification --------------------------------------------------------
 
 
@@ -80,6 +91,16 @@ def _malformed_request() -> _ProviderError:
 )
 def test_every_model_route_outage_code_is_recognized(code: str) -> None:
     assert is_provider_model_unavailable(_model_unavailable(code=code))
+
+
+def test_typed_anthropic_model_not_found_allows_provider_fallback() -> None:
+    error = _anthropic_model_not_found()
+
+    assert is_provider_model_unavailable(error)
+    assert not is_terminal_task_error(error)
+    assert provider_fallback_failure(error)
+    assert provider_circuit_breaker_failure(error)
+    assert not retry_model_error(error)
 
 
 def test_recognized_from_the_message_when_no_code_is_supplied() -> None:
