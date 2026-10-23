@@ -175,7 +175,8 @@ def audit_input(source, graph, node_id, revision):
     def within(n, root):
         return n == root or bool(n in nodes and root in nodes and nodes[n]["structuralPath"].startswith(nodes[root]["structuralPath"] + "/"))
     reference_fields = ["referenceId", "fromNodeId", "toNodeId", "text", "charStart", "charEnd", "resolutionState", "candidateNodeIds"]
-    references = sorted([{k: r[k] for k in reference_fields} for r in source.graph["references"] if any(within(r["fromNodeId"], root) for root in selected)], key=lambda r: r["referenceId"])
+    # A parent review owns its own text; descendant references belong to those separate review units.
+    references = sorted([{k: r[k] for k in reference_fields} for r in source.graph["references"] if r["fromNodeId"] in selected], key=lambda r: r["referenceId"])
     for ref in references:
         if ref["toNodeId"]:
             selected.update(n for n in nodes if within(n, ref["toNodeId"]))

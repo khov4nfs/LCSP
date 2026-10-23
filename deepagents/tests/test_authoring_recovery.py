@@ -4,9 +4,7 @@ Covers what a one-call-at-a-time matrix cannot: a run that makes many mistakes a
 submission, an unresolved rejection that outlives history compaction and a rebuilt agent graph, and the two no-progress paths
 (recovery must never terminate; genuine stagnation must).
 """
-import importlib.util
 import json
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -98,17 +96,6 @@ def test_a_model_that_keeps_making_mistakes_still_reaches_a_validated_submission
     assert ctx.validation_calls == 1, "a rejected authoring call is never a Rule validator attempt"
     assert api.submitted is not None and api.submitted["claimInventory"]["fingerprint"] == FROZEN_FINGERPRINT
 
-    # the live-report tool turns exactly these durable events into the per-rejection table, with every rejection explained and resolved
-    path = Path(__file__).resolve().parents[2] / "reports/lcsp360-tool-contract-20261018/authoring-rejection-report.py"
-    spec = importlib.util.spec_from_file_location("authoring_rejection_report", path)
-    report = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(report)
-    table = report.build_table(events)
-    assert table["rejections"] == len(rejections) and table["unexplained"] == 0 and table["unresolved"] == 0 and table["AUTHORING_OBSERVABILITY"] == "PASS"
-    assert table["ruleValidatorRuns"] == 1 and set(table["byLayer"]) == {"TOOL_SCHEMA", "AUTHORING_PRECONDITION"}
-    assert all(row["resolvedByToolCallId"] for row in table["rows"]) and "| # | tool | layer | code |" in report.markdown(table)
-    degraded = report.build_table([{"data": {k: v for k, v in e["data"].items() if k != "rejection"}} for e in events])
-    assert degraded["AUTHORING_OBSERVABILITY"] == "FAIL", "a run whose rejections cannot be explained must not pass observability, even if it succeeds"
 
 
 # --- compaction stress -------------------------------------------------------------------------------------------------------

@@ -1,7 +1,5 @@
-"""Envelope sanitization and bounds (pure), and the guarantee that the published tool-contract document matches the running tools."""
-import importlib.util
+"""Envelope sanitization, bounds and the actual authoring tool argument contracts."""
 import json
-from pathlib import Path
 
 from jsonschema import Draft7Validator
 
@@ -10,7 +8,6 @@ from rule_set_preparation.authoring_rejections import (
 )
 
 CLAIM = "a" * 64
-REPO = Path(__file__).resolve().parents[2]
 
 
 def test_ids_survive_free_text_is_reduced_and_lists_are_capped():
@@ -78,17 +75,15 @@ def test_the_draft_fingerprint_moves_only_when_a_candidate_changes():
     assert draft_fingerprint({"legalRequirements": {"R": {"title": "t2"}}, "assessmentRules": {}}) != first
 
 
-# --- the published contract is the running contract -------------------------------------------------------------------------------------
-def test_authoring_tool_contract_document_matches_runtime():
-    path = REPO / "reports/lcsp360-source-semantic-fidelity-20261018"
-    spec = importlib.util.spec_from_file_location("build_tool_contract", path / "build-tool-contract.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    live = module.build()
-    published = json.loads((path / "AUTHORING_TOOL_CONTRACT.json").read_text())
-    assert json.loads(json.dumps(live, sort_keys=True)) == published, "regenerate with build-tool-contract.py: the tools changed but the contract document did not"
-    names = {tool["name"] for tool in published["tools"]}
-    assert {"author_legal_requirement", "author_assessment_rule", "remove_rule_candidate", "get_rule_authoring_status"} <= names
-    for tool in published["tools"]:
-        if tool.get("kind") == "MUTATION":
-            assert tool["additionalProperties"] is False and tool["idempotencyKey"] and tool["mutation"], tool["name"]
+def test_authoring_tool_contracts_reject_unknown_arguments_and_bind_identity():
+    from retained_rule_authoring_harness import restore
+    from semantic_pipeline_harness import authoring_fixture
+
+    _, _, tools, _ = restore(authoring_fixture())
+    for name in ["author_legal_requirement", "author_assessment_rule", "remove_rule_candidate", "get_rule_authoring_status"]:
+        tool = tools[name]
+        schema = tool.args_schema if isinstance(tool.args_schema, dict) else tool.args_schema.model_json_schema()
+        Draft7Validator.check_schema(schema)
+        assert schema["additionalProperties"] is False, name
+        assert not {"preparation_run_id", "idempotency_key", "inventory_revision"} & schema["properties"].keys()
+        assert list(Draft7Validator(schema).iter_errors({"unknown_argument": True})), name

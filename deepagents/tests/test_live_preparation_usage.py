@@ -92,26 +92,26 @@ def test_unanswered_attempt_does_not_promote_response_subtotals_to_run_totals(tm
         assert summary[key] is None, key
 
 
-def test_recorded_24_attempt_interruption_recovery_keeps_unknown_totals(tmp_path):
-    import hashlib
-    import shutil
-    import sqlite3
-
-    evidence = Path(__file__).parents[2] / "reports/lcsp360-final-release-20261021/final-acceptance/authorized-real-model-20261023"
-    original = evidence / "original-journal-snapshot.sqlite3"
-    before = hashlib.sha256(original.read_bytes()).hexdigest()
+def test_24_attempt_interruption_recovery_keeps_unknown_totals(tmp_path):
     out = str(tmp_path / "recovered.json")
-    shutil.copyfile(original, out + ".sqlite3")
-    with sqlite3.connect(f"file:{original}?mode=ro", uri=True) as db:
-        run_id = db.execute("SELECT run_id FROM inference_budgets").fetchone()[0]
+    run_id = "interrupted-offline-regression"
+    state = LiveUsage(run_id, out)
+    for index in range(24):
+        invocation = f"attempt-{index}"
+        if index < 23:
+            state.record(response(), MODEL, invocation)
+        usage_recovery.record_usage_evidence(state.store, invocation, {
+            "runId": run_id, "event": "MODEL_ATTEMPT", "invocationId": invocation,
+            "attemptStatus": "COMPLETED" if index < 23 else "STARTED", "provider": "APX", "model": "usage-model",
+            "agentRole": "rule-set-preparation",
+        })
     first = recover_usage(out, run_id)
     again = recover_usage(out, run_id)
     assert (first["physicalAttempts"], first["successfulResponses"], first["unresolvedAttempts"]) == (24, 23, 1)
-    assert first["knownInputTokensIncludingCache"] == 391223
-    assert first["knownOutputTokens"] == 3272
+    assert first["knownInputTokensIncludingCache"] == 23 * 10
+    assert first["knownOutputTokens"] == 23 * 3
     assert first["inputTokensIncludingCache"] is first["outputTokens"] is None
     assert first["invocations"] == again["invocations"] and first["admission"] == again["admission"]
-    assert hashlib.sha256(original.read_bytes()).hexdigest() == before
 
 
 def test_real_producer_and_independent_auditor_share_the_journal(tmp_path, monkeypatch):

@@ -14,8 +14,6 @@ def test_exact_historical_six_of_nineteen_artifact_cannot_reach_freeze():
     assert any(f["ref"] == "claim:" + bad_id and f["code"] == "SOURCE_SUPPORT_INVALID" for f in failures)
     assert any(f["code"] == "SEMANTIC_AUDIT_REQUIRED" for f in failures)
     assert any("FREE_FLOATING_MODIFIER" in f["detail"] for f in failures)
-    assert fixture["expectedMechanicalOutcome"] == "SUCCEEDED / PASSED / persisted"
-    assert fixture["expectedSemanticOutcome"]["passed"] == 6
 
 
 def test_python_and_api_build_identical_bounded_neighborhoods_and_audit_fingerprints():

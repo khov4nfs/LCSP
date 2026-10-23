@@ -103,7 +103,8 @@ export function semanticAuditInput(
     );
   const references = sorted(
     source.references
-      .filter((r) => [...selected].some((root) => within(r.fromNodeId, root)))
+      // Descendant references are audited with their own review units, not their parent's local text.
+      .filter((r) => selected.has(r.fromNodeId))
       .map((r) => ({
         referenceId: r.referenceId,
         fromNodeId: r.fromNodeId,
