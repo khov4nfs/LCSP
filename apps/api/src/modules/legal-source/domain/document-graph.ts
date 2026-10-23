@@ -573,9 +573,7 @@ export function buildLegalDocumentGraph(
       const owner =
         legacy?.ownerByChunk.get(chunk.id) ??
         positional[0] ??
-        candidates.find(
-          (n) => ![N.POINT, N.ITEM].includes(n.nodeType as typeof N.POINT),
-        ) ??
+        candidates[0] ??
         drafts[0];
       chunkMappings.push({
         chunkId: chunk.id,
