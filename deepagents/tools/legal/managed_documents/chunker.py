@@ -100,9 +100,11 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
     chapter = levels.get("chapter")
     article = levels["article"]
     clause = levels["clause"]
+    point = levels.get("point")
     chapter_re = _compile(chapter["pattern"]) if chapter else None
     article_re = _compile(article["pattern"])
     clause_re = _compile(clause["pattern"])
+    point_re = _compile(point["pattern"]) if point else None
     article_prefix, clause_prefix = article["locatorPrefix"], clause["locatorPrefix"]
     chapter_prefix = (chapter or {}).get("locatorPrefix") or "chap-"
 
@@ -115,10 +117,11 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
     intro: list[Line] = []
     clause_chunks: list[Chunk] = []
     current_clause: Chunk | None = None
+    current_point: Chunk | None = None
     last_clause = 0
 
     def close_article() -> None:
-        nonlocal intro, clause_chunks, current_clause, current_article, last_clause
+        nonlocal intro, clause_chunks, current_clause, current_point, current_article, last_clause
         if current_article is None:
             return
         if clause_chunks:
@@ -129,6 +132,7 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
             chunks.append(Chunk(article_locator, list(intro), dict(current_article)))
         intro, clause_chunks, current_clause, last_clause = [], [], None, 0
         current_article = None
+        current_point = None
 
     def close_chapter() -> None:
         nonlocal chapter_chunk
@@ -178,8 +182,17 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
                 {**current_article, "clauseNumber": number},
             )
             clause_chunks.append(current_clause)
+            current_point = None
+        elif current_clause is not None and point_re and (match := point_re.match(text)):
+            label = match.group(1).lower()
+            current_point = Chunk(
+                f"{current_clause.locator}{LOCATOR_SEPARATOR}{point['locatorPrefix']}{label}",
+                [line],
+                {**current_clause.hierarchy, "pointLabel": label},
+            )
+            clause_chunks.append(current_point)
         elif current_article is not None:
-            (current_clause.lines if current_clause else intro).append(line)
+            (current_point.lines if current_point else current_clause.lines if current_clause else intro).append(line)
         elif chapter_chunk is not None:
             chapter_chunk.lines.append(line)  # introductory text of the chapter, before its first article
         else:

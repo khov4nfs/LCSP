@@ -1,12 +1,9 @@
 {
-  "version": 2,
+  "version": 3,
   "maxChunkCharacters": 6000,
   "autoMinimumHeadings": 3,
   "frontMatterLocator": "front-matter",
-  "autoOrder": [
-    "ARTICLES",
-    "NUMBERED_SECTIONS"
-  ],
+  "autoOrder": ["ARTICLES", "NUMBERED_SECTIONS"],
   "profiles": {
     "ARTICLES": {
       "kind": "heading-tree",
@@ -27,9 +24,15 @@
           "pattern": "^(\\d+)[.)]\\s+(\\S.*)$",
           "within": "article",
           "locatorPrefix": "cl-"
+        },
+        {
+          "name": "point",
+          "pattern": "^([^\\W\\d_])[)]\\s+(\\S.*)$",
+          "within": "clause",
+          "locatorPrefix": "pt-"
         }
       ],
-      "chunkLevel": "clause",
+      "chunkLevel": "point",
       "fallbackChunkLevel": "article"
     },
     "NUMBERED_SECTIONS": {

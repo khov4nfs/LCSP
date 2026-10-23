@@ -89,7 +89,7 @@ class TestHeadingTreeProfile:
 
         assert result.profile == "ARTICLES"
         # Text before the first heading and the chapter heading are chunks too (the partition is lossless).
-        assert locators(result) == ["front-matter", "chap-i", "art-1", "art-2", "art-2::cl-1", "art-2::cl-2", "art-3"]
+        assert locators(result) == ["front-matter", "chap-i", "art-1", "art-2", "art-2::cl-1", "art-2::cl-1::pt-a", "art-2::cl-1::pt-b", "art-2::cl-2", "art-3"]
         by_locator = {chunk["locator"]: chunk for chunk in result.chunks}
         assert by_locator["chap-i"]["content"] == "Chương I\nQUY ĐỊNH CHUNG"
         assert by_locator["chap-i"]["hierarchy"] == {"chapterNumber": "I", "chapterTitle": "QUY ĐỊNH CHUNG"}
@@ -101,11 +101,19 @@ class TestHeadingTreeProfile:
             "articleTitle": "Nghĩa vụ chung",
             "clauseNumber": "1",
         }
-        # Points stay inside their clause; the cross-reference line does not open a new article.
-        assert "b) Hồ sơ phải đúng hạn." in clause["content"]
+        # Points are independently addressable; cross-reference prose does not open an article.
+        assert by_locator["art-2::cl-1::pt-b"]["content"] == "b) Hồ sơ phải đúng hạn."
         assert "Điều 1 của Luật này" in by_locator["art-2::cl-2"]["content"]
         # The article keeps its own lead-in as a non-leaf chunk above its clauses.
         assert by_locator["art-2"]["content"].endswith("phải:")
+
+    def test_points_preserve_unicode_labels_continuations_and_distinct_status_addresses(self):
+        text = "Article 1. Duties\n1. The following:\na) First point.\nIts continuation.\nd) Fourth.\nđ) Distinct fifth.\n2. Next clause."
+        result = chunk_document([text], profile="ARTICLES")
+        assert locators(result) == ["art-1", "art-1::cl-1", "art-1::cl-1::pt-a", "art-1::cl-1::pt-d", "art-1::cl-1::pt-đ", "art-1::cl-2"]
+        assert result.chunks[2]["content"] == "a) First point.\nIts continuation."
+        assert "\n".join(c["content"] for c in result.chunks) == text
+        assert result.chunks[4]["hierarchy"]["pointLabel"] == "đ"
 
     def test_front_matter_is_counted_and_kept_as_its_own_chunk(self):
         result = chunk_document([STATUTE], profile="ARTICLES")

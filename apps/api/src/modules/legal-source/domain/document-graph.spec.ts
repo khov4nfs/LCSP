@@ -29,6 +29,46 @@ const vn =
 const eu =
   "Title I\nChapter I\nSection 1\nArticle 1 — Definitions\nParagraph 1. Text.\nPoint (a) Text.\nArticle 2 — Duty\nParagraph 1. See Article 1(1)(a).";
 describe("Legal Document AST: structural interpretation only", () => {
+  it("maps normalized point chunks precisely and preserves independently supplied sibling statuses", () => {
+    const input = document([
+      "Điều 1. Nội dung\n1. Các điểm sau:\na) Còn hiệu lực.\nđ) Đã bãi bỏ.",
+    ]);
+    input.chunks = [
+      {
+        id: "a",
+        locator: "art-1::cl-1::pt-a",
+        content: "a) Còn hiệu lực.",
+        contentSha256: "a",
+        hierarchy: {},
+        pageStart: null,
+        pageEnd: null,
+        legalEffectStatus: "EFFECTIVE",
+        legalStatusSourceRef: "official amendment",
+      },
+      {
+        id: "d",
+        locator: "art-1::cl-1::pt-đ",
+        content: "đ) Đã bãi bỏ.",
+        contentSha256: "d",
+        hierarchy: {},
+        pageStart: null,
+        pageEnd: null,
+        legalEffectStatus: "REPEALED",
+        legalStatusSourceRef: "official amendment",
+      },
+    ];
+    const graph = buildLegalDocumentGraph(version, [input]);
+    const points = graph.nodes.filter((n) => n.nodeType === N.POINT);
+    expect(points.map((n) => [n.label, n.legalEffectStatus])).toEqual([
+      ["a", "EFFECTIVE"],
+      ["đ", "REPEALED"],
+    ]);
+    expect(
+      graph.chunkMappings.map(
+        (m) => points.find((n) => n.nodeId === m.legalDocumentNodeId)?.label,
+      ),
+    ).toEqual(["a", "đ"]);
+  });
   it("materializes the final eight-Article fixture with real cross-page hierarchy and resolved references before model calls", () => {
     const fixture = JSON.parse(
       readFileSync(

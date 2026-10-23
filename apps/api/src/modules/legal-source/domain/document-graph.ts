@@ -530,6 +530,8 @@ export function buildLegalDocumentGraph(
       while (ancestor) {
         if (ancestor.nodeType === N.ARTICLE)
           parts.unshift(`art-${ancestor.label.toLowerCase()}`);
+        if (ancestor.nodeType === N.POINT)
+          parts.unshift(`pt-${ancestor.label.toLowerCase()}`);
         if (
           [N.CLAUSE, N.PARAGRAPH].includes(ancestor.nodeType as typeof N.CLAUSE)
         )
