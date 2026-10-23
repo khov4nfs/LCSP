@@ -157,7 +157,8 @@ def test_authoritative_schema_does_not_require_runtime_injected_arguments_from_m
     class InjectedArgs(BaseModel):
         description: str
         runtime_value: Annotated[str, InjectedToolArg]
-    tool = StructuredTool.from_function(func=lambda **_: "ok", name="task", description="Read.", args_schema=InjectedArgs)
+    tool = StructuredTool.from_function(func=lambda **_: "ok", name="task",
+        description="Read a source description while the runtime supplies the private injected argument.", args_schema=InjectedArgs)
     request = _request(_anthropic(), [tool])
     assert _malformed_tool_call_reason(request, _response({"description": "read"})) is None
 
