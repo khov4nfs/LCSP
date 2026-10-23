@@ -1,6 +1,0 @@
-{
-  "tag": "lcsp-pypdf-server:6baf188379b9",
-  "exitCode": 2,
-  "stdout": "",
-  "stderr": "error: Could not acquire lock\n  Caused by: Could not create temporary file\n  Caused by: Read-only file system (os error 30) at path \"/root/.cache/uv/.tmpPur6Xe\"\n"
-}
