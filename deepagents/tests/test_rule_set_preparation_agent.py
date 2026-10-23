@@ -114,7 +114,7 @@ def test_reader_schema_correction_is_metered_strict_and_scoped_to_each_delegatio
         return record(self, response, current, invocation_id)
     monkeypatch.setattr(usage_metering.UsageMeteringMiddleware, "_record", track)
     spec = legal_source_reader_subagent(model=model, backend=FilesystemBackend(root_dir=tmp_path, virtual_mode=True))
-    reader = create_agent(model, tools=spec["tools"], system_prompt=spec["system_prompt"],
+    reader = create_agent(model, tools=[], system_prompt=spec["system_prompt"],
                           response_format=spec["response_format"], middleware=spec["middleware"])
     for _ in range(2):
         if corrected:
