@@ -16,17 +16,51 @@ export const LIVE_STAGE_LIMITS_MS = {
   PROVISION: 120000, MATERIALIZE: 120000, DISCOVERY_AUDIT: 2400000,
   INVENTORY_FREEZE: 180000, AUTHOR_VALIDATE: 720000, PERSIST_ACTIVATE: 180000, INDEPENDENT_VERIFY: 300000,
 };
-/** @param {{overallMs?:number, stageLimits?:Record<string,number>, now?:()=>number}} [options] */
-export function createLiveEvaluationControls({ overallMs = 4200000, stageLimits = LIVE_STAGE_LIMITS_MS, now = Date.now } = {}) {
-  assert.ok(Number.isSafeInteger(overallMs) && overallMs > 0,"Invalid overall deadline");
+export function verifyLiveEvaluationAuthorization(approval, budget, context) {
+  assert.equal(approval.candidateSha, context.candidateSha);
+  assert.equal(approval.runId, context.runId);
+  assert.equal(budget.run_id, context.runId);
+  assert.equal(budget.candidate_sha, context.candidateSha);
+  assert.equal(approval.paidInferenceApproved, true);
+  assert.ok(typeof approval.approvalReference === "string" && approval.approvalReference.length > 0);
+  const unrestricted = approval.mode === "UNRESTRICTED";
+  if (unrestricted) {
+    assert.equal(budget.schema_version, 4);
+    assert.equal(budget.mode, "UNRESTRICTED");
+    assert.equal(budget.paid_inference_approved, true);
+    assert.equal(budget.approval_reference, approval.approvalReference);
+    for (const field of ["maximum_calls", "maximum_input_tokens", "maximum_output_tokens", "maximum_charge_nano_usd", "expires_at"])
+      assert.ok(budget[field] == null, "Unrestricted authorization cannot contain aggregate ceilings");
+    for (const field of ["maximum_calls", "maximum_input_tokens", "maximum_output_tokens", "maximum_charge_nano_usd", "evaluationCount", "workerTimeoutMs", "overallTimeoutMs"])
+      assert.ok(approval[field] == null, "Unrestricted approval cannot contain acceptance ceilings");
+  } else {
+    assert.ok(approval.mode === undefined || approval.mode === "BOUNDED", "Unknown evaluation authorization mode");
+    assert.equal(approval.evaluationCount, 1);
+    assert.ok([2, 3].includes(budget.schema_version));
+    for (const field of ["maximum_calls", "maximum_input_tokens", "maximum_output_tokens"])
+      assert.ok(Number.isSafeInteger(approval[field]) && approval[field] > 0 && budget[field] <= approval[field], "Budget exceeds approved limits");
+    if (approval.maximum_charge_nano_usd !== undefined) {
+      assert.equal(budget.schema_version, 2, "An actual financial cap requires strict verified charging enforcement");
+      assert.ok(budget.maximum_charge_nano_usd <= approval.maximum_charge_nano_usd);
+    }
+    for (const field of ["workerTimeoutMs", "providerTimeoutSeconds", "overallTimeoutMs"])
+      assert.ok(Number.isSafeInteger(approval[field]) && context[field] <= approval[field], "Deadline exceeds approved limits");
+  }
+  return { unrestricted };
+}
+
+/** @param {{overallMs?:number, stageLimits?:Record<string,number>, now?:()=>number, unrestricted?:boolean}} [options] */
+export function createLiveEvaluationControls({ overallMs = 4200000, stageLimits = LIVE_STAGE_LIMITS_MS, now = Date.now, unrestricted = false } = {}) {
+  if (!unrestricted) assert.ok(Number.isSafeInteger(overallMs) && overallMs > 0,"Invalid overall deadline");
   const controller = new AbortController(), elapsed = new Map();
   let stage, entered, timer;
   const abort = reason => controller.abort(new Error(reason));
-  const overall = setTimeout(() => abort("GLOBAL_DEADLINE"), overallMs);
+  const overall = unrestricted ? undefined : setTimeout(() => abort("GLOBAL_DEADLINE"), overallMs);
   const enter = next => {
     controller.signal.throwIfAborted();
     if (stage === next) return;
     assert.ok(stageLimits[next] > 0, "Unknown bounded evaluation stage");
+    if (unrestricted) { stage = next; return; }
     if (stage) elapsed.set(stage, (elapsed.get(stage) ?? 0) + now() - entered);
     stage = next; entered = now(); clearTimeout(timer);
     const remaining = stageLimits[next] - (elapsed.get(next) ?? 0);

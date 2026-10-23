@@ -631,3 +631,48 @@ def test_bounded_offline_rehearsal(tmp_path):
     assert result["physicalOfflineHandlerCalls"] == 7 and result["noDispatchAfterDenial"]
     assert result["admission"]["unresolvedAttempts"] == 3
     assert result["admission"]["actualChargeNanoUSD"] is None
+
+
+def test_unrestricted_authorization_keeps_accounting_unknown_usage_and_provider_constraints(tmp_path):
+    from middleware.paid_admission import TokenPolicy, UnrestrictedRunBudget, parse_run_budget
+
+    model = native()
+    policy = policy_for(model)
+    token_policy = TokenPolicy.model_validate({key: getattr(policy, key) for key in TokenPolicy.model_fields})
+    raw = budget_for(model).model_dump()
+    raw.update(schema_version=4, mode="UNRESTRICTED", paid_inference_approved=True,
+               approval_reference="Direct user authorization in conversation: unrestricted LCSP acceptance",
+               expires_at=None, maximum_calls=None, maximum_input_tokens=None, maximum_output_tokens=None,
+               policies=[token_policy.model_dump()])
+    del raw["maximum_charge_nano_usd"]
+    budget = parse_run_budget(raw)
+    assert isinstance(budget, UnrestrictedRunBudget)
+    admission = RunAdmission(tmp_path / "usage.sqlite3", budget, fingerprint(budget.model_dump(mode="json")))
+    for index in range(25):
+        attempt = f"attempt-{index}"
+        admission.admit(attempt, request_identity(model))
+        admission.transition(attempt, "IN_FLIGHT")
+        if index:
+            admission.settle(attempt, {"inputTokensIncludingCache": 20, "outputTokens": 10})
+        else:
+            admission.settle(attempt, None)
+    receipt = recover_admission(admission.path, budget.run_id)
+    assert receipt["state"] == "UNRESTRICTED" and receipt["admittedAttempts"] == 25
+    assert receipt["unresolvedAttempts"] == 1 and receipt["actualChargeNanoUSD"] is None
+    with pytest.raises(PaidAdmissionError, match="UNKNOWN_TOKEN_POLICY"):
+        admission.admit("unknown-route", {**request_identity(model), "route_id": "unapproved"})
+    assert recover_admission(admission.path, budget.run_id)["state"] == "STOPPED"
+
+
+@pytest.mark.parametrize("change", [{"paid_inference_approved": False}, {"maximum_calls": 1}, {"mode": "BOUNDED"}, {"approval_reference": ""}])
+def test_unrestricted_schema_requires_explicit_authorization_and_cannot_hide_finite_caps(change):
+    from middleware.paid_admission import UnrestrictedRunBudget
+    from pydantic import ValidationError
+
+    raw = budget_for(native()).model_dump()
+    raw.update(schema_version=4, mode="UNRESTRICTED", paid_inference_approved=True,
+               approval_reference="Explicit user conversation authorization", expires_at=None,
+               maximum_calls=None, maximum_input_tokens=None, maximum_output_tokens=None, policies=[])
+    del raw["maximum_charge_nano_usd"]
+    with pytest.raises(ValidationError):
+        UnrestrictedRunBudget.model_validate({**raw, **change})

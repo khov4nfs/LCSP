@@ -7,8 +7,38 @@ import { spawnSync, execFileSync } from "node:child_process";
 import {
   createLiveEvaluationControls,
   verifyFrozenCandidate,
+  verifyLiveEvaluationAuthorization,
 } from "./support/live-evaluation-controls.mjs";
 import { runPython } from "./support/compliance-rule-set-stack.mjs";
+
+test("unrestricted evaluation requires explicit matching authorization and preserves cancellation", async () => {
+  const context = { candidateSha: "1".repeat(40), runId: "fresh-run" };
+  const approval = { ...context, paidInferenceApproved: true, mode: "UNRESTRICTED", approvalReference: "Direct user conversation authorization" };
+  const budget = { schema_version: 4, run_id: context.runId, candidate_sha: context.candidateSha, mode: "UNRESTRICTED", paid_inference_approved: true, approval_reference: approval.approvalReference };
+  assert.equal(verifyLiveEvaluationAuthorization(approval, budget, context).unrestricted, true);
+  assert.throws(() => verifyLiveEvaluationAuthorization({ ...approval, paidInferenceApproved: false }, budget, context));
+  assert.throws(() => verifyLiveEvaluationAuthorization(approval, { ...budget, schema_version: 3 }, context));
+  assert.throws(() => verifyLiveEvaluationAuthorization(approval, { ...budget, maximum_calls: 10 }, context));
+  assert.throws(() => verifyLiveEvaluationAuthorization({ ...approval, runId: "historical-run" }, budget, context));
+  const controls = createLiveEvaluationControls({ unrestricted: true, overallMs: 1, stageLimits: { A: 1 } });
+  controls.enter("A");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(controls.signal.aborted, false);
+  assert.throws(() => controls.enter("UNKNOWN"));
+  controls.abort("OPERATOR_CANCELLED");
+  assert.match(String(controls.signal.reason), /OPERATOR_CANCELLED/);
+  controls.close();
+});
+
+test("bounded authorization still enforces count, token ceilings and deadlines", () => {
+  const context = { candidateSha: "1".repeat(40), runId: "fresh-run", workerTimeoutMs: 100, providerTimeoutSeconds: 5, overallTimeoutMs: 200 };
+  const approval = { ...context, paidInferenceApproved: true, approvalReference: "Explicit bounded authorization", evaluationCount: 1, maximum_calls: 2, maximum_input_tokens: 100, maximum_output_tokens: 20 };
+  const budget = { schema_version: 3, run_id: context.runId, candidate_sha: context.candidateSha, maximum_calls: 2, maximum_input_tokens: 100, maximum_output_tokens: 20 };
+  assert.equal(verifyLiveEvaluationAuthorization(approval, budget, context).unrestricted, false);
+  assert.throws(() => verifyLiveEvaluationAuthorization(approval, { ...budget, maximum_calls: 3 }, context));
+  assert.throws(() => verifyLiveEvaluationAuthorization({ ...approval, evaluationCount: 2 }, budget, context));
+  assert.throws(() => verifyLiveEvaluationAuthorization(approval, budget, { ...context, workerTimeoutMs: 101 }));
+});
 
 test("frozen candidate permits evidence publication and rejects committed or dirty source changes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "lcsp360-frozen-"));

@@ -9,11 +9,14 @@ and automatic numbering labels are extracted with separators that keep token bou
 from __future__ import annotations
 
 import re
+import subprocess
+import tempfile
 import unicodedata
 import zipfile
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from io import BytesIO
+from pathlib import Path
 from xml.etree import ElementTree
 
 MEDIA_PDF = "application/pdf"
@@ -423,16 +426,19 @@ class _DocxReader:
 
 
 def _read_part(archive: zipfile.ZipFile, name: str, *, required: bool):  # noqa: ANN202
-    try:
-        info = archive.getinfo(name)
-    except KeyError:
+    # Some Word exporters use Windows separators inside the ZIP; aliases must stay unambiguous.
+    parts = [info for info in archive.infolist() if info.filename.replace("\\", "/") == name]
+    if not parts:
         if required:
             raise ExtractionError("EXTRACTION_FAILED") from None
         return None
+    if len(parts) != 1:
+        raise ExtractionError("EXTRACTION_FAILED")
+    info = parts[0]
     if info.file_size > MAX_DOCX_XML_BYTES:
         raise ExtractionError("EXTRACTION_FAILED")
     try:
-        return ElementTree.fromstring(archive.read(name))
+        return ElementTree.fromstring(archive.read(info))
     except ElementTree.ParseError as error:
         raise ExtractionError("EXTRACTION_FAILED") from error
 
@@ -480,7 +486,21 @@ def _docx_to_text(data: bytes) -> tuple[str, list[dict]]:
 # --- PDF ------------------------------------------------------------------------------------------
 
 
-def _pdf_pages(data: bytes) -> list[str]:
+def _ocr_pdf_pages(data: bytes, page_numbers: list[int]) -> dict[int, str]:
+    from tools.legal.sources.scripts.ocr_legal_pdf import LegalPdfOcr
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="lcsp-managed-pdf-") as temporary:
+            original = Path(temporary) / "original.pdf"
+            original.write_bytes(data)
+            return {page.page_number: page.text for page in LegalPdfOcr().extract_pages(
+                pdf_path=original, page_numbers=page_numbers,
+            )}
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        raise ExtractionError("EXTRACTION_FAILED") from error
+
+
+def _pdf_pages(data: bytes) -> tuple[list[str], bool]:
     try:
         from pypdf import PdfReader
         from pypdf.errors import PyPdfError
@@ -492,7 +512,14 @@ def _pdf_pages(data: bytes) -> list[str]:
             raise ExtractionError("EXTRACTION_FAILED")
         if len(reader.pages) > MAX_PDF_PAGES:
             raise ExtractionError("EXTRACTION_FAILED")
-        return [page.extract_text() or "" for page in reader.pages]
+        pages = [page.extract_text() or "" for page in reader.pages]
+        # Empty text on an image-bearing page needs OCR; a genuinely blank page remains an explicit gap.
+        scanned = [number for number, page in enumerate(reader.pages, start=1)
+                   if not pages[number - 1].strip() and len(page.images)]
+        if scanned:
+            for number, text in _ocr_pdf_pages(data, scanned).items():
+                pages[number - 1] = text
+        return pages, bool(scanned)
     except ExtractionError:
         raise
     except (PyPdfError, ValueError, KeyError, RecursionError, OSError) as error:
@@ -502,10 +529,11 @@ def _pdf_pages(data: bytes) -> list[str]:
 def extract_document(media_type: str, data: bytes) -> ExtractedDocument:
     """Text of the document, page by page where the format has pages."""
     if media_type == MEDIA_PDF:
-        pages = [clean_text(page) for page in _pdf_pages(data)]
+        raw_pages, ocr_used = _pdf_pages(data)
+        pages = [clean_text(page) for page in raw_pages]
         # A page with no text may be scanned content that this extractor cannot read: report it, never guess.
         gaps = [{"page": number, "kind": GAP_NO_TEXT_LAYER} for number, page in enumerate(pages, start=1) if not page.strip()]
-        document = ExtractedDocument(pages, len(pages), "pypdf", gaps)
+        document = ExtractedDocument(pages, len(pages), "pypdf+tesseract:vie+eng@300dpi" if ocr_used else "pypdf", gaps)
     elif media_type == MEDIA_DOCX:
         text, gaps = _docx_to_text(data)
         document = ExtractedDocument([clean_text(text)], None, "docx-xml", gaps)

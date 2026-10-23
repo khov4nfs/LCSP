@@ -227,6 +227,43 @@ def minimal_docx(paragraphs: list[str]) -> bytes:
 
 
 class TestExtraction:
+    def test_scanned_pages_use_existing_ocr_and_preserve_page_numbers_and_original(self, monkeypatch):
+        from tools.legal.sources.scripts.ocr_legal_pdf import LegalPdfOcr, OcrPage
+
+        source = b"original-pdf-bytes"
+        pages = [
+            SimpleNamespace(extract_text=lambda: "Article 1. Scope and existing text.", images=[]),
+            SimpleNamespace(extract_text=lambda: "", images=[object()]),
+            SimpleNamespace(extract_text=lambda: "", images=[]),
+        ]
+        monkeypatch.setattr("pypdf.PdfReader", lambda _: SimpleNamespace(is_encrypted=False, pages=pages))
+
+        def recognize(self, *, pdf_path, page_numbers):
+            assert pdf_path.read_bytes() == source
+            assert page_numbers == [2]
+            return [OcrPage(2, "Điều 2. Nội dung được nhận dạng từ trang gốc.", "sha256:ocr")]
+
+        monkeypatch.setattr(LegalPdfOcr, "extract_pages", recognize)
+        document = extract_document(MEDIA_PDF, source)
+        assert document.pages[0] == "Article 1. Scope and existing text."
+        assert document.pages[1] == "Điều 2. Nội dung được nhận dạng từ trang gốc."
+        assert document.pages[2] == ""
+        assert document.gaps == [{"page": 3, "kind": "NO_TEXT_LAYER"}]
+        assert "tesseract:vie+eng@300dpi" in document.tool
+
+    def test_scanned_pdf_ocr_failure_is_not_reported_ready(self, monkeypatch):
+        from tools.legal.sources.scripts.ocr_legal_pdf import LegalPdfOcr
+
+        page = SimpleNamespace(extract_text=lambda: "", images=[object()])
+        monkeypatch.setattr("pypdf.PdfReader", lambda _: SimpleNamespace(is_encrypted=False, pages=[page]))
+
+        def unavailable(self, **kwargs):
+            raise RuntimeError("OCR prerequisite unavailable")
+
+        monkeypatch.setattr(LegalPdfOcr, "extract_pages", unavailable)
+        result = ingest_document(data=b"original", media_type=MEDIA_PDF, structure_profile="AUTO", attempt=2)
+        assert result == {"outcome": "FAILED", "attempt": 2, "failureCode": "EXTRACTION_FAILED"}
+
     def test_pdf_text_layer_is_read(self):
         pdf = minimal_pdf(["Article 1. Scope", "This Act applies to samples.", "Article 2. Duties", "Keep records."])
         document = extract_document(MEDIA_PDF, pdf)
@@ -247,6 +284,22 @@ class TestExtraction:
     def test_docx_paragraphs_are_read(self):
         document = extract_document(MEDIA_DOCX, minimal_docx(["Article 1. Scope", "Applies to samples and more."]))
         assert document.pages == ["Article 1. Scope\nApplies to samples and more."]
+
+    def test_docx_windows_part_separators_are_read_without_changing_original_bytes(self):
+        original = minimal_docx(["Article 1. Scope", "Applies to samples and more."])
+        buffer = BytesIO()
+        with zipfile.ZipFile(BytesIO(original)) as source, zipfile.ZipFile(buffer, "w") as target:
+            for part in source.infolist():
+                target.writestr(part.filename.replace("/", "\\"), source.read(part))
+        assert extract_document(MEDIA_DOCX, buffer.getvalue()).pages == extract_document(MEDIA_DOCX, original).pages
+
+    def test_docx_ambiguous_part_aliases_fail_closed(self):
+        buffer = BytesIO(minimal_docx(["Article 1. Scope", "Applies to samples and more."]))
+        with zipfile.ZipFile(buffer, "a") as archive:
+            archive.writestr("word\\document.xml", archive.read("word/document.xml"))
+        with pytest.raises(ExtractionError) as raised:
+            extract_document(MEDIA_DOCX, buffer.getvalue())
+        assert raised.value.code == "EXTRACTION_FAILED"
 
     def test_a_docx_that_is_not_a_zip_is_an_extraction_failure(self):
         with pytest.raises(ExtractionError) as raised:

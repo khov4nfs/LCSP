@@ -114,14 +114,27 @@ class TokenRunBudget(BaseModel):
     policies: tuple[TokenPolicy, ...]
 
 
-def parse_run_budget(value: dict) -> RunBudget | TokenRunBudget:
-    return (TokenRunBudget if value.get("schema_version") == 3 else RunBudget).model_validate(value)
+class UnrestrictedRunBudget(TokenRunBudget):
+    """Explicit paid-evaluation authorization with accounting and provider constraints, without aggregate ceilings."""
+    schema_version: Literal[4]
+    mode: Literal["UNRESTRICTED"]
+    paid_inference_approved: Literal[True]
+    approval_reference: str = Field(min_length=1, max_length=2000)
+    expires_at: None = None
+    maximum_calls: None = None
+    maximum_input_tokens: None = None
+    maximum_output_tokens: None = None
+
+
+def parse_run_budget(value: dict) -> RunBudget | TokenRunBudget | UnrestrictedRunBudget:
+    model = {3: TokenRunBudget, 4: UnrestrictedRunBudget}.get(value.get("schema_version"), RunBudget)
+    return model.model_validate(value)
 
 
 class RunAdmission:
     """Atomic reservations and reconciliation; all rows share the usage SQLite file."""
 
-    def __init__(self, path: str | Path, budget: RunBudget | TokenRunBudget, expected_fingerprint: str):
+    def __init__(self, path: str | Path, budget: RunBudget | TokenRunBudget | UnrestrictedRunBudget, expected_fingerprint: str):
         self.path = Path(path)
         self.budget = parse_run_budget(budget.model_dump())
         self.identity = fingerprint(self.budget.model_dump(mode="json"))
@@ -173,7 +186,7 @@ class RunAdmission:
         policy = next((p for p in self.budget.policies if (p.route_id, p.credential_fingerprint)
                        == (identity.get("route_id"), identity.get("credential_fingerprint"))), None)
         now = time.time()
-        if not self.budget.valid_from <= now < self.budget.expires_at:
+        if now < self.budget.valid_from or (self.budget.expires_at is not None and now >= self.budget.expires_at):
             reason = "BUDGET_EXPIRED"
         if policy is None:
             reason = reason or ("UNKNOWN_TOKEN_POLICY" if isinstance(self.budget, TokenRunBudget) else "UNKNOWN_TARIFF")
@@ -199,7 +212,7 @@ class RunAdmission:
                 (1, *exposure), (self.budget.maximum_calls, self.budget.maximum_input_tokens,
                                  self.budget.maximum_output_tokens, getattr(self.budget, "maximum_charge_nano_usd", 0))
             ):
-                if used + increment > limit:
+                if limit is not None and used + increment > limit:
                     reason = reason or label
             state = "DENIED" if reason else "ADMITTED"
             safe_identity = {k: identity[k] for k in (
@@ -302,8 +315,9 @@ def recover_admission(path: str | Path, run_id: str) -> dict:
         if not budget:
             return {"state": "LEGACY_UNBOUNDED", "runId": run_id}
         rows = [dict(r) for r in db.execute("SELECT * FROM inference_attempts WHERE run_id=? ORDER BY rowid", (run_id,))]
-        token_only = json.loads(budget["envelope"])["schema_version"] == 3
-        result = {"state": "STOPPED" if budget["stopped"] else "BOUNDED", "runId": run_id,
+        schema_version = json.loads(budget["envelope"])["schema_version"]
+        token_only = schema_version in {3, 4}
+        result = {"state": "STOPPED" if budget["stopped"] else ("UNRESTRICTED" if schema_version == 4 else "BOUNDED"), "runId": run_id,
                 "schemaVersion": json.loads(budget["envelope"])["schema_version"],
                 "budgetFingerprint": budget["fingerprint"], "terminalReason": budget["stopped"],
                 "attempts": rows, "admittedAttempts": sum(r["state"] != "DENIED" for r in rows),

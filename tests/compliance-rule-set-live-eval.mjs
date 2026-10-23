@@ -15,7 +15,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } f
 import path from "node:path";
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
-import { createLiveEvaluationControls, verifyLiveResourceAdmission, verifyFrozenCandidate } from "./support/live-evaluation-controls.mjs";
+import { createLiveEvaluationControls, verifyLiveResourceAdmission, verifyFrozenCandidate, verifyLiveEvaluationAuthorization } from "./support/live-evaluation-controls.mjs";
 
 import { root, runPython, startStack, workerKey } from "./support/compliance-rule-set-stack.mjs";
 
@@ -41,35 +41,27 @@ const database = prepared?.database ?? process.env.LCSP_LIVE_EVAL_DATABASE;
 const dbPort = Number(prepared?.dbPort ?? process.env.LCSP_LIVE_EVAL_DB_PORT);
 assert.match(database ?? "", /^lcsp360_final_[a-z0-9_]+$/);
 assert.ok(Number.isInteger(dbPort) && dbPort >= 55000 && dbPort <= 55999 && ![55441,55502,55503,55504].includes(dbPort), "A new owned evaluation PostgreSQL port is required");
+let unrestricted = false;
 if (!prepareOnly) {
   const approvalBytes = readFileSync(process.env.LCSP_LIVE_TEST_AUTHORIZATION_FILE);
   assert.equal(hash(approvalBytes), process.env.LCSP_LIVE_TEST_AUTHORIZATION_SHA256);
   const approval = JSON.parse(approvalBytes);
-  assert.equal(approval.candidateSha, candidateSha); assert.equal(approval.runId, prepared.runId);
-  assert.equal(approval.paidInferenceApproved, true); assert.equal(approval.evaluationCount, 1);
-  assert.ok(typeof approval.approvalReference === "string" && approval.approvalReference.length > 0);
   const budget = JSON.parse(readFileSync(process.env.LCSP_LIVE_BUDGET_FILE));
-  assert.equal(budget.run_id, prepared.runId); assert.equal(budget.candidate_sha, candidateSha);
-  for (const field of ["maximum_calls", "maximum_input_tokens", "maximum_output_tokens"])
-    assert.ok(Number.isSafeInteger(approval[field]) && approval[field] > 0 && budget[field] <= approval[field], "Budget exceeds approved limits");
-  if (approval.maximum_charge_nano_usd !== undefined) {
-    assert.equal(budget.schema_version,2,"A requested actual financial cap requires strict verified charging enforcement");
-    assert.ok(budget.maximum_charge_nano_usd <= approval.maximum_charge_nano_usd);
-  }
-  assert.ok(Number.isSafeInteger(approval.workerTimeoutMs) && Number.isSafeInteger(approval.providerTimeoutSeconds));
-  assert.ok(Number.isSafeInteger(approval.overallTimeoutMs));
-  assert.ok(Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_TIMEOUT_MS ?? 3600000) <= approval.workerTimeoutMs);
-  assert.ok(Number(process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? 600) <= approval.providerTimeoutSeconds);
-  assert.ok(Number(process.env.LCSP_LIVE_OVERALL_TIMEOUT_MS ?? 4200000) <= approval.overallTimeoutMs);
+  ({unrestricted} = verifyLiveEvaluationAuthorization(approval, budget, {
+    candidateSha, runId: prepared.runId,
+    workerTimeoutMs: Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_TIMEOUT_MS ?? 3600000),
+    providerTimeoutSeconds: Number(process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? 600),
+    overallTimeoutMs: Number(process.env.LCSP_LIVE_OVERALL_TIMEOUT_MS ?? 4200000),
+  }));
 }
 const resourceAdmission = verifyLiveResourceAdmission(root);
-const supervisor = createLiveEvaluationControls({overallMs:Number(process.env.LCSP_LIVE_OVERALL_TIMEOUT_MS ?? 4200000)});
+const supervisor = createLiveEvaluationControls({overallMs:Number(process.env.LCSP_LIVE_OVERALL_TIMEOUT_MS ?? 4200000), unrestricted});
 supervisor.checkDisk(root,8*1024**3);
 supervisor.enter("PROVISION");
 const apiPort = Number(prepared?.apiPort ?? process.env.LCSP_RULE_SET_PREPARATION_EVAL_API_PORT ?? 3459);
 const outDir = process.env.LCSP_RULE_SET_PREPARATION_EVAL_OUT ?? path.join(root, "reports", "lcsp360-final-release-20261021");
 const tests = path.join(root, "deepagents/tests/vertical");
-const timeoutMs = Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_TIMEOUT_MS ?? 60 * 60 * 1000);
+const timeoutMs = unrestricted ? 0 : Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_TIMEOUT_MS ?? 60 * 60 * 1000);
 const stem = `live-eval-${control ?? "synthetic"}`;
 
 mkdirSync(outDir, { recursive: true });
@@ -219,7 +211,7 @@ try {
   try {
     result = await runPython(path.join(tests, "live_preparation.py"), [stack.base, workerKey, runId, usageFile], {
       timeoutMs, signal:supervisor.signal, ownedProcessGroup:true,
-      env: { LCSP_LIVE_TRACE_FILE: traceFile, LLM_PROVIDER_TIMEOUT_SECONDS: process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? "600" },
+      env: { LCSP_LIVE_TRACE_FILE: traceFile, ...(!unrestricted || process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ? { LLM_PROVIDER_TIMEOUT_SECONDS: process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? "600" } : {}) },
     });
   } catch (error) {
     // An exhausted budget or crashed worker still gets its evidence written (frontier, trace, verdict) instead of vanishing.
