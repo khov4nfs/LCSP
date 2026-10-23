@@ -1,0 +1,131 @@
+(node:40240) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL src/modules/legal-source/domain/document-graph.spec.ts
+  ● Legal Document AST: structural interpretation only › does not extract citation fragments inside words: The operator must appoint a person to attend the annual public information session in person.
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 12
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "candidateNodeIds": Array [],
+    +     "charEnd": 30,
+    +     "charStart": 23,
+    +     "fromNodeId": "9c5229a9c94c0ca56399aa12b92dfdacd711d440fb471056cdb607dafc76cc42",
+    +     "referenceId": "348f5955c71de7c688c9b92b0134c0654b55864d34297137248e0ea173f53323",
+    +     "resolutionState": "UNRESOLVED",
+    +     "text": "point a",
+    +     "toNodeId": null,
+    +   },
+    + ]
+
+      331 |   ])("does not extract citation fragments inside words: %s", (text) => {
+      332 |     const graph = buildLegalDocumentGraph(version, [document([`Article 1. Context\n1. ${text}`])]);
+    > 333 |     expect(graph.references).toEqual([]);
+          |                              ^
+      334 |   });
+      335 |   it("retains standalone English and Vietnamese citations with exact source offsets", () => {
+      336 |     const graph = buildLegalDocumentGraph(version, [document([
+
+      at src/modules/legal-source/domain/document-graph.spec.ts:333:30
+
+  ● Legal Document AST: structural interpretation only › does not extract citation fragments inside words: The service may disappoint a reviewer at checkpoint b or subarticle 7.
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 32
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "candidateNodeIds": Array [],
+    +     "charEnd": 31,
+    +     "charStart": 24,
+    +     "fromNodeId": "1bd7aceb3f0a69d29359e3dc56d324db0055a03112e2df1f61c40a0dc939d310",
+    +     "referenceId": "61bedd4554cd952a78173ec46fed05b911505d87d34ac36ae802738ce0220109",
+    +     "resolutionState": "UNRESOLVED",
+    +     "text": "point a",
+    +     "toNodeId": null,
+    +   },
+    +   Object {
+    +     "candidateNodeIds": Array [],
+    +     "charEnd": 56,
+    +     "charStart": 49,
+    +     "fromNodeId": "1bd7aceb3f0a69d29359e3dc56d324db0055a03112e2df1f61c40a0dc939d310",
+    +     "referenceId": "eb7d98682d13cc04e88ce643bfa554c54c729bec228f27c827afa0f2dc430655",
+    +     "resolutionState": "UNRESOLVED",
+    +     "text": "point b",
+    +     "toNodeId": null,
+    +   },
+    +   Object {
+    +     "candidateNodeIds": Array [],
+    +     "charEnd": 72,
+    +     "charStart": 63,
+    +     "fromNodeId": "1bd7aceb3f0a69d29359e3dc56d324db0055a03112e2df1f61c40a0dc939d310",
+    +     "referenceId": "c634f4a2965b181a4a0e0b0e9da5feab7674c0fdab927fbcfe19dc28189a4bf7",
+    +     "resolutionState": "UNRESOLVED",
+    +     "text": "article 7",
+    +     "toNodeId": null,
+    +   },
+    + ]
+
+      331 |   ])("does not extract citation fragments inside words: %s", (text) => {
+      332 |     const graph = buildLegalDocumentGraph(version, [document([`Article 1. Context\n1. ${text}`])]);
+    > 333 |     expect(graph.references).toEqual([]);
+          |                              ^
+      334 |   });
+      335 |   it("retains standalone English and Vietnamese citations with exact source offsets", () => {
+      336 |     const graph = buildLegalDocumentGraph(version, [document([
+
+      at src/modules/legal-source/domain/document-graph.spec.ts:333:30
+
+  ● Legal Document AST: structural interpretation only › does not extract citation fragments inside words: The model describes point alpha and Article 2unknown without a citation.
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 22
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "candidateNodeIds": Array [],
+    +     "charEnd": 30,
+    +     "charStart": 23,
+    +     "fromNodeId": "21e69842f8753107e1233f833a655f6699e17b67f2aef6b01b0a774ce3a8e97e",
+    +     "referenceId": "e674390992d7d77afb1514dce9d0dc3b1ece5aca19e564c51a1ad71d7f928cdf",
+    +     "resolutionState": "UNRESOLVED",
+    +     "text": "point a",
+    +     "toNodeId": null,
+    +   },
+    +   Object {
+    +     "candidateNodeIds": Array [],
+    +     "charEnd": 49,
+    +     "charStart": 39,
+    +     "fromNodeId": "21e69842f8753107e1233f833a655f6699e17b67f2aef6b01b0a774ce3a8e97e",
+    +     "referenceId": "b673e1ad0eca224c772487a6ce723b8dedbd7b4a8381afa1b9061944e57c92a4",
+    +     "resolutionState": "UNRESOLVED",
+    +     "text": "Article 2u",
+    +     "toNodeId": null,
+    +   },
+    + ]
+
+      331 |   ])("does not extract citation fragments inside words: %s", (text) => {
+      332 |     const graph = buildLegalDocumentGraph(version, [document([`Article 1. Context\n1. ${text}`])]);
+    > 333 |     expect(graph.references).toEqual([]);
+          |                              ^
+      334 |   });
+      335 |   it("retains standalone English and Vietnamese citations with exact source offsets", () => {
+      336 |     const graph = buildLegalDocumentGraph(version, [document([
+
+      at src/modules/legal-source/domain/document-graph.spec.ts:333:30
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 16 passed, 19 total
+Snapshots:   0 total
+Time:        1.131 s
+Ran all test suites matching src/modules/legal-source/domain/document-graph.spec.ts.

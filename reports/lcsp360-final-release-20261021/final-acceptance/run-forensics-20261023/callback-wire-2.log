@@ -1,0 +1,8 @@
+
+tests/test_api_client.py::test_post_settled_usage_sends_provider_reported_fields_without_reservation PASSED [ 50%]
+tests/test_api_client.py::test_post_settled_usage_preserves_every_reported_token_bucket_on_wire 
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=authToken,cache_token
+PASSED                                                                   [100%]
+
+======================= 2 passed, 33 deselected in 0.14s =======================

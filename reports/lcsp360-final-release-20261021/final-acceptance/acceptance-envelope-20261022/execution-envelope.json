@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "BLOCKED_AUTHORIZED_EVALUATION_FAILED_NO_RETRY",
+  "status": "AWAITING_LIVE_TEST_AUTHORIZATION",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
-  "freezeRef": "88f8bedc2c633da654ebc9db7698aa293a31b128",
-  "firstFailedGate": "PROVIDER_USAGE_CALLBACK_REDACTION_CORRUPTION",
-  "blockerReceipt": "../authorized-real-model-20261023/verification-summary.json",
+  "candidateSha": "108efe8c57741cc70347d98d962dd8acc9da4de7",
+  "freezeRef": "108efe8c57741cc70347d98d962dd8acc9da4de7",
+  "firstFailedGate": "SEPARATE_LIVE_AUTHORIZATION_REQUIRED",
+  "blockerReceipt": "../run-forensics-20261023/next-evaluation.REQUEST.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -140,14 +140,6 @@
     "maximumInputTokensIncludingCacheReadAndWrite": 4000000,
     "maximumOutputTokensIncludingReasoning": 256000,
     "maximumCombinedTokens": 4256000,
-    "maximumProviderSpending": {
-      "currency": "USD",
-      "amount": 25,
-      "scope": "Aggregate actual provider charges across every configured provider, role, retry, fallback and internal call",
-      "tariffs": "NOT_VERIFIED; require frozen verified tariffs or independent provider-side aggregate spending control before dispatch",
-      "sufficiency": "Not established. Historical token/cost totals are UNAVAILABLE. These are proposed stop ceilings, not a workload/cost estimate.",
-      "currentApplicability": "SUPERSEDED_AS_ADMIN_ANALYTICS_GATE; no guaranteed actual charge ceiling is enabled by official reference pricing"
-    },
     "wallClockSeconds": 4200,
     "workerTimeoutSeconds": 3600,
     "providerRequestTimeoutSeconds": 600,
@@ -160,14 +152,15 @@
       "persistenceActivationAndReopen": 180,
       "independentPostRunVerification": 300
     },
-    "stageTimingScope": "Worker stages sum to 3600 s. Provisioning and independent verification are outside worker budget; global 4200 s includes teardown allowance."
+    "stageTimingScope": "Worker stages sum to 3600 s. Provisioning and independent verification are outside worker budget; global 4200 s includes teardown allowance.",
+    "actualProviderSpendingCap": null
   },
   "authorization": {
     "paidInferenceApproved": false,
     "approvedMaximumProviderDispatches": 0,
     "approvedMaximumTokens": 0,
     "approvedMaximumSpendingUSD": null,
-    "source": "One explicit bc990176c/4ae336f3 authorization consumed; no second evaluation or repaired-candidate approval exists",
+    "source": "Prior exactly-one authorization consumed; final fresh 126e0158/108efe8 proposal is unapproved",
     "quotaIsAuthorization": false,
     "consumedEvaluations": 1,
     "remainingEvaluations": 0
@@ -186,7 +179,7 @@
       "Idempotent late settlement and crash reconciliation from committed usage evidence; old policy versions retained without repricing"
     ],
     "notPresent": [
-      "Separate approved live call/token/deadline/resource envelope; quota is not authorization"
+      "Separate explicit authorization for the final fresh run and its proposed enforceable limits"
     ],
     "requirements": [
       "One immutable schema-3 run envelope pins candidate, routes, actual native SDK/endpoint/credential identities and conservative per-request technical allowances; schema-2 actual-financial mode remains separate",
@@ -197,29 +190,22 @@
     ],
     "productionCodeChanged": true,
     "identifiedReusePoint": "IMPLEMENTED in UsageMeteringMiddleware and AgentRunState, using the same LiveUsage SQLite file and existing usage recovery connector; no new agent pipeline or customer-credit reservation.",
-    "providerFreeDiagnostic": "../runtime-readiness-20261022/token-rehearsal-rehearsal.json"
+    "providerFreeDiagnostic": "../run-forensics-20261023/offline-rehearsal-108efe8/rehearsal.json"
   },
   "isolation": {
     "newOwnedPostgresContainerRequired": false,
-    "proposedLoopbackDatabasePort": 55506,
-    "proposedApiPort": 3462,
-    "database": "lcsp360_final_browser_ready_9e71b914",
-    "sourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
-    "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+    "container": "lcsp360-forensic-ready-20261023-pg-55508",
+    "port": 55508,
+    "database": "lcsp360_final_forensic_ready_55f6f60a",
+    "proposedApiPort": 4470,
+    "sourceVersionId": "917d54c6-5b3d-40c8-9956-79c20567d4be",
+    "runId": "126e0158-1b9e-4331-8e37-e2dec6b6151a",
     "ruleSetVersionId": null,
-    "ephemeralAuditKey": "Private task-owned mode-600 key retained outside Git; fingerprint pinned in prepared context",
+    "preparedState": "QUEUED_UNCLAIMED_STOPPED_VOLUME_RETAINED",
+    "privateAuditKey": "Mode-600 fsynced owner-only durable cache outside Git; fingerprint pinned in context; revalidate before dispatch",
+    "auditKeySha256": "6c7fda2b894950ff2d04baa78c0cc3ea72858a9daf59e8a597a6f63eafeb630e",
     "noConcurrentRuntimeEdits": true,
-    "provenancePreflightOnly": {
-      "database": "lcsp360_document_preflight_7a02137e7775",
-      "container": "lcsp360-source-digest-20261022-pg-55503",
-      "port": 55503,
-      "apiPort": 3461,
-      "state": "STOPPED_VOLUME_RETAINED",
-      "receipt": "../document-provenance-20261022/database-source-hmac-preflight.json"
-    },
-    "container": "lcsp360-real-runtime-20261022-pg-55506",
-    "port": 55506,
-    "preparedState": "FAILED_RUNTIME_ERROR_STOPPED_VOLUME_RETAINED_NO_REUSE"
+    "executionWorktree": "/home/khovan/.cache/lcsp360-final/next-108efe8-forensic"
   },
   "resources": {
     "processTreeMemoryMaxBytes": 3221225472,
@@ -237,7 +223,12 @@
     "exactFuturePeak": "UNAVAILABLE; no live inference/load or release build run was performed",
     "latestNonPaidReceipt": "../real-runtime-20261023/candidate-provenance-preflight.json",
     "offlineCgroupCapability": "PASS prepared-only same runtime harness under 3 GiB/200% CPU cgroup; no model inference",
-    "diskEnforcement": "8 GiB startup / 4 GiB remaining-space admission and periodic stop; no hard filesystem quota or measured live peak"
+    "diskEnforcement": "8 GiB startup / 4 GiB remaining-space admission and periodic stop; no hard filesystem quota or measured live peak",
+    "lastObservedFreeDiskBytes": 14340198400,
+    "retainedNewResources": [
+      "55507 forensic graph/counter diagnostics; stopped, no paid inference",
+      "55508 intermediate and final prepare-only databases; stopped, no paid inference"
+    ]
   },
   "cancellation": [
     "Any immutable source/SHA/HMAC mismatch, document authority/extraction gap, tampered/foreign receipt, failed mandatory gate or source-identity drift",
@@ -271,13 +262,13 @@
     "resourceGate": "Current free disk below proposed 24 GiB release-build floor; reassess actual peak/temp storage and ownership after C passes",
     "mergeDraftRemovalProductionDeployment": "NOT_AUTHORIZED"
   },
-  "paidModelCalls": 24,
-  "paidInputTokens": null,
-  "paidOutputTokens": null,
-  "paidCostUSD": null,
-  "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "Separately authorize one new bounded evaluation of the repaired candidate after a new matching preflight; the consumed run cannot be resumed",
-  "updatedAt": "2026-10-23T00:40:20.780421+00:00",
+  "paidModelCalls": 0,
+  "paidInputTokens": 0,
+  "paidOutputTokens": 0,
+  "paidCostUSD": 0,
+  "historicalUsageAndCost": "UNAVAILABLE; bc990176c actual usage retained in historicalAuthorizedRunCheckpoint and Section 21, with complete totals unknown and actual gateway charges UNAVAILABLE.",
+  "nextAction": "Obtain separate explicit authorization for exactly one bounded 126e0158-1b9e-4331-8e37-e2dec6b6151a / 108efe8c57741cc70347d98d962dd8acc9da4de7 evaluation, contingent on revalidation before dispatch.",
+  "updatedAt": "2026-10-23T04:59:07.585162+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
     "receipt": "document-digest-blocker.json",
@@ -290,14 +281,15 @@
     "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
   },
   "ciCodeCandidate": {
-    "status": "36_SOURCE_CHECKS_PASS_FRESH_PUBLICATION_RESULTS_IN_PR_CHECKPOINT",
-    "sourceCandidate": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+    "status": "FRESH_EXACT_PUBLICATION_CI_RESULTS_IN_PR_CHECKPOINT",
+    "sourceCandidate": "108efe8c57741cc70347d98d962dd8acc9da4de7",
     "historicalReceipt": "../admin-usage-analytics-20261022/initial-ci-static-failure.log",
     "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots.",
     "reviewedPublicationSha": null,
     "externalReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
     "incidentUrl": "https://www.githubstatus.com/incidents/wq8305lppdc2",
-    "currentReceipt": "../authorized-real-model-20261023/fixed-source-ci.json"
+    "currentReceipt": "../run-forensics-20261023/verification-summary.json",
+    "historical640d183f5": "36/36 PASS; not substituted for new-head CI"
   },
   "previousAdmissionCheckpoint": {
     "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
@@ -345,9 +337,9 @@
     "providerOverride": "Live harness overrides checkout 3600s request setting to 600s; native SDK propagation previously tested",
     "global4200Seconds": "WIRED_TO_LIVE_ENTRYPOINT_PASS_OFFLINE",
     "perStageCeilings": "WIRED_CUMULATIVE_NO_RESET_BYPASS_PASS_OFFLINE",
-    "evaluationProcessTreeCpuMemoryLimits": "PASS_NON_PAID_PREPARE_ONLY_3_GIB_200_PERCENT_CPU",
+    "evaluationProcessTreeCpuMemoryLimits": "PASS_FINAL_NON_PAID_PREPARE_3_GIB_200_PERCENT_CPU_4200S",
     "diskWriteCeilings": "HEADROOM_SUPERVISION_NO_HARD_FILESYSTEM_QUOTA",
-    "receipt": "../runtime-readiness-20261022/runtime-preflight-proof.json"
+    "receipt": "../run-forensics-20261023/fresh-postgres-preflight-108efe8.json"
   },
   "adminUsageAnalytics": {
     "status": "PASS_PROVIDER_FREE",
@@ -380,30 +372,32 @@
     "receipt": "../charging-contracts-20261022/resource-deadline-readiness.json"
   },
   "tokenOnlyExecutionProposal": {
-    "status": "HISTORICAL_APPROVED_BUDGET_CONSUMED_NO_REUSE",
+    "status": "PASS_NON_PAID_UNAPPROVED_FINAL_PROPOSAL",
     "policySchema": 3,
     "financialEnforcement": "DISABLED",
     "actualProviderChargeCap": null,
     "historicalUSD25Proposal": "Not enabled by official-reference pricing or this token-only proposal; separate explicit strict-financial approval requires schema-2 verified contracts",
-    "budgetFile": "../real-runtime-20261023/token-envelope-bc990176cb/token-budget.UNAPPROVED.json",
-    "budgetFingerprint": "498f7ff6f243f748f6ae43ebf0c7a6e3f3eabe2089ac9515a3d8aa891bcf1bd3",
-    "preparedContextFile": "../real-runtime-20261023/prepare-bc990176cb/prepared-context.json",
-    "preparedContextSha256": "c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718",
-    "requestFile": "../real-runtime-20261023/live-authorization.REQUEST.json",
+    "budgetFile": "../run-forensics-20261023/token-envelope-108efe8/token-budget.UNAPPROVED.json",
+    "budgetFingerprint": "caecbf80984babefa9bc096819e8066870e576e4913c5afe0d920cb71266bf6b",
+    "preparedContextFile": "../run-forensics-20261023/fresh-preflight-108efe8/prepared-context.json",
+    "preparedContextSha256": "d8974c1dd9dce643a4bfc118c8ba3f074529efb51ddee1854942634050bc0783",
+    "requestFile": "../run-forensics-20261023/next-evaluation.REQUEST.json",
     "configuredBindings": 40,
     "distinctCredentials": 30,
     "inputReservationAllowancePerAttempt": 1048576,
-    "outputAllowance": "Unchanged native route limits: primary/semantic-primary4096; Mercury32768; Gemini65536; APX64000",
+    "outputAllowance": "Unchanged native caps: primary/semantic-primary128000; Mercury32768; Gemini65536; APX64000",
     "inputBoundLimitation": "Technical reservation; no gateway monetary guarantee. Never replace with local byte/token estimator. Missing usage retains full allowance; reported breach terminal.",
     "providerAvailability": "Credentials/native transports present; remote account quota and inference acceptance not tested; no credential submitted to billing/key-check pages",
     "requiredAtLaunch": [
-      "Exact frozen source match including evidence-only descendant check",
-      "Every required exact-publication-HEAD CI/security result PASS",
-      "Budget identities and dates still valid",
-      "Matching source/run/key fingerprints and QUEUED state",
-      "Fresh resource/cgroup admission",
-      "Separate explicit one-run authorization and approved call/token/deadline limits"
-    ]
+      "Separate explicit paid-evaluation authorization matching this run/candidate and enforceable limits",
+      "Exact candidate source and current required CI/security PASS",
+      "Budget validity, route/credential/SDK identity and native caps revalidated",
+      "QUEUED unclaimed run, exact source/graph/key identities, zero prior usage",
+      "Fresh resource/cgroup admission and process-tree deadline supervision",
+      "Use the exact source worktree; Python worker requires exact HEAD equal to candidate, even for report-only publication descendants"
+    ],
+    "budgetFileSha256": "559c127414edcae6c6ab1e534165f361a0409648fb077cb08a5b21b1a79868d3",
+    "budgetExpiresAt": "2026-10-24T04:53:07+00:00"
   },
   "historical6336350RuntimeCheckpoint": {
     "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
@@ -496,10 +490,83 @@
     "consumedEvaluations": 1,
     "remainingEvaluations": 0,
     "result": "FAILED_RUNTIME_ERROR",
-    "actualUsageReceipt": "../authorized-real-model-20261023/independent-usage-reconciliation.json"
+    "actualUsageReceipt": "../authorized-real-model-20261023/independent-usage-reconciliation.json",
+    "retainedIsolation": {
+      "newOwnedPostgresContainerRequired": false,
+      "proposedLoopbackDatabasePort": 55506,
+      "proposedApiPort": 3462,
+      "database": "lcsp360_final_browser_ready_9e71b914",
+      "sourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "ruleSetVersionId": null,
+      "ephemeralAuditKey": "Private task-owned mode-600 key retained outside Git; fingerprint pinned in prepared context",
+      "noConcurrentRuntimeEdits": true,
+      "provenancePreflightOnly": {
+        "database": "lcsp360_document_preflight_7a02137e7775",
+        "container": "lcsp360-source-digest-20261022-pg-55503",
+        "port": 55503,
+        "apiPort": 3461,
+        "state": "STOPPED_VOLUME_RETAINED",
+        "receipt": "../document-provenance-20261022/database-source-hmac-preflight.json"
+      },
+      "container": "lcsp360-real-runtime-20261022-pg-55506",
+      "port": 55506,
+      "preparedState": "FAILED_RUNTIME_ERROR_STOPPED_VOLUME_RETAINED_NO_REUSE"
+    },
+    "firstFailedGate": "PROVIDER_USAGE_CALLBACK_REDACTION_CORRUPTION",
+    "physicalAttempts": 24,
+    "successfulResponses": 23,
+    "unresolvedAttempts": 1,
+    "knownInputCacheTokens": 391223,
+    "knownOutputTokens": 3272,
+    "knownReferenceSubtotalUSD": "0.6481276",
+    "completeTokensAndCost": null,
+    "actualGatewayCost": "UNAVAILABLE",
+    "sameRunResumeSupported": false
   },
-  "knownPaidInputCacheTokens": 391223,
-  "knownPaidOutputTokens": 3272,
-  "knownOfficialReferenceSubtotalUSD": "0.6481276",
-  "actualGatewayCost": "UNAVAILABLE"
+  "knownPaidInputCacheTokens": 0,
+  "knownPaidOutputTokens": 0,
+  "knownOfficialReferenceSubtotalUSD": "0",
+  "actualGatewayCost": "NO_INFERENCE_IN_CURRENT_PROPOSAL",
+  "historicalConsumedTokenOnlyProposal": {
+    "status": "HISTORICAL_APPROVED_BUDGET_CONSUMED_NO_REUSE",
+    "policySchema": 3,
+    "financialEnforcement": "DISABLED",
+    "actualProviderChargeCap": null,
+    "historicalUSD25Proposal": "Not enabled by official-reference pricing or this token-only proposal; separate explicit strict-financial approval requires schema-2 verified contracts",
+    "budgetFile": "../real-runtime-20261023/token-envelope-bc990176cb/token-budget.UNAPPROVED.json",
+    "budgetFingerprint": "498f7ff6f243f748f6ae43ebf0c7a6e3f3eabe2089ac9515a3d8aa891bcf1bd3",
+    "preparedContextFile": "../real-runtime-20261023/prepare-bc990176cb/prepared-context.json",
+    "preparedContextSha256": "c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718",
+    "requestFile": "../real-runtime-20261023/live-authorization.REQUEST.json",
+    "configuredBindings": 40,
+    "distinctCredentials": 30,
+    "inputReservationAllowancePerAttempt": 1048576,
+    "outputAllowance": "Unchanged native route limits: primary/semantic-primary4096; Mercury32768; Gemini65536; APX64000",
+    "inputBoundLimitation": "Technical reservation; no gateway monetary guarantee. Never replace with local byte/token estimator. Missing usage retains full allowance; reported breach terminal.",
+    "providerAvailability": "Credentials/native transports present; remote account quota and inference acceptance not tested; no credential submitted to billing/key-check pages",
+    "requiredAtLaunch": [
+      "Exact frozen source match including evidence-only descendant check",
+      "Every required exact-publication-HEAD CI/security result PASS",
+      "Budget identities and dates still valid",
+      "Matching source/run/key fingerprints and QUEUED state",
+      "Fresh resource/cgroup admission",
+      "Separate explicit one-run authorization and approved call/token/deadline limits"
+    ]
+  },
+  "historicalFinancialProposal": {
+    "currency": "USD",
+    "amount": 25,
+    "scope": "Aggregate actual provider charges across every configured provider, role, retry, fallback and internal call",
+    "tariffs": "NOT_VERIFIED; require frozen verified tariffs or independent provider-side aggregate spending control before dispatch",
+    "sufficiency": "Not established. Historical token/cost totals are UNAVAILABLE. These are proposed stop ceilings, not a workload/cost estimate.",
+    "currentApplicability": "SUPERSEDED_AS_ADMIN_ANALYTICS_GATE; no guaranteed actual charge ceiling is enabled by official reference pricing"
+  },
+  "runForensics": {
+    "receipt": "../run-forensics-20261023/forensic-verdict.json",
+    "fourReproducibleRepairs": "PASS_PROVIDER_FREE",
+    "historicalSameRunResume": false,
+    "freshRunSemanticAcceptance": "NOT_RUN",
+    "intermediateFe8b052": "Preserved and superseded; no paid authorization or dispatch"
+  }
 }

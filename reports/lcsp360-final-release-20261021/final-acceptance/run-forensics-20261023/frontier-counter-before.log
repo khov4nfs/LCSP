@@ -1,0 +1,60 @@
+
+tests/test_recorded_preparation_recovery.py::test_recorded_frontier_rehydrates_both_claims_and_independent_receipts_without_inference FAILED [100%]
+
+=================================== FAILURES ===================================
+_ test_recorded_frontier_rehydrates_both_claims_and_independent_receipts_without_inference _
+
+    def test_recorded_frontier_rehydrates_both_claims_and_independent_receipts_without_inference():
+        file = Path(__file__).parents[2] / "reports/lcsp360-final-release-20261021/final-acceptance/run-forensics-20261023/postgres-read-only-snapshot.json"
+        snapshot = json.loads(file.read_text())
+        bundle = snapshot["bundle"]
+    
+        class ReadOnlyReplay:
+            def source_review_operation(self, run_id, revision, action, **fields):
+                assert run_id == snapshot["run"]["id"] and revision == 1
+                assert action in {"INIT", "LOAD"}, "A recovery read cannot mutate retained state"
+                frontier = snapshot["frontier"]
+                return {"outcome": "PASSED", "sourceRevision": frontier["materializationId"],
+                        "frontierRevision": frontier["revision"], "frontierFingerprint": frontier["fingerprint"],
+                        "frontierStateFingerprint": frontier["stateFingerprint"],
+                        "progress": {"total": frontier["unitCount"], "reviewedWithClaims": frontier["reviewedWithClaimsCount"],
+                                     "reviewedNoClaims": frontier["reviewedNoClaimsCount"]},
+                        "records": deepcopy(snapshot["reviews"]) if action == "LOAD" else [], "nextOffset": None}
+    
+        class NoInference:
+            def audit(self, *_args, **_kwargs):
+                raise AssertionError("Committed-evidence recovery must not dispatch an Auditor")
+    
+        source = PinnedSourceGraph(bundle["documentGraph"], [
+            {**c, "chunkId": c["id"], "documentId": d["documentId"], "legalSourceVersionId": bundle["legalSourceVersionId"]}
+            for d in bundle["documents"] for c in d["chunks"]
+        ])
+        for _ in range(2):  # Fresh process-equivalent context, not a conversation checkpoint.
+            context = RuleSetPreparationContext(snapshot["run"]["id"], ReadOnlyReplay(),
+                                               source_graph=source, semantic_auditor=NoInference())
+            tools = {tool.name: tool for tool in build_rule_set_tools(context)}
+            frontier = context.inventory.frontier
+            assert frontier.restore(force=True) is None
+            completed = [r for r in snapshot["reviews"] if r["state"] == "REVIEWED_WITH_CLAIMS"]
+            expected_claims = {c["claimId"]: c for r in completed for c in r["payload"]["claims"]}
+            assert context.draft["semanticClaims"] == expected_claims
+            assert set(context.draft["sourceAccounting"]) == {r["sourceNodeId"] for r in completed}
+            assert context.semantic_audits == {r["sourceNodeId"]: r["payload"]["semanticAudit"] for r in completed}
+            assert len(expected_claims) == len(context.semantic_audits) == 2
+            inventory = json.loads(tools["get_claim_inventory"].invoke({"kind": "CLAIMS"}))
+>           assert (inventory["sourceNodesReviewed"], inventory["sourceNodesRemaining"]) == (2, 10)
+E           AssertionError: assert (2, 16) == (2, 10)
+E             
+E             At index 1 diff: 16 != 10
+E             
+E             Full diff:
+E               (
+E                   2,
+E             -     10,...
+E             
+E             ...Full output truncated (4 lines hidden), use '-vv' to show
+
+tests/test_recorded_preparation_recovery.py:48: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_recorded_preparation_recovery.py::test_recorded_frontier_rehydrates_both_claims_and_independent_receipts_without_inference
+============================== 1 failed in 2.23s ===============================

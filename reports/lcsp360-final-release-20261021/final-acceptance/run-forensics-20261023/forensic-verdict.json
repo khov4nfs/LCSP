@@ -1,0 +1,250 @@
+{
+  "status": "ENGINEERING_FORENSICS_PASS_SEMANTIC_COMPLETENESS_UNPROVEN",
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "sourceCandidate": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "termination": {
+    "mechanism": "SIGTERM_OWNED_WORKER_PROCESS_GROUP",
+    "reason": "Completed provider-usage API callbacks permanently quarantined HTTP_400:BILLING_VALIDATION_FAILED; preserve authoritative local journal; no further paid calls",
+    "firstPoisonSecondsFromLaunch": 9.594,
+    "completedResponsesAfterFirstPoison": 23,
+    "responseCountTimestampMeaning": "MODEL_RESPONSE evidence commit, not provider arrival; first callback can quarantine before this commit",
+    "attemptSettlementsAfterFirstPoison": 23,
+    "completedAttemptsDispatchedAfterFirstPoison": 22,
+    "lastDurableUnitCompletedSecondsFromLaunch": 194.297,
+    "lastFrontierCompletionProgressSecond": 190,
+    "lastTraceModelStartSecondsFromLaunch": 350.498,
+    "unansweredRequestSecondsAtStop": 42.469,
+    "completedModelCallbackLatenciesSeconds": [
+      2.6,
+      8.6,
+      3.7,
+      2.0,
+      15.6,
+      3.3,
+      3.1,
+      3.3,
+      2.4,
+      63.1,
+      68.4,
+      3.2,
+      4.9,
+      2.1,
+      2.2,
+      2.2,
+      65.3,
+      2.3,
+      2.5,
+      6.6,
+      62.1,
+      5.5,
+      2.4
+    ],
+    "finalProgress": {
+      "t": 388,
+      "state": "RUNNING",
+      "phase": "CLAIM_DISCOVERY",
+      "unitCount": 12,
+      "pendingCount": 9,
+      "inReviewCount": 1,
+      "withClaims": 2,
+      "noClaims": 0,
+      "blocked": 0,
+      "claims": 2,
+      "audits": 2
+    },
+    "callbackPoisonCount": 23,
+    "prematureInventoryFreeze": false,
+    "automaticCallbackTermination": false
+  },
+  "retrieval": {
+    "chunkHashesVerified": 15,
+    "reviewUnits": [
+      {
+        "sourceNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+        "state": "REVIEWED_WITH_CLAIMS",
+        "characters": 90,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+        "state": "REVIEWED_WITH_CLAIMS",
+        "characters": 132,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "2692ffc975fc9fc00982474303d5c5c75db80fa5f11b6f953ccfea19f5b389fa",
+        "state": "IN_REVIEW",
+        "characters": 141,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": [
+          {
+            "state": "RESOLVED",
+            "target": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6"
+          },
+          {
+            "state": "RESOLVED",
+            "target": "640473b5d1dab965f0072cd236751a8a4e444f3241e453f2630dab3aa6567677"
+          }
+        ]
+      },
+      {
+        "sourceNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+        "state": "PENDING",
+        "characters": 111,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": [
+          {
+            "state": "RESOLVED",
+            "target": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6"
+          },
+          {
+            "state": "RESOLVED",
+            "target": "7282dbce0c69272369a3f15ec80cf08e51aeb357da7a633ba2ee63e24fdd67e9"
+          },
+          {
+            "state": "RESOLVED",
+            "target": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d"
+          },
+          {
+            "state": "RESOLVED",
+            "target": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52"
+          }
+        ]
+      },
+      {
+        "sourceNodeId": "5f2e9acd239c3cda3d16a2cfb75b4fd5253ea5a4dadcf8dd18c21a6357897193",
+        "state": "PENDING",
+        "characters": 138,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "8ad19e83172c8d0716630b2bc6fd3109075489be8059076340d7e03bef5cb680",
+        "state": "PENDING",
+        "characters": 138,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+        "state": "PENDING",
+        "characters": 89,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": [
+          {
+            "state": "RESOLVED",
+            "target": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d"
+          },
+          {
+            "state": "RESOLVED",
+            "target": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52"
+          }
+        ]
+      },
+      {
+        "sourceNodeId": "fe6c1b37b315b4a3134f9198cbef6bda8ea22e7cbed83f08042f1a6d873ee664",
+        "state": "PENDING",
+        "characters": 51,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "36b70862800aa45bfd26aa098730372860bb635f078c1a9202368d9531dba616",
+        "state": "PENDING",
+        "characters": 67,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "94702c586e68e659605e6566aa4cda2ef294e734a64c5657ec6e1c1b96333f82",
+        "state": "PENDING",
+        "characters": 51,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "4c5a095af862f0639d8e752a753b2b741a4cf610f913b19d880961a2da13092d",
+        "state": "PENDING",
+        "characters": 67,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": []
+      },
+      {
+        "sourceNodeId": "fb3292e495bc21fd74f2fd58b3a2c75da5769f1f85e941fd18cd8dfb046c1914",
+        "state": "PENDING",
+        "characters": 172,
+        "graphToolReadable": true,
+        "materializedFileReadable": true,
+        "referenceTargets": [
+          {
+            "state": "UNRESOLVED",
+            "target": null
+          }
+        ]
+      }
+    ],
+    "unfinishedUnitsReadable": 10,
+    "historicalReferenceStates": {
+      "RESOLVED": 8,
+      "UNRESOLVED": 1
+    },
+    "providerDispatches": 0
+  },
+  "accounting": {
+    "attempts": 24,
+    "responses": 23,
+    "states": {
+      "SETTLED": 23,
+      "IN_FLIGHT": 1
+    },
+    "roles": {
+      "rule-set-preparation": 22,
+      "legal-semantic-auditor": 2
+    },
+    "knownInputCacheTokens": 391223,
+    "knownOutputTokens": 3272,
+    "completeInputCacheTokens": null,
+    "completeOutputTokens": null,
+    "knownReferenceSubtotalUSD": "0.6481276",
+    "completeReferenceTotalUSD": null,
+    "actualGatewayCharge": "UNAVAILABLE",
+    "unknownExposureInput": 1048576,
+    "unknownExposureOutput": 128000
+  },
+  "auditor": {
+    "persistedReceiptsMatchCompletedReviewPayloads": 2,
+    "actualIndependentInvocationsMatched": 2,
+    "supportHashesRecomputed": true,
+    "hmacReverification": "NOT_REPEATED: private ephemeral key unavailable; original signed receipts and prior independent HMAC verification preserved"
+  },
+  "resume": {
+    "actualClaimHandler": {
+      "httpStatus": 409,
+      "providerDispatches": 0,
+      "state": "FAILED"
+    },
+    "graphCheckpointer": false,
+    "committedUnitPayloadsRetained": 2,
+    "activeUncommittedClaims": 0,
+    "sameRunResumeSupported": false,
+    "newPaidAuthorizationRequired": true
+  },
+  "limitations": [
+    "Historical model text, full tool replies and conversation checkpoint were not retained.",
+    "No claim that callback repair proves model convergence on the third unit or full corpus.",
+    "No paid inference, Rule Set activation, staging or deployment occurred in this analysis."
+  ]
+}

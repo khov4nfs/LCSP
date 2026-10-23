@@ -1,0 +1,37 @@
+{
+  "status": "PASS_OLD_FAILURE_REPRODUCED_FIXED_REPLAY_PASSES",
+  "oldSource": "640d183f5101f5d1cfc38784777f59a02459a3c3",
+  "recordedJournalSha256": "05e39b5d9ec9e90417eaa9e2b045a513fb1582f0e1db8fff4ab0f96eb25c0b55",
+  "old": {
+    "physicalAttempts": 24,
+    "successfulResponses": 23,
+    "unresolvedAttempts": 1,
+    "inputTokensIncludingCache": 391223,
+    "outputTokens": 3272,
+    "knownInputTokensIncludingCache": 391223,
+    "knownOutputTokens": 3272
+  },
+  "fixed": {
+    "physicalAttempts": 24,
+    "successfulResponses": 23,
+    "unresolvedAttempts": 1,
+    "inputTokensIncludingCache": null,
+    "outputTokens": null,
+    "knownInputTokensIncludingCache": 391223,
+    "knownOutputTokens": 3272
+  },
+  "parallelToolAttribution": {
+    "old": [
+      "get_review_progress",
+      "get_review_progress"
+    ],
+    "fixed": [
+      "get_next_review_unit",
+      "get_review_progress"
+    ]
+  },
+  "originalUnchanged": true,
+  "providerDispatches": 0,
+  "semanticVerdictsGenerated": 0,
+  "legalAcceptance": "NOT_EVALUATED"
+}

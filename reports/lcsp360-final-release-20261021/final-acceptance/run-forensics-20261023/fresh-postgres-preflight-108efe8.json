@@ -1,0 +1,25 @@
+{
+  "status": "PASS_FRESH_READ_ONLY_PREFLIGHT_NO_INFERENCE",
+  "candidateSha": "108efe8c57741cc70347d98d962dd8acc9da4de7",
+  "runId": "126e0158-1b9e-4331-8e37-e2dec6b6151a",
+  "database": "lcsp360_final_forensic_ready_55f6f60a",
+  "port": 55508,
+  "state": "QUEUED",
+  "sourceVersionId": "917d54c6-5b3d-40c8-9956-79c20567d4be",
+  "materializationId": "c433c1cac895a093f970ec0628b10eca3b5f05aba431692fc32c93d05b220cae",
+  "parserRevision": "legal-structure-v3",
+  "sourceByteSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "persistedDocumentSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "verifiedChunks": 15,
+  "verifiedReviewUnits": 12,
+  "counts": {
+    "usage": 0,
+    "audits": 0,
+    "inventories": 0,
+    "versions": 0
+  },
+  "hmacIndependentRoundTrip": true,
+  "privateKeyMode": "0600_DURABLE_OWNER_CACHE",
+  "paidCalls": 0,
+  "semanticAcceptance": "NOT_EVALUATED"
+}

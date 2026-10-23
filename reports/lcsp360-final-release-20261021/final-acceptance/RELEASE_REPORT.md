@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**BLOCKED — the single authorized real-model run failed its telemetry-delivery gate and was stopped.** Run `4ae336f3-35b4-4393-ba42-cb4eeb4d500f` evaluated frozen `bc990176cbb046ea95e12a94fc29e81bc8869653`; current repaired source is `88f8bedc2c633da654ebc9db7698aa293a31b128`. Section 21 records actual usage, recovered API/Admin analytics, two genuine audits and incomplete legal acceptance. The one-run authorization is consumed; no resume or second evaluation is authorized. PR remains Draft; no staging, production, merge or deployment.
+**AWAITING_LIVE_TEST_AUTHORIZATION — engineering repairs verified; final semantic acceptance remains BLOCKED.** Current frozen source is `108efe8c57741cc70347d98d962dd8acc9da4de7`. Section 22 records causal forensics, four provider-free repairs, full-source/P10 regressions and fresh unclaimed run `126e0158-1b9e-4331-8e37-e2dec6b6151a`. Exact evidence-publication CI/security results are recorded in the PR checkpoint. Historical Sections 1–21 retain their original outcomes, including the failed `bc990176c` evaluation and its consumed authorization. No resume or second paid evaluation occurred. PR remains Draft; no staging, production, merge or deployment.
 
 - Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
@@ -759,3 +759,82 @@ Evidence: [one-run approval](authorized-real-model-20261023/live-authorization.A
 All three protected WIP hashes remain unchanged. Historical 55441/55502/55503/55504/55505 were untouched. The owned 55506 database/volume, exact candidate worktree, raw journal, signed receipts and private key remain retained. Owned post-run API/Web and PostgreSQL are stopped after logout. No destructive cleanup, dependency mutation during inference, production action or security exclusion occurred. Current fixed source differs only in usage redaction and metadata settlement; legal semantics and agentic architecture were not replaced.
 
 **Single next action: obtain separate authorization for one fresh bounded evaluation of the repaired candidate after a new matching preflight. The consumed run cannot be resumed or silently retried.**
+
+
+## 22. Causal run forensics and repaired non-paid readiness — 2026-10-23
+
+Frozen source **`108efe8c57741cc70347d98d962dd8acc9da4de7`**; implementation commits `fe8b052a713c21db828d8521d09f7ad507155c1a` and `108efe8c57741cc70347d98d962dd8acc9da4de7`. This section supersedes the current next-run proposal, not historical results. The exact evidence-publication SHA and its mandatory CI/security results are linked in the [PR checkpoint](https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6346057937). A previous HEAD's green checks are not current-head evidence.
+
+### What actually stopped the consumed run
+
+The corrupted callbacks **did not automatically terminate** `4ae336f3-35b4-4393-ba42-cb4eeb4d500f`. `usage_recovery.drain()` quarantines permanent HTTP 400 callbacks and continues. First quarantine occurred **9.594 s** after parent launch. **22 other answered physical attempts were dispatched after it**, and the second review committed at **194.297 s**. Callback delivery/evidence/settlement timestamps differ: the first request's callback can quarantine before its MODEL_RESPONSE/SETTLED evidence commits. The forensic receipt distinguishes these timestamps rather than treating commit time as provider arrival.
+
+The stop receipt records an explicit **SIGTERM of the owned Python worker process group** at approximately 392.967 s; the parent recovered accounting and exited at **397.006 s**. The final request had been outstanding for **42.469 s**, below its 600 s timeout. This was not worker/overall deadline expiry, budget exhaustion, a terminal Auditor rejection, or a recorded `NoProgressDetected` exception. The original exit/result/trace remain preserved.
+
+Discovery nevertheless stopped advancing after two completed units. The third unit was leased repeatedly, with no new claim or completed review. Several model-callback intervals lasted 62–68 s; these intervals include provider/runtime work and are not independent provider-latency measurements. One tool-free Producer response was followed by another model invocation, consistent with the existing completion guard continuing the unfinished graph. No inventory freeze, validation, submission or activation occurred. This proves interrupted, non-converged discovery; it does **not** prove the model would have converged if left running.
+
+All ten unfinished units are readable through the genuine `get_legal_node` tools and materialized pinned files. Their actual text is nonempty; all fifteen chunk hashes match. The third unit's two explicit references resolve to pinned source targets. Both completed reviews contain the actual signed Auditor receipt, whose verifier operation matches a real independent Auditor invocation. There was no third-unit Auditor invocation or rejected feedback to integrate. The original graph also contains one later false-positive reference, described below; it was not reached and did not cause this stop.
+
+### Root cause and Fix: independently reproduced defects
+
+1. **Recovery totals. Root cause:** `recover_usage()` determined totals/completeness from answered responses only, ignoring unanswered physical attempts. The recorded 24-attempt journal exposed 391,223 input/cache and 3,272 output as complete fields. **Fix:** incomplete physical response coverage keeps complete totals NULL while retaining known subtotals, identities, all 23 responses and unresolved exposure. The recorded journal and a smaller all-known-response-plus-unknown-attempt case fail before the fix and pass afterward. No original journal was written.
+2. **Trace identity and context visibility. Root cause:** nested `Trace.on_tool_end()` wrote every parallel result to the last-started tool, and its 300-character prefix omitted leased-unit/progress fields. Model completion traces recorded only a count. **Fix:** `LiveTrace` pairs results by native callback ID; distinguishes that ID from physical admission identity; records bounded unit/progress metadata, output fingerprints, tool-call counts and safe stop reasons. It retains no full prompts, model text or raw exception secrets. An interleaved callback replay reproduces incorrect old attribution and correct new attribution. Historical missing text is not fabricated or recoverable from this change.
+3. **Structural citation boundaries. Root cause:** the citation regex could start/end inside words, producing unresolved `point a` from **“appoint a person”** at UTF-16 offsets 23–30. **Fix:** Unicode letter/number/underscore boundaries apply to the entire syntactic citation. No legal meaning is classified. Three old failures cover the actual recorded sentence and unfamiliar word fragments; standalone English/Vietnamese citations and exact offsets remain valid. Parser revision **v3** creates a separate materialization; v2 pins remain unchanged. Full actual-source replay preserves all **20 nodes, 15 chunk mappings, 12 review units and eight genuine references**, removing only the word-fragment reference.
+4. **Conflicting frontier counters. Root cause:** the CLAIMS view counted all nonempty AST nodes, including ancestor context, while STATUS used actual review units. The real trace reports 2 reviewed / **16 remaining**, despite the durable frontier's 2 reviewed / **10 remaining**. **Fix:** frontier-backed claim views restore committed evidence and project the API's persisted unit counters. Legacy non-frontier views retain their original behavior. A recorded-state regression fails 2/16 before the fix and passes 2/10 afterward; an actual full unfamiliar P10 diagnostic also passes without any model or verdict. This could confuse progress context, but evidence does not establish it as the sole cause of repeated third-unit polling.
+
+The earlier callback redaction and stale availability-marker repairs remain intact: two actual wire regressions and twelve API billing tests pass. Corpus discovery, typed authoring, semantic autonomy, independent Auditor rejection behavior, route order and deterministic validation were not replaced or weakened.
+
+### Recovery, state and resume semantics
+
+Read-only PostgreSQL extraction used the production graph export and a `REPEATABLE READ` / `READ ONLY` transaction. A fresh-context replay reconstructs both committed claims, source accounting and both authentic independent receipts exactly, without inference. Active local claims were empty. There is no evidence that committed claims or Auditor feedback were lost.
+
+The Preparation graph deliberately uses **`checkpointer=False`** and clears inherited runnable configuration. A persisted review frontier is not a conversation/model-call checkpoint. Historical traces retain model counts and short tool prefixes, not full reasoning or tool replies; no forensic conclusion substitutes for missing evidence. The recorded private `/tmp` context/key paths are no longer present at this checkpoint, so historical HMAC verification was **not repeated**. Original sealed receipts and the previous independent HMAC/tamper/wrong-run evidence remain unchanged. No replacement key was used to validate old receipts.
+
+The **actual current claim handler returns HTTP 409** for this FAILED run, before model construction. Its original immutable budget pins bc990176c and its original run; the live usage constructor also refuses reuse of answered journals. A lease takeover of an aged RUNNING run is a different restart/reconstruction mechanism, not a supported resume of this terminal run or permission to spend. **Same-run resume is not supported.** No run state, original journal or receipt was reset. A new evaluation needs a new queued context and separate authorization.
+
+### Reconciliation and verification
+
+| Non-paid verification | Actual result |
+|---|---|
+| Combined Python: live usage/trace, recorded recovery, token analytics/admission, metering, history, single-pass audit, claim protocol, no-progress and binding suites | **197 passed** |
+| `test_api_client.py -k settled_usage` | **2 passed**; original wire defect remains fixed; secret negative controls pass |
+| API Jest `document-graph.spec.ts` + `source-review-frontier.spec.ts` | **25 passed**, including unfamiliar syntax controls |
+| API Jest `billing-usage.kernel.spec.ts` | **12 passed**; replay/late/missing usage remains honest |
+| `replay_before_after.py` | **PASS** old failures independently reproduced; original journal SHA unchanged |
+| `analyze_run.py` | **PASS** 24 attempts / 23 responses / 1 unresolved; all ten unfinished units readable, support hashes recomputed |
+| Real PostgreSQL graph lifecycle, fresh owned port 55507 | **PASS** current materialization idempotent; restored historical v2 export unchanged; 15 source chunks/digest preserved; no model or Rule Set |
+| Actual P10 diagnostic on separate owned database | **PASS structural counters only**; one full-text unit, zero usage/audits; no semantic acceptance claim |
+| Configured offline admission rehearsal | **PASS** 7 underlying offline dispatches, 4 responses, 3 unresolved; CALL_LIMIT, no eighth dispatch; recovered complete totals remain unknown |
+| Final native binding preflight | **40/40 bindings**, 30 distinct credentials; zero network attempts; original SDK retry/cap and route identities retained |
+| API build, contracts build, focused ESLint, canonical terminology, AST graph update | **PASS**; existing optional SQL extractor / smoke-file graph warnings retained |
+| Exact evidence-publication CI/security | Recorded in PR checkpoint after push; historical 640d183f5 36/36 is not substituted |
+
+Independent reconciliation again matches every known journal bucket to persisted invocation records and exact decimal price snapshots. **391,223 known inclusive-input tokens**, **3,272 known output tokens**, **USD 0.6481276 known official-reference subtotal**; complete token/cost totals remain UNKNOWN. Actual gateway charge remains UNAVAILABLE. One unfinished attempt retains **1,048,576 input / 128,000 output** exposure. No provider request was replayed; callbacks, observations and synthetic offline handlers are not counted as new paid inference.
+
+### Final fresh non-paid context and authorization request
+
+The final repaired source is **108efe8c57741cc70347d98d962dd8acc9da4de7**. The fe8b052 intermediate context remains retained and superseded; it was never authorized or dispatched. Final prepare-only context:
+
+- Run **`126e0158-1b9e-4331-8e37-e2dec6b6151a`**, **QUEUED / unclaimed / 0 usage / 0 audits / 0 inventories / 0 Rule Set versions**.
+- Owned PostgreSQL **55508**, database **`lcsp360_final_forensic_ready_55f6f60a`**; API prepare port **4470**. Full original source digest **b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1**, fifteen chunks, twelve review units, v3 graph **`c433c1cac895a093f970ec0628b10eca3b5f05aba431692fc32c93d05b220cae`**.
+- Prepared-context SHA **`d8974c1dd9dce643a4bfc118c8ba3f074529efb51ddee1854942634050bc0783`**. Independent Node/Python HMAC and source-support checks pass; preflight receipt says **NOT_EVALUATED**. New private key is fsynced in an owner-only durable cache outside Git; fingerprint pinned in context, mode 0600 independently checked.
+- Process-tree prepare ran under **3 GiB / 200% CPU / 4,200 s RuntimeMax / 5 s stop / KillMode=control-group**, exiting in **12.710 s**, CPU **8.427 s**, peak **544.7 MiB**. Disk and available memory passed the existing admission thresholds; no image build was launched.
+- Proposed schema-3 budget fingerprint **`caecbf80984babefa9bc096819e8066870e576e4913c5afe0d920cb71266bf6b`**, file SHA **`559c127414edcae6c6ab1e534165f361a0409648fb077cb08a5b21b1a79868d3`**, expires **2026-10-24T04:53:07Z**. Proposed limits remain **256 attempts / 4,000,000 input-cache / 256,000 output-reasoning / 3,600 s worker / 600 s request / 4,200 s overall**. Native output caps remain 128,000 for both Sonnet primary routes; no actual USD cap is asserted. Conservative reservations may terminate earlier when usage is unknown.
+- Exact source worktree **`/home/khovan/.cache/lcsp360-final/next-108efe8-forensic`** is clean, with unchanged installed dependencies and copied current API build. No provider `.env` was copied there. The Python worker requires exact candidate HEAD; a report-only publication descendant must not be used as the worker checkout. At any authorized launch, all route/credential/SDK identities, dates, source/run/key identities, resources and CI must be revalidated.
+
+The [new request](run-forensics-20261023/next-evaluation.REQUEST.json) has **paidInferenceApproved:false**, no approval reference/file or executable launch command. Forty local credential bindings do not prove remote quota or endpoint acceptance. Missing private billing contracts are not an Admin-analytics blocker, and reference prices are not provider-charge guarantees. **Paid calls/tokens/cost for this task: 0 / 0 / USD 0.** Historical actual gateway charges remain UNAVAILABLE.
+
+| Acceptance scope | Verdict |
+|---|---|
+| Reproducible engineering defects / provider-free recovery and governance | **PASS**, as scoped above |
+| Fresh actual API/PostgreSQL provenance/HMAC/resource preflight | **PASS non-paid**, zero inference |
+| Admin actual-browser analytics/auth evidence | Section 21 evidence preserved; no new browser claim in this non-UI repair |
+| Full real-model legal-semantic acceptance | **NOT_COMPLETED**, consumed historical run failed; fresh run NOT_RUN |
+| Inventory freeze / typed authoring / Validator / atomic activation | **NOT_RUN for the repaired candidate** |
+| Release-image / staging / production / merge / Draft removal | **NOT_RUN / NOT_AUTHORIZED** |
+
+Evidence directory: [run-forensics-20261023](run-forensics-20261023/verification-summary.json). Primary receipts: [causal verdict](run-forensics-20261023/forensic-verdict.json), [before/after replay](run-forensics-20261023/before-after-replay.json), [full parser replay](run-forensics-20261023/parser-replay.json), [real PostgreSQL lifecycle](run-forensics-20261023/postgres-materialization-replay.json), [final independent preflight](run-forensics-20261023/fresh-postgres-preflight-108efe8.json), [native identities](run-forensics-20261023/token-envelope-108efe8/binding-readiness.json).
+
+All forty historical artifact hashes and all three protected WIP hashes remain unchanged. Historical PostgreSQL resources on 55441/55502/55503/55504/55505 were untouched; 55506 was opened only for read-only inspection. Task-owned 55506/55507/55508 data and intermediate contexts are retained; owned services/containers are stopped after verification. No broad cleanup, historical journal rewrite, security-policy exception or legal-semantic bypass occurred.
+
+**Single next action: obtain explicit authorization for exactly one fresh bounded evaluation of run 126e0158-1b9e-4331-8e37-e2dec6b6151a on source 108efe8c57741cc70347d98d962dd8acc9da4de7, contingent on revalidation before dispatch. No same-run resume is proposed.**

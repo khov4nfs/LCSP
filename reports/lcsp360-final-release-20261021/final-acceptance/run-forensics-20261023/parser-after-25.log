@@ -1,0 +1,8 @@
+(node:40900) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Test Suites: 2 passed, 2 total
+Tests:       25 passed, 25 total
+Snapshots:   0 total
+Time:        1.475 s
+Ran all test suites matching src/modules/legal-source/domain/document-graph.spec.ts|src/modules/compliance-rule-set/domain/source-review-frontier.spec.ts.

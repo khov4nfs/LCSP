@@ -1,0 +1,20 @@
+{
+  "status": "PASS_REAL_POSTGRES_GRAPH_VERSIONING",
+  "database": "lcsp360_forensics_20261023",
+  "port": 55507,
+  "preservedOldMaterialization": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+  "correctedMaterialization": "de140494a3af4a1b39169f43aeb495beb6e643f1405298c68031fe09f5bed136",
+  "parserRevision": "legal-structure-v3",
+  "originalPinnedExportUnchanged": true,
+  "idempotentMaterialization": true,
+  "sourceDocuments": [
+    {
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
+    }
+  ],
+  "chunks": 15,
+  "preparations": 0,
+  "ruleSetVersions": 0,
+  "providerDispatches": 0
+}

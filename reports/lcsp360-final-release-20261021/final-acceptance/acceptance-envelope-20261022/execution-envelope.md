@@ -1,5 +1,8 @@
 # Current checkpoint — one authorized evaluation consumed, release BLOCKED
 
+**Current checkpoint (Section 22): AWAITING_LIVE_TEST_AUTHORIZATION.** Frozen source `108efe8c57741cc70347d98d962dd8acc9da4de7`; fresh unclaimed run `126e0158-1b9e-4331-8e37-e2dec6b6151a`. [Exact request](../run-forensics-20261023/next-evaluation.REQUEST.json), [forensics](../run-forensics-20261023/forensic-verdict.json), [final non-paid preflight](../run-forensics-20261023/fresh-postgres-preflight-108efe8.json). No approval or launch command exists. Earlier sections below are historical proposals and outcomes.
+
+
 The one explicitly authorized run `4ae336f3-35b4-4393-ba42-cb4eeb4d500f` on `bc990176cbb046ea95e12a94fc29e81bc8869653` stopped after permanent telemetry callback failures. It is FAILED / RUNTIME_ERROR. **One evaluation attempted, zero remaining. No second evaluation or resume is authorized.** See [Release Report §21](../RELEASE_REPORT.md) and [actual run evidence](../authorized-real-model-20261023/verification-summary.json).
 
 The exact original proposal became a one-run approval with 256 calls / 4,000,000 input-cache / 256,000 output-reasoning / 3,600 s worker / 600 s provider / 4,200 s overall; no USD cap. Actual run: 24 attempts, 23 responses, 1 unknown, 397.006 s, 729.4 MiB peak. Known input/cache 391,223 and output 3,272; retained unknown exposure 1,048,576 / 128,000. Reference known subtotal USD 0.6481276 is incomplete; actual gateway charges are UNAVAILABLE.
@@ -156,3 +159,6 @@ Next action: **obtain and independently verify complete charging and strict toke
 Section 19 of RELEASE_REPORT.md supersedes account-contract approval as an Admin analytics prerequisite. Actual provider token usage, immutable estimates at official developer standard pricing, and runtime call/token controls are separate. Schema-3 token governance does not claim a guaranteed provider charge. Schema-2 strict financial enforcement remains optional and requires its original evidence.
 
 Admin/API/PostgreSQL/browser provider-free verification passes; exact new-HEAD CI/security and non-paid runtime readiness are still pending. The envelope remains disabled. All proposed limits remain UNAPPROVED. No paid run, staging, production deployment, merge or Draft removal is authorized. Historical account evidence requests are retained and superseded for reference analytics, not fulfilled.
+
+
+The consumed FAILED run cannot resume: actual claim handler 409, no graph conversation checkpoint, immutable old candidate/budget and no remaining authorization. The final new run uses the complete 15-chunk/12-unit corpus and v3 structural graph; no legal conclusions have been produced. Proposed 256 calls / 4,000,000 input-cache / 256,000 output-reasoning / 3,600 s worker / 600 s request / 4,200 s overall remain unapproved. Budget expires 2026-10-24T04:53:07Z; revalidate or prepare a new proposal if stale. Official reference costs are reporting, not actual gateway-charge guarantees. Final exact-publication CI/security results are recorded in PR #427 checkpoint.
