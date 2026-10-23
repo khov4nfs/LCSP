@@ -1,0 +1,8 @@
+{
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "state": [
+    "RUNNING",
+    null
+  ],
+  "action": "Existing worker failure callback RUNTIME_ERROR for permanently rejected usage telemetry; no SQL domain mutation"
+}

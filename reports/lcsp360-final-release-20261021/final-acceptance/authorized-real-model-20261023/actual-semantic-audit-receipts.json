@@ -1,0 +1,97 @@
+{
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "readOnly": true,
+  "receipts": [
+    {
+      "sourceNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-23T00:15:00.850891Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "2903c285148559895cceb467e0d960f9c5602bce7dd28b24aad4d2d729ed051c"
+          }
+        ],
+        "attestation": "hmac-sha256:161a4c77aa0dbc16fc030d12487ff7d497fa8c519f68264e8f38cb5bdcea1fb6",
+        "sourceNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "63499cb9723b09a760a48a706d3d91b5c59bf79d1bfab3f391812dda6c85b48f",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "37835b1d-34eb-4c14-af37-86b80307748e",
+        "assertionFingerprint": "0a6010d7d029f4b270bf0ee3036ed6ccdbddc5d2d74f1d5eecd0be152b2f3755",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "ec08b7bce0e3166a4c7f79c5f61e73b6d090195a60edb37c11242a1311175b5c"
+      }
+    },
+    {
+      "sourceNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-23T00:12:37.337494Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "dda61e946102a38e6ce580c915df36b90df1696bc13b4ac34ae3ac7e92131151"
+          }
+        ],
+        "attestation": "hmac-sha256:09e58d89da51185b52c976cf6e1972bff2a91e08ff919121e63c5a5f3c835161",
+        "sourceNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "148ddeeaeb0d7f453cbb65d42ee23aba29a6d0a4954e3a9b49dd9ac6f83d753c",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "7df096f8-2635-4d3a-8392-2b9c4c094858",
+        "assertionFingerprint": "f348659ad0223691b62d093494870bd81a67148b2acd4ce1b4f37f462a6e3ee8",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "3bd0159bbf418f7eaa364af80c2523ba9edb88a6069e02e451f5e9cde34b34eb"
+      }
+    }
+  ],
+  "independentAuditorPhysicalInvocationIds": [
+    "37835b1d-34eb-4c14-af37-86b80307748e",
+    "7df096f8-2635-4d3a-8392-2b9c4c094858"
+  ],
+  "everyReceiptMatchesPhysicalAuditorInvocation": true
+}

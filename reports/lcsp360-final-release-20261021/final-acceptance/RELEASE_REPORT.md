@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**BLOCKED — real browser acceptance is partial; live-model authorization and a repository connection remain absent.** Current frozen source is `bc990176cbb046ea95e12a94fc29e81bc8869653`. Section 20 records actual Admin/User login, assessment persistence, SSE, authorization, empty usage analytics, outage recovery and a browser-downloaded artifact. Account contracts are superseded as an Admin reference-cost gate. Exact publication CI/security is linked from the PR checkpoint; fixture results do not establish real AI acceptance. PR remains Draft; no paid inference, staging, merge or deployment.
+**BLOCKED — the single authorized real-model run failed its telemetry-delivery gate and was stopped.** Run `4ae336f3-35b4-4393-ba42-cb4eeb4d500f` evaluated frozen `bc990176cbb046ea95e12a94fc29e81bc8869653`; current repaired source is `88f8bedc2c633da654ebc9db7698aa293a31b128`. Section 21 records actual usage, recovered API/Admin analytics, two genuine audits and incomplete legal acceptance. The one-run authorization is consumed; no resume or second evaluation is authorized. PR remains Draft; no staging, production, merge or deployment.
 
 - Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
@@ -680,3 +680,82 @@ Evidence: [browser runtime](real-runtime-20261023/browser-runtime.json), [final-
 **Actual new paid calls / tokens / cost: 0 / 0 / USD 0. Activated Rule Set: none.** No real-model or final release PASS is claimed. The completed authorized runtime work does not grant spending permission or a repository credential.
 
 **Single next action: explicitly authorize exactly one bounded live Preparation on the frozen candidate under the refreshed request's call/token/deadline limits, acknowledging that official reference estimates are not guaranteed gateway charges; launch remains conditional on exact-publication CI and fresh admission.** Completing the later User scan additionally requires the owner to connect an authorized repository through its secure UI; never send that credential in chat or Git.
+
+
+## 21. One authorized real-model evaluation — stopped on verified runtime failure
+
+**BLOCKED.** The user explicitly authorized exactly one evaluation of prepared run **`4ae336f3-35b4-4393-ba42-cb4eeb4d500f`**, frozen source **`bc990176cbb046ea95e12a94fc29e81bc8869653`**. That authorization is now **consumed: 1 attempted, 0 remaining**. The run is terminal **FAILED / RUNTIME_ERROR**, not a semantic PASS. No second evaluation, resume, model repair run, budget increase, staging, production, merge or Draft removal occurred.
+
+### Before dispatch: genuine passing revalidation
+
+Prepared-context SHA-256 stayed `c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718`. Budget file SHA-256 stayed `142178f87795bef7508a317181f1ca76a1e4bd7b6503ca4cdfd89603031d36c3`; canonical fingerprint stayed `498f7ff6f243f748f6ae43ebf0c7a6e3f3eabe2089ac9515a3d8aa891bcf1bd3`. The approved copy is byte-identical to the historical unapproved proposal. Its policy had more than 17 hours of validity, covering the full approved deadline. Source byte digest, all 15 chunks, document/version/run/HMAC identity and QUEUED/unclaimed state passed read-only checks. All 40 native route/credential/SDK/endpoint bindings matched, with zero network attempts during revalidation. Actual cgroup admission passed with 3 GiB memory, 200% CPU, 15,856,664,576 disk bytes free and 11,356,585,984 available memory bytes. Individual and initial two-role reservations fit; completion within ceilings was never guaranteed.
+
+The outer harness permits report-only descendants, while its Python worker requires exact `HEAD == budget.candidate_sha`. This discrepancy was caught before paid dispatch. Execution therefore used a detached, isolated **exact bc990176c worktree**, with unchanged dependencies and API build inputs, preserving main-checkout WIP. No identity check was bypassed. The worktree is retained; its task-created private provider `.env` copy was removed after termination. Provider keys and HMAC material were never published.
+
+The authentic full 15-chunk/12-unit controlled synthetic corpus and configured Producer/independent Auditor were used. All configured fallback/credential pools remained intact. Approved ceilings were 256 physical attempts, 4,000,000 input/cache tokens, 256,000 output/reasoning tokens, 3,600 s worker, 600 s provider, 4,200 s overall. The frozen native budget actually allows **128,000 output tokens for both Sonnet primary routes**, Mercury 32,768, Gemini 65,536 and APX 64,000. This corrects the older narrative's 4,096 Sonnet figure; the actual budget bytes, native caps and approval ceilings were not changed. No actual USD cap was approved or claimed.
+
+### Root cause and Fix
+
+**Root cause:** `WorkerApiClient._post_with_retry()` sends usage through the shared secret redactor. Four newly added numeric metadata names were absent from `SAFE_METADATA_KEY_NAMES`: `inputTokensIncludingCache`, `cacheWrite5mTokens`, `cacheWrite1hTokens`, `visibleOutputTokens`. Their “Tokens” segments caused the redactor to blank them. STARTED messages, which omit usage buckets, succeeded; COMPLETED messages became invalid and were permanently quarantined with **HTTP_400:BILLING_VALIDATION_FAILED**. The first actual recorded payload reproduces three empty fields; the fourth is exercised by regression. The TypeScript schema correctly rejected the corrupted wire payload.
+
+**Fix:** `c8b629ca7` adds only those four canonical counters to the existing allowlist. Credential/bearer/token redaction remains enforced; no validator, model, source, semantic or authorization gate was weakened. A real HTTP replay reproduces 400 before and succeeds after, persisting original measured counters and the immutable price snapshot. Offline cross-language validation independently proves old wire REJECTED / corrected wire ACCEPTED.
+
+**Root cause:** completion also left the STARTED row's `PROVIDER_USAGE_METADATA_MISSING` marker attached to SETTLED measured usage. **Fix:** `88f8bedc2c633da654ebc9db7698aa293a31b128` clears that stale marker on completion and repairs it on identical replay without altering tokens or repricing. Missing-usage completion remains UNAVAILABLE. Focused unit checks and actual PostgreSQL verification pass.
+
+### Actual execution, stop and recovery
+
+The one systemd-owned run lasted **397.006 seconds**; peak memory **729.4 MiB**, CPU **19.569 s**, exit **1**. At the verified permanent telemetry rejection, the owned Python worker process group was terminated; the Node harness remained alive to recover the committed journal and write its honest RUN_ABORTED report. It did not reach a deadline or budget limit. All 23 answered invocations and one unfinished attempt survived. The raw harness snapshot still says RUNNING because the killed worker could not send a terminal callback; it is preserved. The existing authenticated failure callback subsequently recorded **FAILED / RUNTIME_ERROR**, preventing an orphaned active run, with no SQL domain mutation or agent resume.
+
+The original journal SHA-256 remains **`4eeb126907305a4f110c3ecb96a305813f9468e662b7733657e153822072fbe9`**. Callback recovery used a separate SQLite backup: only the 23 reviewed quarantined delivery rows were re-admitted for telemetry, and the interrupted IN_FLIGHT attempt was classified OUTCOME_UNKNOWN after worker exit. **24 callbacks delivered; repeat drain 0.** The original ledger/receipts were not rewritten, no provider request was replayed, and unknown exposure was not refunded. PostgreSQL now has exactly 24 unique attempt records, 23 COMPLETED and one OUTCOME_UNKNOWN.
+
+| Usage/accounting fact | Actual result |
+|---|---|
+| Physical admitted attempts | **24**: 22 Producer, 2 independent Auditor; all MIRAIAPI / claude-sonnet-5 |
+| Successful responses / unfinished outcome | **23 / 1**; one completed response also lacks some bucket metadata |
+| Known input including cache | **391,223**; unknown request consumption remains unknown |
+| Known uncached input / cache reads | **300,459 / 72,448**; remaining inclusive input lacks independent bucket detail |
+| Known output / provider-reported total | **3,272 / 394,495**; not a complete run-total claim |
+| Separate reasoning / visible-output usage | **UNAVAILABLE**, never invented or double charged |
+| Unresolved reservation retained | **1,048,576 input / 128,000 output** |
+| Aggregate settled + outstanding exposure | **1,439,799 input / 131,272 output**, within approved ceilings |
+| Estimated official-reference known subtotal | **USD 0.6481276**, exact Decimal/attodollar reconciliation |
+| Complete estimated cost / actual gateway charge | **UNKNOWN / UNAVAILABLE**; 2 incomplete-cost invocations |
+| Price snapshot | `anthropic:claude-sonnet-5:standard:2026-10-22`, official Anthropic source; immutable per invocation |
+
+The independent reconciler matches every known provider bucket from original SQLite responses to PostgreSQL by physical invocation ID, validates all complete inclusive-input sums, and recomputes each reference-cost subtotal using exact decimal arithmetic and the frozen rate buckets. Cached input is subtracted once; reasoning already included in output is not charged twice. The source evidence fingerprint is retained in every price snapshot. This is reference consumption, not invoice reconciliation.
+
+### A. Automated and integrity gates
+
+| Gate / actual command | Verdict |
+|---|---|
+| `cd deepagents && .venv/bin/python -m pytest tests/test_api_client.py tests/test_redaction.py tests/test_usage_metering.py tests/test_token_budget_analytics.py tests/test_live_preparation_usage.py -q --disable-warnings` | **122 passed**; wire buckets, secret controls, durable interruption/recovery |
+| `.venv/bin/python -m pytest tests/test_paid_admission.py -q --disable-warnings` | **65 passed**; concurrency, retry/fallback, durable unknown exposure and terminal denials preserved |
+| API Jest `billing-usage.kernel.spec.ts` | **12 passed**, including missing/late/replayed completions and no repricing |
+| Actual wire schema and API recovery | **PASS** before/after reproduction, 24 persisted attempts and idempotent drain; no inference |
+| Independent usage/Decimal reconciliation | **PASS known usage only**; full totals remain incomplete |
+| Existing `probes/verify_live_artifacts.py RUN_ID EXPLICIT_55506_DB_URL` | **allPassed:false**, correctly exposes absent freeze/version/activation. HMAC/tamper/wrong-run checks PASS |
+| Source/fixed candidate CI/security | **36/36 SUCCESS on 88f8bedc**; fresh exact evidence-publication results are linked in the PR checkpoint |
+
+### B. Real agentic and browser runtime gates
+
+Two source units were genuinely committed, with two source-grounded claims and two SUPPORTED signed receipts. Each receipt's `verifierOperationId` matches a distinct, actually persisted physical **legal-semantic-auditor** invocation. Independent source-text/hash checks confirm the definition of record and public-service scope with household exclusion; wrong-run and tamper controls reject. These are component results. Only **2/12 units** were reviewed, nine remained pending and one in review. No retention, exception, cross-reference or in-person-duty inventory was completed. Full corpus semantics, operative assessability, completeness and derived rules remain unproven.
+
+| Actual runtime gate | Verdict |
+|---|---|
+| Producer + independent Auditor dispatch | **PASS reached**, genuine configured model, 2 authenticated independent audits |
+| Full source frontier / Claim Inventory freeze | **NOT_COMPLETED** |
+| LegalRequirements / AssessmentRules | **NOT_AUTHORED**; no direct packet or fake results |
+| Deterministic Validator / Rule Set persistence / atomic activation / active-version reopen | **NOT_RUN**, zero version/requirements/rules; no activation |
+| Actual Admin usage UI/API/DB | **PASS after repair/recovery**, genuine nonzero data, 24/23/1 counts and incomplete USD 0.6481276 subtotal agree |
+| Real filters/breakdowns/drill-down | **PASS**, run and Auditor filters; provider/model/role/workflow/day/status breakdowns; completed/partial/unknown details and exact price version/source |
+| Actual authentication/RBAC/reload/logout | **PASS**, supplied accounts through UI, User Admin API 403/route redirect, separate contexts, Admin survives User logout; final both sessions revoked, clean console |
+| Final full assessment, report and tenant-pinned ACTIVE Rule Set | **NOT_RUN**, no active Rule Set; earlier real ownership checks remain historical evidence |
+| Release-image / staging / production | **NOT_RUN**, not authorized and live acceptance did not pass |
+
+The historical `live_api_smoke.mjs` assumes an ACTIVE Rule Set and hardcodes an old database with session/repository fixtures. It was not pointed at historical resources or represented as real auth acceptance. With no ACTIVE version its pinning/activation prerequisite is unsatisfied. Genuine browser-driven authentication and usage API checks above were used for the reached runtime scope, without inserted sessions, usage rows or repository results.
+
+Evidence: [one-run approval](authorized-real-model-20261023/live-authorization.APPROVED.json), [preflight](authorized-real-model-20261023/pre-dispatch-revalidation.json), [raw evaluation](authorized-real-model-20261023/live-run/live-eval-synthetic.json), [stop receipt](authorized-real-model-20261023/runtime-gate-stop.json), [callback recovery](authorized-real-model-20261023/callback-recovery-receipt.json), [independent reconciliation](authorized-real-model-20261023/independent-usage-reconciliation.json), [partial semantics](authorized-real-model-20261023/partial-semantic-verification.json), [actual signed receipts](authorized-real-model-20261023/actual-semantic-audit-receipts.json), [actual browser proof](authorized-real-model-20261023/browser-real-usage.json), [verification summary](authorized-real-model-20261023/verification-summary.json). Screenshots: [real usage](authorized-real-model-20261023/admin-real-usage.png), [unknown](authorized-real-model-20261023/admin-unknown-attempt.png), [partial](authorized-real-model-20261023/admin-partial-usage.png), [completed](authorized-real-model-20261023/admin-completed-attempt.png).
+
+All three protected WIP hashes remain unchanged. Historical 55441/55502/55503/55504/55505 were untouched. The owned 55506 database/volume, exact candidate worktree, raw journal, signed receipts and private key remain retained. Owned post-run API/Web and PostgreSQL are stopped after logout. No destructive cleanup, dependency mutation during inference, production action or security exclusion occurred. Current fixed source differs only in usage redaction and metadata settlement; legal semantics and agentic architecture were not replaced.
+
+**Single next action: obtain separate authorization for one fresh bounded evaluation of the repaired candidate after a new matching preflight. The consumed run cannot be resumed or silently retried.**

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "BLOCKED_LIVE_AUTHORIZATION_AND_REPOSITORY_CONNECTION",
+  "status": "BLOCKED_AUTHORIZED_EVALUATION_FAILED_NO_RETRY",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
-  "freezeRef": "bc990176cbb046ea95e12a94fc29e81bc8869653",
-  "firstFailedGate": "PAID_LIVE_TEST_AUTHORIZATION_ABSENT",
-  "blockerReceipt": "../real-runtime-20261023/verification-summary.json",
+  "candidateSha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+  "freezeRef": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+  "firstFailedGate": "PROVIDER_USAGE_CALLBACK_REDACTION_CORRUPTION",
+  "blockerReceipt": "../authorized-real-model-20261023/verification-summary.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -166,9 +166,11 @@
     "paidInferenceApproved": false,
     "approvedMaximumProviderDispatches": 0,
     "approvedMaximumTokens": 0,
-    "approvedMaximumSpendingUSD": 0,
-    "source": "Current product correction and runtime continuation authorize non-paid implementation only; separate paid/live-test authorization and approved execution limits remain absent",
-    "quotaIsAuthorization": false
+    "approvedMaximumSpendingUSD": null,
+    "source": "One explicit bc990176c/4ae336f3 authorization consumed; no second evaluation or repaired-candidate approval exists",
+    "quotaIsAuthorization": false,
+    "consumedEvaluations": 1,
+    "remainingEvaluations": 0
   },
   "enforcement": {
     "status": "TOKEN_ONLY_PASS_PROVIDER_FREE; NO_PAID_AUTHORIZATION",
@@ -217,7 +219,7 @@
     },
     "container": "lcsp360-real-runtime-20261022-pg-55506",
     "port": 55506,
-    "preparedState": "QUEUED_NOT_CLAIMED_STOPPED_VOLUME_RETAINED"
+    "preparedState": "FAILED_RUNTIME_ERROR_STOPPED_VOLUME_RETAINED_NO_REUSE"
   },
   "resources": {
     "processTreeMemoryMaxBytes": 3221225472,
@@ -269,13 +271,13 @@
     "resourceGate": "Current free disk below proposed 24 GiB release-build floor; reassess actual peak/temp storage and ownership after C passes",
     "mergeDraftRemovalProductionDeployment": "NOT_AUTHORIZED"
   },
-  "paidModelCalls": 0,
-  "paidInputTokens": 0,
-  "paidOutputTokens": 0,
-  "paidCostUSD": 0,
+  "paidModelCalls": 24,
+  "paidInputTokens": null,
+  "paidOutputTokens": null,
+  "paidCostUSD": null,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "Separately authorize exactly one bounded live Preparation using the new request, conditional on exact-publication CI/security, matching budget validity/identity and fresh resource admission",
-  "updatedAt": "2026-10-22T17:43:44.150193+00:00",
+  "nextAction": "Separately authorize one new bounded evaluation of the repaired candidate after a new matching preflight; the consumed run cannot be resumed",
+  "updatedAt": "2026-10-23T00:40:20.780421+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
     "receipt": "document-digest-blocker.json",
@@ -288,14 +290,14 @@
     "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
   },
   "ciCodeCandidate": {
-    "status": "FRESH_SOURCE_AND_PUBLICATION_RESULTS_REQUIRED_IN_PR_CHECKPOINT",
-    "sourceCandidate": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+    "status": "36_SOURCE_CHECKS_PASS_FRESH_PUBLICATION_RESULTS_IN_PR_CHECKPOINT",
+    "sourceCandidate": "88f8bedc2c633da654ebc9db7698aa293a31b128",
     "historicalReceipt": "../admin-usage-analytics-20261022/initial-ci-static-failure.log",
     "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots.",
     "reviewedPublicationSha": null,
     "externalReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
     "incidentUrl": "https://www.githubstatus.com/incidents/wq8305lppdc2",
-    "currentReceipt": "../real-runtime-20261023/source-ci-at-publication.json"
+    "currentReceipt": "../authorized-real-model-20261023/fixed-source-ci.json"
   },
   "previousAdmissionCheckpoint": {
     "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
@@ -354,9 +356,9 @@
     "billingContractRequired": false,
     "financialHardCap": "OPTIONAL_SEPARATE_CAPABILITY",
     "newAdmissionSchema": 3,
-    "actualRuntime": "PASS_EMPTY_DATASET_FILTERS_AUTH_OUTAGE_RECOVERY",
+    "actualRuntime": "PASS_AUTHENTIC_NONZERO_USAGE_RECONCILIATION_INCOMPLETE_TOTAL_HONEST",
     "authenticNonzeroUsageReconciliation": "NOT_DEMONSTRATED_NO_AUTHENTIC_USAGE",
-    "actualRuntimeReceipt": "../real-runtime-20261023/browser-runtime.json"
+    "actualRuntimeReceipt": "../authorized-real-model-20261023/browser-real-usage.json"
   },
   "acceptanceGates": [
     "DURABLE_PROVIDER_USAGE",
@@ -378,7 +380,7 @@
     "receipt": "../charging-contracts-20261022/resource-deadline-readiness.json"
   },
   "tokenOnlyExecutionProposal": {
-    "status": "UNAPPROVED",
+    "status": "HISTORICAL_APPROVED_BUDGET_CONSUMED_NO_REUSE",
     "policySchema": 3,
     "financialEnforcement": "DISABLED",
     "actualProviderChargeCap": null,
@@ -485,5 +487,19 @@
     "repositoryCredential": "NOT_PROVIDED",
     "activeRuleSet": null,
     "ownedServices": "STOPPED_RESOURCES_RETAINED"
-  }
+  },
+  "historicalAuthorizedRunCheckpoint": {
+    "candidateSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+    "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+    "approvalReceipt": "../authorized-real-model-20261023/live-authorization.APPROVED.json",
+    "approvedEvaluations": 1,
+    "consumedEvaluations": 1,
+    "remainingEvaluations": 0,
+    "result": "FAILED_RUNTIME_ERROR",
+    "actualUsageReceipt": "../authorized-real-model-20261023/independent-usage-reconciliation.json"
+  },
+  "knownPaidInputCacheTokens": 391223,
+  "knownPaidOutputTokens": 3272,
+  "knownOfficialReferenceSubtotalUSD": "0.6481276",
+  "actualGatewayCost": "UNAVAILABLE"
 }

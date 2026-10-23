@@ -1,0 +1,99 @@
+{
+  "status": "BLOCKED_ONE_AUTHORIZED_EVALUATION_FAILED",
+  "evaluatedCandidate": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "postRunFixCandidate": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "authorization": {
+    "approvedEvaluationCount": 1,
+    "consumedEvaluationCount": 1,
+    "remainingEvaluationCount": 0,
+    "receipt": "live-authorization.APPROVED.json",
+    "resumption": "NOT_AUTHORIZED"
+  },
+  "rootCause": "Redaction blanks newly added input/cache-write-duration/visible-output counter field names, corrupting COMPLETED usage callbacks; HTTP 400 BILLING_VALIDATION_FAILED",
+  "fixes": [
+    {
+      "sha": "c8b629ca7",
+      "change": "Four exact canonical usage counter names added to existing metadata allowlist; credential redaction retained"
+    },
+    {
+      "sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "change": "Clear stale missing-usage reason on completion and idempotent historical replay, without changing usage or repricing"
+    }
+  ],
+  "regressions": {
+    "pythonUsageRedactionRecovery": 122,
+    "atomicAdmission": 65,
+    "apiKernel": 12,
+    "wireContract": "OLD_REJECTED_FIXED_ACCEPTED",
+    "realCallbackRecovery": "24 deliveries, repeat drain 0; original journal unchanged"
+  },
+  "matrixA": {
+    "regressions": "PASS_PROVIDER_FREE",
+    "sourceCiSecurity": "36_OF_36_SUCCESS_ON_88f8bedc",
+    "publicationCiSecurity": "EXACT_FINAL_PUBLICATION_RESULTS_IN_PR_CHECKPOINT"
+  },
+  "matrixB": {
+    "realPreparation": "FAILED_STOPPED_ON_RUNTIME_TELEMETRY_GATE",
+    "frontier": "2_OF_12_REVIEWED",
+    "independentAuditor": "2_GENUINE_SIGNED_RECEIPTS_MATCH_2_PHYSICAL_CALLS",
+    "fullInventoryFreeze": "NOT_REACHED",
+    "legalRequirements": "NOT_AUTHORED",
+    "assessmentRules": "NOT_AUTHORED",
+    "validator": "NOT_RUN",
+    "persistenceActivation": "NOT_RUN_NO_RULE_SET_VERSION",
+    "adminRealUsage": "PASS_AUTHENTIC_NONZERO_COMPLETE_PARTIAL_UNKNOWN_FILTERS_BREAKDOWNS_DETAILS",
+    "userAdminIsolation": "PASS_REAL_BROWSER_403_AND_REDIRECT",
+    "releaseStaging": "NOT_RUN_NOT_AUTHORIZED"
+  },
+  "actualUsage": {
+    "status": "PASS_RECONCILED_KNOWN_USAGE_TOTAL_INCOMPLETE",
+    "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+    "physicalAttempts": 24,
+    "responses": 23,
+    "statuses": {
+      "COMPLETED": 23,
+      "OUTCOME_UNKNOWN": 1
+    },
+    "roles": {
+      "rule-set-preparation": 22,
+      "legal-semantic-auditor": 2
+    },
+    "knownInputCacheTokens": 391223,
+    "knownUncachedInputTokens": 300459,
+    "knownCachedReadTokens": 72448,
+    "knownOutputTokens": 3272,
+    "referenceKnownSubtotalUsd": "0.6481276",
+    "referenceTotalUsd": null,
+    "actualGatewayCostUsd": "UNAVAILABLE",
+    "incompleteCostInvocations": 2,
+    "outstandingInputExposure": 1048576,
+    "outstandingOutputExposure": 128000,
+    "totalInputExposure": 1439799,
+    "totalOutputExposure": 131272,
+    "noDoubleCounting": true,
+    "reasoningSeparate": "UNAVAILABLE; output already includes any reasoning, no second charge",
+    "priceVersions": [
+      "anthropic:claude-sonnet-5:standard:2026-10-22"
+    ],
+    "originalJournalSha256": "4eeb126907305a4f110c3ecb96a305813f9468e662b7733657e153822072fbe9",
+    "originalJournalUnchanged": true,
+    "providerCallsDuringRecovery": 0
+  },
+  "protectedWip": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "cleanup": {
+    "ownedWebApiStopped": true,
+    "owned55506StoppedVolumeRetained": true,
+    "originalJournalUnchanged": true,
+    "historicalResourcesUnchanged": true,
+    "isolatedWorktreeRetained": "/home/khovan/.cache/lcsp360-final/authorized-bc990176cb-fcbe787c",
+    "taskOwnedCopiedProviderEnvRemoved": true,
+    "productionNotTouched": true
+  },
+  "nextAction": "Separately authorize one new bounded evaluation of the repaired candidate after a new matching preflight; the consumed run cannot be resumed",
+  "recordedAt": "2026-10-23T00:40:20.773327+00:00"
+}

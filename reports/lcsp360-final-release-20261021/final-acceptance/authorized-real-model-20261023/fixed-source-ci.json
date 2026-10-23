@@ -1,0 +1,257 @@
+{
+  "check_runs": [
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120172052365",
+      "name": "V2 required release gate",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/runs/120169301152",
+      "name": "SecureAI-Scan",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/runs/120169270358",
+      "name": "trustabl",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206353/job/120169265475",
+      "name": "API checks",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206353/job/120169265342",
+      "name": "Web checks",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878201085/job/120169237774",
+      "name": "Web checks",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878201085/job/120169237584",
+      "name": "API checks",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/runs/120169217164",
+      "name": "Trivy",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/runs/120169097878",
+      "name": "CodeQL",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206268/job/120169067922",
+      "name": "SecureAI-Scan",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206268/job/120169067884",
+      "name": "API coverage",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206268/job/120169067868",
+      "name": "Trustabl agent reliability",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206268/job/120169067569",
+      "name": "Trivy repository scan",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999810",
+      "name": "Web tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999676",
+      "name": "Web lint and production build",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999670",
+      "name": "API unit tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999634",
+      "name": "Windows dev launcher security tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999608",
+      "name": "Billing and Admin Playwright E2E release gate",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999575",
+      "name": "Docker sandbox E2E",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999565",
+      "name": "Python worker tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999546",
+      "name": "Assessment Root vertical",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999544",
+      "name": "API e2e tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168999523",
+      "name": "Workspace static checks",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206353/job/120168993865",
+      "name": "Auto-fix imports and lint",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206353/job/120168993792",
+      "name": "Python worker checks",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878201085/job/120168984307",
+      "name": "Python worker checks",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878201085/job/120168984193",
+      "name": "Auto-fix imports and lint",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168940615",
+      "name": "Detect test areas",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206413/job/120168940345",
+      "name": "PR review shadow triage packet",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206334/job/120168940088",
+      "name": "Dependency Review",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206285/job/120168939900",
+      "name": "Require Jira issue key",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878206353/job/120168939774",
+      "name": "Detect changed areas",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878203116/job/120168934661",
+      "name": "Analyze (python)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878203116/job/120168934651",
+      "name": "Analyze (actions)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878203116/job/120168934331",
+      "name": "Analyze (javascript-typescript)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "88f8bedc2c633da654ebc9db7698aa293a31b128",
+      "html_url": "https://github.com/khov4nfs/LCSP/actions/runs/39878201085/job/120168922808",
+      "name": "Detect changed areas",
+      "status": "completed"
+    }
+  ],
+  "total_count": 36
+}

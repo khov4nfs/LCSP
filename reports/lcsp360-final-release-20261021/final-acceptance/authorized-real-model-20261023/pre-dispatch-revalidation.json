@@ -1,0 +1,333 @@
+{
+  "status": "PASS_BEFORE_PAID_DISPATCH",
+  "capturedAtEpoch": 1792714219.3226752,
+  "candidateSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "worktree": "/home/khovan/.cache/lcsp360-final/authorized-bc990176cb-fcbe787c",
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "preparedContextSha256": "c6244500515eb56fd696592802b75812261201736aab8ee25f531a50413b1718",
+  "budgetSha256": "142178f87795bef7508a317181f1ca76a1e4bd7b6503ca4cdfd89603031d36c3",
+  "budgetFingerprint": "498f7ff6f243f748f6ae43ebf0c7a6e3f3eabe2089ac9515a3d8aa891bcf1bd3",
+  "expiresAtEpoch": 1792777100,
+  "remainingValiditySeconds": 62880,
+  "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "verifiedChunks": 15,
+  "run": {
+    "id": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+    "executionState": "QUEUED",
+    "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+    "claimPhase": "CLAIM_DISCOVERY"
+  },
+  "countsBefore": {
+    "usage": 0,
+    "audits": 0,
+    "versions": 0
+  },
+  "bindingCount": 40,
+  "bindings": [
+    {
+      "route": "primary",
+      "slot": 1,
+      "provider": "miraiapi",
+      "model": "claude-sonnet-5",
+      "outputAllowance": 128000
+    },
+    {
+      "route": "fallback",
+      "slot": 1,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 2,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 3,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 4,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 5,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 6,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 7,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 8,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 9,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 10,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 11,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 12,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 13,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback",
+      "slot": 14,
+      "provider": "inception",
+      "model": "mercury-2.5",
+      "outputAllowance": 32768
+    },
+    {
+      "route": "fallback-01",
+      "slot": 1,
+      "provider": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "outputAllowance": 65536
+    },
+    {
+      "route": "fallback-01",
+      "slot": 2,
+      "provider": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "outputAllowance": 65536
+    },
+    {
+      "route": "fallback-01",
+      "slot": 3,
+      "provider": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "outputAllowance": 65536
+    },
+    {
+      "route": "fallback-01",
+      "slot": 4,
+      "provider": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "outputAllowance": 65536
+    },
+    {
+      "route": "fallback-01",
+      "slot": 5,
+      "provider": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "outputAllowance": 65536
+    },
+    {
+      "route": "fallback-01",
+      "slot": 6,
+      "provider": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "outputAllowance": 65536
+    },
+    {
+      "route": "fallback-02",
+      "slot": 1,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 2,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 3,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 4,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 5,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 6,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 7,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 8,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "fallback-02",
+      "slot": 9,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-primary",
+      "slot": 1,
+      "provider": "miraiapi",
+      "model": "claude-sonnet-5",
+      "outputAllowance": 128000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 1,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 2,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 3,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 4,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 5,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 6,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 7,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 8,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    },
+    {
+      "route": "semantic-final",
+      "slot": 9,
+      "provider": "apx",
+      "model": "claude-sonnet-4-6-free",
+      "outputAllowance": 64000
+    }
+  ],
+  "roles": {
+    "default": "primary",
+    "root": "primary",
+    "assessment-root": "primary",
+    "repository-researcher": "primary",
+    "rule-set-preparation": "primary",
+    "legal-semantic-auditor": "semantic-primary",
+    "response-transform": "fallback-01"
+  },
+  "fallbacks": {
+    "primary": [
+      "fallback",
+      "fallback-01",
+      "fallback-02"
+    ],
+    "semantic-primary": [
+      "fallback",
+      "fallback-01",
+      "semantic-final"
+    ]
+  },
+  "durableAdmissionRecovery": "PASS_SEPARATE_OFFLINE_RUN",
+  "budgetFeasibility": "All individual attempts and two-role concurrent reservations fit approved ceilings; completion within ceilings is not guaranteed; unknown outcomes retain exposure",
+  "networkAttempts": 0,
+  "paidCalls": 0
+}

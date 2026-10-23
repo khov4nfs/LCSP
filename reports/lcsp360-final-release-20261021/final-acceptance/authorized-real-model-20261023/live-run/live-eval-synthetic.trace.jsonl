@@ -1,0 +1,89 @@
+{"at": 1792714313.6, "event": "model_start", "messages": 2}
+{"at": 1792714316.2, "event": "model_end", "calls": 1}
+{"at": 1792714316.2, "event": "tool_start", "tool": "read_file", "input": "{'file_path': '/legal-source/INDEX.md'}"}
+{"at": 1792714316.2, "event": "tool_end", "tool": "read_file", "output": "@@ lines 1-25 of 25 @@\n# Pinned legal_source live-1792690670974\n\nlegalSourceVersionId: 8353b79d-9d82-4360-b9c0-74f11f80bbb1\ndocuments: 1\nchunks: 15\n\nCite a source exactly as `documentId` + `locator` + `contentSha256` from this table.\n\n| documentId | locator | contentSha256 | legalEffectStatus | lega"}
+{"at": 1792714316.3, "event": "model_start", "messages": 4}
+{"at": 1792714324.9, "event": "model_end", "calls": 2}
+{"at": 1792714325.0, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714325.1, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1ae831a0b2e8f54fbfc0b8d293898b73215e5a63b328a0d2e"}
+{"at": 1792714325.2, "event": "model_start", "messages": 6}
+{"at": 1792714328.9, "event": "model_end", "calls": 3}
+{"at": 1792714329.0, "event": "tool_start", "tool": "register_semantic_claim", "input": "{'assessability': 'REPOSITORY_VERIFIABLE', 'claim_type': 'DEFINITION', 'identity_key': 'art1-record-definition', 'semantic_authority': 'DEFINITION', 'semantic_frame': {'object': 'a stored notice and its receipt timestamp'}, 'statement': 'Definition: In this synthetic instrument, \"record\" means a stored notice and its receipt timestamp.'}"}
+{"at": 1792714329.0, "event": "tool_end", "tool": "register_semantic_claim", "output": "{\"outcome\": \"FAILED\", \"gaps\": {\"CLAIM_SCHEMA_INVALID\": {\"count\": 1, \"examples\": [{\"ref\": \"register_semantic_claim.source_support\", \"detail\": \"'source_support' is a required property\", \"layer\": \"TOOL_SCHEMA\", \"fieldPaths\": [\"source_support\"], \"repair\": \"Call the tool again with every required argumen"}
+{"at": 1792714329.1, "event": "model_start", "messages": 8}
+{"at": 1792714331.1, "event": "model_end", "calls": 4}
+{"at": 1792714331.2, "event": "tool_start", "tool": "get_source_support", "input": "{'node_id': '2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d', 'quote': '1. In this synthetic instrument, \u201crecord\u201d means a stored notice and its receipt timestamp.'}"}
+{"at": 1792714331.2, "event": "tool_end", "tool": "get_source_support", "output": "{\"outcome\": \"PASSED\", \"sourceSupport\": {\"nodeId\": \"2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d\", \"startOffset\": 0, \"endOffset\": 90, \"contentSha256\": \"6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682\"}}"}
+{"at": 1792714331.3, "event": "model_start", "messages": 10}
+{"at": 1792714346.9, "event": "model_end", "calls": 5}
+{"at": 1792714347.0, "event": "tool_start", "tool": "register_semantic_claim", "input": "{'assessability': 'REPOSITORY_VERIFIABLE', 'claim_type': 'DEFINITION', 'identity_key': 'art1-record-definition', 'semantic_authority': 'DEFINITION', 'semantic_frame': {}, 'statement': 'Definition: \"record\" means a stored notice and its receipt timestamp.', 'source_node_ids': ['2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d'], 'source_support': [{'nodeId': '2ac65a190edccf5df9dbb83"}
+{"at": 1792714347.0, "event": "tool_end", "tool": "register_semantic_claim", "output": "{\"outcome\": \"PASSED\", \"phase\": \"CLAIM_DISCOVERY\", \"inventoryRevision\": 1, \"claim\": {\"claimId\": \"3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f\", \"legalSourceVersionId\": \"8353b79d-9d82-4360-b9c0-74f11f80bbb1\", \"sourceNodeIds\": [\"2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c"}
+{"at": 1792714347.1, "event": "model_start", "messages": 11}
+{"at": 1792714350.4, "event": "model_end", "calls": 6}
+{"at": 1792714350.5, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714350.6, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1ae831a0b2e8f54fbfc0b8d293898b73215e5a63b328a0d2e"}
+{"at": 1792714350.7, "event": "model_start", "messages": 11}
+{"at": 1792714353.8, "event": "model_end", "calls": 7}
+{"at": 1792714353.8, "event": "tool_start", "tool": "complete_source_review", "input": "{'disposition': 'CLAIMS_AUTHORED', 'claim_ids': ['3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f'], 'reason': 'Clause 1 states only the definition of \"record\"; definition claim authored and supported.'}"}
+{"at": 1792714354.0, "event": "model_start", "messages": 2}
+{"at": 1792714357.3, "event": "model_end", "calls": 8}
+{"at": 1792714357.4, "event": "tool_end", "tool": "complete_source_review", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"ff23ce21cddde43a4553ab4fcd2d1cb34405a21a375999897"}
+{"at": 1792714357.6, "event": "model_start", "messages": 11}
+{"at": 1792714360.0, "event": "model_end", "calls": 9}
+{"at": 1792714360.1, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714360.1, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"103400e80c27fb623997d7addab80abc097930bd407af86b6"}
+{"at": 1792714360.2, "event": "model_start", "messages": 11}
+{"at": 1792714423.3, "event": "model_end", "calls": 10}
+{"at": 1792714423.3, "event": "tool_start", "tool": "register_semantic_claim", "input": "{'assessability': 'REPOSITORY_VERIFIABLE', 'claim_type': 'SCOPE', 'identity_key': 'art2-cl1-scope-operators-public', 'semantic_authority': 'LEGAL_NORMATIVE', 'semantic_frame': {'scope': 'Operators offering the notice service to the public'}, 'source_node_ids': ['2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e'], 'source_support': [{'nodeId': '2322b491a5dd7d767cefc0c3ca9bb4b492c652"}
+{"at": 1792714423.3, "event": "tool_end", "tool": "register_semantic_claim", "output": "{\"outcome\": \"PASSED\", \"phase\": \"CLAIM_DISCOVERY\", \"inventoryRevision\": 1, \"claim\": {\"claimId\": \"e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a\", \"legalSourceVersionId\": \"8353b79d-9d82-4360-b9c0-74f11f80bbb1\", \"sourceNodeIds\": [\"2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba679"}
+{"at": 1792714423.5, "event": "model_start", "messages": 11}
+{"at": 1792714491.9, "event": "model_end", "calls": 11}
+{"at": 1792714492.0, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714492.0, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"103400e80c27fb623997d7addab80abc097930bd407af86b6"}
+{"at": 1792714492.2, "event": "model_start", "messages": 11}
+{"at": 1792714495.4, "event": "model_end", "calls": 12}
+{"at": 1792714495.6, "event": "tool_start", "tool": "complete_source_review", "input": "{'disposition': 'CLAIMS_AUTHORED'}"}
+{"at": 1792714495.8, "event": "model_start", "messages": 2}
+{"at": 1792714500.7, "event": "model_end", "calls": 13}
+{"at": 1792714501.0, "event": "tool_end", "tool": "complete_source_review", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"248272903610939fc1d2f409763204397f2bced8ffd9585f4"}
+{"at": 1792714501.2, "event": "model_start", "messages": 11}
+{"at": 1792714503.3, "event": "model_end", "calls": 14}
+{"at": 1792714503.4, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714503.5, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e1"}
+{"at": 1792714503.7, "event": "model_start", "messages": 11}
+{"at": 1792714505.9, "event": "model_end", "calls": 15}
+{"at": 1792714506.0, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714506.1, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e1"}
+{"at": 1792714506.2, "event": "model_start", "messages": 11}
+{"at": 1792714508.4, "event": "model_end", "calls": 16}
+{"at": 1792714508.5, "event": "tool_start", "tool": "get_claim_inventory", "input": "{'kind': 'UNREVIEWED_SOURCE_NODES'}"}
+{"at": 1792714508.6, "event": "tool_end", "tool": "get_claim_inventory", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e1"}
+{"at": 1792714508.7, "event": "model_start", "messages": 11}
+{"at": 1792714574.0, "event": "model_end", "calls": 17}
+{"at": 1792714574.1, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714574.1, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e1"}
+{"at": 1792714574.3, "event": "model_start", "messages": 11}
+{"at": 1792714576.6, "event": "model_end", "calls": 18}
+{"at": 1792714576.7, "event": "tool_start", "tool": "get_review_progress", "input": "{}"}
+{"at": 1792714576.7, "event": "tool_end", "tool": "get_review_progress", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e1"}
+{"at": 1792714576.8, "event": "model_start", "messages": 11}
+{"at": 1792714579.3, "event": "model_end", "calls": 19}
+{"at": 1792714579.4, "event": "tool_start", "tool": "get_claim_inventory", "input": "{'kind': 'CLAIMS'}"}
+{"at": 1792714579.4, "event": "tool_end", "tool": "get_claim_inventory", "output": "{\"phase\": \"CLAIM_DISCOVERY\", \"inventoryRevision\": 1, \"inventoryFingerprint\": null, \"sourceNodesReviewed\": 2, \"sourceNodesRemaining\": 16, \"claimCount\": 2, \"relationCount\": 0, \"total\": 2, \"items\": [{\"claim\": {\"claimId\": \"3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f\", \"legalSourceVe"}
+{"at": 1792714579.5, "event": "model_start", "messages": 11}
+{"at": 1792714586.1, "event": "model_end", "calls": 20}
+{"at": 1792714586.2, "event": "tool_start", "tool": "inspect_semantic_reference_binding", "input": "{'reference_id': '9fd8384f5b4dace37c404dafedd7830e443f6433e082870dce93393aa4934092'}"}
+{"at": 1792714586.2, "event": "tool_start", "tool": "inspect_semantic_reference_binding", "input": "{'reference_id': 'd0c16e4cec6f260b3096ecbec02454967620ee88def127da31086805a826b3b8'}"}
+{"at": 1792714586.2, "event": "tool_end", "tool": "inspect_semantic_reference_binding", "output": "{\"outcome\": \"PASSED\", \"legalSourceVersionId\": \"8353b79d-9d82-4360-b9c0-74f11f80bbb1\", \"materializationId\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"reference\": {\"referenceId\": \"9fd8384f5b4dace37c404dafedd7830e443f6433e082870dce93393aa4934092\", \"fromNodeId\": \"2692ffc975fc9"}
+{"at": 1792714586.2, "event": "tool_end", "tool": "inspect_semantic_reference_binding", "output": "{\"outcome\": \"PASSED\", \"legalSourceVersionId\": \"8353b79d-9d82-4360-b9c0-74f11f80bbb1\", \"materializationId\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"reference\": {\"referenceId\": \"d0c16e4cec6f260b3096ecbec02454967620ee88def127da31086805a826b3b8\", \"fromNodeId\": \"2692ffc975fc9"}
+{"at": 1792714586.4, "event": "model_start", "messages": 12}
+{"at": 1792714648.5, "event": "model_end", "calls": 21}
+{"at": 1792714648.6, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714648.7, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e1"}
+{"at": 1792714648.8, "event": "model_start", "messages": 12}
+{"at": 1792714654.3, "event": "model_end", "calls": 22}
+{"at": 1792714654.5, "event": "model_start", "messages": 14}
+{"at": 1792714656.9, "event": "model_end", "calls": 23}
+{"at": 1792714656.9, "event": "tool_start", "tool": "get_next_review_unit", "input": "{}"}
+{"at": 1792714657.0, "event": "tool_end", "tool": "get_next_review_unit", "output": "{\"outcome\": \"PASSED\", \"sourceRevision\": \"ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a\", \"frontierRevision\": 1, \"frontierFingerprint\": \"485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa\", \"frontierStateFingerprint\": \"1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e1"}
+{"at": 1792714657.1, "event": "model_start", "messages": 14}

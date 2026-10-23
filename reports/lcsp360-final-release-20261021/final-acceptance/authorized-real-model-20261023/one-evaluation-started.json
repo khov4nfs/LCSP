@@ -1,0 +1,17 @@
+{
+  "unit": "lcsp360-one-approved-4ae336f3-8308ef",
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "candidateSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "startedAtEpoch": 1792714306.6024916,
+  "evaluationCount": 1,
+  "automaticEvaluationRetry": false,
+  "approvedLimits": {
+    "maximum_calls": 256,
+    "maximum_input_tokens": 4000000,
+    "maximum_output_tokens": 256000,
+    "workerTimeoutMs": 3600000,
+    "providerTimeoutSeconds": 600,
+    "overallTimeoutMs": 4200000
+  },
+  "authorizationSha256": "74fd21bb6d06cd644068dc11a4f09faf33b6995036641d58bf12905649058db8"
+}

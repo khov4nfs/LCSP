@@ -1,0 +1,53 @@
+{
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "status": "PARTIAL_SOURCE_SUPPORT_AND_AUTHENTIC_AUDITS_ONLY",
+  "claims": [
+    {
+      "claimId": "3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f",
+      "statement": "Definition: \"record\" means a stored notice and its receipt timestamp.",
+      "claimType": "DEFINITION",
+      "sourceTexts": [
+        "In this synthetic instrument, \u201crecord\u201d means a stored notice and its receipt timestamp."
+      ],
+      "supportHashesRecomputed": true
+    },
+    {
+      "claimId": "e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a",
+      "statement": "This instrument applies only to operators offering the notice service to the public; private household use is outside scope.",
+      "claimType": "SCOPE",
+      "sourceTexts": [
+        "This instrument applies only to operators offering the notice service to the public.\nPrivate household use is outside this scope."
+      ],
+      "supportHashesRecomputed": true
+    }
+  ],
+  "reviewedUnits": 2,
+  "totalUnits": 12,
+  "supportedHmacReceipts": 2,
+  "wrongRunAndTamperRejected": true,
+  "database": {
+    "run": {
+      "executionState": "FAILED",
+      "claimPhase": "CLAIM_DISCOVERY",
+      "failureReason": "RUNTIME_ERROR",
+      "claimInventoryRevision": 1
+    },
+    "frontier": [
+      {
+        "unitCount": 12,
+        "pendingCount": 9,
+        "inReviewCount": 1,
+        "reviewedWithClaimsCount": 2,
+        "frozenAt": null
+      }
+    ],
+    "versions": {
+      "n": 0
+    }
+  },
+  "independentSemanticReview": "The two persisted statements accurately preserve the source definition (stored notice plus receipt timestamp) and public-service scope with household exclusion. No retention, exception, cross-reference or in-person duty inventory was completed; legal-semantic acceptance is NOT_EVALUATED for the remaining corpus. No full assessability or derived-rule correctness claim is made.",
+  "legalRequirements": "NOT_AUTHORED",
+  "assessmentRules": "NOT_AUTHORED",
+  "validator": "NOT_RUN",
+  "activation": "NOT_RUN"
+}

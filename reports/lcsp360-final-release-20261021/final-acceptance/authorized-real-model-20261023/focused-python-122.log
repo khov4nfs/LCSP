@@ -1,0 +1,167 @@
+
+tests/test_api_client.py::test_t01_successful_callback PASSED            [  0%]
+tests/test_api_client.py::test_t02_5xx_response PASSED                   [  1%]
+tests/test_api_client.py::test_post_settled_usage_sends_provider_reported_fields_without_reservation PASSED [  2%]
+tests/test_api_client.py::test_post_settled_usage_preserves_every_reported_token_bucket_on_wire
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=authToken,cache_token
+PASSED                                                                   [  3%]
+tests/test_api_client.py::test_t03_422_response PASSED                   [  4%]
+tests/test_api_client.py::test_t04_network_timeout PASSED                [  4%]
+tests/test_api_client.py::test_t05_t06_headers PASSED                    [  5%]
+tests/test_api_client.py::test_legal_callbacks_do_not_present_native_run_as_assessment_turn[ingest_validated_legal_source_draft-args0] PASSED [  6%]
+tests/test_api_client.py::test_legal_callbacks_do_not_present_native_run_as_assessment_turn[register_validated_retrieval_index-args1] PASSED [  7%]
+tests/test_api_client.py::test_legal_callbacks_do_not_present_native_run_as_assessment_turn[activate_validated_legal_source_version-args2] PASSED [  8%]
+tests/test_api_client.py::test_legal_callbacks_do_not_present_native_run_as_assessment_turn[claim_rule_set_preparation-args3] PASSED [  9%]
+tests/test_api_client.py::test_legal_callbacks_do_not_present_native_run_as_assessment_turn[validate_compliance_rule_set-args4] PASSED [  9%]
+tests/test_api_client.py::test_legal_callbacks_do_not_present_native_run_as_assessment_turn[submit_compliance_rule_set-args5] PASSED [ 10%]
+tests/test_api_client.py::test_legal_callbacks_do_not_present_native_run_as_assessment_turn[fail_rule_set_preparation-args6] PASSED [ 11%]
+tests/test_api_client.py::test_legal_callback_still_rejects_a_cancelled_execution PASSED [ 12%]
+tests/test_api_client.py::test_legal_packet_shape_error_returns_only_schema_paths[validate_compliance_rule_set-args0] PASSED [ 13%]
+tests/test_api_client.py::test_legal_packet_shape_error_returns_only_schema_paths[submit_compliance_rule_set-args1] PASSED [ 13%]
+tests/test_api_client.py::test_legal_packet_shape_error_rejects_unbounded_or_non_path_metadata[private-input] PASSED [ 14%]
+tests/test_api_client.py::test_legal_packet_shape_error_rejects_unbounded_or_non_path_metadata[packet.credential=PRIVATE] PASSED [ 15%]
+tests/test_api_client.py::test_legal_packet_shape_error_rejects_unbounded_or_non_path_metadata[packet.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] PASSED [ 16%]
+tests/test_api_client.py::test_legal_packet_shape_error_rejects_unbounded_or_non_path_metadata[packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements,packet.legalRequirements] PASSED [ 17%]
+tests/test_api_client.py::test_legal_packet_shape_error_rejects_unbounded_or_non_path_metadata[None] PASSED [ 18%]
+tests/test_api_client.py::test_legal_packet_shape_error_rejects_unbounded_or_non_path_metadata[issues5] PASSED [ 18%]
+tests/test_api_client.py::test_legal_packet_shape_error_adds_the_structural_requirement[validate_compliance_rule_set-args0] PASSED [ 19%]
+tests/test_api_client.py::test_legal_packet_shape_error_adds_the_structural_requirement[submit_compliance_rule_set-args1] PASSED [ 20%]
+tests/test_api_client.py::test_legal_packet_shape_error_drops_unbounded_or_non_text_requirements[line one\nline two] PASSED [ 21%]
+tests/test_api_client.py::test_legal_packet_shape_error_drops_unbounded_or_non_text_requirements[contains "quotes" and {braces}] PASSED [ 22%]
+tests/test_api_client.py::test_legal_packet_shape_error_drops_unbounded_or_non_text_requirements[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] PASSED [ 22%]
+tests/test_api_client.py::test_legal_packet_shape_error_drops_unbounded_or_non_text_requirements[7] PASSED [ 23%]
+tests/test_api_client.py::test_legal_packet_shape_error_drops_unbounded_or_non_text_requirements[requirements4] PASSED [ 24%]
+tests/test_api_client.py::test_legal_packet_shape_error_drops_unbounded_or_non_text_requirements[] PASSED [ 25%]
+tests/test_api_client.py::test_agent_stream_presents_canonical_lease_without_a_native_turn_fence PASSED [ 26%]
+tests/test_api_client.py::test_agent_stream_network_failure_opens_short_best_effort_backoff PASSED [ 27%]
+tests/test_api_client.py::test_agent_stream_rejection_keeps_safe_event_identity_in_warning PASSED [ 27%]
+tests/test_api_client.py::test_get_official_source_snapshot_uses_query_params PASSED [ 28%]
+tests/test_redaction.py::test_t01_dict_with_password_key_is_stripped
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=password
+PASSED                                                                   [ 29%]
+tests/test_redaction.py::test_t02_nested_api_key_is_stripped_at_all_levels
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=api_key
+PASSED                                                                   [ 30%]
+tests/test_redaction.py::test_json_quoted_secret_assignment_is_redacted PASSED [ 31%]
+tests/test_redaction.py::test_t03_github_token_in_string_is_stripped PASSED [ 31%]
+tests/test_redaction.py::test_t04_bearer_token_in_dict_value_is_stripped PASSED [ 32%]
+tests/test_redaction.py::test_t05_deeply_nested_dict_stops_at_max_depth PASSED [ 33%]
+tests/test_redaction.py::test_t06_source_code_finding_is_removed PASSED  [ 34%]
+tests/test_redaction.py::test_t07_clean_dict_is_unchanged PASSED         [ 35%]
+tests/test_redaction.py::test_t08_safe_metadata_field_names_survive_key_redaction PASSED [ 36%]
+tests/test_redaction.py::test_provider_attempt_safe_slot_survives_without_exempting_credentials
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=api_key,authorization,credential_value,raw_error_body
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_id
+PASSED                                                                   [ 36%]
+tests/test_redaction.py::test_t09_secret_field_names_are_redacted_and_logged
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=APX_API_KEY,GEMINI_API_KEY,WORKER_API_KEY,access_token,apiKey,api_key,auth,authToken,auth_token,bearerToken,bearer_token,client_secret,dbPassword,db_password,encryptionKey,gcpServiceAccountKey,githubToken,github_token,key,openaiKey,passwd,password,privateToken,private_key,pwd,secretKey,secret_key,session_token,signingKey,token,webhookSecret,x-api-key
+PASSED                                                                   [ 37%]
+tests/test_redaction.py::test_t10_code_fields_are_not_secret_key_names PASSED [ 38%]
+tests/test_redaction.py::test_t11_public_sensitive_key_name_api_uses_segment_matching PASSED [ 39%]
+tests/test_redaction.py::test_t12_governed_billing_callback_survives_redaction_intact PASSED [ 40%]
+tests/test_redaction.py::test_t13_settled_usage_counters_survive_redaction_intact PASSED [ 40%]
+tests/test_redaction.py::test_t14_billing_invocation_authorization_metrics_survive_redaction_intact PASSED [ 41%]
+tests/test_redaction.py::test_t15_counter_exemptions_do_not_weaken_credential_redaction
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=apiToken,idempotencyKeySecret,refreshTokens
+PASSED                                                                   [ 42%]
+tests/test_usage_metering.py::test_extract_provider_usage_is_numeric_and_does_not_persist_reasoning_content PASSED [ 43%]
+tests/test_usage_metering.py::test_extract_provider_usage_preserves_partial_dimensions PASSED [ 44%]
+tests/test_usage_metering.py::test_one_response_posts_one_provider_reported_payload_without_money_fields PASSED [ 45%]
+tests/test_usage_metering.py::test_partial_response_is_recorded_without_inventing_missing_tokens PASSED [ 45%]
+tests/test_usage_metering.py::test_failed_provider_attempt_posts_no_usage PASSED [ 46%]
+tests/test_usage_metering.py::test_async_failed_provider_attempt_posts_no_usage PASSED [ 47%]
+tests/test_usage_metering.py::test_scoped_state_archives_usage_locally_even_without_api_client PASSED [ 48%]
+tests/test_usage_metering.py::test_metering_runs_without_any_run_state PASSED [ 49%]
+tests/test_usage_metering.py::test_identity_check_runs_without_any_run_state PASSED [ 50%]
+tests/test_usage_metering.py::test_cancelled_turn_never_replays_and_keeps_usage_of_the_answered_call PASSED [ 50%]
+tests/test_usage_metering.py::test_async_cancelled_turn_keeps_usage_without_next_call[False] PASSED [ 51%]
+tests/test_usage_metering.py::test_async_cancelled_turn_keeps_usage_without_next_call[True] PASSED [ 52%]
+tests/test_usage_metering.py::test_metering_has_no_pricing_or_reservation_surface PASSED [ 53%]
+tests/test_usage_metering.py::test_arbitrary_future_model_without_pricing_metadata_executes PASSED [ 54%]
+tests/test_usage_metering.py::test_model_identity_accepts_routed_models_and_rejects_unrouted PASSED [ 54%]
+tests/test_usage_metering.py::test_a_newly_routed_model_is_accepted_without_code_changes PASSED [ 55%]
+tests/test_usage_metering.py::test_context_window_exceeded_is_raised_before_the_provider_call_and_posts_nothing PASSED [ 56%]
+tests/test_usage_metering.py::test_provider_input_limit_is_the_only_context_guard PASSED [ 57%]
+tests/test_usage_metering.py::test_long_runs_are_never_capped_by_run_state PASSED [ 58%]
+tests/test_usage_metering.py::test_output_cap_settings_use_the_route_output_cap_or_the_code_default PASSED [ 59%]
+tests/test_usage_metering.py::test_output_cap_preserves_identity_for_usage_reporting PASSED [ 59%]
+tests/test_usage_metering.py::test_model_call_telemetry_emits_heartbeat_and_completion PASSED [ 60%]
+tests/test_usage_metering.py::test_model_call_timeout_emits_timeout_event_and_no_usage PASSED [ 61%]
+tests/test_usage_metering.py::test_request_diagnostic_logs_shape_without_prompt_or_tool_content PASSED [ 62%]
+tests/test_usage_metering.py::test_request_shape_diagnostic_stays_bounded_for_long_runs PASSED [ 63%]
+tests/test_usage_metering.py::test_key_fallback_failed_attempt_reports_nothing_and_success_reports_once PASSED [ 63%]
+tests/test_usage_metering.py::test_usage_reports_effective_runtime_model_of_the_resolved_route PASSED [ 64%]
+tests/test_usage_metering.py::test_apx_usage_and_activity_keep_canonical_provider_and_route_protocol[apx-anthropic] PASSED [ 65%]
+tests/test_usage_metering.py::test_apx_usage_and_activity_keep_canonical_provider_and_route_protocol[apx-openai] PASSED [ 66%]
+tests/test_usage_metering.py::test_policy_version_changes_when_model_or_options_change PASSED [ 67%]
+tests/test_usage_metering.py::test_fallback_route_usage_reports_the_route_actually_used_with_the_agent_role PASSED [ 68%]
+tests/test_usage_metering.py::test_disabled_and_sticky_provider_routes_are_run_scoped PASSED [ 68%]
+tests/test_usage_metering.py::test_active_role_scopes_the_reported_agent_role_and_run_identity PASSED [ 69%]
+tests/test_usage_metering.py::test_failed_usage_post_is_enqueued_logged_and_never_fails_the_model_call PASSED [ 70%]
+tests/test_usage_metering.py::test_queued_usage_is_drained_later_exactly_once PASSED [ 71%]
+tests/test_usage_metering.py::test_still_failing_api_keeps_usage_pending_for_the_next_drain PASSED [ 72%]
+tests/test_usage_metering.py::test_recovery_store_failure_prevents_provider_dispatch PASSED [ 72%]
+tests/test_usage_metering.py::test_enqueue_is_idempotent_on_the_usage_recovery_key PASSED [ 73%]
+tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[400]
+-------------------------------- live log call ---------------------------------
+ERROR    middleware.usage_recovery:usage_recovery.py:122 Usage callback quarantined id=1 kind=USAGE reason=HTTP_400
+PASSED                                                                   [ 74%]
+tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[403]
+-------------------------------- live log call ---------------------------------
+ERROR    middleware.usage_recovery:usage_recovery.py:122 Usage callback quarantined id=1 kind=USAGE reason=HTTP_403
+PASSED                                                                   [ 75%]
+tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[404]
+-------------------------------- live log call ---------------------------------
+ERROR    middleware.usage_recovery:usage_recovery.py:122 Usage callback quarantined id=1 kind=USAGE reason=HTTP_404
+PASSED                                                                   [ 76%]
+tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[409]
+-------------------------------- live log call ---------------------------------
+ERROR    middleware.usage_recovery:usage_recovery.py:122 Usage callback quarantined id=1 kind=USAGE reason=HTTP_409
+PASSED                                                                   [ 77%]
+tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[422]
+-------------------------------- live log call ---------------------------------
+ERROR    middleware.usage_recovery:usage_recovery.py:122 Usage callback quarantined id=1 kind=USAGE reason=HTTP_422
+PASSED                                                                   [ 77%]
+tests/test_usage_metering.py::test_server_errors_are_transient_and_stay_pending PASSED [ 78%]
+tests/test_usage_metering.py::test_recovery_store_is_bounded
+-------------------------------- live log call ---------------------------------
+ERROR    middleware.usage_recovery:usage_recovery.py:177 Usage recovery store full; dropping key=usage:assessment-1:run-1:invocation-2
+ERROR    middleware.usage_recovery:usage_recovery.py:177 Usage recovery store full; dropping key=usage:assessment-1:run-1:invocation-3
+ERROR    middleware.usage_recovery:usage_recovery.py:177 Usage recovery store full; dropping key=usage:assessment-1:run-1:invocation-4
+PASSED                                                                   [ 79%]
+tests/test_usage_metering.py::test_recovery_normalizes_legacy_utc_offset_timestamp PASSED [ 80%]
+tests/test_usage_metering.py::test_background_worker_starts_once_per_store PASSED [ 81%]
+tests/test_usage_metering.py::test_usage_recovery_store_path_override_and_default PASSED [ 81%]
+tests/test_usage_metering.py::test_consumer_starts_the_usage_recovery_worker_at_startup PASSED [ 82%]
+tests/test_usage_metering.py::test_assessment_invocation_gets_a_usage_reporting_run_state PASSED [ 83%]
+tests/test_usage_metering.py::test_non_assessment_invocation_has_a_state_without_usage_reporting PASSED [ 84%]
+tests/test_usage_metering.py::test_corrupt_row_is_quarantined_and_does_not_block_later_rows
+-------------------------------- live log call ---------------------------------
+ERROR    middleware.usage_recovery:usage_recovery.py:116 Usage callback quarantined id=1 reason=INVALID_PAYLOAD
+PASSED                                                                   [ 85%]
+tests/test_usage_metering.py::test_usage_keeps_attached_route_options_when_provider_model_protocol_are_shared[audit-fallback] PASSED [ 86%]
+tests/test_usage_metering.py::test_usage_keeps_attached_route_options_when_provider_model_protocol_are_shared[general-fallback] PASSED [ 86%]
+tests/test_token_budget_analytics.py::test_token_only_budget_no_private_tariff_and_no_financial_claim PASSED [ 87%]
+tests/test_token_budget_analytics.py::test_shared_producer_auditor_and_unknown_attempt_are_terminal_at_limit PASSED [ 88%]
+tests/test_token_budget_analytics.py::test_parallel_token_mode_cannot_overadmit_and_recovers_after_reopen PASSED [ 89%]
+tests/test_token_budget_analytics.py::test_partial_usage_and_raw_google_reasoning_preserved PASSED [ 90%]
+tests/test_token_budget_analytics.py::test_configured_token_only_rehearsal_covers_all_governed_attempts PASSED [ 90%]
+tests/test_token_budget_analytics.py::test_crash_between_attempt_commit_callback_and_live_projection_recovers PASSED [ 91%]
+tests/test_live_preparation_usage.py::test_idempotent_concurrent_recovery_retains_cache_and_run_identity PASSED [ 92%]
+tests/test_live_preparation_usage.py::test_missing_or_partial_usage_is_not_invented PASSED [ 93%]
+tests/test_live_preparation_usage.py::test_real_producer_and_independent_auditor_share_the_journal PASSED [ 94%]
+tests/test_live_preparation_usage.py::test_rejected_answer_is_committed_before_fallback_or_terminal_failure[False] PASSED [ 95%]
+tests/test_live_preparation_usage.py::test_rejected_answer_is_committed_before_fallback_or_terminal_failure[True] PASSED [ 95%]
+tests/test_live_preparation_usage.py::test_store_failure_stops_without_model_retry PASSED [ 96%]
+tests/test_live_preparation_usage.py::test_same_provider_resampling_keeps_usage_for_rejected_answer PASSED [ 97%]
+tests/test_live_preparation_usage.py::test_completed_records_survive_process_interruption[crash] PASSED [ 98%]
+tests/test_live_preparation_usage.py::test_completed_records_survive_process_interruption[terminate] PASSED [ 99%]
+tests/test_live_preparation_usage.py::test_completed_records_survive_process_interruption[kill] PASSED [100%]
+
+============================= 122 passed in 10.30s =============================

@@ -1,0 +1,15 @@
+{
+  "candidateSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "publicationSha": "bc990176cbb046ea95e12a94fc29e81bc8869653",
+  "memoryMaxBytes": 3221225472,
+  "cpuCores": 2,
+  "availableMemoryBytes": 11356585984,
+  "freeDiskBytes": 15856664576,
+  "status": "PASS_REAL_CGROUP_NO_INFERENCE",
+  "unit": "lcsp360-one-approved-4ae336f3-8308ef-readiness",
+  "cpuQuotaPercent": 200,
+  "overallLimitSeconds": 4200,
+  "workerLimitSeconds": 3600,
+  "providerLimitSeconds": 600,
+  "paidCalls": 0
+}

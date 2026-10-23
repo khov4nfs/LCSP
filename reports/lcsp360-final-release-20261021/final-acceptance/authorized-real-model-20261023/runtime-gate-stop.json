@@ -1,0 +1,9 @@
+{
+  "stoppedAtEpoch": 1792714699.5690215,
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "reason": "Completed provider-usage API callbacks permanently quarantined HTTP_400:BILLING_VALIDATION_FAILED; preserve authoritative local journal; no further paid calls",
+  "workerPid": 1601491,
+  "signal": "SIGTERM_OWNED_WORKER_PROCESS_GROUP",
+  "parentHarnessRetainedForAccountingRecovery": true,
+  "secondEvaluationAuthorized": false
+}

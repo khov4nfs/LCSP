@@ -1,0 +1,34 @@
+{
+  "status": "PASS_RECONCILED_KNOWN_USAGE_TOTAL_INCOMPLETE",
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "physicalAttempts": 24,
+  "responses": 23,
+  "statuses": {
+    "COMPLETED": 23,
+    "OUTCOME_UNKNOWN": 1
+  },
+  "roles": {
+    "rule-set-preparation": 22,
+    "legal-semantic-auditor": 2
+  },
+  "knownInputCacheTokens": 391223,
+  "knownUncachedInputTokens": 300459,
+  "knownCachedReadTokens": 72448,
+  "knownOutputTokens": 3272,
+  "referenceKnownSubtotalUsd": "0.6481276",
+  "referenceTotalUsd": null,
+  "actualGatewayCostUsd": "UNAVAILABLE",
+  "incompleteCostInvocations": 2,
+  "outstandingInputExposure": 1048576,
+  "outstandingOutputExposure": 128000,
+  "totalInputExposure": 1439799,
+  "totalOutputExposure": 131272,
+  "noDoubleCounting": true,
+  "reasoningSeparate": "UNAVAILABLE; output already includes any reasoning, no second charge",
+  "priceVersions": [
+    "anthropic:claude-sonnet-5:standard:2026-10-22"
+  ],
+  "originalJournalSha256": "4eeb126907305a4f110c3ecb96a305813f9468e662b7733657e153822072fbe9",
+  "originalJournalUnchanged": true,
+  "providerCallsDuringRecovery": 0
+}

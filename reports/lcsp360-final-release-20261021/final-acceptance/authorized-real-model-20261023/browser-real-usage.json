@@ -1,0 +1,211 @@
+{
+  "capturedAt": "2026-10-23T00:34:01.383Z",
+  "tool": "Real Chromium / Playwright; genuine authenticated local application",
+  "summary": {
+    "calls": 24,
+    "successfulResponses": 23,
+    "failedAttempts": 0,
+    "unresolvedAttempts": 1,
+    "usageUnknownInvocations": 1,
+    "unpricedInvocations": 0,
+    "incompleteCostInvocations": 2,
+    "tokens": {
+      "inputTokens": {
+        "known": "300459",
+        "unknownInvocations": 2
+      },
+      "inputTokensIncludingCache": {
+        "known": "391223",
+        "unknownInvocations": 1
+      },
+      "cachedInputTokens": {
+        "known": "72448",
+        "unknownInvocations": 2
+      },
+      "cacheWriteTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "cacheWrite5mTokens": {
+        "known": "0",
+        "unknownInvocations": 13
+      },
+      "cacheWrite1hTokens": {
+        "known": "0",
+        "unknownInvocations": 13
+      },
+      "outputTokens": {
+        "known": "3272",
+        "unknownInvocations": 1
+      },
+      "visibleOutputTokens": {
+        "known": "0",
+        "unknownInvocations": 24
+      },
+      "reasoningTokens": {
+        "known": "0",
+        "unknownInvocations": 24
+      },
+      "totalTokens": {
+        "known": "394495",
+        "unknownInvocations": 1
+      }
+    },
+    "knownEstimatedCostUsd": "0.6481276",
+    "estimatedCostUsd": null
+  },
+  "breakdowns": [
+    {
+      "key": "PROVIDER",
+      "text": "Break down by\nGroup\tPhysical model attempts\tProvider-reported total tokens\tKnown subtotal (USD)\tInvocations with incomplete cost\nMIRAIAPI\t24\t394495 (Unknown invocations: 1)\t$0.6481276\t2"
+    },
+    {
+      "key": "MODEL",
+      "text": "Break down by\nGroup\tPhysical model attempts\tProvider-reported total tokens\tKnown subtotal (USD)\tInvocations with incomplete cost\nclaude-sonnet-5\t24\t394495 (Unknown invocations: 1)\t$0.6481276\t2"
+    },
+    {
+      "key": "AGENT_ROLE",
+      "text": "Break down by\nGroup\tPhysical model attempts\tProvider-reported total tokens\tKnown subtotal (USD)\tInvocations with incomplete cost\nlegal-semantic-auditor\t2\t12592 (Unknown invocations: 0)\t$0.03248\t0\nrule-set-preparation\t22\t381903 (Unknown invocations: 1)\t$0.6156476\t2"
+    },
+    {
+      "key": "WORKFLOW",
+      "text": "Break down by\nGroup\tPhysical model attempts\tProvider-reported total tokens\tKnown subtotal (USD)\tInvocations with incomplete cost\n4ae336f3-35b4-4393-ba42-cb4eeb4d500f\t24\t394495 (Unknown invocations: 1)\t$0.6481276\t2"
+    },
+    {
+      "key": "DAY",
+      "text": "Break down by\nGroup\tPhysical model attempts\tProvider-reported total tokens\tKnown subtotal (USD)\tInvocations with incomplete cost\n2026-10-23\t24\t394495 (Unknown invocations: 1)\t$0.6481276\t2"
+    },
+    {
+      "key": "STATUS",
+      "text": "Break down by\nGroup\tPhysical model attempts\tProvider-reported total tokens\tKnown subtotal (USD)\tInvocations with incomplete cost\nCompleted\t23\t394495 (Unknown invocations: 0)\t$0.6481276\t1\nOutcome unknown\t1\t0 (Unknown invocations: 1)\t$0\t1"
+    }
+  ],
+  "auditorFilter": {
+    "calls": 2,
+    "successfulResponses": 2,
+    "failedAttempts": 0,
+    "unresolvedAttempts": 0,
+    "usageUnknownInvocations": 0,
+    "unpricedInvocations": 0,
+    "incompleteCostInvocations": 0,
+    "tokens": {
+      "inputTokens": {
+        "known": "11680",
+        "unknownInvocations": 0
+      },
+      "inputTokensIncludingCache": {
+        "known": "11680",
+        "unknownInvocations": 0
+      },
+      "cachedInputTokens": {
+        "known": "0",
+        "unknownInvocations": 0
+      },
+      "cacheWriteTokens": {
+        "known": "0",
+        "unknownInvocations": 0
+      },
+      "cacheWrite5mTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "cacheWrite1hTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "outputTokens": {
+        "known": "912",
+        "unknownInvocations": 0
+      },
+      "visibleOutputTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "reasoningTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "totalTokens": {
+        "known": "12592",
+        "unknownInvocations": 0
+      }
+    },
+    "knownEstimatedCostUsd": "0.03248",
+    "estimatedCostUsd": "0.03248"
+  },
+  "unknownDetail": "Invocation details\n\nProvider-reported usage and estimated cost at official standard model pricing. Estimates exclude gateway invoices, taxes and non-token fees; unknown usage remains unknown.\n\nInvocation ID\n0af358f4-9ab8-44ec-a5b4-fafd41a35f6e\nRun ID\n4ae336f3-35b4-4393-ba42-cb4eeb4d500f\nAssessment ID\nUnknown\nAgent role\nrule-set-preparation\nProvider / gateway\nMIRAIAPI\nRoute model\nclaude-sonnet-5\nFailure category\nProcessTermination\nUncached input tokens\nUnknown\nInput tokens including cache\nUnknown\nCached input read tokens\nUnknown\nCache-write tokens\nUnknown\n5-minute cache-write tokens\nUnknown\n1-hour cache-write tokens\nUnknown\nOutput tokens including reasoning\nUnknown\nVisible output tokens\nUnknown\nReported reasoning tokens\nUnknown\nProvider-reported total tokens\nUnknown\nPrice version\nanthropic:claude-sonnet-5:standard:2026-10-22\nUnderlying model\nANTHROPIC claude-sonnet-5\nCost completeness\nUnknown\nKnown subtotal (USD)\n$0\nOfficial price source\nClose",
+  "completedDetail": "Invocation details\n\nProvider-reported usage and estimated cost at official standard model pricing. Estimates exclude gateway invoices, taxes and non-token fees; unknown usage remains unknown.\n\nInvocation ID\n742967a1-e3af-4902-98f9-b24b512400f6\nRun ID\n4ae336f3-35b4-4393-ba42-cb4eeb4d500f\nAssessment ID\nUnknown\nAgent role\nrule-set-preparation\nProvider / gateway\nMIRAIAPI\nRoute model\nclaude-sonnet-5\nFailure category\nUnknown\nUncached input tokens\n23861\nInput tokens including cache\n23861\nCached input read tokens\n0\nCache-write tokens\n0\n5-minute cache-write tokens\nUnknown\n1-hour cache-write tokens\nUnknown\nOutput tokens including reasoning\n8\nVisible output tokens\nUnknown\nReported reasoning tokens\nUnknown\nProvider-reported total tokens\n23869\nPrice version\nanthropic:claude-sonnet-5:standard:2026-10-22\nUnderlying model\nANTHROPIC claude-sonnet-5\nCost completeness\nComplete\nKnown subtotal (USD)\n$0.047802\nOfficial price source\nClose",
+  "partialDetail": "Invocation details\n\nProvider-reported usage and estimated cost at official standard model pricing. Estimates exclude gateway invoices, taxes and non-token fees; unknown usage remains unknown.\n\nInvocation ID\n7b39a17d-9435-492a-86c1-8bf2ee6dad60\nRun ID\n4ae336f3-35b4-4393-ba42-cb4eeb4d500f\nAssessment ID\nUnknown\nAgent role\nrule-set-preparation\nProvider / gateway\nMIRAIAPI\nRoute model\nclaude-sonnet-5\nFailure category\nUnknown\nUncached input tokens\nUnknown\nInput tokens including cache\n18316\nCached input read tokens\nUnknown\nCache-write tokens\nUnknown\n5-minute cache-write tokens\nUnknown\n1-hour cache-write tokens\nUnknown\nOutput tokens including reasoning\n49\nVisible output tokens\nUnknown\nReported reasoning tokens\nUnknown\nProvider-reported total tokens\n18365\nPrice version\nanthropic:claude-sonnet-5:standard:2026-10-22\nUnderlying model\nANTHROPIC claude-sonnet-5\nCost completeness\nPartial\nKnown subtotal (USD)\n$0.00049\nOfficial price source\nClose",
+  "network": [
+    {
+      "path": "/api/auth/profile",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/admin/overview?period=30D",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/admin/usage?page=1&pageSize=25",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/admin/usage?runId=4ae336f3-35b4-4393-ba42-cb4eeb4d500f&page=1&pageSize=25",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/auth/profile",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/admin/usage?agentRole=legal-semantic-auditor&runId=4ae336f3-35b4-4393-ba42-cb4eeb4d500f&page=1&pageSize=25",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/admin/usage",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/admin/usage?runId=4ae336f3-35b4-4393-ba42-cb4eeb4d500f&page=1&pageSize=25",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/auth/profile",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/auth/profile",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/admin/usage?page=1&pageSize=25",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "path": "/api/auth/sign-out",
+      "status": 200,
+      "method": "POST"
+    }
+  ],
+  "console": [],
+  "isolation": {
+    "userAdminApiStatus": 403,
+    "code": "RBAC_DENIED",
+    "userAdminRoute": "http://127.0.0.1:3360/workspace",
+    "userLoggedOut": true,
+    "adminStillAuthenticated": 200
+  },
+  "reloadPreserved": true,
+  "loggedOut": true
+}

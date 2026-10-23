@@ -1,0 +1,28 @@
+{
+  "runId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+  "originalJournalSha256": "4eeb126907305a4f110c3ecb96a305813f9468e662b7733657e153822072fbe9",
+  "originalJournalUnchanged": true,
+  "callbackRecoveryCopy": "/home/khovan/Workplaces/LCSP/reports/lcsp360-final-release-20261021/final-acceptance/authorized-real-model-20261023/callback-recovery-copy.sqlite3",
+  "reviewedPoisonRows": 23,
+  "deliveredCallbacks": 24,
+  "secondDrainCallbacks": 0,
+  "unknownAttemptsPreserved": [
+    "0af358f4-9ab8-44ec-a5b4-fafd41a35f6e"
+  ],
+  "states": [
+    [
+      "EVIDENCE",
+      "RECORDED",
+      71
+    ],
+    [
+      "USAGE",
+      "DELIVERED",
+      47
+    ]
+  ],
+  "providerDispatchesAdded": 0,
+  "sourceFix": "four official usage counters preserved by existing redaction allowlist",
+  "newPaidEvaluation": false,
+  "crashClassification": "After worker exit, original IN_FLIGHT exposure classified OUTCOME_UNKNOWN in derived recovery copy only; no refund"
+}

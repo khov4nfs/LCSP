@@ -1,0 +1,36 @@
+{
+  "beforeHttp": 400,
+  "beforeCode": "BILLING_VALIDATION_FAILED",
+  "after": [
+    "COMPLETED",
+    "SETTLED",
+    "PROVIDER_USAGE_METADATA_MISSING",
+    10661,
+    42,
+    {
+      "basis": "OFFICIAL_MODEL_PRICING",
+      "scope": "STANDARD_TOKEN_CONSUMPTION",
+      "status": "COMPLETE",
+      "currency": "USD",
+      "developer": "ANTHROPIC",
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "knownCostUsd": "0.021742",
+      "canonicalModel": "claude-sonnet-5",
+      "evidenceSha256": "9ccc8bef1e83c33ceaf8fa768490d5f876a41b94b8e822c4a81c7ed8085829d0",
+      "priceVersionId": "anthropic:claude-sonnet-5:standard:2026-10-22",
+      "ratesPerMillion": {
+        "input": "2",
+        "cached": "0.20",
+        "output": "10",
+        "cacheWrite1h": "4",
+        "cacheWrite5m": "2.50",
+        "cacheWrite12h": null,
+        "cacheWrite30m": null
+      },
+      "estimatedCostUsd": "0.021742",
+      "missingCategories": [],
+      "knownCostAttodollars": "21742000000000000"
+    }
+  ],
+  "paidCallsAdded": 0
+}

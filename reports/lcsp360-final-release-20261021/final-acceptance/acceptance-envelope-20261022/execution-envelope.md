@@ -1,3 +1,19 @@
+# Current checkpoint — one authorized evaluation consumed, release BLOCKED
+
+The one explicitly authorized run `4ae336f3-35b4-4393-ba42-cb4eeb4d500f` on `bc990176cbb046ea95e12a94fc29e81bc8869653` stopped after permanent telemetry callback failures. It is FAILED / RUNTIME_ERROR. **One evaluation attempted, zero remaining. No second evaluation or resume is authorized.** See [Release Report §21](../RELEASE_REPORT.md) and [actual run evidence](../authorized-real-model-20261023/verification-summary.json).
+
+The exact original proposal became a one-run approval with 256 calls / 4,000,000 input-cache / 256,000 output-reasoning / 3,600 s worker / 600 s provider / 4,200 s overall; no USD cap. Actual run: 24 attempts, 23 responses, 1 unknown, 397.006 s, 729.4 MiB peak. Known input/cache 391,223 and output 3,272; retained unknown exposure 1,048,576 / 128,000. Reference known subtotal USD 0.6481276 is incomplete; actual gateway charges are UNAVAILABLE.
+
+Redaction and stale availability-marker defects are fixed on `88f8bedc2c633da654ebc9db7698aa293a31b128`; 122 Python + 65 admission + 12 API tests and 36 source-head CI/security checks pass. Real callback-only recovery delivered 24 records, then zero on repeat; original journal unchanged. Genuine Admin browser UI/API/database totals, all breakdowns, partial/unknown/details and role isolation pass. Source-candidate and final evidence-publication CI are separate; final exact-HEAD results are in the PR checkpoint.
+
+Two genuine independent audits and source-support hashes pass for two claims, but only 2/12 units were reviewed. Inventory freeze, requirements/rules/Validator/version/activation remain incomplete or NOT_RUN. No staging, production, merge or Draft removal. Current repaired candidate needs a new matching preflight and separate authorization; old budget/context/approval files cannot authorize it. Owned services stopped and all historical data, signed receipts, original usage journal and protected WIP preserved.
+
+**Next: separately authorize one fresh bounded evaluation of the repaired candidate after a new matching preflight.**
+
+---
+
+# Historical checkpoints (preserved; superseded where stated)
+
 # Current real-runtime checkpoint — 2026-10-23
 
 **PARTIAL_REAL_RUNTIME_PASS / RELEASE BLOCKED.** Frozen source **`bc990176cbb046ea95e12a94fc29e81bc8869653`**. Real Chromium interactions drove supplied Admin/User UI sign-in, assessment creation, real API/DB/outbox/SSE, persisted reload, usage empty/filter/error/recovery, provenance download and role/ownership/logout isolation. No mock API, auth bypass, artificial usage or model output was inserted. Actual usage count is zero; nonzero cost/unknown/unpriced drill-down is NOT_DEMONSTRATED. See [Release Report Section 20](../RELEASE_REPORT.md#20-real-runtime-acceptance--2026-10-23-local--2026-10-22-utc) and [runtime evidence](../real-runtime-20261023/verification-summary.json). The two evidence matrices remain separate.
