@@ -103,6 +103,11 @@ export type PagesMessages = {
       inspectingSource: string;
       readerCompleted: string;
       modelTurn: string;
+      semanticAudit: string;
+      sourceReviews: string;
+      draftClaims: string;
+      requirements: string;
+      rules: string;
       synthesizing: string;
       validating: string;
       validationPassed: string;

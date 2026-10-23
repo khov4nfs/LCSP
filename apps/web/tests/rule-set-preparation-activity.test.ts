@@ -7,11 +7,57 @@ import {
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
+import { SEMANTIC_AUDIT } from "@lcsp/contracts/compliance-rule-set";
 
 import {
   preparationTokenUsage,
+  preparationProgress,
   projectPreparationActivity,
 } from "../src/features/admin/utils/rule-set-preparation-activity";
+
+test("independent Auditor calls retain their role and distinct activity label", () => {
+  const [activity] = projectPreparationActivity([
+    event(1, T.modelCallStarted, {
+      data: { agent_role: SEMANTIC_AUDIT.role, model_step_id: "audit-call" },
+    }),
+    event(2, T.modelCallCompleted, {
+      status: "COMPLETED",
+      data: { agent_role: SEMANTIC_AUDIT.role, model_step_id: "audit-call" },
+    }),
+  ]);
+  assert.equal(
+    activity?.labelKey,
+    "pages.complianceRuleSets.activity.semanticAudit",
+  );
+  assert.equal(activity?.details.agent, SEMANTIC_AUDIT.role);
+  assert.equal(activity?.status, "COMPLETED");
+});
+
+test("frontier counters use the latest recorded progress without inventing missing values", () => {
+  assert.equal(preparationProgress([event(1, T.boundaryStarted)]), null);
+  const progress = (sequence: number, reviewed: number) =>
+    event(sequence, T.customProgress, {
+      data: {
+        source_nodes_reviewed: reviewed,
+        review_frontier: { progress: { total: 3231 } },
+        claim_count: 7,
+      },
+    });
+  assert.deepEqual(
+    preparationProgress([
+      progress(3, 5),
+      progress(2, 4),
+      event(4, T.customProgress),
+    ]),
+    {
+      reviewed: 5,
+      total: 3231,
+      claims: 7,
+      requirements: null,
+      rules: null,
+    },
+  );
+});
 
 function event(
   sequence: number,

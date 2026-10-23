@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { WorkDisclosure } from "@/components/molecules/work-disclosure";
 import {
   preparationTokenUsage,
+  preparationProgress,
   projectPreparationActivity,
 } from "../../utils/rule-set-preparation-activity";
 import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
@@ -32,6 +33,7 @@ export function RuleSetPreparationActivity({
     executionState,
   );
   const usage = preparationTokenUsage(events);
+  const progress = preparationProgress(events);
   return (
     <section
       className="rounded-lg border border-border/70 bg-muted/20 p-4"
@@ -63,6 +65,26 @@ export function RuleSetPreparationActivity({
                 )}
         </span>
       </div>
+      {progress ? (
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.sourceReviews"
+            value={`${progress.reviewed.toLocaleString()} / ${progress.total.toLocaleString()}`}
+          />
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.draftClaims"
+            value={progress.claims}
+          />
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.requirements"
+            value={progress.requirements}
+          />
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.rules"
+            value={progress.rules}
+          />
+        </dl>
+      ) : null}
       {activities.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
           {resolveAppMessage("pages.complianceRuleSets.activity.empty")}
