@@ -893,3 +893,63 @@ The full suite was justified by shared telemetry dependency changes and the CI-d
 New paid calls/tokens/cost: **0 / 0 / USD 0**. Historical reconciliation remains **24 attempts / 23 responses / 1 unknown**, **391,223 known input/cache**, **3,272 known output**, **USD 0.6481276 known official-reference subtotal**; complete totals UNKNOWN, actual gateway charge UNAVAILABLE. No original journal or signed receipt was rewritten. Historical resources and the three protected WIP files remain preserved; new contexts/owned databases are stopped and retained. No legal-semantic policy, source corpus or independent audit requirement was weakened.
 
 **Single next action: obtain separate explicit authorization for exactly one fresh bounded evaluation of run `ccc2ba7d-b9eb-4321-9126-aee95070449b` on candidate `960b4ffee4bb240b89ad0687ea54a9e0363b9638`, contingent on exact-HEAD checks and pre-dispatch revalidation. The consumed run cannot resume.**
+
+
+## 24. REAL PNPM DEV BROWSER ACCEPTANCE — 2026-10-23
+
+**PARTIAL_REAL_BROWSER_PASS; final acceptance remains incomplete.** Source repair **`4303e4c5f5d5d30777e77d00506473ed62cc193f`**, based on `840ac2d2732c4aec895192cff443366cd1e9e089`. The latter's 36/36 checks are historical after this source change. Exact publication-HEAD CI/security results and links are recorded in the [existing PR checkpoint](https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6346057937) after push. No offline rehearsal, release-image build, staging or provider request was used for this browser iteration.
+
+The user changed immediate priority to the actual development application before the authorized ccc2ba7d run dispatched. Root **`pnpm dev`** owns Web :3000, API :4000, LangGraph :2024, event bridge and optional observability. Existing development infrastructure was started with `docker compose -f fogewise-dev-launchers/common/docker-compose.local-infra.yml up -d`: local PostgreSQL :5432 / **lcsp_dev**, RabbitMQ :5672 and Redis :6379. No retained database was reset or reused. The supplied accounts were absent from this development database; existing `seed:google-admins` / `seed:google-customers` provisioners created legitimate development identities, followed by real login-form authentication. Passwords stayed in owner-only input files, outside published evidence; no JWT/session insertion or authentication bypass occurred.
+
+### Root cause
+
+The security-compatible optional `langgraph-api` **0.10.3** does not export `process_start_time_seconds` in `/metrics`. The event bridge's stale-run reconciliation requires it, repeatedly sees a healthy server without that field, then exits after its readiness deadline. The supervisor stops the runtime. This was observed in the actual `pnpm dev` logs; healthy Web/API alone did not establish a working stack.
+
+### Fix
+
+The existing launcher records its owned Agent Server's pre-spawn generation and binds it to the exact loopback URL passed only to its event bridge. The client still prefers the actual process metric; only non-production loopback servers may use a valid, nonfuture, exact-URL-bound launcher generation when that metric is absent. Missing/unbound/remote/production values fail closed. The conservative cutoff retains current runs and may leave runs created in the narrow pre-spawn interval untouched. Agent-port ownership is checked before launch. Legal interpretation, retrieval, model routing, semantic-audit gates and production server behavior are unchanged.
+
+After `pnpm dev:stop` and **`pnpm dev`**, the actual bridge entered RabbitMQ consumption at **07:13:55 UTC**, remained alive through the browser journey, and all three application health endpoints returned 200. [Before/after startup](browser-pnpm-dev-20261023/runtime-startup-evidence.json), [environment/resources](browser-pnpm-dev-20261023/runtime-environment.json). Available resources at capture: approximately **13 GiB disk / 7.7 GiB RAM**; no capacity claim for image builds.
+
+### A. Automated regression evidence — distinct from browser evidence
+
+| Affected verification | Actual result |
+|---|---|
+| `.venv/bin/python -m pytest tests/test_repository_sandbox.py tests/test_agent_runtime_rabbitmq_consumer.py tests/test_agent_server_client.py -q --disable-warnings -o log_cli=false` | **80 passed**; includes metric-present/absent stale/current/completed run behavior and seven invalid-generation controls |
+| `node --test scripts/run-agent-runtime.test.mjs` | **6 passed** |
+| `git diff --check`; `graphify update . --no-cluster` | **PASS**; existing optional SQL extractor/smoke graph warnings retained; no paid graph extraction |
+| Exact publication HEAD CI/security | Required after this code change; final check names/results linked in the PR checkpoint; no old result substituted |
+
+### B. Actual Chromium browser-driven runtime evidence
+
+Playwright MCP controlled the actual running app, with separate Admin and User contexts. Chrome DevTools headful startup was unavailable (no X server). No mock API, scripted agent answer or successful-result database insertion was used.
+
+| Real browser operation | Actual result |
+|---|---|
+| Admin and User login, protected navigation | **PASS**, genuine supplied-account login UI; sign-in API 200 |
+| Admin Legal Sources and Rule Sets | **PASS** visible empty initial inventory; source and draft version created through UI, API 201; no active Rule Set |
+| Admin Usage overview and provider filter | **PASS empty state**, API 200; UI and read-only PostgreSQL both show **0 authentic invocations**; `provider=miraiapi` returns zero rows; official-reference estimate labeled correctly |
+| Invocation drill-down/nonzero cost reconciliation | **NOT_DEMONSTRATED in this fresh database**; no artificial usage inserted; historical authentic nonzero evidence remains in Section 21 |
+| User creates assessment | **PASS**, actual form POST 201; persisted assessment **ee3aaa62-84ec-4835-9bab-5c25fbee0d3c**, thread **66d8a5d0-a725-4f56-8549-1e288a0bf9fd** |
+| Assessment reload / API / PostgreSQL consistency | **PASS**, PREPARING, eventSequence **1**, no Rule Set pin; browser API GETs 200 |
+| Runtime streaming connection | **PASS connectivity only**, genuine workspace/assessment SSE requests; no model-progress or semantic execution claim |
+| Provenance view and real download | **PASS**, actual downloaded JSON; independently recomputed fingerprint **6be6e38d9810e188cd74d6e396da773e73502b58a3e3b66348464066b5977e51** equals payload/checksum |
+| User access to Admin | **PASS**, authenticated API **403 RBAC_DENIED**, Admin page redirects to workspace |
+| Logout/session separation | **PASS**, actual sign-out 200; User cookie removed, protected APIs **401 SESSION_INVALID**, protected page redirects to sign-in; Admin API still **200** in separate context. User later signs in again normally |
+| Cross-owner assessment isolation | **NOT_RUN**, no second customer-owned assessment in this environment |
+| Repository connection | **PENDING USER ACTION**, actual GitHub connector requires an approved credential; user stated they will connect it through UI; no tool credential was extracted or reused |
+| Scan / Interview / HITL / investigation / compliance report | **NOT_RUN**, repository credential and active Rule Set missing; no paid authorization for a new development UI run |
+| Producer / independent Auditor / freeze / Requirements / Rules / Validator / activation | **NOT_RUN in this development database**; no legal-semantic acceptance claim |
+| Release images / staging / production / merge / Draft removal | **NOT_RUN / NOT_AUTHORIZED** |
+
+Admin-created source **06d9318b-eb1a-45bf-85a7-8a6abe7eed90**, draft source version **497f19fb-22a8-4136-83a0-8d53f7696293**. It has **zero documents** and remains **DRAFT**; no empty-source activation was attempted. The provenance download proves the initial assessment's integrity, not a completed compliance report.
+
+Screenshots: [Admin draft source](browser-pnpm-dev-20261023/admin-draft-source.png), [Admin Usage on repaired stack](browser-pnpm-dev-20261023/admin-usage-running-stack.png), [User assessment](browser-pnpm-dev-20261023/user-assessment-created.png), [credential boundary](browser-pnpm-dev-20261023/user-repository-credential-required.png), [persisted assessment](browser-pnpm-dev-20261023/user-assessment-persisted.png), [provenance](browser-pnpm-dev-20261023/user-provenance.png), [Admin route denied](browser-pnpm-dev-20261023/user-admin-route-denied.png), [signed out](browser-pnpm-dev-20261023/user-signed-out.png). Initial screenshots before the startup repair are retained and are not represented as full-stack proof.
+
+Receipts: [gate matrix](browser-pnpm-dev-20261023/verification-summary.json), [real Admin API response](browser-pnpm-dev-20261023/admin-usage-api.json), [read-only PostgreSQL](browser-pnpm-dev-20261023/database-verification.json), [download integrity](browser-pnpm-dev-20261023/provenance-verification.json), [original WIP and forty historical artifact hashes](browser-pnpm-dev-20261023/preservation.json). Raw private logs remain outside Git; screenshots contain no password/token fields with values. Temporary input scripts were removed.
+
+**Authorization:** the one approved **ccc2ba7d-b9eb-4321-9126-aee95070449b** evaluation remains **unconsumed**. Its frozen source **960b4ffee4bb240b89ad0687ea54a9e0363b9638**, prepared context/budget and database :55508 are distinct from this development UI. It is not permission to start an arbitrary new preparation/assessment in lcsp_dev or dispatch from the changed working source. No new candidate/run was created for this iteration. Account billing contracts remain superseded as an Admin reference-analytics gate. Paid calls/tokens/new cost here: **0 / 0 / USD 0**; unknown historical charges stay UNAVAILABLE.
+
+The three protected WIP hashes and all **40** historical manifest artifacts match exactly. All retained PostgreSQL resources remain preserved. The development stack remains running for the user's approved credential entry. PR stays Draft.
+
+**Next action: connect the approved read-only GitHub credential through the actual assessment connector UI, then continue browser repository selection without unapproved inference.**

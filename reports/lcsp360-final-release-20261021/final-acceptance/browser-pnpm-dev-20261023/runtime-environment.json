@@ -1,0 +1,67 @@
+{
+  "captureDate": "2026-10-23T07:32:37.723148+00:00",
+  "sourceCommit": "4303e4c5f5d5d30777e77d00506473ed62cc193f",
+  "actualCommand": "pnpm dev",
+  "web": {
+    "port": 3000,
+    "version": "16.3.8"
+  },
+  "api": {
+    "port": 4000,
+    "framework": "^11.0.1"
+  },
+  "pythonPackages": {
+    "langgraph-api": "0.10.3",
+    "langgraph": "1.2.11",
+    "deepagents": "0.7.17",
+    "langchain": "1.4.2",
+    "opentelemetry-api": "1.45.1"
+  },
+  "health": {
+    "3000": {
+      "path": "/sign-in",
+      "status": 200
+    },
+    "4000": {
+      "path": "/health",
+      "status": 200
+    },
+    "2024": {
+      "path": "/ok",
+      "status": 200
+    }
+  },
+  "postgres": {
+    "container": "fogewise-postgres",
+    "port": 5432,
+    "database": "lcsp_dev",
+    "isProduction": false,
+    "reset": false
+  },
+  "broker": {
+    "container": "fogewise-rabbitmq",
+    "port": 5672
+  },
+  "redis": {
+    "container": "fogewise-redis",
+    "port": 6379
+  },
+  "resources": {
+    "availableDiskBytes": 14011183104,
+    "availableRamKiB": 8417600
+  },
+  "sessions": {
+    "admin": "Playwright default Chromium context",
+    "user": "separate Chromium context tagged user; signed out",
+    "authentication": "real login UI and existing development provisioners; no JWT/session fabrication"
+  },
+  "paidDispatches": 0,
+  "paidTokens": 0,
+  "newPaidCostUSD": "0",
+  "actualGatewayCharges": "NO_NEW_INFERENCE",
+  "notes": [
+    "No release image build or staging",
+    "Remaining scan flow requires authorized credential through actual connector UI",
+    "Prepared ccc2ba7d authorization is not permission to start a new UI run in this database"
+  ]
+}

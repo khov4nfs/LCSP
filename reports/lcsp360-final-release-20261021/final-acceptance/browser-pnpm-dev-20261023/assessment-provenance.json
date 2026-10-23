@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "ASSESSMENT_PROVENANCE_V1",
+  "assessmentId": "ee3aaa62-84ec-4835-9bab-5c25fbee0d3c",
+  "name": "LCSP-360 browser journey 2026-10-23",
+  "ownerId": "42a6c65c-a1d2-4a1d-b553-87269f04f3a2",
+  "contentFingerprintSha256": "6be6e38d9810e188cd74d6e396da773e73502b58a3e3b66348464066b5977e51",
+  "checksumSha256": "6be6e38d9810e188cd74d6e396da773e73502b58a3e3b66348464066b5977e51",
+  "lifecycle": {
+    "state": "PREPARING",
+    "assessmentRevision": 1
+  },
+  "pins": {
+    "ruleSet": null,
+    "repositorySnapshotId": null,
+    "repositoryScanJobId": null,
+    "repositoryCommit": null,
+    "pinnedAt": null
+  },
+  "runtime": {
+    "threadId": "66d8a5d0-a725-4f56-8549-1e288a0bf9fd",
+    "rootAgentVersion": "assessment-root-v2",
+    "checkpointNamespace": "ee3aaa62-84ec-4835-9bab-5c25fbee0d3c",
+    "checkpointId": null,
+    "currentExecutionId": null,
+    "executionState": "QUEUED",
+    "eventSequence": 1,
+    "startedAt": null,
+    "lastResumedAt": null,
+    "updatedAt": "2026-10-23T07:15:02.882Z"
+  },
+  "acceptedFacts": [],
+  "acceptedEvidence": [],
+  "humanResolutions": [],
+  "decisions": [],
+  "coverage": [],
+  "events": [
+    {
+      "eventId": "6b200e01-f461-4399-a2e4-ffb33e31dfe2",
+      "assessmentId": "ee3aaa62-84ec-4835-9bab-5c25fbee0d3c",
+      "threadId": "66d8a5d0-a725-4f56-8549-1e288a0bf9fd",
+      "sequence": 1,
+      "timestamp": "2026-10-23T07:15:02.883Z",
+      "actorType": "API",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "payload": {
+        "fromState": "CREATED",
+        "assessmentRevision": 1,
+        "toState": "PREPARING"
+      }
+    }
+  ],
+  "artifacts": []
+}

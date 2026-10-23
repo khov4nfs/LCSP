@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: agent-runtime startup does not rely on generated managed build state
+ok 1 - agent-runtime startup does not rely on generated managed build state
+  ---
+  duration_ms: 0.633415
+  type: 'test'
+  ...
+# Subtest: dev supervisor identifies the child that terminates the stack
+ok 2 - dev supervisor identifies the child that terminates the stack
+  ---
+  duration_ms: 0.117264
+  type: 'test'
+  ...
+# Subtest: agent runtime disables LangSmith control-plane env unless explicitly enabled
+ok 3 - agent runtime disables LangSmith control-plane env unless explicitly enabled
+  ---
+  duration_ms: 0.658555
+  type: 'test'
+  ...
+# Subtest: agent runtime sets explicit local LangGraph concurrency
+ok 4 - agent runtime sets explicit local LangGraph concurrency
+  ---
+  duration_ms: 0.101843
+  type: 'test'
+  ...
+# Subtest: optional observability failure does not stop Agent Runtime services
+ok 5 - optional observability failure does not stop Agent Runtime services
+  ---
+  duration_ms: 0.176523
+  type: 'test'
+  ...
+# Subtest: docker worker env forwards every provider credential pool the worker rotates
+ok 6 - docker worker env forwards every provider credential pool the worker rotates
+  ---
+  duration_ms: 3.516133
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 40.889208

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "AWAITING_LIVE_TEST_AUTHORIZATION",
+  "status": "REAL_BROWSER_IN_PROGRESS_LIVE_LAUNCH_DISABLED",
   "executable": false,
   "launchCommand": null,
   "candidateSha": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
   "freezeRef": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
-  "firstFailedGate": "SEPARATE_LIVE_AUTHORIZATION_REQUIRED",
-  "blockerReceipt": "../run-forensics-20261023/next-evaluation-960b4ff.REQUEST.json",
+  "firstFailedGate": "DEVELOPMENT_REPOSITORY_CREDENTIAL_REQUIRED",
+  "blockerReceipt": "../browser-pnpm-dev-20261023/verification-summary.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -156,17 +156,27 @@
     "actualProviderSpendingCap": null
   },
   "authorization": {
-    "paidInferenceApproved": false,
-    "approvedMaximumProviderDispatches": 0,
-    "approvedMaximumTokens": 0,
+    "paidInferenceApproved": true,
+    "scope": "EXACT_PREPARED_RUN_ONLY; user changed immediate priority before dispatch",
+    "runId": "ccc2ba7d-b9eb-4321-9126-aee95070449b",
+    "candidateSha": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
+    "preparedContextSha256": "00a6bc44895d2afd9f5c4155ae34037f0faa0609eb30c265632afa984f9e3e1b",
+    "budgetFingerprint": "9e5e6a882ac64a8d0999bb6e639cb33fbdc92b6529833cb317d48efab894b11a",
+    "approvedMaximumProviderDispatches": 256,
+    "approvedMaximumInputCacheTokens": 4000000,
+    "approvedMaximumOutputReasoningTokens": 256000,
+    "approvedWorkerSeconds": 3600,
+    "approvedRequestSeconds": 600,
+    "approvedOverallSeconds": 4200,
     "approvedMaximumSpendingUSD": null,
-    "source": "Prior exactly-one authorization consumed; final fresh 126e0158/108efe8 proposal is unapproved",
-    "quotaIsAuthorization": false,
-    "consumedEvaluations": 1,
-    "remainingEvaluations": 0
+    "consumedEvaluations": 0,
+    "remainingEvaluations": 1,
+    "appliesToNewDevelopmentUiRun": false,
+    "expiresAt": "2026-10-24T06:03:48Z",
+    "launchDeferredByUserBrowserPriority": true
   },
   "enforcement": {
-    "status": "TOKEN_ONLY_PASS_PROVIDER_FREE; NO_PAID_AUTHORIZATION",
+    "status": "TOKEN_ONLY_PROVIDER_FREE_PASS; EXACT_PREPARED_RUN_AUTHORIZED; DEVELOPMENT_UI_INFERENCE_NOT_AUTHORIZED",
     "existing": [
       "Worker SIGKILL timeout waits for exit before durable SQLite recovery",
       "Duplicate run claim exits before model construction",
@@ -179,7 +189,9 @@
       "Idempotent late settlement and crash reconciliation from committed usage evidence; old policy versions retained without repricing"
     ],
     "notPresent": [
-      "Separate explicit authorization for the final fresh run and its proposed enforceable limits"
+      "Approved repository credential for actual browser connector",
+      "Active audited Rule Set in development database",
+      "Authorization and matching bounded context for any new development UI model run"
     ],
     "requirements": [
       "One immutable schema-3 run envelope pins candidate, routes, actual native SDK/endpoint/credential identities and conservative per-request technical allowances; schema-2 actual-financial mode remains separate",
@@ -574,5 +586,33 @@
       "fixed": "Complete frozen fixture restoration plus CVE-2026-114603 dependency update",
       "previousUnapprovedContextRetained": true
     }
+  },
+  "historicalAuthorizationAtSection23": {
+    "paidInferenceApproved": false,
+    "approvedMaximumProviderDispatches": 0,
+    "approvedMaximumTokens": 0,
+    "approvedMaximumSpendingUSD": null,
+    "source": "Prior exactly-one authorization consumed; final fresh 126e0158/108efe8 proposal is unapproved",
+    "quotaIsAuthorization": false,
+    "consumedEvaluations": 1,
+    "remainingEvaluations": 0
+  },
+  "currentDevelopmentBrowser": {
+    "sourceCommit": "4303e4c5f5d5d30777e77d00506473ed62cc193f",
+    "receipt": "../browser-pnpm-dev-20261023/verification-summary.json",
+    "database": "lcsp_dev",
+    "ports": {
+      "web": 3000,
+      "api": 4000,
+      "agent": 2024,
+      "postgres": 5432,
+      "broker": 5672
+    },
+    "assessmentId": "ee3aaa62-84ec-4835-9bab-5c25fbee0d3c",
+    "status": "PARTIAL_REAL_BROWSER_PASS",
+    "credentialConnection": "USER_WILL_CONNECT_THROUGH_UI",
+    "activeRuleSet": null,
+    "paidCalls": 0,
+    "scope": "Actual development browser journey; previous realBrowserRuntime entry retained as historical evidence"
   }
 }

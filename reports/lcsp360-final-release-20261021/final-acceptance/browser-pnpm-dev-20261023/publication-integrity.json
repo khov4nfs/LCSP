@@ -1,0 +1,33 @@
+{
+  "secretScan": {
+    "credentialValuesChecked": 56,
+    "scannedTextFiles": 11,
+    "exactSecretMatches": 0,
+    "screenshots": "Captured only after navigation or with empty credential fields; no request headers/cookies exported"
+  },
+  "artifacts": {
+    "admin-dashboard.png": "ebd4698611bbe2bbb071b69fa5838c7d7a2f9757abc5ba32ffeafc76f3688a64",
+    "admin-legal-sources-empty.png": "9606601f1f0ca0bb14e1e5eddd9ca24aa745f8952624a893221858c62b99a4bf",
+    "admin-usage-empty.png": "c611dc93e15ce438e56456bc50585c3863ac6a2f2940da3e2348119ab8687b19",
+    "user-workspace.png": "5f9eeb596c9619bbb31f04879efc3cbfe92f435e9dd089a07e420b4c3e5ca78a",
+    "user-assessment-created.png": "33da2ddb01e088d992a738ec3f31f1cc2ec5fd9f2a7f89710bcc1f6288c69b7f",
+    "user-repository-credential-required.png": "0bdce40c41771d0be1ee6bc0ad800c0c734e3c9e5f06a1848d8670e6c73a114b",
+    "user-assessment-persisted.png": "690683f3c18eabc098bbdb76ff2ad0ec6fe7189fa0343852ea9f977d0958a9b6",
+    "user-provenance.png": "ca221061e3746df0d04db88d26ac30e372498b7a202c43f585e4d4264d414b53",
+    "assessment-provenance.json": "e646f602bdbedc3235d56372fe3497404d019ea7d57ea352bae4c1984ec8ce88",
+    "user-admin-route-denied.png": "b119999be3d43e42674dfe68587bfde3edbd82e3c3582c681729f6824396cf10",
+    "admin-draft-source.png": "1e38f38648b1ae52be4408b97fac56f870181e1c1aaa28230a66df37454d339b",
+    "user-signed-out.png": "039c44c47a114fb30236dfccccb676ae89c1e78fb3a7d8af6c0d019b4d78e236",
+    "admin-usage-running-stack.png": "e00c9e9eac75c5f88b75c93b26b33c4e7609bc59a38114a319fd747f90733245",
+    "provenance-verification.json": "caa300d511b4f19cd8fb7b5738065c0a364494e98524e1d3ebdccf9fe15d7346",
+    "database-verification.json": "65449ae53b85101cc26c08ba8d901e311e49f4bbf2759365d95147e7944947cb",
+    "runtime-startup-evidence.json": "3100385f6a7f94fedafc658ba62beff73b96c32cb99f1f01045670c50efe0853",
+    "preservation.json": "c313e84e2cb1bd24a376242dd328c0e25390e15db725a97fa74f55c2d1ea9471",
+    "admin-usage-api.json": "d175ceb0f6a6b2779d7c1d05b74cc84394a4572f1792b9ec40c2c834dd75a6d4",
+    "runtime-environment.json": "cb5b71c298dca72de4316e14ed084d444df6deb58c363b270990e9eea78e44ba",
+    "focused-runtime-80.log": "a557e6f064bc7a250e0713242b4caaf8619f40c7504b88a863c8dbf47349677e",
+    "launcher-6.log": "7fcec49d7be860ad402fa668de121930395e865ac0e06a82a3ee71221e6136be",
+    "verification-summary.json": "d2456993bc5154ab42996a9bc8002da74362aa84228cc0ed9f59d92b796ead8e",
+    "browser-api-metadata.json": "872a538f6b1a631170daae676fb91f28884cd95987a30795faa9524ab74a93ea"
+  }
+}

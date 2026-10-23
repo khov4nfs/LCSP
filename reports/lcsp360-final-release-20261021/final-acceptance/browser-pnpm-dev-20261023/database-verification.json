@@ -1,0 +1,23 @@
+{
+  "database": "lcsp_dev",
+  "assessment": {
+    "id": "ee3aaa62-84ec-4835-9bab-5c25fbee0d3c",
+    "name": "LCSP-360 browser journey 2026-10-23",
+    "ownerId": "42a6c65c-a1d2-4a1d-b553-87269f04f3a2",
+    "lifecycle": "PREPARING",
+    "eventSequence": 1,
+    "ruleSetVersionId": null
+  },
+  "sourceVersion": {
+    "id": "497f19fb-22a8-4136-83a0-8d53f7696293",
+    "legalSourceId": "06d9318b-eb1a-45bf-85a7-8a6abe7eed90",
+    "version": "lcsp360-browser-20261023.v1",
+    "status": "DRAFT",
+    "documents": 0
+  },
+  "usageEvents": 0,
+  "preparationRuns": 0,
+  "ruleSetVersions": 0,
+  "captureDate": "2026-10-23T07:31:35.222823+00:00",
+  "access": "REPEATABLE READ / READ ONLY"
+}

@@ -164,3 +164,12 @@ Admin/API/PostgreSQL/browser provider-free verification passes; exact new-HEAD C
 
 
 The consumed FAILED run cannot resume: actual claim handler 409, no graph conversation checkpoint, immutable old candidate/budget and no remaining authorization. The final new run uses the complete 15-chunk/12-unit corpus and v3 structural graph; no legal conclusions have been produced. Proposed 256 calls / 4,000,000 input-cache / 256,000 output-reasoning / 3,600 s worker / 600 s request / 4,200 s overall remain unapproved. Budget expires 2026-10-24T04:53:07Z; revalidate or prepare a new proposal if stale. Official reference costs are reporting, not actual gateway-charge guarantees. Final exact-publication CI/security results are recorded in PR #427 checkpoint.
+
+
+## Current browser-priority checkpoint — Section 24
+
+Actual `pnpm dev` browser journey now passes login, source/draft creation, assessment creation/reload, provenance download, Admin Usage empty-state/API/DB agreement, RBAC rejection and separate-session logout. See [Section 24](../RELEASE_REPORT.md#24-real-pnpm-dev-browser-acceptance--2026-10-23) and [receipts](../browser-pnpm-dev-20261023/verification-summary.json). Source repair 4303e4c5f fixes missing optional dev process metrics without changing legal semantics. New exact publication CI is required after that source change.
+
+The ccc2ba7d run on frozen source960b4ff is explicitly authorized once, with the supplied context and budget identities, and remains unconsumed. The user switched priority before dispatch. Its 256 calls /4M input-cache /256k output-reasoning /3600s worker /600s request /4200s overall approval does not apply to a new UI run or the changed dev source/database. No provider-charge cap is implied. Historical unapproved requests remain preserved; this current authorization supersedes their approval status only for the named context. The envelope remains disabled during this browser iteration.
+
+User will connect an approved read-only GitHub credential in the actual UI. Repository/scan and model-dependent stages remain pending; lcsp_dev has no active Rule Set. No real-model invocation, Rule Set activation, image build, staging, merge or deployment occurred here.
