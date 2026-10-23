@@ -1,0 +1,39 @@
+{
+  "status": "PASS_PRESERVED",
+  "sourceCandidate": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
+  "historicalArtifactCount": 40,
+  "protectedWip": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "retainedContainers": [
+    {
+      "name": "lcsp360-real-runtime-20261022-pg-55506",
+      "id": "00ee2248591922bc39bf69030b87bbb0a05282242f0def1bbe3360d5df9d35b3",
+      "status": "exited",
+      "retained": true
+    },
+    {
+      "name": "lcsp360-forensic-20261023-pg-55507",
+      "id": "919391a480a98de5f3564d891c43bb1d2b6f0fada2aed94ec430173e9b21859e",
+      "status": "exited",
+      "retained": true
+    },
+    {
+      "name": "lcsp360-forensic-ready-20261023-pg-55508",
+      "id": "a8cbb8cc67f51fc338ea57bf0e2137e9b9efde3e471879068a0e25c1c33132cf",
+      "status": "exited",
+      "retained": true
+    }
+  ],
+  "historicalPortsNotAccessed": "55441/55502/55503/55504/55505/55506/55507 in this CI follow-up",
+  "fresh55508Database": "lcsp360_final_forensic_ready_44b935cd; earlier databases retained",
+  "diskFreeBytes": 14316867584,
+  "executionWorktreeClean": true,
+  "privateConfigMode": "0600",
+  "generatedDependencySymlinks": "Ignored in local Git info/exclude; no tracked ignore or source file changed",
+  "paidCalls": 0,
+  "paidTokens": 0,
+  "paidCostUSD": 0
+}

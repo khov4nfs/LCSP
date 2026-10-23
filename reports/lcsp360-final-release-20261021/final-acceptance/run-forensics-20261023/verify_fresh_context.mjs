@@ -48,6 +48,7 @@ try {
       counts, hmacIndependentRoundTrip: true, privateKeyMode: "0600_DURABLE_OWNER_CACHE", paidCalls: 0,
       semanticAcceptance: "NOT_EVALUATED" };
   }, { isolationLevel: "RepeatableRead", timeout: 20000 });
-  writeFileSync(new URL("fresh-postgres-preflight-108efe8.json", import.meta.url), JSON.stringify(result, null, 2) + "\n");
+  assert.ok(process.env.FORENSIC_VERIFICATION_OUTPUT, "Supply a new evidence file; retained receipts cannot be overwritten");
+  writeFileSync(process.env.FORENSIC_VERIFICATION_OUTPUT, JSON.stringify(result, null, 2) + "\n", { flag: "wx" });
   console.log(JSON.stringify(result));
 } finally { await db.$disconnect(); }

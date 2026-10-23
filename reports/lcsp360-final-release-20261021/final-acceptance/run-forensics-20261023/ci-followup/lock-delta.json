@@ -1,0 +1,70 @@
+{
+  "grpcio": {
+    "old": "1.81.1",
+    "new": "1.80.0"
+  },
+  "grpcio-health-checking": {
+    "old": "1.81.1",
+    "new": "1.80.0"
+  },
+  "grpcio-tools": {
+    "old": "1.81.1",
+    "new": "1.80.0"
+  },
+  "langgraph-api": {
+    "old": "0.13.0",
+    "new": "0.10.3"
+  },
+  "langgraph-runtime-inmem": {
+    "old": "0.33.0",
+    "new": "0.30.3"
+  },
+  "opentelemetry-api": {
+    "old": "1.42.1",
+    "new": "1.45.1"
+  },
+  "opentelemetry-exporter-http-transport": {
+    "old": null,
+    "new": "0.66b1"
+  },
+  "opentelemetry-exporter-otlp": {
+    "old": "1.42.1",
+    "new": "1.45.1"
+  },
+  "opentelemetry-exporter-otlp-common": {
+    "old": null,
+    "new": "0.66b1"
+  },
+  "opentelemetry-exporter-otlp-proto-common": {
+    "old": "1.42.1",
+    "new": "1.45.1"
+  },
+  "opentelemetry-exporter-otlp-proto-grpc": {
+    "old": "1.42.1",
+    "new": "1.45.1"
+  },
+  "opentelemetry-exporter-otlp-proto-http": {
+    "old": "1.42.1",
+    "new": "1.45.1"
+  },
+  "opentelemetry-exporter-prometheus": {
+    "old": "0.63b1",
+    "new": null
+  },
+  "opentelemetry-proto": {
+    "old": "1.42.1",
+    "new": "1.45.1"
+  },
+  "opentelemetry-sdk": {
+    "old": "1.42.1",
+    "new": "1.45.1"
+  },
+  "opentelemetry-semantic-conventions": {
+    "old": "0.63b1",
+    "new": "0.66b1"
+  },
+  "prometheus-client": {
+    "old": "0.26.0",
+    "new": null
+  }
+}

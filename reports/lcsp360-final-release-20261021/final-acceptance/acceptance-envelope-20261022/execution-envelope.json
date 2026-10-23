@@ -4,10 +4,10 @@
   "status": "AWAITING_LIVE_TEST_AUTHORIZATION",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": "108efe8c57741cc70347d98d962dd8acc9da4de7",
-  "freezeRef": "108efe8c57741cc70347d98d962dd8acc9da4de7",
+  "candidateSha": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
+  "freezeRef": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
   "firstFailedGate": "SEPARATE_LIVE_AUTHORIZATION_REQUIRED",
-  "blockerReceipt": "../run-forensics-20261023/next-evaluation.REQUEST.json",
+  "blockerReceipt": "../run-forensics-20261023/next-evaluation-960b4ff.REQUEST.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -190,22 +190,22 @@
     ],
     "productionCodeChanged": true,
     "identifiedReusePoint": "IMPLEMENTED in UsageMeteringMiddleware and AgentRunState, using the same LiveUsage SQLite file and existing usage recovery connector; no new agent pipeline or customer-credit reservation.",
-    "providerFreeDiagnostic": "../run-forensics-20261023/offline-rehearsal-108efe8/rehearsal.json"
+    "providerFreeDiagnostic": "../run-forensics-20261023/offline-rehearsal-960b4ff/rehearsal.json"
   },
   "isolation": {
     "newOwnedPostgresContainerRequired": false,
     "container": "lcsp360-forensic-ready-20261023-pg-55508",
     "port": 55508,
-    "database": "lcsp360_final_forensic_ready_55f6f60a",
+    "database": "lcsp360_final_forensic_ready_44b935cd",
     "proposedApiPort": 4470,
-    "sourceVersionId": "917d54c6-5b3d-40c8-9956-79c20567d4be",
-    "runId": "126e0158-1b9e-4331-8e37-e2dec6b6151a",
+    "sourceVersionId": "b10df4d1-a7d5-44ef-8b1a-56473d1c4cb8",
+    "runId": "ccc2ba7d-b9eb-4321-9126-aee95070449b",
     "ruleSetVersionId": null,
     "preparedState": "QUEUED_UNCLAIMED_STOPPED_VOLUME_RETAINED",
     "privateAuditKey": "Mode-600 fsynced owner-only durable cache outside Git; fingerprint pinned in context; revalidate before dispatch",
-    "auditKeySha256": "6c7fda2b894950ff2d04baa78c0cc3ea72858a9daf59e8a597a6f63eafeb630e",
+    "auditKeySha256": "bd277093331b6ac7a4bef68e2b75f64d44111fe8af176e4f8daa886d4c453f94",
     "noConcurrentRuntimeEdits": true,
-    "executionWorktree": "/home/khovan/.cache/lcsp360-final/next-108efe8-forensic"
+    "executionWorktree": "/home/khovan/.cache/lcsp360-final/next-960b4ff-forensic"
   },
   "resources": {
     "processTreeMemoryMaxBytes": 3221225472,
@@ -221,10 +221,10 @@
     "freshAdmissionRequired": true,
     "resourceReceipt": "../real-runtime-20261023/preservation-and-owned-shutdown.json",
     "exactFuturePeak": "UNAVAILABLE; no live inference/load or release build run was performed",
-    "latestNonPaidReceipt": "../real-runtime-20261023/candidate-provenance-preflight.json",
+    "latestNonPaidReceipt": "../run-forensics-20261023/fresh-postgres-preflight-960b4ff.json",
     "offlineCgroupCapability": "PASS prepared-only same runtime harness under 3 GiB/200% CPU cgroup; no model inference",
     "diskEnforcement": "8 GiB startup / 4 GiB remaining-space admission and periodic stop; no hard filesystem quota or measured live peak",
-    "lastObservedFreeDiskBytes": 14340198400,
+    "lastObservedFreeDiskBytes": 14327660544,
     "retainedNewResources": [
       "55507 forensic graph/counter diagnostics; stopped, no paid inference",
       "55508 intermediate and final prepare-only databases; stopped, no paid inference"
@@ -267,8 +267,8 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE; bc990176c actual usage retained in historicalAuthorizedRunCheckpoint and Section 21, with complete totals unknown and actual gateway charges UNAVAILABLE.",
-  "nextAction": "Obtain separate explicit authorization for exactly one bounded 126e0158-1b9e-4331-8e37-e2dec6b6151a / 108efe8c57741cc70347d98d962dd8acc9da4de7 evaluation, contingent on revalidation before dispatch.",
-  "updatedAt": "2026-10-23T04:59:07.585162+00:00",
+  "nextAction": "Obtain separate authorization for exactly one fresh bounded run ccc2ba7d-b9eb-4321-9126-aee95070449b on 960b4ffee4bb240b89ad0687ea54a9e0363b9638 after exact-publication CI/security and launch revalidation; no same-run resume",
+  "updatedAt": "2026-10-23T06:08:01.292286+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
     "receipt": "document-digest-blocker.json",
@@ -281,14 +281,14 @@
     "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
   },
   "ciCodeCandidate": {
-    "status": "FRESH_EXACT_PUBLICATION_CI_RESULTS_IN_PR_CHECKPOINT",
-    "sourceCandidate": "108efe8c57741cc70347d98d962dd8acc9da4de7",
+    "status": "EXACT_PUBLICATION_RESULTS_REQUIRED_IN_PR_CHECKPOINT",
+    "sourceCandidate": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
     "historicalReceipt": "../admin-usage-analytics-20261022/initial-ci-static-failure.log",
     "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots.",
     "reviewedPublicationSha": null,
     "externalReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
     "incidentUrl": "https://www.githubstatus.com/incidents/wq8305lppdc2",
-    "currentReceipt": "../run-forensics-20261023/verification-summary.json",
+    "currentReceipt": "../run-forensics-20261023/ci-followup/verification.json",
     "historical640d183f5": "36/36 PASS; not substituted for new-head CI"
   },
   "previousAdmissionCheckpoint": {
@@ -339,7 +339,7 @@
     "perStageCeilings": "WIRED_CUMULATIVE_NO_RESET_BYPASS_PASS_OFFLINE",
     "evaluationProcessTreeCpuMemoryLimits": "PASS_FINAL_NON_PAID_PREPARE_3_GIB_200_PERCENT_CPU_4200S",
     "diskWriteCeilings": "HEADROOM_SUPERVISION_NO_HARD_FILESYSTEM_QUOTA",
-    "receipt": "../run-forensics-20261023/fresh-postgres-preflight-108efe8.json"
+    "receipt": "../run-forensics-20261023/ci-followup/process-tree-enforcement.txt"
   },
   "adminUsageAnalytics": {
     "status": "PASS_PROVIDER_FREE",
@@ -349,7 +349,7 @@
     "financialHardCap": "OPTIONAL_SEPARATE_CAPABILITY",
     "newAdmissionSchema": 3,
     "actualRuntime": "PASS_AUTHENTIC_NONZERO_USAGE_RECONCILIATION_INCOMPLETE_TOTAL_HONEST",
-    "authenticNonzeroUsageReconciliation": "NOT_DEMONSTRATED_NO_AUTHENTIC_USAGE",
+    "authenticNonzeroUsageReconciliation": "PASS_KNOWN_SUBTOTAL_COMPLETE_TOTAL_UNKNOWN; genuine Section 21 browser evidence, no new UI claim",
     "actualRuntimeReceipt": "../authorized-real-model-20261023/browser-real-usage.json"
   },
   "acceptanceGates": [
@@ -377,11 +377,11 @@
     "financialEnforcement": "DISABLED",
     "actualProviderChargeCap": null,
     "historicalUSD25Proposal": "Not enabled by official-reference pricing or this token-only proposal; separate explicit strict-financial approval requires schema-2 verified contracts",
-    "budgetFile": "../run-forensics-20261023/token-envelope-108efe8/token-budget.UNAPPROVED.json",
-    "budgetFingerprint": "caecbf80984babefa9bc096819e8066870e576e4913c5afe0d920cb71266bf6b",
-    "preparedContextFile": "../run-forensics-20261023/fresh-preflight-108efe8/prepared-context.json",
-    "preparedContextSha256": "d8974c1dd9dce643a4bfc118c8ba3f074529efb51ddee1854942634050bc0783",
-    "requestFile": "../run-forensics-20261023/next-evaluation.REQUEST.json",
+    "budgetFile": "../run-forensics-20261023/token-envelope-960b4ff/token-budget.UNAPPROVED.json",
+    "budgetFingerprint": "9e5e6a882ac64a8d0999bb6e639cb33fbdc92b6529833cb317d48efab894b11a",
+    "preparedContextFile": "../run-forensics-20261023/fresh-preflight-960b4ff/prepared-context.json",
+    "preparedContextSha256": "00a6bc44895d2afd9f5c4155ae34037f0faa0609eb30c265632afa984f9e3e1b",
+    "requestFile": "../run-forensics-20261023/next-evaluation-960b4ff.REQUEST.json",
     "configuredBindings": 40,
     "distinctCredentials": 30,
     "inputReservationAllowancePerAttempt": 1048576,
@@ -396,8 +396,8 @@
       "Fresh resource/cgroup admission and process-tree deadline supervision",
       "Use the exact source worktree; Python worker requires exact HEAD equal to candidate, even for report-only publication descendants"
     ],
-    "budgetFileSha256": "559c127414edcae6c6ab1e534165f361a0409648fb077cb08a5b21b1a79868d3",
-    "budgetExpiresAt": "2026-10-24T04:53:07+00:00"
+    "budgetFileSha256": "fa8cf0ea04ea50dc72854811c90ad0708aa77ccf69360db20d37c418730f20b3",
+    "budgetExpiresAt": "2026-10-24T06:03:48+00:00"
   },
   "historical6336350RuntimeCheckpoint": {
     "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
@@ -567,6 +567,12 @@
     "fourReproducibleRepairs": "PASS_PROVIDER_FREE",
     "historicalSameRunResume": false,
     "freshRunSemanticAcceptance": "NOT_RUN",
-    "intermediateFe8b052": "Preserved and superseded; no paid authorization or dispatch"
+    "intermediateFe8b052": "Preserved and superseded; no paid authorization or dispatch",
+    "ciFollowup": {
+      "receipt": "../run-forensics-20261023/ci-followup/verification.json",
+      "candidateSha": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
+      "fixed": "Complete frozen fixture restoration plus CVE-2026-114603 dependency update",
+      "previousUnapprovedContextRetained": true
+    }
   }
 }

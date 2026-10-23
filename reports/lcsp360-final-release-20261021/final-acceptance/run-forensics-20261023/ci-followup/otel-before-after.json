@@ -1,0 +1,20 @@
+{
+  "status": "PASS_REPRODUCED_AND_FIXED",
+  "advisory": "CVE-2026-114603",
+  "isolatedOldWheelSha256": "51a69edacadbc03a8950ace1c4c21099cacc538820ac2c9e36277e78cebba714",
+  "cases": [
+    {
+      "version": "old-1.42.1",
+      "result": "TIMEOUT_KILLED_5_SECONDS",
+      "seconds": 5.0065
+    },
+    {
+      "version": "fixed-1.45.1",
+      "exitCode": 0,
+      "seconds": 0.0315,
+      "result": "PASS",
+      "stderr": ""
+    }
+  ],
+  "providerCalls": 0
+}

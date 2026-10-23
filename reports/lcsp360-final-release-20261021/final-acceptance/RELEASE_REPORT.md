@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**AWAITING_LIVE_TEST_AUTHORIZATION — engineering repairs verified; final semantic acceptance remains BLOCKED.** Current frozen source is `108efe8c57741cc70347d98d962dd8acc9da4de7`. Section 22 records causal forensics, four provider-free repairs, full-source/P10 regressions and fresh unclaimed run `126e0158-1b9e-4331-8e37-e2dec6b6151a`. Exact evidence-publication CI/security results are recorded in the PR checkpoint. Historical Sections 1–21 retain their original outcomes, including the failed `bc990176c` evaluation and its consumed authorization. No resume or second paid evaluation occurred. PR remains Draft; no staging, production, merge or deployment.
+**ENGINEERING_REPAIRS_VERIFIED — final semantic acceptance remains BLOCKED pending a separately authorized live run.** Current frozen source is `960b4ffee4bb240b89ad0687ea54a9e0363b9638`. Section 23 supersedes the unapproved Section 22 execution proposal after authoring-fixture and telemetry-security repairs. Current prepared run `ccc2ba7d-b9eb-4321-9126-aee95070449b` is unclaimed with zero inference. Exact evidence-publication CI/security results are maintained in the [PR checkpoint](https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6346057937); historical failures and prior passing results remain separately identified. PR remains Draft. No second paid evaluation, activation, staging, merge or deployment occurred.
 
 - Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
@@ -838,3 +838,58 @@ Evidence directory: [run-forensics-20261023](run-forensics-20261023/verification
 All forty historical artifact hashes and all three protected WIP hashes remain unchanged. Historical PostgreSQL resources on 55441/55502/55503/55504/55505 were untouched; 55506 was opened only for read-only inspection. Task-owned 55506/55507/55508 data and intermediate contexts are retained; owned services/containers are stopped after verification. No broad cleanup, historical journal rewrite, security-policy exception or legal-semantic bypass occurred.
 
 **Single next action: obtain explicit authorization for exactly one fresh bounded evaluation of run 126e0158-1b9e-4331-8e37-e2dec6b6151a on source 108efe8c57741cc70347d98d962dd8acc9da4de7, contingent on revalidation before dispatch. No same-run resume is proposed.**
+
+
+## 23. CI repairs and refreshed non-paid readiness — 2026-10-23
+
+Frozen source **`960b4ffee4bb240b89ad0687ea54a9e0363b9638`**. The Section 22 causal diagnosis and historical evidence remain valid: callback quarantine did not automatically terminate the consumed run; an explicit process-group SIGTERM stopped incomplete discovery. No conversation checkpoint exists for that terminal run and no same-run resume is proposed. Section 22's 108efe8 queued context and unapproved request remain preserved; this section supersedes only the next-candidate proposal.
+
+### Root cause
+
+Publication `9d787c9f9ee9f1a51b798c8d9bc0c62e448939c4` had **31 passing / 5 failing checks**, including the dependent V2 aggregate. The three Python jobs fail the same 15 tests: the retained `FrozenApi` authoring harness installed a frozen graph/frontier but left `frontier.loaded` false, and its generated mechanical fixture omitted progress counters. The new authoritative inventory view therefore attempted an API restore the harness does not implement. Production discovery had not lost claims; this was incomplete fixture restoration.
+
+Trivy separately identified **CVE-2026-114603 / GHSA-xcq7-p3pf-p88h**, unbounded whitespace parsing in locked `opentelemetry-api` 1.42.1. [Upstream advisory](https://github.com/open-telemetry/opentelemetry-python/security/advisories/GHSA-xcq7-p3pf-p88h) and captured [advisory metadata](run-forensics-20261023/ci-followup/otel-advisory.json) identify 1.45.1 as patched. No alert was dismissed or excluded.
+
+### Fix
+
+The shared **test-only** restoration helpers now mark already-restored state loaded and derive progress counters from the fixture's source-accounting rows. A new read-preservation regression checks claims, receipts, frontier, counters and frozen fingerprint together. No live semantic verdict or acceptance result is manufactured. Existing authoring rejection, compaction and correction assertions remain unchanged.
+
+`deepagents/pyproject.toml` requires **`opentelemetry-api>=1.45.1,<2`** and the repository's `uv lock` regenerates a coherent 1.45.1 telemetry family. This floor also governs the production Dockerfile's `pip install`; lockfile-only remediation would be insufficient. The pip-style worker/development resolutions were inspected without installing a production image. The optional development `langgraph-api` 0.13.0 and latest 0.16.5 depend on Prometheus exporter `<0.64`, whose available 0.63 releases require the vulnerable SDK/API 1.42 family. The resolver therefore selects compatible optional `langgraph-api` **0.10.3**, in-memory development runtime **0.30.3** and corresponding gRPC versions. This explicit compatibility trade-off is [recorded](run-forensics-20261023/ci-followup/lock-delta.json); no dependency override hides an incompatibility. Locked production DeepAgents, LangGraph and provider SDK versions stay unchanged. Production entrypoint uses LCSP's own `local_server`, not `langgraph dev`.
+
+Two provider-free telemetry regressions verify actual bounded parsing and valid propagated context/local span export. An isolated copy of the original wheel exceeds a five-second cutoff on the recorded parser attack shape; patched parsing completes in **0.0315 s**. No server attack or provider request was sent. [Before/after proof](run-forensics-20261023/ci-followup/otel-before-after.json).
+
+| Verification | Actual outcome |
+|---|---|
+| `.venv/bin/python -m pytest tests/test_authoring_memory.py tests/test_authoring_recovery.py tests/test_authoring_working_set.py tests/test_recorded_preparation_recovery.py -q --disable-warnings` | **40 passed**; no inference |
+| Complete Python workers after compatible telemetry sync: `.venv/bin/python -m pytest -q --disable-warnings -o log_cli=false` | **1,973 passed, 63 skipped**, **174.23 s**; includes those 40 and the 2 new telemetry tests; counts are not added together |
+| `uv lock --check`; `uv pip check` | **PASS**; 194 installed packages compatible |
+| `uv pip compile pyproject.toml` and `--extra dev` | **PASS resolution only**; worker and CI resolve patched API/SDK 1.45.1; not an image verification |
+| Canonical terminology; AST graph update; source whitespace check | **PASS**; original optional graph warnings remain |
+| Configured offline admission rehearsal on 960b4ff | **7 underlying dispatches / 4 responses / 3 unresolved**, terminal `CALL_LIMIT`, no eighth dispatch; exact-once settlements and unknown exposure retained |
+| Current native route/credential construction and token admission | **40 bindings / 30 credentials**, zero network attempts, zero paid calls; no remote quota claim |
+| Fresh real API/PostgreSQL prepare-only plus independent read-only verification | **PASS**, source/HMAC/15 chunks/12 units/current v3 graph match; zero usage, audits, inventories or Rule Set versions |
+| Exact evidence-publication CI/security | Actual final HEAD, individual check results and links are maintained in the [PR checkpoint](https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6346057937). The failed 9d787 and older green HEADs are historical, never current-head substitutes. |
+
+The full suite was justified by shared telemetry dependency changes and the CI-discovered authoring failures. No unrelated smoke matrix or image build was launched. [Local verification](run-forensics-20261023/ci-followup/verification.json), [full test output](run-forensics-20261023/ci-followup/python-full-1973.log), [original failure excerpts](run-forensics-20261023/ci-followup/original-Python-worker-tests.log).
+
+### Current prepared context — no authorization or dispatch
+
+- Run **`ccc2ba7d-b9eb-4321-9126-aee95070449b`**, candidate **`960b4ffee4bb240b89ad0687ea54a9e0363b9638`**, database **`lcsp360_final_forensic_ready_44b935cd`**, task-owned loopback **55508**, prepared API port **4470**.
+- Original full source byte SHA-256 **`b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1`**; persisted `sha256:` digest matches; **15 verified chunks / 12 review units / 8 genuine references**. Graph **`bf4f133a6c245d4a46f5f00f5653a0d5361ab131e8996e00774f79351e8ef807`**, source version **`b10df4d1-a7d5-44ef-8b1a-56473d1c4cb8`**. [Independent PostgreSQL proof](run-forensics-20261023/fresh-postgres-preflight-960b4ff.json).
+- Context file SHA-256 **`00a6bc44895d2afd9f5c4155ae34037f0faa0609eb30c265632afa984f9e3e1b`**. Node/Python source-support HMAC checks, tamper and wrong-run controls pass. The preflight receipt explicitly says **NOT_EVALUATED**, with no semantic assertion. Key remains in mode-0600 durable owner cache outside Git.
+- Actual prepare-only process: **11.593 s**, CPU **8.952 s**, peak **592.9 MiB**. Captured systemd offline rehearsal properties independently verify **3 GiB / 200% CPU / 4,200 s RuntimeMax / 5 s stop / KillMode=control-group**. [Process-tree receipt](run-forensics-20261023/ci-followup/process-tree-enforcement.txt). Startup resources: **14,327,660,544 free disk bytes**, **7,814,000,640 available RAM bytes**, above existing admission thresholds. Future live peak remains unmeasured; no hard filesystem quota or new image capacity claim.
+- New **UNAPPROVED** token-budget fingerprint **`9e5e6a882ac64a8d0999bb6e639cb33fbdc92b6529833cb317d48efab894b11a`**, file SHA **`fa8cf0ea04ea50dc72854811c90ad0708aa77ccf69360db20d37c418730f20b3`**, expires **2026-10-24T06:03:48+00:00**. Proposed ceilings stay **256 physical attempts / 4,000,000 input-cache / 256,000 output-reasoning / 3,600 s worker / 600 s provider / 4,200 s overall**. They have not been approved for this run. Native caps, route order, retries, independent Auditor and durable reservations remain unchanged; unknown responses retain exposure. Reference estimates are not actual gateway charges or a USD cap.
+- Clean exact-source worktree **`/home/khovan/.cache/lcsp360-final/next-960b4ff-forensic`**. No provider `.env` copied. At any separately authorized launch, revalidate exact candidate, CI, dates, run/source/graph/key identities, credentials/routes/SDKs and resources. [Unapproved request](run-forensics-20261023/next-evaluation-960b4ff.REQUEST.json); executable command remains null.
+
+| Acceptance scope | Verdict |
+|---|---|
+| Accounting, recovery, citation/frontier repairs and authoring regressions | **PASS provider-free** |
+| Token/call governance and refreshed source/HMAC/database/resource preflight | **PASS non-paid** |
+| Historical real Admin/browser analytics/RBAC evidence | **PRESERVED**, Section 21; no new UI success claimed |
+| Full genuine Producer/Auditor legal-semantic acceptance | **NOT_COMPLETED**; consumed historical run failed, new run **NOT_RUN** |
+| Verified freeze → Requirements → Rules → Validator → persistence → activation | **NOT_RUN for corrected candidate** |
+| Release-image, staging, deployment, merge and Draft removal | **NOT_RUN / NOT_AUTHORIZED** |
+
+New paid calls/tokens/cost: **0 / 0 / USD 0**. Historical reconciliation remains **24 attempts / 23 responses / 1 unknown**, **391,223 known input/cache**, **3,272 known output**, **USD 0.6481276 known official-reference subtotal**; complete totals UNKNOWN, actual gateway charge UNAVAILABLE. No original journal or signed receipt was rewritten. Historical resources and the three protected WIP files remain preserved; new contexts/owned databases are stopped and retained. No legal-semantic policy, source corpus or independent audit requirement was weakened.
+
+**Single next action: obtain separate explicit authorization for exactly one fresh bounded evaluation of run `ccc2ba7d-b9eb-4321-9126-aee95070449b` on candidate `960b4ffee4bb240b89ad0687ea54a9e0363b9638`, contingent on exact-HEAD checks and pre-dispatch revalidation. The consumed run cannot resume.**
