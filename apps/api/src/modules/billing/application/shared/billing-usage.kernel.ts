@@ -146,6 +146,11 @@ export class BillingUsageKernel {
                     status: TOKEN_FIELDS.some((f) => i[f] !== undefined)
                       ? LLM_USAGE_STATUSES.SETTLED
                       : LLM_USAGE_STATUSES.UNAVAILABLE,
+                    availabilityReason: TOKEN_FIELDS.some(
+                      (f) => i[f] !== undefined,
+                    )
+                      ? null
+                      : LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing,
                   }
                 : {}),
             });
@@ -163,6 +168,12 @@ export class BillingUsageKernel {
             (i.providerResponseId ?? null)
         )
           throw new BillingIdempotencyConflictError("Usage replay differs");
+        if (
+          existing.status === LLM_USAGE_STATUSES.SETTLED &&
+          existing.availabilityReason ===
+            LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing
+        )
+          return usage.update(existing.id, { availabilityReason: null });
         return existing;
       }
       if (i.providerResponseId) {

@@ -249,6 +249,22 @@ describe("BillingUsageKernel provider token telemetry", () => {
 });
 
 describe("physical attempt reconciliation", () => {
+  it("keeps missing usage unavailable when completion has no reported buckets", async () => {
+    const { record, rows } = harness();
+    const missing = { inputTokens: undefined, outputTokens: undefined };
+    await record({ ...missing, attemptStatus: MODEL_ATTEMPT_STATUSES.STARTED });
+    await record({
+      ...missing,
+      attemptStatus: MODEL_ATTEMPT_STATUSES.COMPLETED,
+    });
+    expect(rows[0].status).toBe(LLM_USAGE_STATUSES.UNAVAILABLE);
+    expect(rows[0].availabilityReason).toBe(
+      LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing,
+    );
+    expect(rows[0].inputTokens).toBeNull();
+    expect(rows[0].outputTokens).toBeNull();
+  });
+
   it("keeps one row across start, timeout, late response and duplicate response without repricing", async () => {
     const { record, rows } = harness();
     const identity = {
@@ -288,6 +304,7 @@ describe("physical attempt reconciliation", () => {
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].attemptStatus).toBe(MODEL_ATTEMPT_STATUSES.COMPLETED);
+    expect(rows[0].availabilityReason).toBeNull();
     expect(rows[0].referenceCostSnapshot).toBe(snapshot);
     expect(snapshot).toMatchObject({
       estimatedCostUsd: "0.0000704",
@@ -296,5 +313,11 @@ describe("physical attempt reconciliation", () => {
     await expect(record({ ...usage, outputTokens: 6n })).rejects.toBeInstanceOf(
       BillingIdempotencyConflictError,
     );
+    // Repair the stale marker on already-completed rows without repricing them.
+    rows[0].availabilityReason =
+      LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing;
+    await record(usage);
+    expect(rows[0].availabilityReason).toBeNull();
+    expect(rows[0].referenceCostSnapshot).toBe(snapshot);
   });
 });

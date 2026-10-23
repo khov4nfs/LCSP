@@ -247,7 +247,7 @@ export interface LlmUsagePort {
     totalTokens?: bigint;
     runtimePolicySnapshotId?: string;
     status: LlmUsageStatus;
-    availabilityReason?: string;
+    availabilityReason?: string | null;
     occurredAt: Date;
   }): Promise<UsageRecord>;
 }
