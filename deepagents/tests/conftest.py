@@ -151,6 +151,8 @@ def isolated_process_environment() -> Generator[None, None, None]:
     variables are left untouched.
     """
     _clear_dotenv_environment()
+    # Install after isolation, which also removes this key from a configured developer .env.
+    os.environ["LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"] = "7c" * 32
     try:
         yield
     finally:
@@ -256,7 +258,3 @@ def scan_job_payload() -> dict:
         "config_hash": "sha256:abc123def456",
         "policy_token": "internal-policy-test-token",
     }
-
-# Public test-only key; production never falls back to this value.
-import os
-os.environ["LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"] = "7c" * 32

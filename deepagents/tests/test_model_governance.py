@@ -65,16 +65,20 @@ async def test_one_native_schema_repair_requires_explicit_request_policy_and_nev
     class Answer(BaseModel):
         count: int
     policy = OneNativeSchemaRepair()
-    request = MagicMock(response_format=ToolStrategy(Answer, handle_errors=policy))
-    response = ModelResponse(result=[ToolMessage(content="Contract rejected", tool_call_id="native", name="Answer")])
+    request = MagicMock(response_format=ToolStrategy(Answer, handle_errors=policy), messages=[])
+    response = ModelResponse(result=[ToolMessage(content=policy(ValueError("Contract rejected")), tool_call_id="native", name="Answer")])
     handler = AsyncMock(return_value=response) if asynchronous else MagicMock(return_value=response)
     guard = StopSchemaRepairMiddleware()
     async def invoke():
         return await guard.awrap_model_call(request, handler) if asynchronous else guard.wrap_model_call(request, handler)
     assert await invoke() is response
+    request.messages = response.result
     with pytest.raises(StructuredOutputRejected):
         await invoke()
     request.response_format = ToolStrategy(Answer, handle_errors=OneNativeSchemaRepair())
+    with pytest.raises(StructuredOutputRejected):
+        await invoke()
+    request.messages = []
     assert await invoke() is response
     request.response_format = ToolStrategy(Answer)
     with pytest.raises(StructuredOutputRejected):

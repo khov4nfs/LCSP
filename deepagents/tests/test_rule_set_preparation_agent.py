@@ -89,7 +89,43 @@ def test_legal_source_reader_uses_shared_model_governance_middleware(tmp_path):
     assert middleware[2].agent_role == "rule-set-preparation"
     assert middleware[3:] == list(MODEL_GOVERNANCE_MIDDLEWARE)
     assert subagent["tools"] == []
-    assert subagent["response_format"] is LegalSourceReaderResult
+    assert subagent["response_format"].schema is LegalSourceReaderResult
+
+
+@pytest.mark.parametrize("corrected", [True, False])
+def test_reader_schema_correction_is_metered_strict_and_scoped_to_each_delegation(monkeypatch, tmp_path, corrected):
+    from langchain.agents import create_agent
+    from middleware import usage_metering
+    from middleware.failure_policy import StructuredOutputRejected
+
+    invalid = {"documentId": "document", "findings": [{"statement": "candidate", "sourceRefs": ["invalid reference"]}]}
+    valid = {"documentId": "document", "findings": [{"statement": "candidate", "sourceNodeIds": ["node"]}]}
+    answers = [invalid, valid if corrected else invalid] * 2
+    model = RuleSetPreparationScriptedModel(responses=[AIMessage(content="", tool_calls=[{
+        "name": "LegalSourceReaderResult", "args": answer, "id": f"reader-{index}",
+    }]) for index, answer in enumerate(answers)])
+    identity = usage_metering.assert_model_identity
+    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda current, response=None:
+                        None if current is model else identity(current, response))
+    metered = []
+    record = usage_metering.UsageMeteringMiddleware._record
+    def track(self, response, current, invocation_id):
+        metered.append(invocation_id)
+        return record(self, response, current, invocation_id)
+    monkeypatch.setattr(usage_metering.UsageMeteringMiddleware, "_record", track)
+    spec = legal_source_reader_subagent(model=model, backend=FilesystemBackend(root_dir=tmp_path, virtual_mode=True))
+    reader = create_agent(model, tools=spec["tools"], system_prompt=spec["system_prompt"],
+                          response_format=spec["response_format"], middleware=spec["middleware"])
+    for _ in range(2):
+        if corrected:
+            result = reader.invoke({"messages": [{"role": "user", "content": "Read the assigned document"}]})
+            assert result["structured_response"].model_dump() == LegalSourceReaderResult.model_validate(valid).model_dump()
+        else:
+            with pytest.raises(StructuredOutputRejected, match="schema"):
+                reader.invoke({"messages": [{"role": "user", "content": "Read the assigned document"}]})
+    assert len(model.prompts) == len(metered) == len(set(metered)) == 4
+    assert any("sourceRefs" in str(message.content) for message in model.prompts[1])
+    assert not any("Output contract rejected:" in str(message.content) for message in model.prompts[2])
 
 
 def test_preparation_and_reader_share_observation_state_without_work_budgets(monkeypatch, tmp_path):

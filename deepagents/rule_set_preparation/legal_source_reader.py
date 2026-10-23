@@ -6,7 +6,8 @@ from typing import Any
 
 from deepagents.backends.protocol import BackendProtocol
 from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPermission
-from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, governed_summarization_middleware
+from langchain.agents.structured_output import ToolStrategy
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, OneNativeSchemaRepair, governed_summarization_middleware
 from middleware.usage_metering import AgentRoleMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -103,5 +104,5 @@ def legal_source_reader_subagent(
         ],
         "permissions": permissions,
         "system_prompt": LEGAL_SOURCE_READER_PROMPT,
-        "response_format": LegalSourceReaderResult,
+        "response_format": ToolStrategy(LegalSourceReaderResult, handle_errors=OneNativeSchemaRepair()),
     }
