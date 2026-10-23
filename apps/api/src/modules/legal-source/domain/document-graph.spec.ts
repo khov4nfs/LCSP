@@ -324,6 +324,35 @@ describe("Legal Document AST: structural interpretation only", () => {
       ),
     ).toBeDefined();
   });
+  it.each([
+    "The operator must appoint a person to attend the annual public information session in person.",
+    "The service may disappoint a reviewer at checkpoint b or subarticle 7.",
+    "The model describes point alpha and Article 2unknown without a citation.",
+  ])("does not extract citation fragments inside words: %s", (text) => {
+    const graph = buildLegalDocumentGraph(version, [
+      document([`Article 1. Context\n1. ${text}`]),
+    ]);
+    expect(graph.references).toEqual([]);
+  });
+  it("retains standalone English and Vietnamese citations with exact source offsets", () => {
+    const graph = buildLegalDocumentGraph(version, [
+      document([
+        "Article 1. Context\n1. See (Article 2), khoản 1 Điều 2 and điểm b.\nb) A point.\nArticle 2. Target\n1. Text.",
+      ]),
+    ]);
+    expect(graph.references.map((r) => r.text)).toEqual([
+      "Article 2",
+      "khoản 1 Điều 2",
+      "điểm b",
+    ]);
+    for (const reference of graph.references) {
+      const node = graph.nodes.find((n) => n.nodeId === reference.fromNodeId)!;
+      expect(node.content.slice(reference.charStart, reference.charEnd)).toBe(
+        reference.text,
+      );
+      expect(reference.resolutionState).toBe(R.RESOLVED);
+    }
+  });
   it("handles thousands of nodes/references deterministically without whole-source prompt expansion", () => {
     const text = Array.from(
       { length: 1500 },

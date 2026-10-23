@@ -70,6 +70,50 @@ def test_missing_or_partial_usage_is_not_invented(tmp_path):
     assert summary["invocations"][2]["usage"] is None
 
 
+def test_unanswered_attempt_does_not_promote_response_subtotals_to_run_totals(tmp_path):
+    out = str(tmp_path / "usage.json")
+    state = LiveUsage("run", out)
+    state.record(response(), MODEL, "answered")
+    usage_recovery.record_usage_evidence(state.store, "answered", {
+        "runId": "run", "event": "MODEL_ATTEMPT", "invocationId": "answered",
+        "attemptStatus": "COMPLETED", "provider": "APX", "model": "usage-model",
+        "agentRole": "rule-set-preparation",
+    })
+    usage_recovery.record_usage_evidence(state.store, "unanswered", {
+        "runId": "run", "event": "MODEL_ATTEMPT", "invocationId": "unanswered",
+        "attemptStatus": "STARTED", "provider": "APX", "model": "usage-model",
+        "agentRole": "rule-set-preparation",
+    })
+    summary = recover_usage(out, "run")
+    assert summary["accountingState"] == "MISSING_PROVIDER_USAGE"
+    assert (summary["physicalAttempts"], summary["successfulResponses"], summary["unresolvedAttempts"]) == (2, 1, 1)
+    assert summary["knownInputTokens"] == 7 and summary["knownOutputTokens"] == 3
+    for key in ("inputTokens", "inputTokensIncludingCache", "outputTokens", "cachedInputTokens", "cacheWriteTokens"):
+        assert summary[key] is None, key
+
+
+def test_recorded_24_attempt_interruption_recovery_keeps_unknown_totals(tmp_path):
+    import hashlib
+    import shutil
+    import sqlite3
+
+    evidence = Path(__file__).parents[2] / "reports/lcsp360-final-release-20261021/final-acceptance/authorized-real-model-20261023"
+    original = evidence / "original-journal-snapshot.sqlite3"
+    before = hashlib.sha256(original.read_bytes()).hexdigest()
+    out = str(tmp_path / "recovered.json")
+    shutil.copyfile(original, out + ".sqlite3")
+    with sqlite3.connect(f"file:{original}?mode=ro", uri=True) as db:
+        run_id = db.execute("SELECT run_id FROM inference_budgets").fetchone()[0]
+    first = recover_usage(out, run_id)
+    again = recover_usage(out, run_id)
+    assert (first["physicalAttempts"], first["successfulResponses"], first["unresolvedAttempts"]) == (24, 23, 1)
+    assert first["knownInputTokensIncludingCache"] == 391223
+    assert first["knownOutputTokens"] == 3272
+    assert first["inputTokensIncludingCache"] is first["outputTokens"] is None
+    assert first["invocations"] == again["invocations"] and first["admission"] == again["admission"]
+    assert hashlib.sha256(original.read_bytes()).hexdigest() == before
+
+
 def test_real_producer_and_independent_auditor_share_the_journal(tmp_path, monkeypatch):
     from rule_set_preparation.semantic_audit import SemanticAuditor, audit_input
     from semantic_verifier_fixture import model_response
@@ -137,7 +181,9 @@ def test_rejected_answer_is_committed_before_fallback_or_terminal_failure(tmp_pa
     assert attempts == ["apx", "google_genai"]
     assert summary["modelCalls"] == (2 if fallback_succeeds else 1)
     assert summary["inputTokens"] is None
-    assert summary["inputTokensIncludingCache"] == (10 if fallback_succeeds else 5)
+    assert summary["inputTokensIncludingCache"] == (10 if fallback_succeeds else None)
+    assert summary["knownInputTokensIncludingCache"] == (10 if fallback_succeeds else 5)
+    assert summary["unresolvedAttempts"] == (0 if fallback_succeeds else 1)
     assert [r["provider"] for r in summary["invocations"]] == (["APX", "GOOGLE_GENAI"] if fallback_succeeds else ["APX"])
 
 

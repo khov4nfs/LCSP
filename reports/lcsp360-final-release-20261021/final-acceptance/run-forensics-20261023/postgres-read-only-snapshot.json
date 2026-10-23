@@ -1,0 +1,1739 @@
+{
+  "readonly": [
+    {
+      "transaction_read_only": "on"
+    }
+  ],
+  "claimResumeDenied": {
+    "httpStatus": 409,
+    "providerDispatches": 0,
+    "state": "FAILED"
+  },
+  "run": {
+    "claimDiscoveryOnly": false,
+    "claimPhase": "CLAIM_DISCOVERY",
+    "claimInventoryRevision": 1,
+    "claimInventoryReopenReason": null,
+    "id": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+    "idempotencyKey": "rule-set-preparation:8353b79d-9d82-4360-b9c0-74f11f80bbb1:attempt:1",
+    "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+    "requestedBy": "rule-set-preparation-system",
+    "correlationId": "1657a8c6-5385-494b-8858-18606e41af1e",
+    "executionState": "FAILED",
+    "failureReason": "RUNTIME_ERROR",
+    "outboxEventId": "outbox:6765e61d94c8954f064a4a79275b6b242eb7fbfd8f6d0cda9f1af38842546baa",
+    "createdAt": "2026-10-22T17:37:52.689Z",
+    "startedAt": "2026-10-23T00:11:52.884Z",
+    "completedAt": "2026-10-23T00:26:58.114Z"
+  },
+  "frontier": {
+    "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+    "inventoryRevision": 1,
+    "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+    "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+    "revision": 1,
+    "fingerprint": "485b9f16c880cf62b45650a1347744afb1a27d9926283ec640296f5988f159fa",
+    "stateFingerprint": "1cf91083196311e7a1ce445aef8e88d5de1b824e0146ac0e127043a41c9dd33b",
+    "stateAccumulator": "4c878158ca57600ccd6ce1a5e2848fcba5f09c222304cb5fcc6dbde5074cb442",
+    "unitCount": 12,
+    "pendingCount": 9,
+    "inReviewCount": 1,
+    "reviewedWithClaimsCount": 2,
+    "reviewedNoClaimsCount": 0,
+    "blockedCount": 0,
+    "persistedClaimCount": 2,
+    "expansions": [],
+    "frozenAt": null,
+    "createdAt": "2026-10-23T00:12:05.021Z"
+  },
+  "bundle": {
+    "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+    "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+    "legalSourceVersion": "live-1792690670974",
+    "documents": [
+      {
+        "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+        "title": "Synthetic notice",
+        "sourceUrl": "https://example.invalid/n",
+        "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+        "sourceEffectStatus": "IN_FORCE",
+        "snapshotPath": null,
+        "extraction": null,
+        "provenance": null,
+        "chunks": [
+          {
+            "id": "live-1792690670974-art-1",
+            "locator": "art-1",
+            "content": "Điều 1. Defined term",
+            "contentSha256": "sha256:23c8e407995b44f5140686438837e86b0893cdb536b93d23ddb9e58d1414af7b",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Defined term",
+              "chapterTitle": "Synthetic source context",
+              "articleNumber": "1",
+              "chapterNumber": "I"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-1::cl-1",
+            "locator": "art-1::cl-1",
+            "content": "1. In this synthetic instrument, “record” means a stored notice and its receipt timestamp.",
+            "contentSha256": "sha256:6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Defined term",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "1",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-1"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-2",
+            "locator": "art-2",
+            "content": "Điều 2. Scope",
+            "contentSha256": "sha256:bf41a0694e64ae74fa29b8dccb45a686dafa726fdf2c23d13de5e8363093016b",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Scope",
+              "chapterTitle": "Synthetic source context",
+              "articleNumber": "2",
+              "chapterNumber": "I"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-2::cl-1",
+            "locator": "art-2::cl-1",
+            "content": "1. This instrument applies only to operators offering the notice service to the public.\nPrivate household use is outside this scope.",
+            "contentSha256": "sha256:87674bc449c5da27128417aa67fd79b1bcf21188b968ae720588985a1785904a",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Scope",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "2",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-2"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-3",
+            "locator": "art-3",
+            "content": "Điều 3. Exception",
+            "contentSha256": "sha256:6a3e3e28802717eff3b111632083057d149c37c4d09ec7a4892429dc3e5656b5",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Exception",
+              "chapterTitle": "Synthetic source context",
+              "articleNumber": "3",
+              "chapterNumber": "I"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-3::cl-1",
+            "locator": "art-3::cl-1",
+            "content": "1. The retention duty in Article 5 does not apply to a temporary test record.\nThis exception does not remove the in-person duty in Article 6.",
+            "contentSha256": "sha256:efe8ff082b8a80fdae0e5a1322c41fde82b92491a50d8109cb9673a951b1cc58",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Exception",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "3",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-3"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-4",
+            "locator": "art-4",
+            "content": "Điều 4. Cross-reference",
+            "contentSha256": "sha256:84f5d9f1f5b50662465d12bd3b72d348182dbdafe784caef38a78ac9e75fa586",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Cross-reference",
+              "chapterTitle": "Synthetic source context",
+              "articleNumber": "4",
+              "chapterNumber": "I"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-4::cl-1",
+            "locator": "art-4::cl-1",
+            "content": "1. For the duty in Article 5, read “record” as defined in Article 1, within Article 2 and subject to Article 3.\na) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+            "contentSha256": "sha256:315d2575bfb3a13eb71e1e0dd4245805690fb888c5a2a351114da6a74b896b08",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Cross-reference",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "4",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-4"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-4::cl-1::pt-a",
+            "locator": "art-4::cl-1::pt-a",
+            "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+            "contentSha256": "sha256:488c174e0fc05084beb772662b8ddb0a5bf3fac2821c795d1b23d171f157ea5d",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "pointCode": "a",
+              "articleTitle": "Cross-reference",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "4",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-4::cl-1"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-5",
+            "locator": "art-5",
+            "content": "Điều 5. Retention duty",
+            "contentSha256": "sha256:1349601e140534059e0eec3a82198f01ddc484c23f2c775dc88c98f20766ebad",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Retention duty",
+              "chapterTitle": "Synthetic source context",
+              "articleNumber": "5",
+              "chapterNumber": "I"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-5::cl-1",
+            "locator": "art-5::cl-1",
+            "content": "1. An operator within Article 2 must retain each record for 7 days, subject to Article 3.\na) Keep the notice text with its receipt timestamp.\nb) Preserve the notice text without removing its limiting language.",
+            "contentSha256": "sha256:bd8cd881b48df3173ecf660da32079a9f63b775ffe6adf5fba9434d30d1a25ea",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "Retention duty",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "5",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-5"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-5::cl-1::pt-a",
+            "locator": "art-5::cl-1::pt-a",
+            "content": "a) Keep the notice text with its receipt timestamp.",
+            "contentSha256": "sha256:eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "pointCode": "a",
+              "articleTitle": "Retention duty",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "5",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-5::cl-1::pt-b",
+            "locator": "art-5::cl-1::pt-b",
+            "content": "b) Preserve the notice text without removing its limiting language.",
+            "contentSha256": "sha256:61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "pointCode": "b",
+              "articleTitle": "Retention duty",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "5",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-6",
+            "locator": "art-6",
+            "content": "Điều 6. In-person duty",
+            "contentSha256": "sha256:7bbeb8a28f292b450c3abc7112d11ed8b634b6fbe2e63cff88ad3cc5b6e463bf",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "In-person duty",
+              "chapterTitle": "Synthetic source context",
+              "articleNumber": "6",
+              "chapterNumber": "I"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          },
+          {
+            "id": "live-1792690670974-art-6::cl-1",
+            "locator": "art-6::cl-1",
+            "content": "1. The operator must appoint a person to attend the annual public information session in person.\nAttendance is recorded in the session register maintained by the organizer.",
+            "contentSha256": "sha256:4ca54657d2e573b17f0545d6c627d06defc1931fa7101901e79bcb07b53eb5a8",
+            "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": "fixture:live-1792690670974",
+            "hierarchy": {
+              "articleTitle": "In-person duty",
+              "chapterTitle": "Synthetic source context",
+              "clauseNumber": "1",
+              "articleNumber": "6",
+              "chapterNumber": "I",
+              "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-6"
+            },
+            "pageStart": null,
+            "pageEnd": null
+          }
+        ]
+      }
+    ],
+    "documentGraph": {
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "parserRevision": "legal-structure-v2",
+      "materializationRevision": "legal-graph-v2",
+      "sourceDigest": "16fdbdb8e6c0d358a0608fef86833f01ce1cc26a32627a94c26da835bb77282d",
+      "graphDigest": "c0fee6080f5319b0a3aad7a0a67a4c19bc8829da987b7edc09d4e7c4a85a2461",
+      "inputModes": [
+        "LEGACY_CHUNK_ADAPTER"
+      ],
+      "extractionGaps": [],
+      "nodes": [
+        {
+          "nodeId": "fbd8bdfc0a5881995b1d1b2a63b49c376afadcaaf3a0863ee111f8b00be76817",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "DOCUMENT",
+          "parentNodeId": null,
+          "ordinal": 0,
+          "label": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "title": "Synthetic notice",
+          "structuralPath": "/document/synthetic-notice-instrument",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "",
+          "contentFingerprint": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "87864784da9dc75435631f77098bff5bcb0aa5438e76e24c67d2a45e262056d0",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "CHAPTER",
+          "parentNodeId": "fbd8bdfc0a5881995b1d1b2a63b49c376afadcaaf3a0863ee111f8b00be76817",
+          "ordinal": 0,
+          "label": "I",
+          "title": "Synthetic source context",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "",
+          "contentFingerprint": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "7282dbce0c69272369a3f15ec80cf08e51aeb357da7a633ba2ee63e24fdd67e9",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "ARTICLE",
+          "parentNodeId": "87864784da9dc75435631f77098bff5bcb0aa5438e76e24c67d2a45e262056d0",
+          "ordinal": 0,
+          "label": "1",
+          "title": "Defined term",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/1",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "Điều 1. Defined term",
+          "contentFingerprint": "f29f2ca927c1e659cdf98116a4b1b1ad8bf21323a88e5c42213560d83e154c3a",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "CLAUSE",
+          "parentNodeId": "7282dbce0c69272369a3f15ec80cf08e51aeb357da7a633ba2ee63e24fdd67e9",
+          "ordinal": 0,
+          "label": "1",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/1/clause/1",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "1. In this synthetic instrument, “record” means a stored notice and its receipt timestamp.",
+          "contentFingerprint": "7e86a1eb5d3c5aa0f34af14ecac94deb4ce91e70c116b93364d60319b2eb0d69",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "ARTICLE",
+          "parentNodeId": "87864784da9dc75435631f77098bff5bcb0aa5438e76e24c67d2a45e262056d0",
+          "ordinal": 1,
+          "label": "2",
+          "title": "Scope",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/2",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "Điều 2. Scope",
+          "contentFingerprint": "7f117d2da0da6e5d7eb49285f12e418da7b4f3eb5a195b444f25daa04785ca9f",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "CLAUSE",
+          "parentNodeId": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d",
+          "ordinal": 0,
+          "label": "1",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/2/clause/1",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "1. This instrument applies only to operators offering the notice service to the public.\nPrivate household use is outside this scope.",
+          "contentFingerprint": "cf3310d34a752829f5d5de8ee06bff85d328802b6cac1d7fab35968f681118e8",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "ARTICLE",
+          "parentNodeId": "87864784da9dc75435631f77098bff5bcb0aa5438e76e24c67d2a45e262056d0",
+          "ordinal": 2,
+          "label": "3",
+          "title": "Exception",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/3",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "Điều 3. Exception",
+          "contentFingerprint": "3dabd132ea5ba1a2d4679aa207fec64aab9562790183406bdbf9e76f4836c1fd",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "2692ffc975fc9fc00982474303d5c5c75db80fa5f11b6f953ccfea19f5b389fa",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "CLAUSE",
+          "parentNodeId": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52",
+          "ordinal": 0,
+          "label": "1",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/3/clause/1",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "1. The retention duty in Article 5 does not apply to a temporary test record.\nThis exception does not remove the in-person duty in Article 6.",
+          "contentFingerprint": "c5f23a1d70e39735a415e438e5a32feeb289e92a0df719860606811c5f58f57b",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "726d9df9b24dd27e7badc3fc42a8238a499574dc0cc7c3092688f2bbaa0b25d8",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "ARTICLE",
+          "parentNodeId": "87864784da9dc75435631f77098bff5bcb0aa5438e76e24c67d2a45e262056d0",
+          "ordinal": 3,
+          "label": "4",
+          "title": "Cross-reference",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "Điều 4. Cross-reference",
+          "contentFingerprint": "e134d68e294e6526e44256e6fca1711698180d01581d83021e7963abdec3de85",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "CLAUSE",
+          "parentNodeId": "726d9df9b24dd27e7badc3fc42a8238a499574dc0cc7c3092688f2bbaa0b25d8",
+          "ordinal": 0,
+          "label": "1",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "1. For the duty in Article 5, read “record” as defined in Article 1, within Article 2 and subject to Article 3.",
+          "contentFingerprint": "82b27ebffd5a9d894b66a8b67410f8a4ffd5879796c8558d0b04be612a97760f",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "5f2e9acd239c3cda3d16a2cfb75b4fd5253ea5a4dadcf8dd18c21a6357897193",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "POINT",
+          "parentNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "ordinal": 0,
+          "label": "a",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+          "contentFingerprint": "925b29a80f9f1db32322400b47e7479b054d916ebf0885bc214f753366a38d0c",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "8ad19e83172c8d0716630b2bc6fd3109075489be8059076340d7e03bef5cb680",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "POINT",
+          "parentNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "ordinal": 1,
+          "label": "a",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a/occurrence/2",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+          "contentFingerprint": "925b29a80f9f1db32322400b47e7479b054d916ebf0885bc214f753366a38d0c",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "ARTICLE",
+          "parentNodeId": "87864784da9dc75435631f77098bff5bcb0aa5438e76e24c67d2a45e262056d0",
+          "ordinal": 4,
+          "label": "5",
+          "title": "Retention duty",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "Điều 5. Retention duty",
+          "contentFingerprint": "ea8067f49b7b204909f61e96320633e9af61a6e080bb0238cf46c37e30d7e4b5",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "CLAUSE",
+          "parentNodeId": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6",
+          "ordinal": 0,
+          "label": "1",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "1. An operator within Article 2 must retain each record for 7 days, subject to Article 3.",
+          "contentFingerprint": "9e6ddc75afa2e10b42736f595c92fea899fe31701482cd9662b109608c77867e",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "fe6c1b37b315b4a3134f9198cbef6bda8ea22e7cbed83f08042f1a6d873ee664",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "POINT",
+          "parentNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "ordinal": 0,
+          "label": "a",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "a) Keep the notice text with its receipt timestamp.",
+          "contentFingerprint": "80fb4c5df5a5f5fd2337a0bc74d2f5fa18cfd6274e1a1efa34db55bb9af02688",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "94702c586e68e659605e6566aa4cda2ef294e734a64c5657ec6e1c1b96333f82",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "POINT",
+          "parentNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "ordinal": 2,
+          "label": "a",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a/occurrence/2",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "a) Keep the notice text with its receipt timestamp.",
+          "contentFingerprint": "80fb4c5df5a5f5fd2337a0bc74d2f5fa18cfd6274e1a1efa34db55bb9af02688",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "36b70862800aa45bfd26aa098730372860bb635f078c1a9202368d9531dba616",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "POINT",
+          "parentNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "ordinal": 1,
+          "label": "b",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "b) Preserve the notice text without removing its limiting language.",
+          "contentFingerprint": "9da46635117fb5d0c847d9dab52f16f3751a3c62096a2979489e5a4bbfb80145",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "4c5a095af862f0639d8e752a753b2b741a4cf610f913b19d880961a2da13092d",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "POINT",
+          "parentNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "ordinal": 3,
+          "label": "b",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b/occurrence/2",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "b) Preserve the notice text without removing its limiting language.",
+          "contentFingerprint": "9da46635117fb5d0c847d9dab52f16f3751a3c62096a2979489e5a4bbfb80145",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "640473b5d1dab965f0072cd236751a8a4e444f3241e453f2630dab3aa6567677",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "ARTICLE",
+          "parentNodeId": "87864784da9dc75435631f77098bff5bcb0aa5438e76e24c67d2a45e262056d0",
+          "ordinal": 5,
+          "label": "6",
+          "title": "In-person duty",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/6",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "Điều 6. In-person duty",
+          "contentFingerprint": "b425738039553a2d0af4f2aeb9624c273bb3225c052cf26a2a1a50d844abb586",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        },
+        {
+          "nodeId": "fb3292e495bc21fd74f2fd58b3a2c75da5769f1f85e941fd18cd8dfb046c1914",
+          "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "nodeType": "CLAUSE",
+          "parentNodeId": "640473b5d1dab965f0072cd236751a8a4e444f3241e453f2630dab3aa6567677",
+          "ordinal": 0,
+          "label": "1",
+          "title": "",
+          "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/6/clause/1",
+          "sourcePath": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "content": "1. The operator must appoint a person to attend the annual public information session in person.\nAttendance is recorded in the session register maintained by the organizer.",
+          "contentFingerprint": "e2b007ffca6a67ff9a6c04e4183a30132bcc6a1ada41a9612b99eda95fe24ceb",
+          "legalEffectStatus": "EFFECTIVE",
+          "legalStatusSourceRefs": [
+            "fixture:live-1792690670974"
+          ],
+          "pageStart": null,
+          "pageEnd": null,
+          "charStart": null,
+          "charEnd": null
+        }
+      ],
+      "references": [
+        {
+          "referenceId": "9fd8384f5b4dace37c404dafedd7830e443f6433e082870dce93393aa4934092",
+          "fromNodeId": "2692ffc975fc9fc00982474303d5c5c75db80fa5f11b6f953ccfea19f5b389fa",
+          "toNodeId": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6",
+          "text": "Article 5",
+          "charStart": 25,
+          "charEnd": 34,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6"
+          ]
+        },
+        {
+          "referenceId": "d0c16e4cec6f260b3096ecbec02454967620ee88def127da31086805a826b3b8",
+          "fromNodeId": "2692ffc975fc9fc00982474303d5c5c75db80fa5f11b6f953ccfea19f5b389fa",
+          "toNodeId": "640473b5d1dab965f0072cd236751a8a4e444f3241e453f2630dab3aa6567677",
+          "text": "Article 6",
+          "charStart": 131,
+          "charEnd": 140,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "640473b5d1dab965f0072cd236751a8a4e444f3241e453f2630dab3aa6567677"
+          ]
+        },
+        {
+          "referenceId": "475be2956425e855ac5ebeb20ad531c6546c9f877f28af39a4d2231649277aaf",
+          "fromNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "toNodeId": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6",
+          "text": "Article 5",
+          "charStart": 19,
+          "charEnd": 28,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6"
+          ]
+        },
+        {
+          "referenceId": "b43d867b4e612abf6f9e6d81d4ee2a1ac784a704b8f196b2cdb4034c77c6081c",
+          "fromNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "toNodeId": "7282dbce0c69272369a3f15ec80cf08e51aeb357da7a633ba2ee63e24fdd67e9",
+          "text": "Article 1",
+          "charStart": 58,
+          "charEnd": 67,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "7282dbce0c69272369a3f15ec80cf08e51aeb357da7a633ba2ee63e24fdd67e9"
+          ]
+        },
+        {
+          "referenceId": "fb07a168037ccb4377924dada12d86aa6ca92ce3c528cbb14a52bb47016aa0ec",
+          "fromNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "toNodeId": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d",
+          "text": "Article 2",
+          "charStart": 76,
+          "charEnd": 85,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d"
+          ]
+        },
+        {
+          "referenceId": "f3dd274d48194cbb6e365a65fdde96b8dc4480fcfe6328dac854f9a3931c411e",
+          "fromNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "toNodeId": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52",
+          "text": "Article 3",
+          "charStart": 101,
+          "charEnd": 110,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52"
+          ]
+        },
+        {
+          "referenceId": "b41d802e2bba691634a360e8fbe6a95df9cc4f59349719eacfb598536ced595f",
+          "fromNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "toNodeId": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d",
+          "text": "Article 2",
+          "charStart": 22,
+          "charEnd": 31,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d"
+          ]
+        },
+        {
+          "referenceId": "661dd284f0160b80db28af0bc6cfe4581da307af3bdcdd240c4e72a63d27de97",
+          "fromNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "toNodeId": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52",
+          "text": "Article 3",
+          "charStart": 79,
+          "charEnd": 88,
+          "resolutionState": "RESOLVED",
+          "candidateNodeIds": [
+            "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52"
+          ]
+        },
+        {
+          "referenceId": "7dedefb9885f5c877556d2128b2044bb77b9848241f1bf1aa80f24e2da44f596",
+          "fromNodeId": "fb3292e495bc21fd74f2fd58b3a2c75da5769f1f85e941fd18cd8dfb046c1914",
+          "toNodeId": null,
+          "text": "point a",
+          "charStart": 23,
+          "charEnd": 30,
+          "resolutionState": "UNRESOLVED",
+          "candidateNodeIds": []
+        }
+      ],
+      "chunkMappings": [
+        {
+          "chunkId": "live-1792690670974-art-1",
+          "legalDocumentNodeId": "7282dbce0c69272369a3f15ec80cf08e51aeb357da7a633ba2ee63e24fdd67e9"
+        },
+        {
+          "chunkId": "live-1792690670974-art-1::cl-1",
+          "legalDocumentNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d"
+        },
+        {
+          "chunkId": "live-1792690670974-art-2",
+          "legalDocumentNodeId": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d"
+        },
+        {
+          "chunkId": "live-1792690670974-art-2::cl-1",
+          "legalDocumentNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e"
+        },
+        {
+          "chunkId": "live-1792690670974-art-3",
+          "legalDocumentNodeId": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52"
+        },
+        {
+          "chunkId": "live-1792690670974-art-3::cl-1",
+          "legalDocumentNodeId": "2692ffc975fc9fc00982474303d5c5c75db80fa5f11b6f953ccfea19f5b389fa"
+        },
+        {
+          "chunkId": "live-1792690670974-art-4",
+          "legalDocumentNodeId": "726d9df9b24dd27e7badc3fc42a8238a499574dc0cc7c3092688f2bbaa0b25d8"
+        },
+        {
+          "chunkId": "live-1792690670974-art-4::cl-1",
+          "legalDocumentNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61"
+        },
+        {
+          "chunkId": "live-1792690670974-art-4::cl-1::pt-a",
+          "legalDocumentNodeId": "5f2e9acd239c3cda3d16a2cfb75b4fd5253ea5a4dadcf8dd18c21a6357897193"
+        },
+        {
+          "chunkId": "live-1792690670974-art-5",
+          "legalDocumentNodeId": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6"
+        },
+        {
+          "chunkId": "live-1792690670974-art-5::cl-1",
+          "legalDocumentNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372"
+        },
+        {
+          "chunkId": "live-1792690670974-art-5::cl-1::pt-a",
+          "legalDocumentNodeId": "fe6c1b37b315b4a3134f9198cbef6bda8ea22e7cbed83f08042f1a6d873ee664"
+        },
+        {
+          "chunkId": "live-1792690670974-art-5::cl-1::pt-b",
+          "legalDocumentNodeId": "36b70862800aa45bfd26aa098730372860bb635f078c1a9202368d9531dba616"
+        },
+        {
+          "chunkId": "live-1792690670974-art-6",
+          "legalDocumentNodeId": "640473b5d1dab965f0072cd236751a8a4e444f3241e453f2630dab3aa6567677"
+        },
+        {
+          "chunkId": "live-1792690670974-art-6::cl-1",
+          "legalDocumentNodeId": "fb3292e495bc21fd74f2fd58b3a2c75da5769f1f85e941fd18cd8dfb046c1914"
+        }
+      ],
+      "retrievalUnits": [
+        {
+          "unitId": "a6f1223810a2e8a77b9a0b0149e903f96b1a23ca475ce73353c893e54ebb74db",
+          "legalDocumentNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 132,
+          "content": "1. This instrument applies only to operators offering the notice service to the public.\nPrivate household use is outside this scope.",
+          "contentSha256": "87674bc449c5da27128417aa67fd79b1bcf21188b968ae720588985a1785904a"
+        },
+        {
+          "unitId": "5e6a447071e93e25c4112aa1c73facf09651972f3ae2423991d4b55728fa404e",
+          "legalDocumentNodeId": "2692ffc975fc9fc00982474303d5c5c75db80fa5f11b6f953ccfea19f5b389fa",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 141,
+          "content": "1. The retention duty in Article 5 does not apply to a temporary test record.\nThis exception does not remove the in-person duty in Article 6.",
+          "contentSha256": "efe8ff082b8a80fdae0e5a1322c41fde82b92491a50d8109cb9673a951b1cc58"
+        },
+        {
+          "unitId": "cd0d1588093ac361756814c3eccd282272804649684090fc91d3afa863d2a367",
+          "legalDocumentNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 89,
+          "content": "1. An operator within Article 2 must retain each record for 7 days, subject to Article 3.",
+          "contentSha256": "c644c9c216b9d682b2ff7857dc2abff1ca05b2876c8193642040b6359f244a76"
+        },
+        {
+          "unitId": "b5ab44643fab98aea6ed826db733cbdbbb6c4782b841b4c4ab91da9e59339369",
+          "legalDocumentNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 90,
+          "content": "1. In this synthetic instrument, “record” means a stored notice and its receipt timestamp.",
+          "contentSha256": "6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682"
+        },
+        {
+          "unitId": "075ccbfdda8120b689446a741d521b37a3b3be570c49e40397b5e55e25569336",
+          "legalDocumentNodeId": "36b70862800aa45bfd26aa098730372860bb635f078c1a9202368d9531dba616",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 67,
+          "content": "b) Preserve the notice text without removing its limiting language.",
+          "contentSha256": "61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458"
+        },
+        {
+          "unitId": "70ac2ef1cb746cecdc70f9eb4f1186c4ace736b13ff822b039c7e48f23f3ea9c",
+          "legalDocumentNodeId": "4c5a095af862f0639d8e752a753b2b741a4cf610f913b19d880961a2da13092d",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 67,
+          "content": "b) Preserve the notice text without removing its limiting language.",
+          "contentSha256": "61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458"
+        },
+        {
+          "unitId": "d20d4ee4ca4af5c5026f4936195362950aea8ed390fe7576ae3273a1f07fa38d",
+          "legalDocumentNodeId": "5ba2de9480dfb0708859cb7b14d4aa302dee6bccdfb02d2268e9758230823af6",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 22,
+          "content": "Điều 5. Retention duty",
+          "contentSha256": "1349601e140534059e0eec3a82198f01ddc484c23f2c775dc88c98f20766ebad"
+        },
+        {
+          "unitId": "7cce5217c0e248083204a4646632194a92fdc503982d060f6533e81d96ac2fb3",
+          "legalDocumentNodeId": "5f2e9acd239c3cda3d16a2cfb75b4fd5253ea5a4dadcf8dd18c21a6357897193",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 138,
+          "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+          "contentSha256": "488c174e0fc05084beb772662b8ddb0a5bf3fac2821c795d1b23d171f157ea5d"
+        },
+        {
+          "unitId": "5b440a4a812e3f9fe85a38f45d9bf3c144433c8129d545a68299c28c4024bbec",
+          "legalDocumentNodeId": "640473b5d1dab965f0072cd236751a8a4e444f3241e453f2630dab3aa6567677",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 22,
+          "content": "Điều 6. In-person duty",
+          "contentSha256": "7bbeb8a28f292b450c3abc7112d11ed8b634b6fbe2e63cff88ad3cc5b6e463bf"
+        },
+        {
+          "unitId": "49f88a593eddf42ef4ab5c11aa642463e80260ba36ac707898229b8382e41c0f",
+          "legalDocumentNodeId": "726d9df9b24dd27e7badc3fc42a8238a499574dc0cc7c3092688f2bbaa0b25d8",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 23,
+          "content": "Điều 4. Cross-reference",
+          "contentSha256": "84f5d9f1f5b50662465d12bd3b72d348182dbdafe784caef38a78ac9e75fa586"
+        },
+        {
+          "unitId": "f49e9c7b5225d705005f2e883049f0765ee40db4bef7a92fed8e972c317083ba",
+          "legalDocumentNodeId": "7282dbce0c69272369a3f15ec80cf08e51aeb357da7a633ba2ee63e24fdd67e9",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 20,
+          "content": "Điều 1. Defined term",
+          "contentSha256": "23c8e407995b44f5140686438837e86b0893cdb536b93d23ddb9e58d1414af7b"
+        },
+        {
+          "unitId": "0e0cef4ffde5b12ee19d9c1e1e0e411887f1ed6f19e9c93f8bf935f5740d581a",
+          "legalDocumentNodeId": "8ad19e83172c8d0716630b2bc6fd3109075489be8059076340d7e03bef5cb680",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 138,
+          "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+          "contentSha256": "488c174e0fc05084beb772662b8ddb0a5bf3fac2821c795d1b23d171f157ea5d"
+        },
+        {
+          "unitId": "4ed1e618f9d39853ee14e92d01276fe7e79e00421b998907ff0a96a939213e19",
+          "legalDocumentNodeId": "94702c586e68e659605e6566aa4cda2ef294e734a64c5657ec6e1c1b96333f82",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 51,
+          "content": "a) Keep the notice text with its receipt timestamp.",
+          "contentSha256": "eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b"
+        },
+        {
+          "unitId": "6f81d2a40888ba72724c16e64bd1890385396f42d51a60f6751ad357d9e93eb8",
+          "legalDocumentNodeId": "a0025b7b62232ea707953e3986f7c878769b08318368195d0c3ff941b89c877d",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 13,
+          "content": "Điều 2. Scope",
+          "contentSha256": "bf41a0694e64ae74fa29b8dccb45a686dafa726fdf2c23d13de5e8363093016b"
+        },
+        {
+          "unitId": "b5dc0d68446f8dfe1a62732a03812278dd77b90e042bb54442947c51acfaa859",
+          "legalDocumentNodeId": "b1df5029034d793daf9f1a1c1e95698ea63de0c119aaa4eef4c39fb844d2fa52",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 17,
+          "content": "Điều 3. Exception",
+          "contentSha256": "6a3e3e28802717eff3b111632083057d149c37c4d09ec7a4892429dc3e5656b5"
+        },
+        {
+          "unitId": "84f45ecb6061f72adbb15fb6ca0bf0652d92a8ad5c58e52227abb4144d44a90f",
+          "legalDocumentNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 111,
+          "content": "1. For the duty in Article 5, read “record” as defined in Article 1, within Article 2 and subject to Article 3.",
+          "contentSha256": "6824e10d9ffd670296c2f9fc555aab426dd76eb148c3d361021a5c6982890271"
+        },
+        {
+          "unitId": "70b1a91eef3eedabbbd8389ab2cc9698722bd53524ad5fff34b4fbd012f152d3",
+          "legalDocumentNodeId": "fb3292e495bc21fd74f2fd58b3a2c75da5769f1f85e941fd18cd8dfb046c1914",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 172,
+          "content": "1. The operator must appoint a person to attend the annual public information session in person.\nAttendance is recorded in the session register maintained by the organizer.",
+          "contentSha256": "4ca54657d2e573b17f0545d6c627d06defc1931fa7101901e79bcb07b53eb5a8"
+        },
+        {
+          "unitId": "0f27f7511950ca839337e6ef4f0a395bcbdca485ff02ff295e2719ff02a39956",
+          "legalDocumentNodeId": "fe6c1b37b315b4a3134f9198cbef6bda8ea22e7cbed83f08042f1a6d873ee664",
+          "ordinal": 0,
+          "contentStart": 0,
+          "contentEnd": 51,
+          "content": "a) Keep the notice text with its receipt timestamp.",
+          "contentSha256": "eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b"
+        }
+      ]
+    }
+  },
+  "reviews": [
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/1/clause/1",
+      "ordinal": 0,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": "Clause 1 states only the definition of \"record\"; definition claim authored and supported.",
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "Definition: \"record\" means a stored notice and its receipt timestamp.",
+            "assessability": "REPOSITORY_VERIFIABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+                "endOffset": 90,
+                "startOffset": 3,
+                "contentSha256": "13b3085550dac1798d2ddce528a6ea3644df4bd3099f6f3ed8b7fcc6af40b5b3"
+              }
+            ],
+            "semanticAuthority": "DEFINITION",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f": "art1-record-definition"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-23T00:12:37.337494Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "dda61e946102a38e6ce580c915df36b90df1696bc13b4ac34ae3ac7e92131151"
+            }
+          ],
+          "attestation": "hmac-sha256:09e58d89da51185b52c976cf6e1972bff2a91e08ff919121e63c5a5f3c835161",
+          "sourceNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "148ddeeaeb0d7f453cbb65d42ee23aba29a6d0a4954e3a9b49dd9ac6f83d753c",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "7df096f8-2635-4d3a-8392-2b9c4c094858",
+          "assertionFingerprint": "f348659ad0223691b62d093494870bd81a67148b2acd4ce1b4f37f462a6e3ee8",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "3bd0159bbf418f7eaa364af80c2523ba9edb88a6069e02e451f5e9cde34b34eb"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "246b04c62564c9e648c385931ac6d13429fbd1943dab76eebffd15b47f566aa4",
+      "completionFingerprint": "295daa9d7a521208d2288792ab0acdfaac0903a364e5e8c183d4b5405995b521",
+      "completedAt": "2026-10-23T00:12:37.393Z",
+      "updatedAt": "2026-10-23T00:12:37.399Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/2/clause/1",
+      "ordinal": 1,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a",
+            "claimType": "SCOPE",
+            "operative": null,
+            "statement": "This instrument applies only to operators offering the notice service to the public; private household use is outside scope.",
+            "assessability": "REPOSITORY_VERIFIABLE",
+            "semanticFrame": {
+              "scope": "Operators offering the notice service to the public",
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+                "endOffset": 132,
+                "startOffset": 3,
+                "contentSha256": "f7b4487c745fed5477feb4d119b47097e85459bfbc455280f2ba009eb656fc2c"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a": "art2-cl1-scope-operators-public"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-23T00:15:00.850891Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "2903c285148559895cceb467e0d960f9c5602bce7dd28b24aad4d2d729ed051c"
+            }
+          ],
+          "attestation": "hmac-sha256:161a4c77aa0dbc16fc030d12487ff7d497fa8c519f68264e8f38cb5bdcea1fb6",
+          "sourceNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "63499cb9723b09a760a48a706d3d91b5c59bf79d1bfab3f391812dda6c85b48f",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "37835b1d-34eb-4c14-af37-86b80307748e",
+          "assertionFingerprint": "0a6010d7d029f4b270bf0ee3036ed6ccdbddc5d2d74f1d5eecd0be152b2f3755",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "ec08b7bce0e3166a4c7f79c5f61e73b6d090195a60edb37c11242a1311175b5c"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "98a2d4d2c63cc5dc927d6f065c8f9a4a26aca04cb289452c7aa24c7f7b76c36d",
+      "completionFingerprint": "5266065c07a4a38daf7cda1f2d806435885db7c657385e7ea357419fe8d9f3e0",
+      "completedAt": "2026-10-23T00:15:00.899Z",
+      "updatedAt": "2026-10-23T00:15:00.904Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "2692ffc975fc9fc00982474303d5c5c75db80fa5f11b6f953ccfea19f5b389fa",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/3/clause/1",
+      "ordinal": 2,
+      "state": "IN_REVIEW",
+      "disposition": null,
+      "reason": null,
+      "operationId": "74d0554e-5401-4f21-8bb3-c99bc0a36ffb",
+      "leaseExpiresAt": "2026-10-23T00:47:36.986Z",
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [
+        "9fd8384f5b4dace37c404dafedd7830e443f6433e082870dce93393aa4934092",
+        "d0c16e4cec6f260b3096ecbec02454967620ee88def127da31086805a826b3b8"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "9a2a036e3ab4d9ec9517973d00e97155376305c7b239ae79ea16776a06817834",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:17:36.986Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "b99b9de00af06bffbadc4008958304e8573b266b9070f121dc52e4cce3b81c61",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1",
+      "ordinal": 3,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [
+        "475be2956425e855ac5ebeb20ad531c6546c9f877f28af39a4d2231649277aaf",
+        "b43d867b4e612abf6f9e6d81d4ee2a1ac784a704b8f196b2cdb4034c77c6081c",
+        "fb07a168037ccb4377924dada12d86aa6ca92ce3c528cbb14a52bb47016aa0ec",
+        "f3dd274d48194cbb6e365a65fdde96b8dc4480fcfe6328dac854f9a3931c411e"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "b392bc93c5b72b0e441243229ba026bf46e6dc2fd1ce635a57329b1ea4f42ef7",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "5f2e9acd239c3cda3d16a2cfb75b4fd5253ea5a4dadcf8dd18c21a6357897193",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a",
+      "ordinal": 4,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "6f410510def49734fedacab0f2d58dbd4cea6fc56eafcbf53ea407d7bd07dcc0",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "8ad19e83172c8d0716630b2bc6fd3109075489be8059076340d7e03bef5cb680",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a/occurrence/2",
+      "ordinal": 5,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "6c45f5b69764b5df594f0121f0c036aff01289f368fc2dbf8eb3bf49b3833f16",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "28e4fa71961c1db451593bf27a2bd2c1a716560724d0ab8e1beb0d898e16b372",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1",
+      "ordinal": 6,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [
+        "b41d802e2bba691634a360e8fbe6a95df9cc4f59349719eacfb598536ced595f",
+        "661dd284f0160b80db28af0bc6cfe4581da307af3bdcdd240c4e72a63d27de97"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "e80e806cd59fad8050ea3f2c89b996edf259e216d07697a0f08a27795adae1a2",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "fe6c1b37b315b4a3134f9198cbef6bda8ea22e7cbed83f08042f1a6d873ee664",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a",
+      "ordinal": 7,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "3a1e1f1c8c971460b894aa494403ea3080b1199cac52565baff4d084b060a4e3",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "36b70862800aa45bfd26aa098730372860bb635f078c1a9202368d9531dba616",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b",
+      "ordinal": 8,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "78bea82e1dc38354a3cf3f1f6e850e77fac1ef768a6a67c00ed7872c830e97c1",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "94702c586e68e659605e6566aa4cda2ef294e734a64c5657ec6e1c1b96333f82",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a/occurrence/2",
+      "ordinal": 9,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "81f098829a95d85b0f138b133420c3654c11e0c1e29ce6aeb663a0c955f8dc47",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "4c5a095af862f0639d8e752a753b2b741a4cf610f913b19d880961a2da13092d",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b/occurrence/2",
+      "ordinal": 10,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "d1462014d4cc5f4ae8e6c027afdd8c26ad4d9cff3325c3e9cfcfc9af72137a25",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "materializationId": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+      "legalSourceVersionId": "8353b79d-9d82-4360-b9c0-74f11f80bbb1",
+      "sourceNodeId": "fb3292e495bc21fd74f2fd58b3a2c75da5769f1f85e941fd18cd8dfb046c1914",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/6/clause/1",
+      "ordinal": 11,
+      "state": "PENDING",
+      "disposition": null,
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [],
+      "ownedClaimCount": 0,
+      "referenceIds": [
+        "7dedefb9885f5c877556d2128b2044bb77b9848241f1bf1aa80f24e2da44f596"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [],
+        "relations": [],
+        "identities": {},
+        "referenceAccounting": []
+      },
+      "stateFingerprint": "20ea91df950e019acd06f5f0055315a40eafbae6ee7550882c04a973e1c2dc7c",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-23T00:12:05.021Z"
+    }
+  ],
+  "audits": [
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "sourceNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-23T00:12:37.337494Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "3306fabe5f1b50857eca57647622c7c6d5318f441715ada13c3d2eb110f9686f",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "dda61e946102a38e6ce580c915df36b90df1696bc13b4ac34ae3ac7e92131151"
+          }
+        ],
+        "attestation": "hmac-sha256:09e58d89da51185b52c976cf6e1972bff2a91e08ff919121e63c5a5f3c835161",
+        "sourceNodeId": "2ac65a190edccf5df9dbb83463120401c76385db3f9e40731dac2c7d795fe40d",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "148ddeeaeb0d7f453cbb65d42ee23aba29a6d0a4954e3a9b49dd9ac6f83d753c",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "7df096f8-2635-4d3a-8392-2b9c4c094858",
+        "assertionFingerprint": "f348659ad0223691b62d093494870bd81a67148b2acd4ce1b4f37f462a6e3ee8",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "3bd0159bbf418f7eaa364af80c2523ba9edb88a6069e02e451f5e9cde34b34eb"
+      },
+      "updatedAt": "2026-10-23T00:12:37.391Z"
+    },
+    {
+      "preparationRunId": "4ae336f3-35b4-4393-ba42-cb4eeb4d500f",
+      "inventoryRevision": 1,
+      "sourceNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-23T00:15:00.850891Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "e202e643ff341d5be3a429a0e953a83a5ad302e377e305555298a5160b25e08a",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "2903c285148559895cceb467e0d960f9c5602bce7dd28b24aad4d2d729ed051c"
+          }
+        ],
+        "attestation": "hmac-sha256:161a4c77aa0dbc16fc030d12487ff7d497fa8c519f68264e8f38cb5bdcea1fb6",
+        "sourceNodeId": "2322b491a5dd7d767cefc0c3ca9bb4b492c652133f98812bdba67925a8cb457e",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "ced1f237416564dfe4ad5aea077066531d4d49f89f1492b6615c83e2fd83206a",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "63499cb9723b09a760a48a706d3d91b5c59bf79d1bfab3f391812dda6c85b48f",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "37835b1d-34eb-4c14-af37-86b80307748e",
+        "assertionFingerprint": "0a6010d7d029f4b270bf0ee3036ed6ccdbddc5d2d74f1d5eecd0be152b2f3755",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "ec08b7bce0e3166a4c7f79c5f61e73b6d090195a60edb37c11242a1311175b5c"
+      },
+      "updatedAt": "2026-10-23T00:15:00.898Z"
+    }
+  ]
+}

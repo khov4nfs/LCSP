@@ -14,7 +14,10 @@ import os
 import sys
 import tempfile
 import time
+import threading
+import hashlib
 from pathlib import Path
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.exceptions import ModelError
 
 from middleware.usage_metering import (
@@ -119,14 +122,18 @@ def recover_usage(usage_out: str, run_id: str) -> dict:
     summary["unresolvedAttempts"] = sum(r["attemptStatus"] in {"STARTED", "OUTCOME_UNKNOWN"} for r in attempts.values()) if attempts else None
     summary["failedAttempts"] = sum(r["attemptStatus"] == "FAILED" for r in attempts.values()) if attempts else None
     summary["attempts"] = list(attempts.values())
+    # Response subtotals cannot establish run totals while any physical attempt is unanswered.
+    response_coverage = not (attempts.keys() - response_ids)
+    if not response_coverage:
+        summary["accountingState"] = "MISSING_PROVIDER_USAGE"
     summary["admission"] = reconcile_admission_evidence(store, run_id, records)
     for field in ("inputTokens", "inputTokensIncludingCache", "outputTokens"):
         summary["known" + field[0].upper() + field[1:]] = sum(int(row[field]) for row in known if field in row)
-        summary[field] = summary["known" + field[0].upper() + field[1:]] if len(known) == len(records) and all(field in row for row in known) else None
+        summary[field] = summary["known" + field[0].upper() + field[1:]] if response_coverage and len(known) == len(records) and all(field in row for row in known) else None
     for field in ("cachedInputTokens", "cacheWriteTokens", "reasoningTokens", "totalTokens"):
         values = [int(row[field]) for row in known if field in row]
         summary["known" + field[0].upper() + field[1:]] = sum(values) if values else None
-        summary[field] = sum(values) if values and len(values) == len(records) else None
+        summary[field] = sum(values) if response_coverage and values and len(values) == len(records) else None
     target = Path(usage_out)
     with tempfile.NamedTemporaryFile(mode="w", dir=target.parent, delete=False, encoding="utf-8") as handle:
         json.dump(summary, handle)
@@ -165,6 +172,76 @@ def _route_rule_set_preparation_to(route_id: str, model: str | None = None) -> N
     os.environ["LCSP_MODEL_ROUTES_FILE"] = str(target)
 
 
+class LiveTrace(BaseCallbackHandler):
+    """Correlate parallel native callbacks without retaining model text or full tool replies."""
+
+    def __init__(self, emit) -> None:
+        self.emit = emit
+        self.calls = 0
+        self._tools = {}
+        self._lock = threading.Lock()
+
+    def on_chat_model_start(self, serialized, messages, *, run_id, **kwargs) -> None:
+        from middleware.usage_metering import _active_metered_invocation_id
+        self.emit("model_start", callbackRunId=str(run_id),
+                  invocationId=_active_metered_invocation_id(),
+                  messages=len(messages[0]) if messages else 0)
+
+    def on_llm_error(self, error, *, run_id, **kwargs) -> None:
+        self.emit("model_error", callbackRunId=str(run_id), errorType=type(error).__name__)
+
+    def on_tool_start(self, serialized, input_str, *, run_id, **kwargs) -> None:
+        name = (serialized or {}).get("name")
+        with self._lock:
+            self._tools[str(run_id)] = name
+        self.emit("tool_start", callbackRunId=str(run_id), tool=name)
+
+    def on_tool_end(self, output, *, run_id, **kwargs) -> None:
+        with self._lock:
+            name = self._tools.pop(str(run_id), None)
+        text = str(getattr(output, "content", output))
+        fields = {"callbackRunId": str(run_id), "tool": name,
+                  "outputCharacters": len(text), "outputSha256": hashlib.sha256(text.encode()).hexdigest()}
+        try:
+            # Observation metadata follows the first JSON value in the genuine tool reply.
+            value, _ = json.JSONDecoder().raw_decode(text.lstrip())
+        except ValueError:
+            value = None
+        if isinstance(value, dict):
+            fields["outcome"] = value.get("outcome") if value.get("outcome") in ("PASSED", "FAILED") else None
+            unit = value.get("unit")
+            if isinstance(unit, dict):
+                node_id = unit.get("sourceNodeId")
+                fields["sourceNodeId"] = node_id if isinstance(node_id, str) and len(node_id) == 64 and all(c in "0123456789abcdef" for c in node_id) else None
+                length = unit.get("contentLength")
+                fields["contentLength"] = length if isinstance(length, int) and length >= 0 else None
+                fields["contentTruncated"] = unit.get("contentTruncated") if isinstance(unit.get("contentTruncated"), bool) else None
+            progress = value.get("progress", {})
+            fields["progress"] = {k: v for k, v in progress.items() if k in {
+                "total", "pending", "inReview", "reviewedWithClaims", "reviewedNoClaims",
+                "blocked", "discoveryCompleteEligible",
+            } and isinstance(v, (int, bool))} if isinstance(progress, dict) else {}
+        self.emit("tool_end", **fields)
+
+    def on_tool_error(self, error, *, run_id, **kwargs) -> None:
+        with self._lock:
+            name = self._tools.pop(str(run_id), None)
+        self.emit("tool_error", callbackRunId=str(run_id), tool=name, errorType=type(error).__name__)
+
+    def on_llm_end(self, response, *, run_id, **kwargs) -> None:
+        generations = getattr(response, "generations", [])
+        message = getattr(generations[0][0], "message", None) if generations and generations[0] else None
+        metadata = getattr(message, "response_metadata", {}) or {}
+        stop = metadata.get("stop_reason") or metadata.get("finish_reason")
+        with self._lock:
+            self.calls += 1
+            calls = self.calls
+        self.emit("model_end", callbackRunId=str(run_id), calls=calls,
+                  toolCallCount=len(getattr(message, "tool_calls", []) or []),
+                  invalidToolCallCount=len(getattr(message, "invalid_tool_calls", []) or []),
+                  stopReason=stop if stop in ("end_turn", "tool_use", "stop", "length", "max_tokens", "STOP", "MAX_TOKENS") else "OTHER_OR_UNREPORTED")
+
+
 def main() -> int:
     if sys.argv[1:2] == ["--recover-usage"]:
         print(json.dumps(recover_usage(*sys.argv[2:4])))
@@ -176,7 +253,6 @@ def main() -> int:
     if os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"):
         _route_rule_set_preparation_to(os.environ["LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"], os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_MODEL"))
 
-    from langchain_core.callbacks import BaseCallbackHandler
     from rule_set_preparation.runner import run_rule_set_preparation
     from tools.common.capabilities.platform.api_client import WorkerApiClient
 
@@ -188,35 +264,7 @@ def main() -> int:
             with open(trace_file, "a", encoding="utf-8") as handle:
                 handle.write(json.dumps({"at": round(time.time(), 1), "event": event, **fields}) + "\n")
 
-    class Trace(BaseCallbackHandler):
-        def __init__(self) -> None:
-            self.calls = 0
-            self.tool_calls: list[dict] = []
-
-        def on_chat_model_start(self, serialized, messages, **kwargs) -> None:  # noqa: ANN001
-            trace("model_start", messages=len(messages[0]) if messages else 0)
-
-        def on_llm_error(self, error, **kwargs) -> None:  # noqa: ANN001
-            trace("model_error", error=f"{type(error).__name__}: {str(error)[:300]}")
-
-        def on_tool_start(self, serialized, input_str, **kwargs) -> None:  # noqa: ANN001
-            self.tool_calls.append(
-                {"tool": (serialized or {}).get("name"), "input": str(input_str)[:1200]}
-            )
-            trace("tool_start", tool=self.tool_calls[-1]["tool"], input=str(input_str)[:400])
-
-        def on_tool_end(self, output, **kwargs) -> None:  # noqa: ANN001
-            if self.tool_calls:
-                text = str(getattr(output, "content", output))
-                # A rejected call keeps the exact finding (audit gaps, rejection text); passing calls stay short.
-                self.tool_calls[-1]["output"] = text[:6000] if '"outcome": "FAILED"' in text[:80] else text[:300]
-                trace("tool_end", tool=self.tool_calls[-1]["tool"], output=text[:300])
-
-        def on_llm_end(self, response, **kwargs) -> None:  # noqa: ANN001
-            self.calls += 1
-            trace("model_end", calls=self.calls)
-
-    trace_callback = Trace()
+    trace_callback = LiveTrace(trace)
     budget_path = os.environ.get("LCSP_LIVE_BUDGET_FILE")
     budget = parse_run_budget(json.loads(Path(budget_path).read_bytes())) if budget_path else None
     if budget is not None:

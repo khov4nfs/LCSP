@@ -370,7 +370,7 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
   const result: LegalDocumentReference[] = [];
   // A reference is syntactic. Words such as "subject to" never become semantic edge types.
   const pattern =
-    /(?:(?:point|điểm)\s+\(?([\p{L}])\)?\s+(?:(?:paragraph|khoản)\s+(\d+)\s+)?)?(?:(?:paragraph|khoản)\s+(\d+)\s+)?(?:article|điều|section)\s+(\d+[a-z]?)(?:\((\d+)\))?(?:\(([a-z])\))?|(?:paragraph|khoản)\s+(\d+)|(?:point|điểm)\s+\(?([\p{L}])\)?/giu;
+    /(?<![\p{L}\p{N}_])(?:(?:(?:point|điểm)\s+\(?([\p{L}])\)?\s+(?:(?:paragraph|khoản)\s+(\d+)\s+)?)?(?:(?:paragraph|khoản)\s+(\d+)\s+)?(?:article|điều|section)\s+(\d+[a-z]?)(?:\((\d+)\))?(?:\(([a-z])\))?|(?:paragraph|khoản)\s+(\d+)|(?:point|điểm)\s+\(?([\p{L}])\)?)(?![\p{L}\p{N}_])/giu;
   for (const node of nodes) {
     for (const m of node.content.matchAll(pattern)) {
       // The heading labels identify nodes; they are not self-references.
