@@ -310,6 +310,9 @@ def build_claim_tools(context):
     def inspect(kind="STATUS", source_node_id=None, claim_id=None, offset=0, limit=None):
         if ledger.frontier and kind in {"STATUS","UNREVIEWED_SOURCE_NODES"}:
             return ledger.frontier.progress()
+        if ledger.frontier:
+            restored = ledger.frontier.restore()
+            if restored: return ledger.frontier.failure(restored)
         # A harmless oversized, missing or non-positive page size is normalized and reported, never rejected.
         applied, offset = normalize_page(limit, offset)
         required = [n for n in context.source_graph.nodes.values() if n["content"].strip()]
@@ -335,8 +338,14 @@ def build_claim_tools(context):
                 break
             selected.append(row); chars += size
         more = offset + len(selected) < len(rows)
+        reviewed_count = len(reviewed)
+        remaining_count = sum(n["nodeId"] not in reviewed for n in required)
+        if ledger.frontier:
+            progress = ledger.frontier.snapshot["progress"]
+            reviewed_count = progress["reviewedWithClaims"] + progress["reviewedNoClaims"]
+            remaining_count = progress["total"] - reviewed_count
         return {"phase": ledger.phase, "inventoryRevision": ledger.revision, "inventoryFingerprint": ledger.frozen_fingerprint,
-                "sourceNodesReviewed": len(reviewed), "sourceNodesRemaining": sum(n["nodeId"] not in reviewed for n in required),
+                "sourceNodesReviewed": reviewed_count, "sourceNodesRemaining": remaining_count,
                 "claimCount": len(ledger.identities), "relationCount": len(context.draft["claimRelations"]),
                 "total": len(rows), "items": deepcopy(selected), "requestedLimit": limit, "appliedLimit": applied, "offset": offset,
                 "returnedCount": len(selected), "hasMore": more, "nextOffset": offset + len(selected) if more else None, "endReached": not more}
