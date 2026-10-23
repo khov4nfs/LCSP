@@ -226,6 +226,7 @@ const targets = {
     },
     scrubVirtualEnv: true,
     description: "Start LCSP LangGraph Deep Agent runtime",
+    healthPort: 2024,
   },
   agent_runtime_events: {
     cwd: workerRoot,
@@ -621,8 +622,22 @@ async function runGroup(name) {
 
   assertPortsAvailable(longRunningMembers);
 
+  let agentGenerationStartedAt;
   for (const member of longRunningMembers) {
-    const target = targets[member];
+    let target = targets[member];
+    if (member === "agent_runtime") {
+      agentGenerationStartedAt = new Date().toISOString();
+    }
+    if (member === "agent_runtime_events" && agentGenerationStartedAt) {
+      target = {
+        ...target,
+        env: {
+          ...target.env,
+          LCSP_AGENT_SERVER_GENERATION_URL: "http://127.0.0.1:2024",
+          LCSP_AGENT_SERVER_GENERATION_STARTED_AT: agentGenerationStartedAt,
+        },
+      };
+    }
     cleanupDockerWorkerContainer(target);
     console.log(`[run] Starting ${member}: ${target.description}`);
     children.push({

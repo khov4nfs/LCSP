@@ -123,7 +123,8 @@ def test_agent_server_dispatch_cancels_run_at_boundary_deadline(monkeypatch) -> 
     )
 
 
-def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(monkeypatch) -> None:
+@pytest.mark.parametrize("metrics_available", [True, False])
+def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(monkeypatch, metrics_available) -> None:
     fake_client = MagicMock()
     fake_client.threads.search.return_value = [
         {"thread_id": "thread-1"},
@@ -156,11 +157,15 @@ def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(m
         ],
     ]
     response = SimpleNamespace(
-        text="process_start_time_seconds 1790267377.79\n",
+        text="process_start_time_seconds 1790267377.79\n" if metrics_available else "lg_api_workers_available 1\n",
         raise_for_status=lambda: None,
     )
     monkeypatch.setattr(agent_server_client.httpx, "get", lambda *_args, **_kwargs: response)
     monkeypatch.setattr(agent_server_client, "get_sync_client", lambda **_kwargs: fake_client)
+    monkeypatch.delenv("NODE_ENV", raising=False)
+    monkeypatch.delenv("LCSP_AGENT_RUNTIME_MODE", raising=False)
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_URL", "http://127.0.0.1:2024")
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_STARTED_AT", "2026-09-24T16:29:37.790Z")
 
     cancelled = agent_server_client.reconcile_stale_agent_runs(
         server_url="http://127.0.0.1:2024"
@@ -171,6 +176,25 @@ def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(m
         call("thread-1", "old-running", wait=False, action="interrupt"),
         call("thread-2", "old-pending", wait=False, action="interrupt"),
     ]
+
+
+@pytest.mark.parametrize("url, bound_url, started, mode", [
+    ("http://127.0.0.1:2024", "", "", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2025", "2026-09-24T16:29:37Z", "development"),
+    ("https://remote.example", "https://remote.example", "2026-09-24T16:29:37Z", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "invalid", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "2999-01-01T00:00:00Z", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "2026-09-24T16:29:37Z", "production"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "2026-09-24T16:29:37Z", " production "),
+])
+def test_missing_process_metric_cannot_use_unbound_or_invalid_generation(monkeypatch, url, bound_url, started, mode):
+    monkeypatch.setenv("NODE_ENV", mode)
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_URL", bound_url)
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_STARTED_AT", started)
+    monkeypatch.setattr(agent_server_client.httpx, "get", lambda *args, **kwargs:
+                        SimpleNamespace(text="lg_api_workers_available 1\n", raise_for_status=lambda: None))
+    with pytest.raises(RuntimeError, match="did not expose process_start_time_seconds"):
+        agent_server_client.reconcile_stale_agent_runs(server_url=url)
 
 
 
