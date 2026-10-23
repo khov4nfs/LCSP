@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "REAL_BROWSER_IN_PROGRESS_LIVE_LAUNCH_DISABLED",
+  "status": "CORPUS_INGESTION_PASS_UI_MODEL_PREPARATION_NOT_RUN",
   "executable": false,
   "launchCommand": null,
   "candidateSha": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
   "freezeRef": "960b4ffee4bb240b89ad0687ea54a9e0363b9638",
-  "firstFailedGate": "DEVELOPMENT_REPOSITORY_CREDENTIAL_REQUIRED",
+  "firstFailedGate": "MATCHING_BOUNDED_UI_PREPARATION_CONTEXT_AND_AUTHORIZATION",
   "blockerReceipt": "../browser-pnpm-dev-20261023/verification-summary.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
@@ -189,9 +189,8 @@
       "Idempotent late settlement and crash reconciliation from committed usage evidence; old policy versions retained without repricing"
     ],
     "notPresent": [
-      "Approved repository credential for actual browser connector",
-      "Active audited Rule Set in development database",
-      "Authorization and matching bounded context for any new development UI model run"
+      "Matching immutable approved budget for this actual development UI preparation",
+      "Active independently audited Rule Set before repository investigation"
     ],
     "requirements": [
       "One immutable schema-3 run envelope pins candidate, routes, actual native SDK/endpoint/credential identities and conservative per-request technical allowances; schema-2 actual-financial mode remains separate",
@@ -610,9 +609,13 @@
     },
     "assessmentId": "ee3aaa62-84ec-4835-9bab-5c25fbee0d3c",
     "status": "PARTIAL_REAL_BROWSER_PASS",
-    "credentialConnection": "USER_WILL_CONNECT_THROUGH_UI",
+    "credentialConnection": "USER_REPORTED_CONNECTED; REPOSITORY_SCAN_DEFERRED_UNTIL_RULE_SET",
     "activeRuleSet": null,
     "paidCalls": 0,
-    "scope": "Actual development browser journey; previous realBrowserRuntime entry retained as historical evidence"
+    "scope": "Actual development browser journey; previous realBrowserRuntime entry retained as historical evidence",
+    "readyDocuments": 1,
+    "provisions": 13,
+    "ingestionReceipt": "../browser-pnpm-dev-20261023/corpus-ingestion-verification.json",
+    "activation": "NOT_CLICKED_AUTOMATICALLY_STARTS_PREPARATION"
   }
 }

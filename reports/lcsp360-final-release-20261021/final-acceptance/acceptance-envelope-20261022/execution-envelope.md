@@ -173,3 +173,8 @@ Actual `pnpm dev` browser journey now passes login, source/draft creation, asses
 The ccc2ba7d run on frozen source960b4ff is explicitly authorized once, with the supplied context and budget identities, and remains unconsumed. The user switched priority before dispatch. Its 256 calls /4M input-cache /256k output-reasoning /3600s worker /600s request /4200s overall approval does not apply to a new UI run or the changed dev source/database. No provider-charge cap is implied. Historical unapproved requests remain preserved; this current authorization supersedes their approval status only for the named context. The envelope remains disabled during this browser iteration.
 
 User will connect an approved read-only GitHub credential in the actual UI. Repository/scan and model-dependent stages remain pending; lcsp_dev has no active Rule Set. No real-model invocation, Rule Set activation, image build, staging, merge or deployment occurred here.
+
+
+### Corpus-first correction
+
+GitHub is for later assessment scanning, not legal-source preparation. User reports it connected. Actual Admin upload/worker ingestion now passes: full pinned source bytes and original download match, 13 non-overlapping provisions preserve all source text, explicit controlled-fixture effect reference saved through UI, structure valid. Source stays DRAFT. The prepared approved CCC context still has its distinct 15-chunk partition and immutable identities. **Activate version** automatically starts a new Preparation; it remains unclicked because no matching approved UI budget is configured. See Section24 continuation. No paid inference or activation occurred.

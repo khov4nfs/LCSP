@@ -1,0 +1,20 @@
+Chương I Synthetic source context
+Điều 1. Defined term
+1. In this synthetic instrument, “record” means a stored notice and its receipt timestamp.
+Điều 2. Scope
+1. This instrument applies only to operators offering the notice service to the public.
+Private household use is outside this scope.
+Điều 3. Exception
+1. The retention duty in Article 5 does not apply to a temporary test record.
+This exception does not remove the in-person duty in Article 6.
+Điều 4. Cross-reference
+1. For the duty in Article 5, read “record” as defined in Article 1, within Article 2 and subject to Article 3.
+a) The receipt timestamp begins the retention period.
+A receipt timestamp is recorded when the notice is received, not when it is drafted.
+Điều 5. Retention duty
+1. An operator within Article 2 must retain each record for 7 days, subject to Article 3.
+a) Keep the notice text with its receipt timestamp.
+b) Preserve the notice text without removing its limiting language.
+Điều 6. In-person duty
+1. The operator must appoint a person to attend the annual public information session in person.
+Attendance is recorded in the session register maintained by the organizer.

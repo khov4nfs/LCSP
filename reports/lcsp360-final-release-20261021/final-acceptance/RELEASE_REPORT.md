@@ -953,3 +953,20 @@ Receipts: [gate matrix](browser-pnpm-dev-20261023/verification-summary.json), [r
 The three protected WIP hashes and all **40** historical manifest artifacts match exactly. All retained PostgreSQL resources remain preserved. The development stack remains running for the user's approved credential entry. PR stays Draft.
 
 **Next action: connect the approved read-only GitHub credential through the actual assessment connector UI, then continue browser repository selection without unapproved inference.**
+
+
+### Corpus-first continuation of Section 24 — 08:02 UTC
+
+The user correctly clarified that **GitHub connects the assessment repository for later scanning; it does not prepare the legal corpus**. The preceding repository-first next action is superseded. User reports the connector is now connected; no repository scanning was initiated. The first prerequisite is the legal corpus and audited Rule Set.
+
+The real Admin UI uploaded the **complete original** pinned synthetic source (1,185 bytes, source SHA b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1), HTTP **201**. The real API outbox/broker/Agent Runtime performed deterministic document extraction and returned **READY** at 08:02:46 UTC: document **3019d879-df45-4d55-93fc-dea8131d0f3b**, native ingestion run **01a167c8-a6a7-7521-b886-d8f99d194d03**. This system-event run made **zero model calls** and is not a Rule Set Preparation evaluation. Actual internal original-read and ingestion-result APIs returned **200**.
+
+The production UI ingestion partitions this full document into **13 non-overlapping provisions**, including front matter. Its original file download is byte-identical; independent read-only PostgreSQL verification recomputes all 13 content hashes, matches all source/version/document references, and proves **every non-whitespace source character is represented**. The prepared evaluation has 15 overlapping chunks and 12 review units. No source was shortened and no equivalence or authorization transfer between these two contexts is claimed.
+
+Through the real **Edit legal effect** form, the controlled fixture's pinned document-wide status was saved with the exact pins.json source reference and an explicit **not official law** qualification (HTTP200). No legal claim, obligation, applicability decision or Auditor verdict was inserted. UI now shows **1 ready document, 13 provisions, valid structure and all structural activation requirements met**. The source remains DRAFT, **0 Preparation runs /0 usage events /0 Rule Set activations**. Earlier zero-document observations above remain point-in-time history.
+
+[Ready source screenshot](browser-pnpm-dev-20261023/admin-source-ingested-ready.png) · [Provision inspector](browser-pnpm-dev-20261023/admin-ingested-provisions.png) · [Source/download/chunk verification](browser-pnpm-dev-20261023/corpus-ingestion-verification.json) · [Real worker events](browser-pnpm-dev-20261023/corpus-worker-events.json).
+
+**Exact publication a77ea7efa4e887bc76a57d3a6af159df70938d8f: all 39 CI/security check runs PASS**, including required V2 gate, Root, Docker, Python/API, Trivy, Trustabl and CodeQL. [Receipt](browser-pnpm-dev-20261023/ci-a77ea7efa.json). Any later report-only publication preserves this runtime source; its own check status is recorded in the PR checkpoint rather than relabeling this receipt.
+
+**Actual next gated action: Activate version.** The existing production activation consumer automatically starts a new Rule Set Preparation. It was **not clicked**: this UI source/run has no matching approved immutable budget, while ccc2ba7d's unconsumed approval is bound to its separate frozen960b4ff/15-chunk prepared context on55508. Passing document ingestion is not semantic acceptance or proof of bounded UI model execution. Do not start scanning before the Rule Set prerequisite, transfer the old approval, or fabricate an activated result. The next step is to align a bounded and explicitly authorized preparation context with this actual UI source before dispatch.

@@ -1,0 +1,181 @@
+{
+  "captureDate": "2026-10-23T08:06:02.645213+00:00",
+  "source": "actual browser upload/download and REPEATABLE READ READ ONLY PostgreSQL verification",
+  "document": {
+    "id": "3019d879-df45-4d55-93fc-dea8131d0f3b",
+    "documentId": "pinned-synthetic-notice-instrument-controlled-acceptance",
+    "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+    "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "blobSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "byteLength": 1185,
+    "ingestionState": "READY"
+  },
+  "sourceFileSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "downloadMatchesOriginalBytes": true,
+  "sourceMatchesPin": true,
+  "chunkCount": 13,
+  "allSourceNonWhitespaceCharactersCovered": true,
+  "sourceNonWhitespaceCharacters": 962,
+  "coveredCharacters": 962,
+  "chunks": [
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::front-matter",
+      "locator": "front-matter",
+      "contentSha256": "sha256:781d54cb08a43ed8f05d79262350682becbebbee9fb544bf82fdfdacaa407c2b",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-1",
+      "locator": "art-1",
+      "contentSha256": "sha256:23c8e407995b44f5140686438837e86b0893cdb536b93d23ddb9e58d1414af7b",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-1::cl-1",
+      "locator": "art-1::cl-1",
+      "contentSha256": "sha256:6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-2",
+      "locator": "art-2",
+      "contentSha256": "sha256:bf41a0694e64ae74fa29b8dccb45a686dafa726fdf2c23d13de5e8363093016b",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-2::cl-1",
+      "locator": "art-2::cl-1",
+      "contentSha256": "sha256:87674bc449c5da27128417aa67fd79b1bcf21188b968ae720588985a1785904a",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": false,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-3",
+      "locator": "art-3",
+      "contentSha256": "sha256:6a3e3e28802717eff3b111632083057d149c37c4d09ec7a4892429dc3e5656b5",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-3::cl-1",
+      "locator": "art-3::cl-1",
+      "contentSha256": "sha256:efe8ff082b8a80fdae0e5a1322c41fde82b92491a50d8109cb9673a951b1cc58",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": false,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-4",
+      "locator": "art-4",
+      "contentSha256": "sha256:84f5d9f1f5b50662465d12bd3b72d348182dbdafe784caef38a78ac9e75fa586",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-4::cl-1",
+      "locator": "art-4::cl-1",
+      "contentSha256": "sha256:315d2575bfb3a13eb71e1e0dd4245805690fb888c5a2a351114da6a74b896b08",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": false,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-5",
+      "locator": "art-5",
+      "contentSha256": "sha256:1349601e140534059e0eec3a82198f01ddc484c23f2c775dc88c98f20766ebad",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-5::cl-1",
+      "locator": "art-5::cl-1",
+      "contentSha256": "sha256:bd8cd881b48df3173ecf660da32079a9f63b775ffe6adf5fba9434d30d1a25ea",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": false,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-6",
+      "locator": "art-6",
+      "contentSha256": "sha256:7bbeb8a28f292b450c3abc7112d11ed8b634b6fbe2e63cff88ad3cc5b6e463bf",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": true,
+      "sourceTextMatch": true
+    },
+    {
+      "id": "497f19fb-22a8-4136-83a0-8d53f7696293::pinned-synthetic-notice-instrument-controlled-acceptance::art-6::cl-1",
+      "locator": "art-6::cl-1",
+      "contentSha256": "sha256:4ca54657d2e573b17f0545d6c627d06defc1931fa7101901e79bcb07b53eb5a8",
+      "legalEffectStatus": "EFFECTIVE",
+      "sourceRef": "Controlled synthetic fixture: deepagents/tests/fixtures/compliance_rule_set_context/pins.json#SYNTHETIC-LEGAL_SOURCE-V1; declared sourceEffectStatus=Còn hiệu lực. Not official law.",
+      "sourceVersionId": "497f19fb-22a8-4136-83a0-8d53f7696293",
+      "rawHashMatches": true,
+      "normalizedHashMatches": false,
+      "sourceTextMatch": true
+    }
+  ],
+  "extraction": {
+    "gaps": [],
+    "tool": "managed-document-ingest:plain-text",
+    "pageCount": null,
+    "textSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "toolVersion": "1.1.0",
+    "characterCount": 1157,
+    "structureProfile": "ARTICLES",
+    "frontMatterCharacters": 34
+  },
+  "sourceStatus": "DRAFT",
+  "usageEvents": 0,
+  "preparationRuns": 0,
+  "activationClicked": false,
+  "semanticAcceptance": "NOT_RUN",
+  "partitionNote": "Production managed-document ingestion created 13 non-overlapping provisions (including front matter). Legacy prepared evaluation uses 15 overlapping chunks. Full source bytes/content are preserved; no equivalence or authorization transfer is claimed."
+}

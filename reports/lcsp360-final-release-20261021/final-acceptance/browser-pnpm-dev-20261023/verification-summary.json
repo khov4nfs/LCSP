@@ -24,11 +24,11 @@
   "browserMatrix": {
     "actualDevelopmentStack": "PASS after startup repair",
     "adminLoginAndNavigation": "PASS real login UI",
-    "adminLegalSourceAndDraftVersion": "PASS created through UI; DRAFT, zero documents, no activation",
+    "adminLegalSourceAndDraftVersion": "PASS actual UI upload and worker ingestion; 1 ready document/13 provisions; full pinned bytes preserved; source DRAFT",
     "adminUsage": "PASS authenticated API/UI/DB empty-state agreement; filter provider miraiapi returns 200 and zero rows",
     "nonzeroUsageDrilldown": "NOT_DEMONSTRATED in fresh lcsp_dev; no artificial records inserted",
     "userLoginAndAssessmentCreation": "PASS real UI 201",
-    "repositoryConnection": "PENDING_USER_CONNECTS_APPROVED_CREDENTIAL_IN_UI",
+    "repositoryConnection": "USER_REPORTED_CONNECTED; deferred until Rule Set prerequisite",
     "assessmentReloadAndPersistence": "PASS PREPARING, eventSequence 1",
     "actualProvenanceViewAndDownload": "PASS; independent content digest matches",
     "userAdminAPIDenial": "PASS 403 RBAC_DENIED while signed in",
@@ -37,7 +37,7 @@
     "separateSessions": "PASS Admin API remained 200 after User logout; User subsequently signed in again through UI",
     "crossOwnerAssessmentIsolation": "NOT_RUN no second customer assessment",
     "streaming": "PASS actual workspace/assessment SSE HTTP connectivity; no model progress stream claimed",
-    "scannerInterviewHITLInvestigation": "NOT_RUN repository credential/active Rule Set/model authorization gates remain",
+    "scannerInterviewHITLInvestigation": "NOT_RUN first complete legal corpus and audited Rule Set preparation; no active Rule Set",
     "producerIndependentAuditorInventoryAuthoringValidatorActivation": "NOT_RUN in this development database",
     "completedReportDownload": "NOT_RUN report not ready; provenance download is distinct",
     "releaseImageStagingProduction": "NOT_RUN_NOT_AUTHORIZED"
@@ -60,5 +60,26 @@
   "paidTokensThisTask": 0,
   "newPaidCostUsd": "0",
   "historicalUnknownUsageOverwritten": false,
-  "nextAction": "User connects approved read-only GitHub credential through the actual assessment UI; then continue repository selection without unapproved inference."
+  "nextAction": "Align a bounded, immutable and explicitly authorized Rule Set Preparation context with the actual UI source before clicking Activate version; keep GitHub scanning deferred.",
+  "corpusFirstContinuation": {
+    "captureDate": "2026-10-23T08:07:06.295120+00:00",
+    "userCorrection": "Legal corpus/Rule Set preparation is a prerequisite; GitHub is only for later repository scanning.",
+    "repositoryConnection": "USER_REPORTED_CONNECTED; NOT_A_PREREQUISITE_FOR_LEGAL_SOURCE_PREPARATION",
+    "documentId": "3019d879-df45-4d55-93fc-dea8131d0f3b",
+    "ingestion": "PASS_REAL_UI_OUTBOX_BROKER_LANGGRAPH_WORKER_POSTGRES",
+    "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "sourceBytes": 1185,
+    "readyDocuments": 1,
+    "provisions": 13,
+    "allSourceContentPreserved": true,
+    "originalDownloadByteMatch": true,
+    "legalEffect": "EFFECTIVE only for controlled synthetic fixture, explicit pins.json reference saved through UI; not official law",
+    "structuralValidation": "PASS",
+    "sourceState": "DRAFT",
+    "activationClicked": false,
+    "ruleSetPreparation": "NOT_RUN; activation automatically enqueues it",
+    "currentUiBudget": "No matching immutable approved budget configured for this development UI run. Historical admission proof is not an active UI run budget.",
+    "authorizationScope": "Existing unconsumed ccc2ba7d/960b4ff approval covers a distinct prepared 15-chunk/12-unit context on55508; not transferable to this UI source/run.",
+    "receipt": "corpus-ingestion-verification.json"
+  }
 }
