@@ -9,6 +9,7 @@ import {
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import type { Root } from "react-dom/client";
+import { PREPARATION_ACTIVITY_VISIBLE_LIMIT } from "../src/features/admin/config/preparation-activity.config";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
@@ -90,6 +91,24 @@ function render(events: AssessmentAgentStreamEvent[]) {
 afterEach(() => {
   for (const root of roots.splice(0)) act(() => root.unmount());
   document.body.replaceChildren();
+});
+
+test("long Preparation displays recent activity without rendering an unbounded journal", () => {
+  const events = Array.from(
+    { length: PREPARATION_ACTIVITY_VISIBLE_LIMIT + 1 },
+    (_, i) =>
+      event(i + 1, T.modelCallCompleted, {
+        status: "COMPLETED",
+        data: { model_step_id: `step-${i}`, usage: { total_tokens: 5 } },
+      }),
+  );
+  const { container } = render(events);
+  assert.equal(
+    container.querySelectorAll('[data-slot="work-disclosure"]').length,
+    PREPARATION_ACTIVITY_VISIBLE_LIMIT,
+  );
+  assert.match(container.textContent ?? "", /Tổng token của hoạt động đã tải/);
+  assert.match(container.textContent ?? "", /505/);
 });
 
 test("Preparation activities start collapsed and keep user expansion across stream updates", () => {

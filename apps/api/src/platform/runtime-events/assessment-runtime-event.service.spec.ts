@@ -733,6 +733,46 @@ describe("AssessmentRuntimeEventService", () => {
     });
   });
 
+  it("keeps preparation progress current after the durable replay window fills", async () => {
+    const persistedRows = Array.from({ length: 5_001 }, (_, i) =>
+      durableAgentStreamRow(i + 1),
+    );
+    const findMany = jest.fn(
+      ({
+        orderBy,
+        take,
+        where,
+      }: {
+        orderBy: unknown;
+        take: number;
+        where: unknown;
+      }) => {
+        expect(orderBy).toEqual([{ createdAt: "desc" }, { sequence: "desc" }]);
+        expect(where).toMatchObject({ preparationRunId: "preparation-a" });
+        return Promise.resolve([...persistedRows].reverse().slice(0, take));
+      },
+    );
+    const service = new AssessmentRuntimeEventService({
+      assessmentRuntimeEvent: { findMany },
+    } as never);
+    const replay = await (
+      service as unknown as {
+        getDurableAgentStreamEvents: (
+          owner: string,
+          assessment: null,
+          preparation: string,
+        ) => Promise<Array<{ sequence: number }>>;
+      }
+    ).getDurableAgentStreamEvents(
+      "preparation:preparation-a",
+      null,
+      "preparation-a",
+    );
+    expect(replay).toHaveLength(5_000);
+    expect(replay[0]?.sequence).toBe(2);
+    expect(replay.at(-1)?.sequence).toBe(5_001);
+  });
+
   it("replays the newest durable semantic history in chronological order", async () => {
     const persistedRows = Array.from({ length: 6_001 }, (_, index) =>
       durableAgentStreamRow(index + 1),

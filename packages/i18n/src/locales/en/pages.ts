@@ -88,7 +88,9 @@ export const enPages = {
       executionFinished: "Preparation execution finished",
       failed: "Preparation failed",
       cancelled: "Preparation cancelled",
-      tokenUsage: "Preparation token usage",
+      tokenUsage: "Token subtotal for loaded activity",
+      historyScope:
+        "Recent activity is shown. See AI token usage for complete persisted accounting.",
       agent: "Agent",
       subagent: "Subagent",
       provider: "Provider",

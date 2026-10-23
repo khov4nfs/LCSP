@@ -13,6 +13,7 @@ import {
   projectPreparationActivity,
 } from "../../utils/rule-set-preparation-activity";
 import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
+import { PREPARATION_ACTIVITY_VISIBLE_LIMIT } from "../../config/preparation-activity.config";
 
 type Props = {
   events: AssessmentAgentStreamEvent[];
@@ -34,6 +35,9 @@ export function RuleSetPreparationActivity({
   );
   const usage = preparationTokenUsage(events);
   const progress = preparationProgress(events);
+  const visibleActivities = activities.slice(
+    -PREPARATION_ACTIVITY_VISIBLE_LIMIT,
+  );
   return (
     <section
       className="rounded-lg border border-border/70 bg-muted/20 p-4"
@@ -91,7 +95,7 @@ export function RuleSetPreparationActivity({
         </p>
       ) : (
         <ol className="mt-3 flex flex-col gap-2">
-          {activities.map((item) => (
+          {visibleActivities.map((item) => (
             <li
               key={item.id}
               className="rounded-md border border-border/60 bg-background p-3"
@@ -191,6 +195,9 @@ export function RuleSetPreparationActivity({
       <p className="mt-3 text-xs text-muted-foreground">
         {resolveAppMessage("pages.complianceRuleSets.activity.tokenUsage")}:{" "}
         {usage.totalTokens.toLocaleString()}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {resolveAppMessage("pages.complianceRuleSets.activity.historyScope")}
       </p>
     </section>
   );

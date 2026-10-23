@@ -89,7 +89,9 @@ export const viPages = {
       executionFinished: "Lượt xử lý chuẩn bị đã kết thúc",
       failed: "Chuẩn bị thất bại",
       cancelled: "Đã hủy lượt chuẩn bị",
-      tokenUsage: "Mức sử dụng token của lượt chuẩn bị",
+      tokenUsage: "Tổng token của hoạt động đã tải",
+      historyScope:
+        "Đang hiển thị hoạt động gần đây. Xem mục Mức sử dụng token AI để đối soát toàn bộ số liệu đã lưu.",
       agent: "Tác tử",
       subagent: "Tác tử con",
       provider: "Nhà cung cấp",

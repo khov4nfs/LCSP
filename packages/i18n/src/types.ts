@@ -119,6 +119,7 @@ export type PagesMessages = {
       failed: string;
       cancelled: string;
       tokenUsage: string;
+      historyScope: string;
       agent: string;
       subagent: string;
       provider: string;
