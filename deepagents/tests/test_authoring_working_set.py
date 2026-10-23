@@ -48,6 +48,18 @@ def full(prefix):
 
 
 # --- normalized, observable read pagination -------------------------------------------------------------------------
+def test_restored_frozen_inventory_reads_preserve_claims_receipts_and_frontier():
+    fx, ctx, tools, _ = restored()
+    before = deepcopy((ctx.draft, ctx.semantic_audits, ctx.inventory.frontier.snapshot))
+    page = call(tools, "get_claim_inventory", kind="CLAIMS", limit=5)
+    progress = fx["observedFrontierSnapshot"]["progress"]
+    reviewed = progress["reviewedWithClaims"] + progress["reviewedNoClaims"]
+    assert ctx.inventory.frontier.loaded
+    assert (page["sourceNodesReviewed"], page["sourceNodesRemaining"]) == (reviewed, progress["total"] - reviewed)
+    assert (ctx.draft, ctx.semantic_audits, ctx.inventory.frontier.snapshot) == before
+    assert page["inventoryFingerprint"] == fx["frozenInventory"]["fingerprint"]
+
+
 def test_oversized_missing_and_nonpositive_limits_are_normalized_and_reported_not_rejected():
     _, ctx, tools, _ = restored()
     big = call(tools, "get_claim_inventory", kind="CLAIMS", limit=50)

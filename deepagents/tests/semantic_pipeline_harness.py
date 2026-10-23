@@ -13,6 +13,15 @@ from rule_set_preparation.semantic_audit import audit_input
 from rule_set_preparation.semantic_closure import operative
 
 
+def frozen_frontier_snapshot(graph):
+    binding = graph["reviewFrontier"]
+    reviewed = sum(bool(row["claimIds"]) for row in graph["sourceAccounting"])
+    total = len(graph["sourceAccounting"])
+    return {"frontierRevision": binding["revision"], "frontierFingerprint": binding["fingerprint"],
+            "reviewedFrontierFingerprint": binding["reviewedFingerprint"],
+            "progress": {"total": total, "reviewedWithClaims": reviewed, "reviewedNoClaims": total - reviewed}}
+
+
 def authoring_fixture():
     """Scripted audit receipts for authoring/memory mechanics; never semantic acceptance evidence."""
     from structural_semantic_fixture import StructuralFixtureAuditor
@@ -20,11 +29,10 @@ def authoring_fixture():
     auditor = StructuralFixtureAuditor()
     graph["semanticAudits"] = [auditor.audit(audit_input(source, graph, r["sourceNodeId"], 1)) for r in graph["sourceAccounting"]]
     graph = normalized_graph(graph)
-    binding = graph["reviewFrontier"]
     return {"label": "Same-source V3 authoring mechanics; SCRIPTED verifier verdicts", "preparationId": fixture["identity"]["preparationRunId"],
             "sourceVersionId": source.version, "graph": source.graph, "chunks": list(source.chunks.values()),
             "frozenInventory": {"revision": 1, "fingerprint": fingerprint({"revision": 1, "graph": graph}), "graph": graph, "identities": identities},
-            "observedFrontierSnapshot": {"frontierRevision": binding["revision"], "frontierFingerprint": binding["fingerprint"], "reviewedFrontierFingerprint": binding["reviewedFingerprint"]}}
+            "observedFrontierSnapshot": frozen_frontier_snapshot(graph)}
 
 
 def authoring_plan():
@@ -56,8 +64,8 @@ def pipeline_context(auditor):
     ledger.identities = identities
     ledger.rebuild_node_index()
     ledger.frozen, ledger.frozen_fingerprint, ledger.phase = graph, ready["fingerprint"], READY
-    binding = graph["reviewFrontier"]
-    ledger.frontier.snapshot = {"frontierRevision": binding["revision"], "frontierFingerprint": binding["fingerprint"], "reviewedFrontierFingerprint": binding["reviewedFingerprint"]}
+    ledger.frontier.snapshot = frozen_frontier_snapshot(graph)
+    ledger.frontier.loaded = True
     return ctx, tools, api, keys
 
 

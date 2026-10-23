@@ -52,6 +52,7 @@ def restore(fx=None, api=None):
     ledger.rebuild_node_index()
     ledger.frozen, ledger.frozen_fingerprint, ledger.phase = frozen, inv["fingerprint"], READY
     ledger.frontier.snapshot = deepcopy(fx["observedFrontierSnapshot"])
+    ledger.frontier.loaded = True  # The retained frozen claims, receipts and frontier have all been restored above.
     return fx, ctx, tools, api
 
 
