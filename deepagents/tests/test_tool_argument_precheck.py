@@ -139,6 +139,29 @@ def test_native_tool_reason_keeps_its_established_wording():
     )
 
 
+@pytest.mark.parametrize("model_factory", [_anthropic, _gemini])
+def test_authoritative_extra_forbid_survives_langchain_subset_and_provider_rewrite(model_factory):
+    request = _request(model_factory(), [_tool()])
+    seen = {}
+    def handler(forwarded):
+        seen["reason"] = _malformed_tool_call_reason(forwarded, _response({**VALID, "traversal": SECRET}))
+        return _response(VALID)
+    ProviderSchemaCompatibilityMiddleware().wrap_model_call(request, handler)
+    assert seen["reason"] == "Model emitted invalid arguments for tool task (traversal:extra_forbidden)"
+    assert SECRET not in seen["reason"]
+
+
+def test_authoritative_schema_does_not_require_runtime_injected_arguments_from_model():
+    from typing import Annotated
+    from langchain_core.tools import InjectedToolArg
+    class InjectedArgs(BaseModel):
+        description: str
+        runtime_value: Annotated[str, InjectedToolArg]
+    tool = StructuredTool.from_function(func=lambda **_: "ok", name="task", description="Read.", args_schema=InjectedArgs)
+    request = _request(_anthropic(), [tool])
+    assert _malformed_tool_call_reason(request, _response({"description": "read"})) is None
+
+
 def test_gemini_rewrite_replaces_tools_with_dicts_yet_the_inner_check_still_sees_the_real_contract():
     model = _gemini()
     request = _request(model, [_tool()])

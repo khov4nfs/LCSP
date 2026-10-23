@@ -77,6 +77,39 @@ def test_real_tool_schemas_and_reference_following(source):
     assert unresolved["reference"]["resolutionState"] == "UNRESOLVED" and not unresolved["nodes"]
 
 
+@pytest.mark.parametrize("corrected", [True, False])
+def test_source_argument_feedback_rejects_extra_fields_allows_correction_and_stops_repeated_errors(source, corrected):
+    from types import SimpleNamespace
+    from middleware.failure_policy import NoProgressDetected
+    from middleware.model_governance import StopSchemaRepairMiddleware
+    from rule_set_preparation.agent import PreparationObservationMiddleware
+    from rule_set_preparation.tools import RuleSetPreparationContext
+
+    tools = {t.name: t for t in build_source_graph_tools(source)}
+    observer = PreparationObservationMiddleware(RuleSetPreparationContext("run", SimpleNamespace()))
+    guard = StopSchemaRepairMiddleware()
+    def invoke(name, args):
+        call = {"name": name, "args": args, "id": "read", "type": "tool_call"}
+        request = SimpleNamespace(tool_call=call)
+        return observer.wrap_tool_call(request, lambda current:
+            guard.wrap_tool_call(current, lambda _: tools[name].invoke(call)))
+
+    bad = {"node_id": f"{2:064x}", "traversal": "PRIVATE_ARGUMENT_VALUE"}
+    rejected = invoke("get_legal_node", bad)
+    assert rejected.status == "error"
+    assert "traversal:extra_forbidden" in rejected.content and "PRIVATE_ARGUMENT_VALUE" not in rejected.content
+    if corrected:
+        result = invoke("inspect_legal_node", {"node_id": f"{2:064x}", "traversal": "CHILDREN"})
+        assert result.status == "success"
+        assert len(json.loads(result.content.split("\n\n[Pinned source observation metadata]")[0])["nodes"]) == 2
+    else:
+        invoke("get_legal_node", {**bad, "traversal": "DIFFERENT_INVALID_VALUE"})
+        feedback = invoke("get_legal_node", {**bad, "traversal": "ANOTHER_INVALID_VALUE"})
+        assert "NO_PROGRESS" in feedback.content
+        with pytest.raises(NoProgressDetected):
+            invoke("get_legal_node", {**bad, "traversal": "STILL_INVALID"})
+
+
 def test_structural_progress_records_identity_and_traversal_without_source_prose(source, monkeypatch):
     events = []
     monkeypatch.setattr("rule_set_preparation.source_graph.publish_agent_stream_event", lambda kind, **fields: events.append((kind, fields)))

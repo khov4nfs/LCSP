@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import ToolMessage
 from langchain_core.runnables.config import var_child_runnable_config
 from langgraph.errors import GraphRecursionError, NodeCancelledError
 from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected
@@ -144,7 +145,7 @@ class PreparationStreamTrace(BaseCallbackHandler):
             tool_name=name,
             tool_call_id=str(run_id),
             subagent_name=subagent,
-            status="COMPLETED",
+            status="FAILED" if isinstance(output, ToolMessage) and output.status == "error" else "COMPLETED",
             data=data,
         )
 

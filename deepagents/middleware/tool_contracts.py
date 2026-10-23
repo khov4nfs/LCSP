@@ -60,6 +60,10 @@ def _contract_of(tool: Any) -> ToolContract | None:
         # JSON schema is not validated by the node (its body answers a bad argument itself), so
         # discarding its sample here would only change that tool's established behaviour.
         if hasattr(schema, "model_validate"):
+            full_schema = tool.get_input_schema()
+            # LangChain's subset drops model validators/config, including extra="forbid".
+            if schema.model_fields.keys() == full_schema.model_fields.keys():
+                schema = full_schema
             return ToolContract(
                 tool.name, _pydantic_problems(schema), bool(tool.handle_validation_error)
             )

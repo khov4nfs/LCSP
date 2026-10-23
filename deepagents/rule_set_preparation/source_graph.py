@@ -8,7 +8,7 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from langchain_core.tools import tool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from orchestration.agent_stream import publish_agent_stream_event
 
 MAX_NODES = 20
@@ -221,4 +221,14 @@ def build_source_graph_tools(source: PinnedSourceGraph) -> list:
              resolution_state=reference["resolutionState"])
         return json.dumps({**source.bounded_nodes([target] if target else reference["candidateNodeIds"]), "reference": reference}, ensure_ascii=False)
 
-    return [search_legal_nodes, get_legal_node, inspect_legal_node, follow_legal_reference]
+    def invalid_arguments(error: ValidationError) -> str:
+        fields = "; ".join(
+            f"{'.'.join(str(part) for part in item['loc'])}:{item['type']}"
+            for item in error.errors(include_input=False, include_context=False)[:8]
+        )
+        return f"Source tool arguments rejected ({fields}). Correct the call to its declared schema."
+
+    tools = [search_legal_nodes, get_legal_node, inspect_legal_node, follow_legal_reference]
+    for source_tool in tools:
+        source_tool.handle_validation_error = invalid_arguments
+    return tools

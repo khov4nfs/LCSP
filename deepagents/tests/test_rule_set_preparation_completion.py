@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from rule_set_preparation import runner
 from rule_set_preparation.legal_source_files import INDEX_PATH
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
@@ -148,6 +148,19 @@ def test_preparation_stream_trace_emits_redacted_meaningful_native_tool_activity
     assert emitted[3][1]["subagent_name"] == "legal-source-reader"
     assert emitted[3][1]["data"]["source_path"] == "/legal-source/LAW-71-2025-QH15/article-1.md"
     assert "private" not in repr(emitted)
+
+
+def test_correctable_native_tool_rejection_remains_observable_as_failed(monkeypatch):
+    emitted = []
+    monkeypatch.setattr(runner, "publish_agent_stream_event", lambda kind, **fields: emitted.append((kind, fields)))
+    trace = runner.PreparationStreamTrace()
+    trace.on_tool_start({"name": "get_legal_node"}, "", run_id="read")
+    trace.on_tool_end(ToolMessage(content="Source tool arguments rejected (traversal:extra_forbidden)",
+                                  name="get_legal_node", tool_call_id="read", status="error"), run_id="read")
+    assert emitted[-1][0] == "TOOL_RESULT"
+    assert emitted[-1][1]["status"] == "FAILED"
+    assert emitted[-1][1]["tool_name"] == "get_legal_node"
+    assert trace.active_tool_names() == []
 
 
 def test_source_blocked_is_explicit_and_terminal(tmp_path: Path, monkeypatch) -> None:

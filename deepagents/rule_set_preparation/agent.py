@@ -71,7 +71,7 @@ class PreparationObservationMiddleware(AgentMiddleware):
         source_version = self.context.pinned_source_version_id or "UNKNOWN"
         signature = _observation_hash({
             "tool": name,
-            "arguments": args,
+            "arguments": args if result.status != "error" else {"argumentValidationRejected": True},
             "pinnedSourceVersionId": source_version,
         })
         result_hash = _observation_hash(content)
