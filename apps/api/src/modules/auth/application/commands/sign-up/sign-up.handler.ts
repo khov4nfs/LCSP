@@ -38,6 +38,29 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
     private readonly authAudit: AuthAuditService,
   ) {}
 
+  /**
+   * Business purpose: Register an eligible customer and issue their first authenticated session.
+   *
+   * Business rules:
+   * - One account and one initial session must share exactly the same MFA proof generation.
+   * - Duplicate normalized email addresses are rejected; creation, session issuance and audit are atomic.
+   * - Newly registered sessions have no MFA or sensitive-action step-up proof until verified.
+   *
+   * Execution flow:
+   * 1. Normalize the email and reject an existing account before preparing credentials.
+   * 2. Create the account and bind its initial session to the account's MFA generation.
+   * 3. Persist the account, session and success audit transactionally, then return the session token.
+   *
+   * Failure cases:
+   * - Duplicate emails return the shared EMAIL_ALREADY_EXISTS conflict problem.
+   * - An invalid generation or persistence/audit failure must not commit a partial sign-up.
+   *
+   * Side effects:
+   * - Creates a user, an unverified initial session and an audit event in one transaction.
+   *
+   * @param command - Registration input and request correlation context.
+   * @returns The newly registered user ID, session token and expiration.
+   */
   async execute(command: SignUpCommand): Promise<SignUpResponse> {
     const { email, displayName, password } = command.input;
     const correlationId = command.input.correlationId ?? createCorrelationId();
@@ -66,6 +89,7 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
     const session = new Session({
       userId: user.id,
       accessVersion: user.accessVersion,
+      mfaGenerationId: user.mfaGenerationId,
       tokenHash: hashSecret(sessionToken),
       expiresAt: expiresAt.getTime(),
     });

@@ -14,6 +14,9 @@ import {
 } from "@lcsp/contracts/billing";
 
 import { AppModule } from "../src/app.module.js";
+import { GetBillingAdminDashboardHandler } from "../src/modules/billing/application/queries/get-admin-billing-dashboard/get-admin-billing-dashboard.handler.js";
+import { GetBillingAdminDashboardQuery } from "../src/modules/billing/application/queries/get-admin-billing-dashboard/get-admin-billing-dashboard.query.js";
+import type { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import {
   TEST_DATABASE_URL,
@@ -582,6 +585,74 @@ describe("Admin billing reconciliation (e2e)", () => {
       .get("/admin/billing")
       .set("Authorization", `Bearer ${customerToken}`)
       .expect(403);
+  });
+
+  it("keeps credited revenue on the correct UTC day across database session timezones", async () => {
+    const cases = [
+      {
+        databaseTimezone: "Asia/Ho_Chi_Minh",
+        creditedAt: new Date("2026-10-24T17:30:00.000Z"),
+        now: new Date("2026-10-24T17:45:00.000Z"),
+        utcDate: "2026-10-24",
+      },
+      {
+        databaseTimezone: "America/Los_Angeles",
+        creditedAt: new Date("2026-10-25T00:30:00.000Z"),
+        now: new Date("2026-10-25T00:45:00.000Z"),
+        utcDate: "2026-10-25",
+      },
+      {
+        databaseTimezone: "UTC",
+        creditedAt: new Date("2026-10-25T00:30:00.000Z"),
+        now: new Date("2026-10-25T00:45:00.000Z"),
+        utcDate: "2026-10-25",
+      },
+    ] as const;
+
+    for (const scenario of cases) {
+      await prisma.$transaction(async (tx) => {
+        // SET LOCAL affects only this transaction's database connection.
+        // No timezone setting escapes to other tests or application requests.
+        await tx.$queryRaw`SELECT set_config('TimeZone', ${scenario.databaseTimezone}, true)`;
+        await tx.billingOrder.update({
+          where: { id: orderId },
+          data: {
+            status: BILLING_ORDER_STATUSES.CREDITED,
+            creditedAt: scenario.creditedAt,
+          },
+        });
+
+        const handler = new GetBillingAdminDashboardHandler(
+          tx as unknown as PrismaService,
+        );
+        const dashboard = await handler.execute(
+          new GetBillingAdminDashboardQuery(
+            {
+              period: BILLING_ADMIN_PERIODS.d7,
+              status: BILLING_ADMIN_PAYMENT_FILTERS.all,
+              gateway: BILLING_ADMIN_GATEWAYS.all,
+              page: 1,
+              pageSize: 10,
+            },
+            scenario.now,
+          ),
+        );
+
+        assert.equal(
+          dashboard.summary.settledTopUpVnd,
+          "100000",
+          `Aggregate failed in ${scenario.databaseTimezone}`,
+        );
+        assert.equal(dashboard.summary.settledTopUpTrend.length, 7);
+        assert.deepEqual(
+          dashboard.summary.settledTopUpTrend.filter(
+            (day) => day.amountVnd !== "0",
+          ),
+          [{ day: scenario.utcDate, amountVnd: "100000" }],
+          `UTC daily trend must not follow ${scenario.databaseTimezone} calendar dates`,
+        );
+      });
+    }
   });
 
   it("exports rows in stable receivedAt and id order and denies customers", async () => {

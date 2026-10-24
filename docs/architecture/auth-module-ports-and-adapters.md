@@ -418,6 +418,144 @@ and rollback behavior, and independently investigate the pre-existing
 `pg` concurrent-query deprecation and Jest open handles. Passing local
 checks does not by itself close the external `REQUEST_CHANGES` review.
 
+## PR LCSP-999 sign-up generation parity P1 — re-review remediation (2026-10-25)
+
+**Review basis:** commit `65efae5d7fecc099304d82987d57f1e858d2aaaf`.
+Reviewer confirmed the two earlier MFA rotation security findings and the
+generation migration as fixed, but reported **REQUEST_CHANGES** because the
+initial sign-up session could not complete password reauthentication.
+
+### Root cause
+
+- `SignUpHandler.execute()` constructs a `User` with a freshly generated
+  `mfaGenerationId`, then creates the initial `Session` without that field.
+- `PrismaSignUpPersistence.createWithSessionAndAudit()` left the User
+  `mfaGenerationId` to PostgreSQL's separate `gen_random_uuid()` default
+  and omitted generation metadata from its session `AuthRecord` insert.
+- `ReauthenticatePasswordHandler.execute()` correctly creates sensitive-action
+  proof only after password verification, but
+  `PrismaSessionRepository.save()` correctly rejects an elevated session if
+  its generation is missing or mismatched. Thus a freshly signed-up session
+  received `SESSION_INVALID` even with the correct password.
+
+### Fix
+
+- The sign-up handler now constructs the first `Session` using the exact
+  `user.mfaGenerationId` created by its new `User` entity.
+- The sign-up persistence adapter explicitly writes
+  `mfaGenerationId: user.mfaGenerationId` to the new User row and
+  `mfaGenerationId: session.mfaGenerationId` to session metadata in the
+  **existing atomic User + Session + security audit transaction**.
+- The persistence adapter checks both session ownership and generation
+  equality before opening a transaction. Invalid input cannot create a
+  mismatched account/session pair; it does not weaken existing stale-generation
+  rejection in `PrismaSessionRepository`, RBAC or MFA proof verification.
+- All touched business functions have the shared five-section business logic
+  documentation immediately before the implementation.
+
+### Regression evidence
+
+The new database-backed tests were verified **red before the production fix**
+(two sign-up E2E failures: missing session generation and valid-password
+reauthentication returning HTTP 401) and **green after the fix**:
+
+- Existing sign-up persistence E2E now checks that the initial AuthRecord
+  metadata generation equals the freshly persisted User generation.
+- New real-HTTP sign-up E2E follows sign-up → profile → forbidden sensitive
+  action before step-up → password re-authentication → sensitive-route check
+  → authorized sensitive GitHub repository-discovery route (HTTP 200).
+  Only the external GitHub provider is mocked; RBAC, sensitive-action
+  policy, actual command execution and audit writes are exercised.
+- Two focused persistence unit tests reject mismatched account/session
+  generation and a wrong session owner **before any transaction starts**.
+- Focused Auth + Sign Up E2E **59/59 passed**, covering the existing S1→S2
+  stale-session-proof and recovery-code generation security scenarios.
+- Full API Jest unit/integration **1,037 passed**, 34 opt-in skipped,
+  including both new repository-invariant unit tests.
+- Web regression tests **324/324 passed**; TypeScript, changed-source
+  ESLint/Prettier, import, contract and business-documentation checks passed.
+- Initial combined API E2E had **192 passed, 1 failed, 3 opt-in skipped**:
+  the unrelated Billing Admin seven-day trend reported zero although its
+  settled-revenue aggregate returned 100000. This failure was reproducible in
+  isolation. **This was the historical result before the follow-up Billing
+  fix described below; it is no longer the latest full E2E outcome.**
+
+**Remaining merge conditions:** commit and push the focused sign-up and Billing
+fixes (prefer separate commits), run exact-head CI, and request security
+reviewer approval. Passing local tests does not supersede PR review.
+
+## Billing Admin UTC daily revenue regression — 2026-10-25
+
+### Root cause
+
+The Billing Admin dashboard's daily trend SQL used
+`date_trunc('day', "creditedAt" AT TIME ZONE 'UTC')`, although
+`BillingOrder.creditedAt` is already a UTC-valued PostgreSQL
+`timestamp without time zone`. The extra conversion changes the
+expression into a `timestamptz` that is grouped using the
+**PostgreSQL session timezone**, not the intended UTC calendar date.
+The `@prisma/adapter-pg` date decoder then exposes the shifted day
+to JavaScript. At `2026-10-24T17:51Z` on a server with
+`Asia/Ho_Chi_Minh` timezone, the existing SQL returned an ISO
+date of `2026-10-25`. The dashboard's current seven-day UTC window
+ended on October 24, causing all daily buckets to report zero despite
+the correct settled total of 100000 minor units.
+
+### Fix
+
+`GetBillingAdminDashboardHandler.getSettledTopUpTrend()` now groups
+using `("creditedAt"::date)::text`. This reads the UTC calendar
+date already stored in the column as stable `YYYY-MM-DD` text,
+without creating a time-zone-aware instant or relying on a driver
+timestamp conversion. The status filter, time bounds, sum of
+`amountMinorUnits` and seven-day zero-filled response remain
+unchanged. Both `execute()` and the internal trend query are
+documented using the repository's five-section business-logic
+comment convention.
+
+### Regression and release evidence
+
+- **Red before fix:** the real Billing E2E expected 100000 settled
+  credits in the seven-day trend but observed zero. An isolated
+  diagnostic confirmed the row was present and assigned to the
+  wrong calendar date by the old `AT TIME ZONE` query.
+- **Green after fix:** all **7/7 Billing Admin E2E** tests pass,
+  including a new transaction-scoped regression test that sets
+  PostgreSQL's timezone to `Asia/Ho_Chi_Minh`,
+  `America/Los_Angeles` and `UTC`. Fixtures deliberately
+  exercise both sides of midnight UTC and verify the _exact_
+  nonzero day as well as the aggregate. `SET LOCAL` is scoped
+  to the test transaction, not shared server state.
+- **Full API E2E:** **194 active tests passed, 3 opt-in skipped**
+  (23 suites pass). Includes the new Billing scenario and
+  existing Auth MFA-generation, sign-up, migration, Legal,
+  Assessment and Outbox tests. A separate streaming-process run
+  stalled with no completed result; the bounded direct rerun
+  completed successfully. Do not count the stalled run as a pass.
+- **Full API unit/integration:** **1,037 active tests passed,
+  34 opt-in skipped** (153 suites pass). A subsequent
+  `--detectOpenHandles` run completed **without** `--forceExit`,
+  with no open handles reported; the earlier force-exit warning
+  is not currently reproducible as a resource leak.
+- **Web:** **324/324 tests passed**.
+- **Checks:** TypeScript build, changed Billing source/test ESLint,
+  Prettier, import/contract policy, documentation policy and
+  `git diff --check` passed.
+
+A separate `pg` deprecation warning remains: tracing it in the
+Assessment Create E2E shows it originates at
+`pg@8.22.0 Client.query` via
+`@prisma/adapter-pg@7.8.0 PgTransaction.performIO`.
+It does not represent a test assertion failure; changing the
+vendor adapter/driver inside an Auth/Billing safety patch is
+not justified without its own upgrade/regression testing.
+Monitor it before adopting `pg@9`, which removes support
+for concurrent queries on a busy client.
+
+**External acceptance still pending:** commit/push the fixes,
+run remote CI on the exact commit and request an updated PR
+security review. This section reports local execution only.
+
 ## Remaining technical considerations
 
 1. Auth Application and session persistence no longer import the HTTP problem
