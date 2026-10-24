@@ -1,9 +1,12 @@
 import * as crypto from "node:crypto";
 import { AUTH_ERROR_CODES, USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import {
+  APPLICATION_ERROR_REASONS,
+  ApplicationError,
+} from "../../../../common/errors/application.error.ts";
 import type { SessionRepository } from "../../application/ports/persistence/session.repository.ts";
 import type { Session } from "../../domain/models/auth.models.ts";
 import {
@@ -58,10 +61,10 @@ export class PrismaSessionRepository implements SessionRepository {
             (session.mfaVerifiedAt !== null &&
               (!user.mfaEncryptedSecret || !user.mfaVerifiedAt))))
       ) {
-        throw problemException(
+        throw new ApplicationError(
           AUTH_ERROR_CODES.sessionInvalid,
           crypto.randomUUID(),
-          { status: HttpStatus.UNAUTHORIZED },
+          { reason: APPLICATION_ERROR_REASONS.authenticationRequired },
         );
       }
       const existing = await tx.authRecord.findUnique({
@@ -83,10 +86,10 @@ export class PrismaSessionRepository implements SessionRepository {
           },
         });
         if (updated.count === 0 && session.revokedAt === null)
-          throw problemException(
+          throw new ApplicationError(
             AUTH_ERROR_CODES.sessionInvalid,
             crypto.randomUUID(),
-            { status: HttpStatus.UNAUTHORIZED },
+            { reason: APPLICATION_ERROR_REASONS.authenticationRequired },
           );
       } else {
         await tx.authRecord.create({

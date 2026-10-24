@@ -6,6 +6,8 @@
 
 **Baseline for Auth Error Boundary:** commit `6c82e008a` (2026-10-24).
 
+**Baseline for E2E stabilization:** commit `e80ae0c72` (2026-10-24).
+
 **Status:** implementation in the LCSP-999 refactor branch; not an approval to merge or deploy.
 
 ## Architecture
@@ -174,51 +176,103 @@ to `Pacific/Auckland`, independent of the test runner's default timezone.
 
 This is a separate Outbox fix, not a change to the Auth API or error contract.
 
-## Regression evidence — 2026-10-24
+## E2E finalization and regression evidence — 2026-10-24
 
-The following runs used disposable local databases, not production:
+The investigation used disposable local PostgreSQL databases, not production:
 
-| Verification                                               | Recorded result                                    |
-| ---------------------------------------------------------- | -------------------------------------------------- |
-| Auth + Sign Up + OAuth E2E                                 | 72/72 pass                                         |
-| Account Lifecycle and role retirement E2E                  | 18/18 pass                                         |
-| Outbox E2E with UTC regression                             | 5/5 pass                                           |
-| Focused Auth/filter unit suite                             | 34/34 pass                                         |
-| Complete API Jest unit/integration suite                   | 1,028 pass, 34 skipped; 151 suites pass, 8 skipped |
-| Web tests                                                  | 324/324 pass                                       |
-| TypeScript, ESLint, formatting, import and contract checks | Pass                                               |
+| Validation                                                           | Latest result                                              |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| API E2E combined in one Jest process (22 normal suites)              | **187/187 passed**, 3 skipped in the separate opt-in suite |
+| Canonical Assessment Read Isolation on its required dedicated target | **3/3 passed**                                             |
+| Auth + Sign Up after transport-neutral session persistence error     | **54/54 passed**                                           |
+| Account Lifecycle + Admin Role Retirement                            | **18/18 passed**                                           |
+| Complete API Jest unit/integration suite (after new session tests)   | **1,030 passed**, 34 skipped; 152 suites passed, 8 skipped |
+| Web tests                                                            | **324/324 passed**                                         |
+| Outbox retry UTC regression                                          | **5/5 passed**                                             |
+| TypeScript, ESLint, Prettier, import/contract checks                 | Passed                                                     |
 
-**Repository-wide API E2E, run together in one Jest process:** 20 suites pass,
-2 suites fail, 1 opt-in suite skipped; 185 tests pass, 2 fail, 3 skipped
-(out of 190). The two failing cases are:
+### Canonical Assessment read-isolation test modernization
 
-- `admin-release-gate.e2e-spec.ts`: revoke Admin session returned 403 rather
-  than 201 when run as part of the suite. The entire suite **passed 9/9 when
-  rerun independently**, which points to a test-order/environment issue but
-  does not yet identify the exact shared state.
-- `assessment-list.e2e-spec.ts`: expected 8 assessments, observed 7 in the
-  combined run. The entire suite **passed 8/8 independently**; cross-suite
-  state isolation remains unproven.
+`assessment-canonical-read-isolation.e2e-spec.ts` previously expected
+`workspace.agent-stream` HTTP SSE messages and the retired
+`/workspace/runtime-events/agent-stream-history` HTTP endpoint. The deployed
+controller only implements canonical `workspace.runtime` SSE. The modernized
+test now verifies:
 
-**Separate opt-in canonical read-isolation test:** ran on its required fresh
-`127.0.0.1:55441/lcsp_canonical_read_isolation` database (not included in
-the main E2E aggregate). One test passed; two failed because the requested
-SSE stream supplied no frame and unauthorized history returned 404 where
-the test expected 200. This is an Assessment read-model/API contract
-investigation, not evidence of an Auth application-error regression.
+- The canonical SSE payload only includes data belonging to the authenticated
+  owner, even if old query parameters are sent.
+- `AssessmentRuntimeEventService.getAgentStreamHistoryPage()` only returns
+  persisted agent events for the supplied owner and assessment ID. Cross-owner
+  requests return an empty page.
+- The retired history URL continues to return 404; it must not be silently
+  reintroduced to make the old test pass.
+- Unauthorized reads leave authoritative ALS/AES and runtime-event rows
+  unchanged.
 
-The API unit suite required Jest `--forceExit` due to pre-existing open
-handles. Test assertions all passed, but resource cleanup still warrants
-a separate harness check. The entire E2E suite is **not a clean release gate**;
-rerun in CI after addressing isolation and Assessment contract issues. No
-production load or deployment validation is claimed.
+The same dedicated PostgreSQL database was reached on
+`127.0.0.1:55441/lcsp_canonical_read_isolation` and the 3 tests passed.
+
+### Combined-suite stability
+
+Earlier combined E2E runs showed intermittent failures in
+`admin-release-gate` (revoking an admin session) and `assessment-list`
+(the test expected 8 created assessments but got 7). Both suites passed when
+run independently. A subsequent combined run on the disposable database
+passed **22/22 suites, 187/187 active tests**. That combined run preceded
+the small follow-up change to `PrismaSessionRepository`, which was then
+verified independently by Auth + Sign Up (54/54), Account Lifecycle + Role
+Retirement (18/18), Admin Release Gate + Assessment List (17/17), and the
+complete API unit suite. The whole combined E2E suite has **not been rerun
+since** that final session repository change.
+
+Test diagnostics were hardened, without changing API behavior:
+
+- Assessment fixture creation now requires **201 Created** for every seeded
+  assessment; failures include the upstream response body rather than
+  silently producing a smaller total.
+- Admin revocation failure assertions preserve the safe problem response for
+  diagnosis. Test-only session tokens now use UUIDs rather than millisecond
+  timestamps to prevent avoidable token collisions between runs.
+
+The exact historical intermittent failure was **not reproduced in the final
+combined run**; the team should still monitor this in CI. No unverified
+backend behavior change was made for these two symptoms.
+
+### Transport-neutral session persistence failure
+
+`PrismaSessionRepository.save()` no longer imports NestJS HTTP status or
+`problemException`. Invalid owner and stale/revoked session conditional
+writes now throw the shared transport-neutral `ApplicationError` with
+`SESSION_INVALID` / `authenticationRequired` semantics. The existing HTTP
+exception filter maps it to the same **401** problem contract. Two new unit
+tests verify rejection without stale writes, while Auth and Account Lifecycle
+E2E pass.
+
+### Test runner maintenance and deliberately skipped tests
+
+- Both API Jest configurations now exclude `<rootDir>/.cache/` and
+  `<rootDir>/dist/` from module indexing. This removes the false Haste
+  collision from multiple cached Corepack/pnpm package manifests.
+- The API unit run included **34 deliberately skipped tests** across **8
+  suites**. The codebase uses opt-in environment guards for external provider
+  tests and some isolated database integration tests. These are not counted
+  as passes; each has to be enabled in a suitable CI/integration environment.
+- The full API unit runner was executed with `--forceExit` following
+  previously observed Jest non-termination. A diagnostic run using
+  `--detectOpenHandles --forceExit` did not enumerate a specific open handle.
+  The underlying resource-shutdown issue is not proven resolved.
+- Main E2E intentionally skips the dedicated canonical isolation suite due to
+  its exact fresh-target guard; it was executed separately and passed.
+
+**Deployment/load verification and remote CI on the final pushed branch have
+not been performed in this local refactor.** Treat these as separate release
+requirements.
 
 ## Remaining technical considerations
 
-1. Auth Application handlers no longer import the HTTP problem factory.
-   `PrismaSessionRepository` still uses the transport factory for persistence
-   failures; if strict isolation of Infrastructure is required, migrate those
-   errors through a separate repository error adapter and verify its API mapping.
+1. Auth Application and session persistence no longer import the HTTP problem
+   factory. Validate the same error contract in the deployment CI pipeline
+   before merging the branch.
 2. Failed MFA attempts intentionally update rate limits and emit rejection
    audit events outside a successful proof transaction. Their failure-path
    policy should be reviewed separately for availability under audit outages,
