@@ -73,7 +73,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
     });
     adminUser = { id: adminDbUser.id, email: adminDbUser.email };
 
-    adminSessionToken = `adm-sess-${Date.now()}`;
+    adminSessionToken = `adm-sess-${crypto.randomUUID()}`;
     await createAuthSessionRecord(prisma, {
       id: crypto.randomUUID(),
       userId: adminUser.id,
@@ -97,7 +97,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
     });
     customerUser = { id: customerDbUser.id, email: customerDbUser.email };
 
-    customerSessionToken = `cust-sess-${Date.now()}`;
+    customerSessionToken = `cust-sess-${crypto.randomUUID()}`;
     await createAuthSessionRecord(prisma, {
       id: crypto.randomUUID(),
       userId: customerUser.id,
@@ -207,7 +207,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
         .post("/auth/revoke-session")
         .send({ session_token: customerSessionToken })
         .set("Accept", "application/json");
-      assert.equal(revokeRes.status, 201);
+      assert.equal(revokeRes.status, 201, JSON.stringify(revokeRes.body));
 
       // 3. Verify revoked session token cannot access any protected endpoints
       const postRevokeRes = await httpRequest(app)

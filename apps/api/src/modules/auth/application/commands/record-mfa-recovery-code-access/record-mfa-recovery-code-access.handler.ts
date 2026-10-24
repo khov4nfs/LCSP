@@ -8,11 +8,13 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import type { RecordMfaRecoveryCodeAccessSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_SESSION_REPOSITORY,
+  AUTH_USER_REPOSITORY,
   type SessionRepository,
+  type UserRepository,
 } from "../../ports/persistence/index.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { RecordMfaRecoveryCodeAccessCommand } from "./record-mfa-recovery-code-access.command.ts";
@@ -43,13 +45,28 @@ export class RecordMfaRecoveryCodeAccessHandler implements ICommandHandler<Recor
     private readonly support: AuthSupportService,
     @Inject(AUTH_SESSION_REPOSITORY)
     private readonly sessions: SessionRepository,
+    @Inject(AUTH_USER_REPOSITORY)
+    private readonly users: UserRepository,
   ) {}
 
   /**
-   * Executes access telemetry recording for recovery codes.
+   * Business purpose: Audit customer access to currently valid MFA recovery credentials.
    *
-   * @param command - Contains userId, access action, sessionId, and request metadata.
-   * @returns Success response with correlation ID.
+   * Business rules:
+   * - Viewing, downloading, printing or copying codes requires current-generation MFA verification.
+   * - A rotated or disabled factor invalidates previously issued session proofs.
+   *
+   * Execution flow:
+   * 1. Validate the account's session, confirmed MFA enrollment and current proof generation.
+   * 2. Resolve the approved recovery-code access action to an audit event.
+   * 3. Persist the security audit observation without exposing recovery code values.
+   *
+   * Failure cases:
+   * - Inactive sessions and stale MFA proofs are rejected without recording successful access.
+   * - Invalid action values use the shared validation failure response.
+   *
+   * Side effects:
+   * - Writes one sanitized MFA recovery-code access audit event.
    */
   async execute(
     command: RecordMfaRecoveryCodeAccessCommand,
@@ -60,7 +77,7 @@ export class RecordMfaRecoveryCodeAccessHandler implements ICommandHandler<Recor
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
@@ -69,16 +86,21 @@ export class RecordMfaRecoveryCodeAccessHandler implements ICommandHandler<Recor
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
-    if (!session.isMfaVerified()) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+    const user = await this.users.findById(userId);
+    if (
+      !user ||
+      user.mfaVerifiedAt === null ||
+      !session.isMfaVerified(user.mfaGenerationId)
+    ) {
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const eventType = RECOVERY_CODE_ACCESS_EVENTS[action];
     if (!eventType) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     await this.support.recordAudit({

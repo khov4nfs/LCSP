@@ -4,7 +4,7 @@ import { AUTH_LEGACY_AUDIT_EVENT_TYPES } from "@lcsp/contracts/auth";
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { fingerprintToken } from "../../../infrastructure/security/security.utils.ts";
+import { fingerprintToken } from "../../../../../platform/security/crypto.utils.js";
 import type { RevokeSessionSuccess } from "../../contracts/auth/revoke-session.contract.ts";
 import {
   AUTH_SESSION_REPOSITORY,

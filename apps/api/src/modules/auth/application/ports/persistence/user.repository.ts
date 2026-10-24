@@ -9,11 +9,34 @@ export class DuplicateEmailError extends Error {
   }
 }
 
+export type UserProfileUpdate = Partial<
+  Pick<
+    User,
+    | "displayName"
+    | "recoveryEmail"
+    | "primaryEmailAddressPolicy"
+    | "backupEmailPolicy"
+  >
+>;
+
 export interface UserRepository {
   nextId(): string;
-  save(user: User): Promise<void>;
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
   findByRecoveryEmail(email: string): Promise<User | null>;
   findByPrimaryEmail(email: string): Promise<User | null>;
+  recordFailedLoginAttempt(
+    id: string,
+    expectedPasswordHash: string,
+    now: number,
+    limit: number,
+    lockWindowMs: number,
+  ): Promise<User | null>;
+  clearFailedLoginsIfCredentialsCurrent(
+    id: string,
+    expectedPasswordHash: string,
+    now: number,
+  ): Promise<User | null>;
+  updateProfile(id: string, changes: UserProfileUpdate): Promise<void>;
+  setMfaRequired(id: string, required: boolean): Promise<boolean>;
 }

@@ -10,7 +10,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import type { UpdateProfileSuccess } from "../../contracts/auth/profile.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -18,6 +18,7 @@ import {
   AUTH_USER_REPOSITORY,
   type MfaEnrollmentRepository,
   type SessionRepository,
+  type UserProfileUpdate,
   type UserRepository,
 } from "../../ports/persistence/index.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
@@ -46,10 +47,24 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
   ) {}
 
   /**
-   * Executes profile update.
+   * Business purpose: Update the authenticated account's visible profile and recovery-email policy.
    *
-   * @param command - Contains profile payload, userId, sessionId, and request metadata.
-   * @returns List of updated fields and correlation ID.
+   * Business rules:
+   * - MFA-required accounts may change profile data only with a current-generation session proof.
+   * - Recovery email must not conflict with another account's primary or recovery address.
+   * - Recovery-dependent primary email policies require a configured recovery address.
+   *
+   * Execution flow:
+   * 1. Validate the payload, account status, session ownership and MFA generation.
+   * 2. Verify requested email values and policy consistency against existing accounts.
+   * 3. Persist allowed profile fields and emit a sanitized audit event.
+   *
+   * Failure cases:
+   * - Invalid accounts, stale MFA proofs and conflicting email policies return stable Auth errors.
+   * - Failed persistence or audit cannot be misreported as success.
+   *
+   * Side effects:
+   * - Updates the account profile and records an audit event listing changed field names.
    */
   async execute(command: UpdateProfileCommand): Promise<UpdateProfileSuccess> {
     const { payload, userId, sessionId, requestMeta } = command;
@@ -58,19 +73,19 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.authRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.authRequired, correlationId);
     }
 
     if (!payload || !this.hasUpdateField(payload)) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     const user = await users.findById(userId);
     if (!user) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
@@ -79,7 +94,7 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
       !session.isActive(this.support.now()) ||
       session.userId !== user.id
     ) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const mfaEnrollment = await this.support.findMfaEnrollment(
@@ -88,9 +103,9 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
     );
     if (
       this.support.isMfaRequired(user, mfaEnrollment) &&
-      !session.isMfaVerified()
+      !session.isMfaVerified(user.mfaGenerationId)
     ) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const nextRecoveryEmail =
@@ -107,51 +122,46 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
         AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES.recoveryEmail &&
       !nextRecoveryEmail
     ) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     if (nextRecoveryEmail) {
       const userByEmail = await users.findByEmail(nextRecoveryEmail);
       if (userByEmail && userByEmail.id !== user.id) {
-        throw problemException(
-          AUTH_ERROR_CODES.validationFailed,
-          correlationId,
-        );
+        throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
       }
 
       const userByRecoveryEmail =
         await users.findByRecoveryEmail(nextRecoveryEmail);
       if (userByRecoveryEmail && userByRecoveryEmail.id !== user.id) {
-        throw problemException(
-          AUTH_ERROR_CODES.validationFailed,
-          correlationId,
-        );
+        throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
       }
     }
 
     const updatedFields: string[] = [];
+    const changes: UserProfileUpdate = {};
 
     if (typeof payload.display_name === "string") {
-      user.displayName = payload.display_name.trim() || null;
+      changes.displayName = payload.display_name.trim() || null;
       updatedFields.push("display_name");
     }
 
     if (typeof payload.recovery_email === "string") {
-      user.recoveryEmail = nextRecoveryEmail;
+      changes.recoveryEmail = nextRecoveryEmail;
       updatedFields.push("recovery_email");
     }
 
     if (typeof payload.primary_email_address_policy === "string") {
-      user.primaryEmailAddressPolicy = payload.primary_email_address_policy;
+      changes.primaryEmailAddressPolicy = payload.primary_email_address_policy;
       updatedFields.push("primary_email_address_policy");
     }
 
     if (typeof payload.backup_recovery_email_policy === "string") {
-      user.backupEmailPolicy = payload.backup_recovery_email_policy;
+      changes.backupEmailPolicy = payload.backup_recovery_email_policy;
       updatedFields.push("backup_recovery_email_policy");
     }
 
-    await users.save(user);
+    await users.updateProfile(user.id, changes);
 
     await this.support.recordAudit({
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.profileUpdated,

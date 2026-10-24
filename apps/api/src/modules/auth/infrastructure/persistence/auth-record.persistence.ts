@@ -51,3 +51,41 @@ export function authRecordMetadataDate(
 export function authRecordDateMetadata(value: number | null): string | null {
   return value === null ? null : new Date(value).toISOString();
 }
+/**
+ * Business purpose: Invalidate every account session's MFA and sensitive-action
+ * proof together when the user's MFA generation changes.
+ *
+ * Business rules:
+ * - Only the caller's locked User transaction may advance a proof generation.
+ * - Preserve tokens/accessVersion and unrelated session metadata while clearing proofs.
+ *
+ * Execution flow:
+ * 1. Select all session records belonging to the user inside the caller's transaction.
+ * 2. Atomically null both proof timestamps and assign the new generation.
+ *
+ * Failure cases:
+ * - Any SQL or transaction failure aborts the enclosing MFA change.
+ *
+ * Side effects:
+ * - Updates persisted session metadata; does not revoke sessions or publish events.
+ */
+export async function invalidateSessionProofsInTx(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  nextGenerationId: string,
+): Promise<void> {
+  // A single SQL UPDATE prevents partial cross-session invalidation. Both
+  // the MFA lifecycle and session-save adapter take the User row lock first.
+  await tx.$executeRaw`
+    UPDATE "AuthRecord"
+    SET "metadata" = COALESCE("metadata", '{}'::jsonb)
+      || jsonb_build_object(
+        'mfaVerifiedAt', NULL,
+        'sensitiveActionVerifiedAt', NULL,
+        'mfaGenerationId', ${nextGenerationId}::text
+      ),
+      "updatedAt" = (NOW() AT TIME ZONE 'UTC')
+    WHERE "userId" = ${userId}
+      AND "type" = 'SESSION'::"AuthRecordType"
+  `;
+}
