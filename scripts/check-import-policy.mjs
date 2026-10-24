@@ -19,6 +19,10 @@ const SCAN_ROOTS = [
   resolve(REPO_ROOT, "tests"),
 ];
 const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]s|[jt]sx)$/;
+const AUTH_APPLICATION_ROOT = resolve(REPO_ROOT, "apps/api/src/modules/auth/application");
+const AUTH_INFRASTRUCTURE_ROOT = resolve(REPO_ROOT, "apps/api/src/modules/auth/infrastructure");
+const PRISMA_INFRASTRUCTURE_ROOT = resolve(REPO_ROOT, "apps/api/src/infrastructure/prisma");
+
 const SOURCE_PATH_PATTERN =
   /(?:^|[/\\])(?:apps|packages)[/\\][^"'`]+[/\\]src[/\\]/;
 const PACKAGE_SOURCE_PATH_PATTERN = /^@lcsp\/[^"'`]+\/src\//;
@@ -304,6 +308,31 @@ for (const filePath of scanFiles()) {
 
   for (const match of extractSpecifierMatches(sourceText, filePath)) {
     const { specifier } = match;
+
+    // Auth application ports and handlers must not depend on concrete
+    // persistence/security/OAuth adapters or generated Prisma database types.
+    // Test fixtures may deliberately import adapters to verify behavior.
+    if (
+      isPathInside(AUTH_APPLICATION_ROOT, filePath) &&
+      !filePath.endsWith(".spec.ts")
+    ) {
+      const importTarget =
+        specifier.startsWith("./") || specifier.startsWith("../")
+          ? resolve(dirname(filePath), specifier)
+          : null;
+      if (
+        specifier === "@prisma/client" ||
+        (importTarget &&
+          (isPathInside(AUTH_INFRASTRUCTURE_ROOT, importTarget) ||
+            isPathInside(PRISMA_INFRASTRUCTURE_ROOT, importTarget)))
+      ) {
+        violations.push({
+          filePath,
+          message: `Auth Application Layer may not import infrastructure adapter "${specifier}"; use application ports instead`,
+        });
+      }
+    }
+
     const safeFix = safeFixForSpecifier(
       filePath,
       specifier,

@@ -14,6 +14,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuthAuditService } from "../../../../auth/application/services/auth/auth-audit.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { AUTH_RECORD_TYPES } from "../../../../auth/infrastructure/persistence/auth-record.persistence.js";
 import {
   accountTransaction,
@@ -45,6 +46,7 @@ export class SuspendUserHandler implements ICommandHandler<SuspendUserCommand> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuthAuditService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async execute(command: SuspendUserCommand): Promise<AdminUserDetail> {
@@ -227,7 +229,7 @@ export class SuspendUserHandler implements ICommandHandler<SuspendUserCommand> {
               timestamp: new Date().toISOString(),
             },
           },
-          transactionClient,
+          this.auditWriter.forTransaction(transactionClient),
         );
 
         // Step 11: Save command receipt for future idempotent replays

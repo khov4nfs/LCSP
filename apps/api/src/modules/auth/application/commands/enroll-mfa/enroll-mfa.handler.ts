@@ -13,12 +13,12 @@ import { MfaEnrollment } from "../../../domain/entities/mfa-enrollment.entity.ts
 import {
   generateMfaRecoveryCodes,
   hashMfaRecoveryCode,
-} from "../../../infrastructure/security/mfa-recovery-code.utils.ts";
+} from "../../security/mfa-recovery-code.utils.ts";
+import { generateTotpSecret } from "../../../../../platform/security/totp.utils.js";
 import {
-  decryptMfaSecret,
-  encryptMfaSecret,
-  generateTotpSecret,
-} from "../../../infrastructure/security/security.utils.ts";
+  AUTH_MFA_SECRET_CIPHER,
+  type MfaSecretCipher,
+} from "../../ports/security/mfa-secret-cipher.port.ts";
 import type { EnrollMfaSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -64,6 +64,8 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     private readonly mfaRecoveryCodes: MfaRecoveryCodeRepository,
     @Inject(AUTH_USER_REPOSITORY)
     private readonly users: UserRepository,
+    @Inject(AUTH_MFA_SECRET_CIPHER)
+    private readonly cipher: MfaSecretCipher,
   ) {}
 
   /**
@@ -110,7 +112,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     if (existingEnrollment && !session.isMfaVerified()) {
       let hasRecoverableSecretFailure = false;
       try {
-        decryptMfaSecret(existingEnrollment.encryptedSecret);
+        this.cipher.decrypt(existingEnrollment.encryptedSecret);
       } catch {
         // A stale ciphertext encrypted under an old key cannot be verified.
         // Allow issuing a replacement enrollment so the user can recover MFA.
@@ -126,7 +128,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
 
     const now = this.support.now();
     const plainSecret = generateTotpSecret();
-    const encryptedSecret = encryptMfaSecret(plainSecret);
+    const encryptedSecret = this.cipher.encrypt(plainSecret);
     const enrollment = new MfaEnrollment({
       userId: userId,
       encryptedSecret,

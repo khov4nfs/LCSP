@@ -1,6 +1,7 @@
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { AUTH_AUDIT_EVENT_TYPES } from "@lcsp/contracts/auth";
 import { Injectable } from "@nestjs/common";
+import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 
 import { toPrismaAuthUserRole } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -20,6 +21,7 @@ export class PrismaSignUpPersistence implements SignUpPersistence {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuthAuditService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async emailExists(email: string): Promise<boolean> {
@@ -90,7 +92,7 @@ export class PrismaSignUpPersistence implements SignUpPersistence {
             role: user.role,
           },
         },
-        tx,
+        this.auditWriter.forTransaction(tx),
       );
     });
   }

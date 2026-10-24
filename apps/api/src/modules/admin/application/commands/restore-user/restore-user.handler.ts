@@ -13,6 +13,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuthAuditService } from "../../../../auth/application/services/auth/auth-audit.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import {
   accountTransaction,
   assertCurrentAdmin,
@@ -42,6 +43,7 @@ export class RestoreUserHandler implements ICommandHandler<RestoreUserCommand> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuthAuditService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async execute(command: RestoreUserCommand): Promise<AdminUserDetail> {
@@ -171,7 +173,7 @@ export class RestoreUserHandler implements ICommandHandler<RestoreUserCommand> {
               timestamp: new Date().toISOString(),
             },
           },
-          transactionClient,
+          this.auditWriter.forTransaction(transactionClient),
         );
 
         // Step 8: Save command receipt for future idempotent replays

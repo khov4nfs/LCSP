@@ -10,7 +10,7 @@ import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { verifySecret } from "../../../infrastructure/security/security.utils.ts";
+import { verifySecret } from "../../../../../platform/security/crypto.utils.js";
 import type { PasswordReauthSuccess } from "../../contracts/auth/password-reauth.contract.ts";
 import {
   AUTH_SESSION_REPOSITORY,

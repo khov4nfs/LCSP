@@ -9,8 +9,11 @@ import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
-import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
+import type { OAuthCallbackClaims } from "../../ports/oauth/oauth-provider.port.ts";
+import {
+  AUTH_OAUTH_PROVIDER_RESOLVER,
+  type OAuthProviderResolver,
+} from "../../ports/oauth/oauth-provider.port.ts";
 import type { OAuthCallbackSuccess } from "../../contracts/auth/oauth.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -52,7 +55,8 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
     private readonly sessions: SessionRepository,
     @Inject(AUTH_MFA_ENROLLMENT_REPOSITORY)
     private readonly mfaEnrollments: MfaEnrollmentRepository,
-    private readonly providerRegistry: OAuthProviderRegistry,
+    @Inject(AUTH_OAUTH_PROVIDER_RESOLVER)
+    private readonly providerRegistry: OAuthProviderResolver,
   ) {}
 
   /**

@@ -11,7 +11,7 @@ import { problemException } from "../../../../../platform/http/filters/error.fac
 import {
   generateMfaRecoveryCodes,
   hashMfaRecoveryCode,
-} from "../../../infrastructure/security/mfa-recovery-code.utils.ts";
+} from "../../security/mfa-recovery-code.utils.ts";
 import type { GenerateMfaRecoveryCodesSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,

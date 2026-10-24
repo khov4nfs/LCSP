@@ -12,7 +12,7 @@ import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts"
 import {
   hashMfaRecoveryCode,
   normalizeMfaRecoveryCode,
-} from "../../../infrastructure/security/mfa-recovery-code.utils.ts";
+} from "../../security/mfa-recovery-code.utils.ts";
 import type { VerifyMfaRecoveryCodeSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,

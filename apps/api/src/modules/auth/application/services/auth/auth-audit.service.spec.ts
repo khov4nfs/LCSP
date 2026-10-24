@@ -4,28 +4,20 @@ import {
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/auth";
-import type { Prisma } from "@prisma/client";
 
-import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import type { AuthAuditEventWriter } from "../../ports/audit/audit-event-writer.port.ts";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import { AuthAuditService } from "./auth-audit.service.ts";
 
 function makeService(
-  overrides: {
-    write?: AuditWriterService["write"];
-    writeInTx?: AuditWriterService["writeInTx"];
-  } = {},
+  overrides: { write?: AuthAuditEventWriter["write"] } = {},
 ) {
   const write = jest
-    .fn<AuditWriterService["write"]>()
+    .fn<AuthAuditEventWriter["write"]>()
     .mockImplementation(overrides.write ?? (() => Promise.resolve()));
-  const writeInTx = jest
-    .fn<AuditWriterService["writeInTx"]>()
-    .mockImplementation(overrides.writeInTx ?? (() => Promise.resolve()));
-  const auditWriter = { write, writeInTx } as unknown as AuditWriterService;
-  const service = new AuthAuditService(auditWriter);
+  const service = new AuthAuditService({ write });
 
-  return { service, write, writeInTx };
+  return { service, write };
 }
 
 describe("AuthAuditService", () => {
@@ -109,9 +101,11 @@ describe("AuthAuditService", () => {
     );
   });
 
-  it("delegates transactional writes through the platform writer", async () => {
-    const { service, write, writeInTx } = makeService();
-    const tx = {} as Prisma.TransactionClient;
+  it("normalizes transactional events without receiving a Prisma client", async () => {
+    const { service, write } = makeService();
+    const transactionalWrite = jest
+      .fn<AuthAuditEventWriter["write"]>()
+      .mockResolvedValue();
 
     await service.writeInTx(
       {
@@ -119,11 +113,37 @@ describe("AuthAuditService", () => {
         actorId: "manager-1",
         correlationId: "corr-1",
         decision: AUDIT_DECISIONS.allow,
+        payload: { sessionToken: "must-be-sanitized", retained: "yes" },
       },
-      tx,
+      { write: transactionalWrite },
     );
 
-    expect(writeInTx).toHaveBeenCalledWith(expect.any(Object), tx);
+    expect(transactionalWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: AUTH_AUDIT_EVENT_TYPES.authSessionRevoked,
+        actorId: "manager-1",
+        payload: { retained: "yes" },
+      }),
+    );
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("propagates transactional sink failure without falling back to regular writes", async () => {
+    const { service, write } = makeService();
+    const failedSink = {
+      write: () => Promise.reject(new Error("transaction-aborted")),
+    };
+    await expect(
+      service.writeInTx(
+        {
+          eventType: AUTH_AUDIT_EVENT_TYPES.authSignUpSuccess,
+          actorId: "user-1",
+          correlationId: "corr-2",
+          decision: AUDIT_DECISIONS.allow,
+        },
+        failedSink,
+      ),
+    ).rejects.toThrow("transaction-aborted");
     expect(write).not.toHaveBeenCalled();
   });
 

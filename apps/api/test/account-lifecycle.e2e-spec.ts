@@ -46,6 +46,7 @@ import {
   AUTH_SESSION_REPOSITORY,
   AUTH_USER_REPOSITORY,
 } from "../src/modules/auth/application/ports/persistence/index.js";
+import { AUTH_AUDIT_EVENT_WRITER } from "../src/modules/auth/application/ports/audit/audit-event-writer.port.js";
 import { AuthAuditService } from "../src/modules/auth/application/services/auth/auth-audit.service.js";
 import { Session } from "../src/modules/auth/domain/entities/session.entity.js";
 import {
@@ -142,6 +143,7 @@ integration(
           ...ADMIN_QUERY_HANDLERS,
           AuthAuditService,
           AuditWriterService,
+          { provide: AUTH_AUDIT_EVENT_WRITER, useExisting: AuditWriterService },
           HttpExceptionFilter,
           RbacGuard,
           RbacContextLoader,

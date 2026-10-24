@@ -8,6 +8,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import type {
   AuthSecurityPersistence,
   DisableMfaCommit,
@@ -25,6 +26,7 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuthAuditService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async completePasswordRecovery(
@@ -83,7 +85,7 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
           decision: AUDIT_DECISIONS.allow,
           correlationId: input.correlationId,
         },
-        tx,
+        this.auditWriter.forTransaction(tx),
       );
       return true;
     });
@@ -154,7 +156,7 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
           correlationId: input.correlationId,
           session_id: input.sessionId,
         },
-        tx,
+        this.auditWriter.forTransaction(tx),
       );
       return { ok: true };
     });

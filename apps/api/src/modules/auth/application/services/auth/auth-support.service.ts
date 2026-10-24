@@ -19,7 +19,7 @@ import {
   fingerprintToken,
   hashSecret,
   issueOpaqueToken,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { SafeUserProjection } from "../../contracts/auth/common.contract.ts";
 import type {
   MfaEnrollmentRepository,

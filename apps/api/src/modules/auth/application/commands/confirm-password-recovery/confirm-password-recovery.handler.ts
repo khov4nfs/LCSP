@@ -11,7 +11,7 @@ import { problemException } from "../../../../../platform/http/filters/error.fac
 import {
   fingerprintToken,
   hashSecret,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { ConfirmRecoverySuccess } from "../../contracts/auth/recovery.contract.ts";
 import {
   AUTH_RECOVERY_REQUEST_REPOSITORY,

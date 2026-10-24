@@ -12,7 +12,7 @@ import { problemException } from "../../../../../platform/http/filters/error.fac
 import {
   hashSecret,
   verifySecret,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { SignInSuccess } from "../../contracts/auth/sign-in.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,

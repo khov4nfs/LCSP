@@ -15,7 +15,7 @@ import {
   fingerprintToken,
   hashSecret,
   issueOpaqueToken,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { SignUpResponse } from "../../contracts/auth/sign-up.contract.ts";
 import {
   AUTH_SIGN_UP_PERSISTENCE,

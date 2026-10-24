@@ -9,10 +9,11 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
+import { verifyTotpOtp } from "../../../../../platform/security/totp.utils.js";
 import {
-  decryptMfaSecret,
-  verifyTotpOtp,
-} from "../../../infrastructure/security/security.utils.ts";
+  AUTH_MFA_SECRET_CIPHER,
+  type MfaSecretCipher,
+} from "../../ports/security/mfa-secret-cipher.port.ts";
 import type { VerifyMfaOtpSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -61,6 +62,8 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     private readonly mfaRateLimits: MfaRateLimitRepository,
     @Inject(AUTH_MFA_OTP_USED_REPOSITORY)
     private readonly mfaOtpUsed: MfaOtpUsedRepository,
+    @Inject(AUTH_MFA_SECRET_CIPHER)
+    private readonly cipher: MfaSecretCipher,
   ) {}
 
   /**
@@ -116,7 +119,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
 
     let plaintextSecret: string;
     try {
-      plaintextSecret = decryptMfaSecret(enrollment.encryptedSecret);
+      plaintextSecret = this.cipher.decrypt(enrollment.encryptedSecret);
     } catch {
       await this.recordFailedAttempt(
         session.userId,

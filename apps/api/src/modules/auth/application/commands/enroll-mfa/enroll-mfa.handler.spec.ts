@@ -68,6 +68,7 @@ describe("EnrollMfaHandler", () => {
       mfaRateLimits as never,
       mfaRecoveryCodes as never,
       users as never,
+      { encrypt: () => "encrypted", decrypt: () => "secret" },
     );
 
     let thrown: unknown;
@@ -126,6 +127,7 @@ describe("EnrollMfaHandler", () => {
       mfaRateLimits as never,
       mfaRecoveryCodes as never,
       users as never,
+      { encrypt: () => "encrypted", decrypt: () => "secret" },
     );
 
     let thrown: unknown;

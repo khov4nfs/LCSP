@@ -2,6 +2,7 @@ import { USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.ts";
 import type { AuthAuditService } from "../../application/services/auth/auth-audit.service.ts";
+import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { AUTH_RECORD_TYPES } from "./auth-record.persistence.ts";
 import { PrismaAuthSecurityPersistence } from "./prisma-auth-security.persistence.ts";
 
@@ -73,9 +74,13 @@ function makeHarness(
       return Promise.resolve();
     },
   };
+  const auditWriter = {
+    forTransaction: () => ({ write: () => Promise.resolve() }),
+  };
   const adapter = new PrismaAuthSecurityPersistence(
     prisma as unknown as PrismaService,
     audit as unknown as AuthAuditService,
+    auditWriter as unknown as AuditWriterService,
   );
   return { adapter, calls, sessionMetadata: () => sessionMetadata };
 }
