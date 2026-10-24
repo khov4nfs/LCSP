@@ -5,9 +5,20 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { jest } from "@jest/globals";
-import { AUTH_ERROR_CODES, createProblemResult } from "@lcsp/contracts/auth";
+import {
+  AUTH_ERROR_CODES,
+  REQUIRED_ACTIONS,
+  SIGN_UP_ERROR_CODES,
+  createProblemResult,
+} from "@lcsp/contracts/auth";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 
+import {
+  ApplicationError,
+  APPLICATION_ERROR_REASONS,
+} from "../../../common/errors/application.error.js";
+import { authFailure } from "../../../modules/auth/application/errors/auth-application.error.js";
+import { problemResult } from "./error.factory.js";
 import { HttpExceptionFilter } from "./http-exception.filter.js";
 
 describe("HttpExceptionFilter", () => {
@@ -238,6 +249,129 @@ describe("HttpExceptionFilter", () => {
           ),
           status: HttpStatus.BAD_REQUEST,
         }),
+      }),
+    );
+  });
+  it("maps default Auth application failures through the shared problem catalog", () => {
+    const error = authFailure(
+      AUTH_ERROR_CODES.invalidCredentials,
+      "corr-credentials",
+    );
+    expect(error).toBeInstanceOf(ApplicationError);
+    expect(error).not.toBeInstanceOf(HttpException);
+
+    const filter = new HttpExceptionFilter();
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const response = { locals: {}, status };
+    filter.catch(
+      error,
+      createArgumentsHost(
+        { method: "POST", url: "/auth/sign-in", headers: {} },
+        response,
+      ),
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+    expect(json).toHaveBeenCalledWith(
+      problemResult(AUTH_ERROR_CODES.invalidCredentials, "corr-credentials"),
+    );
+    expect(response.locals).toEqual({
+      problemResponse: {
+        code: AUTH_ERROR_CODES.invalidCredentials,
+        correlationId: "corr-credentials",
+        requiredAction: REQUIRED_ACTIONS.signIn,
+      },
+    });
+  });
+
+  it("maps resource conflict and owner-scoped missing session without HttpStatus in handlers", () => {
+    const cases = [
+      {
+        code: SIGN_UP_ERROR_CODES.emailAlreadyExists,
+        reason: APPLICATION_ERROR_REASONS.resourceAlreadyExists,
+        statusCode: HttpStatus.CONFLICT,
+      },
+      {
+        code: AUTH_ERROR_CODES.sessionInvalid,
+        reason: APPLICATION_ERROR_REASONS.resourceNotFound,
+        statusCode: HttpStatus.NOT_FOUND,
+      },
+      {
+        code: AUTH_ERROR_CODES.accountSuspended,
+        reason: APPLICATION_ERROR_REASONS.accessDenied,
+        statusCode: HttpStatus.FORBIDDEN,
+      },
+      {
+        code: AUTH_ERROR_CODES.sessionInvalid,
+        reason: APPLICATION_ERROR_REASONS.authenticationRequired,
+        statusCode: HttpStatus.UNAUTHORIZED,
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const json = jest.fn();
+      const status = jest.fn(() => ({ json }));
+      const response = { locals: {}, status };
+      new HttpExceptionFilter().catch(
+        authFailure(testCase.code, "corr-override", {
+          reason: testCase.reason,
+        }),
+        createArgumentsHost(
+          { method: "GET", url: "/auth/sessions", headers: {} },
+          response,
+        ),
+      );
+      expect(status).toHaveBeenCalledWith(testCase.statusCode);
+      expect(json).toHaveBeenCalledWith(
+        problemResult(testCase.code, "corr-override", {
+          status: testCase.statusCode,
+        }),
+      );
+    }
+  });
+
+  it("preserves temporary-lock retry metadata and the 429 status", () => {
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const meta = {
+      lockedUntil: "2026-10-24T16:30:00.000Z",
+      retryAfterSeconds: 30,
+    };
+    new HttpExceptionFilter().catch(
+      authFailure(AUTH_ERROR_CODES.temporaryLock, "corr-lock", { meta }),
+      createArgumentsHost(
+        { method: "POST", url: "/auth/sign-in", headers: {} },
+        { locals: {}, status },
+      ),
+    );
+    expect(status).toHaveBeenCalledWith(429);
+    expect(json).toHaveBeenCalledWith(
+      problemResult(AUTH_ERROR_CODES.temporaryLock, "corr-lock", { meta }),
+    );
+  });
+
+  it("preserves explicit requiredAction and correlation fallback on application errors", () => {
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    new HttpExceptionFilter().catch(
+      authFailure(AUTH_ERROR_CODES.invalidCredentials, "", {
+        requiredAction: REQUIRED_ACTIONS.none,
+      }),
+      createArgumentsHost(
+        {
+          method: "POST",
+          url: "/auth/reauthenticate",
+          correlationId: "req-correlation",
+          headers: {},
+        },
+        { locals: {}, status },
+      ),
+    );
+    expect(status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+    expect(json).toHaveBeenCalledWith(
+      problemResult(AUTH_ERROR_CODES.invalidCredentials, "req-correlation", {
+        requiredAction: REQUIRED_ACTIONS.none,
       }),
     );
   });

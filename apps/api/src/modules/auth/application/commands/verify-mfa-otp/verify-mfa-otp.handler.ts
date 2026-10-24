@@ -7,7 +7,7 @@ import { Inject, Logger } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import { verifyTotpOtp } from "../../../../../platform/security/totp.utils.js";
 import {
   AUTH_MFA_SECRET_CIPHER,
@@ -88,12 +88,12 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       sessionToken,
     );
     if (!session) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const enrollment = await mfaEnrollments.findByUserId(session.userId);
     if (!enrollment) {
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const now = this.support.now();
@@ -107,7 +107,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
         correlationId: correlationId,
       });
-      throw problemException(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
     }
 
     const alreadyUsed = await mfaOtpUsed.isUsed(session.userId, otp);
@@ -118,7 +118,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "replayed",
       );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     let plaintextSecret: string;
@@ -131,7 +131,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "decrypt_error",
       );
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const valid = verifyTotpOtp(plaintextSecret, otp, now);
@@ -142,7 +142,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "invalid",
       );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const proofResult = await this.lifecycle.verifyProof({
@@ -162,7 +162,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
           "replayed",
         );
       }
-      throw problemException(proofResult.code, correlationId);
+      throw authFailure(proofResult.code, correlationId);
     }
 
     return { ok: true, correlationId: correlationId };

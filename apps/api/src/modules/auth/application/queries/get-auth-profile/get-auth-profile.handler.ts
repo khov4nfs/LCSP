@@ -1,8 +1,11 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { HttpStatus, Inject } from "@nestjs/common";
+import { Inject } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import {
+  AUTH_FAILURE_REASONS,
+  authFailure,
+} from "../../errors/auth-application.error.ts";
 import type { AuthProfileSuccess } from "../../contracts/auth/settings.contract.ts";
 import {
   AUTH_READ_REPOSITORY,
@@ -26,11 +29,9 @@ export class GetAuthProfileHandler implements IQueryHandler<GetAuthProfileQuery>
     );
 
     if (!profile) {
-      throw problemException(
-        AUTH_ERROR_CODES.sessionInvalid,
-        query.correlationId,
-        { status: HttpStatus.UNAUTHORIZED },
-      );
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, query.correlationId, {
+        reason: AUTH_FAILURE_REASONS.authenticationRequired,
+      });
     }
     return profile;
   }

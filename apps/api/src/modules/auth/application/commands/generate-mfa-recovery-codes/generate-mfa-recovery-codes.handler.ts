@@ -3,7 +3,7 @@ import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import {
   generateMfaRecoveryCodes,
   hashMfaRecoveryCode,
@@ -63,7 +63,7 @@ export class GenerateMfaRecoveryCodesHandler implements ICommandHandler<Generate
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
@@ -72,16 +72,16 @@ export class GenerateMfaRecoveryCodesHandler implements ICommandHandler<Generate
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     if (!session.isMfaVerified()) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const enrollment = await mfaEnrollments.findByUserId(userId);
     if (!enrollment) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const now = this.support.now();
@@ -100,7 +100,7 @@ export class GenerateMfaRecoveryCodesHandler implements ICommandHandler<Generate
       })),
     });
     if (!result.ok) {
-      throw problemException(result.code, correlationId);
+      throw authFailure(result.code, correlationId);
     }
 
     return {

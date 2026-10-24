@@ -8,7 +8,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import type { RecordMfaRecoveryCodeAccessSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_SESSION_REPOSITORY,
@@ -60,7 +60,7 @@ export class RecordMfaRecoveryCodeAccessHandler implements ICommandHandler<Recor
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
@@ -69,16 +69,16 @@ export class RecordMfaRecoveryCodeAccessHandler implements ICommandHandler<Recor
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     if (!session.isMfaVerified()) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const eventType = RECOVERY_CODE_ACCESS_EVENTS[action];
     if (!eventType) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     await this.support.recordAudit({

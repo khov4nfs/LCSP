@@ -8,7 +8,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import {
   hashSecret,
   verifySecret,
@@ -79,10 +79,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
       });
-      throw problemException(
-        AUTH_ERROR_CODES.invalidCredentials,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.invalidCredentials, correlationId);
     }
 
     if (user.isLocked(this.support.now())) {
@@ -93,7 +90,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.temporaryLock,
         correlationId: correlationId,
       });
-      throw problemException(
+      throw authFailure(
         AUTH_ERROR_CODES.temporaryLock,
         correlationId,
         temporaryLockProblemOverrides(user.lockUntil, this.support.now()),
@@ -118,7 +115,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
           : AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
       });
-      throw problemException(
+      throw authFailure(
         lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
           : AUTH_ERROR_CODES.invalidCredentials,
@@ -130,7 +127,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
     }
 
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     const currentUser = await users.clearFailedLoginsIfCredentialsCurrent(
@@ -146,10 +143,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
         correlationId,
       });
-      throw problemException(
-        AUTH_ERROR_CODES.invalidCredentials,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.invalidCredentials, correlationId);
     }
 
     if (!currentUser.emailVerified) {
@@ -160,7 +154,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.emailVerificationRequired,
         correlationId: correlationId,
       });
-      throw problemException(
+      throw authFailure(
         AUTH_ERROR_CODES.emailVerificationRequired,
         correlationId,
       );

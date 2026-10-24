@@ -1,9 +1,12 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { HttpStatus, Inject } from "@nestjs/common";
+import { Inject } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import {
+  AUTH_FAILURE_REASONS,
+  authFailure,
+} from "../../errors/auth-application.error.ts";
 import type { RevokeOwnedSessionSuccess } from "../../contracts/auth/settings.contract.ts";
 import {
   AUTH_SESSION_REPOSITORY,
@@ -17,7 +20,7 @@ import { RevokeOwnedSessionCommand } from "./revoke-owned-session.command.ts";
  *
  * Enforces:
  * 1. Verifies the target session ID exists and belongs to the authenticated user (`command.context.userId`).
- * 2. Throws 404 problemException if session is not found or owned by another user.
+ * 2. Throws 404 application failure if session is not found or owned by another user.
  * 3. Idempotently marks session as revoked.
  */
 @CommandHandler(RevokeOwnedSessionCommand)
@@ -45,8 +48,8 @@ export class RevokeOwnedSessionHandler implements ICommandHandler<RevokeOwnedSes
       this.support.now(),
     );
     if (!owned) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId, {
-        status: HttpStatus.NOT_FOUND,
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId, {
+        reason: AUTH_FAILURE_REASONS.resourceNotFound,
       });
     }
 

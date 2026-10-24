@@ -3,7 +3,7 @@ import { AUTH_ERROR_CODES, USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import { MfaEnrollment } from "../../../domain/entities/mfa-enrollment.entity.ts";
 import {
   generateMfaRecoveryCodes,
@@ -74,7 +74,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
@@ -83,15 +83,15 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const user = await users.findById(userId);
     if (!user) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     const existingEnrollment = await mfaEnrollments.findByUserId(userId);
@@ -108,7 +108,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       if (!hasRecoverableSecretFailure) {
         // A valid-but-unverified session must not be able to silently replace
         // an existing TOTP secret (would let a stolen pre-MFA session hijack MFA).
-        throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+        throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
       }
     }
 
@@ -140,7 +140,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       })),
     });
     if (!result.ok) {
-      throw problemException(result.code, correlationId);
+      throw authFailure(result.code, correlationId);
     }
 
     return {

@@ -10,7 +10,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import type { UpdateProfileSuccess } from "../../contracts/auth/profile.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -59,19 +59,19 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.authRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.authRequired, correlationId);
     }
 
     if (!payload || !this.hasUpdateField(payload)) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     const user = await users.findById(userId);
     if (!user) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
@@ -80,7 +80,7 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
       !session.isActive(this.support.now()) ||
       session.userId !== user.id
     ) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const mfaEnrollment = await this.support.findMfaEnrollment(
@@ -91,7 +91,7 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
       this.support.isMfaRequired(user, mfaEnrollment) &&
       !session.isMfaVerified()
     ) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const nextRecoveryEmail =
@@ -108,25 +108,19 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
         AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES.recoveryEmail &&
       !nextRecoveryEmail
     ) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     if (nextRecoveryEmail) {
       const userByEmail = await users.findByEmail(nextRecoveryEmail);
       if (userByEmail && userByEmail.id !== user.id) {
-        throw problemException(
-          AUTH_ERROR_CODES.validationFailed,
-          correlationId,
-        );
+        throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
       }
 
       const userByRecoveryEmail =
         await users.findByRecoveryEmail(nextRecoveryEmail);
       if (userByRecoveryEmail && userByRecoveryEmail.id !== user.id) {
-        throw problemException(
-          AUTH_ERROR_CODES.validationFailed,
-          correlationId,
-        );
+        throw authFailure(AUTH_ERROR_CODES.validationFailed, correlationId);
       }
     }
 

@@ -6,6 +6,7 @@ import {
   oauthCallbackSchema,
 } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
+import { AuthApplicationError } from "../../errors/auth-application.error.ts";
 import { HttpException } from "@nestjs/common";
 import { ZodValidationPipe } from "../../../../../common/pipes/zod-validation.pipe.ts";
 
@@ -266,10 +267,8 @@ describe("OAuthCallbackHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.accountSuspended },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.accountSuspended });
     expect(save).not.toHaveBeenCalled();
   });
 
@@ -318,9 +317,9 @@ describe("OAuthCallbackHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.oauthCallbackInvalid },
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({
+      code: AUTH_ERROR_CODES.oauthCallbackInvalid,
     });
 
     expect(repositories.auditRecords[0]).toMatchObject({
@@ -373,9 +372,9 @@ describe("OAuthCallbackHandler", () => {
       } catch (err) {
         thrown = err;
       }
-      expect(thrown).toBeInstanceOf(HttpException);
-      expect((thrown as HttpException).getResponse()).toMatchObject({
-        problem: { code: AUTH_ERROR_CODES.oauthStateInvalid },
+      expect(thrown).toBeInstanceOf(AuthApplicationError);
+      expect(thrown).toMatchObject({
+        code: AUTH_ERROR_CODES.oauthStateInvalid,
       });
     }
 
@@ -399,9 +398,9 @@ describe("OAuthCallbackHandler", () => {
     } catch (err) {
       replayThrown = err;
     }
-    expect(replayThrown).toBeInstanceOf(HttpException);
-    expect((replayThrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.oauthStateInvalid },
+    expect(replayThrown).toBeInstanceOf(AuthApplicationError);
+    expect(replayThrown).toMatchObject({
+      code: AUTH_ERROR_CODES.oauthStateInvalid,
     });
   });
 
@@ -420,11 +419,9 @@ describe("OAuthCallbackHandler", () => {
     } catch (err) {
       missingIdentityThrown = err;
     }
-    expect(missingIdentityThrown).toBeInstanceOf(HttpException);
-    expect(
-      (missingIdentityThrown as HttpException).getResponse(),
-    ).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.accountNotFound },
+    expect(missingIdentityThrown).toBeInstanceOf(AuthApplicationError);
+    expect(missingIdentityThrown).toMatchObject({
+      code: AUTH_ERROR_CODES.accountNotFound,
     });
 
     let unverifiedUserThrown: unknown;
@@ -441,12 +438,10 @@ describe("OAuthCallbackHandler", () => {
     } catch (err) {
       unverifiedUserThrown = err;
     }
-    expect(unverifiedUserThrown).toBeInstanceOf(HttpException);
-    expect((unverifiedUserThrown as HttpException).getResponse()).toMatchObject(
-      {
-        problem: { code: AUTH_ERROR_CODES.accountNotFound },
-      },
-    );
+    expect(unverifiedUserThrown).toBeInstanceOf(AuthApplicationError);
+    expect(unverifiedUserThrown).toMatchObject({
+      code: AUTH_ERROR_CODES.accountNotFound,
+    });
   });
 });
 
@@ -527,10 +522,8 @@ describe("OAuthLinkCallbackHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.oauthStateInvalid },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.oauthStateInvalid });
     expect(repositories.auditRecords[0]).toMatchObject({
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkFailed,
       decision: AUDIT_DECISIONS.deny,
@@ -556,9 +549,9 @@ describe("OAuthLinkCallbackHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.oauthCallbackInvalid },
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({
+      code: AUTH_ERROR_CODES.oauthCallbackInvalid,
     });
   });
 });

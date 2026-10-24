@@ -4,8 +4,11 @@ import {
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/auth";
-import { HttpStatus, Injectable } from "@nestjs/common";
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { Injectable } from "@nestjs/common";
+import {
+  AUTH_FAILURE_REASONS,
+  authFailure,
+} from "../../errors/auth-application.error.ts";
 
 import type {
   AuditEvent,
@@ -81,8 +84,8 @@ export class AuthSupportService {
     correlationId: string,
   ): Promise<{ token: string; session: Session }> {
     if (user.accessStatus !== USER_ACCESS_STATUSES.active)
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId, {
-        status: HttpStatus.FORBIDDEN,
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId, {
+        reason: AUTH_FAILURE_REASONS.accessDenied,
       });
     const token = issueOpaqueToken();
     const fingerprint = fingerprintToken(token);

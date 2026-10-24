@@ -4,10 +4,13 @@ import {
   AUTH_USER_ROLES,
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
-import { HttpStatus, Inject } from "@nestjs/common";
+import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import {
+  AUTH_FAILURE_REASONS,
+  authFailure,
+} from "../../errors/auth-application.error.ts";
 import { Session } from "../../../domain/entities/session.entity.ts";
 import { User } from "../../../domain/entities/user.entity.ts";
 import {
@@ -45,11 +48,9 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
         correlationId,
         SIGN_UP_ERROR_CODES.emailAlreadyExists,
       );
-      throw problemException(
-        SIGN_UP_ERROR_CODES.emailAlreadyExists,
-        correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
+      throw authFailure(SIGN_UP_ERROR_CODES.emailAlreadyExists, correlationId, {
+        reason: AUTH_FAILURE_REASONS.resourceAlreadyExists,
+      });
     }
 
     // scryptSync is deliberately performed outside the transaction/DB lock.
@@ -82,10 +83,10 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
           correlationId,
           SIGN_UP_ERROR_CODES.emailAlreadyExists,
         );
-        throw problemException(
+        throw authFailure(
           SIGN_UP_ERROR_CODES.emailAlreadyExists,
           correlationId,
-          { status: HttpStatus.CONFLICT },
+          { reason: AUTH_FAILURE_REASONS.resourceAlreadyExists },
         );
       }
       throw error;

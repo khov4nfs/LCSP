@@ -7,7 +7,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import {
   fingerprintToken,
   hashSecret,
@@ -69,7 +69,7 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
         reason_code: AUTH_ERROR_CODES.recoveryInvalid,
         correlationId: correlationId,
       });
-      throw problemException(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
     }
 
     const completed = await security.completePasswordRecovery({
@@ -87,7 +87,7 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
         reason_code: AUTH_ERROR_CODES.recoveryInvalid,
         correlationId,
       });
-      throw problemException(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
     }
 
     return { ok: true, correlationId: correlationId };

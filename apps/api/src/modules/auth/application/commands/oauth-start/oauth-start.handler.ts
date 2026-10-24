@@ -7,7 +7,7 @@ import { Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import { OAuthState } from "../../../domain/models/auth.models.ts";
 import {
   AUTH_OAUTH_PROVIDER_RESOLVER,
@@ -66,10 +66,7 @@ export class OAuthStartHandler implements ICommandHandler<OAuthStartCommand> {
         correlationId,
         AUTH_ERROR_CODES.unsupportedProvider,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.unsupportedProvider,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.unsupportedProvider, correlationId);
     }
 
     const allowedRedirectOrigins = this.configService.get<string[]>(
@@ -81,10 +78,7 @@ export class OAuthStartHandler implements ICommandHandler<OAuthStartCommand> {
         correlationId,
         AUTH_ERROR_CODES.invalidRedirectUri,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.invalidRedirectUri,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.invalidRedirectUri, correlationId);
     }
 
     const state = issueOAuthStateToken();

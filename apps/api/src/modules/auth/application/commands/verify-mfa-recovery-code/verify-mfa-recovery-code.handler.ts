@@ -7,7 +7,7 @@ import { Inject, Logger } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import {
   hashMfaRecoveryCode,
   normalizeMfaRecoveryCode,
@@ -83,12 +83,12 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
       sessionToken,
     );
     if (!session) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const enrollment = await mfaEnrollments.findByUserId(session.userId);
     if (!enrollment) {
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const now = this.support.now();
@@ -101,7 +101,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
         correlationId: correlationId,
       });
-      throw problemException(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
     }
 
     const normalizedCode = normalizeMfaRecoveryCode(code);
@@ -112,7 +112,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
         correlationId,
         "empty",
       );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const proofResult = await this.lifecycle.verifyProof({
@@ -135,7 +135,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
           "invalid_or_used",
         );
       }
-      throw problemException(proofResult.code, correlationId);
+      throw authFailure(proofResult.code, correlationId);
     }
 
     return { ok: true, correlationId: correlationId };

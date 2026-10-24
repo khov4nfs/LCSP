@@ -3,7 +3,7 @@ import { Inject } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import type { DisableMfaSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_SECURITY_PERSISTENCE,
@@ -42,7 +42,7 @@ export class DisableMfaHandler implements ICommandHandler<DisableMfaCommand> {
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const result = await this.security.disableMfa({
@@ -52,7 +52,7 @@ export class DisableMfaHandler implements ICommandHandler<DisableMfaCommand> {
       correlationId,
     });
     if (!result.ok) {
-      throw problemException(result.code, correlationId);
+      throw authFailure(result.code, correlationId);
     }
 
     return { ok: true, correlationId: correlationId };
