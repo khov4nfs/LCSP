@@ -28,17 +28,26 @@ export class PrismaSessionRepository implements SessionRepository {
     return crypto.randomUUID();
   }
 
+  /**
+   * Business purpose: Persist a session without reactivating a stale MFA or sensitive-action proof.
+   *
+   * Business rules:
+   * - An elevated proof must match the account's current proof generation while holding the User lock.
+   * - Revocation may always proceed but must never overwrite newer session proof metadata.
+   *
+   * Execution flow:
+   * 1. Lock the owner and verify account/session eligibility and proof generation.
+   * 2. Insert the session or conditionally update an existing unrevoked record.
+   *
+   * Failure cases:
+   * - Stale generations, ineligible accounts and already-revoked sessions reject a proof update.
+   *
+   * Side effects:
+   * - Creates, updates or revokes one session record within a PostgreSQL transaction.
+   */
   async save(session: Session, fingerprint?: string): Promise<void> {
     const tokenFingerprint =
       fingerprint ?? (await this.resolveFingerprint(session));
-    const metadata = {
-      tokenFingerprint,
-      mfaVerifiedAt: authRecordDateMetadata(session.mfaVerifiedAt),
-      sensitiveActionVerifiedAt: authRecordDateMetadata(
-        session.sensitiveActionVerifiedAt,
-      ),
-    } satisfies Prisma.InputJsonObject;
-
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw(
         Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${session.userId} FOR UPDATE`,
@@ -48,6 +57,7 @@ export class PrismaSessionRepository implements SessionRepository {
         select: {
           accessStatus: true,
           accessVersion: true,
+          mfaGenerationId: true,
           mfaEncryptedSecret: true,
           mfaVerifiedAt: true,
         },
@@ -58,6 +68,9 @@ export class PrismaSessionRepository implements SessionRepository {
           (user.accessStatus !== USER_ACCESS_STATUSES.active ||
             user.accessVersion !== session.accessVersion ||
             // Prevent a late MFA verification from resurrecting a disabled MFA state.
+            ((session.mfaVerifiedAt !== null ||
+              session.sensitiveActionVerifiedAt !== null) &&
+              session.mfaGenerationId !== user.mfaGenerationId) ||
             (session.mfaVerifiedAt !== null &&
               (!user.mfaEncryptedSecret || !user.mfaVerifiedAt))))
       ) {
@@ -67,6 +80,16 @@ export class PrismaSessionRepository implements SessionRepository {
           { reason: APPLICATION_ERROR_REASONS.authenticationRequired },
         );
       }
+      // Proof metadata always points to the locked current generation. An
+      // older in-memory entity may not revive timestamps for a past generation.
+      const metadata = {
+        tokenFingerprint,
+        mfaGenerationId: user.mfaGenerationId,
+        mfaVerifiedAt: authRecordDateMetadata(session.mfaVerifiedAt),
+        sensitiveActionVerifiedAt: authRecordDateMetadata(
+          session.sensitiveActionVerifiedAt,
+        ),
+      } satisfies Prisma.InputJsonObject;
       const existing = await tx.authRecord.findUnique({
         where: { id: session.id },
         select: { id: true },
@@ -80,10 +103,16 @@ export class PrismaSessionRepository implements SessionRepository {
             type: AUTH_RECORD_TYPES.session,
             revokedAt: null,
           },
-          data: {
-            revokedAt: dateFromEpochMs(session.revokedAt),
-            metadata: { ...metadata, accessVersion: session.accessVersion },
-          },
+          data:
+            session.revokedAt !== null
+              ? { revokedAt: dateFromEpochMs(session.revokedAt) }
+              : {
+                  revokedAt: null,
+                  metadata: {
+                    ...metadata,
+                    accessVersion: session.accessVersion,
+                  },
+                },
         });
         if (updated.count === 0 && session.revokedAt === null)
           throw new ApplicationError(

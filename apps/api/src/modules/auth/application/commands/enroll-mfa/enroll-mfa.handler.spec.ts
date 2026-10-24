@@ -57,7 +57,7 @@ describe("EnrollMfaHandler", () => {
     const handler = new EnrollMfaHandler(
       support as never,
       sessions as never,
-      mfaEnrollments as never,
+      mfaEnrollments,
       mfaRecoveryCodes as never,
       users as never,
       { encrypt: () => "encrypted", decrypt: () => "secret" },
@@ -109,7 +109,7 @@ describe("EnrollMfaHandler", () => {
     const handler = new EnrollMfaHandler(
       support as never,
       sessions as never,
-      mfaEnrollments as never,
+      mfaEnrollments,
       mfaRecoveryCodes as never,
       users as never,
       { encrypt: () => "encrypted", decrypt: () => "secret" },

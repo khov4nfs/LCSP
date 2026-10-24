@@ -27,6 +27,8 @@ type UserInput = {
   backupEmailPolicy?: AuthBackupEmailPolicy;
   role?: AuthUserRole;
   mfaRequired?: boolean;
+  mfaGenerationId?: string;
+  mfaVerifiedAt?: number | null;
 };
 
 export class User {
@@ -44,6 +46,9 @@ export class User {
   backupEmailPolicy: AuthBackupEmailPolicy;
   role: AuthUserRole;
   mfaRequired: boolean;
+  /** Current account proof generation, changed at every MFA enrollment/disable. */
+  mfaGenerationId: string;
+  mfaVerifiedAt: number | null;
 
   constructor(input: UserInput) {
     this.id = randomUUID();
@@ -63,6 +68,8 @@ export class User {
       input.backupEmailPolicy ?? AUTH_BACKUP_EMAIL_POLICIES.recoveryEmail;
     this.role = input.role ?? AUTH_USER_ROLES.customer;
     this.mfaRequired = input.mfaRequired ?? false;
+    this.mfaGenerationId = input.mfaGenerationId ?? randomUUID();
+    this.mfaVerifiedAt = input.mfaVerifiedAt ?? null;
   }
 
   static rehydrate(input: UserInput & { id: string }): User {

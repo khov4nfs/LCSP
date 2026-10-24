@@ -40,7 +40,7 @@ import { EnrollMfaCommand } from "./enroll-mfa.command.ts";
  * 2. Unverified session cannot silently overwrite existing valid MFA secrets.
  * 3. Generates new base32 TOTP secret, encrypts it with AES-256-GCM.
  * 4. Resets OTP rate limits and used OTP history.
- * 5. Issues initial batch of backup recovery codes if none active.
+ * 5. Always rotates the recovery-code batch and invalidates all session proofs atomically.
  * 6. Emits audit events and returns `otpauth://` URI.
  */
 @CommandHandler(EnrollMfaCommand)
@@ -62,10 +62,25 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
   ) {}
 
   /**
-   * Executes TOTP enrollment initiation.
+   * Business purpose: Start a fresh TOTP enrollment or securely rotate a proven existing factor.
    *
-   * @param command - Contains userId, sessionId, and request correlation metadata.
-   * @returns TOTP URI and optional plain backup recovery codes.
+   * Business rules:
+   * - An existing factor can be replaced only by a proof for its current MFA generation.
+   * - Every new secret revokes old backup codes and invalidates all session step-up proofs atomically.
+   * - A password-only session cannot recover ciphertext that has become undecryptable.
+   *
+   * Execution flow:
+   * 1. Validate the owning active session and existing MFA proof generation.
+   * 2. Create an encrypted TOTP secret and one candidate recovery-code batch.
+   * 3. Commit the new generation, code replacement, session invalidation and audit in one transaction.
+   * 4. Return the TOTP URI and only the recovery codes actually committed.
+   *
+   * Failure cases:
+   * - Missing, stale or unverified session proof rejects MFA replacement without changing credentials.
+   * - Transactional audit or persistence failure rolls back secret, code and proof changes together.
+   *
+   * Side effects:
+   * - Rotates MFA credentials, clears all session proof metadata and writes audit events.
    */
   async execute(command: EnrollMfaCommand): Promise<EnrollMfaSuccess> {
     const { userId, sessionId, requestMeta } = command;
@@ -95,21 +110,11 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     }
 
     const existingEnrollment = await mfaEnrollments.findByUserId(userId);
-    if (existingEnrollment && !session.isMfaVerified()) {
-      let hasRecoverableSecretFailure = false;
-      try {
-        this.cipher.decrypt(existingEnrollment.encryptedSecret);
-      } catch {
-        // A stale ciphertext encrypted under an old key cannot be verified.
-        // Allow issuing a replacement enrollment so the user can recover MFA.
-        hasRecoverableSecretFailure = true;
-      }
-
-      if (!hasRecoverableSecretFailure) {
-        // A valid-but-unverified session must not be able to silently replace
-        // an existing TOTP secret (would let a stolen pre-MFA session hijack MFA).
-        throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
-      }
+    // A password-only session must never rotate the factor. If ciphertext
+    // cannot be decrypted, recovery needs a separately authorized support
+    // flow; it is not equivalent to MFA proof.
+    if (existingEnrollment && !session.isMfaVerified(user.mfaGenerationId)) {
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const now = this.support.now();
@@ -131,8 +136,6 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       correlationId,
       enrollment,
       expectedEncryptedSecret: existingEnrollment?.encryptedSecret ?? null,
-      allowUnverifiedReplacement:
-        existingEnrollment !== null && !session.isMfaVerified(),
       candidateBatchId: mfaRecoveryCodes.nextBatchId(),
       candidateCodes: candidateCodes.map((code) => ({
         id: mfaRecoveryCodes.nextId(),

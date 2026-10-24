@@ -10,11 +10,14 @@ function makeHarness(
   options: { consumed?: number; auditFails?: boolean } = {},
 ) {
   const calls: string[] = [];
-  let sessionMetadata: unknown;
   const tx = {
     $queryRaw: () => {
       calls.push("lock");
       return Promise.resolve([]);
+    },
+    $executeRaw: () => {
+      calls.push("invalidate-session-proofs");
+      return Promise.resolve(2);
     },
     user: {
       findUnique: () => {
@@ -24,6 +27,8 @@ function makeHarness(
           accessVersion: 0,
           mfaEncryptedSecret: "encrypted",
           mfaEnrolledAt: new Date(),
+          mfaGenerationId: "test-generation",
+          mfaVerifiedAt: new Date(),
         });
       },
       update: () => {
@@ -40,6 +45,7 @@ function makeHarness(
           metadata: {
             accessVersion: 0,
             mfaVerifiedAt: new Date().toISOString(),
+            mfaGenerationId: "test-generation",
             sensitiveActionVerifiedAt: "2026-10-24T10:00:00.000Z",
           },
         }),
@@ -51,10 +57,9 @@ function makeHarness(
         );
         return Promise.resolve({ count: options.consumed ?? 1 });
       },
-      update: (args: { data: { metadata: unknown } }) => {
-        calls.push("update-session");
-        sessionMetadata = args.data.metadata;
-        return Promise.resolve();
+      deleteMany: () => {
+        calls.push("delete-otp");
+        return Promise.resolve({ count: 0 });
       },
     },
   };
@@ -82,7 +87,7 @@ function makeHarness(
     audit as unknown as AuthAuditService,
     auditWriter as unknown as AuditWriterService,
   );
-  return { adapter, calls, sessionMetadata: () => sessionMetadata };
+  return { adapter, calls };
 }
 
 describe("PrismaAuthSecurityPersistence transaction contract", () => {
@@ -130,8 +135,8 @@ describe("PrismaAuthSecurityPersistence transaction contract", () => {
     assert.equal(calls.includes("commit"), false);
   });
 
-  it("disables MFA and retains unrelated session metadata in one transaction", async () => {
-    const { adapter, calls, sessionMetadata } = makeHarness();
+  it("disables MFA and invalidates proofs for every session in one transaction", async () => {
+    const { adapter, calls } = makeHarness();
     const result = await adapter.disableMfa({
       userId: "user-1",
       sessionId: "session-1",
@@ -145,15 +150,11 @@ describe("PrismaAuthSecurityPersistence transaction contract", () => {
       "read-user",
       "lock",
       "update-user",
+      "invalidate-session-proofs",
       "revoke-records",
-      "update-session",
+      "delete-otp",
       "audit",
       "commit",
     ]);
-    assert.deepEqual(sessionMetadata(), {
-      accessVersion: 0,
-      mfaVerifiedAt: null,
-      sensitiveActionVerifiedAt: "2026-10-24T10:00:00.000Z",
-    });
   });
 });

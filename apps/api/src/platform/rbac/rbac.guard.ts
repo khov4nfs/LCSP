@@ -50,6 +50,25 @@ export class RbacGuard implements CanActivate {
     private readonly decisions: AuthorizationDecisionRepository,
   ) {}
 
+  /**
+   * Business purpose: Gate an HTTP request using a valid account session, role and current step-up proof.
+   *
+   * Business rules:
+   * - Protected routes may not rely on a session proof from a previous MFA generation.
+   * - Pending MFA is allowed only on explicitly annotated setup and reauthentication routes.
+   * - Authorization allow/deny outcomes must be audited with safe metadata.
+   *
+   * Execution flow:
+   * 1. Resolve route policy, session identity and the authenticated account state.
+   * 2. Enforce role and sensitive-action freshness using the current proof generation.
+   * 3. Publish the accepted RBAC context and record the authorization decision.
+   *
+   * Failure cases:
+   * - Missing metadata, unauthenticated sessions, wrong roles and stale proofs are rejected.
+   *
+   * Side effects:
+   * - Records allow/deny authorization audit events and attaches RBAC metadata to the request.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.getAllAndOverride<RbacMetadata | undefined>(
       RBAC_METADATA_KEY,
@@ -123,6 +142,7 @@ export class RbacGuard implements CanActivate {
       await this.enforceSensitiveReauth({
         required: requiresSensitiveReauth,
         session,
+        currentGenerationId: user.mfaGenerationId,
         resourceId,
         correlationId,
       });
@@ -162,6 +182,7 @@ export class RbacGuard implements CanActivate {
     await this.enforceSensitiveReauth({
       required: requiresSensitiveReauth,
       session,
+      currentGenerationId: user.mfaGenerationId,
       resourceId,
       correlationId,
     });
@@ -195,15 +216,19 @@ export class RbacGuard implements CanActivate {
     session: {
       id: string;
       userId: string;
+      mfaGenerationId: string | null;
       sensitiveActionVerifiedAt: number | null;
     };
+    currentGenerationId: string;
     resourceId: string;
     correlationId: string;
   }): Promise<void> {
     if (
       !input.required ||
       isSensitiveActionVerificationFresh(
-        input.session.sensitiveActionVerifiedAt,
+        input.session.mfaGenerationId === input.currentGenerationId
+          ? input.session.sensitiveActionVerifiedAt
+          : null,
         Date.now(),
       )
     ) {

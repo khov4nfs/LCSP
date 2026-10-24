@@ -47,10 +47,24 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
   ) {}
 
   /**
-   * Executes profile update.
+   * Business purpose: Update the authenticated account's visible profile and recovery-email policy.
    *
-   * @param command - Contains profile payload, userId, sessionId, and request metadata.
-   * @returns List of updated fields and correlation ID.
+   * Business rules:
+   * - MFA-required accounts may change profile data only with a current-generation session proof.
+   * - Recovery email must not conflict with another account's primary or recovery address.
+   * - Recovery-dependent primary email policies require a configured recovery address.
+   *
+   * Execution flow:
+   * 1. Validate the payload, account status, session ownership and MFA generation.
+   * 2. Verify requested email values and policy consistency against existing accounts.
+   * 3. Persist allowed profile fields and emit a sanitized audit event.
+   *
+   * Failure cases:
+   * - Invalid accounts, stale MFA proofs and conflicting email policies return stable Auth errors.
+   * - Failed persistence or audit cannot be misreported as success.
+   *
+   * Side effects:
+   * - Updates the account profile and records an audit event listing changed field names.
    */
   async execute(command: UpdateProfileCommand): Promise<UpdateProfileSuccess> {
     const { payload, userId, sessionId, requestMeta } = command;
@@ -89,7 +103,7 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
     );
     if (
       this.support.isMfaRequired(user, mfaEnrollment) &&
-      !session.isMfaVerified()
+      !session.isMfaVerified(user.mfaGenerationId)
     ) {
       throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }

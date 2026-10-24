@@ -78,6 +78,24 @@ export class AuthSupportService {
     return this.authAudit.write(event);
   }
 
+  /**
+   * Business purpose: Establish a new authenticated session with the account's current proof generation.
+   *
+   * Business rules:
+   * - Suspended accounts are never issued sessions.
+   * - Newly issued sessions do not inherit MFA or sensitive-action proofs from earlier generations.
+   *
+   * Execution flow:
+   * 1. Require an active account and issue a random opaque bearer token.
+   * 2. Persist the token hash, account access version and current proof generation.
+   * 3. Record session creation without logging the bearer token.
+   *
+   * Failure cases:
+   * - Suspended accounts or failed persistence reject the sign-in transaction.
+   *
+   * Side effects:
+   * - Creates a session record and security audit event.
+   */
   async createSession(
     sessions: SessionRepository,
     user: User,
@@ -92,6 +110,7 @@ export class AuthSupportService {
     const session = new SessionEntity({
       userId: user.id,
       accessVersion: user.accessVersion,
+      mfaGenerationId: user.mfaGenerationId,
       tokenHash: hashSecret(token),
       expiresAt: this.now() + SESSION_TTL_MS,
       revokedAt: null,

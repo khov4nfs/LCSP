@@ -409,7 +409,7 @@ describe("Admin billing reconciliation (e2e)", () => {
         to: reconciledAt.toISOString(),
       })
       .set("Authorization", `Bearer ${adminToken}`);
-    assert.equal(boundary.status, 200);
+    assert.equal(boundary.status, 200, JSON.stringify(boundary.body));
     const boundaryBody = successBody<{
       settledTopUps: { amountMinorUnits: string };
       outstandingCredits: { credits: string };

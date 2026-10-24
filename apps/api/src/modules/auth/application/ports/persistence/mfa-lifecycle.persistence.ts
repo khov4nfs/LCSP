@@ -18,8 +18,6 @@ export type MfaEnrollmentCommit = {
   enrollment: MfaEnrollment;
   /** Optimistic check: disallow writes based on an obsolete enrollment snapshot. */
   expectedEncryptedSecret: string | null;
-  /** Only used when the prior ciphertext is no longer decryptable. */
-  allowUnverifiedReplacement: boolean;
   candidateBatchId: string;
   candidateCodes: readonly MfaRecoveryCodeCreateInput[];
 };

@@ -27,6 +27,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -61,6 +69,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -87,6 +103,7 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       tokenHash: "hash",
       expiresAt: Date.now() + 3600_000,
       mfaVerifiedAt: Date.now(),
+      mfaGenerationId: "current-generation",
     });
 
     const support = {
@@ -103,6 +120,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -145,6 +170,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -171,6 +204,7 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       tokenHash: "hash",
       expiresAt: Date.now() + 3600_000,
       mfaVerifiedAt: Date.now(),
+      mfaGenerationId: "current-generation",
     });
 
     const recordAuditMock = jest.fn();
@@ -188,6 +222,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     const result = await handler.execute(

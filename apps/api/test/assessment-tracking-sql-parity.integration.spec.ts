@@ -1151,6 +1151,15 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       scanJobId: staleScanId,
     } = await seedPinnedRepository(staleAssessmentId, "org/urgent-stale-repo");
 
+    // Pin an explicitly older snapshot. PostgreSQL NOW() retains sub-ms
+    // precision while JS new Date() is millisecond-resolution; without this,
+    // a newly inserted snapshot can sort before the supposed "latest" row
+    // when both were written in the same millisecond.
+    await prisma.repositorySnapshot.update({
+      where: { id: staleSnapId },
+      data: { createdAt: new Date(Date.now() - 10_000) },
+    });
+
     await prisma.assessmentCase.create({
       data: {
         assessmentId: staleAssessmentId,

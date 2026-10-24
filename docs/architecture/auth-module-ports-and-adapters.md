@@ -268,6 +268,156 @@ E2E pass.
 not been performed in this local refactor.** Treat these as separate release
 requirements.
 
+## PR LCSP-999 security remediation — MFA generation and stale session proof (2026-10-24)
+
+**Review basis:** PR exact head `2828d9436`, reviewer decision
+`REQUEST_CHANGES`. Two P1 findings described S1 recovery codes accepted after
+rotating the TOTP secret to S2, and old S1 MFA/sensitive-action timestamps
+remaining active on secondary sessions. Local changes in this section are
+**uncommitted** until reviewed; these receipts do not assert PR/CI merge
+approval.
+
+### Root cause
+
+- `PrismaMfaLifecyclePersistence.enroll()` previously kept unused backup codes
+  when `activeCodeCount > 0`; proof consumption did not bind a recovery code
+  to the active TOTP generation. An old C1 credential could authenticate a
+  newly issued S2 secret, even before the account verified S2.
+- MFA rotation cleared only `User.mfaVerifiedAt`. Session records retained
+  `mfaVerifiedAt` and `sensitiveActionVerifiedAt` metadata; the profile,
+  sensitive-route and RBAC reads trusted old proof timestamps.
+- The RBAC condition required MFA only if the enrollment had a non-null
+  `verifiedAt`, allowing password-only access while S2 was pending despite
+  the account-level `mfaRequired` policy.
+- A ciphertext encrypted with an unavailable key could formerly be overwritten
+  from a password-only session. This is not sufficient second-factor recovery
+  evidence.
+
+### Fix
+
+- **Version authority:** `User.mfaGenerationId` is a persisted, non-null
+  random UUID. It is rotated on each new TOTP enrollment and MFA disable,
+  including when MFA becomes disabled, to prevent late writes from resurrecting
+  pre-disable sensitive-action proofs.
+- **Atomic mutation:** the User row is locked first. The same transaction
+  advances generation, replaces TOTP secret, clears OTP replay history,
+  revokes the _entire_ previous unused backup-code batch, writes the new
+  recovery batch with `metadata.mfaGenerationId`, invalidates all sessions'
+  MFA and sensitive-action timestamps using one JSONB update, and commits
+  the security audit. The API only returns actually committed backup codes.
+- **Proof consumption:** recovery codes are accepted only when both the code's
+  generation matches the user and the current TOTP generation has been verified
+  with OTP at least once. Successful OTP/recovery writes session metadata with
+  its current `mfaGenerationId` atomically; replay protection remains.
+- **Read and authorization:** RBAC checks `User.mfaRequired` even when
+  enrollment is pending; only explicit `@AllowPendingMfa` endpoints are
+  exempt. Profile, session list, sensitive route, guard, and application
+  handlers use active-generation proof identity. `SessionRepository.save()`
+  refuses stale proof writes after the generation changes; session revocation
+  can still succeed without overwriting newer proof metadata.
+- **Disable:** all sessions lose MFA and sensitive-action proofs when MFA is
+  disabled, not just the caller. Sessions themselves remain active so a user
+  can complete login/re-authentication safely with MFA no longer enabled.
+- **Single write authority:** removed unused direct MFA enrollment, OTP-use
+  and recovery-code mutator ports/adapters. Credential lifecycle writes go
+  through the locked transactional MFA port.
+- **Fail closed for key loss:** a password-only session may not replace an
+  undecryptable existing MFA ciphertext. Account recovery under key loss
+  requires a separately authorized, audited support process; the former
+  automatic fallback must not be reinstated.
+
+### Database rollout
+
+Migration:
+`apps/api/prisma/migrations/20261024220000_auth_mfa_proof_generation/migration.sql`
+
+It adds the non-null User generation with a database-side
+`gen_random_uuid()::text` default and backfills generation metadata to
+existing SESSION/MFA_RECOVERY_CODE AuthRecord rows. This retains the proof
+generation of existing users during rollout, rather than immediately invalidating
+all their current sessions/codes. PostgreSQL 13+ provides
+`gen_random_uuid()`. The schema must be migrated **before** serving code
+that requires the new column; coordinate rollout so older application
+instances do not issue new unversioned proofs after migration. Production
+migration duration/locking on large AuthRecord tables has not been
+benchmarked.
+
+A dedicated disposable PostgreSQL clone was created, the generated column
+was removed to simulate the pre-migration schema, an active User + SESSION +
+MFA_RECOVERY_CODE fixture was inserted, and the migration executed. The result
+was `UPDATE 2` with both records mapped to the new User generation and the
+old code batchId preserved. No production data was touched.
+
+### Regression and acceptance evidence
+
+- Auth E2E: **53/53 passed**, including multi-session A/B/C proof invalidation,
+  C1 rejection after S1→S2, new C2 usability only after S2 TOTP verification,
+  pending MFA RBAC fail-closed, read-model and sensitive-route authorization,
+  concurrent rotation (one winner), disable across all sessions, and rotation
+  audit-failure rollback.
+- Complete API Jest suite: **1,035 passed**, 34 skipped (8 suites), including
+  new stale session proof/reauthentication writes and safe revocation tests.
+- Repository-wide E2E combined: **192 passed**, 3 intentionally skipped in
+  the separately configured Canonical Read Isolation suite (23 suites pass).
+  This includes the new migration backfill E2E test.
+- Typecheck, import policy, contract policy and business logic docs checker
+  pass on the local branch. CI/CodeQL have not yet run on the uncommitted
+  remediation.
+- Intentional negative-path audit injection tests emit expected `500`
+  logs while verifying transaction rollback; their assertions pass.
+
+**Policy change:** backup recovery codes are issued at enrollment but unusable
+until a TOTP OTP for that generation is successfully verified. This disallows
+using a newly issued backup code as the _first_ proof of the new authenticator.
+The separate audited recovery process for an irrecoverably lost/undecryptable
+factor is an availability follow-up, not grounds to weaken MFA rotation.
+
+### Additional release-gate stabilization receipt
+
+These checks were performed on the same uncommitted MFA remediation working
+tree on 2026-10-24, against **disposable loopback PostgreSQL only**:
+
+- **Clean installation:** created an empty task-owned
+  `lcsp_mfa_release_gate_20261024` database on `127.0.0.1:55439` and
+  successfully ran `prisma migrate deploy` across all **110** migrations.
+  `prisma migrate status` reports the schema up to date, and
+  `prisma validate` passes. No application or production database was reset.
+- **Legacy account upgrade:** seeded three pre-generation AuthRecord fixtures
+  (two sessions and one recovery code), removed the new generation column
+  **only in the task-owned test database**, reran the new migration SQL, and
+  verified all three rows acquired their owner's generation without losing
+  the prior timestamps, code batch or unrelated session metadata.
+- **Permanent regression:** added
+  `test/mfa-generation-migration.e2e-spec.ts`, which executes the actual
+  migration SQL against transaction-local TEMP tables. It asserts unique
+  generation IDs for separate owners, verifies older verified/pending session
+  and recovery-code backfill, and confirms an unrelated
+  `RECOVERY_REQUEST` remains untouched. The test transaction rolls back
+  without modifying persistent application tables.
+- **Assessment test determinism:** the SQL-parity test previously reported
+  51 changes instead of 52. PostgreSQL default timestamps can have
+  sub-millisecond precision while JavaScript's `Date` is millisecond-granular,
+  allowing a supposed newer snapshot to sort before its pinned predecessor.
+  Its fixture now makes the pinned snapshot explicitly older; the full
+  SQL-parity suite passes **24/24**. No Assessment production query was
+  modified.
+- **E2E teardown hygiene:** removed a duplicated `afterAll` in the
+  Legal Source E2E and restored the worker key after the test suite. Added
+  failure-body diagnostics to Billing and Legal HTTP status assertions.
+  These changes improve isolation/diagnostics but do not prove the precise
+  historical intermittent HTTP failures were caused by those test fixtures.
+- **Latest full runs:** API E2E **192/192 active tests**, 3 opt-in skipped
+  (23 suites passed); complete API unit/integration **1,035/1,035 active
+  tests**, 34 skipped (152 suites passed); Web tests **324/324 passed**.
+  TypeScript, ESLint on changed API source/tests, Prettier, Prisma
+  validation, import/contract/legacy checks, and business-docs gate pass.
+
+**Still pending:** push a focused commit, run CI checks on that exact new
+commit, request security reviewer re-evaluation, validate staged deployment
+and rollback behavior, and independently investigate the pre-existing
+`pg` concurrent-query deprecation and Jest open handles. Passing local
+checks does not by itself close the external `REQUEST_CHANGES` review.
+
 ## Remaining technical considerations
 
 1. Auth Application and session persistence no longer import the HTTP problem

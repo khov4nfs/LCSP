@@ -26,6 +26,8 @@ import {
   authRecordLookupKey,
   authRecordMetadata,
   authRecordMetadataDate,
+  authRecordMetadataString,
+  invalidateSessionProofsInTx,
 } from "./auth-record.persistence.ts";
 
 @Injectable()
@@ -36,6 +38,27 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Business purpose: Install a new TOTP generation and rotate all account backup credentials.
+   *
+   * Business rules:
+   * - An existing MFA secret requires verified proof of its current generation to rotate.
+   * - Prior recovery codes and all session step-up proofs must become invalid in one transaction.
+   * - A new backup batch must not be used before the replacement TOTP has been verified.
+   *
+   * Execution flow:
+   * 1. Lock the User and originating session, then verify the existing credential generation.
+   * 2. Advance the generation and replace the encrypted TOTP secret.
+   * 3. Invalidate all session proofs, used TOTP history and active recovery codes.
+   * 4. Persist the new code batch and security audit atomically.
+   *
+   * Failure cases:
+   * - Unverified/stale sessions or obsolete secrets are rejected without mutation.
+   * - Failed audit or database writes roll back the entire rotation.
+   *
+   * Side effects:
+   * - Rotates user MFA state, session proof metadata, recovery codes and audit records.
+   */
   async enroll(input: MfaEnrollmentCommit): Promise<MfaTransactionResult> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.lockAccountAndSession(
@@ -51,26 +74,33 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
       }
 
+      // Rotating an existing factor requires proof for the currently active
+      // generation. A password-only session may not replace undecryptable MFA.
       if (
         user.mfaEncryptedSecret !== null &&
-        !authRecordMetadataDate(session, "mfaVerifiedAt") &&
-        !input.allowUnverifiedReplacement
+        (user.mfaVerifiedAt === null ||
+          !authRecordMetadataDate(session, "mfaVerifiedAt") ||
+          authRecordMetadataString(session, "mfaGenerationId") !==
+            user.mfaGenerationId)
       ) {
         return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
       }
 
-      // Everything below is a single transaction. A failure to write audit,
-      // code records, enrollment, or rate limits rolls back all changes.
+      // Rotate proofs and credentials under the same User lock/transaction.
+      // A failure to persist any step, including audit, rolls everything back.
+      const nextGenerationId = crypto.randomUUID();
       await tx.user.update({
         where: { id: input.userId },
         data: {
           mfaEncryptedSecret: input.enrollment.encryptedSecret,
+          mfaGenerationId: nextGenerationId,
           mfaEnrolledAt: new Date(input.enrollment.enrolledAt),
           mfaVerifiedAt: null,
           mfaFailedCount: 0,
           mfaLockedUntil: null,
         },
       });
+      await invalidateSessionProofsInTx(tx, input.userId, nextGenerationId);
       await tx.authRecord.deleteMany({
         where: {
           userId: input.userId,
@@ -78,33 +108,24 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         },
       });
 
-      const activeCodeCount = await tx.authRecord.count({
-        where: {
-          userId: input.userId,
-          type: AUTH_RECORD_TYPES.mfaRecoveryCode,
-          usedAt: null,
-          revokedAt: null,
-        },
-      });
-
-      const recoveryCodesCreated = activeCodeCount === 0;
-      if (recoveryCodesCreated) {
-        await this.replaceCodeRecords(
-          tx,
-          input.userId,
-          input.candidateBatchId,
-          input.candidateCodes,
-          input.now,
-        );
-        await this.writeCodeAudit(
-          tx,
-          input.userId,
-          input.sessionId,
-          input.correlationId,
-          input.candidateBatchId,
-          input.candidateCodes.length,
-        );
-      }
+      // Every secret generation owns a fresh batch. Keeping the previous
+      // batch would allow credentials for S1 to verify the new secret S2.
+      await this.replaceCodeRecords(
+        tx,
+        input.userId,
+        nextGenerationId,
+        input.candidateBatchId,
+        input.candidateCodes,
+        input.now,
+      );
+      await this.writeCodeAudit(
+        tx,
+        input.userId,
+        input.sessionId,
+        input.correlationId,
+        input.candidateBatchId,
+        input.candidateCodes.length,
+      );
       await this.audit.writeInTx(
         {
           event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
@@ -114,10 +135,27 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         },
         this.auditWriter.forTransaction(tx),
       );
-      return { ok: true, recoveryCodesCreated };
+      return { ok: true, recoveryCodesCreated: true };
     });
   }
 
+  /**
+   * Business purpose: Regenerate only the recovery-code batch of the current verified factor.
+   *
+   * Business rules:
+   * - Code regeneration requires a current-generation verified session and an active MFA enrollment.
+   * - No previous active backup code remains valid after regeneration commits.
+   *
+   * Execution flow:
+   * 1. Lock the account/session and revalidate its verified generation and secret.
+   * 2. Revoke the old batch and persist a fresh generation-bound code batch with audit.
+   *
+   * Failure cases:
+   * - A stale generation, missing factor or transactional failure cannot expose new codes.
+   *
+   * Side effects:
+   * - Atomically replaces recovery code rows and writes security audit records.
+   */
   async replaceRecoveryCodes(
     input: MfaRecoveryCodesCommit,
   ): Promise<MfaTransactionResult> {
@@ -132,6 +170,8 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
       const { user, session } = current;
       if (
         !authRecordMetadataDate(session, "mfaVerifiedAt") ||
+        authRecordMetadataString(session, "mfaGenerationId") !==
+          user.mfaGenerationId ||
         !user.mfaEncryptedSecret ||
         !user.mfaVerifiedAt ||
         user.mfaEncryptedSecret !== input.expectedEncryptedSecret
@@ -142,6 +182,7 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
       await this.replaceCodeRecords(
         tx,
         input.userId,
+        user.mfaGenerationId,
         input.batchId,
         input.codes,
         input.now,
@@ -159,6 +200,26 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
     });
   }
 
+  /**
+   * Business purpose: Authenticate the active MFA generation using TOTP or a single-use recovery code.
+   *
+   * Business rules:
+   * - Proof must match the current encrypted secret and the active account generation.
+   * - Recovery codes are unusable until the current TOTP generation has been verified once.
+   * - Consuming proof, elevating the session and security audit must be one transaction.
+   *
+   * Execution flow:
+   * 1. Lock the account/session and recheck rate limiting and current enrollment identity.
+   * 2. Consume a unique OTP counter or a recovery code from the matching generation.
+   * 3. Mark the account/session verified and audit the accepted proof atomically.
+   *
+   * Failure cases:
+   * - Stale secret, used code, wrong generation or active lockout rejects elevation.
+   * - Audit and persistence failures roll back proof consumption and session elevation.
+   *
+   * Side effects:
+   * - Consumes proof records, sets MFA/session verification timestamps and writes audit.
+   */
   async verifyProof(input: MfaProofCommit): Promise<MfaProofCommitResult> {
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -204,6 +265,11 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             },
           });
         } else {
+          // A newly issued backup batch is not an alternative to proving
+          // ownership of the replacement TOTP secret for the first time.
+          if (!user.mfaVerifiedAt) {
+            return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+          }
           const consumed = await tx.authRecord.updateMany({
             where: {
               userId: input.userId,
@@ -215,6 +281,10 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
               ),
               revokedAt: null,
               usedAt: null,
+              metadata: {
+                path: ["mfaGenerationId"],
+                equals: user.mfaGenerationId,
+              },
             },
             data: { usedAt: new Date(input.now) },
           });
@@ -241,6 +311,7 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
               ...authRecordMetadata(session.metadata),
               mfaVerifiedAt: new Date(input.now).toISOString(),
               sensitiveActionVerifiedAt: new Date(input.now).toISOString(),
+              mfaGenerationId: user.mfaGenerationId,
             },
           },
         });
@@ -319,6 +390,7 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
   private async replaceCodeRecords(
     tx: Prisma.TransactionClient,
     userId: string,
+    generationId: string,
     batchId: string,
     codes: readonly MfaRecoveryCodeCreateInput[],
     now: number,
@@ -343,7 +415,7 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
           record.codeHash,
         ),
         secretHash: record.codeHash,
-        metadata: { batchId },
+        metadata: { batchId, mfaGenerationId: generationId },
         createdAt: new Date(now),
       })),
     });

@@ -5,6 +5,7 @@ import {
   USER_ACCESS_STATUSES,
 } from "@lcsp/contracts/auth";
 import { Injectable } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -19,6 +20,8 @@ import { AuthAuditService } from "../../application/services/auth/auth-audit.ser
 import {
   AUTH_RECORD_TYPES,
   authRecordMetadataDate,
+  authRecordMetadataString,
+  invalidateSessionProofsInTx,
 } from "./auth-record.persistence.ts";
 
 @Injectable()
@@ -91,6 +94,25 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
     });
   }
 
+  /**
+   * Business purpose: Disable MFA without leaving usable recovery codes or elevated sessions.
+   *
+   * Business rules:
+   * - The initiator must present current-generation verified MFA proof.
+   * - All session MFA/sensitive proofs and recovery codes must be invalidated in the same transaction.
+   *
+   * Execution flow:
+   * 1. Lock and authenticate the owning user/session against the current generation.
+   * 2. Clear the MFA enrollment and rotate the account proof generation.
+   * 3. Clear all session proofs, revoke recovery codes, delete old OTP markers and write audit.
+   *
+   * Failure cases:
+   * - Stale session proof rejects disable without changing the factor.
+   * - Any write or audit failure rolls back the entire disable operation.
+   *
+   * Side effects:
+   * - Mutates the account, all its session proof metadata, recovery codes and audit records.
+   */
   async disableMfa(input: DisableMfaCommit): Promise<DisableMfaResult> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw(
@@ -119,11 +141,17 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
       if (accessVersion !== user.accessVersion) {
         return { ok: false, code: AUTH_ERROR_CODES.sessionInvalid };
       }
-      if (!authRecordMetadataDate(session, "mfaVerifiedAt")) {
+      if (
+        !authRecordMetadataDate(session, "mfaVerifiedAt") ||
+        authRecordMetadataString(session, "mfaGenerationId") !==
+          user.mfaGenerationId ||
+        user.mfaVerifiedAt === null
+      ) {
         return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
       }
       if (!user.mfaEncryptedSecret || !user.mfaEnrolledAt) return { ok: true };
 
+      const nextGenerationId = randomUUID();
       await tx.user.update({
         where: { id: input.userId },
         data: {
@@ -131,8 +159,10 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
           mfaEnrolledAt: null,
           mfaVerifiedAt: null,
           mfaRequired: false,
+          mfaGenerationId: nextGenerationId,
         },
       });
+      await invalidateSessionProofsInTx(tx, input.userId, nextGenerationId);
       await tx.authRecord.updateMany({
         where: {
           userId: input.userId,
@@ -142,10 +172,11 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
         },
         data: { revokedAt: new Date(input.now) },
       });
-      await tx.authRecord.update({
-        where: { id: input.sessionId },
-        data: {
-          metadata: { ...metadata, mfaVerifiedAt: null },
+      // TOTP replay history belongs to the retired generation as well.
+      await tx.authRecord.deleteMany({
+        where: {
+          userId: input.userId,
+          type: AUTH_RECORD_TYPES.mfaOtpUse,
         },
       });
       await this.audit.writeInTx(

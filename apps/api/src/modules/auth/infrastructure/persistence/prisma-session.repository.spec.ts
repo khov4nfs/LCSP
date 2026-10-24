@@ -79,6 +79,91 @@ describe("PrismaSessionRepository transport-neutral failures", () => {
     expect(tx.authRecord.create).not.toHaveBeenCalled();
   });
 
+  it("rejects a previously verified session that attempts to restore MFA proof after generation rotation", async () => {
+    const { repository, tx } = makeRepository({
+      user: {
+        accessStatus: USER_ACCESS_STATUSES.active,
+        accessVersion: 0,
+        mfaGenerationId: "current-generation",
+        mfaEncryptedSecret: "new-totp-ciphertext",
+        mfaVerifiedAt: new Date(),
+      },
+    });
+    const staleSession = Session.rehydrate({
+      id: "session-1",
+      userId: "user-1",
+      tokenHash: "hash",
+      expiresAt: Date.now() + 60_000,
+      mfaGenerationId: "previous-generation",
+      mfaVerifiedAt: Date.now() - 10_000,
+      sensitiveActionVerifiedAt: Date.now() - 10_000,
+    });
+    await expect(
+      repository.save(staleSession, "token-fingerprint"),
+    ).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.sessionInvalid,
+      reason: APPLICATION_ERROR_REASONS.authenticationRequired,
+    });
+    expect(tx.authRecord.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale sensitive-action reauthentication even when MFA timestamp is null", async () => {
+    const { repository, tx } = makeRepository({
+      user: {
+        accessStatus: USER_ACCESS_STATUSES.active,
+        accessVersion: 0,
+        mfaGenerationId: "new-generation",
+        mfaEncryptedSecret: null,
+        mfaVerifiedAt: null,
+      },
+    });
+    const staleSession = Session.rehydrate({
+      id: "session-1",
+      userId: "user-1",
+      tokenHash: "hash",
+      expiresAt: Date.now() + 60_000,
+      mfaGenerationId: "disabled-generation",
+      sensitiveActionVerifiedAt: Date.now(),
+    });
+    await expect(
+      repository.save(staleSession, "token-fingerprint"),
+    ).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.sessionInvalid,
+    });
+    expect(tx.authRecord.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("allows revocation after rotation without rewriting newer security proof metadata", async () => {
+    const { repository, tx } = makeRepository({
+      user: {
+        accessStatus: USER_ACCESS_STATUSES.active,
+        accessVersion: 0,
+        mfaGenerationId: "new-generation",
+        mfaEncryptedSecret: null,
+        mfaVerifiedAt: null,
+      },
+    });
+    const now = Date.now();
+    const staleSession = Session.rehydrate({
+      id: "session-1",
+      userId: "user-1",
+      tokenHash: "hash",
+      expiresAt: now + 60_000,
+      revokedAt: now,
+      mfaGenerationId: "old-generation",
+      mfaVerifiedAt: now - 10_000,
+      sensitiveActionVerifiedAt: now - 10_000,
+    });
+    await expect(
+      repository.save(staleSession, "token-fingerprint"),
+    ).resolves.toBeUndefined();
+    expect(tx.authRecord.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { revokedAt: new Date(now) },
+      }),
+    );
+  });
+
   it("rejects a session revoked by a concurrent writer without reviving it", async () => {
     const { repository, tx } = makeRepository({
       user: {

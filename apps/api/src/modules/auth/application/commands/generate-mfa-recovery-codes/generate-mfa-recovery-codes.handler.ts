@@ -49,10 +49,23 @@ export class GenerateMfaRecoveryCodesHandler implements ICommandHandler<Generate
   ) {}
 
   /**
-   * Executes recovery codes generation.
+   * Business purpose: Issue a replacement set of backup credentials for the current MFA generation.
    *
-   * @param command - Contains userId, sessionId, and request correlation metadata.
-   * @returns Generated plain recovery codes array and correlation ID.
+   * Business rules:
+   * - Only a session verified for the active, confirmed MFA generation may replace backup codes.
+   * - Replacing a batch permanently revokes all unused credentials from the preceding batch.
+   *
+   * Execution flow:
+   * 1. Verify the authenticated session and the active enrollment generation.
+   * 2. Generate unique backup codes and commit their hashes under the user lock.
+   * 3. Return only the cleartext codes belonging to the successfully committed batch.
+   *
+   * Failure cases:
+   * - Missing generation proof or a concurrent factor rotation fails with MFA_REQUIRED.
+   * - A failed transaction cannot expose credentials that were never committed.
+   *
+   * Side effects:
+   * - Revokes the old batch, persists the new batch and records generation/view audit events.
    */
   async execute(
     command: GenerateMfaRecoveryCodesCommand,
@@ -75,12 +88,12 @@ export class GenerateMfaRecoveryCodesHandler implements ICommandHandler<Generate
       throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
-    if (!session.isMfaVerified()) {
-      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
-    }
-
     const enrollment = await mfaEnrollments.findByUserId(userId);
-    if (!enrollment) {
+    if (
+      !enrollment?.mfaGenerationId ||
+      !enrollment.verifiedAt ||
+      !session.isMfaVerified(enrollment.mfaGenerationId)
+    ) {
       throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
