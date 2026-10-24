@@ -1,7 +1,9 @@
 # LCSP Auth — Ports and Adapters
 
-**Scope:** Authentication module and the Admin Account Lifecycle integration.  
-**Baseline:** commit `32b068703` (2026-10-24).  
+**Scope:** Authentication module and the Admin Account Lifecycle integration.
+
+**Baseline for MFA transactional follow-up:** commit `341b8051a` (2026-10-24).
+
 **Status:** implementation in the LCSP-999 refactor branch; not an approval to merge or deploy.
 
 ## Architecture
@@ -23,16 +25,17 @@ flowchart TD
 
 ### Main ports
 
-| Port                           | Implementation                  | Responsibility                                                     |
-| ------------------------------ | ------------------------------- | ------------------------------------------------------------------ |
-| `AUTH_USER_REPOSITORY`         | `PrismaUserRepository`          | User access and scoped account updates                             |
-| `AUTH_SESSION_REPOSITORY`      | `PrismaSessionRepository`       | Session state and owner-checked revocation                         |
-| `AUTH_READ_REPOSITORY`         | `PrismaAuthReadRepository`      | Auth profile, session lists, step-up metadata                      |
-| `AUTH_SIGN_UP_PERSISTENCE`     | `PrismaSignUpPersistence`       | Atomic create of user, initial session and audit                   |
-| `AUTH_SECURITY_PERSISTENCE`    | `PrismaAuthSecurityPersistence` | Atomic recovery and MFA-disable commands                           |
-| `AUTH_AUDIT_EVENT_WRITER`      | `AuditWriterService`            | Normalized, sanitized event writes                                 |
-| `AUTH_MFA_SECRET_CIPHER`       | `MfaSecretCipherService`        | Encryption/decryption of MFA secret; keys remain in infrastructure |
-| `AUTH_OAUTH_PROVIDER_RESOLVER` | `OAuthProviderRegistry`         | Resolve configured OAuth providers                                 |
+| Port                             | Implementation                  | Responsibility                                                              |
+| -------------------------------- | ------------------------------- | --------------------------------------------------------------------------- |
+| `AUTH_USER_REPOSITORY`           | `PrismaUserRepository`          | User access and scoped account updates                                      |
+| `AUTH_SESSION_REPOSITORY`        | `PrismaSessionRepository`       | Session state and owner-checked revocation                                  |
+| `AUTH_READ_REPOSITORY`           | `PrismaAuthReadRepository`      | Auth profile, session lists, step-up metadata                               |
+| `AUTH_SIGN_UP_PERSISTENCE`       | `PrismaSignUpPersistence`       | Atomic create of user, initial session and audit                            |
+| `AUTH_SECURITY_PERSISTENCE`      | `PrismaAuthSecurityPersistence` | Atomic recovery and MFA-disable commands                                    |
+| `AUTH_MFA_LIFECYCLE_PERSISTENCE` | `PrismaMfaLifecyclePersistence` | Atomic MFA enrollment, code rotation, OTP/recovery proof and business audit |
+| `AUTH_AUDIT_EVENT_WRITER`        | `AuditWriterService`            | Normalized, sanitized event writes                                          |
+| `AUTH_MFA_SECRET_CIPHER`         | `MfaSecretCipherService`        | Encryption/decryption of MFA secret; keys remain in infrastructure          |
+| `AUTH_OAUTH_PROVIDER_RESOLVER`   | `OAuthProviderRegistry`         | Resolve configured OAuth providers                                          |
 
 Provider tokens are registered in `auth.module.ts` or the auth persistence
 provider collection. The application does not import `PrismaService`,
@@ -65,6 +68,28 @@ The application audit service does **not** receive `Prisma.TransactionClient`.
 The infrastructure writer binds the audit write to the already opened
 transaction. A failed audit write rejects the same transaction, preventing
 partial success for atomic flows.
+
+### MFA lifecycle transaction and concurrency
+
+The MFA lifecycle port owns these atomic operations:
+
+1. **Enrollment:** Account status and session/access-version are revalidated
+   inside a transaction after row locks. TOTP enrollment, failed-attempt reset,
+   used-OTP cleanup, conditional first backup batch, and all corresponding
+   business audit events commit or roll back together. A stale enrollment
+   ciphertext is rejected rather than overwritten.
+2. **Recovery-code rotation:** Requires a currently verified session and
+   matching verified enrollment. Invalidating old codes, issuing replacements
+   and both generation/view audit events share one transaction.
+3. **OTP or backup-code verification:** Consumes the OTP (unique lookup key) or
+   backup code (conditional one-time update) together with session step-up,
+   account MFA flags, rate-limit reset and success audit. Audit failure causes
+   the consumed proof and all related state updates to roll back.
+
+Database row lock order is **User → Session**, matching Disable MFA. The
+cryptographic verification and code generation work occur before opening a
+transaction. API/HTTP failure telemetry may still be recorded separately
+after rollback; business audit atomicity does not suppress error logging.
 
 ### Repository modules
 
@@ -103,23 +128,28 @@ excluded from this additional scoped boundary rule.
 The following targeted verification completed on a **disposable local
 PostgreSQL instance**, not the production database:
 
-| Suite                                           | Result       |
-| ----------------------------------------------- | ------------ |
-| Auth + Sign Up + OAuth E2E                      | 66/66 passed |
-| Account Lifecycle E2E                           | 17/17 passed |
-| Auth / Admin / Audit / RBAC targeted unit suite | 68/68 passed |
-| TypeScript build, import/contract checks        | Passed       |
+| Suite                                                                        | Verified result                                                |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Auth + Sign Up + OAuth E2E, including six new MFA rollback/concurrency cases | 72/72 passed                                                   |
+| Account Lifecycle E2E                                                        | 17/17 passed                                                   |
+| API unit/integration Jest suite                                              | 1,024 passed, 34 skipped (151 suites passed, 8 suites skipped) |
+| Web test runner                                                              | 324/324 passed in the final test group                         |
+| TypeScript build, ESLint, formatting and import/contract checks              | Passed                                                         |
 
-The repository-wide complete test suite, deployment behavior and production
-load/performance were not asserted by this change. E2E results should be rerun
-in CI on the final pushed branch.
+The full repository-wide E2E suite (including unrelated runtime dependencies),
+deployment behavior and production load/performance were not asserted by this
+change. The full API Jest unit suite and Web tests were run independently.
+A Jest open-handle warning was observed despite unit tests passing; investigate
+in a separate test-harness maintenance task. E2E results should be rerun in CI
+on the final pushed branch.
 
 ## Remaining technical considerations
 
 1. Application handlers still use shared platform HTTP exception helpers. A
    stricter domain-error boundary can be considered in a separate change.
-2. Existing Auth MFA enrollment/recovery-code flows have multi-record mutations
-   outside the atomic Password Recovery and Disable MFA commands; review their
-   transaction boundary independently rather than broadening this structural PR.
+2. Failed MFA attempts intentionally update rate limits and emit rejection
+   audit events outside a successful proof transaction. Their failure-path
+   policy should be reviewed separately for availability under audit outages,
+   rather than resetting security controls as part of this change.
 3. Deprecated import facades should remain until all consuming modules are
    migrated and tests prove they can be removed safely.

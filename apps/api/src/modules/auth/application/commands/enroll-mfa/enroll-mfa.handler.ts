@@ -1,9 +1,4 @@
-import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import {
-  AUTH_ERROR_CODES,
-  AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  USER_ACCESS_STATUSES,
-} from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
@@ -22,18 +17,18 @@ import {
 import type { EnrollMfaSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
-  AUTH_MFA_OTP_USED_REPOSITORY,
-  AUTH_MFA_RATE_LIMIT_REPOSITORY,
   AUTH_MFA_RECOVERY_CODE_REPOSITORY,
   AUTH_SESSION_REPOSITORY,
   AUTH_USER_REPOSITORY,
   type MfaEnrollmentRepository,
-  type MfaOtpUsedRepository,
-  type MfaRateLimitRepository,
   type MfaRecoveryCodeRepository,
   type SessionRepository,
   type UserRepository,
 } from "../../ports/persistence/index.ts";
+import {
+  AUTH_MFA_LIFECYCLE_PERSISTENCE,
+  type MfaLifecyclePersistence,
+} from "../../ports/persistence/mfa-lifecycle.persistence.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { EnrollMfaCommand } from "./enroll-mfa.command.ts";
 
@@ -56,16 +51,14 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     private readonly sessions: SessionRepository,
     @Inject(AUTH_MFA_ENROLLMENT_REPOSITORY)
     private readonly mfaEnrollments: MfaEnrollmentRepository,
-    @Inject(AUTH_MFA_OTP_USED_REPOSITORY)
-    private readonly mfaOtpUsed: MfaOtpUsedRepository,
-    @Inject(AUTH_MFA_RATE_LIMIT_REPOSITORY)
-    private readonly mfaRateLimits: MfaRateLimitRepository,
     @Inject(AUTH_MFA_RECOVERY_CODE_REPOSITORY)
     private readonly mfaRecoveryCodes: MfaRecoveryCodeRepository,
     @Inject(AUTH_USER_REPOSITORY)
     private readonly users: UserRepository,
     @Inject(AUTH_MFA_SECRET_CIPHER)
     private readonly cipher: MfaSecretCipher,
+    @Inject(AUTH_MFA_LIFECYCLE_PERSISTENCE)
+    private readonly lifecycle: MfaLifecyclePersistence,
   ) {}
 
   /**
@@ -76,14 +69,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
    */
   async execute(command: EnrollMfaCommand): Promise<EnrollMfaSuccess> {
     const { userId, sessionId, requestMeta } = command;
-    const {
-      sessions,
-      mfaEnrollments,
-      mfaOtpUsed,
-      mfaRateLimits,
-      mfaRecoveryCodes,
-      users,
-    } = this;
+    const { sessions, mfaEnrollments, mfaRecoveryCodes, users } = this;
     const correlationId =
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
@@ -135,61 +121,33 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       enrolledAt: now,
       verifiedAt: null,
     });
-    await mfaEnrollments.save(enrollment);
-    await mfaOtpUsed.deleteByUserId(userId);
-    await mfaRateLimits.resetByUserId(userId);
-
-    let recoveryCodes: string[] = [];
-    const hasActiveRecoveryCodes =
-      await mfaRecoveryCodes.hasActiveForUser(userId);
-    if (!hasActiveRecoveryCodes) {
-      recoveryCodes = generateMfaRecoveryCodes();
-      const batchId = mfaRecoveryCodes.nextBatchId();
-      await mfaRecoveryCodes.replaceForUser(
-        userId,
-        recoveryCodes.map((code) => ({
-          id: mfaRecoveryCodes.nextId(),
-          codeHash: hashMfaRecoveryCode(code),
-        })),
-        batchId,
-        now,
-      );
-
-      await this.support.recordAudit({
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodesGenerated,
-        actor_id: userId,
-        resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
-        resource_id: batchId,
-        decision: AUDIT_DECISIONS.allow,
-        correlationId: correlationId,
-        session_id: sessionId ?? null,
-        batch_id: batchId,
-        code_count: recoveryCodes.length,
-      });
-      await this.support.recordAudit({
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeViewed,
-        actor_id: userId,
-        resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
-        resource_id: batchId,
-        decision: AUDIT_DECISIONS.allow,
-        correlationId: correlationId,
-        session_id: sessionId ?? null,
-        batch_id: batchId,
-      });
-    }
-
-    await this.support.recordAudit({
-      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
-      actor_id: userId,
-      decision: AUDIT_DECISIONS.allow,
-      correlationId: correlationId,
+    // Precompute opaque codes before acquiring the user row lock. Only return
+    // codes if the same transaction actually persisted the candidate batch.
+    const candidateCodes = generateMfaRecoveryCodes();
+    const result = await this.lifecycle.enroll({
+      userId,
+      sessionId,
+      now,
+      correlationId,
+      enrollment,
+      expectedEncryptedSecret: existingEnrollment?.encryptedSecret ?? null,
+      allowUnverifiedReplacement:
+        existingEnrollment !== null && !session.isMfaVerified(),
+      candidateBatchId: mfaRecoveryCodes.nextBatchId(),
+      candidateCodes: candidateCodes.map((code) => ({
+        id: mfaRecoveryCodes.nextId(),
+        codeHash: hashMfaRecoveryCode(code),
+      })),
     });
+    if (!result.ok) {
+      throw problemException(result.code, correlationId);
+    }
 
     return {
       ok: true,
       correlationId: correlationId,
       totp_uri: buildTotpUri(plainSecret, user.primaryEmailAddress()),
-      recovery_codes: recoveryCodes,
+      recovery_codes: result.recoveryCodesCreated ? candidateCodes : [],
     };
   }
 }

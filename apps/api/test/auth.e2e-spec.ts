@@ -5,6 +5,7 @@ import {
   AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
+import { jest } from "@jest/globals";
 
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -21,6 +22,7 @@ import {
 import { resolveMessage } from "@lcsp/i18n";
 
 import { AppModule } from "../src/app.module.js";
+import { AuthAuditService } from "../src/modules/auth/application/services/auth/auth-audit.service.js";
 import type {
   EnrollMfaSuccess,
   GenerateMfaRecoveryCodesSuccess,
@@ -94,6 +96,21 @@ describe("Auth workspace (e2e)", () => {
     await app.close();
     await prisma.$disconnect();
   });
+
+  async function mfaBusinessAuditCount(): Promise<number> {
+    const events = await prisma.auditEvent.findMany({
+      select: { payload: true },
+    });
+    const types: Set<string> = new Set([
+      AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
+      AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodesGenerated,
+      AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeViewed,
+    ]);
+    return events.filter((event) => {
+      const payload = event.payload as Record<string, unknown> | null;
+      return payload && types.has(payload.event_type as string);
+    }).length;
+  }
 
   it("approved sign-in returns the current safe user projection", async () => {
     const result = await httpRequest(app)
@@ -372,6 +389,80 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(new Set(body.recovery_codes).size, 10);
   });
 
+  it("concurrent first MFA enrollment commits one coherent secret and backup batch", async () => {
+    const signedIn = await signInApprovedUser();
+    const requests = await Promise.all([
+      httpRequest(app)
+        .post("/auth/mfa/enroll")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token }),
+      httpRequest(app)
+        .post("/auth/mfa/enroll")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token }),
+    ]);
+    assert.deepEqual(requests.map((r) => r.status).sort(), [201, 403]);
+    const successful = requests.find((r) => r.status === 201);
+    assert.ok(successful);
+    assert.equal(
+      successBody<EnrollMfaSuccess>(successful).recovery_codes.length,
+      10,
+    );
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.ok(stored.mfaEncryptedSecret);
+    const activeCodes = await prisma.authRecord.count({
+      where: {
+        userId: stored.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: null,
+        revokedAt: null,
+      },
+    });
+    assert.equal(activeCodes, 10);
+    const audits = await prisma.auditEvent.findMany({
+      where: { actorId: stored.id },
+    });
+    assert.equal(
+      audits.filter(
+        (a) =>
+          (a.payload as Record<string, unknown>).event_type ===
+          AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
+      ).length,
+      1,
+    );
+  });
+
+  it("rolls back MFA enrollment and backup issuance if transactional audit fails", async () => {
+    const signedIn = await signInApprovedUser();
+    const initialMfaAuditCount = await mfaBusinessAuditCount();
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test MFA audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/enroll")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(stored.mfaEncryptedSecret, null);
+    assert.equal(stored.mfaEnrolledAt, null);
+    assert.equal(
+      await prisma.authRecord.count({
+        where: { userId: stored.id, type: AUTH_RECORD_TYPE.mfaRecoveryCode },
+      }),
+      0,
+    );
+    assert.equal(await mfaBusinessAuditCount(), initialMfaAuditCount);
+  });
+
   it("MFA recovery code verifies MFA once and rejects replay", async () => {
     const signIn = await signInApprovedUser();
     const enrollment = await httpRequest(app)
@@ -402,6 +493,43 @@ describe("Auth workspace (e2e)", () => {
       },
     });
     assert.equal(usedCodes.length, 1);
+  });
+
+  it("rolls back a consumed MFA recovery code when verification audit fails", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const code = successBody<EnrollMfaSuccess>(enrolled).recovery_codes[0];
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test MFA proof audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/recovery-code/verify")
+        .send({ session_token: signedIn.session_token, code })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(user.mfaVerifiedAt, null);
+    const used = await prisma.authRecord.count({
+      where: {
+        userId: user.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: { not: null },
+      },
+    });
+    assert.equal(used, 0);
+    await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({ session_token: signedIn.session_token, code })
+      .expect(201);
   });
 
   it("generating a new MFA recovery code set invalidates the old set", async () => {
@@ -451,6 +579,103 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(
       successBody<VerifyMfaRecoveryCodeSuccess>(newAttempt).ok,
       true,
+    );
+  });
+
+  it("rolls back recovery code replacement and audit on failure", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const otp = totpForTime(
+      totpSecretFromUri(successBody<EnrollMfaSuccess>(enrolled).totp_uri),
+      Date.now(),
+    );
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
+    const activeBefore = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: null,
+        revokedAt: null,
+      },
+      orderBy: { id: "asc" },
+    });
+    const auditCount = await mfaBusinessAuditCount();
+    assert.equal(activeBefore.length, 10);
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test MFA code audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/recovery-codes")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const activeAfter = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: null,
+        revokedAt: null,
+      },
+      orderBy: { id: "asc" },
+    });
+    assert.deepEqual(
+      activeAfter.map((c) => c.id),
+      activeBefore.map((c) => c.id),
+    );
+    assert.equal(await mfaBusinessAuditCount(), auditCount);
+  });
+
+  it("concurrent code regeneration and disabling MFA leaves no live codes", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const otp = totpForTime(
+      totpSecretFromUri(successBody<EnrollMfaSuccess>(enrolled).totp_uri),
+      Date.now(),
+    );
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
+    const results = await Promise.all([
+      httpRequest(app)
+        .post("/auth/mfa/recovery-codes")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token }),
+      httpRequest(app)
+        .delete("/auth/mfa")
+        .set("Authorization", `Bearer ${signedIn.session_token}`),
+    ]);
+    assert.equal(results[1].status, 200);
+    assert.ok([201, 403].includes(results[0].status));
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(stored.mfaEncryptedSecret, null);
+    assert.equal(
+      await prisma.authRecord.count({
+        where: {
+          userId: stored.id,
+          type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+          usedAt: null,
+          revokedAt: null,
+        },
+      }),
+      0,
     );
   });
 
@@ -526,6 +751,47 @@ describe("Auth workspace (e2e)", () => {
       .set("Authorization", `Bearer ${signIn.session_token}`)
       .expect(200);
     assert.equal(successBody<{ ok: boolean }>(profile).ok, true);
+  });
+
+  it("rolls back OTP consumption and session elevation when audit fails", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const otp = totpForTime(
+      totpSecretFromUri(successBody<EnrollMfaSuccess>(enrolled).totp_uri),
+      Date.now(),
+    );
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test OTP proof audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/verify-otp")
+        .send({ session_token: signedIn.session_token, otp })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(user.mfaVerifiedAt, null);
+    assert.equal(
+      await prisma.authRecord.count({
+        where: { userId: user.id, type: AUTH_RECORD_TYPE.mfaOtpUse },
+      }),
+      0,
+    );
+    const session = await findLatestAuthSession(prisma, user.id);
+    assert.ok(session);
+    assert.equal(authRecordMetadataString(session, "mfaVerifiedAt"), null);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
   });
 
   it("invalid OTP is rejected and audit event is recorded", async () => {

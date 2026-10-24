@@ -1,4 +1,4 @@
-import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
@@ -8,7 +8,6 @@ import { Inject, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
   hashMfaRecoveryCode,
   normalizeMfaRecoveryCode,
@@ -17,15 +16,18 @@ import type { VerifyMfaRecoveryCodeSuccess } from "../../contracts/auth/mfa.cont
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
   AUTH_MFA_RATE_LIMIT_REPOSITORY,
-  AUTH_MFA_RECOVERY_CODE_REPOSITORY,
   AUTH_SESSION_REPOSITORY,
   AUTH_USER_REPOSITORY,
   type MfaEnrollmentRepository,
   type MfaRateLimitRepository,
-  type MfaRecoveryCodeRepository,
   type SessionRepository,
   type UserRepository,
 } from "../../ports/persistence/index.ts";
+import {
+  AUTH_MFA_LIFECYCLE_PERSISTENCE,
+  MFA_PROOF_TYPES,
+  type MfaLifecyclePersistence,
+} from "../../ports/persistence/mfa-lifecycle.persistence.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { VerifyMfaRecoveryCodeCommand } from "./verify-mfa-recovery-code.command.ts";
 
@@ -57,8 +59,8 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
     private readonly mfaEnrollments: MfaEnrollmentRepository,
     @Inject(AUTH_MFA_RATE_LIMIT_REPOSITORY)
     private readonly mfaRateLimits: MfaRateLimitRepository,
-    @Inject(AUTH_MFA_RECOVERY_CODE_REPOSITORY)
-    private readonly mfaRecoveryCodes: MfaRecoveryCodeRepository,
+    @Inject(AUTH_MFA_LIFECYCLE_PERSISTENCE)
+    private readonly lifecycle: MfaLifecyclePersistence,
   ) {}
 
   /**
@@ -71,8 +73,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
     command: VerifyMfaRecoveryCodeCommand,
   ): Promise<VerifyMfaRecoveryCodeSuccess> {
     const { sessionToken, code, requestMeta } = command;
-    const { sessions, users, mfaEnrollments, mfaRateLimits, mfaRecoveryCodes } =
-      this;
+    const { sessions, users, mfaEnrollments, mfaRateLimits } = this;
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
 
@@ -114,53 +115,28 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
       throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
-    const consumed = await mfaRecoveryCodes.tryConsume(
-      session.userId,
-      hashMfaRecoveryCode(normalizedCode),
+    const proofResult = await this.lifecycle.verifyProof({
+      userId: session.userId,
+      sessionId: session.id,
+      expectedEncryptedSecret: enrollment.encryptedSecret,
       now,
-    );
-    if (!consumed) {
-      await this.recordFailedAttempt(
-        session.userId,
-        now,
-        correlationId,
-        "invalid_or_used",
-      );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
-    }
-
-    // A valid backup code can complete first-time MFA enrollment. Ensure the
-    // enrollment is still present before marking the session verified.
-    if (!(await mfaEnrollments.markVerifiedIfCurrent(enrollment, now))) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
-    }
-
-    session.markMfaVerified(now);
-    session.markSensitiveActionVerified(now);
-    await sessions.save(session);
-
-    const user = await users.findById(session.userId);
-    if (!user) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
-    }
-    if (!(await users.setMfaRequired(user.id, true))) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
-    }
-
-    const existingRateLimit =
-      rateLimit ?? new MfaRateLimit({ userId: session.userId });
-    existingRateLimit.clearOnSuccess();
-    await mfaRateLimits.save(existingRateLimit);
-
-    await this.support.recordAudit({
-      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeUsed,
-      actor_id: session.userId,
-      resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
-      resource_id: session.userId,
-      decision: AUDIT_DECISIONS.allow,
-      correlationId: correlationId,
-      session_id: session.id,
+      correlationId,
+      proof: {
+        kind: MFA_PROOF_TYPES.recoveryCode,
+        codeHash: hashMfaRecoveryCode(normalizedCode),
+      },
     });
+    if (!proofResult.ok) {
+      if (proofResult.code === AUTH_ERROR_CODES.mfaInvalid) {
+        await this.recordFailedAttempt(
+          session.userId,
+          now,
+          correlationId,
+          "invalid_or_used",
+        );
+      }
+      throw problemException(proofResult.code, correlationId);
+    }
 
     return { ok: true, correlationId: correlationId };
   }

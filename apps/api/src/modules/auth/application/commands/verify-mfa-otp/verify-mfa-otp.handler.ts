@@ -8,7 +8,6 @@ import { Inject, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import { verifyTotpOtp } from "../../../../../platform/security/totp.utils.js";
 import {
   AUTH_MFA_SECRET_CIPHER,
@@ -27,13 +26,16 @@ import {
   type SessionRepository,
   type UserRepository,
 } from "../../ports/persistence/index.ts";
+import {
+  AUTH_MFA_LIFECYCLE_PERSISTENCE,
+  MFA_PROOF_TYPES,
+  type MfaLifecyclePersistence,
+} from "../../ports/persistence/mfa-lifecycle.persistence.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { VerifyMfaOtpCommand } from "./verify-mfa-otp.command.ts";
 
 const MFA_RATE_LIMIT = 5;
 const MFA_LOCK_WINDOW_MS = 15 * 60_000;
-// ±1 TOTP step (30s) plus clock-skew slack; anything older can never be replayed.
-const OTP_USED_RETENTION_MS = 5 * 60_000;
 
 /**
  * Handles verifying TOTP time-based one-time password (OTP) during sign-in elevation.
@@ -64,6 +66,8 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     private readonly mfaOtpUsed: MfaOtpUsedRepository,
     @Inject(AUTH_MFA_SECRET_CIPHER)
     private readonly cipher: MfaSecretCipher,
+    @Inject(AUTH_MFA_LIFECYCLE_PERSISTENCE)
+    private readonly lifecycle: MfaLifecyclePersistence,
   ) {}
 
   /**
@@ -141,45 +145,25 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
-    const claimed = await mfaOtpUsed.tryMarkUsed(session.userId, otp);
-    if (!claimed) {
-      // Lost a concurrent race to consume this exact code — treat as replay.
-      await this.recordFailedAttempt(
-        session.userId,
-        now,
-        correlationId,
-        "replayed",
-      );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
-    }
-    await mfaOtpUsed.pruneOlderThan(now - OTP_USED_RETENTION_MS);
-
-    if (!(await mfaEnrollments.markVerifiedIfCurrent(enrollment, now))) {
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
-    }
-    session.markMfaVerified(now);
-    session.markSensitiveActionVerified(now);
-    await sessions.save(session);
-
-    const user = await users.findById(session.userId);
-    if (!user) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
-    }
-    if (!(await users.setMfaRequired(user.id, true))) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
-    }
-
-    const existingRateLimit =
-      rateLimit ?? new MfaRateLimit({ userId: session.userId });
-    existingRateLimit.clearOnSuccess();
-    await mfaRateLimits.save(existingRateLimit);
-
-    await this.support.recordAudit({
-      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaVerified,
-      actor_id: session.userId,
-      decision: AUDIT_DECISIONS.allow,
-      correlationId: correlationId,
+    const proofResult = await this.lifecycle.verifyProof({
+      userId: session.userId,
+      sessionId: session.id,
+      expectedEncryptedSecret: enrollment.encryptedSecret,
+      now,
+      correlationId,
+      proof: { kind: MFA_PROOF_TYPES.otp, otp },
     });
+    if (!proofResult.ok) {
+      if (proofResult.code === AUTH_ERROR_CODES.mfaInvalid) {
+        await this.recordFailedAttempt(
+          session.userId,
+          now,
+          correlationId,
+          "replayed",
+        );
+      }
+      throw problemException(proofResult.code, correlationId);
+    }
 
     return { ok: true, correlationId: correlationId };
   }
