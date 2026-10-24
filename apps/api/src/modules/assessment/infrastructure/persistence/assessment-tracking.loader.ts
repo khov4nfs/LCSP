@@ -28,8 +28,11 @@ import {
   TRACKING_FRESHNESS_STATUSES,
   TRACKING_IMPACT_REASONS,
   TRACKING_TRUST_STATUSES,
+  TRACKING_RULE_OUTCOMES,
   TRACKING_UNTRUSTED_REASONS,
   customerTrackingOverviewSchema,
+  customerTrackingObligationsSchema,
+  customerTrackingReportsSchema,
   adminTrackingOperationalSchema,
   type CustomerTrackingOverview,
   type AdminTrackingOperational,
@@ -43,6 +46,9 @@ import {
   type TrackingAnomalyType,
   type TrackingFreshnessStatus,
   type TrackingTrustStatus,
+  type TrackingRuleOutcome,
+  type CustomerTrackingObligations,
+  type CustomerTrackingReports,
 } from "@lcsp/contracts/assessment-domain";
 import {
   REPOSITORY_SNAPSHOT_STATUSES,
@@ -147,12 +153,20 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
   notApplicable: number;
   unresolved: number;
   hasDecisionInconsistency: boolean;
+  outcomes: Map<
+    string,
+    (typeof TRACKING_RULE_OUTCOMES)[keyof typeof TRACKING_RULE_OUTCOMES]
+  >;
 } {
   let compliant = 0;
   let nonCompliant = 0;
   let notApplicable = 0;
   let unresolved = 0;
   let hasDecisionInconsistency = false;
+  const outcomes = new Map<
+    string,
+    (typeof TRACKING_RULE_OUTCOMES)[keyof typeof TRACKING_RULE_OUTCOMES]
+  >();
 
   for (const cov of params.coverage) {
     if (
@@ -160,6 +174,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
       !cov.currentDecisionId
     ) {
       unresolved++;
+      outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.UNRESOLVED);
       continue;
     }
 
@@ -178,6 +193,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
     ) {
       hasDecisionInconsistency = true;
       unresolved++;
+      outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.UNRESOLVED);
       continue;
     }
 
@@ -185,6 +201,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
     if (!parsed.success) {
       hasDecisionInconsistency = true;
       unresolved++;
+      outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.UNRESOLVED);
       continue;
     }
 
@@ -247,20 +264,25 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
       if (!refsValid) {
         hasDecisionInconsistency = true;
         unresolved++;
+        outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.UNRESOLVED);
         continue;
       }
     }
 
     if (d.applicability === RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE) {
       notApplicable++;
+      outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.NOT_APPLICABLE);
     } else if (d.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT) {
       compliant++;
+      outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.COMPLIANT);
     } else if (
       d.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT
     ) {
       nonCompliant++;
+      outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.NON_COMPLIANT);
     } else {
       unresolved++;
+      outcomes.set(cov.assessmentRuleId, TRACKING_RULE_OUTCOMES.UNRESOLVED);
     }
   }
 
@@ -270,6 +292,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
     notApplicable,
     unresolved,
     hasDecisionInconsistency,
+    outcomes,
   };
 }
 
@@ -309,6 +332,7 @@ export class AssessmentTrackingLoader {
     changesOffset?: number;
     since?: string;
     locale?: string;
+    search?: string;
   }): Promise<CustomerTrackingOverview> {
     if (input.since !== undefined && input.since !== "") {
       const parsedSince = new Date(input.since);
@@ -439,12 +463,18 @@ export class AssessmentTrackingLoader {
       });
     }
 
+    const assessmentWhere = {
+      ownerId: input.sessionUserId,
+      ...(input.search
+        ? { name: { contains: input.search, mode: "insensitive" as const } }
+        : {}),
+    };
     const total = await this.prisma.assessment.count({
-      where: { ownerId: input.sessionUserId },
+      where: assessmentWhere,
     });
 
     const assessments = await this.prisma.assessment.findMany({
-      where: { ownerId: input.sessionUserId },
+      where: assessmentWhere,
       select: {
         id: true,
         name: true,
@@ -1370,7 +1400,11 @@ export class AssessmentTrackingLoader {
         const pinnedCommit = ac.repositoryCommit ?? pinned.commitSha;
         const key = `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`;
         const foundLatest = latestSnapshotsByRepoRef.get(key);
-        if (foundLatest && foundLatest.id !== pinned.id) {
+        if (
+          foundLatest &&
+          foundLatest.id !== pinned.id &&
+          foundLatest.createdAt > pinned.createdAt
+        ) {
           const latestCommit = foundLatest.commitSha;
           const isStale =
             Boolean(pinnedCommit) &&
@@ -1527,6 +1561,7 @@ export class AssessmentTrackingLoader {
       let repoName: string | null = null;
       let pinnedCommit: string | null = domainCase?.repositoryCommit ?? null;
       let latestCommit: string | null = null;
+      let observedAt: string | null = null;
       let freshnessStatus: TrackingFreshnessStatus =
         TRACKING_FRESHNESS_STATUSES.UNKNOWN;
       let isStale = false;
@@ -1547,23 +1582,26 @@ export class AssessmentTrackingLoader {
 
           // An assessment result was evaluated at pinnedCommit.
           // Check remote freshness against authorized subsequent observations:
-          if (foundLatest && foundLatest.id !== pinned.id) {
-            if (
+          if (
+            foundLatest &&
+            foundLatest.id !== pinned.id &&
+            foundLatest.createdAt > pinned.createdAt
+          ) {
+            latestCommit = foundLatest.commitSha;
+            observedAt = foundLatest.createdAt.toISOString();
+            isStale = Boolean(
               pinnedCommit &&
-              foundLatest.commitSha.toLowerCase() !== pinnedCommit.toLowerCase()
-            ) {
-              freshnessStatus = TRACKING_FRESHNESS_STATUSES.STALE;
-              isStale = true;
-              latestCommit = foundLatest.commitSha;
-            } else {
-              freshnessStatus = TRACKING_FRESHNESS_STATUSES.UNKNOWN;
-              isStale = false;
-              latestCommit = null;
-            }
+              foundLatest.commitSha.toLowerCase() !==
+                pinnedCommit.toLowerCase(),
+            );
+            freshnessStatus = isStale
+              ? TRACKING_FRESHNESS_STATUSES.STALE
+              : TRACKING_FRESHNESS_STATUSES.CURRENT;
           } else {
             freshnessStatus = TRACKING_FRESHNESS_STATUSES.UNKNOWN;
             isStale = false;
             latestCommit = null;
+            observedAt = null;
           }
         }
       }
@@ -1694,6 +1732,7 @@ export class AssessmentTrackingLoader {
           owner: repoOwner,
           pinnedCommit,
           latestCommit,
+          observedAt,
           freshnessStatus,
           isStale,
         },
@@ -1803,6 +1842,475 @@ export class AssessmentTrackingLoader {
    * @param input.subjectRole - Must be ADMIN.
    * @param input.correlationId - Request correlation identifier.
    */
+  async loadCustomerReports(input: {
+    sessionUserId: string;
+    subjectRole: AuthUserRole;
+    correlationId: string;
+    limit?: number;
+    offset?: number;
+    freshness?: TrackingFreshnessStatus;
+  }): Promise<CustomerTrackingReports> {
+    const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+    const offset = Math.max(input.offset ?? 0, 0);
+    if (input.subjectRole !== AUTH_USER_ROLES.customer) {
+      return customerTrackingReportsSchema.parse({
+        items: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+        generatedAt: new Date().toISOString(),
+      });
+    }
+    const rows = await this.loadCustomerTrackingRows(input.sessionUserId);
+    const ready = rows
+      .filter((row) => row.reportArtifactId !== null && row.lifecycleComplete)
+      .filter(
+        (row) => !input.freshness || row.freshnessStatus === input.freshness,
+      )
+      .sort((a, b) => b.reportCreatedAt!.localeCompare(a.reportCreatedAt!));
+    const items = ready.slice(offset, offset + limit).map((row) => ({
+      assessmentId: row.assessmentId,
+      assessmentName: row.assessmentName,
+      repositoryName: row.repositoryName,
+      repositoryOwner: row.repositoryOwner,
+      artifactId: row.reportArtifactId!,
+      createdAt: row.reportCreatedAt!,
+      freshnessStatus: row.freshnessStatus,
+      observedAt: row.observedAt,
+      trustStatus: row.trustStatus,
+    }));
+    return customerTrackingReportsSchema.parse({
+      items,
+      pagination: {
+        total: ready.length,
+        limit,
+        offset,
+        hasMore: offset + items.length < ready.length,
+      },
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  async loadCustomerObligations(input: {
+    sessionUserId: string;
+    subjectRole: AuthUserRole;
+    correlationId: string;
+    limit?: number;
+    offset?: number;
+    outcome?: TrackingRuleOutcome;
+    freshness?: TrackingFreshnessStatus;
+  }): Promise<CustomerTrackingObligations> {
+    const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+    const offset = Math.max(input.offset ?? 0, 0);
+    if (input.subjectRole !== AUTH_USER_ROLES.customer) {
+      return customerTrackingObligationsSchema.parse({
+        items: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+        generatedAt: new Date().toISOString(),
+      });
+    }
+    const rows = await this.loadCustomerTrackingRows(input.sessionUserId);
+    const groups = new Map<
+      string,
+      {
+        ruleSetVersionId: string;
+        ruleSetVersion: string | null;
+        assessmentRuleId: string;
+        concept: string;
+        compliantCount: number;
+        nonCompliantCount: number;
+        notApplicableCount: number;
+        unresolvedCount: number;
+        assessments: Array<{
+          assessmentId: string;
+          assessmentName: string;
+          outcome: TrackingRuleOutcome;
+          freshnessStatus: TrackingFreshnessStatus;
+          observedAt: string | null;
+          trustStatus: TrackingTrustStatus;
+        }>;
+      }
+    >();
+    for (const row of rows) {
+      for (const item of row.rules) {
+        if (input.outcome && item.outcome !== input.outcome) continue;
+        if (input.freshness && row.freshnessStatus !== input.freshness)
+          continue;
+        const key = `${row.ruleSetVersionId ?? "UNPINNED"}::${item.assessmentRuleId}`;
+        const group = groups.get(key) ?? {
+          ruleSetVersionId: row.ruleSetVersionId ?? "UNPINNED",
+          ruleSetVersion: row.ruleSetVersion,
+          assessmentRuleId: item.assessmentRuleId,
+          concept: item.concept,
+          compliantCount: 0,
+          nonCompliantCount: 0,
+          notApplicableCount: 0,
+          unresolvedCount: 0,
+          assessments: [],
+        };
+        if (item.outcome === TRACKING_RULE_OUTCOMES.COMPLIANT)
+          group.compliantCount++;
+        else if (item.outcome === TRACKING_RULE_OUTCOMES.NON_COMPLIANT)
+          group.nonCompliantCount++;
+        else if (item.outcome === TRACKING_RULE_OUTCOMES.NOT_APPLICABLE)
+          group.notApplicableCount++;
+        else group.unresolvedCount++;
+        group.assessments.push({
+          assessmentId: row.assessmentId,
+          assessmentName: row.assessmentName,
+          outcome: item.outcome,
+          freshnessStatus: row.freshnessStatus,
+          observedAt: row.observedAt,
+          trustStatus: row.trustStatus,
+        });
+        groups.set(key, group);
+      }
+    }
+    const all = [...groups.values()].sort(
+      (a, b) =>
+        a.concept.localeCompare(b.concept) ||
+        a.ruleSetVersionId.localeCompare(b.ruleSetVersionId),
+    );
+    const items = all.slice(offset, offset + limit).map((group) => ({
+      ...group,
+      affectedAssessmentCount: group.assessments.length,
+      assessments: group.assessments.slice(0, 20),
+    }));
+    return customerTrackingObligationsSchema.parse({
+      items,
+      pagination: {
+        total: all.length,
+        limit,
+        offset,
+        hasMore: offset + items.length < all.length,
+      },
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  private async loadCustomerTrackingRows(sessionUserId: string) {
+    const assessments = await this.prisma.assessment.findMany({
+      where: { ownerId: sessionUserId },
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        lifecycleState: true,
+        blockerReason: true,
+        domainCase: {
+          select: {
+            caseRevision: true,
+            pinnedAt: true,
+            ruleSetVersionId: true,
+            repositorySnapshotId: true,
+            repositoryScanJobId: true,
+            repositoryCommit: true,
+            ruleSet: { select: { version: true, validationOutcome: true } },
+            coverage: {
+              select: {
+                assessmentId: true,
+                assessmentRuleId: true,
+                ruleSetVersionId: true,
+                assessmentRuleVersion: true,
+                resolutionState: true,
+                currentDecisionId: true,
+                decisionRevision: true,
+                assessmentRule: { select: { concept: true } },
+              },
+            },
+            artifacts: {
+              where: {
+                kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+                lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+              },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { artifactId: true, createdAt: true },
+            },
+          },
+        },
+      },
+    });
+    const ids = assessments.map((row) => row.id);
+    const coverage = ids.length
+      ? await this.prisma.assessmentDecisionCoverage.findMany({
+          where: { assessmentId: { in: ids } },
+          select: {
+            assessmentId: true,
+            assessmentRuleId: true,
+            ruleSetVersionId: true,
+            assessmentRuleVersion: true,
+            resolutionState: true,
+            currentDecisionId: true,
+            decisionRevision: true,
+          },
+        })
+      : [];
+    const [
+      decisions,
+      evidence,
+      facts,
+      invalidatedDecisions,
+      invalidatedEvidence,
+      invalidatedFacts,
+    ] = ids.length
+      ? await Promise.all([
+          this.prisma.assessmentRuleDecision.findMany({
+            where: {
+              assessmentId: { in: ids },
+              state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+              supersededAt: null,
+              invalidatedAt: null,
+            },
+            select: {
+              decisionId: true,
+              assessmentId: true,
+              assessmentRuleId: true,
+              assessmentRuleVersion: true,
+              scopeId: true,
+              ruleSetVersionId: true,
+              decisionRevision: true,
+              repositoryCommit: true,
+              caseRevision: true,
+              decision: true,
+            },
+          }),
+          this.prisma.assessmentEvidence.findMany({
+            where: {
+              assessmentId: { in: ids },
+              state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+            },
+            select: {
+              evidenceId: true,
+              assessmentId: true,
+              repositoryCommit: true,
+              state: true,
+            },
+          }),
+          this.prisma.assessmentCaseFact.findMany({
+            where: {
+              assessmentId: { in: ids },
+              state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+            },
+            select: {
+              factId: true,
+              assessmentId: true,
+              caseRevision: true,
+              state: true,
+            },
+          }),
+          this.prisma.assessmentRuleDecision.findMany({
+            where: {
+              assessmentId: { in: ids },
+              state: ASSESSMENT_DECISION_RECORD_STATES.INVALIDATED,
+            },
+            select: { assessmentId: true },
+          }),
+          this.prisma.assessmentEvidence.findMany({
+            where: {
+              assessmentId: { in: ids },
+              state: ASSESSMENT_RECORD_STATES.INVALIDATED,
+            },
+            select: { assessmentId: true },
+          }),
+          this.prisma.assessmentCaseFact.findMany({
+            where: {
+              assessmentId: { in: ids },
+              state: ASSESSMENT_RECORD_STATES.INVALIDATED,
+            },
+            select: { assessmentId: true },
+          }),
+        ])
+      : [[], [], [], [], [], []];
+    const decisionsById = new Map(
+      decisions.map((item) => [item.decisionId, item]),
+    );
+    const evidenceById = new Map(
+      evidence.map((item) => [item.evidenceId, item]),
+    );
+    const factsById = new Map(facts.map((item) => [item.factId, item]));
+    const invalidatedIds = new Set([
+      ...invalidatedDecisions.map((item) => item.assessmentId),
+      ...invalidatedEvidence.map((item) => item.assessmentId),
+      ...invalidatedFacts.map((item) => item.assessmentId),
+    ]);
+    const coverageByAssessment = new Map<string, typeof coverage>();
+    for (const item of coverage) {
+      const list = coverageByAssessment.get(item.assessmentId) ?? [];
+      list.push(item);
+      coverageByAssessment.set(item.assessmentId, list);
+    }
+
+    const pinnedIds = [
+      ...new Set(
+        assessments
+          .map((item) => item.domainCase?.repositorySnapshotId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const pinnedSnapshots = pinnedIds.length
+      ? await this.prisma.repositorySnapshot.findMany({
+          where: { id: { in: pinnedIds } },
+          select: {
+            id: true,
+            repositoryFullName: true,
+            ref: true,
+            branch: true,
+            commitSha: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    const pinnedById = new Map(pinnedSnapshots.map((item) => [item.id, item]));
+    const keys = [
+      ...new Set(
+        pinnedSnapshots.map(
+          (item) =>
+            `${item.repositoryFullName}::${item.ref ?? item.branch ?? ""}`,
+        ),
+      ),
+    ];
+    const latestByKey = new Map<string, (typeof pinnedSnapshots)[number]>();
+    for (const key of keys) {
+      const [repositoryFullName, ref] = key.split("::");
+      const whereConditions: Array<Record<string, unknown>> = [
+        {
+          OR: [
+            { assessment: { ownerId: sessionUserId } },
+            {
+              connection: {
+                userId: sessionUserId,
+                status: REPOSITORY_CONNECTION_STATUSES.active,
+              },
+            },
+          ],
+        },
+      ];
+      if (ref) whereConditions.push({ OR: [{ ref }, { branch: ref }] });
+      const latest = await this.prisma.repositorySnapshot.findFirst({
+        where: {
+          repositoryFullName,
+          status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+          AND: whereConditions,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          repositoryFullName: true,
+          ref: true,
+          branch: true,
+          commitSha: true,
+          createdAt: true,
+        },
+      });
+      if (latest) latestByKey.set(key, latest);
+    }
+
+    return assessments.map((assessment) => {
+      const domainCase = assessment.domainCase;
+      const assessmentCoverage = coverageByAssessment.get(assessment.id) ?? [];
+      const pinned = domainCase?.repositorySnapshotId
+        ? pinnedById.get(domainCase.repositorySnapshotId)
+        : undefined;
+      let freshnessStatus: TrackingFreshnessStatus =
+        TRACKING_FRESHNESS_STATUSES.UNKNOWN;
+      let observedAt: string | null = null;
+      let repositoryName: string | null = null;
+      let repositoryOwner: string | null = null;
+      if (pinned) {
+        const parts = pinned.repositoryFullName.split("/");
+        repositoryOwner = parts.length > 1 ? parts[0] : null;
+        repositoryName =
+          parts.length > 1
+            ? parts.slice(1).join("/")
+            : pinned.repositoryFullName;
+        const latest = latestByKey.get(
+          `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`,
+        );
+        if (
+          latest &&
+          latest.id !== pinned.id &&
+          latest.createdAt > pinned.createdAt
+        ) {
+          observedAt = latest.createdAt.toISOString();
+          freshnessStatus =
+            latest.commitSha.toLowerCase() ===
+            (domainCase?.repositoryCommit ?? pinned.commitSha).toLowerCase()
+              ? TRACKING_FRESHNESS_STATUSES.CURRENT
+              : TRACKING_FRESHNESS_STATUSES.STALE;
+        }
+      }
+      const evaluation =
+        domainCase?.ruleSetVersionId && domainCase.repositoryCommit
+          ? evaluateAssessmentDecisions({
+              assessmentId: assessment.id,
+              domainCase: {
+                ruleSetVersionId: domainCase.ruleSetVersionId,
+                caseRevision: domainCase.caseRevision,
+                repositoryCommit: domainCase.repositoryCommit,
+                repositorySnapshotId: domainCase.repositorySnapshotId,
+              },
+              coverage: assessmentCoverage,
+              decisionsById,
+              evidenceById,
+              factsById,
+            })
+          : null;
+      const completePins = Boolean(
+        domainCase?.pinnedAt &&
+        domainCase.ruleSetVersionId &&
+        domainCase.repositorySnapshotId &&
+        domainCase.repositoryScanJobId &&
+        domainCase.repositoryCommit,
+      );
+      const report = domainCase?.artifacts[0] ?? null;
+      const lifecycleComplete =
+        assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE;
+      let trustStatus: TrackingTrustStatus;
+      if (!completePins) trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
+      else if (
+        assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED ||
+        assessment.blockerReason !== null
+      )
+        trustStatus = TRACKING_TRUST_STATUSES.BLOCKED;
+      else if (
+        evaluation?.hasDecisionInconsistency ||
+        invalidatedIds.has(assessment.id)
+      )
+        trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
+      else if (freshnessStatus === TRACKING_FRESHNESS_STATUSES.STALE)
+        trustStatus = TRACKING_TRUST_STATUSES.STALE;
+      else if (domainCase?.ruleSet?.validationOutcome !== "PASSED")
+        trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
+      else if (!lifecycleComplete || !evaluation || evaluation.unresolved > 0)
+        trustStatus = TRACKING_TRUST_STATUSES.IN_PROGRESS;
+      else if (!report) trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
+      else trustStatus = TRACKING_TRUST_STATUSES.TRUSTED;
+      return {
+        assessmentId: assessment.id,
+        assessmentName: assessment.name,
+        repositoryName,
+        repositoryOwner,
+        ruleSetVersionId: domainCase?.ruleSetVersionId ?? null,
+        ruleSetVersion: domainCase?.ruleSet?.version ?? null,
+        lifecycleComplete,
+        reportArtifactId: report?.artifactId ?? null,
+        reportCreatedAt: report?.createdAt.toISOString() ?? null,
+        freshnessStatus,
+        observedAt,
+        trustStatus,
+        rules: assessmentCoverage.map((rule) => ({
+          assessmentRuleId: rule.assessmentRuleId,
+          concept:
+            assessment.domainCase?.coverage.find(
+              (item) => item.assessmentRuleId === rule.assessmentRuleId,
+            )?.assessmentRule.concept ?? rule.assessmentRuleId,
+          outcome:
+            evaluation?.outcomes.get(rule.assessmentRuleId) ??
+            TRACKING_RULE_OUTCOMES.UNRESOLVED,
+        })),
+      };
+    });
+  }
+
   async loadAdminOperational(input: {
     sessionUserId: string;
     subjectRole: AuthUserRole;

@@ -15,7 +15,10 @@ test("report actions are native links: view in the app, download the stored arti
       artifactId: "art 1",
     }),
   );
-  assert.match(html, /<a [^>]*href="\/assessments\/a%201\/report"[^>]*>[\s\S]*View report/);
+  assert.match(
+    html,
+    /<a\b(?=[^>]*data-report-action="view")(?=[^>]*href="\/assessments\/a%201\/report\?artifactId=art%201")[^>]*>[\s\S]*View report<\/a>/,
+  );
   assert.match(
     html,
     /<a [^>]*href="\/api\/assessments\/a%201\/artifacts\/art%201\/download"[^>]*>[\s\S]*Download report/,

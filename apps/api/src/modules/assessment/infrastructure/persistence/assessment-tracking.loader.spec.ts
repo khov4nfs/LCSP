@@ -10,6 +10,7 @@ import {
   TRACKING_ANOMALY_TYPES,
   TRACKING_CHANGE_TYPES,
   TRACKING_FRESHNESS_STATUSES,
+  TRACKING_RULE_OUTCOMES,
   TRACKING_TRUST_STATUSES,
   TRACKING_UNTRUSTED_REASONS,
 } from "@lcsp/contracts/assessment-domain";
@@ -286,6 +287,9 @@ function buildLoader(fixtures: FixtureTypes) {
         };
       }) => {
         let list = fixtures.assessments ?? [];
+        if (args?.where?.ownerId) {
+          list = list.filter((a) => a.ownerId === args.where?.ownerId);
+        }
         if (args?.where?.lifecycleState) {
           list = list.filter(
             (a) => a.lifecycleState === args.where?.lifecycleState,
@@ -864,7 +868,7 @@ describe("AssessmentTrackingLoader", () => {
       expect(resultB.assessments[0].trust.isTrustworthy).toBe(false);
     });
 
-    it("ensures newer independent repo snapshot cannot spuriously flag a different repo as stale", async () => {
+    it("marks a later same-ref snapshot current while ignoring a different repository", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const now = new Date("2026-10-18T10:00:00.000Z");
       const later = new Date("2026-10-18T11:00:00.000Z");
@@ -946,15 +950,20 @@ describe("AssessmentTrackingLoader", () => {
         correlationId: "corr-multi-repo",
       });
 
-      // Pinned repo 'acme/payments' must report UNKNOWN freshness (cached snapshot does not claim live HEAD) and NOT stale!
+      // A later same-ref observation confirms the assessed commit. A separate repo must not affect it.
       expect(result.assessments[0].repository.name).toBe("payments");
       expect(result.assessments[0].repository.owner).toBe("acme");
       expect(result.assessments[0].repository.pinnedCommit).toBe(
         "a000000000000000000000000000000000000001",
       );
-      expect(result.assessments[0].repository.latestCommit).toBeNull();
+      expect(result.assessments[0].repository.latestCommit).toBe(
+        "a000000000000000000000000000000000000001",
+      );
+      expect(result.assessments[0].repository.observedAt).toBe(
+        later.toISOString(),
+      );
       expect(result.assessments[0].repository.freshnessStatus).toBe(
-        TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+        TRACKING_FRESHNESS_STATUSES.CURRENT,
       );
       expect(result.assessments[0].repository.isStale).toBe(false);
 
@@ -964,6 +973,68 @@ describe("AssessmentTrackingLoader", () => {
           (c) => c.changeType === TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
         ),
       ).toBe(false);
+    });
+
+    it("marks a later same-ref snapshot stale when its observed commit differs", async () => {
+      const pinnedAt = new Date("2026-10-18T10:00:00.000Z");
+      const observedAt = new Date("2026-10-18T11:00:00.000Z");
+      const assessment = {
+        id: "11111111-1111-4111-8111-111111111111",
+        ownerId: "customer-1",
+        name: "Payments Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: pinnedAt,
+        updatedAt: pinnedAt,
+        runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositorySnapshotId: "snapshot-pinned",
+          repositoryScanJobId: "job-1",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          humanRequests: [],
+          artifacts: [],
+        },
+      };
+      const loader = buildLoader({
+        assessments: [assessment],
+        snapshots: [
+          {
+            id: "snapshot-pinned",
+            repositoryFullName: "acme/payments",
+            ref: "main",
+            commitSha: "a000000000000000000000000000000000000001",
+            createdAt: pinnedAt,
+            status: "READY",
+          },
+          {
+            id: "snapshot-new",
+            repositoryFullName: "acme/payments",
+            ref: "main",
+            commitSha: "b000000000000000000000000000000000000002",
+            createdAt: observedAt,
+            status: "READY",
+          },
+        ],
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-stale-snapshot",
+      });
+
+      expect(result.assessments[0].repository.freshnessStatus).toBe(
+        TRACKING_FRESHNESS_STATUSES.STALE,
+      );
+      expect(result.assessments[0].repository.latestCommit).toBe(
+        "b000000000000000000000000000000000000002",
+      );
+      expect(result.assessments[0].repository.observedAt).toBe(
+        observedAt.toISOString(),
+      );
     });
 
     it("marks unchanged cached repository snapshot with unknown live HEAD as UNKNOWN freshness while evaluating pinned result as TRUSTED", async () => {
@@ -2314,6 +2385,128 @@ describe("AssessmentTrackingLoader", () => {
         expect.stringContaining("corr-query-fail"),
         expect.any(String),
       );
+    });
+  });
+
+  describe("customer tracking lists", () => {
+    it("groups obligations by rule set and exposes only owner-scoped completed active reports", async () => {
+      const assessedAt = new Date("2026-10-18T10:00:00.000Z");
+      const observedAt = new Date("2026-10-18T11:00:00.000Z");
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const otherAssessmentId = "22222222-2222-4222-8222-222222222222";
+      const reportArtifactId = "33333333-3333-4333-8333-333333333333";
+      const ruleSetVersionId = "00000000-0000-4000-8000-000000000001";
+      const snapshots = [
+        {
+          id: "snapshot-pinned",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: assessedAt,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+        {
+          id: "snapshot-observed",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: observedAt,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+      ];
+      const assessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "Payments assessment",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        updatedAt: assessedAt,
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt: assessedAt,
+          ruleSetVersionId,
+          repositorySnapshotId: "snapshot-pinned",
+          repositoryScanJobId: "scan-1",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
+          coverage: [
+            {
+              assessmentId,
+              assessmentRuleId: "RULE-MFA",
+              ruleSetVersionId,
+              assessmentRuleVersion: "1.0.0",
+              resolutionState: "UNRESOLVED",
+              currentDecisionId: null,
+              decisionRevision: null,
+              assessmentRule: { concept: "Multi-factor authentication" },
+            },
+          ],
+          artifacts: [{ artifactId: reportArtifactId, createdAt: assessedAt }],
+        },
+      };
+      const notComplete = {
+        ...assessment,
+        id: otherAssessmentId,
+        name: "Still running",
+        lifecycleState: "ACTIVE",
+        domainCase: { ...assessment.domainCase, artifacts: [] },
+      };
+      const otherOwner = {
+        ...assessment,
+        id: "44444444-4444-4444-8444-444444444444",
+        ownerId: "customer-2",
+        name: "Other customer's assessment",
+      };
+      const loader = buildLoader({
+        assessments: [assessment, notComplete, otherOwner],
+        coverage: [
+          {
+            assessmentId,
+            assessmentRuleId: "RULE-MFA",
+            ruleSetVersionId,
+            assessmentRuleVersion: "1.0.0",
+            resolutionState: "UNRESOLVED",
+            currentDecisionId: null,
+            decisionRevision: null,
+          },
+        ],
+        snapshots,
+      });
+
+      const reports = await loader.loadCustomerReports({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-customer-reports",
+      });
+      expect(reports.items).toHaveLength(1);
+      expect(reports.items[0]).toMatchObject({
+        assessmentId,
+        artifactId: reportArtifactId,
+        freshnessStatus: TRACKING_FRESHNESS_STATUSES.CURRENT,
+        observedAt: observedAt.toISOString(),
+      });
+
+      const obligations = await loader.loadCustomerObligations({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-customer-obligations",
+        outcome: TRACKING_RULE_OUTCOMES.UNRESOLVED,
+      });
+      expect(obligations.items).toHaveLength(1);
+      expect(obligations.items[0]).toMatchObject({
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-MFA",
+        concept: "Multi-factor authentication",
+        unresolvedCount: 1,
+        affectedAssessmentCount: 1,
+      });
+      expect(obligations.items[0].assessments[0]).toMatchObject({
+        assessmentId,
+        freshnessStatus: TRACKING_FRESHNESS_STATUSES.CURRENT,
+        observedAt: observedAt.toISOString(),
+      });
     });
   });
 

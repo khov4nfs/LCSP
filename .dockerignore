@@ -12,6 +12,7 @@ node_modules
 **/.vscode
 **/__pycache__
 **/.pytest_cache
+deepagents/.pytest-tmp-*/
 **/.mypy_cache
 **/.ruff_cache
 **/.venv
