@@ -96,9 +96,7 @@ test("all five meaningful sections are validated in a JSDoc comment", () => {
   );
   assert.ok(
     validateBusinessDocumentation(
-      validDocs
-        .replace(" * Business rules:\\n", " * Business rules:\\n")
-        .replace(" * Failure cases:", " * Side effects:"),
+      validDocs.replace(" * Failure cases:", " * Side effects:"),
     ).length > 0,
   );
 });
