@@ -54,10 +54,27 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
   ) {}
 
   /**
-   * Executes sign-in authentication flow.
+   * Business purpose: Authenticate a registered customer or administrator and establish a safe session.
    *
-   * @param command - Contains sign-in payload (email, password) and request metadata.
-   * @returns Session token, safe user projection, and MFA requirement flags.
+   * Business rules:
+   * - Invalid credentials must not reveal whether the primary email exists.
+   * - Login lockout, active-account status and email verification must be respected before session issuance.
+   * - MFA enrollment is reported without bypassing a required second factor.
+   *
+   * Execution flow:
+   * 1. Find the normalized primary email and verify the password without account enumeration.
+   * 2. Apply lockout and account eligibility checks; record unsuccessful attempts and their audit trail.
+   * 3. Create an active session, record success, then project the user's safe MFA status.
+   *
+   * Failure cases:
+   * - Missing or incorrect credentials return INVALID_CREDENTIALS; lockout returns TEMPORARY_LOCKED.
+   * - Suspended or unverified accounts are denied using their stable Auth problem codes.
+   *
+   * Side effects:
+   * - Updates failed-login counters, creates an authenticated session and records security audit events.
+   *
+   * @param command - Sign-in input and correlation metadata.
+   * @returns The issued session token and safe user/MFA projection.
    */
   async execute(command: SignInCommand): Promise<SignInSuccess> {
     const { payload, requestMeta } = command;
