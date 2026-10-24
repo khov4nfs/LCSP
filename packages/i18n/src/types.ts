@@ -1326,6 +1326,16 @@ export type PagesMessages = {
       executions: string;
       usage: string;
       untrusted: string;
+      untrustedReason: {
+        MISSING_PINS: string;
+        SOURCE_SNAPSHOT_STALE: string;
+        SOURCE_FRESHNESS_UNKNOWN: string;
+        RULE_SET_UNAVAILABLE: string;
+        DECISIONS_INVALIDATED: string;
+        EVIDENCE_INVALIDATED: string;
+        INCOMPLETE_COVERAGE: string;
+        DECISION_INCONSISTENCY: string;
+      };
       limitedRows: string;
       generatedAt: string;
       affectedCustomer: string;

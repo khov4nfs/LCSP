@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { TrackingUntrustedReason } from "@lcsp/contracts/assessment-domain";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,7 +49,7 @@ export function AdminTrackingPage() {
         </TrackingSection>
       </div>
       <TrackingSection title={t("untrusted")}>
-        {data.untrustedProjections.length ? <Rows>{data.untrustedProjections.map((item) => <article key={`${item.assessmentId}-${item.untrustedReason}`} className="rounded-lg border p-3"><p className="font-medium">{item.name}</p><p className="mt-1 text-sm">{item.detail}</p><p className="mt-1 text-xs text-muted-foreground">{item.untrustedReason} · {formatDate(item.detectedAt)}</p></article>)}</Rows> : <Empty />}
+        {data.untrustedProjections.length ? <Rows>{data.untrustedProjections.map((item) => <article key={`${item.assessmentId}-${item.untrustedReason}`} className="rounded-lg border p-3"><p className="font-medium">{item.name}</p><p className="mt-1 text-sm">{untrustedReasonMessage(item.untrustedReason)}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(item.detectedAt)}</p></article>)}</Rows> : <Empty />}
       </TrackingSection>
     </> : null}
   </div>;
@@ -72,6 +73,10 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 function t(suffix: string) {
   return resolveMessage(appLocale, `pages.workspace.tracking.${suffix}` as MessageKey);
+}
+
+function untrustedReasonMessage(reason: TrackingUntrustedReason) {
+  return t(`untrustedReason.${reason}`);
 }
 
 function formatDate(value: string) {
