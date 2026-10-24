@@ -11,6 +11,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
+import { PrismaUserRepository } from "../src/modules/auth/infrastructure/persistence/prisma-auth.repositories.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import type { AuthProfileSuccess } from "../src/modules/auth/application/contracts/auth/settings.contract.js";
 import type { SignUpResponse } from "../src/modules/auth/application/contracts/auth/sign-up.contract.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
@@ -117,6 +119,81 @@ describe("Self sign-up endpoint (e2e)", () => {
 
     assert.equal(result.status, 409);
     assert.equal(problemCode(result), SIGN_UP_ERROR_CODES.emailAlreadyExists);
+  });
+
+  it("serializes concurrent registrations without duplicate users or sessions", async () => {
+    const payload = {
+      display_name: "Concurrent Customer",
+      organization_name: "Example Workspace",
+      email: "racing@example.test",
+      password: "CorrectHorseBatteryStaple!",
+    };
+    const results = await Promise.all([
+      httpRequest(app).post("/auth/sign-up").send(payload),
+      httpRequest(app).post("/auth/sign-up").send(payload),
+    ]);
+    assert.deepEqual(results.map((result) => result.status).sort(), [201, 409]);
+    assert.equal(
+      await prisma.user.count({ where: { email: payload.email } }),
+      1,
+    );
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { email: payload.email },
+    });
+    assert.equal(
+      await prisma.authRecord.count({ where: { userId: user.id } }),
+      1,
+    );
+  });
+
+  it("never overwrites changed credentials through profile, MFA, or stale login writes", async () => {
+    const registered = await httpRequest(app).post("/auth/sign-up").send({
+      display_name: "Race Test",
+      organization_name: "Example Workspace",
+      email: "credential-race@example.test",
+      password: "CorrectHorseBatteryStaple!",
+    });
+    assert.equal(registered.status, 201);
+    const userId = successBody<SignUpResponse>(registered).user_id;
+    const users = app.get(PrismaUserRepository);
+    const staleUser = await users.findById(userId);
+    assert.ok(staleUser);
+    const newHash = hashSecret("AnotherNewPassword456!");
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash, accessVersion: { increment: 1 } },
+    });
+
+    assert.equal(
+      await users.recordFailedLoginAttempt(
+        userId,
+        staleUser.passwordHash,
+        Date.now(),
+        3,
+        300000,
+      ),
+      null,
+    );
+    assert.equal(
+      await users.clearFailedLoginsIfCredentialsCurrent(
+        userId,
+        staleUser.passwordHash,
+        Date.now(),
+      ),
+      null,
+    );
+    await users.updateProfile(userId, {
+      displayName: "Updated without touching password",
+    });
+    // MFA cannot be enabled unless an enrollment has been verified.
+    assert.equal(await users.setMfaRequired(userId, true), false);
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    assert.equal(stored.passwordHash, newHash);
+    assert.equal(stored.displayName, "Updated without touching password");
+    assert.equal(stored.mfaRequired, false);
+    assert.equal(stored.accessVersion, 1);
   });
 
   it("rejects short passwords", async () => {

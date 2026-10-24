@@ -119,7 +119,10 @@ function buildRepositories(input: {
   const repositories = {
     users: {
       nextId: () => "unused",
-      save: () => Promise.resolve(),
+      recordFailedLoginAttempt: () => Promise.resolve(input.user),
+      clearFailedLoginsIfCredentialsCurrent: () => Promise.resolve(input.user),
+      updateProfile: () => Promise.resolve(),
+      setMfaRequired: () => Promise.resolve(true),
       findById: (id: string) =>
         Promise.resolve(input.user && input.user.id === id ? input.user : null),
       findByEmail: () => Promise.resolve(null),
@@ -143,6 +146,7 @@ function buildRepositories(input: {
     mfaEnrollments: {
       findByUserId: () => Promise.resolve(null),
       save: () => Promise.resolve(),
+      markVerifiedIfCurrent: () => Promise.resolve(true),
       deleteByUserId: () => Promise.resolve(),
     },
     mfaRateLimits: {

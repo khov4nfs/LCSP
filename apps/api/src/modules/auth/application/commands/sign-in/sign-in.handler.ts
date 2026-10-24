@@ -101,28 +101,30 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
     }
 
     if (!verifySecret(password, user.passwordHash)) {
-      user.recordFailedLogin(
+      const current = await users.recordFailedLoginAttempt(
+        user.id,
+        user.passwordHash,
         this.support.now(),
         this.support.failedLoginLimit,
         this.support.lockWindowMs,
       );
-      await users.save(user);
+      const lockUntil = current?.lockUntil ?? null;
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
         decision: AUDIT_DECISIONS.deny,
-        reason_code: user.lockUntil
+        reason_code: lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
           : AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
       });
       throw problemException(
-        user.lockUntil
+        lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
           : AUTH_ERROR_CODES.invalidCredentials,
         correlationId,
-        user.lockUntil
-          ? temporaryLockProblemOverrides(user.lockUntil, this.support.now())
+        lockUntil
+          ? temporaryLockProblemOverrides(lockUntil, this.support.now())
           : undefined,
       );
     }
@@ -131,10 +133,26 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
       throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
-    user.clearFailedLogins();
-    await users.save(user);
+    const currentUser = await users.clearFailedLoginsIfCredentialsCurrent(
+      user.id,
+      user.passwordHash,
+      this.support.now(),
+    );
+    if (!currentUser) {
+      await this.support.recordAudit({
+        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
+        actor_id: user.id,
+        decision: AUDIT_DECISIONS.deny,
+        reason_code: AUTH_ERROR_CODES.invalidCredentials,
+        correlationId,
+      });
+      throw problemException(
+        AUTH_ERROR_CODES.invalidCredentials,
+        correlationId,
+      );
+    }
 
-    if (!user.emailVerified) {
+    if (!currentUser.emailVerified) {
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
@@ -150,7 +168,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
 
     const sessionState = await this.support.createSession(
       sessions,
-      user,
+      currentUser,
       correlationId,
     );
     await this.support.recordAudit({
@@ -162,15 +180,15 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
 
     const mfaEnrollment = await this.support.findMfaEnrollment(
       mfaEnrollments,
-      user.id,
+      currentUser.id,
     );
-    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
+    const mfaRequired = this.support.isMfaRequired(currentUser, mfaEnrollment);
 
     return {
       ok: true,
       correlationId: correlationId,
       session_token: sessionState.token,
-      user: this.support.safeUserProjection(user),
+      user: this.support.safeUserProjection(currentUser),
       mfa_enrolled: this.support.isMfaEnrolled(mfaEnrollment),
       ...(mfaRequired ? { mfa_required: true } : {}),
     };

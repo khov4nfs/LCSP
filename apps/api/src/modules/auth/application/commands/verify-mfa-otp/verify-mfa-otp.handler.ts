@@ -151,8 +151,9 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     }
     await mfaOtpUsed.pruneOlderThan(now - OTP_USED_RETENTION_MS);
 
-    enrollment.verifiedAt = now;
-    await mfaEnrollments.save(enrollment);
+    if (!(await mfaEnrollments.markVerifiedIfCurrent(enrollment, now))) {
+      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+    }
     session.markMfaVerified(now);
     session.markSensitiveActionVerified(now);
     await sessions.save(session);
@@ -161,8 +162,9 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     if (!user) {
       throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
-    user.mfaRequired = true;
-    await users.save(user);
+    if (!(await users.setMfaRequired(user.id, true))) {
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+    }
 
     const existingRateLimit =
       rateLimit ?? new MfaRateLimit({ userId: session.userId });

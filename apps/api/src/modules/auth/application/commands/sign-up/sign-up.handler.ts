@@ -1,21 +1,15 @@
-import { lockAccountLifecycle } from "../../../infrastructure/persistence/account-lifecycle.lock.js";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_USER_ROLES,
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
-import { HttpStatus } from "@nestjs/common";
-import * as crypto from "node:crypto";
-
+import { HttpStatus, Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import {
-  AUTH_RECORD_TYPES,
-  authRecordLookupKey,
-} from "../../../infrastructure/persistence/auth-record.persistence.ts";
+import { Session } from "../../../domain/entities/session.entity.ts";
+import { User } from "../../../domain/entities/user.entity.ts";
 import {
   createCorrelationId,
   fingerprintToken,
@@ -23,51 +17,30 @@ import {
   issueOpaqueToken,
 } from "../../../infrastructure/security/security.utils.ts";
 import type { SignUpResponse } from "../../contracts/auth/sign-up.contract.ts";
+import {
+  AUTH_SIGN_UP_PERSISTENCE,
+  type SignUpPersistence,
+} from "../../ports/persistence/sign-up.persistence.ts";
 import { AuthAuditService } from "../../services/auth/auth-audit.service.ts";
 import { SignUpCommand } from "./sign-up.command.ts";
 
 const SESSION_TTL_MS = 8 * 60 * 60_000;
 
-/**
- * Handles new customer account registration.
- *
- * Enforces:
- * 1. Email uniqueness pre-check and atomic database duplicate constraint handling.
- * 2. Secure password hashing with scrypt.
- * 3. Atomic transaction creating user record, initial authenticated session, and audit log.
- * 4. Account lifecycle advisory locking to serialize user creation operations.
- * 5. Returns issued session token and expiration timestamp.
- */
+/** Orchestrates sign-up; atomic persistence is owned by the infrastructure port. */
 @CommandHandler(SignUpCommand)
 export class SignUpHandler implements ICommandHandler<SignUpCommand> {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(AUTH_SIGN_UP_PERSISTENCE)
+    private readonly signUps: SignUpPersistence,
     private readonly authAudit: AuthAuditService,
   ) {}
 
-  /**
-   * Executes user registration and initial session issuance.
-   *
-   * @param command - Contains normalized email, display name, password, and correlation ID.
-   * @returns User ID, opaque session token, and session expiration timestamp.
-   */
   async execute(command: SignUpCommand): Promise<SignUpResponse> {
     const { email, displayName, password } = command.input;
     const correlationId = command.input.correlationId ?? createCorrelationId();
-
     const normalizedEmail = email.trim().toLowerCase();
-    const trimmedDisplayName = displayName.trim();
-    const sessionToken = issueOpaqueToken();
-    const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_MS);
-    const role = AUTH_USER_ROLES.customer;
-    const newUserId = crypto.randomUUID();
-    const newSessionId = crypto.randomUUID();
-    const tokenFingerprint = fingerprintToken(sessionToken);
 
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-    if (existingUser) {
+    if (await this.signUps.emailExists(normalizedEmail)) {
       await this.recordFailure(
         correlationId,
         SIGN_UP_ERROR_CODES.emailAlreadyExists,
@@ -79,68 +52,29 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
       );
     }
 
-    let userId = "";
-    let sessionId = "";
+    // scryptSync is deliberately performed outside the transaction/DB lock.
+    const user = new User({
+      email: normalizedEmail,
+      displayName: displayName.trim(),
+      passwordHash: hashSecret(password),
+      emailVerified: true,
+      role: AUTH_USER_ROLES.customer,
+    });
+    const sessionToken = issueOpaqueToken();
+    const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+    const session = new Session({
+      userId: user.id,
+      accessVersion: user.accessVersion,
+      tokenHash: hashSecret(sessionToken),
+      expiresAt: expiresAt.getTime(),
+    });
+
     try {
-      await this.prisma.$transaction(async (tx) => {
-        await lockAccountLifecycle(tx);
-        const user = await tx.user.create({
-          data: {
-            id: newUserId,
-            email: normalizedEmail,
-            passwordHash: hashSecret(password),
-            // Per UC-M01-04 (Create Account), self-registered users onboard immediately
-            // and are active without a mandatory email verification step.
-            emailVerified: true,
-            failedLoginCount: 0,
-            lockUntil: null,
-            displayName: trimmedDisplayName,
-            role,
-          },
-        });
-        userId = user.id;
-
-        const session = await tx.authRecord.create({
-          data: {
-            id: newSessionId,
-            userId,
-            type: AUTH_RECORD_TYPES.session,
-            lookupKey: authRecordLookupKey(
-              AUTH_RECORD_TYPES.session,
-              tokenFingerprint,
-            ),
-            secretHash: hashSecret(sessionToken),
-            expiresAt: sessionExpiresAt,
-            revokedAt: null,
-            metadata: {
-              tokenFingerprint,
-              mfaVerifiedAt: null,
-              sensitiveActionVerifiedAt: null,
-            },
-          },
-        });
-        sessionId = session.id;
-
-        await this.authAudit.writeInTx(
-          {
-            eventType: AUTH_AUDIT_EVENT_TYPES.authSignUpSuccess,
-            actorId: userId,
-            resourceType: AUDIT_RESOURCE_TYPES.authSession,
-            resourceId: sessionId,
-            decision: AUDIT_DECISIONS.allow,
-            correlationId,
-            sessionId,
-            payload: {
-              event_type: AUTH_AUDIT_EVENT_TYPES.authSignUpSuccess,
-              actor_id: userId,
-              decision: AUDIT_DECISIONS.allow,
-              correlationId,
-              session_id: sessionId,
-              role,
-            },
-          },
-          tx,
-        );
+      await this.signUps.createWithSessionAndAudit({
+        user,
+        session,
+        tokenFingerprint: fingerprintToken(sessionToken),
+        correlationId,
       });
     } catch (error) {
       if (isUniqueConstraintViolation(error)) {
@@ -158,14 +92,17 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
     }
 
     return {
-      user_id: userId,
+      user_id: user.id,
       session_token: sessionToken,
-      expires_at: sessionExpiresAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
       correlationId,
     };
   }
 
-  private recordFailure(correlationId: string, reasonCode: string) {
+  private recordFailure(
+    correlationId: string,
+    reasonCode: string,
+  ): Promise<void> {
     return this.authAudit.write({
       eventType: AUTH_AUDIT_EVENT_TYPES.authSignUpFailed,
       actorId: null,

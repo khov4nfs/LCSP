@@ -65,7 +65,15 @@ function makeLoader(
 
   const users: UserRepository = {
     nextId: overrides.users?.nextId ?? (() => "user-1"),
-    save: overrides.users?.save ?? (() => Promise.resolve()),
+    recordFailedLoginAttempt:
+      overrides.users?.recordFailedLoginAttempt ??
+      (() => Promise.resolve(makeUser())),
+    clearFailedLoginsIfCredentialsCurrent:
+      overrides.users?.clearFailedLoginsIfCredentialsCurrent ??
+      (() => Promise.resolve(makeUser())),
+    updateProfile: overrides.users?.updateProfile ?? (() => Promise.resolve()),
+    setMfaRequired:
+      overrides.users?.setMfaRequired ?? (() => Promise.resolve(true)),
     findById:
       overrides.users?.findById ??
       jest.fn<UserRepository["findById"]>().mockResolvedValue(makeUser()),
@@ -82,6 +90,9 @@ function makeLoader(
         .fn<MfaEnrollmentRepository["findByUserId"]>()
         .mockResolvedValue(null),
     save: overrides.mfaEnrollments?.save ?? (() => Promise.resolve()),
+    markVerifiedIfCurrent:
+      overrides.mfaEnrollments?.markVerifiedIfCurrent ??
+      (() => Promise.resolve(true)),
     deleteByUserId:
       overrides.mfaEnrollments?.deleteByUserId ?? (() => Promise.resolve()),
   };

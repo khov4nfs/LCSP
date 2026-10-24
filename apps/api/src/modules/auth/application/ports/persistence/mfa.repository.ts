@@ -19,6 +19,10 @@ export const AUTH_MFA_RECOVERY_CODE_REPOSITORY = Symbol(
 export interface MfaEnrollmentRepository {
   findByUserId(userId: string): Promise<MfaEnrollment | null>;
   save(enrollment: MfaEnrollment): Promise<void>;
+  markVerifiedIfCurrent(
+    enrollment: MfaEnrollment,
+    now: number,
+  ): Promise<boolean>;
   deleteByUserId(userId: string): Promise<void>;
 }
 

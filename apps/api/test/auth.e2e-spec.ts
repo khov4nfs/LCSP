@@ -1001,6 +1001,84 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(successBody<SignInSuccess>(newSignIn).ok, true);
   });
 
+  it("consumes a recovery token only once under concurrent confirmation", async () => {
+    await httpRequest(app)
+      .post("/auth/recovery/request")
+      .send({ email: fixture.approvedUser.email })
+      .expect(201);
+    const token = recoveryNotifier.lastToken;
+    assert.ok(token);
+
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    const responses = await Promise.all([
+      httpRequest(app)
+        .post("/auth/recovery/confirm")
+        .send({ token, new_password: "AtomicPassword456!" }),
+      httpRequest(app)
+        .post("/auth/recovery/confirm")
+        .send({ token, new_password: "AtomicPassword456!" }),
+    ]);
+    assert.deepEqual(
+      responses.map((response) => response.status).sort(),
+      [201, 400],
+    );
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(after.accessVersion, before.accessVersion + 1);
+    const recovery = await prisma.authRecord.findFirstOrThrow({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.recoveryRequest,
+      },
+    });
+    assert.ok(recovery.usedAt);
+  });
+
+  it("disables MFA, recovery codes and session MFA status atomically", async () => {
+    const signIn = await signInApprovedUser();
+    const enrollment = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({ session_token: signIn.session_token })
+      .expect(201);
+    const enrollmentBody = successBody<EnrollMfaSuccess>(enrollment);
+    const otp = totpForTime(
+      totpSecretFromUri(enrollmentBody.totp_uri),
+      Date.now(),
+    );
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signIn.session_token, otp })
+      .expect(201);
+
+    const response = await httpRequest(app)
+      .delete("/auth/mfa")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .expect(200);
+    assert.equal(successBody<{ ok: boolean }>(response).ok, true);
+
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(user.mfaEncryptedSecret, null);
+    assert.equal(user.mfaRequired, false);
+    const remainingCodes = await prisma.authRecord.count({
+      where: {
+        userId: user.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        revokedAt: null,
+        usedAt: null,
+      },
+    });
+    assert.equal(remainingCodes, 0);
+    const session = await findLatestAuthSession(prisma, user.id);
+    assert.ok(session);
+    assert.equal(authRecordMetadataString(session, "mfaVerifiedAt"), null);
+  });
+
   it("password recovery confirm rejects an invalid or expired token", async () => {
     const result = await httpRequest(app)
       .post("/auth/recovery/confirm")

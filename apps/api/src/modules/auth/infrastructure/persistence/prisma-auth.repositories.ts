@@ -15,7 +15,6 @@ import { problemException } from "../../../../platform/http/filters/error.factor
 import {
   toPrismaAuthBackupEmailPolicy,
   toPrismaAuthDecision,
-  toPrismaAuthUserRole,
   toPrismaAuthPrimaryEmailAddressPolicy,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -31,8 +30,10 @@ import type { OAuthIdentityRepository } from "../../application/ports/persistenc
 import type { OAuthStateRepository } from "../../application/ports/persistence/oauth-state.repository.ts";
 import type { RecoveryRequestRepository } from "../../application/ports/persistence/recovery-request.repository.ts";
 import type { SessionRepository } from "../../application/ports/persistence/session.repository.ts";
-import type { UserRepository } from "../../application/ports/persistence/user.repository.ts";
-import { DuplicateEmailError } from "../../application/ports/persistence/user.repository.ts";
+import type {
+  UserProfileUpdate,
+  UserRepository,
+} from "../../application/ports/persistence/user.repository.ts";
 import type {
   AuditEvent,
   MfaEnrollment,
@@ -68,51 +69,94 @@ export class PrismaUserRepository implements UserRepository {
     return crypto.randomUUID();
   }
 
-  async save(user: User): Promise<void> {
-    try {
-      await this.prisma.user.upsert({
-        where: { id: user.id },
-        create: {
-          id: user.id,
-          email: user.email.toString(),
-          passwordHash: user.passwordHash,
-          emailVerified: user.emailVerified,
-          failedLoginCount: user.failedLoginCount,
-          lockUntil: dateFromEpochMs(user.lockUntil),
-          displayName: user.displayName,
-          recoveryEmail: user.recoveryEmail,
-          primaryEmailAddressPolicy: toPrismaAuthPrimaryEmailAddressPolicy(
-            user.primaryEmailAddressPolicy,
-          ),
-          backupEmailPolicy: toPrismaAuthBackupEmailPolicy(
-            user.backupEmailPolicy,
-          ),
-          role: toPrismaAuthUserRole(user.role),
-          mfaRequired: user.mfaRequired,
-        },
-        update: {
-          email: user.email.toString(),
-          passwordHash: user.passwordHash,
-          emailVerified: user.emailVerified,
-          failedLoginCount: user.failedLoginCount,
-          lockUntil: dateFromEpochMs(user.lockUntil),
-          displayName: user.displayName,
-          recoveryEmail: user.recoveryEmail,
-          primaryEmailAddressPolicy: toPrismaAuthPrimaryEmailAddressPolicy(
-            user.primaryEmailAddressPolicy,
-          ),
-          backupEmailPolicy: toPrismaAuthBackupEmailPolicy(
-            user.backupEmailPolicy,
-          ),
-          mfaRequired: user.mfaRequired,
-        },
-      });
-    } catch (error) {
-      if (isUniqueConstraintViolation(error)) {
-        throw new DuplicateEmailError(user.email.toString());
+  async recordFailedLoginAttempt(
+    id: string,
+    expectedPasswordHash: string,
+    now: number,
+    limit: number,
+    lockWindowMs: number,
+  ): Promise<User | null> {
+    return this.prisma.$transaction(async (tx) => {
+      // Serialize failed attempts without holding a lock during scrypt verification.
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${id} FOR UPDATE`,
+      );
+      const record = await tx.user.findUnique({ where: { id } });
+      if (!record || record.passwordHash !== expectedPasswordHash) return null;
+      const user = mapUserRecord(record);
+      if (!user.isLocked(now)) {
+        user.recordFailedLogin(now, limit, lockWindowMs);
+        await tx.user.update({
+          where: { id },
+          data: {
+            failedLoginCount: user.failedLoginCount,
+            lockUntil: dateFromEpochMs(user.lockUntil),
+          },
+        });
       }
-      throw error;
-    }
+      return user;
+    });
+  }
+
+  async clearFailedLoginsIfCredentialsCurrent(
+    id: string,
+    expectedPasswordHash: string,
+    now: number,
+  ): Promise<User | null> {
+    const result = await this.prisma.user.updateMany({
+      where: {
+        id,
+        passwordHash: expectedPasswordHash,
+        accessStatus: USER_ACCESS_STATUSES.active,
+        OR: [{ lockUntil: null }, { lockUntil: { lte: new Date(now) } }],
+      },
+      data: { failedLoginCount: 0, lockUntil: null },
+    });
+    if (result.count !== 1) return null;
+    const current = await this.findById(id);
+    return current?.passwordHash === expectedPasswordHash ? current : null;
+  }
+
+  async updateProfile(id: string, changes: UserProfileUpdate): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(changes.displayName !== undefined
+          ? { displayName: changes.displayName }
+          : {}),
+        ...(changes.recoveryEmail !== undefined
+          ? { recoveryEmail: changes.recoveryEmail }
+          : {}),
+        ...(changes.primaryEmailAddressPolicy !== undefined
+          ? {
+              primaryEmailAddressPolicy: toPrismaAuthPrimaryEmailAddressPolicy(
+                changes.primaryEmailAddressPolicy,
+              ),
+            }
+          : {}),
+        ...(changes.backupEmailPolicy !== undefined
+          ? {
+              backupEmailPolicy: toPrismaAuthBackupEmailPolicy(
+                changes.backupEmailPolicy,
+              ),
+            }
+          : {}),
+      },
+    });
+  }
+
+  async setMfaRequired(id: string, required: boolean): Promise<boolean> {
+    const updated = await this.prisma.user.updateMany({
+      where: {
+        id,
+        accessStatus: USER_ACCESS_STATUSES.active,
+        ...(required
+          ? { mfaEncryptedSecret: { not: null }, mfaVerifiedAt: { not: null } }
+          : {}),
+      },
+      data: { mfaRequired: required },
+    });
+    return updated.count === 1;
   }
 
   async findById(id: string): Promise<User | null> {
@@ -176,13 +220,21 @@ export class PrismaSessionRepository implements SessionRepository {
       );
       const user = await tx.user.findUnique({
         where: { id: session.userId },
-        select: { accessStatus: true, accessVersion: true },
+        select: {
+          accessStatus: true,
+          accessVersion: true,
+          mfaEncryptedSecret: true,
+          mfaVerifiedAt: true,
+        },
       });
       if (
         !user ||
         (session.revokedAt === null &&
           (user.accessStatus !== USER_ACCESS_STATUSES.active ||
-            user.accessVersion !== session.accessVersion))
+            user.accessVersion !== session.accessVersion ||
+            // Prevent a late MFA verification from resurrecting a disabled MFA state.
+            (session.mfaVerifiedAt !== null &&
+              (!user.mfaEncryptedSecret || !user.mfaVerifiedAt))))
       ) {
         throw problemException(
           AUTH_ERROR_CODES.sessionInvalid,
@@ -310,6 +362,22 @@ export class PrismaMfaEnrollmentRepository implements MfaEnrollmentRepository {
         mfaVerifiedAt: dateFromEpochMs(enrollment.verifiedAt),
       },
     });
+  }
+
+  async markVerifiedIfCurrent(
+    enrollment: MfaEnrollment,
+    now: number,
+  ): Promise<boolean> {
+    const result = await this.prisma.user.updateMany({
+      where: {
+        id: enrollment.userId,
+        accessStatus: USER_ACCESS_STATUSES.active,
+        mfaEncryptedSecret: enrollment.encryptedSecret,
+        mfaEnrolledAt: new Date(enrollment.enrolledAt),
+      },
+      data: { mfaVerifiedAt: new Date(now) },
+    });
+    return result.count === 1;
   }
 
   async deleteByUserId(userId: string): Promise<void> {

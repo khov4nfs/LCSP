@@ -18,6 +18,7 @@ import {
   AUTH_USER_REPOSITORY,
   type MfaEnrollmentRepository,
   type SessionRepository,
+  type UserProfileUpdate,
   type UserRepository,
 } from "../../ports/persistence/index.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
@@ -130,28 +131,29 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
     }
 
     const updatedFields: string[] = [];
+    const changes: UserProfileUpdate = {};
 
     if (typeof payload.display_name === "string") {
-      user.displayName = payload.display_name.trim() || null;
+      changes.displayName = payload.display_name.trim() || null;
       updatedFields.push("display_name");
     }
 
     if (typeof payload.recovery_email === "string") {
-      user.recoveryEmail = nextRecoveryEmail;
+      changes.recoveryEmail = nextRecoveryEmail;
       updatedFields.push("recovery_email");
     }
 
     if (typeof payload.primary_email_address_policy === "string") {
-      user.primaryEmailAddressPolicy = payload.primary_email_address_policy;
+      changes.primaryEmailAddressPolicy = payload.primary_email_address_policy;
       updatedFields.push("primary_email_address_policy");
     }
 
     if (typeof payload.backup_recovery_email_policy === "string") {
-      user.backupEmailPolicy = payload.backup_recovery_email_policy;
+      changes.backupEmailPolicy = payload.backup_recovery_email_policy;
       updatedFields.push("backup_recovery_email_policy");
     }
 
-    await users.save(user);
+    await users.updateProfile(user.id, changes);
 
     await this.support.recordAudit({
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.profileUpdated,

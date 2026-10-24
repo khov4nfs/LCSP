@@ -129,6 +129,12 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
       throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
+    // A valid backup code can complete first-time MFA enrollment. Ensure the
+    // enrollment is still present before marking the session verified.
+    if (!(await mfaEnrollments.markVerifiedIfCurrent(enrollment, now))) {
+      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+    }
+
     session.markMfaVerified(now);
     session.markSensitiveActionVerified(now);
     await sessions.save(session);
@@ -137,8 +143,9 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
     if (!user) {
       throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
-    user.mfaRequired = true;
-    await users.save(user);
+    if (!(await users.setMfaRequired(user.id, true))) {
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+    }
 
     const existingRateLimit =
       rateLimit ?? new MfaRateLimit({ userId: session.userId });

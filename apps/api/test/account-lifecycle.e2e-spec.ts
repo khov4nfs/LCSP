@@ -39,6 +39,11 @@ import {
 } from "../src/modules/admin/application/commands/index.js";
 import { ADMIN_QUERY_HANDLERS } from "../src/modules/admin/application/queries/index.js";
 import { AdminUsersController } from "../src/modules/admin/presentation/http/admin-users.controller.js";
+import {
+  AUTH_MFA_ENROLLMENT_REPOSITORY,
+  AUTH_SESSION_REPOSITORY,
+  AUTH_USER_REPOSITORY,
+} from "../src/modules/auth/application/ports/persistence/index.js";
 import { AuthAuditService } from "../src/modules/auth/application/services/auth/auth-audit.service.js";
 import { Session } from "../src/modules/auth/domain/entities/session.entity.js";
 import {
@@ -57,7 +62,9 @@ import {
 import { AuditWriterService } from "../src/platform/audit/audit-writer.service.js";
 import { MailService } from "../src/platform/mail/mail.service.js";
 import { HttpExceptionFilter } from "../src/platform/http/filters/http-exception.filter.js";
+import { ResponseTransformInterceptor } from "../src/platform/http/interceptors/response-transform.interceptor.js";
 import { RequireSession } from "../src/platform/rbac/decorators/require-session.decorator.js";
+import { AUTHORIZATION_DECISION_REPOSITORY } from "../src/platform/rbac/authorization-decision.repository.js";
 import { PrismaAuthorizationDecisionRepository } from "../src/platform/rbac/prisma-authorization-decision.repository.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { RbacPreflightService } from "../src/platform/rbac/rbac-preflight.service.js";
@@ -138,13 +145,27 @@ integration(
           RbacContextLoader,
           RbacPreflightService,
           PrismaAuthorizationDecisionRepository,
+          {
+            provide: AUTHORIZATION_DECISION_REPOSITORY,
+            useExisting: PrismaAuthorizationDecisionRepository,
+          },
           PrismaMfaEnrollmentRepository,
+          {
+            provide: AUTH_MFA_ENROLLMENT_REPOSITORY,
+            useExisting: PrismaMfaEnrollmentRepository,
+          },
           PrismaSessionRepository,
+          {
+            provide: AUTH_SESSION_REPOSITORY,
+            useExisting: PrismaSessionRepository,
+          },
           PrismaUserRepository,
+          { provide: AUTH_USER_REPOSITORY, useExisting: PrismaUserRepository },
         ],
       }).compile();
       app = module.createNestApplication();
       app.useGlobalFilters(module.get(HttpExceptionFilter));
+      app.useGlobalInterceptors(new ResponseTransformInterceptor());
       await app.init();
     }, 30000);
     async function actor(
@@ -358,7 +379,9 @@ integration(
         (await mutate(admin, second.id, "suspend", { expectedVersion: 0 }))
           .status,
       ).toBe(200);
-      await users.save(staleUser);
+      // A stale entity must not be written back wholesale: only the intended
+      // MFA field may be changed, without reverting suspension or role.
+      expect(await users.setMfaRequired(staleUser.id, true)).toBe(false);
       expect(
         (await prisma.user.findUniqueOrThrow({ where: { id: second.id } }))
           .role,
