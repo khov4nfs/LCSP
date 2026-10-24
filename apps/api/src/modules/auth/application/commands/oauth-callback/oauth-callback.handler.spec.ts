@@ -134,6 +134,7 @@ function buildRepositories(input: {
       save: () => Promise.resolve(),
       findById: () => Promise.resolve(null),
       findByFingerprint: () => Promise.resolve(null),
+      revokeOwned: () => Promise.resolve(true),
       revokeAllForUser: () => Promise.resolve(),
     },
 

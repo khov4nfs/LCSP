@@ -4,7 +4,7 @@ import {
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/auth";
-import { HttpStatus } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 import type {
@@ -26,14 +26,15 @@ import type {
   SessionRepository,
   UserRepository,
 } from "../../ports/persistence/index.ts";
-import type { AuthAuditService } from "./auth-audit.service.ts";
+import { AuthAuditService } from "./auth-audit.service.ts";
 
 const FAILED_LOGIN_LIMIT = 3;
 const LOCK_WINDOW_MS = 5 * 60_000;
 const SESSION_TTL_MS = 8 * 60 * 60_000;
 
+@Injectable()
 export class AuthSupportService {
-  constructor(private readonly authAudit?: AuthAuditService) {}
+  constructor(private readonly authAudit: AuthAuditService) {}
 
   createCorrelationId(): string {
     return createCorrelationId();
@@ -70,37 +71,15 @@ export class AuthSupportService {
     return mfaEnrollment !== null && mfaEnrollment.verifiedAt !== null;
   }
 
-  recordAudit(
-    repositoriesOrEvent: unknown,
-    maybeEvent?: AuditEvent,
-  ): Promise<void> {
-    const event = (maybeEvent ?? repositoriesOrEvent) as AuditEvent;
-    if (!this.authAudit) {
-      return Promise.resolve();
-    }
+  recordAudit(event: AuditEvent): Promise<void> {
     return this.authAudit.write(event);
   }
 
-  resolveUserById(
-    repositoriesOrUsers: { users: UserRepository } | UserRepository,
-    userId: string,
-  ): Promise<User | null> {
-    const repo =
-      "users" in repositoriesOrUsers
-        ? repositoriesOrUsers.users
-        : repositoriesOrUsers;
-    return repo.findById(userId);
-  }
-
   async createSession(
-    repositoriesOrSessions: { sessions: SessionRepository } | SessionRepository,
+    sessions: SessionRepository,
     user: User,
     correlationId: string,
   ): Promise<{ token: string; session: Session }> {
-    const sessions =
-      "sessions" in repositoriesOrSessions
-        ? repositoriesOrSessions.sessions
-        : repositoriesOrSessions;
     if (user.accessStatus !== USER_ACCESS_STATUSES.active)
       throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId, {
         status: HttpStatus.FORBIDDEN,
@@ -126,23 +105,10 @@ export class AuthSupportService {
   }
 
   async findValidSession(
-    repositoriesOrSessions:
-      | { sessions: SessionRepository; users: UserRepository }
-      | SessionRepository,
-    usersOrToken: UserRepository | string,
-    maybeToken?: string,
+    sessions: SessionRepository,
+    users: UserRepository,
+    token: string,
   ): Promise<Session | null> {
-    const sessions =
-      "sessions" in repositoriesOrSessions
-        ? repositoriesOrSessions.sessions
-        : repositoriesOrSessions;
-    const users =
-      "users" in repositoriesOrSessions
-        ? repositoriesOrSessions.users
-        : (usersOrToken as UserRepository);
-    const token =
-      typeof usersOrToken === "string" ? usersOrToken : (maybeToken as string);
-
     const session = await sessions.findByFingerprint(fingerprintToken(token));
 
     if (!session) {
@@ -164,14 +130,9 @@ export class AuthSupportService {
   }
 
   findMfaEnrollment(
-    repositoriesOrMfa:
-      { mfaEnrollments: MfaEnrollmentRepository } | MfaEnrollmentRepository,
+    mfaEnrollments: MfaEnrollmentRepository,
     userId: string,
   ): Promise<MfaEnrollment | null> {
-    const repo =
-      "mfaEnrollments" in repositoriesOrMfa
-        ? repositoriesOrMfa.mfaEnrollments
-        : repositoriesOrMfa;
-    return repo.findByUserId(userId);
+    return mfaEnrollments.findByUserId(userId);
   }
 }

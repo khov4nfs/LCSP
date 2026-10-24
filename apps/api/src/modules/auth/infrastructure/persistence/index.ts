@@ -1,5 +1,6 @@
 import {
   AUTH_AUDIT_EVENT_REPOSITORY,
+  AUTH_READ_REPOSITORY,
   AUTH_SECURITY_PERSISTENCE,
   AUTH_SIGN_UP_PERSISTENCE,
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -12,6 +13,7 @@ import {
   AUTH_SESSION_REPOSITORY,
   AUTH_USER_REPOSITORY,
 } from "../../application/ports/persistence/index.ts";
+import { PrismaAuthReadRepository } from "./prisma-auth-read.repository.ts";
 import { PrismaAuthSecurityPersistence } from "./prisma-auth-security.persistence.ts";
 import { PrismaSignUpPersistence } from "./prisma-sign-up.persistence.ts";
 import {
@@ -32,10 +34,12 @@ export * from "./auth-record.persistence.ts";
 export * from "./prisma-auth.mappers.ts";
 export * from "./prisma-auth.repositories.ts";
 export * from "./prisma-auth-security.persistence.ts";
+export * from "./prisma-auth-read.repository.ts";
 export * from "./prisma-sign-up.persistence.ts";
 
 export const AUTH_PERSISTENCE_PROVIDERS = [
   PrismaUserRepository,
+  PrismaAuthReadRepository,
   PrismaAuthSecurityPersistence,
   PrismaSignUpPersistence,
   PrismaSessionRepository,
@@ -47,6 +51,10 @@ export const AUTH_PERSISTENCE_PROVIDERS = [
   PrismaRecoveryRequestRepository,
   PrismaOAuthStateRepository,
   PrismaOAuthIdentityRepository,
+  {
+    provide: AUTH_READ_REPOSITORY,
+    useExisting: PrismaAuthReadRepository,
+  },
   {
     provide: AUTH_SIGN_UP_PERSISTENCE,
     useExisting: PrismaSignUpPersistence,

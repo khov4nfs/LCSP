@@ -319,6 +319,31 @@ export class PrismaSessionRepository implements SessionRepository {
     return existing.lookupKey.slice(`${AUTH_RECORD_TYPES.session}:`.length);
   }
 
+  async revokeOwned(
+    sessionId: string,
+    userId: string,
+    now: number,
+  ): Promise<boolean> {
+    const session = await this.prisma.authRecord.findFirst({
+      where: { id: sessionId, userId, type: AUTH_RECORD_TYPES.session },
+      select: { id: true },
+    });
+    if (!session) return false;
+
+    // Restrict the write to the owner and session type even if the row changes
+    // between the ownership lookup and the update. Already-revoked is success.
+    await this.prisma.authRecord.updateMany({
+      where: {
+        id: sessionId,
+        userId,
+        type: AUTH_RECORD_TYPES.session,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date(now) },
+    });
+    return true;
+  }
+
   async revokeAllForUser(userId: string, now: number): Promise<void> {
     await this.prisma.authRecord.updateMany({
       where: {

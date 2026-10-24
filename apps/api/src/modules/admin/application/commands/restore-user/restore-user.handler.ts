@@ -22,6 +22,7 @@ import {
   requestHash,
 } from "../../../infrastructure/persistence/admin-account.transaction.js";
 import { fetchAdminUserDetail } from "../../queries/get-admin-user-detail/get-admin-user-detail.handler.js";
+import { validateAdminUserAction } from "../validate-admin-user-action.js";
 import { RestoreUserCommand } from "./restore-user.command.js";
 
 /**
@@ -44,8 +45,11 @@ export class RestoreUserHandler implements ICommandHandler<RestoreUserCommand> {
   ) {}
 
   async execute(command: RestoreUserCommand): Promise<AdminUserDetail> {
-    const { targetId: targetUserId, body, actor } = command;
-    const { expectedVersion, reason } = body;
+    const { targetId: targetUserId, actor } = command;
+    const { expectedVersion, reason } = validateAdminUserAction(
+      command.body,
+      actor.correlationId,
+    );
 
     // Generate deterministic canonical and legacy request hashes for idempotency checking
     const payloadHash = requestHash(ADMIN_ACCOUNT_OPERATIONS.restore, {

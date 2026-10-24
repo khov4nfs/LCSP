@@ -34,6 +34,8 @@ import { randomUUID } from "node:crypto";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import {
   ADMIN_COMMAND_HANDLERS,
+  RestoreUserCommand,
+  RestoreUserHandler,
   SuspendUserCommand,
   SuspendUserHandler,
 } from "../src/modules/admin/application/commands/index.js";
@@ -237,7 +239,7 @@ integration(
         .get(path)
         .set("Authorization", `Bearer ${as.token}`);
     }
-    it("denies anonymous/non-admin list, detail and every Admin write", async () => {
+    it("enforces Admin RBAC and leaves retired create-user endpoint unavailable", async () => {
       expect((await httpRequest(app).get("/admin/users")).status).toBe(401);
       for (const path of ["/admin/users", `/admin/users/${admin.id}`])
         expect((await get(path, target)).status).toBe(403);
@@ -268,9 +270,9 @@ integration(
               role: AUTH_USER_ROLES.admin,
             })
         ).status,
-      ).toBe(403);
+      ).toBe(404);
     });
-    it("does not label lockout or unverified users as Suspended/Invited", async () => {
+    it("does not infer Invited status from lockout or unverified email", async () => {
       await prisma.user.update({
         where: { id: target.id },
         data: { emailVerified: false, lockUntil: new Date(Date.now() + 60000) },
@@ -279,11 +281,11 @@ integration(
         successBody<AdminUserDetail>(await get(`/admin/users/${target.id}`))
           .status,
       ).toBe(AUTH_ACCOUNT_STATUSES.active);
+      const retiredStatus = await get("/admin/users?status=INVITED");
+      expect(retiredStatus.status).toBe(400);
       expect(
-        successBody<AdminUserListResponse>(
-          await get("/admin/users?status=INVITED"),
-        ).totalCount,
-      ).toBe(0);
+        (retiredStatus.body as { problem?: { code?: string } }).problem?.code,
+      ).toBe(E.invalidInput);
     });
     it("suspends and restores without changing security lockout or reviving sessions", async () => {
       const lockUntil = new Date(Date.now() + 1000);
@@ -561,6 +563,25 @@ integration(
             {
               role: AUTH_USER_ROLES.admin,
               expectedVersion: 0,
+            } as unknown as AdminUserActionInput,
+            {
+              userId: admin.id,
+              sessionId: record.id,
+              role: AUTH_USER_ROLES.admin,
+              scope: target.id,
+              correlationId: randomUUID(),
+              idempotencyKey: randomUUID(),
+            },
+          ),
+        ),
+      ).rejects.toThrow();
+      await expect(
+        app.get(RestoreUserHandler).execute(
+          new RestoreUserCommand(
+            target.id,
+            {
+              expectedVersion: 0,
+              role: AUTH_USER_ROLES.admin,
             } as unknown as AdminUserActionInput,
             {
               userId: admin.id,

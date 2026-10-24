@@ -59,6 +59,8 @@ function makeLoader(
       jest
         .fn<SessionRepository["findByFingerprint"]>()
         .mockResolvedValue(makeSession()),
+    revokeOwned:
+      overrides.sessions?.revokeOwned ?? (() => Promise.resolve(true)),
     revokeAllForUser:
       overrides.sessions?.revokeAllForUser ?? (() => Promise.resolve()),
   };

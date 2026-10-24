@@ -1,4 +1,5 @@
 export * from "./auth-security.persistence.ts";
+export * from "./auth-read.repository.ts";
 export * from "./audit-event.repository.ts";
 export * from "./mfa.repository.ts";
 export * from "./oauth-identity.repository.ts";

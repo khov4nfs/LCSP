@@ -34,6 +34,10 @@ import type {
   RequestRecoverySuccess,
 } from "../src/modules/auth/application/contracts/auth/recovery.contract.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
+import type {
+  AuthSessionsSuccess,
+  RevokeOwnedSessionSuccess,
+} from "../src/modules/auth/application/contracts/auth/settings.contract.js";
 import { AUTH_RECOVERY_NOTIFIER } from "../src/modules/auth/application/ports/notification/recovery-notifier.js";
 import {
   type AuthFixture,
@@ -695,6 +699,60 @@ describe("Auth workspace (e2e)", () => {
   });
 
   // AC3: Profile update safety
+
+  it("lists sessions and revokes only owned sessions with idempotent results", async () => {
+    const first = await signInApprovedUser();
+    const second = await signInApprovedUser();
+
+    const sessionsResponse = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .expect(200);
+    const sessions =
+      successBody<AuthSessionsSuccess>(sessionsResponse).sessions;
+    const current = sessions.find((session) => session.is_current);
+    assert.ok(current);
+    const other = sessions.find(
+      (session) => session.id !== current.id && session.revoked_at === null,
+    );
+    assert.ok(other);
+
+    const foreign = await createAuthSessionRecord(prisma, {
+      id: "foreign-session-for-ownership-test",
+      userId: fixture.unverifiedUser.id,
+      token: "foreign-session-token",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const denied = await httpRequest(app)
+      .delete(`/auth/sessions/${foreign.id}`)
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .expect(404);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.sessionInvalid);
+    const foreignAfter = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: foreign.id },
+    });
+    assert.equal(foreignAfter.revokedAt, null);
+
+    for (let index = 0; index < 2; index += 1) {
+      const revoked = await httpRequest(app)
+        .delete(`/auth/sessions/${other.id}`)
+        .set("Authorization", `Bearer ${second.session_token}`)
+        .expect(200);
+      assert.equal(
+        successBody<RevokeOwnedSessionSuccess>(revoked).revoked_session_id,
+        other.id,
+      );
+    }
+
+    const expiredFirstSession = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${first.session_token}`)
+      .expect(401);
+    assert.equal(
+      problemCode(expiredFirstSession),
+      AUTH_ERROR_CODES.sessionInvalid,
+    );
+  });
 
   it("profile update succeeds and returns updated_fields without secret values", async () => {
     const signIn = await signInAndVerifyApprovedUser();

@@ -25,12 +25,7 @@ import { AUTH_CONTROLLERS } from "./presentation/http/index.ts";
   controllers: [...AUTH_CONTROLLERS],
   providers: [
     ...AUTH_PERSISTENCE_PROVIDERS,
-    {
-      provide: AuthSupportService,
-      inject: [AuthAuditService],
-      useFactory: (authAudit: AuthAuditService) =>
-        new AuthSupportService(authAudit),
-    },
+    AuthSupportService,
     {
       provide: AUTH_RECOVERY_NOTIFIER,
       useClass: RecoveryEmailNotifierService,
