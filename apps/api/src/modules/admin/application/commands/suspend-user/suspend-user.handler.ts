@@ -14,6 +14,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuthAuditService } from "../../../../auth/application/services/auth/auth-audit.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { AUTH_RECORD_TYPES } from "../../../../auth/infrastructure/persistence/auth-record.persistence.js";
 import {
   accountTransaction,
@@ -24,6 +25,7 @@ import {
   requestHash,
 } from "../../../infrastructure/persistence/admin-account.transaction.js";
 import { fetchAdminUserDetail } from "../../queries/get-admin-user-detail/get-admin-user-detail.handler.js";
+import { validateAdminUserAction } from "../validate-admin-user-action.js";
 import { SuspendUserCommand } from "./suspend-user.command.js";
 
 /**
@@ -44,11 +46,15 @@ export class SuspendUserHandler implements ICommandHandler<SuspendUserCommand> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuthAuditService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async execute(command: SuspendUserCommand): Promise<AdminUserDetail> {
-    const { targetId: targetUserId, body, actor } = command;
-    const { expectedVersion, reason } = body;
+    const { targetId: targetUserId, actor } = command;
+    const { expectedVersion, reason } = validateAdminUserAction(
+      command.body,
+      actor.correlationId,
+    );
 
     // Generate deterministic canonical and legacy request hashes for idempotency checking
     const payloadHash = requestHash(ADMIN_ACCOUNT_OPERATIONS.suspend, {
@@ -223,7 +229,7 @@ export class SuspendUserHandler implements ICommandHandler<SuspendUserCommand> {
               timestamp: new Date().toISOString(),
             },
           },
-          transactionClient,
+          this.auditWriter.forTransaction(transactionClient),
         );
 
         // Step 11: Save command receipt for future idempotent replays

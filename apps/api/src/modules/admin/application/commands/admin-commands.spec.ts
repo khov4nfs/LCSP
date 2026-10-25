@@ -6,6 +6,7 @@ import {
   AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import type { AuthAuditService } from "../../../auth/application/services/auth/auth-audit.service.js";
 import { SuspendUserCommand } from "./suspend-user/suspend-user.command.js";
 import { SuspendUserHandler } from "./suspend-user/suspend-user.handler.js";
@@ -113,10 +114,13 @@ describe("Admin CQRS Commands", () => {
   const audit = {
     writeInTx: jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined),
   } as unknown as AuthAuditService;
+  const auditWriter = {
+    forTransaction: () => ({ write: () => Promise.resolve() }),
+  } as unknown as AuditWriterService;
 
   it("SuspendUserHandler executes suspend mutation", async () => {
     const prisma = createMockPrisma("ACTIVE");
-    const handler = new SuspendUserHandler(prisma, audit);
+    const handler = new SuspendUserHandler(prisma, audit, auditWriter);
     const command = new SuspendUserCommand(
       "user-1",
       { expectedVersion: 1 },
@@ -130,7 +134,7 @@ describe("Admin CQRS Commands", () => {
 
   it("RestoreUserHandler executes restore mutation", async () => {
     const prisma = createMockPrisma("SUSPENDED");
-    const handler = new RestoreUserHandler(prisma, audit);
+    const handler = new RestoreUserHandler(prisma, audit, auditWriter);
     const command = new RestoreUserCommand(
       "user-1",
       { expectedVersion: 1 },
@@ -159,7 +163,7 @@ describe("Admin CQRS Commands", () => {
     };
 
     const prisma = createMockPrisma("SUSPENDED", seededReceipt);
-    const handler = new SuspendUserHandler(prisma, audit);
+    const handler = new SuspendUserHandler(prisma, audit, auditWriter);
     const command = new SuspendUserCommand(
       "user-1",
       { expectedVersion: 1, reason: "Legacy moderation reason" },
@@ -188,7 +192,7 @@ describe("Admin CQRS Commands", () => {
     };
 
     const prisma = createMockPrisma("ACTIVE", seededReceipt);
-    const handler = new RestoreUserHandler(prisma, audit);
+    const handler = new RestoreUserHandler(prisma, audit, auditWriter);
     const command = new RestoreUserCommand(
       "user-1",
       { expectedVersion: 1, reason: "Legacy restore reason" },
@@ -211,7 +215,7 @@ describe("Admin CQRS Commands", () => {
     };
 
     const prisma = createMockPrisma("ACTIVE", seededReceipt);
-    const handler = new SuspendUserHandler(prisma, audit);
+    const handler = new SuspendUserHandler(prisma, audit, auditWriter);
     const command = new SuspendUserCommand(
       "user-1",
       { expectedVersion: 99, reason: "Different payload" },
@@ -273,7 +277,7 @@ describe("Admin CQRS Commands", () => {
 
   it("fails when expectedVersion is missing or invalid", async () => {
     const prisma = createMockPrisma("ACTIVE");
-    const handler = new SuspendUserHandler(prisma, audit);
+    const handler = new SuspendUserHandler(prisma, audit, auditWriter);
     const command = new SuspendUserCommand(
       "user-1",
       { expectedVersion: -1 },

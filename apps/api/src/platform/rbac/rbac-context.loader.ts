@@ -44,6 +44,24 @@ export class RbacContextLoader {
     private readonly mfaEnrollments: MfaEnrollmentRepository,
   ) {}
 
+  /**
+   * Business purpose: Authorize a session against current account state and MFA requirements.
+   *
+   * Business rules:
+   * - A required but pending MFA enrollment blocks protected routes until a new factor is verified.
+   * - Old generation timestamps never satisfy an account's active second-factor requirement.
+   * - Only explicitly annotated setup/verification endpoints may allow pending MFA.
+   *
+   * Execution flow:
+   * 1. Resolve the signed session and account under their current access versions.
+   * 2. Evaluate MFA requirements and current proof generation before exposing RBAC context.
+   *
+   * Failure cases:
+   * - Invalid session, suspended account, stale generation or unavailable persistence fails closed.
+   *
+   * Side effects:
+   * - None: this service reads state and returns an authorization decision.
+   */
   async load(
     token: string,
     now: number,
@@ -74,14 +92,17 @@ export class RbacContextLoader {
       );
       if (
         !options.allowPendingMfa &&
-        mfaEnrollment !== null &&
-        mfaEnrollment.verifiedAt !== null &&
-        !session.isMfaVerified()
+        (user.mfaRequired ||
+          (mfaEnrollment !== null && mfaEnrollment.verifiedAt !== null)) &&
+        (mfaEnrollment?.verifiedAt === null ||
+          mfaEnrollment === null ||
+          user.mfaVerifiedAt === null ||
+          !session.isMfaVerified(user.mfaGenerationId))
       ) {
         return {
           ok: false,
           reason: RBAC_REASON_CODES.mfaRequired,
-          mfaEnrolled: true,
+          mfaEnrolled: mfaEnrollment !== null,
         };
       }
 

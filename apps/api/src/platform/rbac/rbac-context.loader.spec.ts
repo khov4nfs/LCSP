@@ -37,6 +37,7 @@ function makeUser(
     emailVerified: true,
     failedLoginCount: 0,
     role: AUTH_USER_ROLES.customer,
+    mfaGenerationId: "test-generation",
     ...overrides,
   });
 }
@@ -59,13 +60,23 @@ function makeLoader(
       jest
         .fn<SessionRepository["findByFingerprint"]>()
         .mockResolvedValue(makeSession()),
+    revokeOwned:
+      overrides.sessions?.revokeOwned ?? (() => Promise.resolve(true)),
     revokeAllForUser:
       overrides.sessions?.revokeAllForUser ?? (() => Promise.resolve()),
   };
 
   const users: UserRepository = {
     nextId: overrides.users?.nextId ?? (() => "user-1"),
-    save: overrides.users?.save ?? (() => Promise.resolve()),
+    recordFailedLoginAttempt:
+      overrides.users?.recordFailedLoginAttempt ??
+      (() => Promise.resolve(makeUser())),
+    clearFailedLoginsIfCredentialsCurrent:
+      overrides.users?.clearFailedLoginsIfCredentialsCurrent ??
+      (() => Promise.resolve(makeUser())),
+    updateProfile: overrides.users?.updateProfile ?? (() => Promise.resolve()),
+    setMfaRequired:
+      overrides.users?.setMfaRequired ?? (() => Promise.resolve(true)),
     findById:
       overrides.users?.findById ??
       jest.fn<UserRepository["findById"]>().mockResolvedValue(makeUser()),
@@ -81,9 +92,6 @@ function makeLoader(
       jest
         .fn<MfaEnrollmentRepository["findByUserId"]>()
         .mockResolvedValue(null),
-    save: overrides.mfaEnrollments?.save ?? (() => Promise.resolve()),
-    deleteByUserId:
-      overrides.mfaEnrollments?.deleteByUserId ?? (() => Promise.resolve()),
   };
 
   return new RbacContextLoader(sessions, users, mfaEnrollments);
@@ -186,10 +194,20 @@ describe("RbacContextLoader", () => {
 
   it("allows when MFA is verified by the session", async () => {
     const loader = makeLoader({
+      users: {
+        findById: jest
+          .fn<UserRepository["findById"]>()
+          .mockResolvedValue(makeUser({ mfaVerifiedAt: NOW - 1000 })),
+      },
       sessions: {
         findByFingerprint: jest
           .fn<SessionRepository["findByFingerprint"]>()
-          .mockResolvedValue(makeSession({ mfaVerifiedAt: NOW - 1000 })),
+          .mockResolvedValue(
+            makeSession({
+              mfaVerifiedAt: NOW - 1000,
+              mfaGenerationId: "test-generation",
+            }),
+          ),
       },
       mfaEnrollments: {
         findByUserId: jest
@@ -208,6 +226,66 @@ describe("RbacContextLoader", () => {
     const result = await loader.load("raw-token", NOW);
 
     expect(result.ok).toBe(true);
+  });
+
+  it("fails closed while an account requires MFA but the new enrollment is pending", async () => {
+    const loader = makeLoader({
+      users: {
+        findById: jest
+          .fn<UserRepository["findById"]>()
+          .mockResolvedValue(
+            makeUser({ mfaRequired: true, mfaVerifiedAt: null }),
+          ),
+      },
+      sessions: {
+        findByFingerprint: jest
+          .fn<SessionRepository["findByFingerprint"]>()
+          .mockResolvedValue(
+            makeSession({
+              mfaGenerationId: "stale-generation",
+              mfaVerifiedAt: NOW - 1000,
+            }),
+          ),
+      },
+      mfaEnrollments: {
+        findByUserId: jest
+          .fn<MfaEnrollmentRepository["findByUserId"]>()
+          .mockResolvedValue(
+            new MfaEnrollment({
+              userId: "user-1",
+              encryptedSecret: "new-encrypted",
+              enrolledAt: NOW,
+              verifiedAt: null,
+            }),
+          ),
+      },
+    });
+    await expect(loader.load("raw-token", NOW)).resolves.toEqual({
+      ok: false,
+      reason: RBAC_REASON_CODES.mfaRequired,
+      mfaEnrolled: true,
+    });
+    const pending = await loader.load("raw-token", NOW, {
+      allowPendingMfa: true,
+    });
+    expect(pending.ok).toBe(true);
+  });
+
+  it("requires MFA for an account without a usable enrollment rather than bypassing the gate", async () => {
+    const loader = makeLoader({
+      users: {
+        findById: jest
+          .fn<UserRepository["findById"]>()
+          .mockResolvedValue(
+            makeUser({ mfaRequired: true, mfaVerifiedAt: null }),
+          ),
+      },
+    });
+    await expect(loader.load("raw-token", NOW)).resolves.toEqual({
+      ok: false,
+      reason: RBAC_REASON_CODES.mfaRequired,
+      mfaEnrolled: false,
+    });
   });
 
   it("returns LOAD_ERROR when the user cannot be loaded", async () => {

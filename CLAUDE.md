@@ -40,6 +40,15 @@ Centralised AI agent instructions. Add coding guidelines, style guides, and proj
 
 Ruler concatenates all .md files in this directory (and subdirectories), starting with AGENTS.md (if present), then remaining files in sorted order.
 
+## Mandatory business-logic documentation (project-wide)
+
+- **Before implementing or modifying a production handler or business-logic function**, write a structured explanation of the business behavior. TypeScript/JavaScript: a JSDoc block immediately before the function/method declaration. Python agents: a docstring as the first statement in the function body. A class-level comment alone is not sufficient for its `execute()` or other methods.
+- Use exactly these five headings and include meaningful content under each: **Business purpose:** business goal/outcome; **Business rules:** actor eligibility, authorization and invariants; **Execution flow:** numbered business steps in order; **Failure cases:** rejected states, error codes or rollback behavior; **Side effects:** persistence, transactions, auditing, notifications, external actions or an explicit read-only/pure statement.
+- Explain **what the business decides and why**, not a line-by-line translation of TypeScript or Python. Use concrete entities, guards, state transitions, failure results and external effects. Never write `TODO`/`N/A`/generic placeholder comments simply to appease the checker.
+- Applies across API commands/queries/services/domain, frontend feature logic/shared contracts and Python agents; if a UI callback contains domain decisions, extract a named business function and document it. Pure framework plumbing and DI constructors do not need the full five-section format.
+- New and **changed** business functions must meet this standard. Legacy functions are tracked by an immutable implementation-fingerprint baseline; never regenerate/expand the baseline to hide violations. Review actual semantics even if a machine-checked comment passes.
+- Full examples, review checklist and gradual migration guidance: `docs/developer/business-logic-documentation-standard.md`. Run `pnpm run check:business-logic-docs` and `pnpm run test:business-logic-docs` before submitting changes. CI enforces this gate.
+
 ## Contract value-set typing
 
 - Do not define TypeScript enums for app/domain value sets. Use `as const` objects and derive types from them.

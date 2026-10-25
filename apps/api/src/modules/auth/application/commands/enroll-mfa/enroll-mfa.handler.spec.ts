@@ -1,6 +1,6 @@
 import { AUTH_ERROR_CODES, USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
-import { HttpException } from "@nestjs/common";
+import { AuthApplicationError } from "../../errors/auth-application.error.ts";
 
 import { Session, User } from "../../../domain/models/auth.models.ts";
 import { MfaEnrollment } from "../../../domain/entities/mfa-enrollment.entity.ts";
@@ -49,12 +49,6 @@ describe("EnrollMfaHandler", () => {
       findByUserId: jest.fn(() => Promise.resolve(existingEnrollment)),
       save: jest.fn(() => Promise.resolve()),
     };
-    const mfaOtpUsed = {
-      deleteByUserId: jest.fn(() => Promise.resolve()),
-    };
-    const mfaRateLimits = {
-      resetByUserId: jest.fn(() => Promise.resolve()),
-    };
     const mfaRecoveryCodes = {
       findByUserId: jest.fn(() => Promise.resolve([])),
       saveBatch: jest.fn(() => Promise.resolve()),
@@ -63,11 +57,13 @@ describe("EnrollMfaHandler", () => {
     const handler = new EnrollMfaHandler(
       support as never,
       sessions as never,
-      mfaEnrollments as never,
-      mfaOtpUsed as never,
-      mfaRateLimits as never,
+      mfaEnrollments,
       mfaRecoveryCodes as never,
       users as never,
+      { encrypt: () => "encrypted", decrypt: () => "secret" },
+      {
+        enroll: () => Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+      } as never,
     );
 
     let thrown: unknown;
@@ -81,10 +77,8 @@ describe("EnrollMfaHandler", () => {
       thrown = err;
     }
 
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.accountSuspended },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.accountSuspended });
   });
 
   it("rejects with sessionInvalid when user is not found in database", async () => {
@@ -107,12 +101,6 @@ describe("EnrollMfaHandler", () => {
       findByUserId: jest.fn(() => Promise.resolve(null)),
       save: jest.fn(() => Promise.resolve()),
     };
-    const mfaOtpUsed = {
-      deleteByUserId: jest.fn(() => Promise.resolve()),
-    };
-    const mfaRateLimits = {
-      resetByUserId: jest.fn(() => Promise.resolve()),
-    };
     const mfaRecoveryCodes = {
       findByUserId: jest.fn(() => Promise.resolve([])),
       saveBatch: jest.fn(() => Promise.resolve()),
@@ -121,11 +109,13 @@ describe("EnrollMfaHandler", () => {
     const handler = new EnrollMfaHandler(
       support as never,
       sessions as never,
-      mfaEnrollments as never,
-      mfaOtpUsed as never,
-      mfaRateLimits as never,
+      mfaEnrollments,
       mfaRecoveryCodes as never,
       users as never,
+      { encrypt: () => "encrypted", decrypt: () => "secret" },
+      {
+        enroll: () => Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+      } as never,
     );
 
     let thrown: unknown;
@@ -139,9 +129,7 @@ describe("EnrollMfaHandler", () => {
       thrown = err;
     }
 
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.sessionInvalid });
   });
 });

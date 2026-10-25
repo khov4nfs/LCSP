@@ -7,9 +7,12 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
-import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
+import { authFailure } from "../../errors/auth-application.error.ts";
+import type { OAuthCallbackClaims } from "../../ports/oauth/oauth-provider.port.ts";
+import {
+  AUTH_OAUTH_PROVIDER_RESOLVER,
+  type OAuthProviderResolver,
+} from "../../ports/oauth/oauth-provider.port.ts";
 import type { OAuthLinkCallbackSuccess } from "../../contracts/auth/oauth.contract.ts";
 import {
   AUTH_OAUTH_IDENTITY_REPOSITORY,
@@ -38,7 +41,8 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
     private readonly oauthStates: OAuthStateRepository,
     @Inject(AUTH_OAUTH_IDENTITY_REPOSITORY)
     private readonly oauthIdentities: OAuthIdentityRepository,
-    private readonly providerRegistry: OAuthProviderRegistry,
+    @Inject(AUTH_OAUTH_PROVIDER_RESOLVER)
+    private readonly providerRegistry: OAuthProviderResolver,
   ) {}
 
   /**
@@ -73,7 +77,7 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
         correlationId,
         AUTH_ERROR_CODES.oauthStateInvalid,
       );
-      throw problemException(AUTH_ERROR_CODES.oauthStateInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.oauthStateInvalid, correlationId);
     }
 
     const provider = this.providerRegistry.resolve(oauthState.provider);
@@ -83,10 +87,7 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
         correlationId,
         AUTH_ERROR_CODES.unsupportedProvider,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.unsupportedProvider,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.unsupportedProvider, correlationId);
     }
 
     let claims: OAuthCallbackClaims;
@@ -102,10 +103,7 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
         correlationId,
         AUTH_ERROR_CODES.oauthCallbackInvalid,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.oauthCallbackInvalid,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.oauthCallbackInvalid, correlationId);
     }
 
     const claimsValid =
@@ -123,10 +121,7 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
         correlationId,
         AUTH_ERROR_CODES.oauthCallbackInvalid,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.oauthCallbackInvalid,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.oauthCallbackInvalid, correlationId);
     }
 
     const existingIdentity = await oauthIdentities.findByProviderAccount(
@@ -140,10 +135,7 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
         correlationId,
         AUTH_ERROR_CODES.oauthCallbackInvalid,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.oauthCallbackInvalid,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.oauthCallbackInvalid, correlationId);
     }
 
     const linked = existingIdentity

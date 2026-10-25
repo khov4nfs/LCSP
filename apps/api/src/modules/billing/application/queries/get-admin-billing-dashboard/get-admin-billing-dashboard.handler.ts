@@ -30,6 +30,25 @@ const OPEN_RECONCILIATION_STATUSES = [
 export class GetBillingAdminDashboardHandler implements IQueryHandler<GetBillingAdminDashboardQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Business purpose: Provide administrators with reconciled billing metrics and paginated payment activity.
+   *
+   * Business rules:
+   * - Settled revenue includes only credited orders in the requested time period.
+   * - The seven-day revenue trend groups UTC business days independently of the database session timezone.
+   * - Payment filters affect the list, while summary counts follow their own documented status conditions.
+   *
+   * Execution flow:
+   * 1. Determine period boundaries and the most recent seven UTC calendar days.
+   * 2. Aggregate credited orders, reconciliation counts and UTC daily settlements.
+   * 3. Query the filtered payment page and return a canonical administrative dashboard.
+   *
+   * Failure cases:
+   * - Database failures abort the report rather than returning misleading zero totals.
+   *
+   * Side effects:
+   * - None: this query performs read-only billing and payment reporting.
+   */
   async execute(
     query: GetBillingAdminDashboardQuery,
   ): Promise<BillingAdminDashboard> {
@@ -102,11 +121,33 @@ export class GetBillingAdminDashboardHandler implements IQueryHandler<GetBilling
     };
   }
 
+  /**
+   * Business purpose: Report credited payment totals for the last seven UTC calendar days.
+   *
+   * Business rules:
+   * - Prisma stores creditedAt as UTC values in a PostgreSQL timestamp-without-time-zone column.
+   * - A date cast must not reinterpret those UTC values using the database session timezone.
+   * - Every day in the seven-day window must be present, including days with no settlements.
+   *
+   * Execution flow:
+   * 1. Group completed credit orders by the calendar date already stored in UTC.
+   * 2. Read ISO YYYY-MM-DD text directly to avoid driver timestamp/timezone conversion.
+   * 3. Zero-fill absent days and project daily minor-unit amounts as decimal strings.
+   *
+   * Failure cases:
+   * - Database query failures reject the dashboard query instead of producing false zero totals.
+   *
+   * Side effects:
+   * - None: reads credited billing orders without writing business state.
+   */
   private async getSettledTopUpTrend(from: Date, through: Date) {
     const rows = await this.prisma.$queryRaw<
-      Array<{ day: Date; amountMinorUnits: bigint }>
+      Array<{ day: string; amountMinorUnits: bigint }>
     >`
-      SELECT date_trunc('day', "creditedAt" AT TIME ZONE 'UTC') AS "day",
+      -- creditedAt is a UTC-valued timestamp WITHOUT time zone. Applying
+      -- AT TIME ZONE here changes the day according to the PostgreSQL
+      -- session timezone (and the driver may reinterpret that timestamp).
+      SELECT ("creditedAt"::date)::text AS "day",
         COALESCE(SUM("amountMinorUnits"), 0)::bigint AS "amountMinorUnits"
       FROM "BillingOrder"
       WHERE "status" = ${BILLING_ORDER_STATUSES.CREDITED}::"BillingOrderStatus"
@@ -115,12 +156,7 @@ export class GetBillingAdminDashboardHandler implements IQueryHandler<GetBilling
       GROUP BY 1
       ORDER BY 1
     `;
-    const byDay = new Map(
-      rows.map((row) => [
-        row.day.toISOString().slice(0, 10),
-        row.amountMinorUnits,
-      ]),
-    );
+    const byDay = new Map(rows.map((row) => [row.day, row.amountMinorUnits]));
 
     return Array.from({ length: 7 }, (_, index) => {
       const day = new Date(from);

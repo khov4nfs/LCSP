@@ -45,6 +45,16 @@ Tài liệu này gom entrypoint thực dụng cho developer: runtime shape, read
 - Epic 7: catalog `MW-llm-001`, `MW-cls-py-001`.
 - Epic 8: catalog `module task catalog range`, `MW-qa-003`, `QA negative-path module coverage`.
 
+## Coding convention — mô tả logic nghiệp vụ trước code
+
+Đối với mọi handler và hàm xử lý nghiệp vụ mới hoặc được sửa (NestJS,
+Next.js, shared contracts, Python agents), bắt buộc mô tả rõ **Business
+purpose, Business rules, Execution flow, Failure cases, Side effects** ngay
+trước code theo chuẩn
+[Business Logic Documentation Standard](./business-logic-documentation-standard.md).
+Kiểm tra bằng `pnpm run check:business-logic-docs`; khi sửa logic cũ,
+phải cập nhật phần mô tả cùng với kiểm thử.
+
 ## Working rules cho dev và AI agent
 
 - Dùng handbook để định vị phạm vi, nhưng trích source authority gốc khi triển khai.

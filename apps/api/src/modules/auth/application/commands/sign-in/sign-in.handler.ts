@@ -8,11 +8,11 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import {
   hashSecret,
   verifySecret,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { SignInSuccess } from "../../contracts/auth/sign-in.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -54,10 +54,27 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
   ) {}
 
   /**
-   * Executes sign-in authentication flow.
+   * Business purpose: Authenticate a registered customer or administrator and establish a safe session.
    *
-   * @param command - Contains sign-in payload (email, password) and request metadata.
-   * @returns Session token, safe user projection, and MFA requirement flags.
+   * Business rules:
+   * - Invalid credentials must not reveal whether the primary email exists.
+   * - Login lockout, active-account status and email verification must be respected before session issuance.
+   * - MFA enrollment is reported without bypassing a required second factor.
+   *
+   * Execution flow:
+   * 1. Find the normalized primary email and verify the password without account enumeration.
+   * 2. Apply lockout and account eligibility checks; record unsuccessful attempts and their audit trail.
+   * 3. Create an active session, record success, then project the user's safe MFA status.
+   *
+   * Failure cases:
+   * - Missing or incorrect credentials return INVALID_CREDENTIALS; lockout returns TEMPORARY_LOCKED.
+   * - Suspended or unverified accounts are denied using their stable Auth problem codes.
+   *
+   * Side effects:
+   * - Updates failed-login counters, creates an authenticated session and records security audit events.
+   *
+   * @param command - Sign-in input and correlation metadata.
+   * @returns The issued session token and safe user/MFA projection.
    */
   async execute(command: SignInCommand): Promise<SignInSuccess> {
     const { payload, requestMeta } = command;
@@ -79,10 +96,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
       });
-      throw problemException(
-        AUTH_ERROR_CODES.invalidCredentials,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.invalidCredentials, correlationId);
     }
 
     if (user.isLocked(this.support.now())) {
@@ -93,7 +107,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.temporaryLock,
         correlationId: correlationId,
       });
-      throw problemException(
+      throw authFailure(
         AUTH_ERROR_CODES.temporaryLock,
         correlationId,
         temporaryLockProblemOverrides(user.lockUntil, this.support.now()),
@@ -101,40 +115,55 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
     }
 
     if (!verifySecret(password, user.passwordHash)) {
-      user.recordFailedLogin(
+      const current = await users.recordFailedLoginAttempt(
+        user.id,
+        user.passwordHash,
         this.support.now(),
         this.support.failedLoginLimit,
         this.support.lockWindowMs,
       );
-      await users.save(user);
+      const lockUntil = current?.lockUntil ?? null;
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
         decision: AUDIT_DECISIONS.deny,
-        reason_code: user.lockUntil
+        reason_code: lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
           : AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
       });
-      throw problemException(
-        user.lockUntil
+      throw authFailure(
+        lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
           : AUTH_ERROR_CODES.invalidCredentials,
         correlationId,
-        user.lockUntil
-          ? temporaryLockProblemOverrides(user.lockUntil, this.support.now())
+        lockUntil
+          ? temporaryLockProblemOverrides(lockUntil, this.support.now())
           : undefined,
       );
     }
 
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
-    user.clearFailedLogins();
-    await users.save(user);
+    const currentUser = await users.clearFailedLoginsIfCredentialsCurrent(
+      user.id,
+      user.passwordHash,
+      this.support.now(),
+    );
+    if (!currentUser) {
+      await this.support.recordAudit({
+        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
+        actor_id: user.id,
+        decision: AUDIT_DECISIONS.deny,
+        reason_code: AUTH_ERROR_CODES.invalidCredentials,
+        correlationId,
+      });
+      throw authFailure(AUTH_ERROR_CODES.invalidCredentials, correlationId);
+    }
 
-    if (!user.emailVerified) {
+    if (!currentUser.emailVerified) {
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
@@ -142,7 +171,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.emailVerificationRequired,
         correlationId: correlationId,
       });
-      throw problemException(
+      throw authFailure(
         AUTH_ERROR_CODES.emailVerificationRequired,
         correlationId,
       );
@@ -150,7 +179,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
 
     const sessionState = await this.support.createSession(
       sessions,
-      user,
+      currentUser,
       correlationId,
     );
     await this.support.recordAudit({
@@ -162,15 +191,15 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
 
     const mfaEnrollment = await this.support.findMfaEnrollment(
       mfaEnrollments,
-      user.id,
+      currentUser.id,
     );
-    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
+    const mfaRequired = this.support.isMfaRequired(currentUser, mfaEnrollment);
 
     return {
       ok: true,
       correlationId: correlationId,
       session_token: sessionState.token,
-      user: this.support.safeUserProjection(user),
+      user: this.support.safeUserProjection(currentUser),
       mfa_enrolled: this.support.isMfaEnrolled(mfaEnrollment),
       ...(mfaRequired ? { mfa_required: true } : {}),
     };

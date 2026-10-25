@@ -6,7 +6,7 @@ import {
 } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
 
-import { HttpException } from "@nestjs/common";
+import { AuthApplicationError } from "../../errors/auth-application.error.ts";
 import { Session } from "../../../domain/models/auth.models.ts";
 import { RecordMfaRecoveryCodeAccessCommand } from "./record-mfa-recovery-code-access.command.ts";
 import { RecordMfaRecoveryCodeAccessHandler } from "./record-mfa-recovery-code-access.handler.ts";
@@ -27,6 +27,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -42,10 +50,8 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.sessionInvalid });
   });
 
   it("rejects when the session is not found or inactive", async () => {
@@ -63,6 +69,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -78,10 +92,8 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.sessionInvalid });
   });
 
   it("rejects when the session belongs to a different user", async () => {
@@ -91,6 +103,7 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       tokenHash: "hash",
       expiresAt: Date.now() + 3600_000,
       mfaVerifiedAt: Date.now(),
+      mfaGenerationId: "current-generation",
     });
 
     const support = {
@@ -107,6 +120,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -122,10 +143,8 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.sessionInvalid });
   });
 
   it("rejects when the session is not MFA verified", async () => {
@@ -151,6 +170,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -166,10 +193,8 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.mfaRequired },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.mfaRequired });
   });
 
   it("records audit and succeeds when valid active MFA-verified session is provided", async () => {
@@ -179,6 +204,7 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       tokenHash: "hash",
       expiresAt: Date.now() + 3600_000,
       mfaVerifiedAt: Date.now(),
+      mfaGenerationId: "current-generation",
     });
 
     const recordAuditMock = jest.fn();
@@ -196,6 +222,14 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
     const handler = new RecordMfaRecoveryCodeAccessHandler(
       support as never,
       repositories.sessions as never,
+      {
+        findById: jest.fn(() =>
+          Promise.resolve({
+            mfaGenerationId: "current-generation",
+            mfaVerifiedAt: Date.now(),
+          }),
+        ),
+      } as never,
     );
 
     const result = await handler.execute(

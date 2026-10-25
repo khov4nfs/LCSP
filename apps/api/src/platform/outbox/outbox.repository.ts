@@ -105,7 +105,10 @@ export class OutboxRepository {
         WHERE status = ${OUTBOX_STATUSES.pending}
           OR (
             status = ${OUTBOX_STATUSES.failed}
-            AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= NOW())
+            -- Prisma persists DateTime as UTC in a timestamp-without-zone
+            -- column. Compare against a UTC timestamp without zone to avoid
+            -- treating future retries as due on servers with a non-UTC TZ.
+            AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC'))
           )
         ORDER BY "createdAt" ASC
         LIMIT ${batchSize}

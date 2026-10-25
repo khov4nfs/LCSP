@@ -60,11 +60,28 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
   ) {}
 
   /**
-   * Authorizes, validates, creates, and transactionally persists a new assessment.
+   * Business purpose: Open a customer-owned assessment with a durable, auditable lifecycle.
    *
-   * @param command - Assessment input plus RBAC and correlation context.
-   * @returns The external assessment-creation DTO.
-   * @throws When RBAC authorization fails or the requested name/description is invalid.
+   * Business rules:
+   * - The submitted assessment name and optional description must satisfy the shared length constraints.
+   * - New assessments begin in PREPARING, with their rule-set authority captured at creation time.
+   * - Assessment persistence, lifecycle state, audit and the outbox event must succeed atomically.
+   *
+   * Execution flow:
+   * 1. Validate the request fields and construct an assessment aggregate owned by the requester.
+   * 2. Prepare the assessment-created audit and an idempotent outbox notification.
+   * 3. In one transaction, save the aggregate, initialize runtime state, pin the active rule set and enter PREPARING.
+   * 4. Return the owner's persisted assessment detail after the transaction commits.
+   *
+   * Failure cases:
+   * - Invalid name/description is rejected with the shared assessment invalid-request problem.
+   * - Transaction, audit or outbox failures abort the creation rather than leaving a partial assessment.
+   *
+   * Side effects:
+   * - Creates assessment/runtime records, captures the rule-set case, writes audit and enqueues one outbox event.
+   *
+   * @param command - Requested assessment and authenticated owner/correlation context.
+   * @returns Canonical assessment-creation DTO including the persisted lifecycle.
    */
   async execute(
     command: CreateAssessmentCommand,

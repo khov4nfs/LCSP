@@ -1,10 +1,13 @@
 import { Injectable } from "@nestjs/common";
 
 import { GoogleOAuthProvider } from "./google-oauth.provider.ts";
-import type { OAuthProvider } from "./oauth-provider.interface.ts";
+import type {
+  OAuthProvider,
+  OAuthProviderResolver,
+} from "../../application/ports/oauth/oauth-provider.port.ts";
 
 @Injectable()
-export class OAuthProviderRegistry {
+export class OAuthProviderRegistry implements OAuthProviderResolver {
   private readonly providers: ReadonlyMap<string, OAuthProvider>;
 
   constructor(googleProvider: GoogleOAuthProvider) {

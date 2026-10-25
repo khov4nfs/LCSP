@@ -22,6 +22,7 @@ import {
 describe("Legal Rule Catalog Endpoints (e2e)", () => {
   const WORKER_KEY = "worker-api-key-for-legal-source-123";
   const SYSTEM_ACTOR = "legal-source-activation-service";
+  const originalWorkerApiKey = process.env.WORKER_API_KEY;
   let app: INestApplication;
   let prisma: PrismaClient;
 
@@ -42,8 +43,17 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
   });
 
   afterAll(async () => {
-    await app.close();
-    await prisma.$disconnect();
+    try {
+      await app.close();
+      await prisma.$disconnect();
+    } finally {
+      // Worker auth is a per-suite fixture, not global state for later suites.
+      if (originalWorkerApiKey === undefined) {
+        delete process.env.WORKER_API_KEY;
+      } else {
+        process.env.WORKER_API_KEY = originalWorkerApiKey;
+      }
+    }
   });
 
   beforeEach(async () => {
@@ -58,11 +68,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     await seedAuthWorkspaceFixture(prisma);
 
     await seedApprovedLegalSource(prisma);
-  });
-
-  afterAll(async () => {
-    await app.close();
-    await prisma.$disconnect();
   });
 
   describe("legal legalSource ingest and mechanical activation", () => {
@@ -259,7 +264,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
           scopeDescription: "Should require worker auth",
         });
 
-      assert.equal(activation.status, 401);
+      assert.equal(activation.status, 401, JSON.stringify(activation.body));
       const stored = await prisma.legalSourceVersion.findUnique({
         where: { id: draft.id },
       });

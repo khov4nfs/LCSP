@@ -7,5 +7,6 @@ export interface SessionRepository {
   save(session: Session, fingerprint?: string): Promise<void>;
   findById(id: string): Promise<Session | null>;
   findByFingerprint(fingerprint: string): Promise<Session | null>;
+  revokeOwned(sessionId: string, userId: string, now: number): Promise<boolean>;
   revokeAllForUser(userId: string, now: number): Promise<void>;
 }

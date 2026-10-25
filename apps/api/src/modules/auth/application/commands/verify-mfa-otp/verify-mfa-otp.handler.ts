@@ -7,12 +7,12 @@ import { Inject, Logger } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
+import { authFailure } from "../../errors/auth-application.error.ts";
+import { verifyTotpOtp } from "../../../../../platform/security/totp.utils.js";
 import {
-  decryptMfaSecret,
-  verifyTotpOtp,
-} from "../../../infrastructure/security/security.utils.ts";
+  AUTH_MFA_SECRET_CIPHER,
+  type MfaSecretCipher,
+} from "../../ports/security/mfa-secret-cipher.port.ts";
 import type { VerifyMfaOtpSuccess } from "../../contracts/auth/mfa.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -26,13 +26,16 @@ import {
   type SessionRepository,
   type UserRepository,
 } from "../../ports/persistence/index.ts";
+import {
+  AUTH_MFA_LIFECYCLE_PERSISTENCE,
+  MFA_PROOF_TYPES,
+  type MfaLifecyclePersistence,
+} from "../../ports/persistence/mfa-lifecycle.persistence.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { VerifyMfaOtpCommand } from "./verify-mfa-otp.command.ts";
 
 const MFA_RATE_LIMIT = 5;
 const MFA_LOCK_WINDOW_MS = 15 * 60_000;
-// ±1 TOTP step (30s) plus clock-skew slack; anything older can never be replayed.
-const OTP_USED_RETENTION_MS = 5 * 60_000;
 
 /**
  * Handles verifying TOTP time-based one-time password (OTP) during sign-in elevation.
@@ -61,6 +64,10 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     private readonly mfaRateLimits: MfaRateLimitRepository,
     @Inject(AUTH_MFA_OTP_USED_REPOSITORY)
     private readonly mfaOtpUsed: MfaOtpUsedRepository,
+    @Inject(AUTH_MFA_SECRET_CIPHER)
+    private readonly cipher: MfaSecretCipher,
+    @Inject(AUTH_MFA_LIFECYCLE_PERSISTENCE)
+    private readonly lifecycle: MfaLifecyclePersistence,
   ) {}
 
   /**
@@ -81,12 +88,12 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       sessionToken,
     );
     if (!session) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const enrollment = await mfaEnrollments.findByUserId(session.userId);
     if (!enrollment) {
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const now = this.support.now();
@@ -100,7 +107,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
         correlationId: correlationId,
       });
-      throw problemException(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
     }
 
     const alreadyUsed = await mfaOtpUsed.isUsed(session.userId, otp);
@@ -111,12 +118,12 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "replayed",
       );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     let plaintextSecret: string;
     try {
-      plaintextSecret = decryptMfaSecret(enrollment.encryptedSecret);
+      plaintextSecret = this.cipher.decrypt(enrollment.encryptedSecret);
     } catch {
       await this.recordFailedAttempt(
         session.userId,
@@ -124,7 +131,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "decrypt_error",
       );
-      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const valid = verifyTotpOtp(plaintextSecret, otp, now);
@@ -135,46 +142,28 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "invalid",
       );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
-    const claimed = await mfaOtpUsed.tryMarkUsed(session.userId, otp);
-    if (!claimed) {
-      // Lost a concurrent race to consume this exact code — treat as replay.
-      await this.recordFailedAttempt(
-        session.userId,
-        now,
-        correlationId,
-        "replayed",
-      );
-      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
-    }
-    await mfaOtpUsed.pruneOlderThan(now - OTP_USED_RETENTION_MS);
-
-    enrollment.verifiedAt = now;
-    await mfaEnrollments.save(enrollment);
-    session.markMfaVerified(now);
-    session.markSensitiveActionVerified(now);
-    await sessions.save(session);
-
-    const user = await users.findById(session.userId);
-    if (!user) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
-    }
-    user.mfaRequired = true;
-    await users.save(user);
-
-    const existingRateLimit =
-      rateLimit ?? new MfaRateLimit({ userId: session.userId });
-    existingRateLimit.clearOnSuccess();
-    await mfaRateLimits.save(existingRateLimit);
-
-    await this.support.recordAudit({
-      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaVerified,
-      actor_id: session.userId,
-      decision: AUDIT_DECISIONS.allow,
-      correlationId: correlationId,
+    const proofResult = await this.lifecycle.verifyProof({
+      userId: session.userId,
+      sessionId: session.id,
+      expectedEncryptedSecret: enrollment.encryptedSecret,
+      now,
+      correlationId,
+      proof: { kind: MFA_PROOF_TYPES.otp, otp },
     });
+    if (!proofResult.ok) {
+      if (proofResult.code === AUTH_ERROR_CODES.mfaInvalid) {
+        await this.recordFailedAttempt(
+          session.userId,
+          now,
+          correlationId,
+          "replayed",
+        );
+      }
+      throw authFailure(proofResult.code, correlationId);
+    }
 
     return { ok: true, correlationId: correlationId };
   }
