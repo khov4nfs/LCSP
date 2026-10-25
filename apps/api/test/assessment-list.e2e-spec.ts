@@ -62,10 +62,15 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
   });
 
   async function createAssessment(name: string) {
-    await httpRequest(app)
+    const response = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${customerToken}`)
       .send({ name });
+    assert.equal(
+      response.status,
+      201,
+      `Could not seed ${name}: ${JSON.stringify(response.body)}`,
+    );
   }
 
   // T01

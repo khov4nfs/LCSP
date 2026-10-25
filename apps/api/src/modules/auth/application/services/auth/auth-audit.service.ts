@@ -11,11 +11,13 @@ import {
   normalizeLegacyAuthAuditEventType,
   type AuthAuditEventType,
 } from "@lcsp/contracts/auth";
-import { Injectable, Logger } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  AUTH_AUDIT_EVENT_WRITER,
+  type AuthAuditEventWriter,
+} from "../../ports/audit/audit-event-writer.port.ts";
 
 import { AuditSanitizer } from "../../../../../platform/audit/audit-sanitizer.js";
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { AuditEvent } from "../../../domain/models/auth.models.ts";
 
 export type AuthAuditEventInput = {
@@ -38,7 +40,10 @@ type NormalizedAuthAuditEventInput = Omit<AuthAuditEventInput, "eventType"> & {
 export class AuthAuditService {
   private readonly logger = new Logger(AuthAuditService.name);
 
-  constructor(private readonly auditWriter: AuditWriterService) {}
+  constructor(
+    @Inject(AUTH_AUDIT_EVENT_WRITER)
+    private readonly auditWriter: AuthAuditEventWriter,
+  ) {}
 
   async write(event: AuthAuditEventInput | AuditEvent): Promise<void> {
     try {
@@ -53,10 +58,10 @@ export class AuthAuditService {
 
   async writeInTx(
     event: AuthAuditEventInput | AuditEvent,
-    tx: Prisma.TransactionClient,
+    transactionalWriter: AuthAuditEventWriter,
   ): Promise<void> {
     try {
-      await this.auditWriter.writeInTx(this.toAuditEventInput(event), tx);
+      await transactionalWriter.write(this.toAuditEventInput(event));
     } catch (error) {
       this.logger.error(
         `Failed to write auth audit event in transaction: ${(error as Error).message}`,

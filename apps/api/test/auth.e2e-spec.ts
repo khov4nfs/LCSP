@@ -5,6 +5,7 @@ import {
   AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
+import { jest } from "@jest/globals";
 
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -21,6 +22,7 @@ import {
 import { resolveMessage } from "@lcsp/i18n";
 
 import { AppModule } from "../src/app.module.js";
+import { AuthAuditService } from "../src/modules/auth/application/services/auth/auth-audit.service.js";
 import type {
   EnrollMfaSuccess,
   GenerateMfaRecoveryCodesSuccess,
@@ -34,6 +36,10 @@ import type {
   RequestRecoverySuccess,
 } from "../src/modules/auth/application/contracts/auth/recovery.contract.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
+import type {
+  AuthSessionsSuccess,
+  RevokeOwnedSessionSuccess,
+} from "../src/modules/auth/application/contracts/auth/settings.contract.js";
 import { AUTH_RECOVERY_NOTIFIER } from "../src/modules/auth/application/ports/notification/recovery-notifier.js";
 import {
   type AuthFixture,
@@ -90,6 +96,21 @@ describe("Auth workspace (e2e)", () => {
     await app.close();
     await prisma.$disconnect();
   });
+
+  async function mfaBusinessAuditCount(): Promise<number> {
+    const events = await prisma.auditEvent.findMany({
+      select: { payload: true },
+    });
+    const types: Set<string> = new Set([
+      AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
+      AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodesGenerated,
+      AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeViewed,
+    ]);
+    return events.filter((event) => {
+      const payload = event.payload as Record<string, unknown> | null;
+      return payload && types.has(payload.event_type as string);
+    }).length;
+  }
 
   it("approved sign-in returns the current safe user projection", async () => {
     const result = await httpRequest(app)
@@ -368,6 +389,80 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(new Set(body.recovery_codes).size, 10);
   });
 
+  it("concurrent first MFA enrollment commits one coherent secret and backup batch", async () => {
+    const signedIn = await signInApprovedUser();
+    const requests = await Promise.all([
+      httpRequest(app)
+        .post("/auth/mfa/enroll")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token }),
+      httpRequest(app)
+        .post("/auth/mfa/enroll")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token }),
+    ]);
+    assert.deepEqual(requests.map((r) => r.status).sort(), [201, 403]);
+    const successful = requests.find((r) => r.status === 201);
+    assert.ok(successful);
+    assert.equal(
+      successBody<EnrollMfaSuccess>(successful).recovery_codes.length,
+      10,
+    );
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.ok(stored.mfaEncryptedSecret);
+    const activeCodes = await prisma.authRecord.count({
+      where: {
+        userId: stored.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: null,
+        revokedAt: null,
+      },
+    });
+    assert.equal(activeCodes, 10);
+    const audits = await prisma.auditEvent.findMany({
+      where: { actorId: stored.id },
+    });
+    assert.equal(
+      audits.filter(
+        (a) =>
+          (a.payload as Record<string, unknown>).event_type ===
+          AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
+      ).length,
+      1,
+    );
+  });
+
+  it("rolls back MFA enrollment and backup issuance if transactional audit fails", async () => {
+    const signedIn = await signInApprovedUser();
+    const initialMfaAuditCount = await mfaBusinessAuditCount();
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test MFA audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/enroll")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(stored.mfaEncryptedSecret, null);
+    assert.equal(stored.mfaEnrolledAt, null);
+    assert.equal(
+      await prisma.authRecord.count({
+        where: { userId: stored.id, type: AUTH_RECORD_TYPE.mfaRecoveryCode },
+      }),
+      0,
+    );
+    assert.equal(await mfaBusinessAuditCount(), initialMfaAuditCount);
+  });
+
   it("MFA recovery code verifies MFA once and rejects replay", async () => {
     const signIn = await signInApprovedUser();
     const enrollment = await httpRequest(app)
@@ -375,18 +470,35 @@ describe("Auth workspace (e2e)", () => {
       .set("Authorization", `Bearer ${signIn.session_token}`)
       .send({ session_token: signIn.session_token })
       .expect(201);
-    const recoveryCode =
-      successBody<EnrollMfaSuccess>(enrollment).recovery_codes[0];
-
-    const verify = await httpRequest(app)
+    const enrollmentBody = successBody<EnrollMfaSuccess>(enrollment);
+    const recoveryCode = enrollmentBody.recovery_codes[0];
+    const premature = await httpRequest(app)
       .post("/auth/mfa/recovery-code/verify")
       .send({ session_token: signIn.session_token, code: recoveryCode })
+      .expect(403);
+    assert.equal(problemCode(premature), AUTH_ERROR_CODES.mfaRequired);
+
+    // A new factor must be proven with its TOTP before its backup batch is active.
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: signIn.session_token,
+        otp: totpForTime(
+          totpSecretFromUri(enrollmentBody.totp_uri),
+          Date.now(),
+        ),
+      })
+      .expect(201);
+    const pendingSession = await signInApprovedUser();
+    const verify = await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({ session_token: pendingSession.session_token, code: recoveryCode })
       .expect(201);
     assert.equal(successBody<VerifyMfaRecoveryCodeSuccess>(verify).ok, true);
 
     const replay = await httpRequest(app)
       .post("/auth/mfa/recovery-code/verify")
-      .send({ session_token: signIn.session_token, code: recoveryCode })
+      .send({ session_token: pendingSession.session_token, code: recoveryCode })
       .expect(403);
     assert.equal(problemCode(replay), AUTH_ERROR_CODES.mfaInvalid);
 
@@ -398,6 +510,61 @@ describe("Auth workspace (e2e)", () => {
       },
     });
     assert.equal(usedCodes.length, 1);
+  });
+
+  it("rolls back a consumed MFA recovery code when verification audit fails", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const body = successBody<EnrollMfaSuccess>(enrolled);
+    const code = body.recovery_codes[0];
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: signedIn.session_token,
+        otp: totpForTime(totpSecretFromUri(body.totp_uri), Date.now()),
+      })
+      .expect(201);
+    const pendingSession = await signInApprovedUser();
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test MFA proof audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/recovery-code/verify")
+        .send({ session_token: pendingSession.session_token, code })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.ok(user.mfaVerifiedAt, "the original OTP proof remains committed");
+    const pendingProof = await prisma.authRecord.findFirstOrThrow({
+      where: {
+        type: AUTH_RECORD_TYPE.session,
+        userId: user.id,
+        lookupKey: { contains: "" },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    assert.equal(authRecordMetadataString(pendingProof, "mfaVerifiedAt"), null);
+    const used = await prisma.authRecord.count({
+      where: {
+        userId: user.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: { not: null },
+      },
+    });
+    assert.equal(used, 0);
+    await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({ session_token: pendingSession.session_token, code })
+      .expect(201);
   });
 
   it("generating a new MFA recovery code set invalidates the old set", async () => {
@@ -447,6 +614,103 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(
       successBody<VerifyMfaRecoveryCodeSuccess>(newAttempt).ok,
       true,
+    );
+  });
+
+  it("rolls back recovery code replacement and audit on failure", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const otp = totpForTime(
+      totpSecretFromUri(successBody<EnrollMfaSuccess>(enrolled).totp_uri),
+      Date.now(),
+    );
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
+    const activeBefore = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: null,
+        revokedAt: null,
+      },
+      orderBy: { id: "asc" },
+    });
+    const auditCount = await mfaBusinessAuditCount();
+    assert.equal(activeBefore.length, 10);
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test MFA code audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/recovery-codes")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const activeAfter = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: null,
+        revokedAt: null,
+      },
+      orderBy: { id: "asc" },
+    });
+    assert.deepEqual(
+      activeAfter.map((c) => c.id),
+      activeBefore.map((c) => c.id),
+    );
+    assert.equal(await mfaBusinessAuditCount(), auditCount);
+  });
+
+  it("concurrent code regeneration and disabling MFA leaves no live codes", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const otp = totpForTime(
+      totpSecretFromUri(successBody<EnrollMfaSuccess>(enrolled).totp_uri),
+      Date.now(),
+    );
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
+    const results = await Promise.all([
+      httpRequest(app)
+        .post("/auth/mfa/recovery-codes")
+        .set("Authorization", `Bearer ${signedIn.session_token}`)
+        .send({ session_token: signedIn.session_token }),
+      httpRequest(app)
+        .delete("/auth/mfa")
+        .set("Authorization", `Bearer ${signedIn.session_token}`),
+    ]);
+    assert.equal(results[1].status, 200);
+    assert.ok([201, 403].includes(results[0].status));
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(stored.mfaEncryptedSecret, null);
+    assert.equal(
+      await prisma.authRecord.count({
+        where: {
+          userId: stored.id,
+          type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+          usedAt: null,
+          revokedAt: null,
+        },
+      }),
+      0,
     );
   });
 
@@ -522,6 +786,47 @@ describe("Auth workspace (e2e)", () => {
       .set("Authorization", `Bearer ${signIn.session_token}`)
       .expect(200);
     assert.equal(successBody<{ ok: boolean }>(profile).ok, true);
+  });
+
+  it("rolls back OTP consumption and session elevation when audit fails", async () => {
+    const signedIn = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({ session_token: signedIn.session_token })
+      .expect(201);
+    const otp = totpForTime(
+      totpSecretFromUri(successBody<EnrollMfaSuccess>(enrolled).totp_uri),
+      Date.now(),
+    );
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test OTP proof audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/verify-otp")
+        .send({ session_token: signedIn.session_token, otp })
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(user.mfaVerifiedAt, null);
+    assert.equal(
+      await prisma.authRecord.count({
+        where: { userId: user.id, type: AUTH_RECORD_TYPE.mfaOtpUse },
+      }),
+      0,
+    );
+    const session = await findLatestAuthSession(prisma, user.id);
+    assert.ok(session);
+    assert.equal(authRecordMetadataString(session, "mfaVerifiedAt"), null);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
   });
 
   it("invalid OTP is rejected and audit event is recorded", async () => {
@@ -627,11 +932,14 @@ describe("Auth workspace (e2e)", () => {
     }
   });
 
-  it("MFA enrollment can replace an undecryptable stale secret", async () => {
+  it("fails closed when a password-only session attempts to replace undecryptable MFA", async () => {
     const originalKey = process.env.MFA_SECRET_ENCRYPTION_KEY;
     process.env.MFA_SECRET_ENCRYPTION_KEY = "1".repeat(64);
     const signIn = await signInApprovedUser();
     await seedMfaEnrollment(prisma, fixture.approvedUser.id);
+    const oldUser = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
 
     process.env.MFA_SECRET_ENCRYPTION_KEY = "2".repeat(64);
 
@@ -640,11 +948,13 @@ describe("Auth workspace (e2e)", () => {
         .post("/auth/mfa/enroll")
         .set("Authorization", `Bearer ${signIn.session_token}`)
         .send({ session_token: signIn.session_token })
-        .expect(201);
-
-      const body = successBody<EnrollMfaSuccess>(result);
-      assert.equal(body.ok, true);
-      assert.match(body.totp_uri, /^otpauth:\/\/totp\//);
+        .expect(403);
+      assert.equal(problemCode(result), AUTH_ERROR_CODES.mfaRequired);
+      const after = await prisma.user.findUniqueOrThrow({
+        where: { id: fixture.approvedUser.id },
+      });
+      assert.equal(after.mfaEncryptedSecret, oldUser.mfaEncryptedSecret);
+      assert.equal(after.mfaGenerationId, oldUser.mfaGenerationId);
     } finally {
       process.env.MFA_SECRET_ENCRYPTION_KEY = originalKey;
     }
@@ -695,6 +1005,60 @@ describe("Auth workspace (e2e)", () => {
   });
 
   // AC3: Profile update safety
+
+  it("lists sessions and revokes only owned sessions with idempotent results", async () => {
+    const first = await signInApprovedUser();
+    const second = await signInApprovedUser();
+
+    const sessionsResponse = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .expect(200);
+    const sessions =
+      successBody<AuthSessionsSuccess>(sessionsResponse).sessions;
+    const current = sessions.find((session) => session.is_current);
+    assert.ok(current);
+    const other = sessions.find(
+      (session) => session.id !== current.id && session.revoked_at === null,
+    );
+    assert.ok(other);
+
+    const foreign = await createAuthSessionRecord(prisma, {
+      id: "foreign-session-for-ownership-test",
+      userId: fixture.unverifiedUser.id,
+      token: "foreign-session-token",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const denied = await httpRequest(app)
+      .delete(`/auth/sessions/${foreign.id}`)
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .expect(404);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.sessionInvalid);
+    const foreignAfter = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: foreign.id },
+    });
+    assert.equal(foreignAfter.revokedAt, null);
+
+    for (let index = 0; index < 2; index += 1) {
+      const revoked = await httpRequest(app)
+        .delete(`/auth/sessions/${other.id}`)
+        .set("Authorization", `Bearer ${second.session_token}`)
+        .expect(200);
+      assert.equal(
+        successBody<RevokeOwnedSessionSuccess>(revoked).revoked_session_id,
+        other.id,
+      );
+    }
+
+    const expiredFirstSession = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${first.session_token}`)
+      .expect(401);
+    assert.equal(
+      problemCode(expiredFirstSession),
+      AUTH_ERROR_CODES.sessionInvalid,
+    );
+  });
 
   it("profile update succeeds and returns updated_fields without secret values", async () => {
     const signIn = await signInAndVerifyApprovedUser();
@@ -774,6 +1138,366 @@ describe("Auth workspace (e2e)", () => {
       .expect(403);
 
     assert.equal(problemCode(reEnroll), AUTH_ERROR_CODES.mfaRequired);
+  });
+
+  it("rotation revokes S1 recovery codes and step-up proofs across A/B/C sessions", async () => {
+    const sessionA = await signInApprovedUser();
+    const initial = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(initial);
+    const secretS1 = totpSecretFromUri(s1.totp_uri);
+    const oldCode = s1.recovery_codes[0];
+    const generationS1 = (
+      await prisma.user.findUniqueOrThrow({
+        where: { id: fixture.approvedUser.id },
+      })
+    ).mfaGenerationId;
+
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(secretS1, Date.now()),
+      })
+      .expect(201);
+    const sessionB = await signInApprovedUser();
+    const nextStepOtp = totpForTime(secretS1, Date.now() + 30_000);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: sessionB.session_token, otp: nextStepOtp })
+      .expect(201);
+
+    for (const token of [sessionA.session_token, sessionB.session_token]) {
+      const profile = await httpRequest(app)
+        .get("/auth/profile")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      assert.equal(
+        successBody<{ mfa_verified: boolean }>(profile).mfa_verified,
+        true,
+      );
+    }
+
+    const sessionC = await signInApprovedUser();
+    const replacement = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s2 = successBody<EnrollMfaSuccess>(replacement);
+    assert.ok(s2.recovery_codes.length > 0);
+    assert.notEqual(s2.recovery_codes[0], oldCode);
+    const generationS2 = (
+      await prisma.user.findUniqueOrThrow({
+        where: { id: fixture.approvedUser.id },
+      })
+    ).mfaGenerationId;
+    assert.notEqual(generationS1, generationS2);
+
+    // A rotation must invalidate every session's proof in the same commit.
+    const sessionRecords = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.session,
+      },
+    });
+    assert.ok(sessionRecords.length >= 3);
+    for (const record of sessionRecords) {
+      assert.equal(authRecordMetadataString(record, "mfaVerifiedAt"), null);
+      assert.equal(
+        authRecordMetadataString(record, "sensitiveActionVerifiedAt"),
+        null,
+      );
+      assert.equal(
+        authRecordMetadataString(record, "mfaGenerationId"),
+        generationS2,
+      );
+    }
+
+    for (const token of [
+      sessionA.session_token,
+      sessionB.session_token,
+      sessionC.session_token,
+    ]) {
+      const denied = await httpRequest(app)
+        .get("/auth/profile")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(401);
+      assert.equal(problemCode(denied), AUTH_ERROR_CODES.mfaRequired);
+    }
+
+    const pendingSensitive = await httpRequest(app)
+      .post("/auth/sensitive-route/check")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({ method: "POST", path: "/auth/mfa/recovery-codes" })
+      .expect(200);
+    assert.equal(
+      successBody<{ reauth_required: boolean }>(pendingSensitive)
+        .reauth_required,
+      true,
+    );
+
+    // Password reauthentication is not a substitute for the pending S2 factor.
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({ password: "CorrectHorseBatteryStaple!" })
+      .expect(201);
+    const afterPasswordOnly = await httpRequest(app)
+      .post("/auth/sensitive-route/check")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({ method: "POST", path: "/auth/mfa/recovery-codes" })
+      .expect(200);
+    assert.equal(
+      successBody<{ reauth_required: boolean }>(afterPasswordOnly)
+        .reauth_required,
+      true,
+    );
+
+    // Neither the previous C1 nor the newly-issued C2 may prove S2 before OTP.
+    for (const code of [oldCode, s2.recovery_codes[0]]) {
+      const blocked = await httpRequest(app)
+        .post("/auth/mfa/recovery-code/verify")
+        .send({ session_token: sessionC.session_token, code })
+        .expect(403);
+      assert.equal(problemCode(blocked), AUTH_ERROR_CODES.mfaRequired);
+    }
+
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(totpSecretFromUri(s2.totp_uri), Date.now()),
+      })
+      .expect(201);
+    const afterA = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(afterA).mfa_verified,
+      true,
+    );
+
+    const staleB = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(401);
+    assert.equal(problemCode(staleB), AUTH_ERROR_CODES.mfaRequired);
+
+    const oldCodeRejected = await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({ session_token: sessionC.session_token, code: oldCode })
+      .expect(403);
+    assert.equal(problemCode(oldCodeRejected), AUTH_ERROR_CODES.mfaInvalid);
+
+    await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({
+        session_token: sessionB.session_token,
+        code: s2.recovery_codes[0],
+      })
+      .expect(201);
+    const verifiedB = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(verifiedB).mfa_verified,
+      true,
+    );
+
+    const stillPendingC = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionC.session_token}`)
+      .expect(401);
+    assert.equal(problemCode(stillPendingC), AUTH_ERROR_CODES.mfaRequired);
+  });
+
+  it("serializes concurrent S1 to S2 rotations and commits only the winner's generation and code batch", async () => {
+    const a = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${a.session_token}`)
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(enrolled);
+    const secretS1 = totpSecretFromUri(s1.totp_uri);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: a.session_token,
+        otp: totpForTime(secretS1, Date.now()),
+      })
+      .expect(201);
+
+    const b = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: b.session_token,
+        otp: totpForTime(secretS1, Date.now() + 30_000),
+      })
+      .expect(201);
+
+    const responses = await Promise.all(
+      [a.session_token, b.session_token].map((token) =>
+        httpRequest(app)
+          .post("/auth/mfa/enroll")
+          .set("Authorization", `Bearer ${token}`),
+      ),
+    );
+    const winners = responses.filter((response) => response.status === 201);
+    assert.equal(winners.length, 1, "only one rotation may commit");
+    const loser = responses.find((response) => response.status !== 201);
+    assert.ok(loser);
+    assert.ok([401, 403].includes(loser.status));
+    assert.equal(problemCode(loser), AUTH_ERROR_CODES.mfaRequired);
+
+    const winner = successBody<EnrollMfaSuccess>(winners[0]);
+    const persisted = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(persisted.mfaVerifiedAt, null);
+    const rows = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        revokedAt: null,
+        usedAt: null,
+      },
+    });
+    assert.equal(rows.length, winner.recovery_codes.length);
+    for (const row of rows) {
+      assert.equal(
+        authRecordMetadataString(row, "mfaGenerationId"),
+        persisted.mfaGenerationId,
+      );
+    }
+  });
+
+  it("rolls back MFA rotation, active backup codes and multi-session proof invalidation on audit failure", async () => {
+    const sessionA = await signInApprovedUser();
+    const initial = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(initial);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(totpSecretFromUri(s1.totp_uri), Date.now()),
+      })
+      .expect(201);
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    const spy = jest
+      .spyOn(app.get(AuthAuditService), "writeInTx")
+      .mockRejectedValueOnce(new Error("test MFA rotation audit failure"));
+    try {
+      await httpRequest(app)
+        .post("/auth/mfa/enroll")
+        .set("Authorization", `Bearer ${sessionA.session_token}`)
+        .expect(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(after.mfaEncryptedSecret, before.mfaEncryptedSecret);
+    assert.equal(after.mfaGenerationId, before.mfaGenerationId);
+    assert.equal(
+      after.mfaVerifiedAt?.getTime(),
+      before.mfaVerifiedAt?.getTime(),
+    );
+    const recoveredSession = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(recoveredSession).mfa_verified,
+      true,
+    );
+    const fresh = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({ session_token: fresh.session_token, code: s1.recovery_codes[0] })
+      .expect(201);
+  });
+
+  it("disabling MFA removes every session proof without revoking the sessions", async () => {
+    const a = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${a.session_token}`)
+      .expect(201);
+    const body = successBody<EnrollMfaSuccess>(enrolled);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: a.session_token,
+        otp: totpForTime(totpSecretFromUri(body.totp_uri), Date.now()),
+      })
+      .expect(201);
+    const b = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({ session_token: b.session_token, code: body.recovery_codes[0] })
+      .expect(201);
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    await httpRequest(app)
+      .delete("/auth/mfa")
+      .set("Authorization", `Bearer ${a.session_token}`)
+      .expect(200);
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(after.mfaRequired, false);
+    assert.equal(after.mfaEncryptedSecret, null);
+    assert.notEqual(after.mfaGenerationId, before.mfaGenerationId);
+
+    const codeCount = await prisma.authRecord.count({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: null,
+        revokedAt: null,
+      },
+    });
+    assert.equal(codeCount, 0);
+    const allSessionProofs = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${b.session_token}`)
+      .expect(200);
+    assert.ok(
+      successBody<AuthSessionsSuccess>(allSessionProofs).sessions.every(
+        (item) => item.mfa_verified_at === null,
+      ),
+    );
+    for (const token of [a.session_token, b.session_token]) {
+      const profile = await httpRequest(app)
+        .get("/auth/profile")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      assert.equal(
+        successBody<{ mfa_verified: boolean }>(profile).mfa_verified,
+        false,
+      );
+      const sensitive = await httpRequest(app)
+        .post("/auth/sensitive-route/check")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ method: "POST", path: "/auth/mfa/recovery-codes" })
+        .expect(200);
+      assert.equal(
+        successBody<{ reauth_required: boolean }>(sensitive).reauth_required,
+        true,
+      );
+    }
   });
 
   it("profile update remains allowed while MFA setup is still pending first verification", async () => {
@@ -999,6 +1723,84 @@ describe("Auth workspace (e2e)", () => {
       })
       .expect(200);
     assert.equal(successBody<SignInSuccess>(newSignIn).ok, true);
+  });
+
+  it("consumes a recovery token only once under concurrent confirmation", async () => {
+    await httpRequest(app)
+      .post("/auth/recovery/request")
+      .send({ email: fixture.approvedUser.email })
+      .expect(201);
+    const token = recoveryNotifier.lastToken;
+    assert.ok(token);
+
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    const responses = await Promise.all([
+      httpRequest(app)
+        .post("/auth/recovery/confirm")
+        .send({ token, new_password: "AtomicPassword456!" }),
+      httpRequest(app)
+        .post("/auth/recovery/confirm")
+        .send({ token, new_password: "AtomicPassword456!" }),
+    ]);
+    assert.deepEqual(
+      responses.map((response) => response.status).sort(),
+      [201, 400],
+    );
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(after.accessVersion, before.accessVersion + 1);
+    const recovery = await prisma.authRecord.findFirstOrThrow({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.recoveryRequest,
+      },
+    });
+    assert.ok(recovery.usedAt);
+  });
+
+  it("disables MFA, recovery codes and session MFA status atomically", async () => {
+    const signIn = await signInApprovedUser();
+    const enrollment = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({ session_token: signIn.session_token })
+      .expect(201);
+    const enrollmentBody = successBody<EnrollMfaSuccess>(enrollment);
+    const otp = totpForTime(
+      totpSecretFromUri(enrollmentBody.totp_uri),
+      Date.now(),
+    );
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signIn.session_token, otp })
+      .expect(201);
+
+    const response = await httpRequest(app)
+      .delete("/auth/mfa")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .expect(200);
+    assert.equal(successBody<{ ok: boolean }>(response).ok, true);
+
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(user.mfaEncryptedSecret, null);
+    assert.equal(user.mfaRequired, false);
+    const remainingCodes = await prisma.authRecord.count({
+      where: {
+        userId: user.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        revokedAt: null,
+        usedAt: null,
+      },
+    });
+    assert.equal(remainingCodes, 0);
+    const session = await findLatestAuthSession(prisma, user.id);
+    assert.ok(session);
+    assert.equal(authRecordMetadataString(session, "mfaVerifiedAt"), null);
   });
 
   it("password recovery confirm rejects an invalid or expired token", async () => {

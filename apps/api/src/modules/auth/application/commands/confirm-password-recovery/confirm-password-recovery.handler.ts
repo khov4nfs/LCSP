@@ -1,26 +1,23 @@
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
-  USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import {
   fingerprintToken,
   hashSecret,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { ConfirmRecoverySuccess } from "../../contracts/auth/recovery.contract.ts";
 import {
   AUTH_RECOVERY_REQUEST_REPOSITORY,
-  AUTH_SESSION_REPOSITORY,
-  AUTH_USER_REPOSITORY,
+  AUTH_SECURITY_PERSISTENCE,
   type RecoveryRequestRepository,
-  type SessionRepository,
-  type UserRepository,
+  type AuthSecurityPersistence,
 } from "../../ports/persistence/index.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { ConfirmPasswordRecoveryCommand } from "./confirm-password-recovery.command.ts";
@@ -42,10 +39,8 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
     private readonly support: AuthSupportService,
     @Inject(AUTH_RECOVERY_REQUEST_REPOSITORY)
     private readonly recoveryRequests: RecoveryRequestRepository,
-    @Inject(AUTH_USER_REPOSITORY)
-    private readonly users: UserRepository,
-    @Inject(AUTH_SESSION_REPOSITORY)
-    private readonly sessions: SessionRepository,
+    @Inject(AUTH_SECURITY_PERSISTENCE)
+    private readonly security: AuthSecurityPersistence,
   ) {}
 
   /**
@@ -58,7 +53,7 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
     command: ConfirmPasswordRecoveryCommand,
   ): Promise<ConfirmRecoverySuccess> {
     const { payload, requestMeta } = command;
-    const { recoveryRequests, users, sessions } = this;
+    const { recoveryRequests, security } = this;
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
 
@@ -74,29 +69,26 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
         reason_code: AUTH_ERROR_CODES.recoveryInvalid,
         correlationId: correlationId,
       });
-      throw problemException(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
     }
 
-    const user = await users.findById(recoveryRequest.userId);
-    if (!user || user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      throw problemException(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
-    }
-
-    user.passwordHash = hashSecret(payload.new_password);
-    user.clearFailedLogins();
-    await users.save(user);
-
-    recoveryRequest.consume(now);
-    await recoveryRequests.save(recoveryRequest);
-
-    await sessions.revokeAllForUser(user.id, now);
-
-    await this.support.recordAudit({
-      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryConfirmed,
-      actor_id: user.id,
-      decision: AUDIT_DECISIONS.allow,
-      correlationId: correlationId,
+    const completed = await security.completePasswordRecovery({
+      requestId: recoveryRequest.id,
+      userId: recoveryRequest.userId,
+      passwordHash: hashSecret(payload.new_password),
+      now,
+      correlationId,
     });
+    if (!completed) {
+      await this.support.recordAudit({
+        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryConfirmFailed,
+        actor_id: recoveryRequest.userId,
+        decision: AUDIT_DECISIONS.deny,
+        reason_code: AUTH_ERROR_CODES.recoveryInvalid,
+        correlationId,
+      });
+      throw authFailure(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
+    }
 
     return { ok: true, correlationId: correlationId };
   }

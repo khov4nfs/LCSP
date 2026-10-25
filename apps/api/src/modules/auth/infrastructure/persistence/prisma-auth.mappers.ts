@@ -39,6 +39,8 @@ export function mapUserRecord(record: PrismaUser): User {
     ),
     role: fromPrismaAuthUserRole(record.role),
     mfaRequired: record.mfaRequired,
+    mfaGenerationId: record.mfaGenerationId,
+    mfaVerifiedAt: record.mfaVerifiedAt?.getTime() ?? null,
   });
 }
 
@@ -59,6 +61,7 @@ export function mapSessionRecord(record: AuthRecord): Session {
     accessVersion: Number(
       (record.metadata as Record<string, unknown> | null)?.accessVersion ?? 0,
     ),
+    mfaGenerationId: authRecordMetadataString(record, "mfaGenerationId"),
     tokenHash: required(record.secretHash, "Session token hash"),
     expiresAt: required(record.expiresAt, "Session expiry").getTime(),
     revokedAt: record.revokedAt?.getTime() ?? null,
@@ -77,6 +80,7 @@ export function mapMfaEnrollmentRecord(record: PrismaUser): MfaEnrollment {
       record.mfaEncryptedSecret,
       "MFA encrypted secret",
     ),
+    mfaGenerationId: record.mfaGenerationId,
     enrolledAt: required(record.mfaEnrolledAt, "MFA enrollment time").getTime(),
     verifiedAt: record.mfaVerifiedAt?.getTime() ?? null,
   });

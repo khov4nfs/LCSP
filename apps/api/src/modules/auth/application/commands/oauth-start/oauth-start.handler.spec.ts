@@ -7,6 +7,7 @@ import {
 /* eslint-disable @typescript-eslint/unbound-method */
 import { jest } from "@jest/globals";
 
+import { AuthApplicationError } from "../../errors/auth-application.error.ts";
 import { HttpException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 import { ZodValidationPipe } from "../../../../../common/pipes/zod-validation.pipe.ts";
@@ -122,9 +123,9 @@ describe("OAuthStartHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.unsupportedProvider },
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({
+      code: AUTH_ERROR_CODES.unsupportedProvider,
     });
     expect(mockSupportService.recordAudit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -147,10 +148,8 @@ describe("OAuthStartHandler", () => {
     } catch (err) {
       thrown = err;
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.invalidRedirectUri },
-    });
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.invalidRedirectUri });
     expect(mockSupportService.recordAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthStartFailed,

@@ -2,6 +2,9 @@ import type { Config } from "jest";
 
 const config: Config = {
   moduleFileExtensions: ["js", "json", "ts"],
+  // Do not index Corepack / pnpm packages stored in the local test cache:
+  // duplicate package.json names in that cache create false haste collisions.
+  modulePathIgnorePatterns: ["<rootDir>/.cache/", "<rootDir>/dist/"],
   rootDir: ".",
   testEnvironment: "node",
   testRegex: "(src|test)/.*\\.spec\\.ts$",

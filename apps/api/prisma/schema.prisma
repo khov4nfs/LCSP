@@ -22,6 +22,7 @@ model User {
   backupEmailPolicy         AuthBackupEmailPolicy         @default(RECOVERY_EMAIL)
   role                      AuthUserRole                  @default(CUSTOMER)
   mfaRequired               Boolean                       @default(false)
+  mfaGenerationId           String                        @default(dbgenerated("gen_random_uuid()::text"))
   mfaEncryptedSecret        String?
   mfaEnrolledAt             DateTime?
   mfaVerifiedAt             DateTime?

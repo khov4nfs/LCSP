@@ -2,6 +2,11 @@ import { Catch, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
 import type { ProblemMeta, ProblemResult } from "@lcsp/contracts/auth";
 import { randomUUID } from "node:crypto";
+import {
+  ApplicationError,
+  APPLICATION_ERROR_REASONS,
+  type ApplicationErrorReason,
+} from "../../../common/errors/application.error.js";
 
 import { cleanString, isNumber, isRecord } from "@lcsp/contracts/shared";
 import { setProblemResponseMetadata } from "./error-response-metadata.js";
@@ -51,8 +56,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const context = host.switchToHttp();
     const response = context.getResponse<HttpResponse>();
     const request = context.getRequest<HttpRequest>();
-    const status = getHttpStatus(exception);
-    const body = getExceptionBody(exception);
+    const applicationProblem =
+      exception instanceof ApplicationError
+        ? toApplicationProblemResult(exception)
+        : null;
+    const status =
+      applicationProblem?.problem.status ?? getHttpStatus(exception);
+    const body = applicationProblem ?? getExceptionBody(exception);
     const correlationId = getCorrelationId(body, request);
 
     if (status >= 500) {
@@ -72,6 +82,27 @@ export class HttpExceptionFilter implements ExceptionFilter {
     setProblemResponseMetadata(response, result);
     response.status(status).json(result);
   }
+}
+
+/** Explicitly maps transport-independent failure semantics at the HTTP edge. */
+const APPLICATION_FAILURE_HTTP_STATUS: Record<ApplicationErrorReason, number> =
+  {
+    [APPLICATION_ERROR_REASONS.resourceAlreadyExists]: HttpStatus.CONFLICT,
+    [APPLICATION_ERROR_REASONS.resourceNotFound]: HttpStatus.NOT_FOUND,
+    [APPLICATION_ERROR_REASONS.authenticationRequired]: HttpStatus.UNAUTHORIZED,
+    [APPLICATION_ERROR_REASONS.accessDenied]: HttpStatus.FORBIDDEN,
+  };
+
+function toApplicationProblemResult(
+  error: ApplicationError,
+): ProblemResult<string> {
+  return problemResult(error.code, error.correlationId, {
+    status: error.reason
+      ? APPLICATION_FAILURE_HTTP_STATUS[error.reason]
+      : undefined,
+    meta: error.meta,
+    requiredAction: error.requiredAction,
+  });
 }
 
 /**

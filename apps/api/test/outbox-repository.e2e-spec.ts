@@ -4,6 +4,7 @@ import {
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
@@ -62,6 +63,33 @@ describe("OutboxRepository (e2e, real Postgres)", () => {
     );
 
     expect(ids).toEqual([pending.id]);
+  });
+
+  it("does not publish a future UTC retry under a non-UTC database session timezone", async () => {
+    await seed({
+      status: OUTBOX_STATUSES.failed,
+      nextAttemptAt: new Date(Date.now() + 60 * 60_000),
+    });
+
+    // Reproduce production-like non-UTC PostgreSQL connection configuration.
+    // The transaction wrapper applies SET LOCAL on the same DB connection
+    // before the outbox repository makes its eligibility query.
+    const timezonePrisma = {
+      $transaction: async <T>(
+        callback: (tx: Prisma.TransactionClient) => Promise<T>,
+      ): Promise<T> =>
+        prisma.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe("SET LOCAL TIME ZONE 'Pacific/Auckland'");
+          return callback(tx);
+        }),
+    } as unknown as PrismaService;
+    const timezoneRepository = new OutboxRepository(timezonePrisma);
+
+    const ids = await timezoneRepository.withPendingBatch(10, (messages) =>
+      Promise.resolve(messages.map((message) => message.id)),
+    );
+
+    expect(ids).toBeNull();
   });
 
   it("retries a failed row once its scheduled retry time is due", async () => {

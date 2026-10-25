@@ -7,6 +7,7 @@ type SessionInput = {
   expiresAt: number;
   revokedAt?: number | null;
   mfaVerifiedAt?: number | null;
+  mfaGenerationId?: string | null;
   sensitiveActionVerifiedAt?: number | null;
 };
 
@@ -18,6 +19,7 @@ export class Session {
   readonly expiresAt: number;
   revokedAt: number | null;
   mfaVerifiedAt: number | null;
+  readonly mfaGenerationId: string | null;
   sensitiveActionVerifiedAt: number | null;
 
   constructor(input: SessionInput) {
@@ -28,6 +30,7 @@ export class Session {
     this.expiresAt = input.expiresAt;
     this.revokedAt = input.revokedAt ?? null;
     this.mfaVerifiedAt = input.mfaVerifiedAt ?? null;
+    this.mfaGenerationId = input.mfaGenerationId ?? null;
     this.sensitiveActionVerifiedAt = input.sensitiveActionVerifiedAt ?? null;
   }
 
@@ -41,8 +44,26 @@ export class Session {
     return this.revokedAt === null && this.expiresAt > now;
   }
 
-  isMfaVerified(): boolean {
-    return this.mfaVerifiedAt !== null;
+  /**
+   * Business purpose: Accept a session's second-factor proof only for the active account generation.
+   *
+   * Business rules:
+   * - Proof timestamps alone must never authorize an MFA generation that has been rotated or disabled.
+   *
+   * Execution flow:
+   * 1. Verify the recorded proof timestamp and exact enrollment generation identity.
+   *
+   * Failure cases:
+   * - A missing timestamp or stale generation is treated as unverified.
+   *
+   * Side effects:
+   * - None: evaluates the stored proof identity without mutating state.
+   */
+  isMfaVerified(currentGenerationId: string): boolean {
+    return (
+      this.mfaVerifiedAt !== null &&
+      this.mfaGenerationId === currentGenerationId
+    );
   }
 
   revoke(now: number): void {

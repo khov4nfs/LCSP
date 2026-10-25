@@ -19,6 +19,20 @@ const SCAN_ROOTS = [
   resolve(REPO_ROOT, "tests"),
 ];
 const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]s|[jt]sx)$/;
+const AUTH_APPLICATION_ROOT = resolve(
+  REPO_ROOT,
+  "apps/api/src/modules/auth/application",
+);
+const AUTH_INFRASTRUCTURE_ROOT = resolve(
+  REPO_ROOT,
+  "apps/api/src/modules/auth/infrastructure",
+);
+const PRISMA_INFRASTRUCTURE_ROOT = resolve(
+  REPO_ROOT,
+  "apps/api/src/infrastructure/prisma",
+);
+const HTTP_TRANSPORT_ROOT = resolve(REPO_ROOT, "apps/api/src/platform/http");
+
 const SOURCE_PATH_PATTERN =
   /(?:^|[/\\])(?:apps|packages)[/\\][^"'`]+[/\\]src[/\\]/;
 const PACKAGE_SOURCE_PATH_PATTERN = /^@lcsp\/[^"'`]+\/src\//;
@@ -302,8 +316,52 @@ for (const filePath of scanFiles()) {
   const packageRoot = findNearestPackageRoot(filePath);
   const replacements = [];
 
+  // Even if a developer imports HTTP symbols directly from NestJS rather
+  // than via the platform HTTP directory, Auth use-case code must remain
+  // transport-neutral. Ordinary NestJS DI/CQRS decorators are still allowed.
+  if (
+    isPathInside(AUTH_APPLICATION_ROOT, filePath) &&
+    !filePath.endsWith(".spec.ts") &&
+    /import\s*\{[^}]*\b(?:HttpStatus|HttpException|BadRequestException|UnauthorizedException|ForbiddenException|NotFoundException|ConflictException|UnprocessableEntityException)\b[^}]*\}\s*from\s*["']@nestjs\/common["']/.test(
+      sourceText,
+    )
+  ) {
+    violations.push({
+      filePath,
+      message:
+        "Auth Application Layer must not import NestJS HTTP status/exception types; use transport-neutral application errors",
+    });
+  }
+
   for (const match of extractSpecifierMatches(sourceText, filePath)) {
     const { specifier } = match;
+
+    // Auth application ports and handlers must not depend on concrete
+    // persistence/security/OAuth adapters, generated Prisma models or the
+    // transport-specific HTTP factory/filter.
+    // Test fixtures may deliberately import adapters to verify behavior.
+    if (
+      isPathInside(AUTH_APPLICATION_ROOT, filePath) &&
+      !filePath.endsWith(".spec.ts")
+    ) {
+      const importTarget =
+        specifier.startsWith("./") || specifier.startsWith("../")
+          ? resolve(dirname(filePath), specifier)
+          : null;
+      if (
+        specifier === "@prisma/client" ||
+        (importTarget &&
+          (isPathInside(AUTH_INFRASTRUCTURE_ROOT, importTarget) ||
+            isPathInside(PRISMA_INFRASTRUCTURE_ROOT, importTarget) ||
+            isPathInside(HTTP_TRANSPORT_ROOT, importTarget)))
+      ) {
+        violations.push({
+          filePath,
+          message: `Auth Application Layer may not import transport or infrastructure adapter "${specifier}"; use transport-neutral application errors or ports instead`,
+        });
+      }
+    }
+
     const safeFix = safeFixForSpecifier(
       filePath,
       specifier,

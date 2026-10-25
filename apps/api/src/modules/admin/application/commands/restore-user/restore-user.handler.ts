@@ -13,6 +13,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuthAuditService } from "../../../../auth/application/services/auth/auth-audit.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import {
   accountTransaction,
   assertCurrentAdmin,
@@ -22,6 +23,7 @@ import {
   requestHash,
 } from "../../../infrastructure/persistence/admin-account.transaction.js";
 import { fetchAdminUserDetail } from "../../queries/get-admin-user-detail/get-admin-user-detail.handler.js";
+import { validateAdminUserAction } from "../validate-admin-user-action.js";
 import { RestoreUserCommand } from "./restore-user.command.js";
 
 /**
@@ -41,11 +43,15 @@ export class RestoreUserHandler implements ICommandHandler<RestoreUserCommand> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuthAuditService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async execute(command: RestoreUserCommand): Promise<AdminUserDetail> {
-    const { targetId: targetUserId, body, actor } = command;
-    const { expectedVersion, reason } = body;
+    const { targetId: targetUserId, actor } = command;
+    const { expectedVersion, reason } = validateAdminUserAction(
+      command.body,
+      actor.correlationId,
+    );
 
     // Generate deterministic canonical and legacy request hashes for idempotency checking
     const payloadHash = requestHash(ADMIN_ACCOUNT_OPERATIONS.restore, {
@@ -167,7 +173,7 @@ export class RestoreUserHandler implements ICommandHandler<RestoreUserCommand> {
               timestamp: new Date().toISOString(),
             },
           },
-          transactionClient,
+          this.auditWriter.forTransaction(transactionClient),
         );
 
         // Step 8: Save command receipt for future idempotent replays

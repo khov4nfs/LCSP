@@ -4,8 +4,11 @@ import {
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/auth";
-import { HttpStatus } from "@nestjs/common";
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { Injectable } from "@nestjs/common";
+import {
+  AUTH_FAILURE_REASONS,
+  authFailure,
+} from "../../errors/auth-application.error.ts";
 
 import type {
   AuditEvent,
@@ -19,21 +22,22 @@ import {
   fingerprintToken,
   hashSecret,
   issueOpaqueToken,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { SafeUserProjection } from "../../contracts/auth/common.contract.ts";
 import type {
   MfaEnrollmentRepository,
   SessionRepository,
   UserRepository,
 } from "../../ports/persistence/index.ts";
-import type { AuthAuditService } from "./auth-audit.service.ts";
+import { AuthAuditService } from "./auth-audit.service.ts";
 
 const FAILED_LOGIN_LIMIT = 3;
 const LOCK_WINDOW_MS = 5 * 60_000;
 const SESSION_TTL_MS = 8 * 60 * 60_000;
 
+@Injectable()
 export class AuthSupportService {
-  constructor(private readonly authAudit?: AuthAuditService) {}
+  constructor(private readonly authAudit: AuthAuditService) {}
 
   createCorrelationId(): string {
     return createCorrelationId();
@@ -70,46 +74,43 @@ export class AuthSupportService {
     return mfaEnrollment !== null && mfaEnrollment.verifiedAt !== null;
   }
 
-  recordAudit(
-    repositoriesOrEvent: unknown,
-    maybeEvent?: AuditEvent,
-  ): Promise<void> {
-    const event = (maybeEvent ?? repositoriesOrEvent) as AuditEvent;
-    if (!this.authAudit) {
-      return Promise.resolve();
-    }
+  recordAudit(event: AuditEvent): Promise<void> {
     return this.authAudit.write(event);
   }
 
-  resolveUserById(
-    repositoriesOrUsers: { users: UserRepository } | UserRepository,
-    userId: string,
-  ): Promise<User | null> {
-    const repo =
-      "users" in repositoriesOrUsers
-        ? repositoriesOrUsers.users
-        : repositoriesOrUsers;
-    return repo.findById(userId);
-  }
-
+  /**
+   * Business purpose: Establish a new authenticated session with the account's current proof generation.
+   *
+   * Business rules:
+   * - Suspended accounts are never issued sessions.
+   * - Newly issued sessions do not inherit MFA or sensitive-action proofs from earlier generations.
+   *
+   * Execution flow:
+   * 1. Require an active account and issue a random opaque bearer token.
+   * 2. Persist the token hash, account access version and current proof generation.
+   * 3. Record session creation without logging the bearer token.
+   *
+   * Failure cases:
+   * - Suspended accounts or failed persistence reject the sign-in transaction.
+   *
+   * Side effects:
+   * - Creates a session record and security audit event.
+   */
   async createSession(
-    repositoriesOrSessions: { sessions: SessionRepository } | SessionRepository,
+    sessions: SessionRepository,
     user: User,
     correlationId: string,
   ): Promise<{ token: string; session: Session }> {
-    const sessions =
-      "sessions" in repositoriesOrSessions
-        ? repositoriesOrSessions.sessions
-        : repositoriesOrSessions;
     if (user.accessStatus !== USER_ACCESS_STATUSES.active)
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId, {
-        status: HttpStatus.FORBIDDEN,
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId, {
+        reason: AUTH_FAILURE_REASONS.accessDenied,
       });
     const token = issueOpaqueToken();
     const fingerprint = fingerprintToken(token);
     const session = new SessionEntity({
       userId: user.id,
       accessVersion: user.accessVersion,
+      mfaGenerationId: user.mfaGenerationId,
       tokenHash: hashSecret(token),
       expiresAt: this.now() + SESSION_TTL_MS,
       revokedAt: null,
@@ -126,23 +127,10 @@ export class AuthSupportService {
   }
 
   async findValidSession(
-    repositoriesOrSessions:
-      | { sessions: SessionRepository; users: UserRepository }
-      | SessionRepository,
-    usersOrToken: UserRepository | string,
-    maybeToken?: string,
+    sessions: SessionRepository,
+    users: UserRepository,
+    token: string,
   ): Promise<Session | null> {
-    const sessions =
-      "sessions" in repositoriesOrSessions
-        ? repositoriesOrSessions.sessions
-        : repositoriesOrSessions;
-    const users =
-      "users" in repositoriesOrSessions
-        ? repositoriesOrSessions.users
-        : (usersOrToken as UserRepository);
-    const token =
-      typeof usersOrToken === "string" ? usersOrToken : (maybeToken as string);
-
     const session = await sessions.findByFingerprint(fingerprintToken(token));
 
     if (!session) {
@@ -164,14 +152,9 @@ export class AuthSupportService {
   }
 
   findMfaEnrollment(
-    repositoriesOrMfa:
-      { mfaEnrollments: MfaEnrollmentRepository } | MfaEnrollmentRepository,
+    mfaEnrollments: MfaEnrollmentRepository,
     userId: string,
   ): Promise<MfaEnrollment | null> {
-    const repo =
-      "mfaEnrollments" in repositoriesOrMfa
-        ? repositoriesOrMfa.mfaEnrollments
-        : repositoriesOrMfa;
-    return repo.findByUserId(userId);
+    return mfaEnrollments.findByUserId(userId);
   }
 }
