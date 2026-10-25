@@ -17,9 +17,8 @@ export const AUTH_MFA_RECOVERY_CODE_REPOSITORY = Symbol(
 );
 
 export interface MfaEnrollmentRepository {
+  /** Read-only access: enrollment mutations are exclusive to the locked MFA lifecycle port. */
   findByUserId(userId: string): Promise<MfaEnrollment | null>;
-  save(enrollment: MfaEnrollment): Promise<void>;
-  deleteByUserId(userId: string): Promise<void>;
 }
 
 export interface MfaRateLimitRepository {
@@ -35,10 +34,8 @@ export interface MfaRateLimitRepository {
 }
 
 export interface MfaOtpUsedRepository {
+  /** Preliminary replay probe; transactional MFA proof consumption is the authority. */
   isUsed(userId: string, otpCode: string): Promise<boolean>;
-  tryMarkUsed(userId: string, otpCode: string): Promise<boolean>;
-  deleteByUserId(userId: string): Promise<void>;
-  pruneOlderThan(cutoffMs: number): Promise<void>;
 }
 
 export interface MfaRecoveryCodeCreateInput {
@@ -47,15 +44,7 @@ export interface MfaRecoveryCodeCreateInput {
 }
 
 export interface MfaRecoveryCodeRepository {
+  /** ID allocation only: code replacement, revocation and consumption are transactional. */
   nextId(): string;
   nextBatchId(): string;
-  hasActiveForUser(userId: string): Promise<boolean>;
-  replaceForUser(
-    userId: string,
-    codes: readonly MfaRecoveryCodeCreateInput[],
-    batchId: string,
-    now: number,
-  ): Promise<void>;
-  revokeActiveForUser(userId: string, now: number): Promise<void>;
-  tryConsume(userId: string, codeHash: string, now: number): Promise<boolean>;
 }

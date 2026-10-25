@@ -8,9 +8,12 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
-import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
+import { authFailure } from "../../errors/auth-application.error.ts";
+import type { OAuthCallbackClaims } from "../../ports/oauth/oauth-provider.port.ts";
+import {
+  AUTH_OAUTH_PROVIDER_RESOLVER,
+  type OAuthProviderResolver,
+} from "../../ports/oauth/oauth-provider.port.ts";
 import type { OAuthCallbackSuccess } from "../../contracts/auth/oauth.contract.ts";
 import {
   AUTH_MFA_ENROLLMENT_REPOSITORY,
@@ -52,7 +55,8 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
     private readonly sessions: SessionRepository,
     @Inject(AUTH_MFA_ENROLLMENT_REPOSITORY)
     private readonly mfaEnrollments: MfaEnrollmentRepository,
-    private readonly providerRegistry: OAuthProviderRegistry,
+    @Inject(AUTH_OAUTH_PROVIDER_RESOLVER)
+    private readonly providerRegistry: OAuthProviderResolver,
   ) {}
 
   /**
@@ -87,7 +91,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.oauthStateInvalid,
         null,
       );
-      throw problemException(AUTH_ERROR_CODES.oauthStateInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.oauthStateInvalid, correlationId);
     }
 
     const provider = this.providerRegistry.resolve(oauthState.provider);
@@ -97,10 +101,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.unsupportedProvider,
         null,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.unsupportedProvider,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.unsupportedProvider, correlationId);
     }
 
     let claims: OAuthCallbackClaims;
@@ -118,10 +119,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.oauthCallbackInvalid,
         null,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.oauthCallbackInvalid,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.oauthCallbackInvalid, correlationId);
     }
 
     const claimsValid =
@@ -139,10 +137,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.oauthCallbackInvalid,
         null,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.oauthCallbackInvalid,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.oauthCallbackInvalid, correlationId);
     }
 
     const identity = await oauthIdentities.findByProviderAccount(
@@ -155,7 +150,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.accountNotFound,
         null,
       );
-      throw problemException(AUTH_ERROR_CODES.accountNotFound, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountNotFound, correlationId);
     }
 
     const user = await users.findById(identity.userId);
@@ -165,7 +160,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.accountNotFound,
         identity.userId,
       );
-      throw problemException(AUTH_ERROR_CODES.accountNotFound, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountNotFound, correlationId);
     }
 
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
@@ -174,7 +169,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.accountSuspended,
         user.id,
       );
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     const sessionState = await this.support.createSession(

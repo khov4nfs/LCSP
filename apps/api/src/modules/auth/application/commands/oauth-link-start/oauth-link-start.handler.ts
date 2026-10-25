@@ -7,10 +7,13 @@ import { Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { authFailure } from "../../errors/auth-application.error.ts";
 import { OAuthState } from "../../../domain/models/auth.models.ts";
-import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
-import { issueOAuthStateToken } from "../../../infrastructure/security/security.utils.ts";
+import {
+  AUTH_OAUTH_PROVIDER_RESOLVER,
+  type OAuthProviderResolver,
+} from "../../ports/oauth/oauth-provider.port.ts";
+import { issueOAuthStateToken } from "../../../../../platform/security/crypto.utils.js";
 import type { OAuthLinkStartSuccess } from "../../contracts/auth/oauth.contract.ts";
 import {
   AUTH_OAUTH_STATE_REPOSITORY,
@@ -36,7 +39,8 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
     private readonly support: AuthSupportService,
     @Inject(AUTH_OAUTH_STATE_REPOSITORY)
     private readonly oauthStates: OAuthStateRepository,
-    private readonly providerRegistry: OAuthProviderRegistry,
+    @Inject(AUTH_OAUTH_PROVIDER_RESOLVER)
+    private readonly providerRegistry: OAuthProviderResolver,
     private readonly configService: ConfigService,
   ) {}
 
@@ -63,10 +67,7 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
         AUTH_ERROR_CODES.unsupportedProvider,
         command.userId,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.unsupportedProvider,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.unsupportedProvider, correlationId);
     }
 
     const allowedRedirectOrigins = this.configService.get<string[]>(
@@ -79,10 +80,7 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
         AUTH_ERROR_CODES.invalidRedirectUri,
         command.userId,
       );
-      throw problemException(
-        AUTH_ERROR_CODES.invalidRedirectUri,
-        correlationId,
-      );
+      throw authFailure(AUTH_ERROR_CODES.invalidRedirectUri, correlationId);
     }
 
     const state = issueOAuthStateToken();

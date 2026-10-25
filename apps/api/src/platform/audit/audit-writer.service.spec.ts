@@ -167,6 +167,18 @@ describe("AuditWriterService", () => {
     );
   });
 
+  it("forTransaction() binds a normalized writer to the supplied transaction only", async () => {
+    const { client, create: globalCreate } = makePrisma();
+    const { tx, create: txCreate } = makeTx();
+    const service = new AuditWriterService(client);
+
+    const writer = service.forTransaction(tx);
+    await writer.write(makeEvent());
+
+    expect(txCreate).toHaveBeenCalledTimes(1);
+    expect(globalCreate).not.toHaveBeenCalled();
+  });
+
   it("T05/T06: writeInTx() writes through the passed transaction client, not the module-level PrismaService", async () => {
     const { client, create: prismaCreate } = makePrisma();
     const { tx, create: txCreate } = makeTx();

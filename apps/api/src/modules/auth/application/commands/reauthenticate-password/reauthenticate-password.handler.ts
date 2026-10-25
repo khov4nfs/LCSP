@@ -9,8 +9,8 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { verifySecret } from "../../../infrastructure/security/security.utils.ts";
+import { authFailure } from "../../errors/auth-application.error.ts";
+import { verifySecret } from "../../../../../platform/security/crypto.utils.js";
 import type { PasswordReauthSuccess } from "../../contracts/auth/password-reauth.contract.ts";
 import {
   AUTH_SESSION_REPOSITORY,
@@ -55,7 +55,7 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      throw problemException(AUTH_ERROR_CODES.authRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.authRequired, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
@@ -64,15 +64,15 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const user = await users.findById(userId);
     if (!user || user.id !== session.userId) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     if (!verifySecret(password, user.passwordHash)) {
@@ -84,11 +84,9 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
         correlationId: correlationId,
         session_id: session.id,
       });
-      throw problemException(
-        AUTH_ERROR_CODES.invalidCredentials,
-        correlationId,
-        { requiredAction: REQUIRED_ACTIONS.none },
-      );
+      throw authFailure(AUTH_ERROR_CODES.invalidCredentials, correlationId, {
+        requiredAction: REQUIRED_ACTIONS.none,
+      });
     }
 
     session.markSensitiveActionVerified(this.support.now());

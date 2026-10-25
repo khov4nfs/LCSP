@@ -53,6 +53,16 @@ export class AuditWriterService {
   }
 
   /**
+   * Binds the audit sink to an existing transaction without creating or
+   * committing another transaction. Application callers receive only a writer.
+   */
+  forTransaction(tx: Prisma.TransactionClient): {
+    write(event: AuditEventInput): Promise<void>;
+  } {
+    return { write: (event) => this.writeInTx(event, tx) };
+  }
+
+  /**
    * Sanitizes an audit event, enriches its payload envelope, and writes it using the supplied client.
    *
    * @param client - Prisma transaction-compatible client used to persist the canonical AuditEvent record.
