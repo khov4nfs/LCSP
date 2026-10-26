@@ -48,7 +48,7 @@ class ManagedDocumentIngestBoundary(AgentBoundaryBase):
         1. Validate document and attempt identity before making any API request.
         2. Fetch the original bytes and profile, applying settled/retryable/permanent API error handling.
         3. Ingest the document; convert unexpected parser errors to the standard extraction failure result.
-        4. Post the ingestion result, skip settled deliveries, and submit a failed result if the API rejects the content itself.
+        4. Post the ingestion result, skip settled deliveries, and submit a failed result for any permanent, non-settled API rejection.
         5. Log and return the original extraction result's state with the last API response's applied flag; after a fallback FAILED post these fields can describe different payloads.
 
         Failure cases:
