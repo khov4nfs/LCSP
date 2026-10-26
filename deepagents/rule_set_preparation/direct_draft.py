@@ -634,8 +634,18 @@ def build_direct_draft_tools(context):
         return json.dumps(state.candidate(candidate_id), ensure_ascii=False)
 
     @tool(args_schema=SUBMISSION_SCHEMA)
-    def submit_rule_set_draft_candidates(**payload) -> str:
-        """Persist source-backed requirements, repository rules, legal effects and source-unit dispositions atomically. Reuse a candidateId to update only that candidate."""
+    def submit_rule_set_draft_candidates(**payload: Any) -> str:
+        """Business purpose: Persist source-backed legal candidates and their review accounting.
+
+        Business rules:
+        - SUBMISSION_SCHEMA defines the typed input; pinned support and candidate ownership remain mandatory. Reuse a candidateId to update only that candidate.
+        Execution flow:
+        1. Validate package facts. 2. Save the governed draft and source review. 3. Return the persistence receipt.
+        Failure cases:
+        - Invalid candidates or stale draft versions return repair feedback without accepting rejected facts.
+        Side effects:
+        - Updates the existing durable authoring draft and source-review progress through the governed API.
+        """
         return json.dumps(state.submit(payload), ensure_ascii=False)
 
     @tool
