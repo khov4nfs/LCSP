@@ -2214,7 +2214,7 @@ SELECT
 
   /**
    * Business purpose: Return exact owner-wide obligation totals without reading the full assessment ledger into application memory.
-   * Business rules: The shared canonical SQL validator determines outcomes; owner scope is applied inside every portfolio query; only requested groups and their first twenty assessment details are returned.
+   * Business rules: The shared canonical SQL validator determines outcomes; owner scope is applied inside every owner-scoped query; only requested groups and their first twenty assessment details are returned.
    * Execution flow: 1. Aggregate canonical decision outcomes and evaluation coverage in PostgreSQL. 2. Apply outcome and attention filters before stable group pagination. 3. Batch-load canonical tracking details for preview assessment IDs on the requested page. 4. Return exact totals and evaluation counts.
    * Failure cases: SQL or detail reads that fail propagate through the shared API error handling; missing preview rows are omitted rather than assigned fabricated statuses.
    * Side effects: Read-only owner-scoped database access.
