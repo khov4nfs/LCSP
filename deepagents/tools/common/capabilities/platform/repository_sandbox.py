@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import re
 import shlex
@@ -287,11 +288,34 @@ def hydrate_repository(
     correlation_id: str | None = None,
     lifecycle: RepositoryHydrationLifecycle | None = None,
 ) -> None:
-    """Create/reuse the live repository database from an immutable baseline snapshot."""
+    """Business purpose:
+    Mount the customer's pinned snapshot with an explicit account of source excluded by runtime guards.
+
+    Business rules:
+    - Reusing the same snapshot/job requires matching assessment and commit pins.
+    - Archive safety limits remain effective; omitted source is reported as limited coverage.
+    - An existing matching workspace keeps its repository and agent state when metadata is upgraded.
+
+    Execution flow:
+    1. Validate cached pins and reuse a workspace whose coverage metadata is already present.
+    2. Download and sanitize the owned snapshot, retaining omission provenance.
+    3. Extract a new workspace or update only the metadata of an existing matching workspace.
+
+    Failure cases:
+    - Conflicting cached pins, archive guards or failed sandbox operations reject hydration.
+    - A failed metadata upgrade never clears an existing repository or agent state.
+
+    Side effects:
+    - Downloads the snapshot and writes sandbox metadata; initial hydration creates its source and Git baseline.
+    """
     marker = _read_marker(backend)
-    if marker.get("snapshotId") == snapshot_id and marker.get("scanJobId") == scan_job_id:
-        _emit_lifecycle(lifecycle, "repository_sandbox_reused")
-        return
+    reused = marker.get("snapshotId") == snapshot_id and marker.get("scanJobId") == scan_job_id
+    if reused:
+        if marker.get("commitSha") != commit_sha or marker.get("assessmentId") != assessment_id:
+            raise RuntimeError("cached repository view pins do not match the requested snapshot")
+        if isinstance(marker.get("sourceCoverage"), dict):
+            _emit_lifecycle(lifecycle, "repository_sandbox_reused")
+            return
 
     config = load_config()
     _emit_lifecycle(lifecycle, "repository_archive_downloading")
@@ -306,7 +330,7 @@ def hydrate_repository(
         )
     )
     _emit_lifecycle(lifecycle, "repository_archive_downloaded")
-    sanitized_archive = _sanitize_archive(archive, snapshot_id=snapshot_id)
+    sanitized_archive, source_coverage = _sanitize_archive(archive, snapshot_id=snapshot_id)
 
     upload_files = getattr(backend, "upload_files", None)
     execute = getattr(backend, "execute", None)
@@ -316,23 +340,23 @@ def hydrate_repository(
             "repository sandbox backend does not support filesystem operations"
         )
 
-    _emit_lifecycle(lifecycle, "repository_sandbox_hydrating")
-    uploads = upload_files([(_ARCHIVE_PATH, sanitized_archive)])
-    if not uploads or getattr(uploads[0], "error", None):
-        raise RuntimeError("failed to upload assessment repository into sandbox")
+    if not reused:
+        _emit_lifecycle(lifecycle, "repository_sandbox_hydrating")
+        uploads = upload_files([(_ARCHIVE_PATH, sanitized_archive)])
+        if not uploads or getattr(uploads[0], "error", None):
+            raise RuntimeError("failed to upload assessment repository into sandbox")
 
-    baseline_label = (
-        commit_sha.lower()
-        if re.fullmatch(r"[0-9a-fA-F]{7,64}", commit_sha or "")
-        else "unknown"
-    )
-    bootstrap = _repository_hydration_bootstrap(baseline_label)
-    extraction = execute(bootstrap, timeout=120)
-    if getattr(extraction, "exit_code", 1) != 0:
-        output = str(getattr(extraction, "output", "") or "").strip()
-        detail = f": {output}" if output else ""
-        raise RuntimeError(f"failed to materialize assessment repository database{detail}")
-
+        baseline_label = (
+            commit_sha.lower()
+            if re.fullmatch(r"[0-9a-fA-F]{7,64}", commit_sha or "")
+            else "unknown"
+        )
+        bootstrap = _repository_hydration_bootstrap(baseline_label)
+        extraction = execute(bootstrap, timeout=120)
+        if getattr(extraction, "exit_code", 1) != 0:
+            output = str(getattr(extraction, "output", "") or "").strip()
+            detail = f": {output}" if output else ""
+            raise RuntimeError(f"failed to materialize assessment repository database{detail}")
 
     marker_payload = json.dumps(
         {
@@ -343,6 +367,7 @@ def hydrate_repository(
             "repositoryRoot": REPOSITORY_ROOT,
             "agentFilesystemRoot": "/",
             "role": "assessment_repository_database",
+            "sourceCoverage": source_coverage,
         },
         separators=(",", ":"),
         sort_keys=True,
@@ -408,12 +433,36 @@ def _read_marker(backend: object) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> bytes:
-    """Apply archive guards and reserve .git/.lcsp for the agent database."""
+def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> tuple[bytes, dict[str, Any]]:
+    """Business purpose:
+    Build the runtime source archive while preserving an account of excluded customer source.
+
+    Business rules:
+    - Workspace safety guards apply before sandbox upload; .git and .lcsp belong to the runtime.
+    - Every excluded source entry remains visible in coverage metadata with its repository-relative path.
+
+    Execution flow:
+    1. Materialize the pinned archive through the existing bounded extractor.
+    2. Normalize omission paths and exclude runtime-reserved paths from the sanitized archive.
+    3. Return archive bytes and the included count plus omission reasons and available source hashes.
+
+    Failure cases:
+    - Invalid archives or unsafe paths propagate extraction failure before any sandbox source is changed.
+
+    Side effects:
+    - Uses and removes a temporary workspace; does not modify the immutable snapshot.
+    """
     with tempfile.TemporaryDirectory(prefix="lcsp-repository-sandbox-") as root:
         workspace = RepositoryWorkspace(Path(root))
         result = workspace.materialize("snapshot", archive, snapshot_id=snapshot_id)
         source_root = _repository_root(result.workspace_path)
+        prefix = source_root.relative_to(result.workspace_path)
+        skipped = [
+            {"path": Path(entry.path).relative_to(prefix).as_posix(), "reason": entry.reason,
+             "sizeBytes": entry.size_bytes, "limitBytes": entry.limit_bytes, "sha256": entry.sha256}
+            for entry in result.skipped_entries
+        ]
+        included = 0
         output = io.BytesIO()
         with tarfile.open(fileobj=output, mode="w:gz") as sanitized:
             for path in sorted(source_root.rglob("*")):
@@ -421,13 +470,18 @@ def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> bytes:
                     continue
                 relative = path.relative_to(source_root)
                 if relative.parts and relative.parts[0] in _RESERVED_REPOSITORY_DIRS:
+                    with path.open("rb") as source:
+                        digest = hashlib.file_digest(source, "sha256").hexdigest()
+                    skipped.append({"path": relative.as_posix(), "reason": "RESERVED_RUNTIME_PATH",
+                                    "sizeBytes": path.stat().st_size, "limitBytes": None, "sha256": digest})
                     continue
                 sanitized.add(
                     path,
                     arcname=relative.as_posix(),
                     recursive=False,
                 )
-        return output.getvalue()
+                included += 1
+        return output.getvalue(), {"coverageLimited": bool(skipped), "includedFiles": included, "skippedEntries": skipped}
 
 
 def _repository_root(workspace_path: Path) -> Path:

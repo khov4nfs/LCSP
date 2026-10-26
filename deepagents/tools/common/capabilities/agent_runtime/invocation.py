@@ -223,7 +223,20 @@ def _agent_run_state(
     message: dict[str, Any],
     correlation_id: str,
 ) -> AgentRunState:
-    """Run-scoped state for every boundary; stream transport also covers preparation."""
+    """Business purpose: Attach canonical usage observability to one Assessment or Preparation boundary invocation.
+
+    Business rules:
+    - The registered boundary owns the agent role; an event cannot override it.
+    - Preserve assessment, preparation and run identities so receipts can be attributed and recovered.
+    Execution flow:
+    1. Find the assessment, preparation and run identifiers in the accepted event shape.
+    2. Create the worker API client when the invocation has an assessment or Preparation owner.
+    3. Build the shared AgentRunState, using the correlation identity only when no run identity is present.
+    Failure cases:
+    - Invalid worker configuration propagates instead of creating a pretend metered owner.
+    Side effects:
+    - Constructs run context and a client; does not dispatch a provider request or create a budget envelope.
+    """
     assessment_id = _find_first_text(message, ("assessmentId", "assessment_id"))
     preparation_run_id = _find_first_text(
         message, ("preparationRunId", "preparation_run_id")

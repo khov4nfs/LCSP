@@ -126,10 +126,19 @@ def run_assessment_root(
     governance: Any | None = None,
     extra_callbacks: list[Any] | None = None,
 ) -> dict[str, Any]:
-    """Execute one Root run on the assessment's server-owned thread.
+    """Business purpose: Investigate one customer assessment on its server-owned durable thread.
 
-    A replayed or concurrent claim fails (lease held) and the run is skipped; an expired lease is
-    reclaimed under a NEW execution ID on the SAME thread, so the checkpoint continues.
+    Business rules:
+    - Claim authority owns execution identity; a concurrent held lease cannot start duplicate work.
+    - Recovery keeps the same thread and authorized checkpoint; success requires authoritative COMPLETE.
+    Execution flow:
+    1. Claim the execution and load its pinned context under the failure/cleanup boundary.
+    2. Hydrate the customer repository and invoke or resume the governed native graph.
+    3. Settle success, a durable human/control interrupt, or failure through the runtime API.
+    Failure cases:
+    - Context, hydration, checkpoint and model failures settle FAILED; missing decisions cannot become success.
+    Side effects:
+    - Renews the execution lease, runs governed evidence/decision tools and persists checkpoint settlement.
     """
     claim = client.claim(assessment_id)
     if claim.get("lifecycleState") == "COMPLETE":
@@ -140,6 +149,18 @@ def run_assessment_root(
     heartbeat_stop = threading.Event()
 
     def _heartbeat_worker() -> None:
+        """Business purpose: Keep the claimed Root execution lease alive while its investigation is running.
+
+        Business rules:
+        - Renew only this client’s current execution; the shared stop event ends renewal when the run settles.
+        Execution flow:
+        1. Wait for the heartbeat interval while watching the stop event.
+        2. Attempt to renew the existing execution lease and continue until cleanup signals stop.
+        Failure cases:
+        - Transient heartbeat failures are best effort; the API remains authoritative for lease and recovery decisions.
+        Side effects:
+        - Sends heartbeat requests; does not create another execution, model call or decision.
+        """
         while not heartbeat_stop.wait(60.0):
             try:
                 client.heartbeat()
@@ -149,7 +170,6 @@ def run_assessment_root(
     heartbeat_thread = threading.Thread(target=_heartbeat_worker, daemon=True)
     heartbeat_thread.start()
 
-    context = client.context()
     final_state = EXECUTION_FAILED
     error_type: str | None = None
     run: RootRun | None = None
@@ -157,6 +177,7 @@ def run_assessment_root(
     request_ids: list[str] | None = None
     control_request_id: str | None = None
     try:
+        context = client.context()
         # The factory hydrates the pinned repository for THIS thread and returns the backend
         from orchestration.context import LCSPRunContext, resolve_response_language
 

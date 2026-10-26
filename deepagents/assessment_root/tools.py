@@ -391,7 +391,18 @@ _ELEMENT_LISTS = (
 
 
 def _applicability_elements(requirements: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Every source-stated element of the linked requirements, addressed as the API validates it."""
+    """Business purpose: Address every source-stated applicability element using the identifiers enforced by the decision API.
+
+    Business rules:
+    - Preserve each linked requirement, element kind and original zero-based position; do not infer applicability.
+    Execution flow:
+    1. Enumerate the configured source element lists for every linked legal requirement.
+    2. Return their exact text together with requirement, kind and index.
+    Failure cases:
+    - Absent element lists produce no entries; malformed required identities propagate to the caller.
+    Side effects:
+    - Pure projection; no facts, applicability findings or decisions are persisted.
+    """
     return [
         {"legalRequirementId": requirement["legalRequirementId"], "kind": kind, "index": index, "text": text}
         for requirement in requirements
@@ -400,8 +411,51 @@ def _applicability_elements(requirements: list[dict[str, Any]]) -> list[dict[str
     ]
 
 
+def _repository_view(run: RootRun) -> dict[str, Any]:
+    """Business purpose:
+    Disclose the pinned sandbox's source limitations before the investigator reasons from absence.
+
+    Business rules:
+    - Only runtime metadata matching this assessment, snapshot and commit describes its source view.
+    - Missing coverage metadata leaves completeness unknown and never establishes missing implementation.
+
+    Execution flow:
+    1. Read the runtime-owned repository marker through the current filesystem backend.
+    2. Verify its assessment and immutable source pins before exposing coverage metadata.
+    3. Return an explicit unknown limitation when the marker or its coverage record is unavailable.
+
+    Failure cases:
+    - Malformed metadata or conflicting source pins reject the context rather than expose another source view.
+
+    Side effects:
+    - Read-only sandbox access; does not create assessment evidence or choose any compliance outcome.
+    """
+    unavailable = {"coverageLimited": None, "reason": "RUNTIME_VIEW_METADATA_UNAVAILABLE"}
+    files = run.backend.download_files(["/.lcsp/repository.json"])
+    if not files or files[0].error or files[0].content is None:
+        return unavailable
+    marker = json.loads(files[0].content)
+    expected = {"assessmentId": run.assessment_id, "snapshotId": run.pins["repositorySnapshotId"],
+                "commitSha": run.pins["repositoryCommit"]}
+    if not isinstance(marker, dict) or any(marker.get(key) != value for key, value in expected.items()):
+        raise RuntimeError("repository view pins do not match the assessment")
+    coverage = marker.get("sourceCoverage")
+    return coverage if isinstance(coverage, dict) else unavailable
+
+
 def _legal_sources(rule: dict[str, Any], requirements: list[dict[str, Any]], relations: list[dict[str, Any]]) -> list[dict[str, str]]:
-    """Provisions worth reading for this rule: its own, its requirements' and its context relations'."""
+    """Business purpose: Give the investigator the pinned provisions supporting a rule and its legal context.
+
+    Business rules:
+    - Deduplicate by document and locator while retaining the first origin; a relation citation is context, not a new duty.
+    Execution flow:
+    1. Collect rule citations, linked requirement citations and relation targets in order.
+    2. Return the unique document/locator pairs and their source origin.
+    Failure cases:
+    - Missing optional citation lists are empty; malformed supplied source records are not fabricated.
+    Side effects:
+    - Read-only projection; does not fetch legal text or change Rule Set authority.
+    """
     found: dict[tuple[str, str], str] = {}
     for origin, sources in (
         ("RULE", rule.get("sources") or []),
@@ -424,16 +478,47 @@ def _guard(call):
 
 
 def build_root_tools(run: RootRun) -> list[StructuredTool]:
+    """Business purpose: Expose the governed investigation and reporting operations of one customer Assessment Root.
+
+    Business rules:
+    - All tools share this Root run and its authoritative case pins; the model owns semantic conclusions.
+    - Schema validation and API failure feedback must not fabricate accepted evidence or positive verdicts.
+    Execution flow:
+    1. Bind context, legal-source, repository-evidence, decision, human-resolution and report functions to this run.
+    2. Wrap the named functions with their typed schemas and API problem feedback.
+    3. Return only the Root tool surface, leaving repository researchers without decision authority.
+    Failure cases:
+    - Malformed arguments receive validation feedback; rejected API operations remain rejected.
+    Side effects:
+    - Constructs tool objects; invocation performs the documented API writes or native interrupts.
+    """
     client = run.client
 
     def get_assessment_context() -> dict[str, Any]:
-        """Reload this assessment's server state: pins, case revision, per-rule coverage, facts, evidence."""
+        """Business purpose:
+        Reload the accepted assessment state and source-view limits before continuing an investigation.
+
+        Business rules:
+        - Case pins, coverage, facts and evidence come from the API, not the model's memory.
+        - Runtime source metadata must match those pins; incomplete visibility cannot establish absence.
+
+        Execution flow:
+        1. Load and adopt the API's current case revision and immutable pins.
+        2. Verify the runtime source view and project accepted evidence, facts and per-rule coverage.
+
+        Failure cases:
+        - API failures remain rejection feedback; conflicting sandbox pins fail context retrieval.
+
+        Side effects:
+        - Updates in-memory Root pins and revision caches; does not persist decisions or facts.
+        """
         context = client.context()
         run.adopt_context(context)
         return {
             "ok": True,
             "caseRevision": context["caseRevision"],
             "pins": run.pins,
+            "repositoryView": _repository_view(run),
             "decisionScopeId": context["decisionScopeId"],
             "coverage": [
                 {
@@ -492,7 +577,19 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         }
 
     def get_assessment_rule(assessment_rule_id: str) -> dict[str, Any]:
-        """Full text of one AssessmentRule, its linked LegalRequirements and their context relations."""
+        """Business purpose: Load one pinned rule together with the legal requirements and source-defined context needed to assess it.
+
+        Business rules:
+        - Rules must belong to the pinned Rule Set; applicability addresses come from linked requirements, not guessed conditions.
+        Execution flow:
+        1. Find the requested rule and collect its outgoing context relations and related requirements.
+        2. Cache the linked applicability addresses for anchored human questions.
+        3. Return the full rule, requirements, context, applicability elements and provisions worth reading.
+        Failure cases:
+        - An unknown identifier returns RULE_NOT_IN_RULE_SET without creating a replacement rule.
+        Side effects:
+        - Reads the Rule Set API and updates only this execution’s applicability-element cache.
+        """
         rule_set = client.rule_set()
         rule = next(
             (r for r in rule_set["assessmentRules"] if r["assessmentRuleId"] == assessment_rule_id),
@@ -522,11 +619,33 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         }
 
     def read_legal_source(document_id: str, locator: str) -> dict[str, Any]:
-        """Read one provision of the legal source this assessment's rule set was prepared from (the pinned legal source)."""
+        """Business purpose: Read one original provision from the legal source pinned by this assessment’s Rule Set.
+
+        Business rules:
+        - The requested document and locator must be available through the assessment’s pinned legal authority.
+        Execution flow:
+        1. Request the provision from the governed legal-source API.
+        2. Return its source text and provenance to the investigator.
+        Failure cases:
+        - Unavailable or invalid provision references return the API’s failure feedback.
+        Side effects:
+        - Read-only legal-source retrieval; no source text, pins or decisions are changed.
+        """
         return {"ok": True, **client.legal_source_text(document_id, locator)}
 
     def search_legal_source(query: str) -> dict[str, Any]:
-        """Find provisions of the pinned legal source containing all the given words, e.g. the one that defines a term."""
+        """Business purpose: Find pinned provisions that can define or limit the legal terms relevant to an investigation.
+
+        Business rules:
+        - Search results remain legal-source evidence; a textual match does not decide applicability or compliance.
+        Execution flow:
+        1. Send the requested words to the assessment-scoped legal-source search API.
+        2. Return its matches and truncation metadata.
+        Failure cases:
+        - Invalid queries or unavailable pinned sources retain the API’s problem feedback.
+        Side effects:
+        - Read-only search; creates no legal requirements, evidence acceptance or customer facts.
+        """
         return {"ok": True, **client.legal_source_search(query)}
 
     def start_rule_investigation(assessment_rule_id: str) -> dict[str, Any]:
@@ -659,7 +778,20 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         compliance: str | None = None,
         applicability_basis: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        """Submit your decision for one AssessmentRule. Every semantic choice is yours."""
+        """Business purpose: Submit the investigator’s actual applicability and criterion findings for one pinned assessment rule.
+
+        Business rules:
+        - The API validates legal context, evidence, criteria and applicability basis; semantic choices remain the investigator’s.
+        - Use current pins, case revision and expected decision revision; an exact retry keeps a stable payload digest.
+        Execution flow:
+        1. Refresh run authority when the rule version is not known and validate the supplied decision arguments.
+        2. Bind the decision to the pinned Rule Set, repository snapshot, commit and case revision.
+        3. Submit with the expected decision revision and update the cache only from the accepted API response.
+        Failure cases:
+        - Invalid arguments or rejected evidence, applicability and revision checks do not become accepted decisions.
+        Side effects:
+        - A successful API call persists the decision and coverage revision; the run caches that accepted revision.
+        """
         if assessment_rule_id not in run.rule_versions:
             run.adopt_context(client.context())
         args = SubmitDecisionArgs.model_validate(
@@ -732,9 +864,18 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         condition_ref: ConditionRefArgs | dict[str, Any] | None,
         decision_impact: list[str],
     ) -> list[str] | dict[str, Any]:
-        """A question must hang on a source-defined element of the rule, never float free as a verdict request.
+        """Business purpose: Keep a customer question attached to the source-defined condition or criterion that the missing fact affects.
 
-        Returns the decision impact (extended with the element's own legal source wording) or a feedback dict.
+        Business rules:
+        - A question must name criterion IDs or a valid legal applicability address; never ask the customer to supply a legal verdict.
+        Execution flow:
+        1. Reject questions without a criterion or condition anchor.
+        2. Load the rule’s applicability elements when a condition address needs verification.
+        3. Return the requested impact together with the exact source-stated condition wording.
+        Failure cases:
+        - Missing anchors return HUMAN_REQUEST_NOT_ANCHORED; unknown condition addresses return UNKNOWN_APPLICABILITY_ELEMENT.
+        Side effects:
+        - Read-only validation apart from populating this execution’s legal-element cache.
         """
         if not criterion_ids and not condition_ref:
             return {
@@ -810,7 +951,19 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
         condition_ref: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Ask the customer a material FACT that settles a named element of this rule, after investigating the sources."""
+        """Business purpose: Ask the customer for a material missing fact after investigating the repository and pinned legal sources.
+
+        Business rules:
+        - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
+        Execution flow:
+        1. Verify the question’s criterion or condition anchor.
+        2. Persist the governed human request and interrupt the native graph with its request identity.
+        3. On an authorized resume, return the server-owned resolution of that same request.
+        Failure cases:
+        - Invalid anchors return feedback; an open request keeps the assessment waiting instead of forcing completion.
+        Side effects:
+        - Persists a human-resolution request and a native checkpoint dependency; creates no assumed customer fact.
+        """
         impact = anchored_impact(assessment_rule_id, criterion_ids, condition_ref, decision_impact)
         if isinstance(impact, dict):
             return impact
@@ -832,7 +985,20 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
         condition_ref: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Report a material human fact proven permanently unobtainable under the contract; do not submit an unknown verdict."""
+        """Business purpose: Record evidence that a material customer fact is permanently unavailable without inventing an unknown verdict.
+
+        Business rules:
+        - The question remains attached to a valid criterion or condition; only the API can accept permanent-unavailability evidence.
+        - A later valid answer clears the prior dependency instead of replaying the old unavailability claim.
+        Execution flow:
+        1. Validate the legal anchor and persist the unresolved customer question.
+        2. Reload its authoritative state and submit the unavailability rationale and evidence while still open.
+        3. Interrupt with the durable request identity even if the unavailability claim is rejected.
+        Failure cases:
+        - Rejected unavailability claims are retained as checkpoint feedback; they never silently close the human dependency.
+        Side effects:
+        - May persist the API’s unavailable-fact classification and always preserves the native human-resolution lifecycle.
+        """
         impact = anchored_impact(assessment_rule_id, criterion_ids, condition_ref, decision_impact)
         if isinstance(impact, dict):
             return impact
@@ -863,7 +1029,19 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return {"ok": True, **client.request_finalization()}
 
     def submit_final_report(summary: str, findings: list[dict[str, Any]]) -> dict[str, Any]:
-        """Submit Root-authored report narrative; the API binds accepted decisions, pins and provenance."""
+        """Business purpose: Submit the Root's authored findings without inventing verified controls.
+
+        Business rules:
+        - The API binds accepted decisions, pins and provenance; omitted findings must remain omissions.
+        - Narrative is authored by the Root and must not substitute for accepted compliance evidence.
+        Execution flow:
+        1. Validate the narrative arguments and serialize the supplied per-rule findings.
+        2. Submit those findings unchanged to the authoritative report validation endpoint.
+        Failure cases:
+        - Invalid arguments or incomplete report coverage return repair feedback; no positive fallback is added.
+        Side effects:
+        - A valid API submission persists the final report and completes its supported lifecycle.
+        """
         args = SubmitFinalReportArgs.model_validate(
             {"summary": summary, "findings": findings}
         )
@@ -875,15 +1053,6 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             }
             for finding in args.findings
         }
-        ctx = client.context()
-        for item in ctx.get("coverage", []):
-            rule_id = item["assessmentRuleId"]
-            if rule_id not in findings_map:
-                findings_map[rule_id] = {
-                    "assessmentRuleId": rule_id,
-                    "summary": f"Baseline verified control {rule_id}.",
-                    "recommendations": [],
-                }
         result = client.post_final_report(
             {
                 "kind": "FINAL_REPORT",

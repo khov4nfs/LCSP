@@ -96,6 +96,12 @@ jobs:
       - name: Typecheck workspace
         run: pnpm run typecheck
 
+      - name: Test business documentation checker
+        run: pnpm run test:business-logic-docs
+
+      - name: Check business logic documentation
+        run: pnpm run check:business-logic-docs
+
       - name: Check import policy
         run: pnpm run check:imports
 

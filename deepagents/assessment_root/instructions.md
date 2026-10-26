@@ -22,6 +22,10 @@ what you submit. Nothing you are not told by a governed tool is a fact.
   `get_assessment_context` shows each rule's coverage state and the facts/evidence already accepted.
   Always call it first: you may be resuming after a restart, and everything you accepted before
   is there. Never redo accepted work and never trust your own memory over it.
+- `get_assessment_context.repositoryView` discloses source excluded by runtime safety guards.
+  Inspect its `skippedEntries` and `coverageLimited` before reasoning from absence. A missing file
+  in a limited view, or unavailable view metadata, cannot prove that the pinned source lacks it.
+  A hash of excluded source identifies the omission; it does not establish what that source does.
 
 ## How to work
 
@@ -92,8 +96,8 @@ what you submit. Nothing you are not told by a governed tool is a fact.
    decision coverage, human requests and execution state. It does not choose applicability,
    criterion outcomes or compliance. If it returns blockers, investigate and resolve them; never
    ask it to repair a decision. If it returns zero blockers and `FINALIZING`, write findings
-   for your investigated rules (baseline findings for uninvestigated rules are filled automatically)
-   and call `submit_final_report`.
+   for every decided rule, grounded in its accepted evidence, and call `submit_final_report`.
+   No findings or positive narratives are filled automatically for omitted rules.
 
 9. The final report narrative is yours, but its outcomes and provenance are frozen accepted state.
    Explain each persisted decision and make only evidence-grounded recommendations. Do not add a

@@ -1115,3 +1115,66 @@ def test_root_keeps_unknown_or_noncurrent_source_effect_out_of_current_obligatio
     assert "only `EFFECTIVE` supports" in instructions
     assert "`UNKNOWN` stays undetermined" in instructions
     assert "`REPEALED` and `FUTURE` are not current" in instructions
+
+
+def test_final_report_never_invents_verified_findings_for_omitted_rules(tmp_path):
+    class StrictReportClient(FakeClient):
+        def context(self):
+            value = super().context()
+            value["coverage"].append({**value["coverage"][0], "assessmentRuleId": "ER-2"})
+            return value
+
+        def post_final_report(self, body):
+            self.calls.append(("report_attempt", body))
+            if {row["assessmentRuleId"] for row in body["findings"]} != {"ER-1", "ER-2"}:
+                raise AssessmentApiError(422, "ASSESSMENT_FINAL_REPORT_INVALID", {})
+            return super().post_final_report(body)
+
+    client = StrictReportClient()
+    client.lifecycle_state = "FINALIZING"
+    run = RootRun(client, ASSESSMENT, THREAD, EXECUTION, FilesystemBackend(root_dir=tmp_path, virtual_mode=True))
+    run.adopt_context(client.context())
+    tool = next(tool for tool in build_root_tools(run) if tool.name == "submit_final_report")
+    authored = {"assessment_rule_id": "ER-1", "summary": "The observed safeguard is incomplete."}
+    rejected = json.loads(tool.invoke({"summary": "One finding authored.", "findings": [authored]}))
+    assert rejected["ok"] is False
+    assert client.lifecycle_state == "FINALIZING"
+    attempted = next(body for name, body in client.calls if name == "report_attempt")
+    assert attempted["findings"] == [{"assessmentRuleId": "ER-1", "summary": authored["summary"], "recommendations": []}]
+    complete = [authored, {"assessment_rule_id": "ER-2", "summary": "Applicability was refuted by accepted evidence."}]
+    accepted = json.loads(tool.invoke({"summary": "Both authored findings.", "findings": complete}))
+    assert accepted["ok"] is True
+    assert client.lifecycle_state == "COMPLETE"
+    body = next(body for name, body in client.calls if name == "final_report")
+    assert [row["summary"] for row in body["findings"]] == [row["summary"] for row in complete]
+
+
+def test_initial_context_failure_settles_claimed_root_without_hydrating_repository(tmp_path):
+    class UnavailableContext(FakeClient):
+        def context(self):
+            raise AssessmentApiError(503, "ASSESSMENT_CONTEXT_UNAVAILABLE", {})
+
+    client = UnavailableContext()
+    result = run_assessment_root(client, ASSESSMENT,
+        backend_factory=lambda *_: pytest.fail("context failure must not hydrate the repository"))
+    assert result["state"] == "FAILED"
+    assert result["errorType"] == "AssessmentApiError"
+    assert client.calls == [("claim", ASSESSMENT), ("finish", "FAILED")]
+
+
+def test_root_context_exposes_runtime_view_limits_and_rejects_wrong_source_pins(tmp_path):
+    client = FakeClient()
+    backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    run = RootRun(client, ASSESSMENT, THREAD, EXECUTION, backend)
+    run.adopt_context(client.context())
+    (tmp_path / ".lcsp").mkdir()
+    marker = {"assessmentId": ASSESSMENT, "snapshotId": PINS["repositorySnapshotId"], "commitSha": COMMIT,
+              "sourceCoverage": {"coverageLimited": True, "includedFiles": 12,
+                                 "skippedEntries": [{"path": "models/model.pt", "reason": "FILE_SIZE_LIMIT", "sha256": "a" * 64}]}}
+    (tmp_path / ".lcsp/repository.json").write_text(json.dumps(marker))
+    tool = next(tool for tool in build_root_tools(run) if tool.name == "get_assessment_context")
+    assert json.loads(tool.invoke({}))["repositoryView"] == marker["sourceCoverage"]
+    marker["commitSha"] = "b" * 40
+    (tmp_path / ".lcsp/repository.json").write_text(json.dumps(marker))
+    with pytest.raises(RuntimeError, match="repository view pins"):
+        tool.invoke({})

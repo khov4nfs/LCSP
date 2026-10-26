@@ -2,6 +2,8 @@
 
 Status: **release BLOCKED; PR #427 remains Draft**. The delivery correction below supersedes the final-acceptance/merge recommendation on commit `d56331804140834aec9abff7ce105a08c78f59d7`. Earlier focused recovery evidence remains historical evidence, not current release acceptance.
 
+The [CheatShield Customer acceptance checkpoint](LCSP-360-cheatshield-customer-acceptance.md) records the next continuation: real Customer setup, external repository pin and production sandbox hydration verified locally; zero new AI decisions; genuine semantic investigation, complete report lifecycle, historical financial reconciliation and remaining release gates still blocked or not proven. Its receipts must not be combined with the earlier synthetic/representative assessment totals.
+
 ## Final delivery correction — 2026-10-26
 
 ### CI/security: root cause and fix

@@ -119,6 +119,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -142,9 +144,45 @@ jobs:
         run: pnpm --filter @lcsp/api exec prisma migrate deploy
 
       - name: Run API unit coverage
+        id: api-coverage
         env:
           NODE_OPTIONS: --experimental-vm-modules
         run: pnpm --filter @lcsp/api exec jest --config ./jest.config.ts --coverage --runInBand
+
+      - name: Bind coverage artifact to the tested source
+        if: always() && hashFiles('apps/coverage/lcov.info') != ''
+        env:
+          LCSP_COVERAGE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          LCSP_COVERAGE_TEST_OUTCOME: ${{ steps.api-coverage.outcome }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { execFileSync } from 'node:child_process';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const content = readFileSync('apps/coverage/lcov.info');
+          const checkoutCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+          writeFileSync('apps/coverage/provenance.json', JSON.stringify({
+            repository: process.env.GITHUB_REPOSITORY,
+            headCommit: process.env.LCSP_COVERAGE_HEAD_SHA,
+            checkoutCommit,
+            tests: process.env.LCSP_COVERAGE_TEST_OUTCOME,
+            lcovSha256: createHash('sha256').update(content).digest('hex'),
+          }, null, 2) + '\n');
+          if (checkoutCommit !== process.env.LCSP_COVERAGE_HEAD_SHA) {
+            throw new Error('Coverage checkout differs from the declared upload commit');
+          }
+          NODE
+
+      - name: Preserve API coverage evidence
+        if: always() && hashFiles('apps/coverage/lcov.info') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            apps/coverage/lcov.info
+            apps/coverage/provenance.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload API coverage to Codecov
         uses: codecov/codecov-action@v7.1.1
@@ -154,4 +192,5 @@ jobs:
           name: lcsp-api
           disable_search: true
           use_oidc: true
+          override_commit: ${{ github.event.pull_request.head.sha || github.sha }}
           fail_ci_if_error: false
