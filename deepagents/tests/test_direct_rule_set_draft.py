@@ -5,6 +5,8 @@ import json
 
 import pytest
 
+from langchain_core.utils.function_calling import convert_to_openai_tool
+
 from rule_set_preparation.claim_inventory import ClaimInventory, fingerprint
 from rule_set_preparation.direct_draft import DirectDraft
 from rule_set_preparation.source_graph import PinnedSourceGraph
@@ -815,3 +817,22 @@ def test_stale_validation_cleared_on_draft_advance_and_does_not_poison_next_pack
 
 
 
+
+
+def test_public_direct_submission_exposes_typed_schema_and_rejects_bad_input(tmp_path):
+    context, _, api = context_for(tmp_path)
+    tools = {entry.name: entry for entry in build_rule_set_tools(context)}
+    submit = tools["submit_rule_set_draft_candidates"]
+    schema = convert_to_openai_tool(submit)["function"]["parameters"]
+    assert schema["properties"]["candidates"]["type"] == "array"
+    assert schema["properties"]["packageId"]["type"] == "string"
+    assert "candidates" in schema["required"]
+    package = json.loads(tools["get_next_legal_analysis_package"].invoke({}))
+    node = next(n for n in package["sourceUnits"] if "phải" in n["content"])
+    payload = submission(package, [candidate(node["nodeId"], "phải bảo vệ dữ liệu.")])
+    invalid = deepcopy(payload)
+    invalid["candidates"][0]["applicability"]["mode"] = "INVENTED"
+    assert json.loads(submit.invoke(invalid))["outcome"] == "FAILED"
+    assert api.saved is None
+    assert json.loads(submit.invoke(payload))["outcome"] == "PASSED"
+    assert api.saved["legalRequirements"]
