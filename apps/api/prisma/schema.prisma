@@ -450,6 +450,8 @@ model RepositorySnapshot {
   @@index([assessmentId])
   @@index([connectionId])
   @@index([commitSha])
+  @@index([repositoryFullName, ref, status, createdAt], map: "RepositorySnapshot_repo_ref_status_created_idx")
+  @@index([repositoryFullName, branch, status, createdAt], map: "RepositorySnapshot_repo_branch_status_created_idx")
 }
 
 model RepositoryScanJob {

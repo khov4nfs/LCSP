@@ -32,6 +32,7 @@ import {
   TRACKING_UNTRUSTED_REASONS,
   customerTrackingOverviewSchema,
   customerTrackingObligationsSchema,
+  customerTrackingObligationAssessmentsSchema,
   customerTrackingReportsSchema,
   adminTrackingOperationalSchema,
   type CustomerTrackingOverview,
@@ -54,6 +55,7 @@ import {
   REPOSITORY_SNAPSHOT_STATUSES,
   REPOSITORY_CONNECTION_STATUSES,
 } from "@lcsp/contracts/github-integration";
+import { COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES } from "@lcsp/contracts/compliance-rule-set";
 import { LLM_USAGE_STATUSES } from "@lcsp/contracts/billing";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -104,6 +106,231 @@ async function mapWithConcurrency<T, R>(
  * If any revalidation check fails, the decision fails closed to unresolved and the assessment trust
  * status transitions to UNTRUSTED with reason DECISION_INCONSISTENCY.
  */
+
+/**
+ * Business purpose: Provide the database projection with the canonical validity result for each owned rule decision.
+ * Business rules: A decision is valid only when the current coverage pointer, persisted columns, strict JSON packet, evidence, and facts agree with the assessment's pinned rule set and revision.
+ * Execution flow: 1. Bind the customer owner ID. 2. Read each owned coverage row and its current decision and references. 3. Return a CTE that marks only fully revalidated decisions as valid for downstream summary or grouped queries.
+ * Failure cases: Missing, malformed, stale, invalidated, or cross-assessment references produce an invalid row that downstream projections count as unresolved.
+ * Side effects: Builds a parameterized read-only SQL fragment; it performs no writes.
+ */
+function ownerCanonicalDecisionEvaluationCte(ownerId: string): Prisma.Sql {
+  return Prisma.sql`
+        WITH evaluated AS (
+          SELECT
+            adc."assessmentId",
+            adc."assessmentRuleId",
+            adc."ruleSetVersionId",
+            adc."resolutionState",
+            a."name" AS "assessmentName",
+            a."updatedAt",
+            ard."decisionId",
+            ard."applicability",
+            ard."compliance",
+            CASE WHEN (
+              adc."resolutionState" = 'RESOLVED'
+              AND ard."decisionId" IS NOT NULL
+              AND ard."state" = 'ACCEPTED'
+              AND ard."supersededAt" IS NULL
+              AND ard."invalidatedAt" IS NULL
+              AND ard."caseRevision" = ac."caseRevision"
+              AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit")
+              AND ard."ruleSetVersionId" = ac."ruleSetVersionId"
+              AND ard."scopeId" = 'ASSESSMENT'
+              AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion"
+              AND ard."decisionRevision" = adc."decisionRevision"
+              AND ard."assessmentRuleId" = adc."assessmentRuleId"
+              AND ard."decision" IS NOT NULL
+              AND jsonb_typeof(ard."decision"::jsonb) = 'object'
+              AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleId') = 'string'
+              AND (ard."decision"->>'assessmentRuleId') IS NOT NULL
+              AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
+              AND length(btrim(ard."decision"->>'assessmentRuleId', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 200
+              AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleVersion') = 'string'
+              AND (ard."decision"->>'assessmentRuleVersion') IS NOT NULL
+              AND ard."decision"->>'assessmentRuleVersion' = adc."assessmentRuleVersion"
+              AND length(btrim(ard."decision"->>'assessmentRuleVersion', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 200
+              AND jsonb_typeof((ard."decision"::jsonb)->'scopeId') = 'string'
+              AND (ard."decision"->>'scopeId') IS NOT NULL
+              AND ard."decision"->>'scopeId' = 'ASSESSMENT'
+              AND jsonb_typeof((ard."decision"::jsonb)->'ruleSetVersionId') = 'string'
+              AND (ard."decision"->>'ruleSetVersionId') IS NOT NULL
+              AND ard."decision"->>'ruleSetVersionId' = ac."ruleSetVersionId"
+              AND jsonb_typeof((ard."decision"::jsonb)->'repositorySnapshotId') = 'string'
+              AND (ard."decision"->>'repositorySnapshotId') IS NOT NULL
+              AND (ac."repositorySnapshotId" IS NULL OR ard."decision"->>'repositorySnapshotId' = ac."repositorySnapshotId")
+              AND jsonb_typeof((ard."decision"::jsonb)->'repositoryCommit') = 'string'
+              AND (ard."decision"->>'repositoryCommit') IS NOT NULL
+              AND ard."decision"->>'repositoryCommit' = ac."repositoryCommit"
+              AND (ard."decision"->>'repositoryCommit') ~ '^(?:[a-f0-9]{40}|[a-f0-9]{64})$'
+              AND jsonb_typeof((ard."decision"::jsonb)->'caseRevision') = 'number'
+              AND (ard."decision"->>'caseRevision') IS NOT NULL
+              AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
+              AND jsonb_typeof((ard."decision"::jsonb)->'applicability') = 'string'
+              AND (ard."decision"->>'applicability') IS NOT NULL
+              AND ard."decision"->>'applicability' = ard."applicability"::text
+              AND (
+                (ard."compliance" IS NULL AND jsonb_typeof((ard."decision"::jsonb)->'compliance') = 'null')
+                OR (
+                  ard."compliance" IS NOT NULL
+                  AND jsonb_typeof((ard."decision"::jsonb)->'compliance') = 'string'
+                  AND ard."decision"->>'compliance' IS NOT NULL
+                  AND ard."decision"->>'compliance' = ard."compliance"::text
+                )
+              )
+              AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance']) = '{}'::jsonb
+              AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
+              AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
+              AND NOT EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(
+                  CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
+                    THEN (ard."decision"::jsonb)->'legalContextRefs'
+                    ELSE '[]'::jsonb END
+                ) lcr
+                WHERE jsonb_typeof(lcr) <> 'object'
+                  OR (lcr - ARRAY['legalContextId']) <> '{}'::jsonb
+                  OR jsonb_typeof(lcr->'legalContextId') <> 'string'
+                  OR lcr->>'legalContextId' IS NULL
+                  OR length(btrim(lcr->>'legalContextId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                  OR length(btrim(lcr->>'legalContextId', ${CANONICAL_SQL_WHITESPACE})) > 200
+              )
+              AND jsonb_typeof((ard."decision"::jsonb)->'rationale') = 'string'
+              AND (ard."decision"->>'rationale') IS NOT NULL
+              AND length(btrim(ard."decision"->>'rationale', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 10000
+              AND jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
+              AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array' THEN (ard."decision"::jsonb)->'references' ELSE '[]'::jsonb END) >= 1
+              AND (
+                CASE
+                  WHEN ard."applicability" = 'APPLICABLE' THEN (
+                    ard."compliance" IN ('COMPLIANT', 'NON_COMPLIANT')
+                    AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+                    AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) >= 1
+                    AND (
+                      SELECT count(DISTINCT btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE}))
+                      FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                    ) = jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END)
+                    AND NOT EXISTS (
+                      SELECT 1
+                      FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                      WHERE jsonb_typeof(crit) <> 'object'
+                        OR (crit - ARRAY['criterionId', 'outcome', 'rationale', 'references']) <> '{}'::jsonb
+                        OR jsonb_typeof(crit->'criterionId') <> 'string'
+                        OR crit->>'criterionId' IS NULL
+                        OR length(btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                        OR length(btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE})) > 200
+                        OR jsonb_typeof(crit->'outcome') <> 'string'
+                        OR crit->>'outcome' IS NULL
+                        OR crit->>'outcome' NOT IN ('MET', 'NOT_MET')
+                        OR jsonb_typeof(crit->'rationale') <> 'string'
+                        OR crit->>'rationale' IS NULL
+                        OR length(btrim(crit->>'rationale', ${CANONICAL_SQL_WHITESPACE})) = 0
+                        OR length(btrim(crit->>'rationale', ${CANONICAL_SQL_WHITESPACE})) > 10000
+                        OR jsonb_typeof(crit->'references') <> 'array'
+                        OR jsonb_array_length(CASE WHEN jsonb_typeof(crit->'references') = 'array' THEN crit->'references' ELSE '[]'::jsonb END) < 1
+                    )
+                    AND CASE
+                      WHEN ard."compliance" = 'NON_COMPLIANT' THEN
+                        EXISTS (
+                          SELECT 1
+                          FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                          WHERE crit->>'outcome' = 'NOT_MET'
+                        )
+                      WHEN ard."compliance" = 'COMPLIANT' THEN
+                        NOT EXISTS (
+                          SELECT 1
+                          FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                          WHERE crit->>'outcome' = 'NOT_MET'
+                        )
+                      ELSE false
+                    END
+                  )
+                  WHEN ard."applicability" = 'NOT_APPLICABLE' THEN (
+                    ard."compliance" IS NULL
+                    AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+                    AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) = 0
+                  )
+                  ELSE false
+                END
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM (
+                  SELECT jsonb_array_elements(
+                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
+                      THEN (ard."decision"::jsonb)->'references'
+                      ELSE '[]'::jsonb END
+                  ) AS ref
+                  UNION ALL
+                  SELECT jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(crit->'references') = 'array'
+                      THEN crit->'references'
+                      ELSE '[]'::jsonb END
+                  ) AS ref
+                  FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+                      THEN (ard."decision"::jsonb)->'criteria'
+                      ELSE '[]'::jsonb END
+                  ) crit
+                ) all_refs
+                WHERE (
+                  jsonb_typeof(all_refs.ref) <> 'object'
+                  OR jsonb_typeof(all_refs.ref->'type') <> 'string'
+                  OR all_refs.ref->>'type' IS NULL
+                  OR all_refs.ref->>'type' NOT IN ('ASSESSMENT_EVIDENCE', 'CONFIRMED_FACT')
+                  OR (
+                    all_refs.ref->>'type' = 'ASSESSMENT_EVIDENCE'
+                    AND (
+                      (all_refs.ref - ARRAY['type', 'evidenceId']) <> '{}'::jsonb
+                      OR jsonb_typeof(all_refs.ref->'evidenceId') <> 'string'
+                      OR all_refs.ref->>'evidenceId' IS NULL
+                      OR length(btrim(all_refs.ref->>'evidenceId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(all_refs.ref->>'evidenceId', ${CANONICAL_SQL_WHITESPACE})) > 200
+                      OR NOT EXISTS (
+                        SELECT 1 FROM "AssessmentEvidence" ae
+                        WHERE ae."evidenceId"::text = all_refs.ref->>'evidenceId'
+                          AND ae."assessmentId" = adc."assessmentId"
+                          AND ae."state" = 'ACCEPTED'
+                          AND ae."invalidatedAt" IS NULL
+                          AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                      )
+                    )
+                  )
+                  OR (
+                    all_refs.ref->>'type' = 'CONFIRMED_FACT'
+                    AND (
+                      (all_refs.ref - ARRAY['type', 'factId', 'caseRevision']) <> '{}'::jsonb
+                      OR jsonb_typeof(all_refs.ref->'factId') <> 'string'
+                      OR all_refs.ref->>'factId' IS NULL
+                      OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) > 200
+                      OR jsonb_typeof(all_refs.ref->'caseRevision') <> 'number'
+                      OR all_refs.ref->>'caseRevision' IS NULL
+                      OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
+                      OR NOT EXISTS (
+                        SELECT 1 FROM "AssessmentCaseFact" af
+                        WHERE af."factId"::text = all_refs.ref->>'factId'
+                          AND af."assessmentId" = adc."assessmentId"
+                          AND af."state" = 'ACCEPTED'
+                          AND af."invalidatedAt" IS NULL
+                          AND af."caseRevision" = ac."caseRevision"
+                      )
+                    )
+                  )
+                )
+              )
+            ) THEN true ELSE false END AS is_valid
+          FROM "AssessmentDecisionCoverage" adc
+          JOIN "Assessment" a ON a."id" = adc."assessmentId"
+          JOIN "AssessmentCase" ac ON ac."assessmentId" = adc."assessmentId"
+          LEFT JOIN "AssessmentRuleDecision" ard
+            ON ard."decisionId" = adc."currentDecisionId"
+            AND ard."assessmentId" = adc."assessmentId"
+            AND ard."assessmentRuleId" = adc."assessmentRuleId"
+          WHERE a."ownerId" = ${ownerId}
+        )
+        `;
+}
 
 interface DecisionEvaluationParams {
   assessmentId: string;
@@ -294,6 +521,20 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
     hasDecisionInconsistency,
     outcomes,
   };
+}
+
+/**
+ * Business purpose: Decide whether an assessment's decision ledger covers the full pinned rule population.
+ * Business rules: A rule set must contain at least one expected rule and the assessment coverage row count must match that population exactly.
+ * Execution flow: 1. Compare the expected count with zero. 2. Compare actual coverage with the pinned rule count. 3. Return true only for an exact positive match.
+ * Failure cases: Empty rule sets, empty coverage, missing rules, and excess coverage all return false.
+ * Side effects: Pure calculation with no persistence or external effects.
+ */
+function hasCanonicalCompleteCoverage(
+  coverageCount: number,
+  expectedRuleCount: number,
+) {
+  return expectedRuleCount > 0 && coverageCount === expectedRuleCount;
 }
 
 /**
@@ -667,224 +908,16 @@ export class AssessmentTrackingLoader {
           notApplicableCount: number | bigint;
           unresolvedCount: number | bigint;
         }
-        const summaryRows = await this.prisma.$queryRaw<SummaryRow[]>`
-        WITH evaluated AS (
-          SELECT
-            adc."assessmentId",
-            adc."assessmentRuleId",
-            adc."resolutionState",
-            ard."decisionId",
-            ard."applicability",
-            ard."compliance",
-            CASE WHEN (
-              adc."resolutionState" = 'RESOLVED'
-              AND ard."decisionId" IS NOT NULL
-              AND ard."state" = 'ACCEPTED'
-              AND ard."supersededAt" IS NULL
-              AND ard."invalidatedAt" IS NULL
-              AND ard."caseRevision" = ac."caseRevision"
-              AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit")
-              AND ard."ruleSetVersionId" = ac."ruleSetVersionId"
-              AND ard."scopeId" = 'ASSESSMENT'
-              AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion"
-              AND ard."decisionRevision" = adc."decisionRevision"
-              AND ard."assessmentRuleId" = adc."assessmentRuleId"
-              AND ard."decision" IS NOT NULL
-              AND jsonb_typeof(ard."decision"::jsonb) = 'object'
-              AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleId') = 'string'
-              AND (ard."decision"->>'assessmentRuleId') IS NOT NULL
-              AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
-              AND length(btrim(ard."decision"->>'assessmentRuleId', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 200
-              AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleVersion') = 'string'
-              AND (ard."decision"->>'assessmentRuleVersion') IS NOT NULL
-              AND ard."decision"->>'assessmentRuleVersion' = adc."assessmentRuleVersion"
-              AND length(btrim(ard."decision"->>'assessmentRuleVersion', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 200
-              AND jsonb_typeof((ard."decision"::jsonb)->'scopeId') = 'string'
-              AND (ard."decision"->>'scopeId') IS NOT NULL
-              AND ard."decision"->>'scopeId' = 'ASSESSMENT'
-              AND jsonb_typeof((ard."decision"::jsonb)->'ruleSetVersionId') = 'string'
-              AND (ard."decision"->>'ruleSetVersionId') IS NOT NULL
-              AND ard."decision"->>'ruleSetVersionId' = ac."ruleSetVersionId"
-              AND jsonb_typeof((ard."decision"::jsonb)->'repositorySnapshotId') = 'string'
-              AND (ard."decision"->>'repositorySnapshotId') IS NOT NULL
-              AND (ac."repositorySnapshotId" IS NULL OR ard."decision"->>'repositorySnapshotId' = ac."repositorySnapshotId")
-              AND jsonb_typeof((ard."decision"::jsonb)->'repositoryCommit') = 'string'
-              AND (ard."decision"->>'repositoryCommit') IS NOT NULL
-              AND ard."decision"->>'repositoryCommit' = ac."repositoryCommit"
-              AND (ard."decision"->>'repositoryCommit') ~ '^(?:[a-f0-9]{40}|[a-f0-9]{64})$'
-              AND jsonb_typeof((ard."decision"::jsonb)->'caseRevision') = 'number'
-              AND (ard."decision"->>'caseRevision') IS NOT NULL
-              AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
-              AND jsonb_typeof((ard."decision"::jsonb)->'applicability') = 'string'
-              AND (ard."decision"->>'applicability') IS NOT NULL
-              AND ard."decision"->>'applicability' = ard."applicability"::text
-              AND (
-                (ard."compliance" IS NULL AND jsonb_typeof((ard."decision"::jsonb)->'compliance') = 'null')
-                OR (
-                  ard."compliance" IS NOT NULL
-                  AND jsonb_typeof((ard."decision"::jsonb)->'compliance') = 'string'
-                  AND ard."decision"->>'compliance' IS NOT NULL
-                  AND ard."decision"->>'compliance' = ard."compliance"::text
-                )
-              )
-              AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance']) = '{}'::jsonb
-              AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
-              AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
-              AND NOT EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(
-                  CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
-                    THEN (ard."decision"::jsonb)->'legalContextRefs'
-                    ELSE '[]'::jsonb END
-                ) lcr
-                WHERE jsonb_typeof(lcr) <> 'object'
-                  OR (lcr - ARRAY['legalContextId']) <> '{}'::jsonb
-                  OR jsonb_typeof(lcr->'legalContextId') <> 'string'
-                  OR lcr->>'legalContextId' IS NULL
-                  OR length(btrim(lcr->>'legalContextId', ${CANONICAL_SQL_WHITESPACE})) = 0
-                  OR length(btrim(lcr->>'legalContextId', ${CANONICAL_SQL_WHITESPACE})) > 200
-              )
-              AND jsonb_typeof((ard."decision"::jsonb)->'rationale') = 'string'
-              AND (ard."decision"->>'rationale') IS NOT NULL
-              AND length(btrim(ard."decision"->>'rationale', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 10000
-              AND jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
-              AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array' THEN (ard."decision"::jsonb)->'references' ELSE '[]'::jsonb END) >= 1
-              AND (
-                CASE
-                  WHEN ard."applicability" = 'APPLICABLE' THEN (
-                    ard."compliance" IN ('COMPLIANT', 'NON_COMPLIANT')
-                    AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
-                    AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) >= 1
-                    AND (
-                      SELECT count(DISTINCT btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE}))
-                      FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
-                    ) = jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END)
-                    AND NOT EXISTS (
-                      SELECT 1
-                      FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
-                      WHERE jsonb_typeof(crit) <> 'object'
-                        OR (crit - ARRAY['criterionId', 'outcome', 'rationale', 'references']) <> '{}'::jsonb
-                        OR jsonb_typeof(crit->'criterionId') <> 'string'
-                        OR crit->>'criterionId' IS NULL
-                        OR length(btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE})) = 0
-                        OR length(btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE})) > 200
-                        OR jsonb_typeof(crit->'outcome') <> 'string'
-                        OR crit->>'outcome' IS NULL
-                        OR crit->>'outcome' NOT IN ('MET', 'NOT_MET')
-                        OR jsonb_typeof(crit->'rationale') <> 'string'
-                        OR crit->>'rationale' IS NULL
-                        OR length(btrim(crit->>'rationale', ${CANONICAL_SQL_WHITESPACE})) = 0
-                        OR length(btrim(crit->>'rationale', ${CANONICAL_SQL_WHITESPACE})) > 10000
-                        OR jsonb_typeof(crit->'references') <> 'array'
-                        OR jsonb_array_length(CASE WHEN jsonb_typeof(crit->'references') = 'array' THEN crit->'references' ELSE '[]'::jsonb END) < 1
-                    )
-                    AND CASE
-                      WHEN ard."compliance" = 'NON_COMPLIANT' THEN
-                        EXISTS (
-                          SELECT 1
-                          FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
-                          WHERE crit->>'outcome' = 'NOT_MET'
-                        )
-                      WHEN ard."compliance" = 'COMPLIANT' THEN
-                        NOT EXISTS (
-                          SELECT 1
-                          FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
-                          WHERE crit->>'outcome' = 'NOT_MET'
-                        )
-                      ELSE false
-                    END
-                  )
-                  WHEN ard."applicability" = 'NOT_APPLICABLE' THEN (
-                    ard."compliance" IS NULL
-                    AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
-                    AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) = 0
-                  )
-                  ELSE false
-                END
-              )
-              AND NOT EXISTS (
-                SELECT 1
-                FROM (
-                  SELECT jsonb_array_elements(
-                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
-                      THEN (ard."decision"::jsonb)->'references'
-                      ELSE '[]'::jsonb END
-                  ) AS ref
-                  UNION ALL
-                  SELECT jsonb_array_elements(
-                    CASE WHEN jsonb_typeof(crit->'references') = 'array'
-                      THEN crit->'references'
-                      ELSE '[]'::jsonb END
-                  ) AS ref
-                  FROM jsonb_array_elements(
-                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
-                      THEN (ard."decision"::jsonb)->'criteria'
-                      ELSE '[]'::jsonb END
-                  ) crit
-                ) all_refs
-                WHERE (
-                  jsonb_typeof(all_refs.ref) <> 'object'
-                  OR jsonb_typeof(all_refs.ref->'type') <> 'string'
-                  OR all_refs.ref->>'type' IS NULL
-                  OR all_refs.ref->>'type' NOT IN ('ASSESSMENT_EVIDENCE', 'CONFIRMED_FACT')
-                  OR (
-                    all_refs.ref->>'type' = 'ASSESSMENT_EVIDENCE'
-                    AND (
-                      (all_refs.ref - ARRAY['type', 'evidenceId']) <> '{}'::jsonb
-                      OR jsonb_typeof(all_refs.ref->'evidenceId') <> 'string'
-                      OR all_refs.ref->>'evidenceId' IS NULL
-                      OR length(btrim(all_refs.ref->>'evidenceId', ${CANONICAL_SQL_WHITESPACE})) = 0
-                      OR length(btrim(all_refs.ref->>'evidenceId', ${CANONICAL_SQL_WHITESPACE})) > 200
-                      OR NOT EXISTS (
-                        SELECT 1 FROM "AssessmentEvidence" ae
-                        WHERE ae."evidenceId"::text = all_refs.ref->>'evidenceId'
-                          AND ae."assessmentId" = adc."assessmentId"
-                          AND ae."state" = 'ACCEPTED'
-                          AND ae."invalidatedAt" IS NULL
-                          AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
-                      )
-                    )
-                  )
-                  OR (
-                    all_refs.ref->>'type' = 'CONFIRMED_FACT'
-                    AND (
-                      (all_refs.ref - ARRAY['type', 'factId', 'caseRevision']) <> '{}'::jsonb
-                      OR jsonb_typeof(all_refs.ref->'factId') <> 'string'
-                      OR all_refs.ref->>'factId' IS NULL
-                      OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) = 0
-                      OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) > 200
-                      OR jsonb_typeof(all_refs.ref->'caseRevision') <> 'number'
-                      OR all_refs.ref->>'caseRevision' IS NULL
-                      OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
-                      OR NOT EXISTS (
-                        SELECT 1 FROM "AssessmentCaseFact" af
-                        WHERE af."factId"::text = all_refs.ref->>'factId'
-                          AND af."assessmentId" = adc."assessmentId"
-                          AND af."state" = 'ACCEPTED'
-                          AND af."invalidatedAt" IS NULL
-                          AND af."caseRevision" = ac."caseRevision"
-                      )
-                    )
-                  )
-                )
-              )
-            ) THEN true ELSE false END AS is_valid
-          FROM "AssessmentDecisionCoverage" adc
-          JOIN "Assessment" a ON a."id" = adc."assessmentId"
-          JOIN "AssessmentCase" ac ON ac."assessmentId" = adc."assessmentId"
-          LEFT JOIN "AssessmentRuleDecision" ard
-            ON ard."decisionId" = adc."currentDecisionId"
-            AND ard."assessmentId" = adc."assessmentId"
-            AND ard."assessmentRuleId" = adc."assessmentRuleId"
-          WHERE a."ownerId" = ${input.sessionUserId}
-        )
-        SELECT
+        const summaryRows = await this.prisma.$queryRaw<SummaryRow[]>(
+          Prisma.sql`${ownerCanonicalDecisionEvaluationCte(input.sessionUserId)}
+SELECT
           COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'APPLICABLE' AND "compliance" = 'COMPLIANT' THEN 1 ELSE 0 END), 0) AS "compliantCount",
           COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'APPLICABLE' AND "compliance" = 'NON_COMPLIANT' THEN 1 ELSE 0 END), 0) AS "nonCompliantCount",
           COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'NOT_APPLICABLE' THEN 1 ELSE 0 END), 0) AS "notApplicableCount",
           COALESCE(SUM(CASE WHEN is_valid IS NOT TRUE OR ("applicability" = 'APPLICABLE' AND ("compliance" IS NULL OR "compliance" NOT IN ('COMPLIANT', 'NON_COMPLIANT'))) THEN 1 ELSE 0 END), 0) AS "unresolvedCount"
         FROM evaluated
-      `;
+      `,
+        );
         if (summaryRows && summaryRows.length > 0) {
           ownerCompliant = Number(summaryRows[0].compliantCount ?? 0);
           ownerNonCompliant = Number(summaryRows[0].nonCompliantCount ?? 0);
@@ -1708,8 +1741,7 @@ export class AssessmentTrackingLoader {
         trustReason = "ASSESSMENT_IN_PROGRESS";
       } else if (
         asmtUnresolved > 0 ||
-        asmtCoverage.length === 0 ||
-        (expectedRulesCount > 0 && asmtCoverage.length < expectedRulesCount)
+        !hasCanonicalCompleteCoverage(asmtCoverage.length, expectedRulesCount)
       ) {
         trustStatus = TRACKING_TRUST_STATUSES.IN_PROGRESS;
         trustReason = "UNRESOLVED_RULES";
@@ -1842,6 +1874,13 @@ export class AssessmentTrackingLoader {
    * @param input.subjectRole - Must be ADMIN.
    * @param input.correlationId - Request correlation identifier.
    */
+  /**
+   * Business purpose: Provide customers a paginated view of completed Final Reports.
+   * Business rules: Only the authenticated customer owner may read owned assessments; incomplete or untrusted evaluations retain their canonical trust status.
+   * Execution flow: 1. Validate the role. 2. Page owned active reports in the database when freshness is unfiltered. 3. Evaluate details only for that page. 4. Preserve exact totals and freshness-filter behavior.
+   * Failure cases: Non-customer roles receive an empty page; unavailable data access propagates through the shared API problem handling.
+   * Side effects: Read-only database access.
+   */
   async loadCustomerReports(input: {
     sessionUserId: string;
     subjectRole: AuthUserRole;
@@ -1859,36 +1898,294 @@ export class AssessmentTrackingLoader {
         generatedAt: new Date().toISOString(),
       });
     }
-    const rows = await this.loadCustomerTrackingRows(input.sessionUserId);
-    const ready = rows
-      .filter((row) => row.reportArtifactId !== null && row.lifecycleComplete)
-      .filter(
-        (row) => !input.freshness || row.freshnessStatus === input.freshness,
-      )
-      .sort((a, b) => b.reportCreatedAt!.localeCompare(a.reportCreatedAt!));
-    const items = ready.slice(offset, offset + limit).map((row) => ({
-      assessmentId: row.assessmentId,
-      assessmentName: row.assessmentName,
-      repositoryName: row.repositoryName,
-      repositoryOwner: row.repositoryOwner,
-      artifactId: row.reportArtifactId!,
-      createdAt: row.reportCreatedAt!,
-      freshnessStatus: row.freshnessStatus,
-      observedAt: row.observedAt,
-      trustStatus: row.trustStatus,
-    }));
+    if (input.freshness === undefined) {
+      const reportWhere = {
+        kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+        lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+        assessmentCase: {
+          assessment: {
+            ownerId: input.sessionUserId,
+            lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+          },
+        },
+      };
+      const [total, reportRows] = await Promise.all([
+        this.prisma.assessmentArtifact.count({ where: reportWhere }),
+        this.prisma.assessmentArtifact.findMany({
+          where: reportWhere,
+          orderBy: [{ createdAt: "desc" }, { artifactId: "asc" }],
+          skip: offset,
+          take: limit,
+          select: { artifactId: true, assessmentId: true, createdAt: true },
+        }),
+      ]);
+      const rows = reportRows.length
+        ? await this.loadCustomerTrackingRows(
+            input.sessionUserId,
+            reportRows.map((row) => row.assessmentId),
+          )
+        : [];
+      const rowsByAssessmentId = new Map(
+        rows.map((row) => [row.assessmentId, row]),
+      );
+      const items = reportRows.flatMap((report) => {
+        const row = rowsByAssessmentId.get(report.assessmentId);
+        return row
+          ? [
+              {
+                assessmentId: row.assessmentId,
+                assessmentName: row.assessmentName,
+                repositoryName: row.repositoryName,
+                repositoryOwner: row.repositoryOwner,
+                artifactId: report.artifactId,
+                createdAt: report.createdAt.toISOString(),
+                freshnessStatus: row.freshnessStatus,
+                observedAt: row.observedAt,
+                trustStatus: row.trustStatus,
+              },
+            ]
+          : [];
+      });
+      return customerTrackingReportsSchema.parse({
+        items,
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + reportRows.length < total,
+        },
+        generatedAt: new Date().toISOString(),
+      });
+    }
+    const reportWhere = {
+      kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+      lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      assessmentCase: {
+        assessment: {
+          ownerId: input.sessionUserId,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+        },
+      },
+    };
+    const totalReports = await this.prisma.assessmentArtifact.count({
+      where: reportWhere,
+    });
+    let total = 0;
+    const pageCandidates: Array<{
+      assessmentId: string;
+      assessmentName: string;
+      repositoryName: string | null;
+      repositoryOwner: string | null;
+      artifactId: string;
+      createdAt: string;
+      freshnessStatus: TrackingFreshnessStatus;
+      observedAt: string | null;
+      trustStatus: TrackingTrustStatus;
+    }> = [];
+    for (let skip = 0; skip < totalReports; skip += 100) {
+      const rows = await this.loadCustomerTrackingRows(
+        input.sessionUserId,
+        undefined,
+        {
+          skip,
+          take: 100,
+          reportsOnly: true,
+        },
+      );
+      for (const row of rows) {
+        if (row.reportArtifactId === null || !row.lifecycleComplete) continue;
+        if (row.freshnessStatus !== input.freshness) continue;
+        total++;
+        pageCandidates.push({
+          assessmentId: row.assessmentId,
+          assessmentName: row.assessmentName,
+          repositoryName: row.repositoryName,
+          repositoryOwner: row.repositoryOwner,
+          artifactId: row.reportArtifactId,
+          createdAt: row.reportCreatedAt!,
+          freshnessStatus: row.freshnessStatus,
+          observedAt: row.observedAt,
+          trustStatus: row.trustStatus,
+        });
+      }
+      pageCandidates.sort(
+        (a, b) =>
+          b.createdAt.localeCompare(a.createdAt) ||
+          a.artifactId.localeCompare(b.artifactId),
+      );
+      if (pageCandidates.length > offset + limit) {
+        pageCandidates.length = offset + limit;
+      }
+    }
+    const items = pageCandidates.slice(offset, offset + limit);
     return customerTrackingReportsSchema.parse({
       items,
       pagination: {
-        total: ready.length,
+        total,
         limit,
         offset,
-        hasMore: offset + items.length < ready.length,
+        hasMore: offset + items.length < total,
       },
       generatedAt: new Date().toISOString(),
     });
   }
 
+  /**
+   * Business purpose: Let a customer inspect every owned assessment contributing to one obligation group.
+   * Business rules: The group key is validated by the request contract; rows are restricted to the authenticated owner and must match both pinned rule set and rule identifier.
+   * Execution flow: 1. Validate the role. 2. Load canonical owner tracking rows. 3. Match the requested group and filters. 4. Sort deterministically and return the requested page with an exact count.
+   * Failure cases: Non-customer roles receive an empty page; unknown or non-owned groups return an empty page without exposing other tenants' records.
+   * Side effects: Read-only database access.
+   */
+  async loadCustomerObligationAssessments(input: {
+    sessionUserId: string;
+    subjectRole: AuthUserRole;
+    ruleSetVersionId: string;
+    assessmentRuleId: string;
+    limit?: number;
+    offset?: number;
+    outcome?: TrackingRuleOutcome;
+    freshness?: TrackingFreshnessStatus;
+  }) {
+    const limit = Math.min(Math.max(input.limit ?? 20, 1), 100);
+    const offset = Math.max(input.offset ?? 0, 0);
+    if (input.subjectRole !== AUTH_USER_ROLES.customer) {
+      return customerTrackingObligationAssessmentsSchema.parse({
+        items: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+        generatedAt: new Date().toISOString(),
+      });
+    }
+
+    if (!input.outcome && !input.freshness) {
+      const groupWhere = {
+        ownerId: input.sessionUserId,
+        domainCase: {
+          is: {
+            ruleSetVersionId: input.ruleSetVersionId,
+            coverage: {
+              some: {
+                ruleSetVersionId: input.ruleSetVersionId,
+                assessmentRuleId: input.assessmentRuleId,
+              },
+            },
+          },
+        },
+      };
+      const [total, pageAssessments] = await Promise.all([
+        this.prisma.assessment.count({ where: groupWhere }),
+        this.prisma.assessment.findMany({
+          where: groupWhere,
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+          skip: offset,
+          take: limit,
+          select: { id: true },
+        }),
+      ]);
+      const rows = pageAssessments.length
+        ? await this.loadCustomerTrackingRows(
+            input.sessionUserId,
+            pageAssessments.map((assessment) => assessment.id),
+          )
+        : [];
+      const rowsByAssessmentId = new Map(
+        rows.map((row) => [row.assessmentId, row]),
+      );
+      const items = pageAssessments.flatMap((assessment) => {
+        const row = rowsByAssessmentId.get(assessment.id);
+        const rule = row?.rules.find(
+          (item) => item.assessmentRuleId === input.assessmentRuleId,
+        );
+        return row && rule
+          ? [
+              {
+                assessmentId: row.assessmentId,
+                assessmentName: row.assessmentName,
+                outcome: rule.outcome,
+                freshnessStatus: row.freshnessStatus,
+                observedAt: row.observedAt,
+                trustStatus: row.trustStatus,
+              },
+            ]
+          : [];
+      });
+      return customerTrackingObligationAssessmentsSchema.parse({
+        items,
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + pageAssessments.length < total,
+        },
+        generatedAt: new Date().toISOString(),
+      });
+    }
+
+    const assessmentTotal = await this.prisma.assessment.count({
+      where: { ownerId: input.sessionUserId },
+    });
+    let total = 0;
+    const pageCandidates: Array<{
+      assessmentId: string;
+      assessmentName: string;
+      outcome: TrackingRuleOutcome;
+      freshnessStatus: TrackingFreshnessStatus;
+      observedAt: string | null;
+      trustStatus: TrackingTrustStatus;
+    }> = [];
+    for (let skip = 0; skip < assessmentTotal; skip += 100) {
+      const rows = await this.loadCustomerTrackingRows(
+        input.sessionUserId,
+        undefined,
+        { skip, take: 100 },
+      );
+      for (const row of rows) {
+        if (row.ruleSetVersionId !== input.ruleSetVersionId) continue;
+        if (input.freshness && row.freshnessStatus !== input.freshness)
+          continue;
+        const rule = row.rules.find(
+          (item) => item.assessmentRuleId === input.assessmentRuleId,
+        );
+        if (!rule || (input.outcome && rule.outcome !== input.outcome))
+          continue;
+        total++;
+        pageCandidates.push({
+          assessmentId: row.assessmentId,
+          assessmentName: row.assessmentName,
+          outcome: rule.outcome,
+          freshnessStatus: row.freshnessStatus,
+          observedAt: row.observedAt,
+          trustStatus: row.trustStatus,
+        });
+      }
+      pageCandidates.sort(
+        (a, b) =>
+          a.assessmentName.localeCompare(b.assessmentName) ||
+          a.assessmentId.localeCompare(b.assessmentId),
+      );
+      if (pageCandidates.length > offset + limit)
+        pageCandidates.length = offset + limit;
+    }
+    const items = pageCandidates.slice(offset, offset + limit);
+    return customerTrackingObligationAssessmentsSchema.parse({
+      items,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + items.length < total,
+      },
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Business purpose: Summarize evaluated compliance obligations and identify assessments that cannot be evaluated.
+   * Business rules: Only owner data is considered; missing or incomplete rule coverage never counts as an evaluated all-clear; outcome, freshness, and attention filters are applied before pagination.
+   * Execution flow: 1. Validate the role. 2. Aggregate canonical outcomes, source freshness, and evaluation coverage in PostgreSQL. 3. Apply filters before stable group pagination. 4. Batch-load canonical details for at most twenty preview assessments per returned group. 5. Return exact totals and evaluation metadata.
+   * Failure cases: Non-customer roles receive an empty page; unavailable data access propagates through the shared API problem handling.
+   * Side effects: Read-only database access.
+   */
   async loadCustomerObligations(input: {
     sessionUserId: string;
     subjectRole: AuthUserRole;
@@ -1897,6 +2194,7 @@ export class AssessmentTrackingLoader {
     offset?: number;
     outcome?: TrackingRuleOutcome;
     freshness?: TrackingFreshnessStatus;
+    needsAttention?: boolean;
   }): Promise<CustomerTrackingObligations> {
     const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
     const offset = Math.max(input.offset ?? 0, 0);
@@ -1904,13 +2202,41 @@ export class AssessmentTrackingLoader {
       return customerTrackingObligationsSchema.parse({
         items: [],
         pagination: { total: 0, limit, offset, hasMore: false },
+        evaluationSummary: {
+          evaluatedAssessmentCount: 0,
+          notEvaluatedAssessmentCount: 0,
+        },
         generatedAt: new Date().toISOString(),
       });
     }
-    const rows = await this.loadCustomerTrackingRows(input.sessionUserId);
-    const groups = new Map<
-      string,
-      {
+    return this.loadCustomerObligationsFromDatabase(input, limit, offset);
+  }
+
+  /**
+   * Business purpose: Return exact owner-wide obligation totals without reading the full assessment ledger into application memory.
+   * Business rules: The shared canonical SQL validator determines outcomes; owner scope is applied inside every portfolio query; only requested groups and their first twenty assessment details are returned.
+   * Execution flow: 1. Aggregate canonical decision outcomes and evaluation coverage in PostgreSQL. 2. Apply outcome and attention filters before stable group pagination. 3. Batch-load canonical tracking details for preview assessment IDs on the requested page. 4. Return exact totals and evaluation counts.
+   * Failure cases: SQL or detail reads that fail propagate through the shared API error handling; missing preview rows are omitted rather than assigned fabricated statuses.
+   * Side effects: Read-only owner-scoped database access.
+   */
+  private async loadCustomerObligationsFromDatabase(
+    input: {
+      sessionUserId: string;
+      correlationId: string;
+      outcome?: TrackingRuleOutcome;
+      needsAttention?: boolean;
+      freshness?: TrackingFreshnessStatus;
+    },
+    limit: number,
+    offset: number,
+  ): Promise<CustomerTrackingObligations> {
+    interface ObligationAggregatePayload {
+      total: number;
+      evaluationSummary: {
+        evaluatedAssessmentCount: number;
+        notEvaluatedAssessmentCount: number;
+      };
+      items: Array<{
         ruleSetVersionId: string;
         ruleSetVersion: string | null;
         assessmentRuleId: string;
@@ -1919,77 +2245,298 @@ export class AssessmentTrackingLoader {
         nonCompliantCount: number;
         notApplicableCount: number;
         unresolvedCount: number;
-        assessments: Array<{
-          assessmentId: string;
-          assessmentName: string;
-          outcome: TrackingRuleOutcome;
-          freshnessStatus: TrackingFreshnessStatus;
-          observedAt: string | null;
-          trustStatus: TrackingTrustStatus;
-        }>;
-      }
-    >();
-    for (const row of rows) {
-      for (const item of row.rules) {
-        if (input.outcome && item.outcome !== input.outcome) continue;
-        if (input.freshness && row.freshnessStatus !== input.freshness)
-          continue;
-        const key = `${row.ruleSetVersionId ?? "UNPINNED"}::${item.assessmentRuleId}`;
-        const group = groups.get(key) ?? {
-          ruleSetVersionId: row.ruleSetVersionId ?? "UNPINNED",
-          ruleSetVersion: row.ruleSetVersion,
-          assessmentRuleId: item.assessmentRuleId,
-          concept: item.concept,
-          compliantCount: 0,
-          nonCompliantCount: 0,
-          notApplicableCount: 0,
-          unresolvedCount: 0,
-          assessments: [],
-        };
-        if (item.outcome === TRACKING_RULE_OUTCOMES.COMPLIANT)
-          group.compliantCount++;
-        else if (item.outcome === TRACKING_RULE_OUTCOMES.NON_COMPLIANT)
-          group.nonCompliantCount++;
-        else if (item.outcome === TRACKING_RULE_OUTCOMES.NOT_APPLICABLE)
-          group.notApplicableCount++;
-        else group.unresolvedCount++;
-        group.assessments.push({
-          assessmentId: row.assessmentId,
-          assessmentName: row.assessmentName,
-          outcome: item.outcome,
-          freshnessStatus: row.freshnessStatus,
-          observedAt: row.observedAt,
-          trustStatus: row.trustStatus,
-        });
-        groups.set(key, group);
-      }
+        affectedAssessmentCount: number;
+        previewAssessmentIds: string[];
+      }>;
     }
-    const all = [...groups.values()].sort(
-      (a, b) =>
-        a.concept.localeCompare(b.concept) ||
-        a.ruleSetVersionId.localeCompare(b.ruleSetVersionId),
+    let aggregateRows: Array<{ payload: ObligationAggregatePayload }>;
+    try {
+      aggregateRows = await this.prisma.$queryRaw<
+        Array<{ payload: ObligationAggregatePayload }>
+      >(Prisma.sql`
+      ${ownerCanonicalDecisionEvaluationCte(input.sessionUserId)},
+      /* tracking-obligation-aggregate */
+      owner_freshness AS (
+        SELECT
+          a."id" AS "assessmentId",
+          CASE
+            WHEN latest."id" IS NOT NULL
+              AND pinned."id" IS NOT NULL
+              AND latest."id" <> pinned."id"
+              AND latest."createdAt" > pinned."createdAt"
+              AND LOWER(latest."commitSha") = LOWER(COALESCE(ac."repositoryCommit", pinned."commitSha"))
+              THEN ${TRACKING_FRESHNESS_STATUSES.CURRENT}
+            WHEN latest."id" IS NOT NULL
+              AND pinned."id" IS NOT NULL
+              AND latest."id" <> pinned."id"
+              AND latest."createdAt" > pinned."createdAt"
+              THEN ${TRACKING_FRESHNESS_STATUSES.STALE}
+            ELSE ${TRACKING_FRESHNESS_STATUSES.UNKNOWN}
+          END AS "freshnessStatus"
+        FROM "Assessment" a
+        LEFT JOIN "AssessmentCase" ac ON ac."assessmentId" = a."id"
+        LEFT JOIN "RepositorySnapshot" pinned ON pinned."id" = ac."repositorySnapshotId"
+        LEFT JOIN LATERAL (
+          SELECT candidate."id", candidate."createdAt", candidate."commitSha"
+          FROM "RepositorySnapshot" candidate
+          WHERE candidate."status" = ${REPOSITORY_SNAPSHOT_STATUSES.ready}
+            AND candidate."repositoryFullName" = pinned."repositoryFullName"
+            AND (
+              candidate."ref" = COALESCE(pinned."ref", pinned."branch")
+              OR (candidate."ref" IS NULL AND candidate."branch" = COALESCE(pinned."ref", pinned."branch"))
+            )
+            AND (
+              EXISTS (
+                SELECT 1 FROM "Assessment" snapshot_assessment
+                WHERE snapshot_assessment."id" = candidate."assessmentId"
+                  AND snapshot_assessment."ownerId" = ${input.sessionUserId}
+              )
+              OR EXISTS (
+                SELECT 1 FROM "RepositoryConnection" snapshot_connection
+                WHERE snapshot_connection."id" = candidate."connectionId"
+                  AND snapshot_connection."userId" = ${input.sessionUserId}
+                  AND snapshot_connection."status" = ${REPOSITORY_CONNECTION_STATUSES.active}
+              )
+            )
+          ORDER BY candidate."createdAt" DESC, candidate."id" ASC
+          LIMIT 1
+        ) latest ON true
+        WHERE a."ownerId" = ${input.sessionUserId}
+      ),
+      portfolio_evaluation AS (
+        SELECT
+          COUNT(*) FILTER (WHERE (
+            ac."pinnedAt" IS NOT NULL
+            AND ac."ruleSetVersionId" IS NOT NULL
+            AND ac."repositorySnapshotId" IS NOT NULL
+            AND ac."repositoryScanJobId" IS NOT NULL
+            AND ac."repositoryCommit" IS NOT NULL
+            AND rs."validationOutcome" = ${COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES.PASSED}
+            AND expected."ruleCount" > 0
+            AND coverage."coverageCount" = expected."ruleCount"
+          ))::int AS "evaluatedAssessmentCount",
+          COUNT(*) FILTER (WHERE NOT (
+            ac."pinnedAt" IS NOT NULL
+            AND ac."ruleSetVersionId" IS NOT NULL
+            AND ac."repositorySnapshotId" IS NOT NULL
+            AND ac."repositoryScanJobId" IS NOT NULL
+            AND ac."repositoryCommit" IS NOT NULL
+            AND rs."validationOutcome" = ${COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES.PASSED}
+            AND expected."ruleCount" > 0
+            AND coverage."coverageCount" = expected."ruleCount"
+          ))::int AS "notEvaluatedAssessmentCount"
+        FROM "Assessment" a
+        JOIN owner_freshness freshness ON freshness."assessmentId" = a."id"
+        LEFT JOIN "AssessmentCase" ac ON ac."assessmentId" = a."id"
+        LEFT JOIN "ComplianceRuleSetVersion" rs ON rs."id" = ac."ruleSetVersionId"
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int AS "ruleCount"
+          FROM "AssessmentRule" ar
+          WHERE ar."ruleSetVersionId" = ac."ruleSetVersionId"
+        ) expected ON true
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int AS "coverageCount"
+          FROM "AssessmentDecisionCoverage" adc
+          WHERE adc."assessmentId" = a."id"
+        ) coverage ON true
+        WHERE a."ownerId" = ${input.sessionUserId}
+          AND (${input.freshness ?? null}::text IS NULL OR freshness."freshnessStatus" = ${input.freshness ?? null}::text)
+      ),
+      normalized AS (
+        SELECT
+          e."assessmentId",
+          e."assessmentName",
+          e."updatedAt",
+          e."ruleSetVersionId",
+          e."assessmentRuleId",
+          rs."version" AS "ruleSetVersion",
+          ar."concept",
+          freshness."freshnessStatus",
+          CASE
+            WHEN e."is_valid" = true AND e."applicability" = 'NOT_APPLICABLE' THEN 'NOT_APPLICABLE'
+            WHEN e."is_valid" = true AND e."applicability" = 'APPLICABLE' AND e."compliance" = 'COMPLIANT' THEN 'COMPLIANT'
+            WHEN e."is_valid" = true AND e."applicability" = 'APPLICABLE' AND e."compliance" = 'NON_COMPLIANT' THEN 'NON_COMPLIANT'
+            ELSE 'UNRESOLVED'
+          END AS outcome
+        FROM evaluated e
+        JOIN "AssessmentRule" ar
+          ON ar."ruleSetVersionId" = e."ruleSetVersionId"
+          AND ar."assessmentRuleId" = e."assessmentRuleId"
+        LEFT JOIN "ComplianceRuleSetVersion" rs ON rs."id" = e."ruleSetVersionId"
+        JOIN owner_freshness freshness ON freshness."assessmentId" = e."assessmentId"
+        WHERE (${input.outcome ?? null}::text IS NULL OR (
+          CASE
+            WHEN e."is_valid" = true AND e."applicability" = 'NOT_APPLICABLE' THEN 'NOT_APPLICABLE'
+            WHEN e."is_valid" = true AND e."applicability" = 'APPLICABLE' AND e."compliance" = 'COMPLIANT' THEN 'COMPLIANT'
+            WHEN e."is_valid" = true AND e."applicability" = 'APPLICABLE' AND e."compliance" = 'NON_COMPLIANT' THEN 'NON_COMPLIANT'
+            ELSE 'UNRESOLVED'
+          END
+        ) = ${input.outcome ?? null}::text)
+          AND (${input.freshness ?? null}::text IS NULL OR freshness."freshnessStatus" = ${input.freshness ?? null}::text)
+      ),
+      ranked AS (
+        SELECT normalized.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY "ruleSetVersionId", "assessmentRuleId"
+            ORDER BY "updatedAt" DESC, "assessmentId" ASC
+          ) AS "previewRank"
+        FROM normalized
+      ),
+      grouped AS (
+        SELECT
+          "ruleSetVersionId",
+          MAX("ruleSetVersion") AS "ruleSetVersion",
+          "assessmentRuleId",
+          MAX("concept") AS concept,
+          COUNT(*) FILTER (WHERE outcome = 'COMPLIANT')::int AS "compliantCount",
+          COUNT(*) FILTER (WHERE outcome = 'NON_COMPLIANT')::int AS "nonCompliantCount",
+          COUNT(*) FILTER (WHERE outcome = 'NOT_APPLICABLE')::int AS "notApplicableCount",
+          COUNT(*) FILTER (WHERE outcome = 'UNRESOLVED')::int AS "unresolvedCount",
+          COUNT(*)::int AS "affectedAssessmentCount",
+          ARRAY_AGG("assessmentId" ORDER BY "updatedAt" DESC, "assessmentId" ASC)
+            FILTER (WHERE "previewRank" <= 20) AS "previewAssessmentIds"
+        FROM ranked
+        GROUP BY "ruleSetVersionId", "assessmentRuleId"
+      ),
+      filtered AS (
+        SELECT * FROM grouped
+        WHERE (${input.needsAttention ?? null}::boolean IS NULL OR (
+          ("nonCompliantCount" > 0 OR "unresolvedCount" > 0)
+          = ${input.needsAttention ?? false}::boolean
+        ))
+      ),
+      group_page AS (
+        SELECT * FROM filtered
+        ORDER BY
+          ("nonCompliantCount" > 0 OR "unresolvedCount" > 0) DESC,
+          "nonCompliantCount" DESC,
+          "unresolvedCount" DESC,
+          concept ASC,
+          "ruleSetVersionId" ASC,
+          "assessmentRuleId" ASC
+        LIMIT ${limit} OFFSET ${offset}
+      )
+      SELECT jsonb_build_object(
+        'total', (SELECT COUNT(*)::int FROM filtered),
+        'evaluationSummary', (SELECT to_jsonb(portfolio_evaluation) FROM portfolio_evaluation),
+        'items', COALESCE((
+          SELECT jsonb_agg(to_jsonb(group_page) ORDER BY
+            (group_page."nonCompliantCount" > 0 OR group_page."unresolvedCount" > 0) DESC,
+            group_page."nonCompliantCount" DESC,
+            group_page."unresolvedCount" DESC,
+            group_page.concept ASC,
+            group_page."ruleSetVersionId" ASC,
+            group_page."assessmentRuleId" ASC
+          ) FROM group_page
+        ), '[]'::jsonb)
+      ) AS payload
+      `);
+    } catch (error) {
+      this.logger.error(
+        `Customer obligation aggregate SQL failed for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new ServiceUnavailableException(
+        `Customer obligation aggregate is temporarily unavailable (correlationId: ${input.correlationId}).`,
+      );
+    }
+    const [aggregate] = aggregateRows;
+    if (!aggregate?.payload) {
+      throw new ServiceUnavailableException(
+        `Customer obligation aggregate is temporarily unavailable (correlationId: ${input.correlationId}).`,
+      );
+    }
+    const previewIds = [
+      ...new Set(
+        aggregate.payload.items.flatMap((item) => item.previewAssessmentIds),
+      ),
+    ];
+    const previewPages = await mapWithConcurrency(
+      Array.from({ length: Math.ceil(previewIds.length / 100) }, (_, index) =>
+        previewIds.slice(index * 100, (index + 1) * 100),
+      ),
+      3,
+      (ids) => this.loadCustomerTrackingRows(input.sessionUserId, ids),
     );
-    const items = all.slice(offset, offset + limit).map((group) => ({
-      ...group,
-      affectedAssessmentCount: group.assessments.length,
-      assessments: group.assessments.slice(0, 20),
+    const rowsById = new Map(
+      previewPages.flat().map((row) => [row.assessmentId, row]),
+    );
+    const items = aggregate.payload.items.map((item) => ({
+      ruleSetVersionId: item.ruleSetVersionId,
+      ruleSetVersion: item.ruleSetVersion,
+      assessmentRuleId: item.assessmentRuleId,
+      concept: item.concept,
+      compliantCount: item.compliantCount,
+      nonCompliantCount: item.nonCompliantCount,
+      notApplicableCount: item.notApplicableCount,
+      unresolvedCount: item.unresolvedCount,
+      affectedAssessmentCount: item.affectedAssessmentCount,
+      assessments: item.previewAssessmentIds.flatMap((assessmentId) => {
+        const row = rowsById.get(assessmentId);
+        const rule = row?.rules.find(
+          (candidate) => candidate.assessmentRuleId === item.assessmentRuleId,
+        );
+        return row && rule
+          ? [
+              {
+                assessmentId,
+                assessmentName: row.assessmentName,
+                outcome: rule.outcome,
+                freshnessStatus: row.freshnessStatus,
+                observedAt: row.observedAt,
+                trustStatus: row.trustStatus,
+              },
+            ]
+          : [];
+      }),
     }));
     return customerTrackingObligationsSchema.parse({
       items,
       pagination: {
-        total: all.length,
+        total: aggregate.payload.total,
         limit,
         offset,
-        hasMore: offset + items.length < all.length,
+        hasMore: offset + items.length < aggregate.payload.total,
       },
+      evaluationSummary: aggregate.payload.evaluationSummary,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  private async loadCustomerTrackingRows(sessionUserId: string) {
+  /**
+   * Business purpose: Build canonical owner-scoped report and obligation rows from assessment evidence.
+   * Business rules: Every read is restricted to the customer owner; decision pointers, evidence, facts, pins, rule-set coverage, and source freshness are revalidated before assigning outcomes or trust.
+   * Execution flow: 1. Read owned assessments and coverage. 2. Batch-load associated decisions and records. 3. Batch-load repository snapshots and rule counts. 4. Evaluate each assessment and return normalized rows.
+   * Failure cases: Missing, inconsistent, incomplete, invalidated, or stale inputs fail closed into unavailable, unresolved, or untrusted statuses.
+   * Side effects: Read-only database access.
+   */
+  private async loadCustomerTrackingRows(
+    sessionUserId: string,
+    assessmentIds?: string[],
+    page?: { skip: number; take: number; reportsOnly?: boolean },
+  ) {
     const assessments = await this.prisma.assessment.findMany({
-      where: { ownerId: sessionUserId },
+      where: {
+        ownerId: sessionUserId,
+        ...(assessmentIds ? { id: { in: assessmentIds } } : {}),
+        ...(page?.reportsOnly
+          ? {
+              lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+              domainCase: {
+                is: {
+                  artifacts: {
+                    some: {
+                      kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+                      lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
+      },
       orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      ...(page ? { skip: page.skip, take: page.take } : {}),
       select: {
         id: true,
         name: true,
@@ -2160,53 +2707,90 @@ export class AssessmentTrackingLoader {
         })
       : [];
     const pinnedById = new Map(pinnedSnapshots.map((item) => [item.id, item]));
-    const keys = [
-      ...new Set(
-        pinnedSnapshots.map(
-          (item) =>
-            `${item.repositoryFullName}::${item.ref ?? item.branch ?? ""}`,
-        ),
-      ),
+    const latestKeys = [
+      ...new Map(
+        pinnedSnapshots.map((item) => [
+          `${item.repositoryFullName}::${item.ref ?? item.branch ?? ""}`,
+          item,
+        ]),
+      ).values(),
     ];
     const latestByKey = new Map<string, (typeof pinnedSnapshots)[number]>();
-    for (const key of keys) {
-      const [repositoryFullName, ref] = key.split("::");
-      const whereConditions: Array<Record<string, unknown>> = [
-        {
-          OR: [
-            { assessment: { ownerId: sessionUserId } },
-            {
-              connection: {
-                userId: sessionUserId,
-                status: REPOSITORY_CONNECTION_STATUSES.active,
+    const latestSnapshots = latestKeys.length
+      ? await this.prisma.repositorySnapshot.findMany({
+          where: {
+            status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+            OR: latestKeys.map((item) => ({
+              repositoryFullName: item.repositoryFullName,
+              OR: [
+                { ref: item.ref ?? item.branch },
+                { branch: item.ref ?? item.branch },
+              ],
+            })),
+            AND: [
+              {
+                OR: [
+                  { assessment: { ownerId: sessionUserId } },
+                  {
+                    connection: {
+                      userId: sessionUserId,
+                      status: REPOSITORY_CONNECTION_STATUSES.active,
+                    },
+                  },
+                ],
               },
-            },
-          ],
-        },
-      ];
-      if (ref) whereConditions.push({ OR: [{ ref }, { branch: ref }] });
-      const latest = await this.prisma.repositorySnapshot.findFirst({
-        where: {
-          repositoryFullName,
-          status: REPOSITORY_SNAPSHOT_STATUSES.ready,
-          AND: whereConditions,
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          repositoryFullName: true,
-          ref: true,
-          branch: true,
-          commitSha: true,
-          createdAt: true,
-        },
-      });
-      if (latest) latestByKey.set(key, latest);
+            ],
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+          distinct: ["repositoryFullName", "ref"],
+          select: {
+            id: true,
+            repositoryFullName: true,
+            ref: true,
+            branch: true,
+            commitSha: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    for (const latest of latestSnapshots) {
+      const key = `${latest.repositoryFullName}::${latest.ref ?? latest.branch ?? ""}`;
+      const current = latestByKey.get(key);
+      if (!current || latest.createdAt > current.createdAt) {
+        latestByKey.set(key, latest);
+      }
     }
+
+    const ruleSetVersionIds = [
+      ...new Set(
+        assessments
+          .map((item) => item.domainCase?.ruleSetVersionId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const expectedRuleCounts = await mapWithConcurrency(
+      ruleSetVersionIds,
+      5,
+      async (ruleSetVersionId) =>
+        [
+          ruleSetVersionId,
+          await this.prisma.assessmentRule.count({
+            where: { ruleSetVersionId },
+          }),
+        ] as const,
+    );
+    const expectedRuleCountByVersionId = new Map(expectedRuleCounts);
 
     return assessments.map((assessment) => {
       const domainCase = assessment.domainCase;
       const assessmentCoverage = coverageByAssessment.get(assessment.id) ?? [];
+      const completePins = Boolean(
+        domainCase?.pinnedAt &&
+        domainCase.ruleSetVersionId &&
+        domainCase.repositorySnapshotId &&
+        domainCase.repositoryScanJobId &&
+        domainCase.repositoryCommit,
+      );
       const pinned = domainCase?.repositorySnapshotId
         ? pinnedById.get(domainCase.repositorySnapshotId)
         : undefined;
@@ -2254,12 +2838,16 @@ export class AssessmentTrackingLoader {
               factsById,
             })
           : null;
-      const completePins = Boolean(
-        domainCase?.pinnedAt &&
-        domainCase.ruleSetVersionId &&
-        domainCase.repositorySnapshotId &&
-        domainCase.repositoryScanJobId &&
-        domainCase.repositoryCommit,
+      const expectedRulesCount = domainCase?.ruleSetVersionId
+        ? (expectedRuleCountByVersionId.get(domainCase.ruleSetVersionId) ?? 0)
+        : 0;
+      const hasCompleteCoverage = Boolean(
+        completePins &&
+        hasCanonicalCompleteCoverage(
+          assessmentCoverage.length,
+          expectedRulesCount,
+        ) &&
+        domainCase?.ruleSet?.validationOutcome === "PASSED",
       );
       const report = domainCase?.artifacts[0] ?? null;
       const lifecycleComplete =
@@ -2280,7 +2868,12 @@ export class AssessmentTrackingLoader {
         trustStatus = TRACKING_TRUST_STATUSES.STALE;
       else if (domainCase?.ruleSet?.validationOutcome !== "PASSED")
         trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
-      else if (!lifecycleComplete || !evaluation || evaluation.unresolved > 0)
+      else if (
+        !lifecycleComplete ||
+        !evaluation ||
+        !hasCompleteCoverage ||
+        evaluation.unresolved > 0
+      )
         trustStatus = TRACKING_TRUST_STATUSES.IN_PROGRESS;
       else if (!report) trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
       else trustStatus = TRACKING_TRUST_STATUSES.TRUSTED;
@@ -2297,6 +2890,7 @@ export class AssessmentTrackingLoader {
         freshnessStatus,
         observedAt,
         trustStatus,
+        hasCompleteCoverage,
         rules: assessmentCoverage.map((rule) => ({
           assessmentRuleId: rule.assessmentRuleId,
           concept:

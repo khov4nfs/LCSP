@@ -1,9 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   adminTrackingOperationalSchema,
   customerTrackingObligationsSchema,
+  customerTrackingObligationAssessmentsSchema,
+  type CustomerTrackingObligationAssessmentsQuery,
   customerTrackingOverviewSchema,
   customerTrackingReportsSchema,
   type CustomerTrackingListQuery,
@@ -18,7 +20,7 @@ const trackingKeys = {
   admin: ["tracking", "admin-operational"] as const,
 };
 
-function queryString(values: Record<string, string | number | undefined>) {
+function queryString(values: Record<string, string | number | boolean | undefined>) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
     if (value !== undefined && value !== "") params.set(key, String(value));
@@ -43,6 +45,44 @@ export function useCustomerTrackingObligationsQuery(query: CustomerTrackingListQ
   return useQuery({
     queryKey: trackingKeys.obligations(query),
     queryFn: () => apiValidated(`/api/assessments/tracking/obligations${params}`, customerTrackingObligationsSchema),
+  });
+}
+
+export function useCustomerTrackingObligationAssessmentsQuery(
+  query: CustomerTrackingObligationAssessmentsQuery,
+  enabled = true,
+) {
+  const params = queryString({ ...query, limit: query.limit ?? 20 });
+  return useQuery({
+    queryKey: ["tracking", "obligation-assessments", query],
+    queryFn: () => apiValidated(
+      `/api/assessments/tracking/obligations/assessments${params}`,
+      customerTrackingObligationAssessmentsSchema,
+    ),
+    enabled,
+  });
+}
+
+export function useCustomerTrackingObligationAssessmentsPages(
+  query: CustomerTrackingObligationAssessmentsQuery,
+  initialOffset: number,
+  enabled: boolean,
+) {
+  return useInfiniteQuery({
+    queryKey: ["tracking", "obligation-assessments-pages", query],
+    initialPageParam: initialOffset,
+    queryFn: ({ pageParam }) => {
+      const params = queryString({ ...query, limit: query.limit ?? 20, offset: pageParam });
+      return apiValidated(
+        `/api/assessments/tracking/obligations/assessments${params}`,
+        customerTrackingObligationAssessmentsSchema,
+      );
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasMore
+        ? lastPage.pagination.offset + lastPage.pagination.limit
+        : undefined,
+    enabled,
   });
 }
 

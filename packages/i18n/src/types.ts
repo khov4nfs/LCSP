@@ -1287,6 +1287,13 @@ export type PagesMessages = {
       noChanges: string;
       noAssessments: string;
       noObligations: string;
+      notEvaluatedCount: string;
+      notEvaluated: string;
+      notEvaluatedDescription: string;
+      reviewAssessments: string;
+      investigateAssessment: string;
+      assessmentIdLabel: string;
+      detectedAt: string;
       noReports: string;
       loading: string;
       errorTitle: string;
@@ -1352,6 +1359,7 @@ export type PagesMessages = {
         nextPage: string;
         portfolioCount: string;
         moreAssessments: string;
+      loadMoreAssessments: string;
         notAvailable: string;
         noOperationalItems: string;
         failedAssessments: string;
@@ -1364,6 +1372,7 @@ export type PagesMessages = {
           nonCompliant: string;
           notApplicable: string;
           unresolved: string;
+      notEvaluated: string;
         };
     };
     nextActions: {

@@ -19,6 +19,10 @@ export function TrackingOutcomeBadge({ outcome }: { outcome: TrackingRuleOutcome
   return <Badge variant={variant}>{t(`outcome.${outcome}`)}</Badge>;
 }
 
+export function TrackingNotEvaluatedBadge() {
+  return <Badge variant="outline">{t("notEvaluated")}</Badge>;
+}
+
 export function TrackingFreshnessBadge({ status }: { status: TrackingFreshnessStatus }) {
   const variant = status === TRACKING_FRESHNESS_STATUSES.STALE ? "destructive" : "outline";
   return <Badge variant={variant}>{t(`freshnessState.${status}`)}</Badge>;

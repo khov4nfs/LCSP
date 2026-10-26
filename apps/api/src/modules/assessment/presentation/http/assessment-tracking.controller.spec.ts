@@ -21,6 +21,7 @@ import {
   TRACKING_FRESHNESS_STATUSES,
   TRACKING_TRUST_STATUSES,
   type CustomerTrackingOverview,
+  type CustomerTrackingObligationAssessments,
   type AdminTrackingOperational,
 } from "@lcsp/contracts/assessment-domain";
 import {
@@ -145,6 +146,12 @@ describe("AssessmentTrackingControllers", () => {
     generatedAt: new Date().toISOString(),
   };
 
+  const mockObligationAssessments: CustomerTrackingObligationAssessments = {
+    items: [],
+    pagination: { total: 0, limit: 20, offset: 0, hasMore: false },
+    generatedAt: new Date().toISOString(),
+  };
+
   const loadCustomerOverview = jest
     .fn<AssessmentTrackingLoader["loadCustomerOverview"]>()
     .mockResolvedValue(mockOverview);
@@ -153,8 +160,13 @@ describe("AssessmentTrackingControllers", () => {
     .fn<AssessmentTrackingLoader["loadAdminOperational"]>()
     .mockResolvedValue(mockOperational);
 
+  const loadCustomerObligationAssessments = jest
+    .fn<AssessmentTrackingLoader["loadCustomerObligationAssessments"]>()
+    .mockResolvedValue(mockObligationAssessments);
+
   const trackingLoaderMock = {
     loadCustomerOverview,
+    loadCustomerObligationAssessments,
     loadAdminOperational,
   };
 
@@ -342,6 +354,48 @@ describe("AssessmentTrackingControllers", () => {
           since: validSince,
         }),
       );
+    });
+  });
+
+  describe("GET /assessments/tracking/obligations/assessments", () => {
+    it("validates the group key, forwards pagination, and returns the shared envelope for CUSTOMER", async () => {
+      currentRole = AUTH_USER_ROLES.customer;
+      currentUserId = "cust-1";
+      const res = await supertest(server)
+        .get(
+          "/assessments/tracking/obligations/assessments?ruleSetVersionId=00000000-0000-4000-8000-000000000001&assessmentRuleId=RULE-MFA&limit=20&offset=20",
+        )
+        .expect(HttpStatus.OK);
+      expect(res.body).toEqual({ ok: true, data: mockObligationAssessments });
+      expect(loadCustomerObligationAssessments).toHaveBeenCalledWith({
+        sessionUserId: "cust-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+        assessmentRuleId: "RULE-MFA",
+        limit: 20,
+        offset: 20,
+        outcome: undefined,
+        freshness: undefined,
+      });
+    });
+
+    it("rejects CUSTOMER/ADMIN authorization violations and malformed obligation identifiers", async () => {
+      currentRole = AUTH_USER_ROLES.admin;
+      await supertest(server)
+        .get(
+          "/assessments/tracking/obligations/assessments?ruleSetVersionId=00000000-0000-4000-8000-000000000001&assessmentRuleId=RULE-MFA",
+        )
+        .expect(HttpStatus.FORBIDDEN);
+      expect(loadCustomerObligationAssessments).not.toHaveBeenCalled();
+
+      currentRole = AUTH_USER_ROLES.customer;
+      const invalid = await supertest(server)
+        .get(
+          "/assessments/tracking/obligations/assessments?ruleSetVersionId=invalid&assessmentRuleId=RULE-MFA",
+        )
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((invalid.body as Record<string, unknown>).ok).toBe(false);
+      expect(loadCustomerObligationAssessments).not.toHaveBeenCalled();
     });
   });
 

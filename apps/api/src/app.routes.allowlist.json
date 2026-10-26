@@ -34,6 +34,7 @@
   "GET /assessments/:assessmentId/repository-setup",
   "GET /assessments/:assessmentId/runtime/control",
   "GET /assessments/tracking/obligations",
+  "GET /assessments/tracking/obligations/assessments",
   "GET /assessments/tracking/overview",
   "GET /assessments/tracking/reports",
   "GET /audit-events",

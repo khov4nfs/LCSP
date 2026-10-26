@@ -22,13 +22,14 @@ import { AssessmentReportActions } from "@/features/assessment-runtime/component
 import { TrackingSection } from "../molecules/tracking-section";
 import {
   TrackingFreshnessBadge,
+  TrackingNotEvaluatedBadge,
   TrackingOutcomeBadge,
   TrackingTrustBadge,
 } from "../molecules/tracking-status-badge";
 
 export function TrackingDashboard() {
   const overview = useCustomerTrackingOverviewQuery();
-  const obligations = useCustomerTrackingObligationsQuery({ limit: 5 });
+  const obligations = useCustomerTrackingObligationsQuery({ limit: 5, needsAttention: true });
   const reports = useCustomerTrackingReportsQuery({ limit: 3 });
   const data = overview.data;
   if (overview.isPending && !data) {
@@ -40,7 +41,7 @@ export function TrackingDashboard() {
       {overview.isError ? <TrackingError onRetry={() => void overview.refetch()} /> : null}
 
       {data ? <>
-        <TrackingSection title={t("actionsTitle")} description={t("actionsDescription")}>
+        <TrackingSection title={t("actionsTitle")} description={t("actionsDescription")} compact={!data.actions.length}>
           {data.actions.length ? <div className="flex flex-col divide-y">
             {data.actions.map((item) => <Link key={item.requestId}
               href={`/assessments/${encodeURIComponent(item.assessmentId)}?requestId=${encodeURIComponent(item.requestId)}`}
@@ -51,7 +52,7 @@ export function TrackingDashboard() {
           </div> : <p className="text-sm text-muted-foreground">{t("noActions")}</p>}
         </TrackingSection>
 
-        <TrackingSection title={t("changesTitle")} description={t("changesDescription")}>
+        <TrackingSection title={t("changesTitle")} description={t("changesDescription")} compact={!data.changes.length}>
           {data.changes.length ? <div className="flex flex-col divide-y">
             {data.changes.map((item, index) => {
               return <Link key={`${item.assessmentId}-${item.changeType}-${index}`} href={item.destinationUrl} className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto]">
@@ -71,11 +72,12 @@ export function TrackingDashboard() {
 
         <TrackingSection title={t("obligationsTitle")} description={t("obligationsDescription")} action={<Button render={<Link href="/workspace/compliance" />} variant="outline" nativeButton={false}>{t("viewAll")}</Button>}>
           {obligations.isError ? <TrackingError onRetry={() => void obligations.refetch()} /> : obligations.isPending ? <Skeleton className="h-24 w-full" /> : obligations.data?.items.length ? <div className="flex flex-col divide-y">
-            {obligations.data.items.filter((item) => item.nonCompliantCount > 0 || item.unresolvedCount > 0).slice(0, 5).map((item) => <div key={`${item.ruleSetVersionId}-${item.assessmentRuleId}`} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+            {obligations.data.items.map((item) => <div key={`${item.ruleSetVersionId}-${item.assessmentRuleId}`} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div><p className="font-medium">{item.concept}</p><p className="text-xs text-muted-foreground">{item.ruleSetVersion ?? item.ruleSetVersionId}</p></div>
               <div className="flex flex-wrap gap-2">{item.nonCompliantCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.NON_COMPLIANT} /> : null}<span className="text-sm text-muted-foreground">{item.affectedAssessmentCount}</span></div>
             </div>)}
-          </div> : <p className="text-sm text-muted-foreground">{t("noObligations")}</p>}
+          </div> : obligations.data?.evaluationSummary.notEvaluatedAssessmentCount ? <div className="space-y-2"><p className="text-sm text-muted-foreground">{obligations.data.evaluationSummary.notEvaluatedAssessmentCount.toLocaleString(appLocale)} {t("notEvaluatedCount")}</p><Link className="inline-flex min-h-10 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href="/assessments">{t("reviewAssessments")}</Link></div> : <p className="text-sm text-muted-foreground">{t("noObligations")}</p>}
+          {obligations.data && obligations.data.items.length > 0 && obligations.data.evaluationSummary.notEvaluatedAssessmentCount > 0 ? <p className="pt-3 text-sm text-muted-foreground">{obligations.data.evaluationSummary.notEvaluatedAssessmentCount.toLocaleString(appLocale)} {t("notEvaluatedCount")} <Link className="underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href="/assessments">{t("reviewAssessments")}</Link></p> : null}
         </TrackingSection>
 
         <TrackingSection title={t("reportsTitle")} description={t("reportsDescription")} action={<Button render={<Link href="/workspace/reports" />} variant="outline" nativeButton={false}>{t("viewAll")}</Button>}>
@@ -103,8 +105,8 @@ export function AssessmentTrackingCard({ item }: { item: CustomerTrackingAssessm
         {item.compliance.compliantCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.COMPLIANT} /> : null}
         {item.compliance.nonCompliantCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.NON_COMPLIANT} /> : null}
         {item.compliance.notApplicableCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.NOT_APPLICABLE} /> : null}
-        {item.compliance.unresolvedCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.UNRESOLVED} /> : null}
-        {Object.values(item.compliance).every((value) => value === 0) ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.UNRESOLVED} /> : null}
+        {!item.ruleSet.ruleSetVersionId ? <TrackingNotEvaluatedBadge /> : item.compliance.unresolvedCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.UNRESOLVED} /> : null}
+        {item.ruleSet.ruleSetVersionId && Object.values(item.compliance).every((value) => value === 0) ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.UNRESOLVED} /> : null}
       </div>
       <TrackingTrustBadge status={item.trust.trustStatus} />
       <TrackingFreshnessBadge status={item.repository.freshnessStatus} />
@@ -135,6 +137,7 @@ function t(suffix: string) {
 }
 
 function summaryKey(item: CustomerTrackingAssessmentItem) {
+  if (!item.ruleSet.ruleSetVersionId) return "summary.notEvaluated";
   if (item.compliance.nonCompliantCount > 0) return "summary.nonCompliant";
   if (item.compliance.unresolvedCount > 0 || Object.values(item.compliance).every((value) => value === 0)) return "summary.unresolved";
   if (item.compliance.compliantCount === 0) return "summary.notApplicable";

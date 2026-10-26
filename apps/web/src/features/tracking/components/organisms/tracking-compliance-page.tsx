@@ -15,7 +15,8 @@ import { appLocale } from "@/lib/locale";
 import { useCustomerTrackingObligationsQuery } from "@/lib/api/tracking-queries";
 import { TrackingSection } from "../molecules/tracking-section";
 import { TrackingError } from "./tracking-dashboard";
-import { TrackingFreshnessBadge, TrackingOutcomeBadge, TrackingTrustBadge } from "../molecules/tracking-status-badge";
+import { TrackingOutcomeBadge } from "../molecules/tracking-status-badge";
+import { TrackingObligationAssessments } from "../molecules/tracking-obligation-assessments";
 
 export function TrackingCompliancePage() {
   const [outcome, setOutcome] = useState<TrackingRuleOutcome | "">("");
@@ -35,6 +36,11 @@ export function TrackingCompliancePage() {
     </div>
     {query.isError ? <TrackingError onRetry={() => void query.refetch()} /> : null}
     {query.isPending ? <Skeleton className="h-72" /> : null}
+    {data && data.evaluationSummary.notEvaluatedAssessmentCount > 0 ? <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4" role="status">
+      <p className="font-medium">{data.evaluationSummary.notEvaluatedAssessmentCount.toLocaleString(appLocale)} {t("notEvaluatedCount")}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{t("notEvaluatedDescription")}</p>
+      <Link className="mt-3 inline-flex min-h-10 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href="/assessments">{t("reviewAssessments")}</Link>
+    </div> : null}
     {data ? <TrackingSection title={t("obligationsTitle")} description={`${t("portfolioCount")}: ${data.pagination.total.toLocaleString(appLocale)}`}>
       {data.items.length ? <div className="flex flex-col divide-y">{data.items.map((item) => <article key={`${item.ruleSetVersionId}-${item.assessmentRuleId}`} className="grid gap-4 py-4 first:pt-0 last:pb-0 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0"><h2 className="font-medium">{item.concept}</h2><p className="mt-1 text-xs text-muted-foreground">{t("ruleSet")}: {item.ruleSetVersion ?? item.ruleSetVersionId}</p><div className="mt-3 flex flex-wrap gap-2">
@@ -43,12 +49,10 @@ export function TrackingCompliancePage() {
           {item.notApplicableCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.NOT_APPLICABLE} /> : null}
           {item.unresolvedCount > 0 ? <TrackingOutcomeBadge outcome={TRACKING_RULE_OUTCOMES.UNRESOLVED} /> : null}
         </div></div>
-        <div className="flex flex-col gap-2 lg:min-w-80">{item.assessments.map((assessment) => <Link key={assessment.assessmentId} href={`/assessments/${encodeURIComponent(assessment.assessmentId)}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 text-sm hover:bg-muted">
-          <span className="min-w-0 truncate font-medium">{assessment.assessmentName}</span><span className="flex flex-col items-end gap-1"><span className="flex flex-wrap gap-1"><TrackingOutcomeBadge outcome={assessment.outcome} /><TrackingFreshnessBadge status={assessment.freshnessStatus} /><TrackingTrustBadge status={assessment.trustStatus} /></span><span className="text-xs text-muted-foreground">{t("observedAt")}: {assessment.observedAt ? formatDate(assessment.observedAt) : t("freshnessState.FRESHNESS_UNKNOWN")}</span></span>
-        </Link>)}{item.affectedAssessmentCount > item.assessments.length ? <span className="text-xs text-muted-foreground">{(item.affectedAssessmentCount - item.assessments.length).toLocaleString(appLocale)} {t("moreAssessments")}</span> : null}</div>
-      </article>)}</div> : <p className="py-6 text-sm text-muted-foreground">{t("noObligations")}</p>}
+        <TrackingObligationAssessments ruleSetVersionId={item.ruleSetVersionId} assessmentRuleId={item.assessmentRuleId} assessments={item.assessments} affectedAssessmentCount={item.affectedAssessmentCount} outcome={outcome || undefined} freshness={freshness || undefined} />
+      </article>)}</div> : <p className="py-6 text-sm text-muted-foreground">{data.evaluationSummary.notEvaluatedAssessmentCount > 0 ? t("notEvaluatedDescription") : t("noObligations")}</p>}
     </TrackingSection> : null}
-    {data ? <div className="flex items-center justify-end gap-2">
+    {data && (data.pagination.total > data.pagination.limit || data.pagination.offset > 0) ? <div className="flex items-center justify-end gap-2">
       <Button variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - data.pagination.limit))}>{t("previousPage")}</Button>
       <Button variant="outline" disabled={!data.pagination.hasMore} onClick={() => setOffset(offset + data.pagination.limit)}>{t("nextPage")}</Button>
     </div> : null}
@@ -57,8 +61,4 @@ export function TrackingCompliancePage() {
 
 function t(suffix: string) {
   return resolveMessage(appLocale, `pages.workspace.tracking.${suffix}` as MessageKey);
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(appLocale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }

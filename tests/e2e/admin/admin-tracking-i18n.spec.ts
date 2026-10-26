@@ -48,6 +48,13 @@ for (const { locale, heading, reason } of [
 
     await expect(page.getByText(heading, { exact: true }).last()).toBeVisible();
     await expect(page.getByText(reason)).toBeVisible();
+    const investigation = page.getByRole("link", { name: locale === "en" ? "Open investigation" : "Mở điều tra" });
+    await expect(investigation).toBeVisible();
+    await investigation.focus();
+    await expect(investigation).toBeFocused();
+    await investigation.click();
+    await expect(page).toHaveURL(/#investigation-/);
+    await expect(page.locator("[id^='investigation-']").first()).toBeVisible();
     await expect(page.getByText("RULE_SET_UNAVAILABLE")).toHaveCount(0);
     await expect(
       page.getByText(operationalData.untrustedProjections[0].detail, {

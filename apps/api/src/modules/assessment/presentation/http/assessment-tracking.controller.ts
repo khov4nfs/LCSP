@@ -4,8 +4,10 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   customerTrackingOverviewQuerySchema,
   customerTrackingListQuerySchema,
+  customerTrackingObligationAssessmentsQuerySchema,
   type CustomerTrackingOverviewQuery,
   type CustomerTrackingListQuery,
+  type CustomerTrackingObligationAssessmentsQuery,
 } from "@lcsp/contracts/assessment-domain";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
@@ -21,6 +23,30 @@ import { AssessmentTrackingLoader } from "../../infrastructure/persistence/asses
 @UseGuards(RbacGuard)
 export class AssessmentTrackingController {
   constructor(private readonly trackingLoader: AssessmentTrackingLoader) {}
+
+  /**
+   * Business purpose: Return a customer's paginated assessments for one compliance obligation.
+   * Business rules: CUSTOMER authorization is required; identifiers and filters are validated before the loader applies owner scoping.
+   * Execution flow: 1. Read the authenticated principal. 2. Parse the group key and page. 3. Load only that customer's matching assessment details. 4. Return the shared success envelope.
+   * Failure cases: Invalid group identifiers are rejected by the Zod pipe; unauthorized roles are rejected by the RBAC guard.
+   * Side effects: Read-only data retrieval.
+   */
+  @Get("obligations/assessments")
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async getObligationAssessments(
+    @Req() request: AuthenticatedRequest,
+    @Query(
+      new ZodValidationPipe(customerTrackingObligationAssessmentsQuerySchema),
+    )
+    query: CustomerTrackingObligationAssessmentsQuery,
+  ) {
+    const data = await this.trackingLoader.loadCustomerObligationAssessments({
+      sessionUserId: request.rbacContext.userId,
+      subjectRole: request.rbacContext.role,
+      ...query,
+    });
+    return resultEnvelope(data);
+  }
 
   /**
    * Retrieves the customer tracking dashboard read model.

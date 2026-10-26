@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import type { TrackingUntrustedReason } from "@lcsp/contracts/assessment-domain";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,7 @@ export function AdminTrackingPage() {
         </TrackingSection>
       </div>
       <TrackingSection title={t("untrusted")}>
-        {data.untrustedProjections.length ? <Rows>{data.untrustedProjections.map((item) => <article key={`${item.assessmentId}-${item.untrustedReason}`} className="rounded-lg border p-3"><p className="font-medium">{item.name}</p><p className="mt-1 text-sm">{untrustedReasonMessage(item.untrustedReason)}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(item.detectedAt)}</p></article>)}</Rows> : <Empty />}
+        {data.untrustedProjections.length ? <Rows>{data.untrustedProjections.map((item) => <article id={`investigation-${item.assessmentId}`} key={`${item.assessmentId}-${item.untrustedReason}`} className="rounded-lg border p-3"><p className="font-medium">{item.name}</p><p className="mt-1 text-sm">{untrustedReasonMessage(item.untrustedReason)}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(item.detectedAt)}</p><details className="mt-2 text-sm"><summary className="cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("detail")}</summary><dl className="mt-2 space-y-1 text-xs"><Fact label={t("assessmentIdLabel")} value={item.assessmentId} /><Fact label={t("detectedAt")} value={formatDate(item.detectedAt)} /></dl></details><Link href={`/admin/tracking#investigation-${encodeURIComponent(item.assessmentId)}`} className="mt-3 inline-flex min-h-10 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("investigateAssessment")}</Link></article>)}</Rows> : <Empty />}
       </TrackingSection>
     </> : null}
   </div>;
@@ -68,7 +69,7 @@ function Empty() {
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{label}</dt><dd className="max-w-[65%] break-all text-right">{value || t("notAvailable")}</dd></div>;
+  return <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{label}</dt><dd className="max-w-3/5 break-all text-right">{value || t("notAvailable")}</dd></div>;
 }
 
 function t(suffix: string) {

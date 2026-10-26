@@ -15,6 +15,7 @@ import { HUMAN_RESOLUTION_REQUEST_STATUSES } from "@lcsp/contracts/assessment";
 import {
   TRACKING_ACTION_REASONS,
   TRACKING_CHANGE_TYPES,
+  TRACKING_FRESHNESS_STATUSES,
 } from "@lcsp/contracts/assessment-domain";
 import { AssessmentTrackingLoader } from "../src/modules/assessment/infrastructure/persistence/assessment-tracking.loader.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
@@ -362,12 +363,36 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       subjectRole: AUTH_USER_ROLES.customer,
       correlationId: `corr-parity-valid-${randomUUID()}`,
     });
+    const obligations = await loader.loadCustomerObligations({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-obligation-parity-${randomUUID()}`,
+      needsAttention: false,
+      freshness: TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+    });
 
     // Real PostgreSQL summary and detail agreement
     expect(result.complianceSummary.compliantCount).toBe(1);
     expect(result.complianceSummary.unresolvedCount).toBe(0);
     expect(result.assessments[0].compliance.compliantCount).toBe(1);
     expect(result.assessments[0].compliance.unresolvedCount).toBe(0);
+    expect(obligations.pagination.total).toBe(1);
+    expect(obligations.items[0]).toMatchObject({
+      ruleSetVersionId,
+      assessmentRuleId: "RULE-1",
+      concept: "security",
+      compliantCount: 1,
+      nonCompliantCount: 0,
+      unresolvedCount: 0,
+      affectedAssessmentCount: 1,
+    });
+    expect(obligations.evaluationSummary).toEqual({
+      evaluatedAssessmentCount: 1,
+      notEvaluatedAssessmentCount: 0,
+    });
+    expect(obligations.items[0].assessments[0].freshnessStatus).toBe(
+      TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+    );
   });
 
   it("proves SQL summary rejects structurally invalid decision (empty criteria/references) with 100% parity to per-assessment evaluation", async () => {

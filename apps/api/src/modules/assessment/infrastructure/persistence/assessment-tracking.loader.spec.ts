@@ -80,8 +80,31 @@ interface FixtureTypes {
     notApplicableCount: number;
     unresolvedCount: number;
   };
+  queryRawObligationPayload?: {
+    total: number;
+    evaluationSummary: {
+      evaluatedAssessmentCount: number;
+      notEvaluatedAssessmentCount: number;
+    };
+    items: Array<{
+      ruleSetVersionId: string;
+      ruleSetVersion: string | null;
+      assessmentRuleId: string;
+      concept: string;
+      compliantCount: number;
+      nonCompliantCount: number;
+      notApplicableCount: number;
+      unresolvedCount: number;
+      affectedAssessmentCount: number;
+      previewAssessmentIds: string[];
+    }>;
+  };
+  onObligationAggregateQuery?: (querySql: string) => void;
   queryRawError?: Error;
   onFindManyDecision?: (where?: unknown) => void;
+  onAssessmentFindMany?: (args?: unknown) => void | Promise<void>;
+  onSnapshotFindMany?: (args?: unknown) => void;
+  onSnapshotFindFirst?: () => void;
   counts?: {
     active?: number;
     failed?: number;
@@ -136,9 +159,28 @@ function createValidCompliantDecision(overrides: Record<string, unknown> = {}) {
 
 function buildLoader(fixtures: FixtureTypes) {
   const prisma = {
-    $queryRaw: () => {
+    $queryRaw: (query?: unknown) => {
       if (fixtures.queryRawError) {
         return Promise.reject(fixtures.queryRawError);
+      }
+      const querySql =
+        query && typeof query === "object" && "sql" in query
+          ? ((query as { sql?: string }).sql ?? "")
+          : "";
+      if (querySql.includes("tracking-obligation-aggregate")) {
+        fixtures.onObligationAggregateQuery?.(querySql);
+        return Promise.resolve([
+          {
+            payload: fixtures.queryRawObligationPayload ?? {
+              total: 0,
+              evaluationSummary: {
+                evaluatedAssessmentCount: 0,
+                notEvaluatedAssessmentCount: 0,
+              },
+              items: [],
+            },
+          },
+        ]);
       }
       if (fixtures.queryRawSummary) {
         return Promise.resolve([fixtures.queryRawSummary]);
@@ -276,19 +318,32 @@ function buildLoader(fixtures: FixtureTypes) {
       ]);
     },
     assessment: {
-      findMany: (args?: {
+      findMany: async (args?: {
         skip?: number;
         take?: number;
         where?: {
           ownerId?: string;
+          id?: { in?: string[] };
           lifecycleState?: string;
           updatedAt?: { gte?: Date };
-          domainCase?: { artifacts?: { none?: unknown } };
+          domainCase?: {
+            artifacts?: { none?: unknown };
+            is?: {
+              ruleSetVersionId?: string;
+              coverage?: {
+                some?: { ruleSetVersionId?: string; assessmentRuleId?: string };
+              };
+            };
+          };
         };
       }) => {
+        await fixtures.onAssessmentFindMany?.(args);
         let list = fixtures.assessments ?? [];
         if (args?.where?.ownerId) {
           list = list.filter((a) => a.ownerId === args.where?.ownerId);
+        }
+        if (args?.where?.id?.in) {
+          list = list.filter((a) => args.where?.id?.in?.includes(String(a.id)));
         }
         if (args?.where?.lifecycleState) {
           list = list.filter(
@@ -308,16 +363,47 @@ function buildLoader(fixtures: FixtureTypes) {
             return !hasReport;
           });
         }
+        const groupFilter = args?.where?.domainCase?.is;
+        if (groupFilter?.ruleSetVersionId && groupFilter.coverage?.some) {
+          list = list.filter((assessment) => {
+            const domainCase = assessment.domainCase as {
+              ruleSetVersionId?: string;
+              coverage?: Array<Record<string, unknown>>;
+            } | null;
+            return (
+              domainCase?.ruleSetVersionId === groupFilter.ruleSetVersionId &&
+              domainCase?.coverage?.some(
+                (rule) =>
+                  rule.ruleSetVersionId ===
+                    groupFilter.coverage?.some?.ruleSetVersionId &&
+                  rule.assessmentRuleId ===
+                    groupFilter.coverage?.some?.assessmentRuleId,
+              )
+            );
+          });
+        }
         if (args?.skip !== undefined && args?.take !== undefined) {
-          return Promise.resolve(list.slice(args.skip, args.skip + args.take));
+          return list.slice(args.skip, args.skip + args.take);
         }
         if (args?.take !== undefined) {
-          return Promise.resolve(list.slice(0, args.take));
+          return list.slice(0, args.take);
         }
-        return Promise.resolve(list);
+        return list;
       },
       count: (args?: {
-        where?: { lifecycleState?: string; OR?: unknown[] };
+        where?: {
+          lifecycleState?: string;
+          OR?: unknown[];
+          ownerId?: string;
+          domainCase?: {
+            is?: {
+              ruleSetVersionId?: string;
+              coverage?: {
+                some?: { ruleSetVersionId?: string; assessmentRuleId?: string };
+              };
+            };
+          };
+        };
       }) => {
         if (args?.where?.lifecycleState === "ACTIVE") {
           return Promise.resolve(fixtures.counts?.active ?? 0);
@@ -331,7 +417,31 @@ function buildLoader(fixtures: FixtureTypes) {
         if (args?.where?.OR) {
           return Promise.resolve(fixtures.counts?.untrusted ?? 0);
         }
-        return Promise.resolve(fixtures.assessments?.length ?? 0);
+        let assessments = fixtures.assessments ?? [];
+        if (args?.where?.ownerId)
+          assessments = assessments.filter(
+            (assessment) => assessment.ownerId === args.where?.ownerId,
+          );
+        const groupFilter = args?.where?.domainCase?.is;
+        if (groupFilter?.ruleSetVersionId && groupFilter.coverage?.some) {
+          assessments = assessments.filter((assessment) => {
+            const domainCase = assessment.domainCase as {
+              ruleSetVersionId?: string;
+              coverage?: Array<Record<string, unknown>>;
+            } | null;
+            return (
+              domainCase?.ruleSetVersionId === groupFilter.ruleSetVersionId &&
+              domainCase?.coverage?.some(
+                (rule) =>
+                  rule.ruleSetVersionId ===
+                    groupFilter.coverage?.some?.ruleSetVersionId &&
+                  rule.assessmentRuleId ===
+                    groupFilter.coverage?.some?.assessmentRuleId,
+              )
+            );
+          });
+        }
+        return Promise.resolve(assessments.length);
       },
     },
     assessmentHumanRequest: {
@@ -393,9 +503,50 @@ function buildLoader(fixtures: FixtureTypes) {
       },
     },
     assessmentArtifact: {
-      findMany: () => {
+      count: (args?: {
+        where?: {
+          assessmentCase?: {
+            assessment?: { ownerId?: string; lifecycleState?: string };
+          };
+        };
+      }) => {
+        const ownerId = args?.where?.assessmentCase?.assessment?.ownerId;
+        const lifecycleState =
+          args?.where?.assessmentCase?.assessment?.lifecycleState;
+        let count = 0;
+        for (const assessment of fixtures.assessments ?? []) {
+          if (ownerId && assessment.ownerId !== ownerId) continue;
+          if (lifecycleState && assessment.lifecycleState !== lifecycleState)
+            continue;
+          const domainCase = assessment.domainCase as
+            { artifacts?: Array<Record<string, unknown>> } | undefined;
+          count +=
+            domainCase?.artifacts?.filter(
+              (artifact) =>
+                (artifact.kind === undefined ||
+                  artifact.kind === "FINAL_REPORT") &&
+                (artifact.lifecycleState === undefined ||
+                  artifact.lifecycleState === "ACTIVE"),
+            ).length ?? 0;
+        }
+        return Promise.resolve(count);
+      },
+      findMany: (args?: {
+        skip?: number;
+        take?: number;
+        where?: {
+          assessmentCase?: {
+            assessment?: { ownerId?: string; lifecycleState?: string };
+          };
+        };
+      }) => {
         const artifacts: Array<Record<string, unknown>> = [];
         for (const a of fixtures.assessments ?? []) {
+          const ownerId = args?.where?.assessmentCase?.assessment?.ownerId;
+          const lifecycleState =
+            args?.where?.assessmentCase?.assessment?.lifecycleState;
+          if (ownerId && a.ownerId !== ownerId) continue;
+          if (lifecycleState && a.lifecycleState !== lifecycleState) continue;
           if (a.lifecycleState !== "COMPLETE") continue;
           const dc = a.domainCase as
             { artifacts?: Array<Record<string, unknown>> } | undefined;
@@ -408,6 +559,7 @@ function buildLoader(fixtures: FixtureTypes) {
               ) {
                 artifacts.push({
                   ...art,
+                  assessmentId: a.id,
                   assessmentCase: {
                     assessment: {
                       id: a.id,
@@ -419,7 +571,14 @@ function buildLoader(fixtures: FixtureTypes) {
             }
           }
         }
-        return Promise.resolve(artifacts);
+        artifacts.sort(
+          (a, b) =>
+            new Date(b.createdAt as Date).getTime() -
+            new Date(a.createdAt as Date).getTime(),
+        );
+        const start = args?.skip ?? 0;
+        const end = args?.take === undefined ? undefined : start + args.take;
+        return Promise.resolve(artifacts.slice(start, end));
       },
     },
     assessmentCase: {
@@ -492,6 +651,7 @@ function buildLoader(fixtures: FixtureTypes) {
     },
     repositorySnapshot: {
       findMany: (args?: { where?: { id?: { in?: string[] } } }) => {
+        fixtures.onSnapshotFindMany?.(args);
         const all = fixtures.snapshots ?? [];
         if (args?.where?.id?.in) {
           const inIds = args.where.id.in;
@@ -513,6 +673,7 @@ function buildLoader(fixtures: FixtureTypes) {
           }>;
         };
       }) => {
+        fixtures.onSnapshotFindFirst?.();
         const where = args?.where;
         const all = fixtures.snapshots ?? [];
         const match = all
@@ -991,7 +1152,7 @@ describe("AssessmentTrackingLoader", () => {
           caseRevision: 1,
           pinnedAt,
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
-          repositorySnapshotId: "snapshot-pinned",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
           repositoryCommit: "a000000000000000000000000000000000000001",
           humanRequests: [],
@@ -1002,7 +1163,7 @@ describe("AssessmentTrackingLoader", () => {
         assessments: [assessment],
         snapshots: [
           {
-            id: "snapshot-pinned",
+            id: "00000000-0000-4000-8000-000000000002",
             repositoryFullName: "acme/payments",
             ref: "main",
             commitSha: "a000000000000000000000000000000000000001",
@@ -2389,6 +2550,212 @@ describe("AssessmentTrackingLoader", () => {
   });
 
   describe("customer tracking lists", () => {
+    it("pages report records and loads associated assessment details only for the requested page", async () => {
+      const assessments = Array.from({ length: 125 }, (_, index) => {
+        const number = String(index + 1).padStart(12, "0");
+        const assessmentId = `11111111-1111-4111-8111-${number}`;
+        const snapshotId = `snapshot-${number}`;
+        return {
+          id: assessmentId,
+          ownerId: "customer-1",
+          name: `Report ${number}`,
+          lifecycleState: "COMPLETE",
+          blockerReason: null,
+          updatedAt: new Date("2026-10-18T10:00:00.000Z"),
+          domainCase: {
+            caseRevision: 1,
+            pinnedAt: new Date("2026-10-18T10:00:00.000Z"),
+            ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+            repositorySnapshotId: snapshotId,
+            repositoryScanJobId: "scan-1",
+            repositoryCommit: "a000000000000000000000000000000000000001",
+            ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
+            coverage: [],
+            artifacts: [
+              {
+                artifactId: `33333333-3333-4333-8333-${number}`,
+                createdAt: new Date(2026, 9, 18, 10, index),
+              },
+            ],
+            humanRequests: [],
+          },
+        };
+      });
+      const snapshots = assessments.map((assessment, index) => ({
+        id: `snapshot-${String(index + 1).padStart(12, "0")}`,
+        repositoryFullName: `acme/repo-${index + 1}`,
+        ref: "main",
+        commitSha: "a000000000000000000000000000000000000001",
+        createdAt: new Date("2026-10-18T10:00:00.000Z"),
+        status: "READY",
+        ownerId: "customer-1",
+      }));
+      let detailAssessmentIds: string[] = [];
+      let snapshotBatchCount = 0;
+      let snapshotFindFirstCount = 0;
+      const loader = buildLoader({
+        assessments,
+        snapshots,
+        onAssessmentFindMany: (args) => {
+          const where = (
+            args as { where?: { id?: { in?: string[] } } } | undefined
+          )?.where;
+          detailAssessmentIds = where?.id?.in ?? [];
+        },
+        onSnapshotFindMany: () => {
+          snapshotBatchCount++;
+        },
+        onSnapshotFindFirst: () => {
+          snapshotFindFirstCount++;
+        },
+      });
+      const page = await loader.loadCustomerReports({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-bounded-report-page",
+        limit: 10,
+        offset: 20,
+      });
+      expect(page.pagination).toEqual({
+        total: 125,
+        limit: 10,
+        offset: 20,
+        hasMore: true,
+      });
+      expect(page.items).toHaveLength(10);
+      expect(detailAssessmentIds).toHaveLength(10);
+      expect(snapshotBatchCount).toBe(2);
+      expect(snapshotFindFirstCount).toBe(0);
+    });
+
+    it("processes obligation aggregates in bounded assessment and snapshot batches", async () => {
+      const ruleSetVersionId = "00000000-0000-4000-8000-000000000001";
+      const assessments = Array.from({ length: 325 }, (_, index) => {
+        const number = String(index + 1).padStart(12, "0");
+        const assessmentId = `11111111-1111-4111-8111-${number}`;
+        const snapshotId = `snapshot-${number}`;
+        return {
+          id: assessmentId,
+          ownerId: "customer-1",
+          name: `Assessment ${number}`,
+          lifecycleState: "COMPLETE",
+          blockerReason: null,
+          updatedAt: new Date("2026-10-18T10:00:00.000Z"),
+          domainCase: {
+            caseRevision: 1,
+            pinnedAt: new Date("2026-10-18T10:00:00.000Z"),
+            ruleSetVersionId,
+            repositorySnapshotId: snapshotId,
+            repositoryScanJobId: "scan-1",
+            repositoryCommit: "a000000000000000000000000000000000000001",
+            ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
+            coverage: [
+              {
+                assessmentId,
+                assessmentRuleId: "RULE-MFA",
+                ruleSetVersionId,
+                assessmentRuleVersion: "1.0.0",
+                resolutionState: "PENDING",
+                currentDecisionId: null,
+                decisionRevision: 0,
+                assessmentRule: { concept: "Multi-factor authentication" },
+              },
+            ],
+            artifacts: [],
+            humanRequests: [],
+          },
+        };
+      });
+      const coverage = assessments.map((assessment) => ({
+        assessmentId: assessment.id,
+        assessmentRuleId: "RULE-MFA",
+        ruleSetVersionId,
+        assessmentRuleVersion: "1.0.0",
+        resolutionState: "PENDING",
+        currentDecisionId: null,
+        decisionRevision: 0,
+      }));
+      const snapshots = assessments.map((assessment, index) => ({
+        id: `snapshot-${String(index + 1).padStart(12, "0")}`,
+        repositoryFullName: `acme/repository-${index + 1}`,
+        ref: "main",
+        commitSha: "a000000000000000000000000000000000000001",
+        createdAt: new Date("2026-10-18T10:00:00.000Z"),
+        status: "READY",
+        ownerId: "customer-1",
+      }));
+      const assessmentPageSizes: number[] = [];
+      let snapshotBatchCount = 0;
+      let snapshotFindFirstCount = 0;
+      let aggregateQueryCount = 0;
+      let aggregateQuerySql = "";
+      const result = await buildLoader({
+        assessments,
+        coverage,
+        snapshots,
+        queryRawObligationPayload: {
+          total: 1,
+          evaluationSummary: {
+            evaluatedAssessmentCount: 325,
+            notEvaluatedAssessmentCount: 0,
+          },
+          items: [
+            {
+              ruleSetVersionId,
+              ruleSetVersion: "1.0.0",
+              assessmentRuleId: "RULE-MFA",
+              concept: "Multi-factor authentication",
+              compliantCount: 0,
+              nonCompliantCount: 0,
+              notApplicableCount: 0,
+              unresolvedCount: 325,
+              affectedAssessmentCount: 325,
+              previewAssessmentIds: assessments
+                .slice(0, 20)
+                .map((assessment) => String(assessment.id)),
+            },
+          ],
+        },
+        onObligationAggregateQuery: (querySql) => {
+          aggregateQueryCount++;
+          aggregateQuerySql = querySql;
+        },
+        onAssessmentFindMany: (args) => {
+          const query = args as
+            | {
+                take?: number;
+                where?: { id?: { in?: string[] } };
+              }
+            | undefined;
+          assessmentPageSizes.push(query?.take ?? 0);
+          expect(query?.where?.id?.in).toHaveLength(20);
+        },
+        onSnapshotFindMany: () => {
+          snapshotBatchCount++;
+        },
+        onSnapshotFindFirst: () => {
+          snapshotFindFirstCount++;
+        },
+      }).loadCustomerObligations({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-bounded-obligation-aggregate",
+        limit: 1,
+      });
+      expect(result.pagination.total).toBe(1);
+      expect(result.items[0].affectedAssessmentCount).toBe(325);
+      expect(result.items[0].assessments).toHaveLength(20);
+      expect(assessmentPageSizes).toEqual([0]);
+      expect(aggregateQueryCount).toBe(1);
+      expect(aggregateQuerySql).toContain('WHERE a."ownerId" =');
+      expect(aggregateQuerySql).toContain(
+        'GROUP BY "ruleSetVersionId", "assessmentRuleId"',
+      );
+      expect(aggregateQuerySql).toContain("LIMIT");
+      expect(snapshotBatchCount).toBe(2);
+      expect(snapshotFindFirstCount).toBe(0);
+    });
+
     it("groups obligations by rule set and exposes only owner-scoped completed active reports", async () => {
       const assessedAt = new Date("2026-10-18T10:00:00.000Z");
       const observedAt = new Date("2026-10-18T11:00:00.000Z");
@@ -2444,6 +2811,7 @@ describe("AssessmentTrackingLoader", () => {
             },
           ],
           artifacts: [{ artifactId: reportArtifactId, createdAt: assessedAt }],
+          humanRequests: [],
         },
       };
       const notComplete = {
@@ -2473,6 +2841,32 @@ describe("AssessmentTrackingLoader", () => {
           },
         ],
         snapshots,
+        queryRawObligationPayload: {
+          total: 1,
+          evaluationSummary: {
+            evaluatedAssessmentCount: 0,
+            notEvaluatedAssessmentCount: 3,
+          },
+          items: [
+            {
+              ruleSetVersionId,
+              ruleSetVersion: "1.0.0",
+              assessmentRuleId: "RULE-MFA",
+              concept: "Multi-factor authentication",
+              compliantCount: 0,
+              nonCompliantCount: 0,
+              notApplicableCount: 0,
+              unresolvedCount: 1,
+              affectedAssessmentCount: 1,
+              previewAssessmentIds: [assessmentId],
+            },
+          ],
+        },
+        onObligationAggregateQuery: (querySql) => {
+          expect(querySql).toContain('JOIN "RepositorySnapshot" pinned');
+          expect(querySql).toContain("JOIN owner_freshness freshness");
+          expect(querySql).toContain('freshness."freshnessStatus" =');
+        },
       });
 
       const reports = await loader.loadCustomerReports({
@@ -2493,6 +2887,7 @@ describe("AssessmentTrackingLoader", () => {
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "corr-customer-obligations",
         outcome: TRACKING_RULE_OUTCOMES.UNRESOLVED,
+        freshness: TRACKING_FRESHNESS_STATUSES.CURRENT,
       });
       expect(obligations.items).toHaveLength(1);
       expect(obligations.items[0]).toMatchObject({
@@ -2507,6 +2902,530 @@ describe("AssessmentTrackingLoader", () => {
         freshnessStatus: TRACKING_FRESHNESS_STATUSES.CURRENT,
         observedAt: observedAt.toISOString(),
       });
+      const overview = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-trust-parity",
+      });
+      expect(reports.items[0].trustStatus).toBe(
+        overview.assessments[0].trust.trustStatus,
+      );
+      expect(obligations.items[0].assessments[0].trustStatus).toBe(
+        overview.assessments[0].trust.trustStatus,
+      );
+    });
+
+    it("fails closed for zero and partial coverage against the pinned rule population", async () => {
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const ruleSetVersionId = "00000000-0000-4000-8000-000000000001";
+      const assessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "Partial coverage",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        updatedAt: new Date("2026-10-18T10:00:00.000Z"),
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt: new Date("2026-10-18T10:00:00.000Z"),
+          ruleSetVersionId,
+          repositorySnapshotId: "snapshot-pinned",
+          repositoryScanJobId: "scan-1",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
+          coverage: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: new Date("2026-10-18T10:00:00.000Z"),
+            },
+          ],
+        },
+      };
+      const loader = buildLoader({
+        assessments: [assessment],
+        coverage: [],
+        ruleCounts: { [ruleSetVersionId]: 10 },
+      });
+      const reports = await loader.loadCustomerReports({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-zero-coverage",
+      });
+      expect(reports.items[0].trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.IN_PROGRESS,
+      );
+
+      const partialAssessment = {
+        ...assessment,
+        domainCase: {
+          ...assessment.domainCase,
+          coverage: [
+            {
+              assessmentId,
+              assessmentRuleId: "RULE-1",
+              ruleSetVersionId,
+              assessmentRuleVersion: "1.0.0",
+              resolutionState: "PENDING",
+              currentDecisionId: null,
+              decisionRevision: 0,
+              assessmentRule: { concept: "Rule one" },
+            },
+          ],
+        },
+      };
+      const partialLoader = buildLoader({
+        assessments: [partialAssessment],
+        coverage: [
+          {
+            assessmentId,
+            assessmentRuleId: "RULE-1",
+            ruleSetVersionId,
+            assessmentRuleVersion: "1.0.0",
+            resolutionState: "PENDING",
+            currentDecisionId: null,
+            decisionRevision: 0,
+          },
+        ],
+        ruleCounts: { [ruleSetVersionId]: 10 },
+      });
+      const partial = await partialLoader.loadCustomerReports({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-partial-coverage",
+      });
+      expect(partial.items[0].trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.IN_PROGRESS,
+      );
+    });
+
+    it("keeps complete valid and invalidated decision trust consistent across all customer projections", async () => {
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const ruleSetVersionId = "00000000-0000-4000-8000-000000000001";
+      const reportArtifactId = "33333333-3333-4333-8333-333333333333";
+      const decisionId = "22222222-2222-4222-8222-222222222222";
+      const evidenceId = "44444444-4444-4444-8444-444444444444";
+      const assessedAt = new Date("2026-10-18T10:00:00.000Z");
+      const observedAt = new Date("2026-10-18T11:00:00.000Z");
+      const assessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "Fully evaluated assessment",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        updatedAt: assessedAt,
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt: assessedAt,
+          ruleSetVersionId,
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryScanJobId: "scan-1",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
+          coverage: [
+            {
+              assessmentId,
+              assessmentRuleId: "RULE-MFA",
+              ruleSetVersionId,
+              assessmentRuleVersion: "1.0.0",
+              resolutionState: "RESOLVED",
+              currentDecisionId: decisionId,
+              decisionRevision: 1,
+              assessmentRule: { concept: "Multi-factor authentication" },
+            },
+          ],
+          artifacts: [{ artifactId: reportArtifactId, createdAt: assessedAt }],
+          humanRequests: [],
+        },
+      };
+      const coverage = [
+        {
+          assessmentId,
+          assessmentRuleId: "RULE-MFA",
+          ruleSetVersionId,
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: decisionId,
+          decisionRevision: 1,
+        },
+      ];
+      const decision = createValidCompliantDecision({
+        assessmentRuleId: "RULE-MFA",
+        ruleSetVersionId,
+        repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+        evidenceId,
+      });
+      const decisions: MockDecision[] = [
+        {
+          decisionId,
+          assessmentId,
+          assessmentRuleId: "RULE-MFA",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId,
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision,
+        },
+      ];
+      const evidence: MockEvidence[] = [
+        {
+          evidenceId,
+          assessmentId,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        },
+      ];
+      const snapshots = [
+        {
+          id: "00000000-0000-4000-8000-000000000002",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: assessedAt,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000003",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: observedAt,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+      ];
+      const loadProjectionTrust = async (loader: AssessmentTrackingLoader) => {
+        const reports = await loader.loadCustomerReports({
+          sessionUserId: "customer-1",
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId: "corr-trust-report",
+        });
+        const obligations = await loader.loadCustomerObligations({
+          sessionUserId: "customer-1",
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId: "corr-trust-obligation",
+        });
+        const overview = await loader.loadCustomerOverview({
+          sessionUserId: "customer-1",
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId: "corr-trust-overview",
+        });
+        return [
+          overview.assessments[0].trust.trustStatus,
+          reports.items[0].trustStatus,
+          obligations.items[0].assessments[0].trustStatus,
+        ];
+      };
+      const validLoader = buildLoader({
+        assessments: [assessment],
+        coverage,
+        decisions,
+        evidence,
+        snapshots,
+        ruleCounts: { [ruleSetVersionId]: 1 },
+        queryRawObligationPayload: {
+          total: 1,
+          evaluationSummary: {
+            evaluatedAssessmentCount: 1,
+            notEvaluatedAssessmentCount: 0,
+          },
+          items: [
+            {
+              ruleSetVersionId,
+              ruleSetVersion: "1.0.0",
+              assessmentRuleId: "RULE-MFA",
+              concept: "Multi-factor authentication",
+              compliantCount: 1,
+              nonCompliantCount: 0,
+              notApplicableCount: 0,
+              unresolvedCount: 0,
+              affectedAssessmentCount: 1,
+              previewAssessmentIds: [assessmentId],
+            },
+          ],
+        },
+      });
+      expect(await loadProjectionTrust(validLoader)).toEqual(
+        Array(3).fill(TRACKING_TRUST_STATUSES.TRUSTED),
+      );
+
+      const invalidatedLoader = buildLoader({
+        assessments: [assessment],
+        coverage,
+        decisions: [{ ...decisions[0], state: "INVALIDATED" }],
+        evidence,
+        snapshots,
+        ruleCounts: { [ruleSetVersionId]: 1 },
+        queryRawObligationPayload: {
+          total: 1,
+          evaluationSummary: {
+            evaluatedAssessmentCount: 1,
+            notEvaluatedAssessmentCount: 0,
+          },
+          items: [
+            {
+              ruleSetVersionId,
+              ruleSetVersion: "1.0.0",
+              assessmentRuleId: "RULE-MFA",
+              concept: "Multi-factor authentication",
+              compliantCount: 0,
+              nonCompliantCount: 0,
+              notApplicableCount: 0,
+              unresolvedCount: 1,
+              affectedAssessmentCount: 1,
+              previewAssessmentIds: [assessmentId],
+            },
+          ],
+        },
+      });
+      expect(await loadProjectionTrust(invalidatedLoader)).toEqual(
+        Array(3).fill(TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE),
+      );
+    });
+
+    it("reports unassessed assessments instead of returning a compliance all-clear", async () => {
+      const assessments = [1, 2, 3].map((n) => ({
+        id: `11111111-1111-4111-8111-11111111111${n}`,
+        ownerId: "customer-1",
+        name: `Unpinned ${n}`,
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        updatedAt: new Date("2026-10-18T10:00:00.000Z"),
+        domainCase: null,
+      }));
+      const result = await buildLoader({
+        assessments,
+        queryRawObligationPayload: {
+          total: 0,
+          evaluationSummary: {
+            evaluatedAssessmentCount: 0,
+            notEvaluatedAssessmentCount: 3,
+          },
+          items: [],
+        },
+      }).loadCustomerObligations({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-no-rule-sets",
+      });
+      expect(result.items).toHaveLength(0);
+      expect(result.evaluationSummary).toEqual({
+        evaluatedAssessmentCount: 0,
+        notEvaluatedAssessmentCount: 3,
+      });
+    });
+
+    it("fails closed when the database obligation aggregate is unavailable", async () => {
+      const errorSpy = jest
+        .spyOn(Logger.prototype, "error")
+        .mockImplementation(() => undefined);
+      await expect(
+        buildLoader({
+          queryRawError: new Error("database unavailable"),
+        }).loadCustomerObligations({
+          sessionUserId: "customer-1",
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId: "corr-obligation-aggregate-failure",
+        }),
+      ).rejects.toThrow(ServiceUnavailableException);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("corr-obligation-aggregate-failure"),
+        expect.any(String),
+      );
+      errorSpy.mockRestore();
+    });
+
+    it("filters attention groups before pagination", async () => {
+      const assessments: Record<string, unknown>[] = [];
+      const coverage: Record<string, unknown>[] = [];
+      const decisions: MockDecision[] = [];
+      const evidence: MockEvidence[] = [];
+      for (let index = 1; index <= 6; index++) {
+        const assessmentId = `11111111-1111-4111-8111-${String(index).padStart(12, "0")}`;
+        const ruleSetVersionId = `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
+        const decisionId = `22222222-2222-4222-8222-${String(index).padStart(12, "0")}`;
+        const evidenceId = `33333333-3333-4333-8333-${String(index).padStart(12, "0")}`;
+        const ruleId = `RULE-${index}`;
+        assessments.push({
+          id: assessmentId,
+          ownerId: "customer-1",
+          name: `Assessment ${index}`,
+          lifecycleState: "COMPLETE",
+          blockerReason: null,
+          domainCase: {
+            caseRevision: 1,
+            pinnedAt: new Date("2026-10-18T10:00:00.000Z"),
+            ruleSetVersionId,
+            repositorySnapshotId: null,
+            repositoryScanJobId: "scan-1",
+            repositoryCommit: "a000000000000000000000000000000000000001",
+            ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
+            coverage: [
+              {
+                assessmentId,
+                assessmentRuleId: ruleId,
+                ruleSetVersionId,
+                assessmentRuleVersion: "1.0.0",
+                assessmentRule: { concept: `Rule ${index}` },
+              },
+            ],
+            artifacts: [],
+          },
+        });
+        coverage.push({
+          assessmentId,
+          assessmentRuleId: ruleId,
+          ruleSetVersionId,
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: decisionId,
+          decisionRevision: 1,
+        });
+        const decision = createValidCompliantDecision({
+          assessmentRuleId: ruleId,
+          ruleSetVersionId,
+          compliance: index === 6 ? "NON_COMPLIANT" : "COMPLIANT",
+          evidenceId,
+          ...(index === 6
+            ? {
+                criteria: [
+                  {
+                    criterionId: "crit-1",
+                    outcome: "NOT_MET",
+                    rationale: "Criterion is not met",
+                    references: [{ type: "ASSESSMENT_EVIDENCE", evidenceId }],
+                  },
+                ],
+              }
+            : {}),
+        });
+        decisions.push({
+          decisionId,
+          assessmentId,
+          assessmentRuleId: ruleId,
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId,
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision,
+        });
+        evidence.push({
+          evidenceId,
+          assessmentId,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        });
+      }
+      const result = await buildLoader({
+        assessments,
+        coverage,
+        decisions,
+        evidence,
+        queryRawObligationPayload: {
+          total: 1,
+          evaluationSummary: {
+            evaluatedAssessmentCount: 6,
+            notEvaluatedAssessmentCount: 0,
+          },
+          items: [
+            {
+              ruleSetVersionId: "00000000-0000-4000-8000-000000000006",
+              ruleSetVersion: "1.0.0",
+              assessmentRuleId: "RULE-6",
+              concept: "Rule 6",
+              compliantCount: 0,
+              nonCompliantCount: 1,
+              notApplicableCount: 0,
+              unresolvedCount: 0,
+              affectedAssessmentCount: 1,
+              previewAssessmentIds: ["11111111-1111-4111-8111-000000000006"],
+            },
+          ],
+        },
+      }).loadCustomerObligations({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-attention-filter",
+        limit: 5,
+        needsAttention: true,
+      });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        assessmentRuleId: "RULE-6",
+        nonCompliantCount: 1,
+      });
+      expect(result.pagination.total).toBe(1);
+    });
+
+    it("pages beyond twenty assessments for one owner-scoped obligation group", async () => {
+      const ruleSetVersionId = "00000000-0000-4000-8000-000000000001";
+      const assessments = Array.from({ length: 26 }, (_, index) => {
+        const n = String(index + 1).padStart(12, "0");
+        const assessmentId = `11111111-1111-4111-8111-${n}`;
+        return {
+          id: assessmentId,
+          ownerId: index === 25 ? "customer-2" : "customer-1",
+          name: `Affected ${n}`,
+          lifecycleState: "COMPLETE",
+          blockerReason: null,
+          domainCase: {
+            caseRevision: 1,
+            pinnedAt: new Date("2026-10-18T10:00:00.000Z"),
+            ruleSetVersionId,
+            repositorySnapshotId: null,
+            repositoryScanJobId: "scan-1",
+            repositoryCommit: "a000000000000000000000000000000000000001",
+            ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
+            coverage: [
+              {
+                assessmentId,
+                assessmentRuleId: "RULE-MFA",
+                ruleSetVersionId,
+                assessmentRuleVersion: "1.0.0",
+                assessmentRule: { concept: "MFA" },
+              },
+            ],
+            artifacts: [],
+          },
+        };
+      });
+      const coverage = assessments.map((assessment) => ({
+        assessmentId: assessment.id,
+        assessmentRuleId: "RULE-MFA",
+        ruleSetVersionId,
+        assessmentRuleVersion: "1.0.0",
+        resolutionState: "PENDING",
+        currentDecisionId: null,
+        decisionRevision: 0,
+      }));
+      const result = await buildLoader({
+        assessments,
+        coverage,
+      }).loadCustomerObligationAssessments({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-MFA",
+        limit: 20,
+        offset: 20,
+      });
+      expect(result.items).toHaveLength(5);
+      expect(result.pagination).toEqual({
+        total: 25,
+        limit: 20,
+        offset: 20,
+        hasMore: false,
+      });
+      expect(
+        result.items.every((item) => item.assessmentId !== assessments[25].id),
+      ).toBe(true);
     });
   });
 
