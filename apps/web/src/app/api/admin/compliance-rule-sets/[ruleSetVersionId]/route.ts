@@ -11,6 +11,27 @@ import {
   validatedUpstreamJson,
 } from "@/lib/server/upstream-request";
 
+/**
+ * Business purpose: Return an Admin’s requested immutable Rule Set result through the
+ *   authenticated BFF.
+ *
+ * Business rules:
+ * - The session is required; the API remains authoritative for Admin authorization, ownership
+ *   and lifecycle guards.
+ * - Accept only a UUID Rule Set identity and validate success against
+ *   complianceRuleSetResultSchema.
+ *
+ * Execution flow:
+ * 1. Require the session, validate the route identity and request the matching Admin result.
+ * 2. Validate the response and forward the shared result envelope.
+ *
+ * Failure cases:
+ * - Invalid route identities return the shared 422 problem; session failures, upstream
+ *   problems and response-schema failures follow the existing shared proxy policy.
+ *
+ * Side effects:
+ * - One upstream read; no Rule Set or Preparation state is changed.
+ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ ruleSetVersionId: string }> },

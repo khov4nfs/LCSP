@@ -82,6 +82,26 @@ export type PreparationTokenUsage = {
 
 type ActivityDraft = PreparationActivity;
 
+/**
+ * Business purpose: Project ordered Preparation telemetry into stable, localized Admin
+ *   activity rows.
+ *
+ * Business rules:
+ * - Keep only Preparation events; merge related tool/model events by identity and replace
+ *   claim-file snapshots instead of summing retries.
+ *
+ * Execution flow:
+ * 1. Order events, map supported boundaries/tools/progress into rows, merge repeated
+ *   identities and close running rows when terminal is true: failed/cancelled/paused states
+ *   map explicitly, while every other or absent execution state defaults to completed.
+ *
+ * Failure cases:
+ * - Unrecognized tool/activity events are omitted and optional details remain nullable; the
+ *   projection does not certify legal or execution success.
+ *
+ * Side effects:
+ * - Pure projection into new draft rows; input events and backend state are unchanged.
+ */
 export function projectPreparationActivity(
   events: AssessmentAgentStreamEvent[],
   terminal = false,
@@ -262,6 +282,24 @@ export function preparationTokenUsage(
   return total;
 }
 
+/**
+ * Business purpose: Count distinct model invocation identities visible in the Preparation
+ *   stream.
+ *
+ * Business rules:
+ * - Count started/completed events once using invocation ID, then model-step/message/event
+ *   fallback; this is not a complete provider-network request count.
+ *
+ * Execution flow:
+ * 1. Filter model start/completion events and count their distinct available identities.
+ *
+ * Failure cases:
+ * - Missing stronger identities use the recorded fallback; unobserved attempts are not
+ *   invented.
+ *
+ * Side effects:
+ * - None: pure telemetry aggregation.
+ */
 export function preparationModelCalls(events: AssessmentAgentStreamEvent[]): number {
   return new Set(events.filter((e) => e.eventType === EVENT_TYPES.modelCallStarted || e.eventType === EVENT_TYPES.modelCallCompleted).map((event) => {
     const data = record(event.data);
@@ -284,7 +322,25 @@ export type PreparationProgressSummary = {
   rules: number | null;
 };
 
-/** Display only counters emitted by the selected run; absent telemetry is not zero progress. */
+/**
+ * Business purpose: Display the latest usable run-emitted frontier snapshot using the existing
+ *   telemetry counter fallbacks.
+ *
+ * Business rules:
+ * - Require a Preparation custom-progress event with a finite total; retain individually
+ *   projected optional counters as null, while reviewed/remaining aggregates use zero defaults.
+ *
+ * Execution flow:
+ * 1. Search newest events, reconcile emitted reviewed counters, and project
+ *   remaining/frontier/output counts from that snapshot.
+ *
+ * Failure cases:
+ * - No usable total produces null; when pending is present, missing/invalid in-review and
+ *   blocked counts contribute zero to remaining, so that aggregate does not prove complete telemetry.
+ *
+ * Side effects:
+ * - None: reads telemetry and returns a new progress projection.
+ */
 export function preparationProgress(
   events: AssessmentAgentStreamEvent[],
 ): PreparationProgressSummary | null {
@@ -328,6 +384,22 @@ export function preparationProgress(
   return null;
 }
 
+/**
+ * Business purpose: Map known native Preparation tools to approved localized activity labels.
+ *
+ * Business rules:
+ * - A validation PASS label requires the emitted PASSED outcome; distinguish legal-source
+ *   reader task completion from generic synthesis.
+ *
+ * Execution flow:
+ * 1. Match supported tool names and event/outcome metadata to the appropriate message key.
+ *
+ * Failure cases:
+ * - Unrecognized tools return null instead of an invented activity category.
+ *
+ * Side effects:
+ * - None: pure label selection.
+ */
 function toolLabel(
   tool: string | null,
   eventType: string,
@@ -369,6 +441,25 @@ function toolLabel(
   return null;
 }
 
+/**
+ * Business purpose: Construct one activity row while preserving recorded model/tool lineage
+ *   and unknown details.
+ *
+ * Business rules:
+ * - Prefer tool-call then model-step then event identity; retain optional telemetry as
+ *   nullable and apply caller-provided projections last.
+ *
+ * Execution flow:
+ * 1. Project source event fields and data metadata into the activity identity, status and
+ *   detail shape.
+ *
+ * Failure cases:
+ * - Absent or malformed optional fields remain null; this helper does not invent token usage
+ *   or source provenance.
+ *
+ * Side effects:
+ * - None: creates a new row referencing the immutable input event.
+ */
 function activity(
   event: AssessmentAgentStreamEvent,
   labelKey: MessageKey,
@@ -475,6 +566,23 @@ function statusOf(value: string | null): PreparationActivity["status"] {
   return ACTIVITY_STATUSES.running;
 }
 
+/**
+ * Business purpose: Project committed/rejected telemetry counts from the producer’s recorded
+ *   shape.
+ *
+ * Business rules:
+ * - Array length, object-key count and a finite numeric count are distinct supported
+ *   representations; missing data stays unknown.
+ *
+ * Execution flow:
+ * 1. Return the collection count or recorded finite number, otherwise null.
+ *
+ * Failure cases:
+ * - Unsupported or nonfinite values produce null rather than a guessed count.
+ *
+ * Side effects:
+ * - None: pure count projection.
+ */
 function countOrNull(value: unknown): number | null {
   return Array.isArray(value)
     ? value.length

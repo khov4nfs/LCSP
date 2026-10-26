@@ -87,6 +87,30 @@ export async function upstreamRequest(
   };
 }
 
+/**
+ * Business purpose: Read upstream binary resources without applying the JSON success-envelope
+ *   parser to their bytes.
+ *
+ * Business rules:
+ * - Use shared upstream URL resolution for string paths, optional bearer/locale headers and
+ *   no-store caching by default; explicit fetch options remain supported.
+ * - Preserve successful status, bytes and content metadata, while unsuccessful HTTP bodies
+ *   are handled as problems.
+ *
+ * Execution flow:
+ * 1. Construct authorization/locale headers and perform the upstream request.
+ * 2. Return a 503 upstreamUnavailable problem on connection failure or the upstream
+ *   status/problem for HTTP failure.
+ * 3. Read successful bytes into an ArrayBuffer and retain content type, disposition, ETag and
+ *   headers.
+ *
+ * Failure cases:
+ * - Connection failures return a typed 503 result; unsuccessful or non-JSON error bodies are
+ *   normalized by the shared parser; successful-body read errors propagate.
+ *
+ * Side effects:
+ * - One upstream fetch and binary-body read; no domain state is written by this helper.
+ */
 export async function upstreamBinaryRequest(
   path: string | URL,
   init: UpstreamRequestInit = {},

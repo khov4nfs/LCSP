@@ -12,6 +12,26 @@ import {
 
 type RouteContext = { params: Promise<{ documentRowId: string }> };
 
+/**
+ * Business purpose: Read the authenticated active-library provisions for an identified legal
+ *   document.
+ *
+ * Business rules:
+ * - Validate the document UUID and the shared chunk query/page schemas.
+ * - The backend selects the authorized active library; the client cannot replace source pins
+ *   through this route.
+ *
+ * Execution flow:
+ * 1. Validate the document route identity.
+ * 2. Forward the normalized provision query and validate the chunk page.
+ *
+ * Failure cases:
+ * - Invalid route identities return the shared 422 problem; session failures, upstream
+ *   problems and response-schema failures follow the existing shared proxy policy.
+ *
+ * Side effects:
+ * - Read-only upstream library retrieval.
+ */
 export async function GET(request: NextRequest, context: RouteContext) {
   const { documentRowId } = await context.params;
   const document = parseLegalSourceRouteId(documentRowId);

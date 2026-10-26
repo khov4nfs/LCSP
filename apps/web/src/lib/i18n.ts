@@ -6,6 +6,23 @@ export function resolveAppMessage(key: MessageKey) {
   return resolveMessage(appLocale, key);
 }
 
+/**
+ * Business purpose: Render a localized application message with supplied named placeholders.
+ *
+ * Business rules:
+ * - Resolve the canonical message key in appLocale and replace matching literal placeholders
+ *   with stringified values.
+ *
+ * Execution flow:
+ * 1. Resolve the message and apply the supplied named replacements.
+ *
+ * Failure cases:
+ * - Missing replacements remain in the resolved text; message-resolution failures follow the
+ *   i18n resolver.
+ *
+ * Side effects:
+ * - None: pure text formatting.
+ */
 export function formatAppMessage(
   key: MessageKey,
   values: Record<string, string | number>,

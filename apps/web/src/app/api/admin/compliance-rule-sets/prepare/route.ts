@@ -11,7 +11,28 @@ import {
   validatedUpstreamJson,
 } from "@/lib/server/upstream-request";
 
-/** Session proxy only: the API resolves source identity and enforces ADMIN authorization. */
+/**
+ * Business purpose: Request Preparation from the API-resolved legal source without selecting
+ *   or inventing source identity in the BFF.
+ *
+ * Business rules:
+ * - The session is required; the API remains authoritative for Admin authorization, ownership
+ *   and lifecycle guards.
+ * - An empty body remains absent; nonempty JSON must satisfy
+ *   ruleSetPreparationAdminRequestSchema.
+ *
+ * Execution flow:
+ * 1. Require the session, parse nonempty JSON and validate the optional request.
+ * 2. Forward the validated body when present and validate the returned Preparation run.
+ *
+ * Failure cases:
+ * - Malformed JSON or invalid request data returns submitRequestInvalid with HTTP 422; shared
+ *   session/upstream failures are preserved.
+ *
+ * Side effects:
+ * - One upstream Preparation request; source resolution, admission and execution remain
+ *   server-owned.
+ */
 export async function POST(request: NextRequest) {
   const session = requireSessionToken(request);
   if (!session.ok) return session.response;

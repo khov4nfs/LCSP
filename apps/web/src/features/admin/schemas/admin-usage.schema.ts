@@ -18,6 +18,23 @@ export const adminUsageFiltersSchema = z
   })
   .refine((x) => adminUsageQuerySchema.safeParse(toUsageQuery(x)).success);
 export type AdminUsageFilters = z.infer<typeof adminUsageFiltersSchema>;
+/**
+ * Business purpose: Translate Admin usage form values into API filter parameters.
+ *
+ * Business rules:
+ * - Omit blank values, trim ordinary filters and expand selected dates to inclusive UTC day
+ *   boundaries; the caller validates the resulting query.
+ *
+ * Execution flow:
+ * 1. Filter empty entries and map from/to dates or trimmed text into request values.
+ *
+ * Failure cases:
+ * - This mapper does not validate date syntax; the enclosing/shared query schema rejects
+ *   invalid output.
+ *
+ * Side effects:
+ * - None: returns a new query object.
+ */
 export function toUsageQuery(values: Record<string, string>) {
   return Object.fromEntries(
     Object.entries(values)

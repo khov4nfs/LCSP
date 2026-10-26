@@ -23,6 +23,22 @@ export const apiQueryKeys = {
     selection: () => ["mock-workspace-selection"] as const,
   },
   admin: {
+    /**
+     * Business purpose: Separate Admin usage cache entries by their complete filter parameters.
+     *
+     * Business rules:
+     * - Retain the supplied parameter object in the Admin usage key; this helper does not
+     *   validate or normalize filters.
+     *
+     * Execution flow:
+     * 1. Return the Admin usage namespace and supplied parameters as a readonly key.
+     *
+     * Failure cases:
+     * - Malformed filter values are left for query validation, rather than silently changed here.
+     *
+     * Side effects:
+     * - None: pure cache-key construction.
+     */
     usage: (params: Record<string, unknown>) =>
       ["admin", "usage", params] as const,
     overview: (period?: string) =>
