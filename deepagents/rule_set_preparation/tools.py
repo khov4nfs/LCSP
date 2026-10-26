@@ -783,8 +783,28 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         validate_compliance_rule_set.args_schema = {"type": "object", "properties": {}, "additionalProperties": False}
         submit_compliance_rule_set.args_schema = {"type": "object", "properties": {}, "additionalProperties": False}
         def serialize(function):
+            """Business purpose: Serialize shared Preparation tool mutations.
+
+            Business rules:
+            - One run's mutation lock owns candidate changes.
+            Execution flow: 1. Wrap the tool. 2. Execute it under the existing lock.
+            Failure cases:
+            - Malformed arguments return feedback; operational failures propagate.
+            Side effects:
+            - The wrapped tool retains its own persistence and progress effects.
+            """
             @wraps(function)
             def invoke(*args, **kwargs):
+                """Business purpose: Keep malformed tool input repairable without hiding runtime failure.
+
+                Business rules:
+                - Control-flow and callback failures must reach their failure policy.
+                Execution flow: 1. Lock the run. 2. Invoke the tool. 3. Return input-shape feedback.
+                Failure cases:
+                - Only TypeError, ValueError and KeyError become FAILED feedback.
+                Side effects:
+                - Invokes the existing governed mutation; creates no alternate state.
+                """
                 with context.mutation_lock:
                     try:
                         return function(*args, **kwargs)

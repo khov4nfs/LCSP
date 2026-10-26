@@ -17,7 +17,9 @@ import {
   workerKey,
   sha,
 } from "./support/compliance-rule-set-stack.mjs";
+import { verifyFrozenCandidate } from "./support/live-evaluation-controls.mjs";
 
+verifyFrozenCandidate(root, process.env.LCSP_LIVE_CANDIDATE_SHA);
 assert.equal(
   process.env.LCSP_LIVE_APPROVED,
   "owner-approved-2026-10-25-acceptance",

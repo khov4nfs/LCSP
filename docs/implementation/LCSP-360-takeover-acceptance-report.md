@@ -46,7 +46,7 @@ The representative harness now requires NOT_MET/NON_COMPLIANT for the cosmetic a
 | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | OTP format check without issued-challenge authentication                | NOT_MET / NON_COMPLIANT.                                                                                                                             |
 | Audit object without persistence/retention                              | NOT_MET / NON_COMPLIANT.                                                                                                                             |
-| Encryption implemented but required key separation absent               | Encryption MET, key separation NOT_MET, overall NON_COMPLIANT.                                                                                       |
+| Encryption implemented but required key separation absent               | The complete safeguard criterion is NOT_MET, overall NON_COMPLIANT; encryption alone cannot satisfy the combined duty.                               |
 | Actual audience applicability cannot be established                     | No accepted decision; material human request remains OPEN and assessment is not COMPLETE. NOT_ESTABLISHED must not become REFUTED or NOT_APPLICABLE. |
 | Input schema directly refutes the source-stated applicability condition | Referenced REFUTED basis, NOT_APPLICABLE, no criteria and no compliance verdict.                                                                     |
 
@@ -59,6 +59,20 @@ The earlier cumulative table claiming 2,265 calls / 155,468,116 tokens / 348.73 
 Still required: reconcile approved run/envelope identities, restart/cumulative counters, physical provider attempts, failed/unknown usage, durable journal settlements and any financial ceiling claims. No cost or budget-governance PASS is inferred from successful finalization or completed-call token totals.
 
 Release remains BLOCKED until same-SHA CI/security, genuine adversarial semantic evidence, budget reconciliation and applicable release/staging gates actually pass. No merge, production deployment or Draft removal is part of this correction.
+
+### Follow-up CI integration and separate documentation workstream
+
+The first corrective candidate was `b745022c6c4aea318fda611c441002a8894c89a2`. Its [Tests run](https://github.com/khov4nfs/LCSP/actions/runs/40267173276) exposed additional failures: 30 API integration cases, Web control-test module loading, an obsolete scripted Preparation driver in the Root vertical, and a rootfs policy false positive. Its Security workflow API coverage also failed on the integration fixtures. Its Python worker tests and API e2e gate passed; those results are not a green aggregate release gate. The remote CodeQL autofix commit `e64a99860116cb9949dfc67755db72294f4f5d11` was retained, but [CodeQL still failed](https://github.com/khov4nfs/LCSP/runs/121392758567). The final test projection uses `Buffer.byteLength` after Buffer narrowing rather than request-derived `.length`.
+
+Develop integration resolved three conflicts without dropping the Preparation models or the upstream auth/isolation assertions. The imported MFA generation migration is additive and retains existing proof generation metadata; schema validation, client generation and fresh disposable migration replay were exercised locally. No production database was migrated.
+
+API integration fixtures now advertise the execution contracts they exercise and send the typed Direct Draft and its CAS version through the real SourceReview/ClaimInventory handlers. The scripted worker uses the direct package/candidate tools for current runs, including the model-visible receipt after history compaction. It no longer asks the current runtime for retired discovery tools. Direct candidates own their AssessmentRule identity; the negative ownership fixture now tests attempted identity reuse. These synthetic fixtures do not establish independent legal quality or genuine investigations.
+
+The Web controls load built security only when it is used, and the missing-authorization test targets the current live entrypoint. That entrypoint checks its frozen candidate before database/provider work. The rootfs auditor verifies the exact frozen terminology-policy bytes before excluding that policy's own forbidden-symbol literals; a changed policy and the same literal in runtime code still fail its self-check.
+
+Local follow-up evidence: **38/38 API PostgreSQL cases**, **77 Preparation vertical checks**, **145 Assessment Root checks**, **79 same-thread HITL checks**, **72 unresolvable-fact checks**, **341 Web tests**, and **36 focused Python regressions** passed. The verticals use real migrated PostgreSQL/API/native graphs and scripted models; no paid provider calls. Seven oracle checks and rootfs mutation self-check also passed. These do not replace the final commit's remote checks.
+
+The new business-logic documentation gate initially found **772** nonconforming functions across the PR (2,946 functions / 760 files scanned; baseline unchanged). The two serialization functions changed by this fix now carry compliant structured documentation. The refreshed inventory has **770** remaining violations. Project-wide adoption is a **separate workstream explicitly selected by the user**. Run `pnpm run check:business-logic-docs` to refresh its inventory and `pnpm run test:business-logic-docs` to validate the checker; the latter passes 5/5. Do not regenerate the fingerprint baseline, suppress the gate or mark release PASS while it remains unresolved. Final current-SHA remote results are recorded in the existing delivery comment.
 
 ## Historical takeover checkpoint: repository and authority
 

@@ -69,7 +69,7 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
       (req: express.Request, res: express.Response) => {
         const rawBody = Buffer.isBuffer(req.body) ? req.body : undefined;
         const isBuffer = rawBody !== undefined;
-        const length = rawBody ? rawBody.length : 0;
+        const length = rawBody ? Buffer.byteLength(rawBody) : 0;
         res.json({ ok: true, isBuffer, length });
       },
     );

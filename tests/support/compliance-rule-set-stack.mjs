@@ -24,8 +24,18 @@ export const sha = (text) => createHash("sha256").update(text).digest("hex");
 export const contentHash = (text) => `sha256:${sha(text)}`; // legalSource representation of chunk hashes
 const requireApi = createRequire(path.join(apiDir, "package.json"));
 const { Client } = requireApi("pg");
-// These verticals execute built NestJS; resolve its public security entry into the build too.
-export const { hashSecret } = await import(path.join(apiDir, "dist", path.relative(apiDir, requireApi.resolve("@lcsp/api/security"))).replace(/\.ts$/, ".js"));
+// Load built security only when a vertical needs it; process-control tests need no API build.
+export function hashSecret(...args) {
+  return requireApi(
+    path
+      .join(
+        apiDir,
+        "dist",
+        path.relative(apiDir, requireApi.resolve("@lcsp/api/security")),
+      )
+      .replace(/\.ts$/, ".js"),
+  ).hashSecret(...args);
+}
 
 export async function startStack({
   database,

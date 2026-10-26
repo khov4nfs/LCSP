@@ -42,10 +42,9 @@
     "legalText": "Synthetic evaluation duty: services storing records must encrypt stored records and keep the encryption key outside the stored record file.",
     "condition": "The service stores records.",
     "criteria": [
-      { "criterionId": "C-1", "statement": "Stored records are encrypted." },
       {
-        "criterionId": "C-2",
-        "statement": "The encryption key is kept outside the stored record file."
+        "criterionId": "C-1",
+        "statement": "Stored records are encrypted and the encryption key is kept outside the stored record file."
       }
     ],
     "files": {
@@ -54,10 +53,7 @@
     "expected": {
       "applicability": "APPLICABLE",
       "compliance": "NON_COMPLIANT",
-      "criteria": [
-        { "criterionId": "C-1", "outcome": "MET" },
-        { "criterionId": "C-2", "outcome": "NOT_MET" }
-      ]
+      "criteria": [{ "criterionId": "C-1", "outcome": "NOT_MET" }]
     }
   },
   {

@@ -1,5 +1,8 @@
 import { completeFixtureFrontier } from "./complete-fixture-frontier.js";
-import { inventoryFingerprint } from "../../src/modules/compliance-rule-set/domain/claim-inventory.js";
+import {
+  inventoryFingerprint,
+  inventoryHash,
+} from "../../src/modules/compliance-rule-set/domain/claim-inventory.js";
 import { sourceReviewUnits } from "../../src/modules/compliance-rule-set/domain/source-review-frontier.js";
 import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import { ClaimInventoryHandler } from "../../src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.handler.js";
@@ -10,10 +13,15 @@ import { LegalSourceSnapshotLoader } from "../../src/modules/compliance-rule-set
 import { canonicalInventoryFixture } from "./canonical-claim-inventory-fixture.js";
 import {
   complianceRuleSetPacketSchema,
+  ruleSetPreparationAuthoringDraftSchema,
   CLAIM_INVENTORY_ACTIONS as A,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
 } from "@lcsp/contracts/compliance-rule-set";
-import { AgentExecutionState, ClaimPreparationPhase } from "@prisma/client";
+import {
+  AgentExecutionState,
+  ClaimPreparationPhase,
+  PreparationExecutionContract,
+} from "@prisma/client";
 import { fixtureLegalSource } from "./compliance-rule-set-fixtures.js";
 import type { PrismaService } from "../../src/infrastructure/prisma/prisma.service.js";
 import type { PrismaClient } from "@prisma/client";
@@ -53,6 +61,8 @@ export async function pinFixtureRequest<T>(
   const semantic = packet.semanticGraph!;
   semantic.legalSourceVersionId = graph.legalSourceVersionId;
   semantic.materializationId = graph.materializationId;
+  if (run.targetDate)
+    semantic.targetDate = run.targetDate.toISOString().slice(0, 10);
   for (const claim of semantic.claims) {
     claim.legalSourceVersionId = graph.legalSourceVersionId;
     claim.sourceNodeIds = claim.sourceNodeIds.map(id);
@@ -114,6 +124,25 @@ export async function pinFixtureRequest<T>(
         graph,
         inventory,
         identities,
+        run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1
+          ? {
+              legalRequirements: Object.fromEntries(
+                packet.legalRequirements.map((item) => [
+                  item.legalRequirementId,
+                  item,
+                ]),
+              ),
+              assessmentRules: Object.fromEntries(
+                packet.assessmentRules.map((item) => [
+                  item.assessmentRuleId,
+                  item,
+                ]),
+              ),
+              contextRelations: Object.fromEntries(
+                packet.contextRelations.map((item) => [item.relationId, item]),
+              ),
+            }
+          : undefined,
       );
       packet.semanticGraph = inventory;
       packet.claimInventory = {
@@ -160,6 +189,48 @@ export async function pinFixtureRequest<T>(
           "fixture-author",
         ),
       );
+    }
+    if (
+      run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1
+    ) {
+      const saved = await prisma.ruleSetPreparationAuthoringDraft.findUnique({
+        where: {
+          preparationRunId_revision: {
+            preparationRunId: run.id,
+            revision: run.claimInventoryRevision,
+          },
+        },
+      });
+      const draft = ruleSetPreparationAuthoringDraftSchema.parse({
+        legalRequirements: Object.fromEntries(
+          packet.legalRequirements.map((item) => [
+            item.legalRequirementId,
+            item,
+          ]),
+        ),
+        assessmentRules: Object.fromEntries(
+          packet.assessmentRules.map((item) => [item.assessmentRuleId, item]),
+        ),
+        contextRelations: Object.fromEntries(
+          packet.contextRelations.map((item) => [item.relationId, item]),
+        ),
+      });
+      if (!saved || inventoryHash(saved.draft) !== inventoryHash(draft)) {
+        const result = await handler.execute(
+          new ClaimInventoryCommand(
+            {
+              preparationRunId: run.id,
+              action: A.SAVE_AUTHORING_DRAFT,
+              revision: run.claimInventoryRevision,
+              draftVersion: saved?.draftVersion ?? 0,
+              draft,
+            },
+            "fixture-save",
+          ),
+        );
+        if (result.outcome !== O.PASSED)
+          throw new Error(JSON.stringify(result));
+      }
     }
     await new ValidateComplianceRuleSetHandler(service, loader).execute(
       new ValidateComplianceRuleSetCommand(

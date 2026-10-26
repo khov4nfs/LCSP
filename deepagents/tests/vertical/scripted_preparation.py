@@ -103,11 +103,60 @@ def main() -> int:
     calls = []
     context = None
 
+    def direct_journey():
+        source = context.source_graph
+        rules = {r["legalRequirementIds"][0]: r for r in packet["assessmentRules"]}
+        values = []
+        for row in packet["legalRequirements"]:
+            support = []
+            for ref in row["sourceRefs"]:
+                nid = source.resolve_locator(ref["documentId"], ref["locator"])
+                assert nid, ref
+                support.append({"nodeId": nid, "quote": source.nodes[nid]["content"]})
+            rule = rules.get(row["legalRequirementId"])
+            conditions = [{"statement": text, "support": support} for text in row["applicabilityConditions"]]
+            values.append({
+                "candidateId": row["legalRequirementId"], "title": row["title"],
+                "obligations": [{"statement": row["proposition"], "actor": "Synthetic fixture operator", "modality": "DUTY", "action": row["proposition"], "support": support}],
+                "applicability": {"mode": "CONDITIONAL" if conditions else "UNCONDITIONAL", "conditions": conditions},
+                "qualifiers": [{"statement": text, "support": support} for text in row["qualifiers"]],
+                "exceptions": [{"statement": text, "support": support} for text in row["exceptions"]], "definitions": [],
+                "repositoryAssessability": "REPOSITORY_VERIFIABLE" if rule else "EXTERNAL_FULFILLMENT",
+                "nonAssessableReason": None if rule else "Synthetic duty outside the repository-verifiable fixture assertions.",
+                "assessmentRule": {"assessmentRuleId": rule["assessmentRuleId"], "concept": rule["concept"], "investigationFocus": rule["legalIntent"]} if rule else None,
+            })
+        if mode == "stale":
+            values[0]["obligations"][0]["support"][0]["quote"] = "An absent source quotation"
+        if mode == "orphan":
+            # Direct candidates own their rule; reusing another candidate's identity must fail.
+            governed = [candidate for candidate in values if candidate["assessmentRule"]]
+            governed[1]["assessmentRule"]["assessmentRuleId"] = governed[0]["assessmentRule"]["assessmentRuleId"]
+        package = yield "get_next_legal_analysis_package", {}
+        while not package.get("complete"):
+            assert package.get("outcome") == "PASSED", package
+            ids = {unit["nodeId"] for unit in package["sourceUnits"]}
+            candidates = [candidate for candidate in values if candidate["candidateId"] not in context.draft["legalRequirements"]
+                          and any(ref["nodeId"] in ids for fact in candidate["obligations"] for ref in fact["support"])]
+            payload = {"packageId": package["packageId"], "candidates": candidates, "removeCandidateIds": [], "legalEffects": [],
+                       "references": [{"referenceId": ref["referenceId"], "material": False, "reason": "Synthetic fixture states its duties locally; no incorporated duty.", "kind": None, "fromCandidateId": None, "targetNodeId": None} for ref in package["references"]],
+                       "sourceUnits": [{"sourceNodeId": nid, "disposition": "ANALYZED" if any(ref["nodeId"] == nid for candidate in candidates for fact in candidate["obligations"] for ref in fact["support"]) else "NO_REQUIREMENT", "reason": "Fixture context has no separate operative duty."} for nid in ids]}
+            result = yield "submit_rule_set_draft_candidates", payload
+            if result.get("outcome") != "PASSED":
+                yield "submit_compliance_rule_set", {}
+                raise AssertionError(json.dumps(result))
+            package = result["nextPackage"]
+        validation = yield "validate_compliance_rule_set", {}
+        assert validation["outcome"] == "PASSED", validation
+        yield "submit_compliance_rule_set", {}
+
     def journey():
         # The coordinating parent has no file tools: the claim-author children read and write the files.
         if mode == "no-submit":
             yield "report_rule_set_source_blocked", {
                 "reason": "SOURCE_PINS_INCONSISTENT", "path": "/legal-source/INDEX.md"}
+            return
+        if context.direct_draft:
+            yield from direct_journey()
             return
         from rule_set_preparation.claim_files import claim_path
         from rule_set_preparation.claim_inventory import identity_key
@@ -218,8 +267,15 @@ def main() -> int:
                 child_script = None
                 return AIMessage(content='done: 1 Article')
         result = last_result(messages)
+        if result is None and context.direct_draft:
+            # Direct compaction retains its receipt in the model-visible package message.
+            for message in reversed(messages):
+                content = getattr(message, "content", None)
+                if isinstance(content, str) and content.startswith("Accepted candidates are persisted."):
+                    result = json.loads(content.split("\n", 1)[1])
+                    break
         if calls and result is not None:
-            calls[-1]["result"] = {k: result[k] for k in ("outcome", "gaps", "fingerprint") if k in result}
+            calls[-1]["result"] = {k: result[k] for k in ("outcome", "gaps", "fingerprint", "failures", "errors", "detail") if k in result}
         try:
             name, args = next(script) if first else script.send(result)
         except StopIteration as error:

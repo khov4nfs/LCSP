@@ -29,6 +29,7 @@ import {
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   RULE_SET_PREPARATION_SYSTEM_ACTOR,
+  PREPARATION_EXECUTION_CONTRACTS,
   ruleSetPreparationIdempotencyKey,
   sourceReviewOperationSchema,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -183,7 +184,15 @@ describeDatabase(
       });
     const claimRun = (preparationRunId: string) =>
       claim.execute(
-        new ClaimRuleSetPreparationCommand({ preparationRunId }, randomUUID()),
+        new ClaimRuleSetPreparationCommand(
+          {
+            preparationRunId,
+            supportedExecutionContracts: Object.values(
+              PREPARATION_EXECUTION_CONTRACTS,
+            ),
+          },
+          randomUUID(),
+        ),
       );
     const failRun = (preparationRunId: string) =>
       fail.execute(

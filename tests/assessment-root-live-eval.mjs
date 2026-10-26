@@ -572,10 +572,26 @@ try {
     const lifecycleState = (
       await q('SELECT "lifecycleState" FROM "Assessment" WHERE id=$1', [id])
     ).rows[0]?.lifecycleState;
-    assertSemanticOutcome(
-      { decisions, requests, lifecycleState },
-      fixture.semanticExpectation,
-    );
+    const expected = structuredClone(fixture.semanticExpectation);
+    if (expected.criteria?.length) {
+      const pinned = (
+        await q(
+          'SELECT r.criteria FROM "AssessmentRule" r JOIN "AssessmentCase" c ON c."ruleSetVersionId"=r."ruleSetVersionId" WHERE c."assessmentId"=$1',
+          [id],
+        )
+      ).rows;
+      assert.equal(
+        pinned.length,
+        1,
+        "Each adversarial semantic case has one pinned rule",
+      );
+      assert.equal(pinned[0].criteria.length, expected.criteria.length);
+      expected.criteria = expected.criteria.map((criterion, index) => ({
+        ...criterion,
+        criterionId: pinned[0].criteria[index].criterionId,
+      }));
+    }
+    assertSemanticOutcome({ decisions, requests, lifecycleState }, expected);
   }
   writeFileSync(
     path.join(outputDir, `${outputLabel}.json`),

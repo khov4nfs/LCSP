@@ -13,6 +13,7 @@ import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { LEGAL_SOURCE_CHUNK_STATUSES } from "@lcsp/contracts/legal-source";
 import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_EXECUTION_CONTRACTS,
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
@@ -115,7 +116,12 @@ function buildRuleSetUseCases(
     claimPreparation: async (i: Body) =>
       claim.execute(
         new ClaimRuleSetPreparationCommand(
-          parse(ruleSetPreparationClaimRequestSchema, i.body),
+          parse(ruleSetPreparationClaimRequestSchema, {
+            ...(i.body as Record<string, unknown>),
+            supportedExecutionContracts: [
+              PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1,
+            ],
+          }),
           i.correlationId,
         ),
       ),
@@ -975,10 +981,14 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     );
     const run = await startRun(source.id);
     const before = await prisma.complianceRuleSetVersion.count();
-    const bad = validPacket();
+    await claimBeforeSubmit(run.preparationRunId);
+    const pinned = await pinFixtureRequest(prisma, {
+      preparationRunId: run.preparationRunId,
+      packet: validPacket(),
+    });
+    const bad = structuredClone(pinned.packet);
     bad.assessmentRules[0].legalRequirementIds.push("LR-MISSING");
 
-    await claimBeforeSubmit(run.preparationRunId);
     const failed = await service.validate({
       body: { preparationRunId: run.preparationRunId, packet: bad },
       correlationId: randomUUID(),
@@ -988,7 +998,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       COMPLIANCE_RULE_SET_FAILURE_CODES.ORPHAN_ASSESSMENT_RULE,
     );
     const passed = await service.validate({
-      body: { preparationRunId: run.preparationRunId, packet: validPacket() },
+      body: pinned,
       correlationId: randomUUID(),
     });
     expect(passed).toMatchObject({ outcome: "PASSED", failures: [] });

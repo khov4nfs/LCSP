@@ -9,9 +9,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
-import {
-  RULE_SET_PREPARATION_FAILURE_REASONS,
-} from "@lcsp/contracts/compliance-rule-set";
+import { RULE_SET_PREPARATION_FAILURE_REASONS } from "@lcsp/contracts/compliance-rule-set";
 
 import {
   contentHash,
@@ -22,7 +20,9 @@ import {
 } from "./support/compliance-rule-set-stack.mjs";
 
 const database = "lcsp_compliance_rule_set_vertical";
-const apiPort = Number(process.env.LCSP_COMPLIANCE_RULE_SET_TEST_API_PORT ?? 3411);
+const apiPort = Number(
+  process.env.LCSP_COMPLIANCE_RULE_SET_TEST_API_PORT ?? 3411,
+);
 let checks = 0;
 const ok = (value, message) => {
   assert.ok(value, message);
@@ -54,15 +54,19 @@ const DOC = "SYNTHETIC-NOTICE-INSTRUMENT";
 const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 
-const { q, base, post, get, stop, seedLegalSource, activateLegalSource } = await startStack({
-  database,
-  apiPort,
-});
+const { q, base, post, get, stop, seedLegalSource, activateLegalSource } =
+  await startStack({
+    database,
+    apiPort,
+  });
 
 try {
   // ---- seed: two pinned corpora (B changes art-5::cl-1) with valid retrieval indexes -------------
   const seed = (name, variant, status) => {
-    const sourceBytes = Buffer.from(LOCATORS.map((locator) => contentFor(locator, variant)).join("\n") + "\n", "utf8");
+    const sourceBytes = Buffer.from(
+      LOCATORS.map((locator) => contentFor(locator, variant)).join("\n") + "\n",
+      "utf8",
+    );
     const lines = sourceBytes.toString("utf8").split("\n");
     return seedLegalSource({
       name,
@@ -79,7 +83,8 @@ try {
   // Every Legal Source is ACTIVE (ACTIVE) when its activation event arrives; each scenario below
   // that needs its own automatic preparation gets its own source, since one source has one run.
   let sourceCounter = 0;
-  const freshSource = (variant) => seed(`vertical-${variant}-${(sourceCounter += 1)}`, variant, "ACTIVE");
+  const freshSource = (variant) =>
+    seed(`vertical-${variant}-${(sourceCounter += 1)}`, variant, "ACTIVE");
   const legalSourceA = await freshSource("a");
   const legalSourceB = await freshSource("b");
   const seedDir = mkdtempSync(
@@ -105,7 +110,10 @@ try {
     const delivery = await activateLegalSource(legalSourceId);
     eq(delivery.failed, 0, JSON.stringify(delivery));
     eq(delivery.runs.length, 1, "one source -> one automatic run");
-    return { preparationRunId: delivery.runs[0].id, executionState: delivery.runs[0].executionState };
+    return {
+      preparationRunId: delivery.runs[0].id,
+      executionState: delivery.runs[0].executionState,
+    };
   };
   const activeIds = async () =>
     (
@@ -136,24 +144,59 @@ try {
 
   // 2. there is NO route that starts a preparation; the activation event does, exactly once
   eq(
-    (await post("preparations", { legalSourceVersionId: legalSourceA, idempotencyKey: "any-key-12" })).status,
+    (
+      await post("preparations", {
+        legalSourceVersionId: legalSourceA,
+        idempotencyKey: "any-key-12",
+      })
+    ).status,
     404,
     "the worker API exposes no start route",
   );
-  const replayed = await activateLegalSource(legalSourceA, { times: 6, concurrent: true });
+  const replayed = await activateLegalSource(legalSourceA, {
+    times: 6,
+    concurrent: true,
+  });
   eq(replayed.failed, 0, JSON.stringify(replayed));
-  eq(replayed.runs.length, 1, "replayed + concurrent deliveries -> one logical run");
-  eq(replayed.runs[0].requestedBy, "rule-set-preparation-system", "automatic start is system-owned");
-  eq(replayed.runs[0].idempotencyKey, `rule-set-preparation:${legalSourceA}:attempt:1`);
   eq(
-    (await q(`SELECT count(*)::int AS n FROM "OutboxMessage" WHERE "aggregateId"=$1 AND "eventType"='command.compliance-rule-set.preparation.requested.v1'`, [legalSourceA])).rows[0].n,
+    replayed.runs.length,
+    1,
+    "replayed + concurrent deliveries -> one logical run",
+  );
+  eq(
+    replayed.runs[0].requestedBy,
+    "rule-set-preparation-system",
+    "automatic start is system-owned",
+  );
+  eq(
+    replayed.runs[0].idempotencyKey,
+    `rule-set-preparation:${legalSourceA}:attempt:1`,
+  );
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "OutboxMessage" WHERE "aggregateId"=$1 AND "eventType"='command.compliance-rule-set.preparation.requested.v1'`,
+        [legalSourceA],
+      )
+    ).rows[0].n,
     1,
     "exactly one paid preparation command for one activation",
   );
   const superseded = await seed("vertical-superseded", "a", "SUPERSEDED");
-  eq((await activateLegalSource(superseded)).runs.length, 0, "a superseded source is never prepared");
-  eq((await activateLegalSource(randomUUID())).runs.length, 0, "an unknown source is never prepared");
-  const runA = { preparationRunId: replayed.runs[0].id, executionState: replayed.runs[0].executionState };
+  eq(
+    (await activateLegalSource(superseded)).runs.length,
+    0,
+    "a superseded source is never prepared",
+  );
+  eq(
+    (await activateLegalSource(randomUUID())).runs.length,
+    0,
+    "an unknown source is never prepared",
+  );
+  const runA = {
+    preparationRunId: replayed.runs[0].id,
+    executionState: replayed.runs[0].executionState,
+  };
   eq(runA.executionState, "QUEUED");
 
   // 3. REAL agent + client + API: legalSource -> rule set -> automatic activation
@@ -177,22 +220,19 @@ try {
     1,
     "the journey freezes one inventory before typed authoring",
   );
-  ok(
-    frozen[0].fingerprint,
-    "the frozen inventory is sealed by a fingerprint",
-  );
+  ok(frozen[0].fingerprint, "the frozen inventory is sealed by a fingerprint");
   ok(
     first.scriptedCalls.some(
       (step) =>
-        step.tool === "author_legal_requirement" &&
+        step.tool === "submit_rule_set_draft_candidates" &&
         step.result?.outcome === "PASSED",
     ) &&
       first.scriptedCalls.some(
         (step) =>
-          step.tool === "author_assessment_rule" &&
+          step.tool === "validate_compliance_rule_set" &&
           step.result?.outcome === "PASSED",
       ),
-    "both typed authoring tools execute successfully",
+    "typed direct candidates and the real Rule Validator execute successfully",
   );
   const counts = (
     await q(
@@ -209,7 +249,7 @@ try {
       engineering: counts.engineering,
       relations: counts.relations,
     },
-    { rules: 5, engineering: 3, relations: 2 },
+    { rules: 5, engineering: 3, relations: 0 },
   );
   ok(counts.provenance >= 7, "every leaf provision has provenance");
   const events = (
@@ -237,8 +277,9 @@ try {
   );
   ok(active.body.data.assessmentRules.every((r) => r.sources.length > 0));
   eq(
-    active.body.data.legalRequirements.find((r) => r.legalRequirementId === "LR-PERSON")
-      .nonRepositoryDuty,
+    active.body.data.legalRequirements.find(
+      (r) => r.legalRequirementId === "LR-PERSON",
+    ).nonRepositoryDuty,
     true,
   );
 
@@ -247,7 +288,11 @@ try {
 
   // 6. a finished run can never be claimed or re-run
   const again = await runPython(runA.preparationRunId, "valid");
-  eq(again.state, "ALREADY_CLAIMED", "a duplicated command stops at the claim: no second paid run");
+  eq(
+    again.state,
+    "ALREADY_CLAIMED",
+    "a duplicated command stops at the claim: no second paid run",
+  );
   eq(again.failureReason, null);
   eq(await activeIds(), [first.submission.ruleSetVersionId]);
   eq(await run(runA.preparationRunId), {
@@ -283,15 +328,15 @@ try {
     5,
   );
 
-  // 8. corrupt source support and unknown typed parents fail closed and preserve ACTIVE.
+  // 8. Corrupt source support and duplicate rule ownership fail closed and preserve ACTIVE.
   const staleRun = await startRun(await freshSource("b"));
   const stale = await runPython(staleRun.preparationRunId, "stale");
   eq(stale.state, AGENT_EXECUTION_STATES.FAILED);
   eq(stale.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.RUNTIME_ERROR);
   eq(stale.submission, null);
   ok(
-    JSON.stringify(stale.scriptedChildRejections).includes("SOURCE_SUPPORT_INVALID"),
-    "stale support quotation rejected by commit_claims before freeze",
+    JSON.stringify(stale.scriptedCalls).includes("SOURCE_SUPPORT_INVALID"),
+    "stale support quotation rejected by direct submission before freeze",
   );
   eq(
     (
@@ -311,10 +356,12 @@ try {
   ok(
     orphan.scriptedCalls.some(
       (step) =>
-        step.tool === "author_assessment_rule" &&
-        step.result?.gaps?.ORPHAN_ASSESSMENT_RULE,
+        step.tool === "submit_rule_set_draft_candidates" &&
+        JSON.stringify(step.result ?? {}).includes(
+          "AssessmentRule identity already belongs",
+        ),
     ),
-    "unknown Requirement parent rejected by typed authoring",
+    "a second candidate cannot take another candidate's AssessmentRule identity",
   );
   ok(
     orphan.scriptedCalls.some(
@@ -369,7 +416,8 @@ try {
 
   // 9. concurrent agent processes: exactly one ACTIVE, consistent supersession chain
   const runs = [];
-  for (let index = 0; index < 3; index += 1) runs.push(await startRun(await freshSource("a")));
+  for (let index = 0; index < 3; index += 1)
+    runs.push(await startRun(await freshSource("a")));
   const concurrent = await Promise.all(
     runs.map((r) => runPython(r.preparationRunId, "valid")),
   );
@@ -410,8 +458,8 @@ try {
     0,
   );
   eq(
-    (await q(`SELECT count(*)::int AS n FROM "LegalSourceActivationRecord"`)).rows[0]
-      .n,
+    (await q(`SELECT count(*)::int AS n FROM "LegalSourceActivationRecord"`))
+      .rows[0].n,
     0,
     "no approval row is written or required",
   );

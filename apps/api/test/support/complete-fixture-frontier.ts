@@ -27,6 +27,7 @@ export async function completeFixtureFrontier(
   source: LegalDocumentGraph,
   graph: LegalSemanticGraph,
   identities: Record<string, string>,
+  draft?: SourceReviewOperation["draft"],
 ) {
   const handler = new SourceReviewHandler(
     db,
@@ -141,6 +142,15 @@ export async function completeFixtureFrontier(
       .filter((c) => c.sourceNodeIds.includes(id))
       .map((c) => c.claimId);
     const original = graph.sourceAccounting.find((r) => r.sourceNodeId === id);
+    const draftVersion = draft
+      ? ((
+          await db.ruleSetPreparationAuthoringDraft.findUnique({
+            where: {
+              preparationRunId_revision: { preparationRunId: runId, revision },
+            },
+          })
+        )?.draftVersion ?? 0)
+      : undefined;
     const result = await invoke({
       action: A.COMPLETE,
       sourceNodeId: id,
@@ -153,6 +163,7 @@ export async function completeFixtureFrontier(
           : D.NO_RELEVANT_SEMANTIC_CLAIMS,
       claimIds,
       payload,
+      ...(draft ? { draft, draftVersion } : {}),
       ...(waiting.size
         ? {
             referenceIds: [...waiting],

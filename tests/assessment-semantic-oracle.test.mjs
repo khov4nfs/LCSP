@@ -107,7 +107,7 @@ test("partial control cannot pass when the unmet part is omitted", () => {
   const { expected } = scenarios.find(({ id }) => id === "partial-safeguard");
   assert.throws(() =>
     assertSemanticOutcome(
-      { decisions: [{ ...expected, criteria: expected.criteria.slice(0, 1) }] },
+      { decisions: [{ ...expected, criteria: [] }] },
       expected,
     ),
   );
