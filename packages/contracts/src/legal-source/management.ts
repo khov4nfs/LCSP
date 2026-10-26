@@ -3,6 +3,20 @@ import { z } from "zod";
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "./statuses.ts";
 
 /** Where a managed document's original bytes came from. MIGRATED rows predate managed ingestion. */
+export const LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES = {
+  OPERATIVE: "OPERATIVE",
+  REFERENCE_ONLY: "REFERENCE_ONLY",
+} as const;
+export type LegalSourceDocumentCorpusRole =
+  (typeof LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES)[keyof typeof LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES];
+export const REFERENCE_ONLY_TARGET_REASON = "REFERENCE_ONLY_TARGET";
+export const updateLegalSourceDocumentCorpusRoleSchema = z.strictObject({
+  corpusRole: z.enum(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES),
+});
+export type UpdateLegalSourceDocumentCorpusRole = z.infer<
+  typeof updateLegalSourceDocumentCorpusRoleSchema
+>;
+
 export const LEGAL_SOURCE_DOCUMENT_ORIGINS = {
   UPLOAD: "UPLOAD",
   URL_IMPORT: "URL_IMPORT",
@@ -356,6 +370,9 @@ export const legalSourceDocumentViewSchema = z.strictObject({
   sourceUrl: z.string(),
   sourceSha256: sha256Schema.or(z.string()),
   sourceEffectStatus: z.string(),
+  corpusRole: z
+    .enum(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES)
+    .default(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.OPERATIVE),
   effectiveDate: z.string().nullable(),
   structureProfile: z.string().nullable(),
   chunkCount: z.number().int(),

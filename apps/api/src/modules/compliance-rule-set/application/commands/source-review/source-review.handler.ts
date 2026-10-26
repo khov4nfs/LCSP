@@ -1,8 +1,10 @@
+import { REFERENCE_ONLY_TARGET_REASON } from "@lcsp/contracts/legal-source";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   Prisma,
   AgentExecutionState,
   SourceReviewState,
+  PreparationExecutionContract,
   type RuleSetPreparationSourceReview,
 } from "@prisma/client";
 import {
@@ -13,18 +15,17 @@ import {
   LEGAL_REFERENCE_RESOLUTION_STATES as R,
   REFERENCE_DEPENDENCY_STATES as DEP,
   type LegalDocumentGraph,
-  type LegalDocumentNode,
 } from "@lcsp/contracts/legal-source";
 import {
   sourceReviewPayloadSchema,
+  ruleSetPreparationAuthoringDraftSchema,
+  CLAIM_INVENTORY_GAPS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
   CLAIM_PREPARATION_PHASES as P,
   CLAIM_DISCOVERY_MODES,
   LEGAL_SEMANTIC_CLAIM_TYPES as C,
-  LEGAL_SEMANTIC_GRAPH_VERSION,
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
-  type LegalSemanticGraph,
-  semanticAuditReceiptSchema,
+  type UnitReviewCompletion,
 } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
@@ -34,6 +35,7 @@ import {
 } from "../../../domain/claim-inventory.js";
 import {
   sourceReviewUnits,
+  referenceOnlyNodeIds,
   reviewReferenceOwners,
   frontierDefinitionFingerprint,
   reviewedFrontierFingerprint,
@@ -46,17 +48,11 @@ import {
 } from "../../../domain/source-review-frontier.js";
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
-import { semanticAuditAttestationFailures } from "../../../domain/semantic-audit-attestation.js";
-import {
-  semanticAuditInput,
-  semanticAuditReceiptFailures,
-  sourceSupportFailures,
-} from "../../../domain/semantic-audit.js";
+import { sourceSupportFailures } from "../../../domain/source-completeness.js";
 import {
   claimEndpointFingerprint,
   referenceDependencyView,
   referenceDependencyWake,
-  referenceDependencyWaits,
   invalidateDependentPayload,
 } from "../../../domain/reference-dependencies.js";
 import {
@@ -176,7 +172,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           code: string,
           ref: string,
           detail: string,
-          action = "get_next_review_unit",
+          action = "commit_claims",
           extra = {},
         ) => ({
           outcome: O.FAILED,
@@ -198,7 +194,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           where: { preparationRunId_inventoryRevision: key },
         });
         if (!frontier) {
-          if (input.action !== A.INIT && input.action !== A.NEXT)
+          if (input.action !== A.INIT)
             return failed(
               G.INCOMPLETE,
               "frontier",
@@ -294,6 +290,17 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             },
           });
         }
+        if (
+          input.action === A.INIT &&
+          run.executionState === AgentExecutionState.RUNNING &&
+          !run.reviewOperationId
+        ) {
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: { reviewOperationId: input.operationId },
+          });
+          run.reviewOperationId = input.operationId;
+        }
         const itemKey = (sourceNodeId: string) => ({ ...key, sourceNodeId });
         const progress = () => ({
           total: frontier!.unitCount,
@@ -366,6 +373,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             },
           });
         };
+        let completionRows: RuleSetPreparationSourceReview[] | undefined;
         let dependencySnapshot:
           Awaited<ReturnType<typeof loadDependencies>> | undefined;
         const loadDependencies = async () => {
@@ -375,9 +383,11 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           );
           if (!graph || graph.materializationId !== frontier!.materializationId)
             throw new Error("Pinned structural materialization is unavailable");
-          const rows = await tx.ruleSetPreparationSourceReview.findMany({
-            where: key,
-          });
+          const rows =
+            completionRows ??
+            (await tx.ruleSetPreparationSourceReview.findMany({
+              where: key,
+            }));
           return {
             graph,
             rows,
@@ -513,8 +523,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             "sourceRevision",
             "Reload the pinned structural materialization",
           );
-        if (input.action === A.NEXT || input.action === A.PROGRESS)
-          await reconcileBlocked();
+        if (input.action === A.PROGRESS) await reconcileBlocked();
         if (
           input.action === A.PROGRESS &&
           (input.referenceIds?.length || input.claimIds?.length)
@@ -551,35 +560,26 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
         if (input.action === A.LOAD) {
           const limit = input.limit ?? 20,
             offset = input.offset ?? 0;
+          const loadedThrough = input.updatedThrough
+            ? new Date(input.updatedThrough)
+            : new Date();
           const records = await tx.ruleSetPreparationSourceReview.findMany({
-            where: { ...key, state: { not: SourceReviewState.PENDING } },
+            where: {
+              ...key,
+              state: { not: SourceReviewState.PENDING },
+              updatedAt: input.updatedSince
+                ? { gte: new Date(input.updatedSince), lte: loadedThrough }
+                : { lte: loadedThrough },
+            },
             orderBy: { ordinal: "asc" },
             skip: offset,
             take: limit + 1,
           });
-          const audits = await tx.ruleSetPreparationSemanticAudit.findMany({
-            where: {
-              ...key,
-              sourceNodeId: {
-                in: records.slice(0, limit).map((r) => r.sourceNodeId),
-              },
-            },
-          });
-          const receipts = new Map(
-            audits.map((r) => [
-              r.sourceNodeId,
-              semanticAuditReceiptSchema.parse(r.receipt),
-            ]),
-          );
           return reply({
+            loadedThrough: loadedThrough.toISOString(),
             records: records.slice(0, limit).map((record) => ({
               ...record,
-              payload: {
-                ...reviewPayload(record),
-                ...(receipts.has(record.sourceNodeId)
-                  ? { semanticAudit: receipts.get(record.sourceNodeId)! }
-                  : {}),
-              },
+              payload: reviewPayload(record),
             })),
             nextOffset: records.length > limit ? offset + limit : null,
           });
@@ -604,83 +604,6 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               },
             })
           : null;
-        const quarantined = new Set(
-          input.payload?.invalidatedRelationIds ?? [],
-        );
-        if (quarantined.size) {
-          const previous = existing ? reviewPayload(existing) : null;
-          if (
-            input.disposition !== D.REQUIRES_REFERENCE_RESOLUTION ||
-            [...quarantined].some(
-              (id) =>
-                !previous?.invalidatedRelationIds?.includes(id) ||
-                inventoryHash(
-                  previous.relations.find((r) => r.relationId === id) ?? null,
-                ) !==
-                  inventoryHash(
-                    input.payload!.relations.find((r) => r.relationId === id) ??
-                      null,
-                  ),
-            )
-          )
-            return failed(
-              G.DEPENDENCY,
-              input.sourceNodeId ?? "unit",
-              "Only unchanged previously invalidated decisions may be retained as blocked repair evidence",
-              "inspect_semantic_reference_binding",
-            );
-        }
-        if (
-          input.action === A.COMPLETE &&
-          input.payload?.relations.some((r) => r.referenceId)
-        ) {
-          const graph = await this.graph.export(
-            run.legalSourceVersionId,
-            frontier.materializationId,
-          );
-          if (!graph || graph.materializationId !== frontier.materializationId)
-            return failed(
-              G.STALE,
-              "sourceRevision",
-              "Reload the pinned structural materialization",
-            );
-          const { view } = await dependencies();
-          const claims = new Map(
-            [
-              ...[...view.endpoints.values()].map((e) => e.claim),
-              ...input.payload.claims,
-            ].map((c) => [c.claimId, c]),
-          );
-          const binding = semanticReferenceBindings(
-            graph,
-            run.legalSourceVersionId,
-            frontier.materializationId,
-          );
-          for (const relation of input.payload.relations) {
-            if (!relation.referenceId || quarantined.has(relation.relationId))
-              continue;
-            const detached = binding.failure(relation, claims);
-            if (detached)
-              return { outcome: O.FAILED, failures: [detached], ...detached };
-          }
-        }
-        if (
-          existing &&
-          input.action === A.COMPLETE &&
-          input.payload &&
-          input.disposition &&
-          input.claimIds &&
-          (completedReviewStates.includes(existing.state as never) ||
-            existing.state === S.BLOCKED_REFERENCE) &&
-          existing.completionFingerprint ===
-            reviewCompletionFingerprint({ ...input, payload: input.payload })
-        )
-          return reply({
-            alreadyCompleted: true,
-            completedSourceNodeId: existing.sourceNodeId,
-            state: existing.state,
-            claimIds: existing.claimIds,
-          });
         if (
           frontier.frozenAt ||
           run.executionState !== AgentExecutionState.RUNNING ||
@@ -693,159 +616,648 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             "reopen_semantic_claim_inventory",
           );
 
-        if (input.action === A.NEXT) {
-          let item = await tx.ruleSetPreparationSourceReview.findFirst({
-            where: { ...key, state: SourceReviewState.IN_REVIEW },
+        const validateCompletion = async (
+          input: SourceReviewCommand["request"],
+          existing: RuleSetPreparationSourceReview,
+        ) => {
+          const quarantined = new Set(
+            input.payload?.invalidatedRelationIds ?? [],
+          );
+          if (quarantined.size) {
+            const previous = existing ? reviewPayload(existing) : null;
+            if (
+              input.disposition !== D.REQUIRES_REFERENCE_RESOLUTION ||
+              [...quarantined].some(
+                (id) =>
+                  !previous?.invalidatedRelationIds?.includes(id) ||
+                  inventoryHash(
+                    previous.relations.find((r) => r.relationId === id) ?? null,
+                  ) !==
+                    inventoryHash(
+                      input.payload!.relations.find(
+                        (r) => r.relationId === id,
+                      ) ?? null,
+                    ),
+              )
+            )
+              return failed(
+                G.DEPENDENCY,
+                input.sourceNodeId ?? "unit",
+                "Only unchanged previously invalidated decisions may be retained as blocked repair evidence",
+              );
+          }
+          if (input.payload?.relations.some((r) => r.referenceId)) {
+            const graph = await this.graph.export(
+              run.legalSourceVersionId,
+              frontier!.materializationId,
+            );
+            if (
+              !graph ||
+              graph.materializationId !== frontier!.materializationId
+            )
+              return failed(
+                G.STALE,
+                "sourceRevision",
+                "Reload the pinned structural materialization",
+              );
+            const { view } = await dependencies();
+            const claims = new Map(
+              [
+                ...[...view.endpoints.values()].map((e) => e.claim),
+                ...input.payload.claims,
+              ].map((c) => [c.claimId, c]),
+            );
+            const binding = semanticReferenceBindings(
+              graph,
+              run.legalSourceVersionId,
+              frontier!.materializationId,
+            );
+            for (const relation of input.payload.relations) {
+              if (!relation.referenceId || quarantined.has(relation.relationId))
+                continue;
+              const detached = binding.failure(relation, claims);
+              if (detached)
+                return { outcome: O.FAILED, failures: [detached], ...detached };
+            }
+          }
+          if (
+            input.action !== A.COMPLETE ||
+            !input.disposition ||
+            !input.payload ||
+            !input.claimIds ||
+            !input.sourceRevision ||
+            !input.frontierRevision
+          )
+            return failed(
+              G.DISPOSITION,
+              existing.sourceNodeId,
+              "Supply a typed disposition, source/frontier revision, and the current unit's claim payload",
+            );
+          const payload = input.payload;
+          const completionFingerprint = reviewCompletionFingerprint({
+            ...input,
+            payload,
           });
           if (
-            item?.operationId !== input.operationId &&
-            item?.leaseExpiresAt &&
-            item.leaseExpiresAt > new Date()
+            existing.completionFingerprint === completionFingerprint &&
+            (completedReviewStates.includes(existing.state as never) ||
+              existing.state === S.BLOCKED_REFERENCE)
+          )
+            return {
+              existing,
+              payload,
+              completionFingerprint,
+              alreadyCompleted: true,
+              state: existing.state,
+            };
+          if (
+            !([S.PENDING, S.REOPENED, S.IN_REVIEW] as string[]).includes(
+              existing.state,
+            ) ||
+            (existing.state === S.IN_REVIEW &&
+              existing.operationId !== input.operationId &&
+              !!existing.leaseExpiresAt &&
+              existing.leaseExpiresAt > new Date())
           )
             return failed(
               G.LEASE,
-              item.sourceNodeId,
-              "Another logical operation owns the active review lease",
-              "WAIT_FOR_REVIEW_LEASE",
+              existing.sourceNodeId,
+              "Another operation owns an unexpired review lease, or this unit must be reopened",
             );
-          if (!item)
-            item = await tx.ruleSetPreparationSourceReview.findFirst({
+          const referenceOnly = referenceOnlyNodeIds(
+            (await dependencies()).graph,
+          );
+          if (
+            payload.claims.some((c) =>
+              c.operative !== null &&
+              [
+                ...c.sourceNodeIds,
+                ...(c.sourceSupport ?? []).map((s) => s.nodeId),
+              ].some((id) => referenceOnly.has(id)),
+            )
+          )
+            return failed(
+              G.BINDING,
+              existing.sourceNodeId,
+              "Reference-only documents cannot support claims; use them only as legalEffect targets",
+            );
+          const owned = new Set(payload.claims.map((c) => c.claimId));
+          if (
+            owned.size !== payload.claims.length ||
+            Object.keys(payload.identities).length !== owned.size ||
+            payload.claims.some(
+              (c) =>
+                !c.sourceNodeIds.includes(existing.sourceNodeId) ||
+                c.legalSourceVersionId !== run.legalSourceVersionId ||
+                canonicalClaimId(
+                  run.id,
+                  input.inventoryRevision,
+                  c.sourceNodeIds,
+                  payload.identities[c.claimId] ?? "",
+                ) !== c.claimId,
+            )
+          )
+            return failed(
+              G.BINDING,
+              existing.sourceNodeId,
+              "Every owned claim must have a canonical identity and include this unit in its source bindings",
+            );
+          const anchors = [
+            ...new Set(payload.claims.flatMap((c) => c.sourceNodeIds)),
+          ];
+          const conflicts = owned.size
+            ? (await dependencies()).rows.filter(
+                (r) =>
+                  r.sourceNodeId !== existing.sourceNodeId &&
+                  r.claimIds.some((id) => owned.has(id)),
+              )
+            : [];
+          if (
+            conflicts.some((row) =>
+              reviewPayload(row).claims.some((c) => owned.has(c.claimId)),
+            )
+          )
+            return failed(
+              G.BINDING,
+              existing.sourceNodeId,
+              "This canonical claim already belongs to another review; link its existing ID instead",
+              "get_claim_inventory",
+            );
+          if (
+            (await tx.legalDocumentNode.count({
               where: {
-                ...key,
-                state: SourceReviewState.PENDING,
+                materializationId: frontier!.materializationId,
+                legalSourceVersionId: run.legalSourceVersionId,
+                nodeId: { in: anchors },
               },
-              orderBy: { ordinal: "asc" },
-            });
-          if (!item) {
-            const repairs = await tx.ruleSetPreparationSourceReview.findMany({
-              where: { ...key, state: SourceReviewState.REOPENED },
-              orderBy: { ordinal: "asc" },
-            });
-            if (repairs.length) {
-              const { view } = await dependencies();
-              // Publish fresh units first; completed targets only prioritize already eligible repairs.
-              item =
-                repairs.find(
-                  (r) =>
-                    r.blockedReferenceIds.length > 0 &&
-                    r.blockedReferenceIds.every(
-                      (id) => view.target(id).targetReviewComplete,
-                    ),
-                ) ?? repairs[0];
+            })) !== anchors.length
+          )
+            return failed(
+              G.BINDING,
+              existing.sourceNodeId,
+              "Claim source nodes must exist in this exact source revision",
+            );
+          if (
+            input.claimIds.length !== new Set(input.claimIds).size ||
+            [...owned].some((id) => !input.claimIds!.includes(id))
+          )
+            return failed(
+              G.BINDING,
+              existing.sourceNodeId,
+              "Include every claim authored in this review; omitted canonical IDs are returned",
+              "commit_claims",
+              {
+                expectedClaimIds: [...owned],
+                missingClaimIds: [...owned].filter(
+                  (id) => !input.claimIds!.includes(id),
+                ),
+              },
+            );
+          const linked = input.claimIds.filter((id) => !owned.has(id));
+          const otherRows = linked.length
+            ? (await dependencies()).rows.filter((r) =>
+                r.claimIds.some((id) => linked.includes(id)),
+              )
+            : [];
+          const otherClaims = otherRows.flatMap((r) => reviewPayload(r).claims);
+          if (
+            linked.some(
+              (id) =>
+                !otherClaims.some(
+                  (c) =>
+                    c.claimId === id &&
+                    c.sourceNodeIds.includes(existing.sourceNodeId),
+                ),
+            )
+          )
+            return failed(
+              G.BINDING,
+              existing.sourceNodeId,
+              "Related claim IDs must exist and bind this source node",
+              "get_claim_inventory",
+            );
+          if (
+            (input.disposition === D.NO_RELEVANT_SEMANTIC_CLAIMS &&
+              (input.claimIds.length || !input.reason)) ||
+            (input.disposition === D.CONTEXT_ONLY &&
+              ([
+                ...payload.claims,
+                ...otherClaims.filter((c) => linked.includes(c.claimId)),
+              ].some(
+                (c) =>
+                  !([C.CONTEXT, C.DEFINITION] as string[]).includes(
+                    c.claimType,
+                  ),
+              ) ||
+                !input.claimIds.length)) ||
+            (input.disposition === D.CLAIMS_AUTHORED && !input.claimIds.length)
+          )
+            return failed(
+              G.DISPOSITION,
+              existing.sourceNodeId,
+              "No-claim needs zero claims and a reason; context-only cannot hide a normative claim",
+            );
+          if (
+            payload.referenceAccounting.some(
+              (r) => !existing.referenceIds.includes(r.referenceId),
+            ) ||
+            payload.relations.some(
+              (r) =>
+                r.referenceId && !existing.referenceIds.includes(r.referenceId),
+            )
+          )
+            return failed(
+              G.REFERENCE,
+              existing.sourceNodeId,
+              "Use explicit references assigned to the active review unit",
+            );
+          const relationIds = new Set(
+            payload.relations.map((r) => r.relationId),
+          );
+          const endpoints = [
+            ...new Set(
+              payload.relations
+                .filter((r) => !quarantined.has(r.relationId))
+                .flatMap((r) => [r.fromClaimId, r.toClaimId])
+                .filter((id) => !owned.has(id)),
+            ),
+          ];
+          const { view: endpointView } = await dependencies();
+          if (
+            payload.invalidatedRelationIds?.length &&
+            input.disposition !== D.REQUIRES_REFERENCE_RESOLUTION
+          )
+            return failed(
+              G.DEPENDENCY,
+              existing.sourceNodeId,
+              "Explicitly repair invalidated semantic bindings before completion",
+            );
+          for (const id of endpoints) {
+            const endpoint = endpointView.endpoints.get(id);
+            if (!endpoint)
+              return failed(
+                G.ENDPOINT,
+                id,
+                "The cross-review endpoint must be a valid committed canonical claim",
+              );
+            if (payload.dependencyFingerprints?.[id] !== endpoint.fingerprint)
+              return failed(
+                G.DEPENDENCY,
+                id,
+                "The committed target meaning changed or was not inspected; reconsider this binding",
+              );
+          }
+          if (payload.relations.some((r) => r.fromClaimId === r.toClaimId))
+            return failed(
+              G.BINDING,
+              existing.sourceNodeId,
+              "Relation endpoints must be distinct canonical claims",
+            );
+          const refs = await tx.legalDocumentReference.findMany({
+            where: {
+              materializationId: frontier!.materializationId,
+              referenceId: { in: existing.referenceIds },
+            },
+          });
+          const blocked = input.disposition === D.REQUIRES_REFERENCE_RESOLUTION;
+          delete payload.blockedSourceNodeIds;
+          if (blocked && !input.referenceIds?.length) {
+            // With no structural reference to wait on, a unit may wait for the reopened units whose relations touch its claims.
+            const waitsFor = (await dependencies()).rows
+              .filter(
+                (r) =>
+                  r.state === S.REOPENED &&
+                  reviewPayload(r).relations.some(
+                    (rel) =>
+                      owned.has(rel.fromClaimId) || owned.has(rel.toClaimId),
+                  ),
+              )
+              .map((r) => r.sourceNodeId)
+              .sort();
+            if (waitsFor.length) payload.blockedSourceNodeIds = waitsFor;
+          }
+          if (blocked) {
+            payload.blockedEndpointFingerprints = {};
+            for (const id of input.referenceIds ?? []) {
+              const target = endpointView.target(id);
+              if (referenceOnly.has(target.targetNodeId ?? ""))
+                return failed(
+                  G.REFERENCE,
+                  id,
+                  "Use non-material REFERENCE_ONLY_TARGET for a reference-only target; no target claim or review is required",
+                );
+              if (target.classification === DEP.OUTSIDE_SCOPE)
+                return failed(
+                  G.REFERENCE,
+                  id,
+                  "The resolved target is outside scope; explicitly expand before blocking",
+                  "commit_claims",
+                );
+              payload.blockedEndpointFingerprints[id] =
+                target.endpointFingerprint;
+              if (target.bindingCanProceed)
+                return failed(
+                  G.REFERENCE,
+                  id,
+                  "Durable target claims are available; bind them, or explicitly reopen a target that needs semantic correction",
+                );
             }
           }
-          if (!item) {
-            const { rows, view } = await dependencies();
-            const diagnosis = referenceDependencyWaits(rows, view);
-            if (diagnosis.falseDeadlock)
-              throw new Error(
-                "FALSE_DEADLOCK: durable endpoint reconciliation left runnable blocked work",
+          if (
+            blocked &&
+            (!input.reason ||
+              (!input.referenceIds?.length &&
+                !payload.blockedSourceNodeIds?.length) ||
+              input.referenceIds?.some(
+                (id) => !refs.some((r) => r.referenceId === id),
+              ))
+          )
+            return failed(
+              G.REFERENCE,
+              existing.sourceNodeId,
+              "Blocking needs specific outgoing reference IDs, or a reopened unit whose relations touch this unit's claims, and a reason",
+            );
+          const { graph: depGraph } = await dependencies();
+          const { within } = semanticReferenceBindings(
+            depGraph,
+            run.legalSourceVersionId,
+            frontier!.materializationId,
+          );
+          for (const ref of refs) {
+            const accounting = payload.referenceAccounting.find(
+              (r) => r.referenceId === ref.referenceId,
+            );
+            if (
+              ref.toNodeId &&
+              referenceOnly.has(ref.toNodeId) &&
+              !accounting?.material &&
+              (accounting?.nonMaterialReason !==
+                REFERENCE_ONLY_TARGET_REASON ||
+                accounting.relationIds.length ||
+                input.referenceIds?.includes(ref.referenceId))
+            )
+              return failed(
+                G.REFERENCE,
+                ref.referenceId,
+                "Use non-material REFERENCE_ONLY_TARGET for a reference-only target",
               );
-            const blockedUnits =
-              await tx.ruleSetPreparationSourceReview.findMany({
-                where: { ...key, state: SourceReviewState.BLOCKED_REFERENCE },
-                take: 3,
-                orderBy: { ordinal: "asc" },
-                select: {
-                  sourceNodeId: true,
-                  structuralPath: true,
-                  blockedReferenceIds: true,
+            if (
+              accounting?.nonMaterialReason === REFERENCE_ONLY_TARGET_REASON &&
+              (!ref.toNodeId || !referenceOnly.has(ref.toNodeId))
+            )
+              return failed(
+                G.REFERENCE,
+                ref.referenceId,
+                "REFERENCE_ONLY_TARGET is only permitted for references that resolve to a verified reference-only target node",
+              );
+            if (blocked && input.referenceIds?.includes(ref.referenceId))
+              continue;
+            const hasLegalEffect = Boolean(
+              ref.toNodeId &&
+                payload.claims.some((c) =>
+                  c.semanticFrame?.legalEffect?.targets.some(
+                    (t) =>
+                      t.nodeId === ref.toNodeId ||
+                      (t.scope === "SUBTREE" &&
+                        within(ref.toNodeId!, t.nodeId)),
+                  ),
+                ),
+            );
+            if (
+              !accounting ||
+              (!accounting.material &&
+                payload.relations.some(
+                  (r) => r.referenceId === ref.referenceId,
+                )) ||
+              (accounting.material &&
+                (ref.resolutionState !== R.RESOLVED ||
+                  (!hasLegalEffect && !accounting.relationIds.length) ||
+                  accounting.nonMaterialReason !== null)) ||
+              (!accounting.material &&
+                (accounting.relationIds.length ||
+                  !accounting.nonMaterialReason)) ||
+              accounting.relationIds.some(
+                (id) =>
+                  !relationIds.has(id) ||
+                  payload.relations.find((r) => r.relationId === id)
+                    ?.referenceId !== ref.referenceId,
+              )
+            )
+              return failed(
+                G.REFERENCE,
+                ref.referenceId,
+                "Review this explicit reference with valid linked relations or an Agent-authored non-material reason",
+              );
+          }
+          if (!blocked) {
+            const { graph } = await dependencies();
+            for (const claim of payload.claims) {
+              const gaps = sourceSupportFailures(claim, graph);
+              if (gaps.length)
+                return failed(
+                  F.SOURCE_SUPPORT_INVALID,
+                  claim.claimId,
+                  gaps.join(", "),
+                );
+            }
+          }
+          return {
+            existing,
+            payload,
+            completionFingerprint,
+            alreadyCompleted: false,
+            state: blocked
+              ? SourceReviewState.BLOCKED_REFERENCE
+              : input.claimIds.length
+                ? SourceReviewState.REVIEWED_WITH_CLAIMS
+                : SourceReviewState.REVIEWED_NO_CLAIMS,
+          };
+        };
+        if (input.action === A.COMPLETE) {
+          const direct = run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1;
+          const draftKey = { preparationRunId_revision: { preparationRunId: run.id, revision: input.inventoryRevision } };
+          const savedDraft = direct ? await tx.ruleSetPreparationAuthoringDraft.findUnique({ where: draftKey }) : null;
+          const parsedDraft = direct ? ruleSetPreparationAuthoringDraftSchema.safeParse(input.draft) : null;
+          const draftVersion = savedDraft?.draftVersion ?? 0;
+          if (direct && (!parsedDraft?.success || input.draftVersion === undefined))
+            return failed(CLAIM_INVENTORY_GAPS.SCHEMA, "draft", "Direct preparation requires typed candidates and their loaded draft version");
+          if (direct && input.draftVersion !== draftVersion && !(input.draftVersion === draftVersion - 1 && savedDraft && inventoryHash(savedDraft.draft) === inventoryHash(parsedDraft!.data)))
+            return failed(CLAIM_INVENTORY_GAPS.DRAFT_STALE, "draftVersion", "Reload the persisted draft before editing it");
+          if (direct && Object.values(parsedDraft!.data!.legalRequirements).some((r) => r.claimInventoryRevision !== input.inventoryRevision))
+            return failed(CLAIM_INVENTORY_GAPS.STALE, "draft", "Requirements must bind this exact source review revision");
+          if (!direct && input.draft)
+            return failed(G.BINDING, "draft", "Historical preparation contracts cannot accept direct drafts");
+          if (!input.sourceRevision || !input.frontierRevision)
+            return failed(
+              G.STALE,
+              "sourceRevision",
+              "Supply the pinned source and frontier revisions",
+            );
+          if (
+            !run.reviewOperationId ||
+            run.reviewOperationId !== input.operationId
+          )
+            return failed(
+              G.LEASE,
+              "operationId",
+              "Initialize this run's review operation before completing units",
+            );
+          const batch: (Partial<UnitReviewCompletion> & {
+            sourceNodeId: string;
+          })[] =
+            input.batch ??
+            (input.sourceNodeId
+              ? [{ ...input, sourceNodeId: input.sourceNodeId }]
+              : []);
+          if (
+            !batch.length ||
+            new Set(batch.map((u) => u.sourceNodeId)).size !== batch.length
+          )
+            return failed(
+              G.BINDING,
+              "batch",
+              "Supply distinct source review units",
+            );
+          const original = (await dependencies()).rows;
+          const candidates = new Map<string, SourceReviewCommand["request"]>(
+            batch.map(
+              (unit) =>
+                [
+                  unit.sourceNodeId,
+                  {
+                    ...input,
+                    ...unit,
+                    payload: unit.payload
+                      ? normalizeReviewPayload(unit.payload)
+                      : unit.payload,
+                  },
+                ] as const,
+            ),
+          );
+          const failures = new Map<string, Record<string, unknown>>();
+          let valid: Map<
+            string,
+            Awaited<ReturnType<typeof validateCompletion>>
+          >;
+          // Remove failed endpoints and revalidate dependents before any write; cycles survive together.
+          do {
+            const before = candidates.size;
+            completionRows = original.map((row) => {
+              const unit = candidates.get(row.sourceNodeId);
+              return unit?.payload
+                ? {
+                    ...row,
+                    payload: unit.payload,
+                    claimIds: unit.claimIds ?? [],
+                    state:
+                      unit.disposition === D.REQUIRES_REFERENCE_RESOLUTION
+                        ? SourceReviewState.BLOCKED_REFERENCE
+                        : unit.claimIds?.length
+                          ? SourceReviewState.REVIEWED_WITH_CLAIMS
+                          : SourceReviewState.REVIEWED_NO_CLAIMS,
+                    completionFingerprint: reviewCompletionFingerprint(
+                      unit as Parameters<typeof reviewCompletionFingerprint>[0],
+                    ),
+                  }
+                : row;
+            });
+            dependencySnapshot = undefined;
+            valid = new Map();
+            for (const [id, unit] of candidates) {
+              const row = original.find((r) => r.sourceNodeId === id);
+              const result = row
+                ? await validateCompletion(unit, row)
+                : failed(G.BINDING, id, "Unit not found in frontier");
+              if ("existing" in result) valid.set(id, result);
+              else {
+                failures.set(id, result);
+              }
+            }
+            for (const id of failures.keys()) candidates.delete(id);
+            if (before === candidates.size) break;
+          } while (candidates.size);
+          completionRows = undefined;
+          dependencySnapshot = undefined;
+          // A direct package acknowledges candidates and their evidence together, never a partial write.
+          if (direct && failures.size)
+            return { outcome: O.FAILED, completedSourceNodeIds: [], failures: [...failures].map(([sourceNodeId, failure]) => ({ sourceNodeId, failure })) };
+          const completed: Extract<
+            Awaited<ReturnType<typeof validateCompletion>>,
+            { existing: RuleSetPreparationSourceReview }
+          >[] = [];
+          for (const [id, result] of valid) {
+            if (!("existing" in result) || !candidates.has(id)) continue;
+            const unit = candidates.get(id)!;
+            if (!result.alreadyCompleted) {
+              const blocked =
+                result.state === SourceReviewState.BLOCKED_REFERENCE;
+              await tx.ruleSetPreparationSourceReview.update({
+                where: {
+                  preparationRunId_inventoryRevision_sourceNodeId: itemKey(id),
+                },
+                data: {
+                  state: result.state,
+                  disposition: unit.disposition,
+                  reason: unit.reason ?? null,
+                  claimIds: unit.claimIds,
+                  ownedClaimCount: result.payload.claims.length,
+                  payload: result.payload,
+                  completionFingerprint: result.completionFingerprint,
+                  blockedReferenceIds: blocked ? (unit.referenceIds ?? []) : [],
+                  operationId: null,
+                  leaseExpiresAt: null,
+                  completedAt: blocked ? null : new Date(),
                 },
               });
-            return reply({
-              unit: null,
-              ...(blockedUnits.length
-                ? {
-                    blockedUnits,
-                    dependencyWaits: {
-                      ...diagnosis,
-                      cycles: diagnosis.cycles.slice(0, 3).map((nodes) => ({
-                        nodes: nodes.slice(0, 20),
-                        nodeCount: nodes.length,
-                      })),
-                      units: diagnosis.units.slice(0, 3).map((u) => ({
-                        ...u,
-                        blockers: u.blockers.slice(0, 20),
-                      })),
-                    },
-                    requiredAction: "inspect_semantic_reference_binding",
-                  }
-                : {}),
-            });
+              await changed({ node: id }, result.existing);
+            }
+            completed.push(result);
           }
-          const previous = item;
-          const previousState = item.state;
-          item = await tx.ruleSetPreparationSourceReview.update({
-            where: {
-              preparationRunId_inventoryRevision_sourceNodeId: itemKey(
-                item.sourceNodeId,
-              ),
-            },
-            data: {
-              state: SourceReviewState.IN_REVIEW,
-              operationId: input.operationId,
-              leaseExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
-            },
-          });
-          if (previousState !== S.IN_REVIEW)
-            await changed(
-              { node: item.sourceNodeId, state: S.IN_REVIEW },
-              previous,
-            );
-          const node = await tx.legalDocumentNode.findUniqueOrThrow({
-            where: {
-              nodeId_materializationId: {
-                nodeId: item.sourceNodeId,
-                materializationId: frontier.materializationId,
-              },
-            },
-          });
-          const ancestors: Pick<
-            LegalDocumentNode,
-            "nodeId" | "structuralPath" | "title" | "content"
-          >[] = [];
-          let parent = node.parentNodeId;
-          while (parent && ancestors.length < 3) {
-            const ancestor = await tx.legalDocumentNode.findUniqueOrThrow({
-              where: {
-                nodeId_materializationId: {
-                  nodeId: parent,
-                  materializationId: frontier.materializationId,
-                },
-              },
+          dependencySnapshot = undefined;
+          const invalidatedSourceReviews: string[] = [];
+          for (const result of completed)
+            if (!result.alreadyCompleted)
+              invalidatedSourceReviews.push(
+                ...(await invalidateDependents(
+                  result.existing,
+                  result.payload,
+                )),
+              );
+          await reconcileBlocked();
+          const rejected = [...failures].map(([sourceNodeId, failure]) => ({
+            sourceNodeId,
+            failure,
+          }));
+          if (!completed.length)
+            return {
+              ...rejected[0].failure,
+              failures: input.batch ? rejected : rejected[0].failure.failures,
+            };
+          let acceptedDraftVersion = draftVersion;
+          if (direct && input.draftVersion === draftVersion && (!savedDraft || inventoryHash(savedDraft.draft) !== inventoryHash(parsedDraft!.data))) {
+            acceptedDraftVersion += 1;
+            const draft = parsedDraft!.data! as Prisma.InputJsonValue;
+            await tx.ruleSetPreparationAuthoringDraft.upsert({
+              where: draftKey,
+              create: { preparationRunId: run.id, revision: input.inventoryRevision, draft, draftVersion: acceptedDraftVersion },
+              update: { draft, draftVersion: acceptedDraftVersion },
             });
-            ancestors.push({
-              nodeId: ancestor.nodeId,
-              structuralPath: ancestor.structuralPath,
-              title: ancestor.title,
-              content: ancestor.content.slice(0, 2000),
-            });
-            parent = ancestor.parentNodeId;
+            await tx.ruleSetPreparationRun.update({ where: { id: run.id }, data: { draftValidation: Prisma.DbNull } });
           }
-          const references = await tx.legalDocumentReference.findMany({
-            where: {
-              materializationId: frontier.materializationId,
-              referenceId: { in: item.referenceIds },
-            },
-            orderBy: { referenceId: "asc" },
-            take: 21,
-          });
           return reply({
-            unit: {
-              ...item,
-              leaseReacquired:
-                previousState !== S.IN_REVIEW ||
-                previous.operationId !== input.operationId ||
-                !previous.leaseExpiresAt ||
-                previous.leaseExpiresAt <= new Date(),
-              node: { ...node, content: node.content.slice(0, 12000) },
-              contentLength: node.content.length,
-              contentTruncated: node.content.length > 12000,
-              ancestors,
-              references: references.slice(0, 20),
-              moreReferences: references.length > 20,
-              payload: reviewPayload(item),
-            },
+            ...(direct ? { draftVersion: acceptedDraftVersion } : {}),
+            completedCount: completed.length,
+            completedSourceNodeIds: completed.map(
+              (r) => r.existing.sourceNodeId,
+            ),
+            completedSourceNodeId: completed[0].existing.sourceNodeId,
+            state: completed[0].state,
+            claimIds: completed.flatMap(
+              (r) => candidates.get(r.existing.sourceNodeId)!.claimIds ?? [],
+            ),
+            alreadyCompleted: completed.every((r) => r.alreadyCompleted),
+            invalidatedSourceReviews,
+            ...(rejected.length ? { failures: rejected } : {}),
           });
         }
 
@@ -853,7 +1265,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           return failed(
             G.BINDING,
             input.sourceNodeId ?? "unit",
-            "Request the active review unit before disposition",
+            "Unit not found in frontier",
           );
         if (input.action === A.REOPEN) {
           if (!input.reason)
@@ -861,7 +1273,6 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               G.DISPOSITION,
               existing.sourceNodeId,
               "Give an explicit review reopening reason",
-              "reopen_source_review",
             );
           if (existing.state === S.REOPENED && existing.reason === input.reason)
             return reply({ alreadyReopened: true });
@@ -917,7 +1328,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               G.REFERENCE,
               existing.sourceNodeId,
               "Explicit expansion needs a reason and reference edge IDs",
-              "expand_review_frontier",
+              "commit_claims",
             );
           const graph = (await this.graph.export(
             run.legalSourceVersionId,
@@ -1027,432 +1438,11 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           });
         }
 
-        if (
-          input.action !== A.COMPLETE ||
-          !input.disposition ||
-          !input.payload ||
-          !input.claimIds ||
-          !input.sourceRevision ||
-          !input.frontierRevision
-        )
-          return failed(
-            G.DISPOSITION,
-            existing.sourceNodeId,
-            "Supply a typed disposition, source/frontier revision, and the current unit's claim payload",
-            "complete_source_review",
-          );
-        const payload = input.payload;
-        const completionFingerprint = reviewCompletionFingerprint({
-          ...input,
-          payload,
-        });
-        if (
-          existing.completionFingerprint === completionFingerprint &&
-          completedReviewStates.includes(existing.state as never)
-        )
-          return reply({ alreadyCompleted: true, unit: existing.sourceNodeId });
-        if (
-          existing.state !== S.IN_REVIEW ||
-          existing.operationId !== input.operationId ||
-          !existing.leaseExpiresAt ||
-          existing.leaseExpiresAt < new Date()
-        )
-          return failed(
-            G.LEASE,
-            existing.sourceNodeId,
-            "Acquire/renew this unit's review lease before completing it",
-          );
-        const owned = new Set(payload.claims.map((c) => c.claimId));
-        if (
-          owned.size !== payload.claims.length ||
-          Object.keys(payload.identities).length !== owned.size ||
-          payload.claims.some(
-            (c) =>
-              !c.sourceNodeIds.includes(existing.sourceNodeId) ||
-              c.legalSourceVersionId !== run.legalSourceVersionId ||
-              canonicalClaimId(
-                run.id,
-                input.inventoryRevision,
-                c.sourceNodeIds,
-                payload.identities[c.claimId] ?? "",
-              ) !== c.claimId,
-          )
-        )
-          return failed(
-            G.BINDING,
-            existing.sourceNodeId,
-            "Every owned claim must have a canonical identity and include this unit in its source bindings",
-            "register_semantic_claim",
-          );
-        const anchors = [
-          ...new Set(payload.claims.flatMap((c) => c.sourceNodeIds)),
-        ];
-        const conflicts = owned.size
-          ? await tx.ruleSetPreparationSourceReview.findMany({
-              where: {
-                ...key,
-                sourceNodeId: { not: existing.sourceNodeId },
-                claimIds: { hasSome: [...owned] },
-              },
-            })
-          : [];
-        if (
-          conflicts.some((row) =>
-            reviewPayload(row).claims.some((c) => owned.has(c.claimId)),
-          )
-        )
-          return failed(
-            G.BINDING,
-            existing.sourceNodeId,
-            "This canonical claim already belongs to another review; link its existing ID instead",
-            "get_claim_inventory",
-          );
-        if (
-          (await tx.legalDocumentNode.count({
-            where: {
-              materializationId: frontier.materializationId,
-              legalSourceVersionId: run.legalSourceVersionId,
-              nodeId: { in: anchors },
-            },
-          })) !== anchors.length
-        )
-          return failed(
-            G.BINDING,
-            existing.sourceNodeId,
-            "Claim source nodes must exist in this exact source revision",
-            "update_semantic_claim",
-          );
-        if (
-          input.claimIds.length !== new Set(input.claimIds).size ||
-          [...owned].some((id) => !input.claimIds!.includes(id))
-        )
-          return failed(
-            G.BINDING,
-            existing.sourceNodeId,
-            "Include every claim authored in this review; omitted canonical IDs are returned",
-            "complete_source_review",
-            {
-              expectedClaimIds: [...owned],
-              missingClaimIds: [...owned].filter(
-                (id) => !input.claimIds!.includes(id),
-              ),
-            },
-          );
-        const linked = input.claimIds.filter((id) => !owned.has(id));
-        const otherRows = linked.length
-          ? await tx.ruleSetPreparationSourceReview.findMany({
-              where: { ...key, claimIds: { hasSome: linked } },
-            })
-          : [];
-        const otherClaims = otherRows.flatMap((r) => reviewPayload(r).claims);
-        if (
-          linked.some(
-            (id) =>
-              !otherClaims.some(
-                (c) =>
-                  c.claimId === id &&
-                  c.sourceNodeIds.includes(existing.sourceNodeId),
-              ),
-          )
-        )
-          return failed(
-            G.BINDING,
-            existing.sourceNodeId,
-            "Related claim IDs must exist and bind this source node",
-            "get_claim_inventory",
-          );
-        if (
-          (input.disposition === D.NO_RELEVANT_SEMANTIC_CLAIMS &&
-            (input.claimIds.length || !input.reason)) ||
-          (input.disposition === D.CONTEXT_ONLY &&
-            ([
-              ...payload.claims,
-              ...otherClaims.filter((c) => linked.includes(c.claimId)),
-            ].some(
-              (c) =>
-                !([C.CONTEXT, C.DEFINITION] as string[]).includes(c.claimType),
-            ) ||
-              !input.claimIds.length)) ||
-          (input.disposition === D.CLAIMS_AUTHORED && !input.claimIds.length)
-        )
-          return failed(
-            G.DISPOSITION,
-            existing.sourceNodeId,
-            "No-claim needs zero claims and a reason; context-only cannot hide a normative claim",
-            "complete_source_review",
-          );
-        if (
-          payload.referenceAccounting.some(
-            (r) => !existing.referenceIds.includes(r.referenceId),
-          ) ||
-          payload.relations.some(
-            (r) =>
-              r.referenceId && !existing.referenceIds.includes(r.referenceId),
-          )
-        )
-          return failed(
-            G.REFERENCE,
-            existing.sourceNodeId,
-            "Use explicit references assigned to the active review unit",
-            "review_source_reference",
-          );
-        const relationIds = new Set(payload.relations.map((r) => r.relationId));
-        const endpoints = [
-          ...new Set(
-            payload.relations
-              .filter((r) => !quarantined.has(r.relationId))
-              .flatMap((r) => [r.fromClaimId, r.toClaimId])
-              .filter((id) => !owned.has(id)),
-          ),
-        ];
-        const { view: endpointView } = await dependencies();
-        if (
-          payload.invalidatedRelationIds?.length &&
-          input.disposition !== D.REQUIRES_REFERENCE_RESOLUTION
-        )
-          return failed(
-            G.DEPENDENCY,
-            existing.sourceNodeId,
-            "Explicitly repair invalidated semantic bindings before completion",
-            "inspect_semantic_reference_binding",
-          );
-        for (const id of endpoints) {
-          const endpoint = endpointView.endpoints.get(id);
-          if (!endpoint)
-            return failed(
-              G.ENDPOINT,
-              id,
-              "The cross-review endpoint must be a valid committed canonical claim",
-              "inspect_semantic_reference_binding",
-            );
-          if (payload.dependencyFingerprints?.[id] !== endpoint.fingerprint)
-            return failed(
-              G.DEPENDENCY,
-              id,
-              "The committed target meaning changed or was not inspected; reconsider this binding",
-              "inspect_semantic_reference_binding",
-            );
-        }
-        if (payload.relations.some((r) => r.fromClaimId === r.toClaimId))
-          return failed(
-            G.BINDING,
-            existing.sourceNodeId,
-            "Relation endpoints must be distinct canonical claims",
-            "link_semantic_claims",
-          );
-        const refs = await tx.legalDocumentReference.findMany({
-          where: {
-            materializationId: frontier.materializationId,
-            referenceId: { in: existing.referenceIds },
-          },
-        });
-        const blocked = input.disposition === D.REQUIRES_REFERENCE_RESOLUTION;
-        delete payload.blockedSourceNodeIds;
-        if (blocked && !input.referenceIds?.length) {
-          // With no structural reference to wait on, a unit may wait for the reopened units whose relations touch its claims.
-          const waitsFor = (await dependencies()).rows
-            .filter(
-              (r) =>
-                r.state === S.REOPENED &&
-                reviewPayload(r).relations.some(
-                  (rel) =>
-                    owned.has(rel.fromClaimId) || owned.has(rel.toClaimId),
-                ),
-            )
-            .map((r) => r.sourceNodeId)
-            .sort();
-          if (waitsFor.length) payload.blockedSourceNodeIds = waitsFor;
-        }
-        if (blocked) {
-          payload.blockedEndpointFingerprints = {};
-          for (const id of input.referenceIds ?? []) {
-            const target = endpointView.target(id);
-            if (target.classification === DEP.OUTSIDE_SCOPE)
-              return failed(
-                G.REFERENCE,
-                id,
-                "The resolved target is outside scope; explicitly expand before blocking",
-                "expand_review_frontier",
-              );
-            payload.blockedEndpointFingerprints[id] =
-              target.endpointFingerprint;
-            if (target.bindingCanProceed)
-              return failed(
-                G.REFERENCE,
-                id,
-                "Durable target claims are available; bind them, or explicitly reopen a target that needs semantic correction",
-                "inspect_semantic_reference_binding",
-              );
-          }
-        }
-        if (
-          blocked &&
-          (!input.reason ||
-            (!input.referenceIds?.length &&
-              !payload.blockedSourceNodeIds?.length) ||
-            input.referenceIds?.some(
-              (id) => !refs.some((r) => r.referenceId === id),
-            ))
-        )
-          return failed(
-            G.REFERENCE,
-            existing.sourceNodeId,
-            "Blocking needs specific outgoing reference IDs, or a reopened unit whose relations touch this unit's claims, and a reason",
-            "complete_source_review",
-          );
-        for (const ref of refs) {
-          const accounting = payload.referenceAccounting.find(
-            (r) => r.referenceId === ref.referenceId,
-          );
-          if (blocked && input.referenceIds?.includes(ref.referenceId))
-            continue;
-          if (
-            !accounting ||
-            (!accounting.material &&
-              payload.relations.some(
-                (r) => r.referenceId === ref.referenceId,
-              )) ||
-            (accounting.material &&
-              (ref.resolutionState !== R.RESOLVED ||
-                !accounting.relationIds.length ||
-                accounting.nonMaterialReason !== null)) ||
-            (!accounting.material &&
-              (accounting.relationIds.length ||
-                !accounting.nonMaterialReason)) ||
-            accounting.relationIds.some(
-              (id) =>
-                !relationIds.has(id) ||
-                payload.relations.find((r) => r.relationId === id)
-                  ?.referenceId !== ref.referenceId,
-            )
-          )
-            return failed(
-              G.REFERENCE,
-              ref.referenceId,
-              "Review this explicit reference with valid linked relations or an Agent-authored non-material reason",
-              "review_source_reference",
-            );
-        }
-        if (!blocked) {
-          const { graph, rows } = await dependencies();
-          for (const claim of payload.claims) {
-            const gaps = sourceSupportFailures(claim, graph);
-            if (gaps.length)
-              return failed(
-                F.SOURCE_SUPPORT_INVALID,
-                claim.claimId,
-                gaps.join(", "),
-                "update_semantic_claim",
-              );
-          }
-          const payloads = rows
-            .filter((r) => r.sourceNodeId !== existing.sourceNodeId)
-            .map(reviewPayload)
-            .concat(payload);
-          const semantic: LegalSemanticGraph = {
-            contractVersion: LEGAL_SEMANTIC_GRAPH_VERSION,
-            materializationId: graph.materializationId,
-            legalSourceVersionId: graph.legalSourceVersionId,
-            claims: [
-              ...new Map(
-                payloads.flatMap((p) => p.claims).map((c) => [c.claimId, c]),
-              ).values(),
-            ],
-            relations: [
-              ...new Map(
-                payloads
-                  .flatMap((p) =>
-                    p.relations.filter(
-                      (r) => !p.invalidatedRelationIds?.includes(r.relationId),
-                    ),
-                  )
-                  .map((r) => [r.relationId, r]),
-              ).values(),
-            ],
-            sourceAccounting: [
-              {
-                sourceNodeId: existing.sourceNodeId,
-                claimIds: input.claimIds,
-                nonSemanticReason: input.reason ?? null,
-              },
-            ],
-            referenceAccounting: [],
-          };
-          const auditGaps = semanticAuditReceiptFailures(
-            semanticAuditInput(
-              graph,
-              semantic,
-              existing.sourceNodeId,
-              input.inventoryRevision,
-            ),
-            payload.semanticAudit,
-          );
-          auditGaps.push(
-            ...semanticAuditAttestationFailures(payload.semanticAudit, run.id),
-          );
-          if (auditGaps.length)
-            return failed(
-              F.SEMANTIC_AUDIT_REQUIRED,
-              existing.sourceNodeId,
-              auditGaps.join(", "),
-              "complete_source_review",
-            );
-          await tx.ruleSetPreparationSemanticAudit.upsert({
-            where: {
-              preparationRunId_inventoryRevision_sourceNodeId: {
-                ...key,
-                sourceNodeId: existing.sourceNodeId,
-              },
-            },
-            create: {
-              ...key,
-              sourceNodeId: existing.sourceNodeId,
-              receipt: payload.semanticAudit!,
-            },
-            update: { receipt: payload.semanticAudit! },
-          });
-        }
-        const state = blocked
-          ? SourceReviewState.BLOCKED_REFERENCE
-          : input.claimIds.length
-            ? SourceReviewState.REVIEWED_WITH_CLAIMS
-            : SourceReviewState.REVIEWED_NO_CLAIMS;
-        await tx.ruleSetPreparationSourceReview.update({
-          where: {
-            preparationRunId_inventoryRevision_sourceNodeId: itemKey(
-              existing.sourceNodeId,
-            ),
-          },
-          data: {
-            state,
-            disposition: input.disposition,
-            reason: input.reason ?? null,
-            claimIds: input.claimIds,
-            ownedClaimCount: payload.claims.length,
-            payload,
-            completionFingerprint,
-            blockedReferenceIds: blocked ? (input.referenceIds ?? []) : [],
-            operationId: null,
-            leaseExpiresAt: null,
-            completedAt: blocked ? null : new Date(),
-          },
-        });
-        await changed(
-          { node: existing.sourceNodeId, state, completionFingerprint },
-          existing,
+        return failed(
+          G.DISPOSITION,
+          input.sourceNodeId ?? "unit",
+          "Unsupported source review action",
         );
-        dependencySnapshot = undefined;
-        const invalidatedSourceReviews = await invalidateDependents(
-          existing,
-          payload,
-        );
-        await reconcileBlocked();
-        return reply({
-          completedSourceNodeId: existing.sourceNodeId,
-          invalidatedSourceReviews,
-          state,
-          claimIds: input.claimIds,
-        });
       },
       { timeout: 30000 },
     );

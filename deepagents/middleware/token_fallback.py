@@ -10,6 +10,10 @@ from hashlib import sha256
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.structured_output import StructuredOutputError
 from pydantic import ValidationError
+from anthropic import APIError as AnthropicAPIError
+from openai import APIError as OpenAIAPIError
+from langchain_google_genai.chat_models import GoogleAPIError
+import httpx
 
 from middleware.failure_policy import (
     TerminalCredentialError,
@@ -37,7 +41,7 @@ logger = get_logger(__name__)
 _RATE_LIMITED_STATUSES = frozenset({429})
 _RETRYABLE_TRANSIENT_STATUSES = frozenset({408, 409, 425, 429})
 _DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS = 30.0
-_MAX_RATE_LIMIT_COOLDOWN_SECONDS = 120.0
+_MAX_RATE_LIMIT_WAIT_SECONDS = 120.0
 # Process-window credential health. Auth/depleted allowances are dead for this process;
 # rate limits make a slot ineligible until its cooldown expires.
 _DEAD_CREDENTIAL_SLOTS: dict[tuple[str, str], set[int]] = {}
@@ -74,7 +78,17 @@ def _error_status(error: BaseException) -> int | None:
     return error_status(error)
 
 
+_PROVIDER_API_ERRORS = (
+    OpenAIAPIError,
+    AnthropicAPIError,
+    GoogleAPIError,
+    httpx.HTTPError,
+)
+
+
 def _is_terminal_model_error(error: BaseException) -> bool:
+    if is_terminal_task_error(error):
+        return True
     seen: set[int] = set()
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
@@ -99,6 +113,8 @@ def _is_retryable_transient_error(error: BaseException) -> bool:
         seen.add(id(current))
         name = type(current).__name__.lower()
         if "timeout" in name:
+            return True
+        if isinstance(current, _PROVIDER_API_ERRORS):
             return True
         current = current.__cause__ or current.__context__
     return isinstance(error, (TimeoutError, ConnectionError))
@@ -456,10 +472,7 @@ class TokenFallbackMiddleware(AgentMiddleware):
         error: BaseException,
     ) -> None:
         retry_after = _retry_after_seconds(error)
-        cooldown = min(
-            retry_after if retry_after is not None else _DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS,
-            _MAX_RATE_LIMIT_COOLDOWN_SECONDS,
-        )
+        cooldown = retry_after if retry_after is not None else _DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS
         self._rate_limited_slots(provider, env_name)[index] = _monotonic() + cooldown
         self._log_rate_limited_slot(
             provider=provider,
@@ -581,6 +594,9 @@ class TokenFallbackMiddleware(AgentMiddleware):
             env_name=env_name,
             tokens=tokens,
         )
+        # Preserve long provider delays; fail this call instead of retrying before its reset.
+        if wait is not None and wait[1] > _MAX_RATE_LIMIT_WAIT_SECONDS:
+            return [], None, False
         if wait is not None and _FURTHER_PROVIDER_ROUTE.get():
             # Hand the call to the next provider now instead of sleeping for the
             # soonest cooldown; the cooling slots stay recorded for later calls.

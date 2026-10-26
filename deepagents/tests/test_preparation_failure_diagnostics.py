@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import pytest
 from langgraph.errors import NodeCancelledError
 
@@ -16,6 +17,10 @@ RUN_ID = "11111111-1111-4111-8111-111111111111"
 
 
 class _Api:
+    def source_review_operation(self, *args, **kwargs):
+        return {"outcome": "PASSED", "frontierRevision": 1, "frontierFingerprint": "a" * 64,
+            "frontierStateFingerprint": "b" * 64, "progress": {}, "records": [], "nextOffset": None}
+
     def __init__(self) -> None:
         self.failure_reason: str | None = None
 
@@ -165,6 +170,16 @@ def test_unobserved_graph_exception_uses_generic_runtime_reason(monkeypatch) -> 
     assert "private diagnostic" not in str(events)
 
 
+def test_provider_stream_failure_survives_another_childs_completed_diagnostic(monkeypatch):
+    import httpx
+    from openai import APIError
+    error = APIError("private provider body", request=httpx.Request("POST", "https://provider.invalid"), body={"code": "content_filter"})
+    api, events, result = _run_failure(monkeypatch, "MODEL_CALL_COMPLETED", error)
+    assert api.failure_reason == result['failureReason'] == runner.MODEL_ERROR
+    assert 'private provider body' not in str(events)
+    assert result['error'] == {'type': 'APIError', 'stage': 'AGENT_GRAPH'}
+
+
 def test_node_cancellation_is_not_converted_to_runtime_or_model_error(monkeypatch) -> None:
     api = _Api()
     monkeypatch.setattr(runner, "materialize_legal_source", lambda *_: [])
@@ -207,3 +222,17 @@ def test_stream_session_retains_only_allowlisted_model_call_metadata() -> None:
         "retryability": "RETRYABLE",
         "fallback_eligibility": True,
     }
+
+
+@pytest.mark.parametrize('code', ['COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID', 'Bearer private credential'])
+def test_worker_callback_failure_keeps_status_and_safe_code_without_the_payload(monkeypatch, code):
+    from tools.common.capabilities.platform.api_client import WorkerCallbackError
+    _, events, result = _run_failure(monkeypatch, 'MODEL_CALL_COMPLETED',
+        WorkerCallbackError('private callback payload', status_code=400, error_code=code))
+    failure = next(event['data'] for event in events if event.get('data', {}).get('activity_kind') == 'PREPARATION_FAILURE')
+    assert result['error']['callback_status'] == failure['callback_status'] == 400
+    if code == 'COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID':
+        assert result['error']['callback_code'] == failure['callback_code'] == code
+    else:
+        assert 'callback_code' not in result['error'] and 'callback_code' not in failure
+    assert 'private' not in json.dumps({'result': result, 'failure': failure})

@@ -42,7 +42,6 @@ def restore(fx=None, api=None):
     tools = {t.name: t for t in build_rule_set_tools(ctx)}
     ledger, inv = ctx.inventory, fx["frozenInventory"]
     frozen = deepcopy(inv["graph"])
-    ctx.semantic_audits = {r["sourceNodeId"]: deepcopy(r) for r in frozen.get("semanticAudits", [])}
     ledger.revision, ledger.identities = inv["revision"], dict(inv["identities"])
     ctx.draft["semanticClaims"] = {c["claimId"]: deepcopy(c) for c in frozen["claims"]}
     ctx.draft["claimRelations"] = {r["relationId"]: deepcopy(r) for r in frozen["relations"]}
@@ -52,7 +51,7 @@ def restore(fx=None, api=None):
     ledger.rebuild_node_index()
     ledger.frozen, ledger.frozen_fingerprint, ledger.phase = frozen, inv["fingerprint"], READY
     ledger.frontier.snapshot = deepcopy(fx["observedFrontierSnapshot"])
-    ledger.frontier.loaded = True  # The retained frozen claims, receipts and frontier have all been restored above.
+    ledger.frontier.loaded = True  # The retained frozen claims and frontier have all been restored above.
     return fx, ctx, tools, api
 
 
@@ -72,21 +71,21 @@ def rediscover(fx=None):
     tools = {t.name: t for t in build_rule_set_tools(ctx)}
     inv = fx["frozenInventory"]
     for c in inv["graph"]["claims"]:
-        r = call(tools, "register_semantic_claim", identity_key=inv["identities"][c["claimId"]], source_node_ids=c["sourceNodeIds"], claim_type=c["claimType"],
+        r = call(tools, "register", identity_key=inv["identities"][c["claimId"]], source_node_ids=c["sourceNodeIds"], claim_type=c["claimType"],
                  statement=c["statement"], **({"actor": c["operative"]["actor"], "action": c["operative"]["action"]} if c["operative"] else {}))
         assert r["outcome"] == "PASSED" and r["claim"]["claimId"] == c["claimId"], r
     for r in inv["graph"]["relations"]:
-        x = call(tools, "link_semantic_claims", from_claim_id=r["fromClaimId"], to_claim_id=r["toClaimId"], kind=r["kind"], **({"reference_id": r["referenceId"]} if r["referenceId"] else {}))
+        x = call(tools, "link", from_claim_id=r["fromClaimId"], to_claim_id=r["toClaimId"], kind=r["kind"], **({"reference_id": r["referenceId"]} if r["referenceId"] else {}))
         assert x["outcome"] == "PASSED" and x["relation"]["relationId"] == r["relationId"], x
     reviewed = {r["sourceNodeId"]: r for r in inv["graph"]["sourceAccounting"]}
     for r in reviewed.values():
-        assert call(tools, "review_source_node", source_node_id=r["sourceNodeId"], claim_ids=r["claimIds"], **({"no_relevant_claim_reason": r["nonSemanticReason"]} if r["nonSemanticReason"] else {}))["outcome"] == "PASSED"
+        assert call(tools, "account_source", source_node_id=r["sourceNodeId"], claim_ids=r["claimIds"], **({"no_relevant_claim_reason": r["nonSemanticReason"]} if r["nonSemanticReason"] else {}))["outcome"] == "PASSED"
     # The frontier mode schedules only leaf units; the legacy tool path also wants the content-bearing parents accounted for.
     for node in nodes.values():
         if node["content"].strip() and node["nodeId"] not in reviewed:
-            assert call(tools, "review_source_node", source_node_id=node["nodeId"], claim_ids=[], no_relevant_claim_reason="Heading or lead-in text; its claims are authored on the child units")["outcome"] == "PASSED"
+            assert call(tools, "account_source", source_node_id=node["nodeId"], claim_ids=[], no_relevant_claim_reason="Heading or lead-in text; its claims are authored on the child units")["outcome"] == "PASSED"
     for r in inv["graph"]["referenceAccounting"]:
-        assert call(tools, "review_source_reference", reference_id=r["referenceId"], material=r["material"], relation_ids=r["relationIds"],
+        assert call(tools, "account_reference", reference_id=r["referenceId"], material=r["material"], relation_ids=r["relationIds"],
                     **({"non_material_reason": r["nonMaterialReason"]} if r["nonMaterialReason"] else {}))["outcome"] == "PASSED"
     return fx, ctx, tools, api
 
@@ -122,12 +121,12 @@ def repair_discovery(fx, ctx, tools):
     new, touched = {}, set()
     for key, suffix, claim_type, statement in REPAIR:
         node = next(nid for path, nid in nodes.items() if path == suffix)
-        result = call(tools, "register_semantic_claim", identity_key=key, source_node_ids=[node], claim_type=claim_type, statement=statement)
+        result = call(tools, "register", identity_key=key, source_node_ids=[node], claim_type=claim_type, statement=statement)
         assert result["outcome"] == "PASSED", result
         new[key] = result["claim"]["claimId"]
         touched.add(node)
     for node in touched:
-        assert call(tools, "review_source_node", source_node_id=node, claim_ids=sorted(ctx.inventory.claims_by_node[node]))["outcome"] == "PASSED"
+        assert call(tools, "account_source", source_node_id=node, claim_ids=sorted(ctx.inventory.claims_by_node[node]))["outcome"] == "PASSED"
     return new
 
 

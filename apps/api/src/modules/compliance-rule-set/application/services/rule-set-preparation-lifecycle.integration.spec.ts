@@ -358,7 +358,7 @@ describeDatabase(
           sourceReviewOperationSchema.parse({
             preparationRunId: run.id,
             inventoryRevision: 2,
-            action: "NEXT",
+            action: "INIT",
             operationId: randomUUID(),
           }),
           "pinned-graph-probe",

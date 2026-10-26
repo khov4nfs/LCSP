@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
@@ -143,4 +144,29 @@ test("Preparation activities start collapsed and keep user expansion across stre
 
   assert.equal(disclosures()[0]?.open, true);
   assert.equal(disclosures()[1]?.open, false);
+});
+
+test("article files expose committed and rejection counts through the disclosure", () => {
+  const data = JSON.parse(
+    readFileSync(
+      new URL(
+        "../src/public/assets/mocks/admin/claim-file-activity.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  const { container } = render([event(1, T.customProgress, { data })]);
+  const summary = container.querySelector("summary")!;
+  assert.match(
+    summary.textContent ?? "",
+    /Đã lưu tệp Điều: luat-134\/dieu-5.json/u,
+  );
+  const details = container.querySelector<HTMLDetailsElement>("details")!;
+  act(() => {
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+  });
+  assert.match(container.textContent ?? "", /Đơn vị nguồn đã lưu2/u);
+  assert.match(container.textContent ?? "", /Mục bị từ chối1/u);
 });

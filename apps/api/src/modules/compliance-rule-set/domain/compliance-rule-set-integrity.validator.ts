@@ -41,6 +41,7 @@ export interface LegalSourceSnapshot {
   chunks: LegalSourceChunkSnapshot[];
   retrievalIndexValid: boolean;
   documentGraph?: LegalDocumentGraph | null;
+  referenceOnlyDocumentIds?: string[];
 }
 
 /** True when `documentId` + `locator` carries `contentSha256` in a legalSource other than the pinned one. */
@@ -91,6 +92,11 @@ export function validateComplianceRuleSetPacket(
   legalSource: LegalSourceSnapshot,
   isForeignChunkHash: ForeignChunkHashLookup,
 ): RuleSetValidationResult {
+  const referenceOnly = new Set(
+    legalSource.referenceOnlyDocumentIds ??
+      legalSource.documentGraph?.referenceOnlyDocumentIds ??
+      [],
+  );
   const failures: ComplianceRuleSetValidationFailure[] = [];
   const resolved = new Map<string, LegalSourceChunkSnapshot>();
   const fail = (
@@ -270,7 +276,9 @@ export function validateComplianceRuleSetPacket(
   const chunkByKey = new Map(
     legalSource.chunks.map((chunk) => [sourceClaimKey(chunk), chunk] as const),
   );
-  for (const chunk of legalSource.chunks) {
+  for (const chunk of legalSource.chunks.filter(
+    (c) => !referenceOnly.has(c.documentId),
+  )) {
     if (
       chunk.legalEffectStatus !== "UNKNOWN" &&
       !chunk.legalStatusSourceRef?.trim()
@@ -288,6 +296,14 @@ export function validateComplianceRuleSetPacket(
     const key = sourceClaimKey(ref);
     const chunk = chunkByKey.get(key);
     const refLabel = `${owner}|locator:${key}`;
+    if (referenceOnly.has(ref.documentId)) {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.SEMANTIC_CLAIM_INVALID,
+        refLabel,
+        "Reference-only documents cannot support Requirements or AssessmentRules",
+      );
+      return;
+    }
     if (!chunk) {
       fail(
         COMPLIANCE_RULE_SET_FAILURE_CODES.UNRESOLVED_SOURCE_REFERENCE,
@@ -420,6 +436,7 @@ export function validateComplianceRuleSetPacket(
       !declaresApplicabilityScope(
         rule.coverage.state,
         rule.applicabilityConditions,
+        rule.applicabilityMode,
       )
     ) {
       fail(
@@ -546,7 +563,9 @@ export function validateComplianceRuleSetPacket(
     coverage: {
       ...semantic.coverage,
       retrieval: {
-        total: legalSource.chunks.length,
+        total: legalSource.chunks.filter(
+          (c) => !referenceOnly.has(c.documentId),
+        ).length,
         cited: resolved.size,
         derivedUnits: legalSource.documentGraph?.retrievalUnits.length ?? 0,
       },

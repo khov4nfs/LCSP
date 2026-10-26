@@ -1,10 +1,11 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  COMPLIANCE_RULE_SET_FAILURE_CODES,
   type ComplianceRuleSetSubmitResult,
 } from "@lcsp/contracts/compliance-rule-set";
 import { HttpStatus } from "@nestjs/common";
 import { validateFrozenInventory } from "../../../domain/claim-inventory.js";
-import { frozenInventoryForRun } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
+import { frozenInventoryForRun, matchesPersistedDirectDraft } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
@@ -91,6 +92,8 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
         run.claimInventoryRevision,
       ),
     );
+    if (!(await matchesPersistedDirectDraft(this.prisma, run, request.packet)))
+      validation.failures.push({ code: COMPLIANCE_RULE_SET_FAILURE_CODES.staleAuthoringDraft, ref: "draft", detail: "The submitted candidates differ from the accepted draft" });
 
     const context: SubmitContext = {
       runId: run.id,

@@ -55,7 +55,7 @@ test("preparation usage scope resolves ownership on the API and cannot claim ano
     preparationRunId: "run",
     runId: "run",
     invocationId: "physical",
-    agentRole: "legal-semantic-auditor",
+    agentRole: "claim-author",
     provider: "APX",
     model: "claude-sonnet-4-6-free",
     attemptStatus: MODEL_ATTEMPT_STATUSES.OUTCOME_UNKNOWN,

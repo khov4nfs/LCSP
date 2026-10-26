@@ -1,5 +1,6 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  RULE_SET_PREPARATION_FAILURE_REASONS as R,
   type RuleSetPreparationRun,
 } from "@lcsp/contracts/compliance-rule-set";
 import { HttpStatus } from "@nestjs/common";
@@ -39,6 +40,8 @@ export class FailRuleSetPreparationHandler implements ICommandHandler<FailRuleSe
         );
       }
       if (
+        (run.executionState === PrismaAgentExecutionState.PAUSED &&
+          input.request.reason === R.AGENT_BUDGET_REACHED) ||
         run.executionState === PrismaAgentExecutionState.FAILED ||
         run.executionState === PrismaAgentExecutionState.CANCELLED
       ) {
@@ -54,12 +57,18 @@ export class FailRuleSetPreparationHandler implements ICommandHandler<FailRuleSe
           { status: HttpStatus.CONFLICT },
         );
       }
+      const state =
+        input.request.reason === R.AGENT_BUDGET_REACHED
+          ? PrismaAgentExecutionState.PAUSED
+          : PrismaAgentExecutionState.FAILED;
+      const completedAt =
+        state === PrismaAgentExecutionState.PAUSED ? null : new Date();
       const failed = await tx.ruleSetPreparationRun.updateMany({
         where: { id: run.id, executionState: run.executionState },
         data: {
-          executionState: PrismaAgentExecutionState.FAILED,
+          executionState: state,
           failureReason: input.request.reason,
-          completedAt: new Date(),
+          completedAt,
         },
       });
       if (failed.count !== 1) {
@@ -69,10 +78,7 @@ export class FailRuleSetPreparationHandler implements ICommandHandler<FailRuleSe
           { status: HttpStatus.CONFLICT },
         );
       }
-      return toRun(
-        { ...run, executionState: PrismaAgentExecutionState.FAILED },
-        null,
-      );
+      return toRun({ ...run, executionState: state }, null);
     });
   }
 }

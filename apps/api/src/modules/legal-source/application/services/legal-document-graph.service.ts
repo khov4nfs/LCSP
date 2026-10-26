@@ -2,8 +2,11 @@ import { Injectable, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
   LEGAL_DOCUMENT_GRAPH as REVISION,
+  LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES,
   LEGAL_GRAPH_ERROR_CODES as ERRORS,
   LEGAL_GRAPH_TRAVERSALS as T,
+  LEGAL_DOCUMENT_NODE_TYPES as N,
+  LEGAL_REFERENCE_RESOLUTION_STATES as R,
   type LegalDocumentGraph,
   type LegalGraphQuery,
 } from "@lcsp/contracts/legal-source";
@@ -12,6 +15,8 @@ import { problemException } from "../../../../platform/http/filters/error.factor
 import {
   buildLegalDocumentGraph,
   extractionGapsOf,
+  legalDocumentIdentifiers,
+  legalLocatorSuffix,
 } from "../../domain/document-graph.js";
 
 const BATCH_SIZE = 500;
@@ -172,7 +177,7 @@ export class LegalDocumentGraphService {
         }),
         this.prisma.legalSourceDocument.findMany({
           where: { legalSourceVersionId },
-          select: { documentId: true, extraction: true },
+          select: { documentId: true, extraction: true, corpusRole: true },
         }),
       ]);
     return {
@@ -185,6 +190,13 @@ export class LegalDocumentGraphService {
       inputModes:
         materialization.inputModes as LegalDocumentGraph["inputModes"],
       extractionGaps: extractionGapsOf(sourceDocuments),
+      referenceOnlyDocumentIds: sourceDocuments
+        .filter(
+          (d) =>
+            d.corpusRole === LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.REFERENCE_ONLY,
+        )
+        .map((d) => d.documentId)
+        .sort(),
       nodes: nodes.map(({ materializationId: _revision, ...node }) => {
         void _revision;
         return {
@@ -223,7 +235,15 @@ export class LegalDocumentGraphService {
   }
 
   async query(legalSourceVersionId: string, query: LegalGraphQuery) {
-    const graph = await this.current(legalSourceVersionId);
+    let graph = query.materializationId
+      ? await this.prisma.legalDocumentMaterialization.findFirst({
+          where: { id: query.materializationId, legalSourceVersionId },
+        })
+      : await this.current(legalSourceVersionId);
+    if (!graph && !query.materializationId) {
+      await this.materialize(legalSourceVersionId);
+      graph = await this.current(legalSourceVersionId);
+    }
     if (!graph)
       throw problemException(ERRORS.notMaterialized, "legal-document-graph", {
         status: HttpStatus.CONFLICT,
@@ -233,10 +253,92 @@ export class LegalDocumentGraphService {
       take: Math.min(query.limit, REVISION.maxContextNodes),
       skip: query.offset,
     };
+    let documentIds: string[] | undefined;
+    if (query.documentId) {
+      const identity = query.documentId;
+      const explicitIds = legalDocumentIdentifiers(identity);
+      const cleanIdentity = identity
+        .replace(/\s/gu, "")
+        .toLocaleUpperCase("vi");
+      const documents = await this.prisma.legalSourceDocument.findMany({
+        where: {
+          legalSourceVersionId,
+          OR: [
+            { documentId: identity },
+            {
+              title: { contains: identity, mode: Prisma.QueryMode.insensitive },
+            },
+            ...explicitIds.map((id) => ({
+              title: { contains: id, mode: Prisma.QueryMode.insensitive },
+            })),
+          ],
+        },
+        select: { documentId: true, title: true },
+      });
+      documentIds = documents
+        .filter(
+          (d) =>
+            d.documentId === identity ||
+            legalDocumentIdentifiers(d.title).some(
+              (id) => id === cleanIdentity || explicitIds.includes(id),
+            ),
+        )
+        .map((d) => d.documentId);
+      if (!documentIds.length) {
+        documentIds = documents.map((d) => d.documentId);
+      }
+    }
+    const documentScope = documentIds
+      ? { documentId: { in: documentIds } }
+      : {};
+    if (
+      query.traversal === T.DOCUMENTS ||
+      (query.documentId && !query.nodeId && !query.query)
+    ) {
+      const suffix = query.locator ? legalLocatorSuffix(query.locator) : null;
+      if (query.locator && !suffix)
+        throw problemException(ERRORS.invalid, "legal-document-graph", {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+        });
+      const where = {
+        ...scope,
+        ...documentScope,
+        ...(suffix
+          ? { structuralPath: { endsWith: suffix } }
+          : {
+              nodeType:
+                query.nodeType ??
+                (query.traversal === T.STRUCTURE ? undefined : N.DOCUMENT),
+            }),
+      };
+      const [nodes, total] = await Promise.all([
+        this.prisma.legalDocumentNode.findMany({
+          where,
+          ...page,
+          orderBy: [{ documentId: "asc" }, { structuralPath: "asc" }],
+        }),
+        this.prisma.legalDocumentNode.count({ where }),
+      ]);
+      return {
+        materializationId: graph.id,
+        legalSourceVersionId,
+        nodes: boundedNodes(nodes, suffix ? REVISION.maxContextCharacters : 0),
+        total,
+        offset: query.offset,
+        hasMore: query.offset + nodes.length < total,
+        ...(suffix
+          ? {
+              resolutionState:
+                total === 1 ? R.RESOLVED : total ? R.AMBIGUOUS : R.UNRESOLVED,
+            }
+          : {}),
+      };
+    }
     if (query.query) {
       const words = [...new Set(query.query.split(/\s+/u))];
       const where = {
         ...scope,
+        ...documentScope,
         AND: words.map((word) => ({
           OR: [
             { content: { contains: word, mode: Prisma.QueryMode.insensitive } },
@@ -268,7 +370,7 @@ export class LegalDocumentGraphService {
       };
     }
     const node = await this.prisma.legalDocumentNode.findFirst({
-      where: { ...scope, nodeId: query.nodeId },
+      where: { ...scope, ...documentScope, nodeId: query.nodeId },
     });
     if (!node)
       throw problemException(ERRORS.nodeNotFound, "legal-document-graph", {
@@ -416,9 +518,18 @@ export class LegalDocumentGraphService {
       ...scope,
       ...(query.traversal === T.PARENT
         ? { nodeId: node.parentNodeId ?? "" }
-        : query.traversal === T.CHILDREN
-          ? { parentNodeId: node.nodeId }
-          : { parentNodeId: node.parentNodeId, nodeId: { not: node.nodeId } }),
+        : query.traversal === T.DESCENDANTS
+          ? {
+              documentId: node.documentId,
+              structuralPath: { startsWith: node.structuralPath + "/" },
+            }
+          : query.traversal === T.CHILDREN || query.traversal === T.STRUCTURE
+            ? { parentNodeId: node.nodeId }
+            : {
+                parentNodeId: node.parentNodeId,
+                nodeId: { not: node.nodeId },
+              }),
+      ...(query.nodeType ? { nodeType: query.nodeType } : {}),
     };
     const [nodes, total] = await Promise.all([
       this.prisma.legalDocumentNode.findMany({
@@ -432,7 +543,9 @@ export class LegalDocumentGraphService {
       ...base,
       nodes: boundedNodes(
         nodes,
-        REVISION.maxContextCharacters - base.node.content.length,
+        query.traversal === T.STRUCTURE
+          ? 0
+          : REVISION.maxContextCharacters - base.node.content.length,
       ),
       total,
       hasMore: query.offset + nodes.length < total,

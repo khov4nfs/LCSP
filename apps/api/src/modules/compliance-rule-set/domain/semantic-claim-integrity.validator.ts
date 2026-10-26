@@ -1,3 +1,4 @@
+import { REFERENCE_ONLY_TARGET_REASON } from "@lcsp/contracts/legal-source";
 import {
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
   LEGAL_CLAIM_ACCOUNTING_ROLES as ROLE,
@@ -7,6 +8,7 @@ import {
   LEGAL_CONTEXT_RELATION_KINDS as K,
   LEGAL_EVIDENCE_REQUEST_KINDS as E,
   DOWNSTREAM_SEMANTIC_AUTHORITIES,
+  LEGAL_APPLICABILITY_MODES,
   deriveEvidenceRequests,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetValidationFailure,
@@ -19,6 +21,7 @@ import {
 import type { LegalSourceSnapshot } from "./compliance-rule-set-integrity.validator.js";
 import {
   sourceReviewUnits,
+  referenceOnlyNodeIds,
   reviewReferenceOwners,
 } from "./source-review-frontier.js";
 import { createHash } from "node:crypto";
@@ -30,7 +33,8 @@ import {
   semanticFreezeFailures,
   semanticClosure,
   requirementClosureFailures,
-} from "./semantic-audit.js";
+  effectiveSourceStatus,
+} from "./source-completeness.js";
 
 const normative = new Set<string>([C.DUTY, C.PROHIBITION, C.PERMISSION]);
 const allowedRoles: Record<string, readonly string[]> = {
@@ -127,14 +131,8 @@ export function validateSemanticClaimGraph(
     );
   }
   const nodes = new Map(graph.nodes.map((n) => [n.nodeId, n]));
-  if (!inventoryOnly)
-    failures.push(
-      ...semanticFreezeFailures(
-        semantic,
-        graph,
-        packet.claimInventory?.revision ?? 1,
-      ),
-    );
+  const referenceOnly = referenceOnlyNodeIds(graph);
+  if (!inventoryOnly) failures.push(...semanticFreezeFailures(semantic, graph));
   const referenceById = new Map(
     graph.references.map((r) => [r.referenceId, r]),
   );
@@ -215,12 +213,18 @@ export function validateSemanticClaimGraph(
     if (
       claim.legalSourceVersionId !== source.legalSourceVersionId ||
       new Set(claim.sourceNodeIds).size !== claim.sourceNodeIds.length ||
-      claim.sourceNodeIds.some((id) => !nodes.get(id)?.content.trim())
+      claim.sourceNodeIds.some(
+        (id) =>
+          !nodes.get(id)?.content.trim() ||
+          (claim.operative !== null && referenceOnly.has(id)),
+      ) ||
+      (claim.operative !== null &&
+        claim.sourceSupport?.some((s) => referenceOnly.has(s.nodeId)))
     )
       fail(
         F.SEMANTIC_CLAIM_INVALID,
         ref,
-        "Claims must cite existing nonempty source nodes in the pinned source version",
+        "Claims must cite existing nonempty source nodes in operative documents of the pinned source version",
       );
     if (
       normative.has(claim.claimType)
@@ -246,11 +250,12 @@ export function validateSemanticClaimGraph(
       for (const nodeId of claim.sourceNodeIds) {
         const node = nodes.get(nodeId);
         if (!node) continue;
-        if (node.legalEffectStatus !== EFFECT.EFFECTIVE)
+        const effectiveStatus = effectiveSourceStatus(graph, semantic, nodeId, claim.sourceNodeIds);
+        if (effectiveStatus !== EFFECT.EFFECTIVE)
           fail(
-            node.legalEffectStatus === EFFECT.REPEALED
+            effectiveStatus === EFFECT.REPEALED
               ? F.REPEALED_SOURCE_REFERENCE
-              : node.legalEffectStatus === EFFECT.FUTURE
+              : effectiveStatus === EFFECT.FUTURE
                 ? F.NON_CURRENT_SOURCE_REFERENCE
                 : F.UNDETERMINED_SOURCE_STATUS,
             ref,
@@ -274,7 +279,11 @@ export function validateSemanticClaimGraph(
     ComplianceRuleSetPacket["semanticGraph"]
   >["sourceAccounting"][number];
   for (const item of semantic.sourceAccounting) {
-    if (inspections.has(item.sourceNodeId) || !nodes.has(item.sourceNodeId))
+    if (
+      inspections.has(item.sourceNodeId) ||
+      !nodes.has(item.sourceNodeId) ||
+      referenceOnly.has(item.sourceNodeId)
+    )
       fail(
         F.INCOMPLETE_STRUCTURAL_ACCOUNTING,
         `node:${item.sourceNodeId}`,
@@ -285,7 +294,9 @@ export function validateSemanticClaimGraph(
   const reviewNodes = (
     semantic.reviewFrontier
       ? sourceReviewUnits(graph)
-      : graph.nodes.filter((n) => n.content.trim())
+      : graph.nodes.filter(
+          (n) => n.content.trim() && !referenceOnly.has(n.nodeId),
+        )
   ).filter(
     (n) =>
       !inventoryOnly ||
@@ -329,8 +340,16 @@ export function validateSemanticClaimGraph(
         );
   }
   const bound = new Map<string, Set<string>>();
+  const operativeOwners = new Map<string, string>();
+  const operativePredicates = new Map<string, string>();
   for (const requirement of inventoryOnly ? [] : packet.legalRequirements) {
     const ref = `legalRequirement:${requirement.legalRequirementId}`;
+    if (requirement.applicabilityMode) {
+      const anchors = (requirement.claimBindings ?? []).filter((b) => b.role === ROLE.OPERATIVE_PROPOSITION).map((b) => claims.get(b.claimId));
+      if (!anchors.length || anchors.some((c) => c?.semanticFrame?.applicabilityMode !== requirement.applicabilityMode) ||
+        (requirement.applicabilityMode === LEGAL_APPLICABILITY_MODES.UNCONDITIONAL && requirement.applicabilityConditions.length > 0))
+        fail(F.CLAIM_REQUIREMENT_MISMATCH, ref, "Applicability mode must preserve every source-backed operative finding and its conditions");
+    }
     for (const gap of requirementClosureFailures(
       semantic,
       requirement.claimBindings ?? [],
@@ -373,6 +392,20 @@ export function validateSemanticClaimGraph(
       seen.add(identity);
       let valid: boolean;
       if (binding.role === ROLE.OPERATIVE_PROPOSITION) {
+        const predicate = JSON.stringify([claim.operative, [...(claim.sourceSupport ?? [])].sort((a, b) => a.nodeId.localeCompare(b.nodeId) || a.startOffset - b.startOffset), requirement.applicabilityMode ?? null, requirement.applicabilityConditions, requirement.qualifiers, requirement.exceptions]);
+        const predicateOwner = operativePredicates.get(predicate);
+        if (predicateOwner && predicateOwner !== requirement.legalRequirementId)
+          fail(F.CLAIM_REQUIREMENT_MISMATCH, ref, `The same supported obligation already belongs to Requirement ${predicateOwner}`);
+        else operativePredicates.set(predicate, requirement.legalRequirementId);
+        const owner = operativeOwners.get(binding.claimId);
+        if (owner && owner !== requirement.legalRequirementId)
+          fail(
+            F.CLAIM_REQUIREMENT_MISMATCH,
+            ref,
+            `Operative claim ${binding.claimId} already belongs to Requirement ${owner}; retain one Requirement owner and repair its AssessmentRules`,
+          );
+        else
+          operativeOwners.set(binding.claimId, requirement.legalRequirementId);
         const operative = requirement.operativePropositions?.[binding.index];
         valid = Boolean(
           operative &&
@@ -528,19 +561,60 @@ export function validateSemanticClaimGraph(
       "references",
       "Unknown or duplicate reference accounting",
     );
-  const referenceOwners =
-    inventoryOnly && diagnosticReviewScope
-      ? reviewReferenceOwners(graph)
-      : null;
+  const referenceOwners = reviewReferenceOwners(graph);
   for (const reference of graph.references) {
+    if (referenceOnly.has(reference.fromNodeId)) {
+      if (
+        referenceAccounting.has(reference.referenceId) ||
+        semantic.relations.some((r) => r.referenceId === reference.referenceId)
+      )
+        fail(
+          F.INCOMPLETE_STRUCTURAL_ACCOUNTING,
+          `reference:${reference.referenceId}`,
+          "Reference-only origins have no review owner or accounting",
+        );
+      continue;
+    }
     if (
-      referenceOwners &&
-      !diagnosticReviewScope!.has(
+      inventoryOnly &&
+      diagnosticReviewScope &&
+      !diagnosticReviewScope.has(
         referenceOwners.get(reference.referenceId) ?? "",
       )
     )
       continue;
     const accounting = referenceAccounting.get(reference.referenceId);
+    if (
+      reference.toNodeId &&
+      referenceOnly.has(reference.toNodeId) &&
+      !accounting?.material &&
+      (accounting?.nonMaterialReason !== REFERENCE_ONLY_TARGET_REASON ||
+        accounting.relationIds.length)
+    )
+      fail(
+        F.INCOMPLETE_STRUCTURAL_ACCOUNTING,
+        `reference:${reference.referenceId}`,
+        "Reference-only targets require non-material REFERENCE_ONLY_TARGET accounting",
+      );
+    if (
+      accounting?.nonMaterialReason === REFERENCE_ONLY_TARGET_REASON &&
+      (!reference.toNodeId || !referenceOnly.has(reference.toNodeId))
+    )
+      fail(
+        F.INCOMPLETE_STRUCTURAL_ACCOUNTING,
+        `reference:${reference.referenceId}`,
+        "REFERENCE_ONLY_TARGET is only permitted for references that resolve to a verified reference-only target node",
+      );
+    const hasLegalEffect = Boolean(
+      reference.toNodeId &&
+        semantic.claims.some((c) =>
+          c.semanticFrame?.legalEffect?.targets.some(
+            (t) =>
+              t.nodeId === reference.toNodeId ||
+              (t.scope === "SUBTREE" && within(reference.toNodeId!, t.nodeId)),
+          ),
+        ),
+    );
     const projected = materialReferenceAccounting(
       reference.referenceId,
       semantic.relations,
@@ -553,7 +627,7 @@ export function validateSemanticClaimGraph(
           !same([...accounting.relationIds].sort(), projected.relationIds))) ||
       (accounting.material
         ? accounting.nonMaterialReason !== null ||
-          accounting.relationIds.length === 0 ||
+          (!hasLegalEffect && accounting.relationIds.length === 0) ||
           accounting.relationIds.some(
             (id) => relations.get(id)?.referenceId !== reference.referenceId,
           )

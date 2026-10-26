@@ -51,7 +51,10 @@ def project_reference_accounting(context):
     """Material rows are derived; only explicit non-material reasons survive alone."""
     source, draft = context.source_graph, context.draft
     result = {rid: row for rid, row in draft["referenceAccounting"].items()
-              if rid in source.references and not row["material"] and row["nonMaterialReason"] and not row["relationIds"]}
+              if rid in source.references and (
+                  (not row["material"] and row["nonMaterialReason"] and not row["relationIds"]) or
+                  (row["material"] and not row["relationIds"] and not row["nonMaterialReason"])
+              )}
     for relation in draft["claimRelations"].values():
         if relation.get("referenceId") and valid_binding(source, draft["semanticClaims"], relation):
             rid = relation["referenceId"]

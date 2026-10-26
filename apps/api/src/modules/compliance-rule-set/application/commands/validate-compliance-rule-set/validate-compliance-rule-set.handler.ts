@@ -7,7 +7,7 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { AgentExecutionState, ClaimPreparationPhase } from "@prisma/client";
 import { validateFrozenInventory } from "../../../domain/claim-inventory.js";
-import { frozenInventoryForRun } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
+import { frozenInventoryForRun, matchesPersistedDirectDraft } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { type ICommandHandler, CommandHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -38,6 +38,7 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
         claimInventoryRevision: true,
         claimPhase: true,
         executionState: true,
+        executionContract: true,
       },
     });
     if (!run) {
@@ -76,6 +77,8 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
         run.claimInventoryRevision,
       ),
     );
+    if (!(await matchesPersistedDirectDraft(this.prisma, { id: input.request.preparationRunId, ...run }, input.request.packet)))
+      failures.push({ code: F.staleAuthoringDraft, ref: "draft", detail: "Reload the latest accepted draft before validation" });
     const recorded = await this.prisma.ruleSetPreparationRun.updateMany({
       where: {
         id: input.request.preparationRunId,
@@ -90,6 +93,7 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
         },
       },
       data: {
+        draftValidation: { outcome: failures.length ? COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES.FAILED : COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES.PASSED, failures } as import("@prisma/client").Prisma.InputJsonValue,
         claimPhase: failures.length
           ? ClaimPreparationPhase.RULE_AUTHORING
           : ClaimPreparationPhase.SUBMISSION_READY,

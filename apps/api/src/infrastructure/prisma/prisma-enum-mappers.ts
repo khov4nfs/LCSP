@@ -1,3 +1,8 @@
+import { LegalSourceDocumentCorpusRole as PrismaCorpusRole } from "@prisma/client";
+import {
+  LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES as CorpusRoles,
+  type LegalSourceDocumentCorpusRole,
+} from "@lcsp/contracts/legal-source";
 import {
   AuditExportStatus as PrismaAuditExportStatus,
   AuditResourceType as PrismaAuditResourceType,
@@ -593,4 +598,21 @@ export function fromPrismaLegalSourceDocumentIngestionState(
   state: PrismaLegalSourceDocumentIngestionState,
 ): LegalSourceDocumentIngestionState {
   return PRISMA_LEGAL_SOURCE_DOCUMENT_INGESTION_STATE_TO_CONTRACT[state];
+}
+
+export function toPrismaLegalSourceDocumentCorpusRole(
+  role: LegalSourceDocumentCorpusRole,
+): PrismaCorpusRole {
+  return {
+    [CorpusRoles.OPERATIVE]: PrismaCorpusRole.OPERATIVE,
+    [CorpusRoles.REFERENCE_ONLY]: PrismaCorpusRole.REFERENCE_ONLY,
+  }[role];
+}
+export function fromPrismaLegalSourceDocumentCorpusRole(
+  role: PrismaCorpusRole,
+): LegalSourceDocumentCorpusRole {
+  return {
+    [PrismaCorpusRole.OPERATIVE]: CorpusRoles.OPERATIVE,
+    [PrismaCorpusRole.REFERENCE_ONLY]: CorpusRoles.REFERENCE_ONLY,
+  }[role];
 }

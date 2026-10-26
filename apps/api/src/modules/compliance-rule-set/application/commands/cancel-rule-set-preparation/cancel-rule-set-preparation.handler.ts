@@ -57,6 +57,7 @@ export class CancelRuleSetPreparationHandler implements ICommandHandler<CancelRu
         return { run, changed: false };
 
       const open =
+        run.executionState === PrismaAgentExecutionState.PAUSED ||
         run.executionState === PrismaAgentExecutionState.QUEUED ||
         run.executionState === PrismaAgentExecutionState.RUNNING;
       if (!open || run.ruleSet) {

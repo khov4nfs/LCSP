@@ -1,3 +1,4 @@
+import { ResumeRuleSetPreparationCommand } from "../../application/commands/resume-rule-set-preparation/resume-rule-set-preparation.command.js";
 import type { Server } from "node:http";
 import {
   afterAll,
@@ -115,6 +116,36 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
       .expect(401);
     expect(execute).not.toHaveBeenCalled();
   });
+
+  it("ADMIN resumes the same preparation through the canonical envelope", async () => {
+    const id = "31e042e8-6b91-4bfd-8853-108bb4436efd";
+    const response = await supertest(app.getHttpServer())
+      .post(`/admin/compliance-rule-sets/preparations/${id}/resume`)
+      .set("Authorization", "Bearer admin")
+      .expect(202);
+    expect(response.body).toMatchObject({
+      ok: true,
+      data: { preparationRunId: id },
+    });
+    expect(execute.mock.calls[0][0]).toBeInstanceOf(
+      ResumeRuleSetPreparationCommand,
+    );
+    expect(execute.mock.calls[0][0]).toMatchObject({
+      preparationRunId: id,
+      requestedBy: "owner-admin",
+    });
+  });
+  it.each(["customer", null])(
+    "non-admin %s cannot resume a preparation",
+    async (actor) => {
+      const request = supertest(app.getHttpServer()).post(
+        "/admin/compliance-rule-sets/preparations/31e042e8-6b91-4bfd-8853-108bb4436efd/resume",
+      );
+      if (actor) request.set("Authorization", `Bearer ${actor}`);
+      await request.expect(actor ? 403 : 401);
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
 
   const target = "30f83523-f8a4-40d9-ab8f-3c4e878d8c60";
   const reactivation = {

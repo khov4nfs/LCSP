@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import replace
+import threading
 import traceback
 import uuid
 from typing import Any, Callable
@@ -135,6 +136,19 @@ def run_assessment_root(
         # Finalization already committed before the crash; only settle its execution acknowledgement.
         client.finish(EXECUTION_SUCCEEDED)
         return {"state": EXECUTION_SUCCEEDED, "executionId": claim["executionId"], "threadId": claim["threadId"], "errorType": None, "checkpointId": None}
+
+    heartbeat_stop = threading.Event()
+
+    def _heartbeat_worker() -> None:
+        while not heartbeat_stop.wait(60.0):
+            try:
+                client.heartbeat()
+            except Exception:
+                pass
+
+    heartbeat_thread = threading.Thread(target=_heartbeat_worker, daemon=True)
+    heartbeat_thread.start()
+
     context = client.context()
     final_state = EXECUTION_FAILED
     error_type: str | None = None
@@ -242,6 +256,8 @@ def run_assessment_root(
             # Plain frames only: a rich traceback would print local variables such as the lease token.
             error_traceback="".join(traceback.format_exception(error))[-2500:],
         )
+    finally:
+        heartbeat_stop.set()
     if final_state == EXECUTION_INTERRUPTED:
         client.finish(final_state, checkpoint_id=checkpoint_id, request_ids=request_ids)
     elif final_state == EXECUTION_PAUSED:

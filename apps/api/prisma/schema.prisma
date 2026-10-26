@@ -199,6 +199,7 @@ enum LegalContextRelationKind {
 }
 
 enum RuleSetPreparationFailureReason {
+  AGENT_BUDGET_REACHED
   MODEL_ERROR
   NO_SUBMISSION
   RULE_SET_VALIDATION_FAILED
@@ -592,6 +593,11 @@ model LegalRetrievalIndex {
   @@index([legalSourceVersionId, status, validatedAt])
 }
 
+enum LegalSourceDocumentCorpusRole {
+  OPERATIVE
+  REFERENCE_ONLY
+}
+
 model LegalSourceDocument {
   id                   String                            @id @default(uuid())
   legalSourceVersionId String
@@ -601,6 +607,7 @@ model LegalSourceDocument {
   sourceSha256         String
   effectiveDate        DateTime?
   sourceEffectStatus   String
+  corpusRole           LegalSourceDocumentCorpusRole     @default(OPERATIVE)
   snapshotPath         String?
   origin               LegalSourceDocumentOrigin         @default(MIGRATED)
   ingestionState       LegalSourceDocumentIngestionState @default(READY)
@@ -1262,13 +1269,17 @@ model LlmUsageEvent {
 // ---------------------------------------------------------------------------
 
 model RuleSetPreparationRun {
+  executionContract PreparationExecutionContract @default(CLAIM_INVENTORY_V1)
+  targetDate DateTime? @db.Date
+  draftValidation Json?
+  reviewOperationId String?
   claimDiscoveryOnly Boolean @default(false)
   reviewFrontiers RuleSetPreparationReviewFrontier[]
   claimPhase ClaimPreparationPhase @default(CLAIM_DISCOVERY)
   claimInventoryRevision Int @default(1)
   claimInventoryReopenReason String?
   claimInventories RuleSetPreparationClaimInventory[]
-  semanticAudits RuleSetPreparationSemanticAudit[]
+  authoringDrafts  RuleSetPreparationAuthoringDraft[]
   id                   String                             @id @default(uuid())
   idempotencyKey       String                             @unique
   legalSourceVersionId String
@@ -1323,6 +1334,7 @@ model ComplianceRuleSetVersion {
 }
 
 model LegalRequirement {
+  applicabilityMode LegalApplicabilityMode?
   id                      String                            @id @default(uuid())
   ruleSetVersionId        String
   legalRequirementId      String
@@ -1417,7 +1429,6 @@ model LegalSemanticGraph {
   sourceAccounting       Json
   referenceAccounting    Json
   graphDigest            String
-  semanticAudits         Json?
   ruleSet                ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
   materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
   claims                 LegalSemanticClaim[]
@@ -1914,6 +1925,16 @@ enum AuthorizationReasonCode {
 }
 
 
+enum PreparationExecutionContract {
+  CLAIM_INVENTORY_V1
+  DIRECT_DRAFT_V1
+}
+
+enum LegalApplicabilityMode {
+  UNCONDITIONAL
+  CONDITIONAL
+}
+
 enum ClaimPreparationPhase {
   CLAIM_DISCOVERY
   CLAIM_INVENTORY_VALIDATION
@@ -1940,18 +1961,18 @@ model RuleSetPreparationClaimInventory {
   @@index([preparationRunId, fingerprint])
 }
 
-/// Independently verified unit receipts; replacing a receipt never mutates source review intent.
-model RuleSetPreparationSemanticAudit {
+/// The Requirements and AssessmentRules a Preparation is drafting, per frozen inventory revision. The agent saves it as it authors
+/// and loads it on restart, so a pause or crash during authoring does not discard the work.
+model RuleSetPreparationAuthoringDraft {
   preparationRunId String
-  inventoryRevision Int
-  sourceNodeId String
-  receipt Json
-  updatedAt DateTime @updatedAt
-  preparation RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revision         Int
+  draftVersion     Int                   @default(0)
+  draft            Json
+  updatedAt        DateTime              @updatedAt
+  preparation      RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
 
-  @@id([preparationRunId, inventoryRevision, sourceNodeId], map: "PreparationSemanticAudit_pkey")
+  @@id([preparationRunId, revision])
 }
-
 
 enum SourceReviewState {
   PENDING

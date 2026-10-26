@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - isolated packet-layer fixture
+
 from legal_graph_fixture import document_graph_for_bundle
 
 import hashlib
@@ -61,6 +62,7 @@ def _bundle() -> dict[str, Any]:
     bundle = {
         "preparationRunId": RUN_ID,
         "executionState": "RUNNING",
+        "claimInventoryRevision": 1, "claimPhase": "CLAIM_DISCOVERY", "frozenInventory": None,
         "legalSourceVersionId": LEGAL_SOURCE_ID,
         "legalSourceVersion": "SYNTHETIC-TWO-DOCUMENT-V1",
         "documents": documents,
@@ -111,7 +113,7 @@ class _ParallelPreparationModel(RuleSetPreparationScriptedModel):
     def _generate(self, messages: list[Any], **kwargs: Any) -> ChatResult:
         prompt = list(messages)
         system_prompt = str(getattr(prompt[0], "content", "")) if prompt else ""
-        if "read-only legal-source-reader subagent" in system_prompt:
+        if "You own exactly one Article assignment" in system_prompt:
             with self._lock:
                 self._child_prompts.append(prompt)
             self._document_barrier.wait(timeout=5)
@@ -176,7 +178,7 @@ def test_two_document_tasks_run_natively_in_parallel_and_parent_synthesizes(
                         "name": "task",
                         "args": {
                             "description": "Read document 134-2025-QH15 only at /legal-source/134-2025-QH15.",
-                            "subagent_type": "legal-source-reader",
+                            "subagent_type": "claim-author",
                         },
                         "id": "read-134",
                     },
@@ -184,7 +186,7 @@ def test_two_document_tasks_run_natively_in_parallel_and_parent_synthesizes(
                         "name": "task",
                         "args": {
                             "description": "Read document LAW-71-2025-QH15 only at /legal-source/LAW-71-2025-QH15.",
-                            "subagent_type": "legal-source-reader",
+                            "subagent_type": "claim-author",
                         },
                         "id": "read-71",
                     },
@@ -227,11 +229,11 @@ def test_two_document_tasks_run_natively_in_parallel_and_parent_synthesizes(
     child_tool_sets = [
         set(names)
         for names in model.bound_tool_names
-        if "LegalSourceReaderResult" in names
+        if "read_file" in names and "validate_compliance_rule_set" not in names
     ]
     assert child_tool_sets
     assert all(
-        {"ls", "glob", "grep", "read_file", "LegalSourceReaderResult"} <= names
+        {"ls", "grep", "read_file"} <= names
         for names in child_tool_sets
     )
     assert all(

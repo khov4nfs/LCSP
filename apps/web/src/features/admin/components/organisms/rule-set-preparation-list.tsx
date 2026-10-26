@@ -2,7 +2,7 @@ import type { MessageKey } from "@lcsp/i18n";
 import Link from "next/link";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { useState } from "react";
-import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
+import { RULE_SET_PREPARATION_SYSTEM_ACTOR, PREPARATION_EXECUTION_CONTRACTS } from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ import { resolveAppMessage } from "@/lib/i18n";
 import {
   useCancelRuleSetPreparationMutation,
   useRetryRuleSetPreparationMutation,
+  useResumeRuleSetPreparationMutation,
 } from "@/lib/api/compliance-rule-set-queries";
 import {
   canonicalExecutionLabel,
@@ -25,6 +26,7 @@ import {
 import type { RuleSetPreparationListProps } from "../../types/compliance-rule-sets.types";
 import { useRuleSetPreparationActivity } from "../../hooks/use-rule-set-preparation-activity";
 import { RuleSetPreparationActivity } from "../molecules/rule-set-preparation-activity";
+import { RuleSetPreparationDraft } from "../molecules/rule-set-preparation-draft";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -46,6 +48,7 @@ export function RuleSetPreparationList({
     : (preparations[0]?.preparationRunId ?? null);
   const retry = useRetryRuleSetPreparationMutation();
   const cancel = useCancelRuleSetPreparationMutation();
+  const resume = useResumeRuleSetPreparationMutation();
   const [confirmRunId, setConfirmRunId] = useState<string | null>(null);
   const selectedRun = preparations.find(
     (run) => run.preparationRunId === activeRunId,
@@ -101,7 +104,8 @@ export function RuleSetPreparationList({
                 </span>
               ) : null}
             </div>
-            {run.retryable &&
+            {run.resumable ? <Button type="button" variant="outline" size="sm" disabled={resume.isPending || cancel.isPending || retry.isPending} onClick={() => resume.mutate(run.preparationRunId)}>{t(resume.isPending ? "pages.complianceRuleSets.resuming" : "pages.complianceRuleSets.resume")}</Button> : null}
+            {!run.resumable && run.retryable &&
             run.executionState === AGENT_EXECUTION_STATES.FAILED ? (
               <Button
                 type="button"
@@ -162,14 +166,17 @@ export function RuleSetPreparationList({
           </li>
         ))}
       </ul>
+      {selectedRun?.draft ? <RuleSetPreparationDraft draft={selectedRun.draft} /> : null}
       {activeRunId ? (
         <RuleSetPreparationActivity
           events={activity.events}
           connected={activity.connected}
           terminal={terminal}
           executionState={selectedRun?.executionState ?? null}
+          directDraft={selectedRun?.executionContract === PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1}
         />
       ) : null}
+      {resume.isError ? <Alert variant="destructive"><AlertDescription>{t("pages.complianceRuleSets.resumeFailed")}</AlertDescription></Alert> : null}
       {retry.isError ? (
         <Alert variant="destructive">
           <AlertDescription>

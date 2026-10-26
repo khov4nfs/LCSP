@@ -35,18 +35,18 @@ def test_token_only_budget_no_private_tariff_and_no_financial_claim(tmp_path):
     assert report["admission"]["unresolvedAttempts"] == 0
 
 
-def test_shared_producer_auditor_and_unknown_attempt_are_terminal_at_limit(tmp_path):
+def test_shared_parent_author_and_unknown_attempt_are_terminal_at_limit(tmp_path):
     model, state = token_state(tmp_path)
     meter = UsageMeteringMiddleware()
     dispatched = []
     with activate_agent_run_state(state):
         meter.wrap_model_call(req(model), lambda _: (dispatched.append("producer"), answer())[1])
         with pytest.raises(TimeoutError):
-            meter.wrap_model_call(req(model), lambda _: (dispatched.append("auditor"), (_ for _ in ()).throw(TimeoutError()))[1])
+            meter.wrap_model_call(req(model), lambda _: (dispatched.append("author"), (_ for _ in ()).throw(TimeoutError()))[1])
         with pytest.raises(PaidAdmissionError, match="CALL_LIMIT"):
             meter.wrap_model_call(req(model), lambda _: dispatched.append("forbidden"))
     report = recover_usage(str(tmp_path / "usage.json"), state.run_id)
-    assert dispatched == ["producer", "auditor"]
+    assert dispatched == ["producer", "author"]
     assert report["physicalAttempts"] == 2 and report["unresolvedAttempts"] == 1
     assert report["admission"]["unresolvedAttempts"] == 1
     assert report["admission"]["inputExposure"] == 13 + policy_for(model).input_upper_bound

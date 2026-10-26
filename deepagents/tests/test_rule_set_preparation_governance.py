@@ -1,12 +1,15 @@
+
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - isolated packet-layer fixture
 """Drive the production Preparation graph through canonical credential/provider governance."""
 
-from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
 
 import json
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
+from conftest import use_model_routes
 from deepagents.backends import StateBackend
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, AIMessageChunk
@@ -27,6 +30,13 @@ class AllowanceExhausted(Exception):
     body = {"error": {"type": "insufficient_quota", "code": "allowance_exhausted"}}
 
 
+def configured_fallback_chain(monkeypatch):
+    config = yaml.safe_load((Path(__file__).parents[1] / "config/model_routes.yaml").read_text())
+    config['roles']['rule-set-preparation'] = 'primary'
+    config['roles']['claim-author'] = 'primary'
+    use_model_routes(monkeypatch, config)
+
+
 @pytest.mark.parametrize(
     ("successful_slot", "expected"),
     [
@@ -45,7 +55,7 @@ class AllowanceExhausted(Exception):
 def test_preparation_uses_credential_pools_before_provider_fallback(
     monkeypatch, tmp_path, successful_slot, expected,
 ):
-    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(Path(__file__).parents[1] / "config/model_routes.yaml"))
+    configured_fallback_chain(monkeypatch)
     pools = {provider: tuple(f"fixture-{provider}-{i}" for i in range(count))
              for provider, count in [("apx", 3), ("google_genai", 2), ("inception", 2), ("miraiapi", 2)]}
     for provider, env in [("apx", "APX_API_KEY"), ("google_genai", "GOOGLE_API_KEY"),
@@ -170,10 +180,7 @@ def _provider_slot(model, pools):
 
 @pytest.mark.parametrize("terminal", [False, True], ids=["fallback-success", "terminal-exhaustion"])
 def test_framework_summarization_uses_full_model_governance(monkeypatch, terminal):
-    monkeypatch.setenv(
-        "LCSP_MODEL_ROUTES_FILE",
-        str(Path(__file__).parents[1] / "config/model_routes.yaml"),
-    )
+    configured_fallback_chain(monkeypatch)
     pools = {
         "apx": ("fixture-apx-0", "fixture-apx-1"),
         "google_genai": ("fixture-google-0",),
@@ -296,22 +303,25 @@ def test_framework_summarization_uses_full_model_governance(monkeypatch, termina
         assert settled[0][2]["totalTokens"] == "10"
 
 
-def test_preparation_reader_has_governed_summarization_and_role(monkeypatch):
-    from rule_set_preparation.legal_source_reader import legal_source_reader_subagent
+def test_claim_author_has_governed_summarization_and_role(monkeypatch, tmp_path):
+    from rule_set_preparation.agent import claim_author_subagent
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+    from test_claim_files import runtime
+    context, _ = runtime(tmp_path)
 
     monkeypatch.setenv(
         "LCSP_MODEL_ROUTES_FILE",
         str(Path(__file__).parents[1] / "config/model_routes.yaml"),
     )
-    monkeypatch.setenv("MIRAI_API_KEY", "fixture-miraiapi")
+    monkeypatch.setenv("INCEPTION_API_KEY", "fixture-inception")
     model = resolve_agent_model("rule-set-preparation")
-    spec = legal_source_reader_subagent(model=model, backend=StateBackend())
+    spec = claim_author_subagent(context, model, StateBackend(), AgentRunBudgetMiddleware())
     middleware = spec["middleware"]
 
     summary = next(item for item in middleware if item.name == "SummarizationMiddleware")
     role = next(item for item in middleware if isinstance(item, usage_metering.AgentRoleMiddleware))
     assert type(summary._lc_helper._summary_model).__name__ == "_GovernedInternalModelRunnable"
-    assert role.agent_role == "rule-set-preparation"
+    assert role.agent_role == "claim-author"
 
 
 
@@ -329,5 +339,5 @@ def test_offline_preparation_cli_remains_provider_free(monkeypatch, tmp_path, ca
 
     assert scripted_preparation.main() == 0
     result = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert result["state"] == "FAILED" and result["failureReason"] == "NO_SUBMISSION"
+    assert result["state"] == "FAILED" and result["failureReason"] == "NO_SUBMISSION", result
     assert api.names() == ["claim", "fail"]

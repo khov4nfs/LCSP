@@ -70,7 +70,8 @@ def good(index):
 
 # One synthetic malformed call per retained rejection code. Which call produced which retained rejection is NOT known; this only
 # gives each code a body that provokes it, so the runtime's handling of the retained order can be exercised.
-OMIT = ["title", "applicability_claim_ids", "operative_claim_ids", "requirement_key"]
+# applicability_claim_ids is no longer required: the runtime binds the closure when it is omitted.
+OMIT = ["title", "operative_claim_ids", "requirement_key"]
 WRONG_ROLE = [lambda a: {"qualifier_claim_ids": [a["applicability_claim_ids"][0]]}, lambda a: {"operative_claim_ids": [next(cid for cid,c in CL.items() if c["claimType"] == "CONTEXT")]},
               lambda a: {"applicability_claim_ids": [a["applicability_claim_ids"][0], next(cid for cid,c in CL.items() if c["claimType"] == "DEFINITION")]}]
 

@@ -4,6 +4,7 @@ import {
   ClaimPreparationPhase,
   Prisma,
   RuleSetPreparationFailureReason,
+  PreparationExecutionContract,
 } from "@prisma/client";
 import {
   CLAIM_INVENTORY_ACTIONS as A,
@@ -13,9 +14,10 @@ import {
   CLAIM_PREPARATION_PHASES as P,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
-  semanticAuditReceiptSchema,
   legalSemanticGraphSchema,
   LEGAL_SEMANTIC_GRAPH_VERSION,
+  ruleSetPreparationAuthoringDraftSchema,
+  complianceRuleSetPacketSchema,
 } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
@@ -32,12 +34,8 @@ import {
   completedReviewStates,
 } from "../../../domain/source-review-frontier.js";
 import { reviewPayload } from "../source-review/source-review.handler.js";
-import {
-  semanticAuditInput,
-  semanticAuditReceiptFailures,
-} from "../../../domain/semantic-audit.js";
 import { ClaimInventoryCommand } from "./claim-inventory.command.js";
-import { semanticAuditAttestationFailures } from "../../../domain/semantic-audit-attestation.js";
+import { validateComplianceRuleSetPacket } from "../../../domain/compliance-rule-set-integrity.validator.js";
 
 @CommandHandler(ClaimInventoryCommand)
 export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryCommand> {
@@ -103,7 +101,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               }
             : fail(
                 G.FROZEN,
-                "The Preparation already concluded with a different audited inventory",
+                "The Preparation already concluded with a different inventory",
               );
         }
         if (
@@ -143,6 +141,97 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             },
           },
         });
+        if (
+          input.action === A.SAVE_AUTHORING_DRAFT ||
+          input.action === A.LOAD_AUTHORING_DRAFT
+        ) {
+          if (!frozen && !(run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1))
+            return fail(G.PHASE, "A frozen inventory is required for a draft");
+          const draftKey = {
+            preparationRunId_revision: {
+              preparationRunId: run.id,
+              revision: input.revision,
+            },
+          };
+          if (input.action === A.LOAD_AUTHORING_DRAFT) {
+            const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({
+              where: draftKey,
+            });
+            return {
+              outcome: O.PASSED,
+              phase: P[run.claimPhase],
+              revision: input.revision,
+              draft: saved?.draft ?? null,
+              draftVersion: saved?.draftVersion ?? 0,
+              validation: run.draftValidation,
+            };
+          }
+          const parsed = ruleSetPreparationAuthoringDraftSchema.safeParse(
+            input.draft,
+          );
+          if (!parsed.success || input.draftVersion === undefined)
+            return fail(
+              G.SCHEMA,
+              "A typed draft and its loaded draftVersion are required: " +
+                (parsed.success
+                  ? "draftVersion"
+                  : parsed.error.issues
+                      .slice(0, 20)
+                      .map((i) => i.path.join(".") + ": " + i.message)
+                      .join("; ")),
+            );
+          if (
+            Object.values(parsed.data.legalRequirements).some(
+              (r) => r.claimInventoryRevision !== input.revision,
+            )
+          )
+            return fail(
+              G.STALE,
+              "Every draft Requirement must bind the exact inventory revision",
+            );
+          const draft = parsed.data as Prisma.InputJsonValue;
+          const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({
+            where: draftKey,
+          });
+          const version = saved?.draftVersion ?? 0;
+          if (input.draftVersion !== version) {
+            if (
+              saved &&
+              input.draftVersion === version - 1 &&
+              inventoryHash(saved.draft) === inventoryHash(draft)
+            )
+              return {
+                outcome: O.PASSED,
+                phase: P[run.claimPhase],
+                revision: input.revision,
+                draftVersion: version,
+                replayed: true,
+              };
+            return {
+              ...fail(
+                G.DRAFT_STALE,
+                "A newer authoring draft exists; reload it before editing",
+              ),
+              draftVersion: version,
+            };
+          }
+          await tx.ruleSetPreparationAuthoringDraft.upsert({
+            where: draftKey,
+            create: {
+              preparationRunId: run.id,
+              revision: input.revision,
+              draft,
+              draftVersion: version + 1,
+            },
+            update: { draft, draftVersion: version + 1 },
+          });
+          return {
+            outcome: O.PASSED,
+            phase: P[run.claimPhase],
+            revision: input.revision,
+            draftVersion: version + 1,
+          };
+        }
         if (input.action === A.REOPEN) {
           if (!frozen || !input.reason)
             return fail(
@@ -155,6 +244,8 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               claimInventoryRevision: { increment: 1 },
               claimPhase: ClaimPreparationPhase.CLAIM_DISCOVERY,
               claimInventoryReopenReason: input.reason,
+              // The new revision gets its own review frontier; the worker initialises it with a fresh operation.
+              reviewOperationId: null,
             },
           });
           return {
@@ -172,8 +263,8 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               LEGAL_SEMANTIC_GRAPH_VERSION
           )
             return fail(
-              F.SEMANTIC_AUDIT_REQUIRED,
-              "Historical inventories are read-only; explicitly reopen and obtain V3 source support/audits before new authoring",
+              F.SOURCE_SUPPORT_INVALID,
+              "Historical inventories are read-only; explicitly reopen and obtain V3 source support before new authoring",
             );
           if (run.claimDiscoveryOnly)
             return fail(
@@ -223,6 +314,8 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             "Graph and canonical identity keys are required",
           );
         const graph = normalizeInventory(input.graph);
+        if (run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1 && (!run.targetDate || graph.targetDate !== run.targetDate.toISOString().slice(0, 10)))
+          return fail(G.STALE, "Direct draft must use the run's pinned target date");
         const fingerprint = inventoryFingerprint(input.revision, graph);
         if (conclude && frozen)
           return fail(
@@ -264,7 +357,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               G.INVALID,
               "Initialize the deterministic review frontier first",
             ),
-            requiredAction: "get_next_review_unit",
+            requiredAction: "read /work/discovery-progress.json",
           };
         const items = await tx.ruleSetPreparationSourceReview.findMany({
           where: {
@@ -282,7 +375,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               G.INVALID,
               "Complete every pending/in-review/blocked review unit before freezing",
             ),
-            requiredAction: "get_next_review_unit",
+            requiredAction: "read /work/discovery-progress.json",
             pendingCount: unfinished.length,
             nextReviewUnitIds: unfinished
               .slice(0, 3)
@@ -297,17 +390,8 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           ),
         };
         const payloads = items.map(reviewPayload);
-        const audits = await tx.ruleSetPreparationSemanticAudit.findMany({
-          where: {
-            preparationRunId: run.id,
-            inventoryRevision: input.revision,
-          },
-        });
         const persistentGraph = normalizeInventory({
           ...graph,
-          semanticAudits: audits.map((row) =>
-            semanticAuditReceiptSchema.parse(row.receipt),
-          ),
           reviewFrontier: reviewBinding,
           claims: payloads.flatMap((p) => p.claims),
           relations: [
@@ -332,86 +416,6 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           assessmentRules: [],
           contextRelations: [],
         });
-        if (input.action === A.RECORD_SEMANTIC_AUDITS) {
-          if (!snapshot.documentGraph)
-            return fail(
-              F.SEMANTIC_AUDIT_REQUIRED,
-              "Pinned source graph required",
-            );
-          const withoutAudits = (value: typeof graph) => ({
-            ...value,
-            semanticAudits: [],
-          });
-          if (
-            inventoryHash(withoutAudits(persistentGraph)) !==
-            inventoryHash(withoutAudits(graph))
-          )
-            return fail(
-              G.INVALID,
-              "Audit candidate differs from durable source reviews",
-            );
-          const receipts = new Map(
-            (graph.semanticAudits ?? []).map((r) => [r.sourceNodeId, r]),
-          );
-          if (
-            receipts.size !== items.length ||
-            receipts.size !== (graph.semanticAudits ?? []).length
-          )
-            return fail(
-              F.SEMANTIC_AUDIT_REQUIRED,
-              "Exactly one independent receipt is required per completed unit",
-            );
-          for (const item of items) {
-            const receipt = receipts.get(item.sourceNodeId);
-            const gaps = semanticAuditReceiptFailures(
-              semanticAuditInput(
-                snapshot.documentGraph,
-                persistentGraph,
-                item.sourceNodeId,
-                input.revision,
-              ),
-              receipt,
-            );
-            gaps.push(...semanticAuditAttestationFailures(receipt, run.id));
-            if (gaps.length)
-              return fail(
-                F.SEMANTIC_AUDIT_REQUIRED,
-                `${item.sourceNodeId}: ${gaps.join(", ")}`,
-              );
-          }
-          for (const receipt of receipts.values())
-            await tx.ruleSetPreparationSemanticAudit.upsert({
-              where: {
-                preparationRunId_inventoryRevision_sourceNodeId: {
-                  preparationRunId: run.id,
-                  inventoryRevision: input.revision,
-                  sourceNodeId: receipt.sourceNodeId,
-                },
-              },
-              create: {
-                preparationRunId: run.id,
-                inventoryRevision: input.revision,
-                sourceNodeId: receipt.sourceNodeId,
-                receipt,
-              },
-              update: { receipt },
-            });
-          return {
-            outcome: O.PASSED,
-            revision: input.revision,
-            semanticAuditCount: receipts.size,
-          };
-        }
-        // A producer-supplied or replayed receipt never authorizes freezing,
-        // even when its source and semantic fingerprints are structurally valid.
-        for (const receipt of persistentGraph.semanticAudits ?? []) {
-          const originGaps = semanticAuditAttestationFailures(receipt, run.id);
-          if (originGaps.length)
-            return fail(
-              F.SEMANTIC_AUDIT_REQUIRED,
-              `${receipt.sourceNodeId}: ${originGaps.join(", ")}`,
-            );
-        }
         // Validate durable evidence before comparing projections, so legacy defects remain repairable.
         const result = validateClaimInventory(
           run.id,
@@ -427,6 +431,21 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
         const failures = conclude
           ? noOperativeObligationsFailures(persistentGraph, result.failures)
           : result.failures;
+        if (!conclude && run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1) {
+          const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({ where: { preparationRunId_revision: { preparationRunId: run.id, revision: input.revision } } });
+          const draft = ruleSetPreparationAuthoringDraftSchema.safeParse(saved?.draft);
+          if (!draft.success) return fail(G.SCHEMA, "A persisted direct draft is required");
+          const packet = complianceRuleSetPacketSchema.safeParse({
+            legalRequirements: Object.values(draft.data.legalRequirements),
+            assessmentRules: Object.values(draft.data.assessmentRules),
+            contextRelations: Object.values(draft.data.contextRelations),
+            semanticGraph: persistentGraph,
+            claimInventory: { revision: input.revision, fingerprint },
+          });
+          if (!packet.success) return fail(G.SCHEMA, packet.error.issues.slice(0, 20).map((i) => i.path.join(".") + ": " + i.message).join("; "));
+          failures.push(...validateComplianceRuleSetPacket(packet.data, snapshot, () => false).failures);
+          await tx.ruleSetPreparationRun.update({ where: { id: run.id }, data: { draftValidation: { outcome: failures.length ? O.FAILED : O.PASSED, failures } as Prisma.InputJsonValue } });
+        }
         if (failures.length)
           return {
             ...result,
@@ -477,7 +496,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           data: { frozenAt: new Date() },
         });
         if (conclude) {
-          // Terminal and explicit: no Rule Set is created or activated; the audited inventory above is the record.
+          // Terminal and explicit: no Rule Set is created or activated; the committed inventory above is the record.
           await tx.ruleSetPreparationRun.update({
             where: { id: run.id },
             data: {

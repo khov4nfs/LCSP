@@ -868,10 +868,6 @@ function dockerWorkerEnv() {
     NESTJS_API_BASE_URL: apiBaseUrl,
     LCSP_API_BASE_URL: apiBaseUrl,
     WORKER_API_KEY: process.env.WORKER_API_KEY ?? rootEnv.WORKER_API_KEY ?? "",
-    LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY:
-      process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY ??
-      rootEnv.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY ??
-      "",
     // Docker dev does not start a Phoenix collector.  Keep tracing opt-in here
     // so the worker does not repeatedly send spans to an unavailable host port.
     PHOENIX_TRACING: defaultDockerPhoenixTracing,

@@ -18,7 +18,7 @@ from rule_set_preparation.semantic_closure import claim_role, operative
 
 AUTHORING_PHASES = frozenset({READY, AUTHORING, RULE_VALIDATION, SUBMISSION_READY})
 # Tools that only read; a successful call never changes the draft and resolves any earlier rejection of the same tool.
-READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_source_support"})
+READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure"})
 ROLE_ORDER = ("APPLICABILITY_CONDITION", "OPERATIVE_PROPOSITION", "QUALIFIER", "EXCEPTION", "CONTEXT", "DEFINITION")
 MAX_PAGE = 20
 DIGEST_MAX_CLAIM_LINES = 48
@@ -194,7 +194,9 @@ class AuthoringWorkingSet:
                 self.last_mutation = {"toolName": tool, "target": target or None, "toolCallId": call_id, "sequence": self.context.event_sequence}
             if tool in READ_TOOLS and not result.get("error"):
                 rows = result.get("items") or result.get("claims") or []
-                self.surface([r["claim"]["claimId"] if "claim" in r else r.get("claimId") for r in rows if isinstance(r, dict)])
+                rows = rows if isinstance(rows, list) else []  # a status view reports claims as counts, not rows
+                # Navigation bookkeeping only: a row of an unexpected shape is skipped, never allowed to end the run.
+                self.surface([r["claim"]["claimId"] if isinstance(r.get("claim"), dict) else r.get("claimId") for r in rows if isinstance(r, dict)])
         self.revision += 1
 
     def reset(self) -> None:

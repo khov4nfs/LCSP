@@ -184,7 +184,7 @@ export const AGENTIC_RUNTIME_TRANSITION_GUARDS = {
 export type AgenticRuntimeTransitionGuard =
   (typeof AGENTIC_RUNTIME_TRANSITION_GUARDS)[keyof typeof AGENTIC_RUNTIME_TRANSITION_GUARDS];
 
-/** Guard names are obligations, not client/agent-supplied attestations.
+/** Guard names are obligations, not client/agent-supplied assertions.
  * Only the owning server boundary supplies verifiedGuards from authoritative state.
  * Missing guard evidence fails closed; this helper neither writes state nor judges facts.
  */

@@ -1,8 +1,8 @@
-"""Drive the real claim-first Preparation journey with a provider-free model and fixture auditor.
+"""Drive the real claim-first Preparation journey with a provider-free model.
 
 Used by tests/compliance-rule-set-vertical.mjs. The model is scripted; everything else is real:
 the Deep Agent graph, tool surface, WorkerApiClient HTTP calls, API, validator and PostgreSQL.
-Auditor verdicts are scripted mechanical fixtures, never legal-semantic acceptance evidence.
+Claims are scripted mechanical fixtures; no legal-model quality is established.
 
 usage: scripted_preparation.py <apiBase> <workerKey> <runId> <seedJson> <mode>
 modes: valid | stale | orphan | no-submit
@@ -21,8 +21,7 @@ from langchain_core.messages import AIMessage
 from rule_set_preparation import runner as runner_module
 from rule_set_preparation.runner import run_rule_set_preparation
 from authoring_memory_harness import ViewDrivenModel, last_result
-from structural_semantic_fixture import StructuralFixtureAuditor
-from rule_set_preparation.semantic_audit import FRAME_FIELDS
+from rule_set_preparation.claim_inventory import FRAME_FIELDS
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 
 DOC = "SYNTHETIC-NOTICE-INSTRUMENT"
@@ -105,75 +104,71 @@ def main() -> int:
     context = None
 
     def journey():
-        yield "read_file", {"file_path": "/legal-source/INDEX.md"}
+        # The coordinating parent has no file tools: the claim-author children read and write the files.
         if mode == "no-submit":
             yield "report_rule_set_source_blocked", {
                 "reason": "SOURCE_PINS_INCONSISTENT", "path": "/legal-source/INDEX.md"}
             return
-        operands = {r["legalRequirementId"]: [] for r in packet["legalRequirements"]}
-        scopes = {key: [] for key in operands}
-        while True:
-            work = yield "get_next_review_unit", {}
-            assert work["outcome"] == "PASSED", work
-            unit = work["unit"]
-            if unit is None:
-                assert work["progress"]["discoveryCompleteEligible"], work
-                break
-            node_id = unit["sourceNodeId"]
-            source = context.source_graph
-            locators = {source.chunks[c]["locator"] for c in source.chunk_ids[node_id]}
-            authored = False
+        from rule_set_preparation.claim_files import claim_path
+        from rule_set_preparation.claim_inventory import identity_key
+        source = context.source_graph
+        files = {}
+        locations = {}
+        for path, ids in source.source_files.items():
             for row in packet["legalRequirements"]:
-                refs = [r for r in row["sourceRefs"] if r["locator"] in locators]
-                if not refs or operands[row["legalRequirementId"]]:
-                    continue
-                key = row["legalRequirementId"]
                 wanted = {r["locator"] for r in row["sourceRefs"]}
-                anchors = [nid for nid, chunks in source.chunk_ids.items()
-                           if any(source.chunks[c]["locator"] in wanted for c in chunks)]
-                support = [{"nodeId": nid, "startOffset": 0,
-                            "endOffset": len(source.nodes[nid]["content"].encode("utf-16-le")) // 2}
-                           for nid in anchors]
+                anchors = [nid for nid in ids if any(source.chunks[c]["locator"] in wanted for c in source.chunk_ids.get(nid, []))]
+                if anchors:
+                    locations.setdefault(row["legalRequirementId"], []).append((path, anchors))
+        for path, ids in source.source_files.items():
+            claims = []
+            for row in packet["legalRequirements"]:
+                key = row["legalRequirementId"]
+                anchors = next((nodes for owner, nodes in locations.get(key, []) if owner == path), [])
+                if not anchors:
+                    continue
+                support = [{"locator": source.locators[nid], "quote": source.nodes[nid]["content"]} for nid in anchors]
                 if mode == "stale":
-                    support[0]["contentSha256"] = "f" * 64
-                common = {"source_node_ids": anchors, "source_support": support,
-                          "semantic_authority": "LEGAL_NORMATIVE",
-                          "semantic_frame": {k: None for k in FRAME_FIELDS}}
-                scope = yield "register_semantic_claim", {
-                    **common, "identity_key": f"{key}-{node_id}-scope",
-                    "claim_type": "SCOPE", "statement": " ".join(row["applicabilityConditions"]) or "Applies to the synthetic notice service.",
-                    "assessability": "NON_ASSESSABLE"}
-                assert scope["outcome"] == "PASSED", scope
-                scopes[key].append(scope["claim"]["claimId"])
-                claim = yield "register_semantic_claim", {
-                    **common, "identity_key": f"{key}-{node_id}-duty", "claim_type": "DUTY",
-                    "statement": row["proposition"], "actor": "Synthetic notice operator",
-                    "action": row["proposition"],
-                    "semantic_frame": {**common["semantic_frame"], **seed.get("semanticFrames", {}).get(key, {})},
-                    "assessability": seed.get("assessability", {}).get(key,
-                        "EXTERNAL_FULFILLMENT" if row["nonRepositoryDuty"] else "REPOSITORY_VERIFIABLE")}
-                assert claim["outcome"] == "PASSED", claim
-                operands[key].append(claim["claim"]["claimId"])
-                relation = yield "link_semantic_claims", {
-                    "from_claim_id": scopes[key][-1], "to_claim_id": operands[key][-1], "kind": "CONDITION_OF"}
-                assert relation["outcome"] == "PASSED", relation
-                for edge in packet["contextRelations"]:
-                    if edge["fromLegalRequirementId"] == key:
-                        linked = yield "link_semantic_claims", {
-                            "from_claim_id": operands[key][-1],
-                            "to_claim_id": operands[edge["toLegalRequirementId"]][0],
-                            "kind": edge["kind"]}
-                        assert linked["outcome"] == "PASSED", linked
-                authored = True
-            for reference in unit["references"]:
-                result = yield "mark_reference_non_material", {
-                    "reference_id": reference["referenceId"],
-                    "reason": "Mechanical fixture defines each assertion locally; no incorporation is scripted."}
-                assert result["outcome"] == "PASSED", result
-            completed = yield "complete_source_review", {
-                "disposition": "CLAIMS_AUTHORED" if authored else "NO_RELEVANT_SEMANTIC_CLAIMS",
-                **({} if authored else {"reason": "Structural fixture unit outside the scripted assertions."})}
-            assert completed["outcome"] == "PASSED", completed
+                    support[0]["quote"] = "An absent source quotation"
+                # One claim file per Article: a requirement spanning Articles has one DUTY per Article, tied together by a single
+                # SCOPE (kept in the last Article) whose CONDITION_OF relations reach every Article's DUTY, so their closures agree.
+                owners = [owner for owner, _ in locations[key]]
+                scope = {"key": key + "-scope", "type": "SCOPE", "statement": " ".join(row["applicabilityConditions"]) or "Applies to the synthetic notice service.",
+                    "authority": "LEGAL_NORMATIVE", "assessability": "NON_ASSESSABLE", "support": support,
+                    "relations": [{"kind": "CONDITION_OF", "to": key + "-duty"}, *[
+                        {"kind": "CONDITION_OF", "to": claim_path(earlier).removeprefix('/work/claims/') + "#" + key + "-duty"} for earlier in owners[:-1]]]}
+                duty = {"key": key + "-duty", "type": "DUTY", "statement": row["proposition"], "actor": "Synthetic notice operator", "action": row["proposition"],
+                    "authority": "LEGAL_NORMATIVE", "frame": seed.get("semanticFrames", {}).get(key, {}),
+                    "assessability": seed.get("assessability", {}).get(key, "EXTERNAL_FULFILLMENT" if row["nonRepositoryDuty"] else "REPOSITORY_VERIFIABLE"), "support": support}
+                claims += ([scope] if owners[-1] == path else []) + [duty]
+            covered = {span["locator"] for claim in claims for span in claim["support"]}
+            files[path] = {"article": source.file_articles[path], "claims": claims,
+                "noClaims": {source.locators[nid]: "Structural fixture outside the scripted assertions." for nid in ids if source.locators[nid] not in covered},
+                "references": {rid: {"material": False, "reason": "Mechanical fixture defines assertions locally; no incorporation is scripted."}
+                    for rid, owner in source.reference_owners().items() if owner in ids}}
+        for edge in packet["contextRelations"]:
+            targets = locations.get(edge["toLegalRequirementId"], [])
+            if not targets:
+                continue
+            target_path = claim_path(targets[0][0]).removeprefix('/work/claims/') + '#' + edge['toLegalRequirementId'] + '-duty'
+            for path, _ in locations.get(edge["fromLegalRequirementId"], []):
+                next(c for c in files[path]['claims'] if c['key'] == edge['fromLegalRequirementId'] + '-duty').setdefault('relations', []).append({'kind': edge['kind'], 'to': target_path})
+        status = yield "discovery_status", {}
+        while status.get("assignments"):
+            completed_before = len(context.draft['sourceAccounting'])
+            for assignment in status['assignments']:
+                assigned[0] = (assignment['sourceFiles'][0], files[assignment['sourceFiles'][0]])
+                yield 'task', {'subagent_type': 'claim-author', 'description': json.dumps(assignment)}
+            status = yield 'discovery_status', {}
+            if len(context.draft['sourceAccounting']) == completed_before:
+                break
+        operands = {key: [] for key in locations}
+        scopes = {key: [] for key in locations}
+        for key, owners in locations.items():
+            for path, _ in owners:
+                prefix = claim_path(path).removeprefix('/work/claims/') + '#'
+                for suffix, dest in [('-duty', operands), ('-scope', scopes)]:
+                    dest[key].extend(cid for cid, identity in context.inventory.identities.items() if identity == identity_key(prefix + key + suffix))
         frozen = yield "finalize_semantic_claim_inventory", {}
         assert frozen["outcome"] == "PASSED", frozen
         started = yield "start_rule_authoring", {}
@@ -196,10 +191,32 @@ def main() -> int:
             assert validation["outcome"] == "PASSED", validation
         yield "submit_compliance_rule_set", {}
 
+    assigned = [None]
+    child_rejections = []
     script = journey()
+    child_script = None
+    def child_journey():
+        from rule_set_preparation.claim_files import claim_path
+        path, value = assigned[0]
+        yield 'read_file', {'file_path': path}
+        yield 'write_file', {'file_path': claim_path(path), 'content': json.dumps(value)}
+        yield 'commit_claims', {'paths': [claim_path(path)]}
     first = True
     def policy(messages, model):
-        nonlocal first
+        nonlocal first, child_script
+        from middleware.usage_metering import active_agent_role
+        if active_agent_role() == 'claim-author':
+            rejected = last_result(messages)
+            if isinstance(rejected, dict) and rejected.get("errors"):
+                child_rejections.append(rejected["errors"])
+            if child_script is None:
+                child_script = child_journey()
+            try:
+                name, args = next(child_script)
+                return _call(name, args, 'child-' + name)
+            except StopIteration:
+                child_script = None
+                return AIMessage(content='done: 1 Article')
         result = last_result(messages)
         if calls and result is not None:
             calls[-1]["result"] = {k: result[k] for k in ("outcome", "gaps", "fingerprint") if k in result}
@@ -216,9 +233,6 @@ def main() -> int:
     def create(**kwargs):
         nonlocal context
         context = kwargs["context"]
-        # Only this CLI uses the mechanical auditor. The API still verifies signed receipts,
-        # freeze, typed authoring and Validator results; this proves no legal-model quality.
-        context.semantic_auditor = StructuralFixtureAuditor()
         return real_create(**kwargs)
     # The offline model has no provider route; routing is covered by the SDK-backed governance tests.
     with ExitStack() as stack:
@@ -232,14 +246,14 @@ def main() -> int:
             def tampered(bundle: dict[str, Any], root: Any) -> list[str]:
                 paths = real_materialize(bundle, root)
                 chunk = root / paths[1].lstrip("/")
-                chunk.write_text(chunk.read_text(encoding="utf-8").replace(
-                    "contentSha256: ", "contentSha256: tampered-", 1), encoding="utf-8")
+                chunk.write_text(chunk.read_text(encoding="utf-8") + "\nTampered fixture content", encoding="utf-8")
                 return paths
 
             stack.enter_context(patch.object(runner_module, "materialize_legal_source", tampered))
         result = run_rule_set_preparation(api, run_id, model=model)
     if mode != "no-submit":
         result["scriptedCalls"] = calls
+        result["scriptedChildRejections"] = child_rejections
     print(json.dumps(result))
     return 0
 

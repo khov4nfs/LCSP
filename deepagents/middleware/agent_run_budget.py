@@ -18,6 +18,7 @@ returns. This middleware enforces three limits per run:
 from __future__ import annotations
 
 import os
+import threading
 from copy import deepcopy
 from typing import Annotated, Any
 
@@ -88,8 +89,15 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         grace_calls: int | None = None,
         keep_tool_results: int = DEFAULT_KEEP_TOOL_RESULTS,
         finalize_tools: frozenset[str] = frozenset(),
+        run_quotas: dict[str, int] | None = None,
     ) -> None:
         super().__init__()
+        # File discovery shares this counter across Producer and native claim-author invocations.
+        # Quota mode never edits context or withdraws governed tools.
+        self.run_quotas = run_quotas
+        self.quota_calls = 0
+        self.quota_input_tokens = 0
+        self.quota_lock = threading.Lock()
         # Governed completion tools stay callable at finalize.
         self.finalize_tools = frozenset(finalize_tools)
         self.finalize_after = max(
@@ -121,18 +129,47 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return self.finalize_after + self.grace_calls
 
     def after_model(self, state, runtime) -> dict[str, Any] | None:
+        if self.run_quotas is not None:
+            return None
         return {RUN_MODEL_CALL_COUNT_KEY: _run_model_calls(state) + 1}
 
     async def aafter_model(self, state, runtime) -> dict[str, Any] | None:
         return self.after_model(state, runtime)
 
     def wrap_model_call(self, request, handler):
-        return handler(self._bounded_request(request))
+        response = handler(self._bounded_request(request))
+        self._settle_quota(request, response)
+        return response
 
     async def awrap_model_call(self, request, handler):
-        return await handler(self._bounded_request(request))
+        response = await handler(self._bounded_request(request))
+        self._settle_quota(request, response)
+        return response
+
+    def _settle_quota(self, request, response):
+        if self.run_quotas is None:
+            return
+        reported = [m.usage_metadata["input_tokens"] for m in getattr(response, "result", [])
+            if getattr(m, "usage_metadata", None) and "input_tokens" in m.usage_metadata]
+        if reported:
+            reserved = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
+            with self.quota_lock:
+                self.quota_input_tokens += sum(reported) - reserved
 
     def _bounded_request(self, request):
+        if self.run_quotas is not None:
+            tokens = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
+            with self.quota_lock:
+                calls_limit = self.run_quotas.get("model_calls")
+                tokens_limit = self.run_quotas.get("input_tokens")
+                if (calls_limit is not None and self.quota_calls >= calls_limit) or (tokens_limit is not None and self.quota_input_tokens + tokens > tokens_limit):
+                    publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={
+                        "required_state": "PAUSED", "model_calls": self.quota_calls,
+                        "input_tokens": self.quota_input_tokens, "limits": self.run_quotas})
+                    raise AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable")
+                self.quota_calls += 1
+                self.quota_input_tokens += tokens
+            return request
         calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:
             publish_agent_stream_event(

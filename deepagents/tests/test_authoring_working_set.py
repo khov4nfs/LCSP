@@ -48,15 +48,15 @@ def full(prefix):
 
 
 # --- normalized, observable read pagination -------------------------------------------------------------------------
-def test_restored_frozen_inventory_reads_preserve_claims_receipts_and_frontier():
+def test_restored_frozen_inventory_reads_preserve_claims_and_frontier():
     fx, ctx, tools, _ = restored()
-    before = deepcopy((ctx.draft, ctx.semantic_audits, ctx.inventory.frontier.snapshot))
+    before = deepcopy((ctx.draft, ctx.inventory.frontier.snapshot))
     page = call(tools, "get_claim_inventory", kind="CLAIMS", limit=5)
     progress = fx["observedFrontierSnapshot"]["progress"]
     reviewed = progress["reviewedWithClaims"] + progress["reviewedNoClaims"]
     assert ctx.inventory.frontier.loaded
     assert (page["sourceNodesReviewed"], page["sourceNodesRemaining"]) == (reviewed, progress["total"] - reviewed)
-    assert (ctx.draft, ctx.semantic_audits, ctx.inventory.frontier.snapshot) == before
+    assert (ctx.draft, ctx.inventory.frontier.snapshot) == before
     assert page["inventoryFingerprint"] == fx["frozenInventory"]["fingerprint"]
 
 
@@ -236,12 +236,15 @@ def round_(name, n, args=None):
     return [AIMessage(content="", tool_calls=[{"name": name, "args": args or {}, "id": f"c{n}"}]), ToolMessage(content=f"result {n}", tool_call_id=f"c{n}")]
 
 
-def test_discovery_compaction_is_unchanged_reads_share_the_add_budget():
-    messages = [HumanMessage(content="go")]
-    for n in range(6):
-        messages += round_("get_claim_inventory" if n % 2 else "register_semantic_claim", n)
-    kept = {m.tool_call_id for m in compact_draft_history(messages) if isinstance(m, ToolMessage)}
-    assert kept == {"c3", "c4", "c5"}
+def test_discovery_uses_native_context_without_custom_compaction():
+    from types import SimpleNamespace
+    from rule_set_preparation.draft_history import DraftHistoryMiddleware
+    context = SimpleNamespace(inventory=SimpleNamespace(frozen=None))
+    request = SimpleNamespace(messages=[HumanMessage(content='all Article context')])
+    middleware = DraftHistoryMiddleware(context)
+    seen = []
+    assert middleware.wrap_model_call(request, lambda current: seen.append(current) or current) is request
+    assert seen == [request]
 
 
 def test_authoring_compaction_gives_reads_their_own_budget():
@@ -370,3 +373,12 @@ def test_authoring_context_telemetry_is_emitted_on_change_without_source_text(tm
     expected = {"frozenInventoryRevision", "authoringContextRevision", "inventoryPagesSurfaced", "unreadClaimCount", "outstandingRejectionCode", "authoredRequirements", "authoredAssessmentRules", "digestBytes"}
     assert expected <= set(rows[0]) and rows[-1]["authoredRequirements"] == 2 and rows[-1]["frozenInventoryRevision"] == 1
     assert not any("statement" in json.dumps(r) or "claimId" in json.dumps(r) for r in rows)
+
+
+def test_a_read_result_row_with_a_non_object_claim_field_does_not_end_the_run():
+    _, ctx, _, _ = restored()
+    working_set = ctx.authoring
+    working_set.observe_tool("get_rule_authoring_context", {}, {"outcome": "PASSED", "items": [{"claim": "summary text", "claimId": "a" * 64}, {"claim": {"claimId": "b" * 64}}]},
+                             call_id="c1", envelope=None)
+    assert {"a" * 64, "b" * 64} <= working_set.surfaced
+    working_set.observe_tool("get_rule_authoring_status", {}, {"outcome": "PASSED", "claims": 206}, call_id="c2", envelope=None)  # counts, not rows

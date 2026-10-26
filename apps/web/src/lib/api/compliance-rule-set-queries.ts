@@ -100,3 +100,14 @@ export function useCancelRuleSetPreparationMutation() {
     onSettled: () => client.invalidateQueries({ queryKey: historyKey }),
   });
 }
+
+export function useResumeRuleSetPreparationMutation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (preparationRunId: string) => apiValidated(
+      `/api/admin/compliance-rule-sets/preparations/${encodeURIComponent(preparationRunId)}/resume`,
+      ruleSetPreparationRunSchema, { method: "POST" },
+    ),
+    onSettled: () => client.invalidateQueries({ queryKey: historyKey }),
+  });
+}

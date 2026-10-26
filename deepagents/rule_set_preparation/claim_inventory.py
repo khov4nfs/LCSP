@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import unicodedata
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -24,6 +25,7 @@ COMPLETION = "COMPLETION"
 # Mirrors packages/contracts CLAIM_INVENTORY_ACTIONS / RULE_SET_PREPARATION_FAILURE_REASONS.
 CONCLUDE_ACTION = "CONCLUDE_NO_OPERATIVE_OBLIGATIONS"
 NO_OPERATIVE_OBLIGATIONS = "NO_OPERATIVE_OBLIGATIONS"
+AUTHORING_DRAFT_KEYS = ("legalRequirements", "assessmentRules", "contextRelations")
 GRAPH_SECTIONS = {"semanticClaims": "claims", "claimRelations": "relations",
                   "sourceAccounting": "sourceAccounting", "referenceAccounting": "referenceAccounting"}
 NORMATIVE = {"DUTY", "PROHIBITION", "PERMISSION"}
@@ -34,7 +36,7 @@ CLAIM_ROLES = {**{k: "OPERATIVE_PROPOSITION" for k in NORMATIVE}, "CONDITION": "
                "TRANSITION_RULE": "QUALIFIER", "EXCEPTION": "EXCEPTION", "DEFINITION": "DEFINITION",
                "CONTEXT": "CONTEXT", "CROSS_REFERENCE": "CONTEXT"}
 # Inspection tools never change state; a malformed call is a rejected READ, not a validation of anything.
-READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_source_support", "get_review_progress", "get_next_review_unit", "inspect_semantic_reference_binding"})
+READ_TOOLS = frozenset({"get_applicable_legal_state", "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure"})
 # Frozen-inventory gaps only Claim Discovery can close: the same tool path closes them in either discovery mode.
 READINESS_CODES = frozenset({"APPLICABILITY_AUTHORITY_MISSING", "OPERATIVE_CLAIM_MISSING"})
 CONCLUDE_TOOL = "conclude_no_operative_obligations"
@@ -48,6 +50,41 @@ CLAIM_SCHEMA = SCHEMA["properties"]["semanticGraph"]["properties"]["claims"]["it
 # Repair instruction used when the rejecting site names none: stable per code, never per occurrence.
 DEFAULT_REPAIR = {"CLAIM_REQUIREMENT_MISMATCH": "ROLE_MISMATCH", "OPERATIVE_PROPOSITION_REQUIRED": "OPERATIVE_REQUIRED",
                   "APPLICABILITY_SCOPE_MISSING": "APPLICABILITY_REQUIRED", "ORPHAN_ASSESSMENT_RULE": "UNKNOWN_REQUIREMENT"}
+
+
+FRAME_FIELDS = ['object', 'beneficiary', 'trigger', 'scope', 'qualifier', 'exception', 'temporalApplicability', 'repositoryObservableAspect', 'externalFulfillmentAspect']
+
+
+def text_sha(value):
+    return hashlib.sha256(value.encode()).hexdigest()
+
+def utf16_slice(content: str, start: int, end: int) -> str:
+    """AST offsets use JavaScript's UTF-16 coordinates; reject half-surrogate boundaries."""
+    encoded = content.encode("utf-16-le")
+    if isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start or end * 2 > len(encoded):
+        raise ValueError("Invalid source support offsets")
+    return encoded[start * 2:end * 2].decode("utf-16-le")
+
+def canonical_support(source, anchors, supports):
+    if not isinstance(supports, list) or not supports:
+        raise ValueError("Minimal exact source_support spans are required")
+    result = []
+    for span in supports:
+        if set(span) - {"nodeId", "startOffset", "endOffset", "contentSha256"} or span.get("nodeId") not in anchors:
+            raise ValueError("Support must cite a claim's pinned source node")
+        node = source.nodes.get(span["nodeId"])
+        if not node:
+            raise ValueError("Unknown support node")
+        text = utf16_slice(node["content"], span.get("startOffset"), span.get("endOffset"))
+        if not text.strip():
+            raise ValueError("Empty semantic support")
+        sha = text_sha(text)
+        if span.get("contentSha256", sha) != sha:
+            raise ValueError("Source support contentSha256 mismatch")
+        result.append({**span, "contentSha256": sha})
+    if set(anchors) != {s["nodeId"] for s in result} or len({(s["nodeId"], s["startOffset"], s["endOffset"]) for s in result}) != len(result):
+        raise ValueError("Every source anchor needs distinct support")
+    return sorted(result, key=lambda s: (s["nodeId"], s["startOffset"], s["endOffset"]))
 
 
 def fingerprint(value: Any) -> str:
@@ -64,27 +101,34 @@ def claim_id(run_id: str, revision: int, nodes: list[str], key: str) -> str:
 
 def normalized_graph(graph: dict) -> dict:
     return {**deepcopy(graph),
-            **({"semanticAudits": sorted(graph["semanticAudits"], key=lambda r: r["sourceNodeId"])} if "semanticAudits" in graph else {}),
             "claims": sorted([{**c, "sourceNodeIds": sorted(c["sourceNodeIds"])} for c in graph["claims"]], key=lambda c: c["claimId"]),
             "relations": sorted(graph["relations"], key=lambda r: r["relationId"]),
             "sourceAccounting": sorted([{**r, "claimIds": sorted(r["claimIds"])} for r in graph["sourceAccounting"]], key=lambda r: r["sourceNodeId"]),
             "referenceAccounting": sorted([{**r, "relationIds": sorted(r["relationIds"])} for r in graph["referenceAccounting"]], key=lambda r: r["referenceId"])}
 
 
-def grouped_gaps(result: dict, claims: dict | None = None) -> dict:
+def readable_names(identities: dict, relations: dict) -> dict:
+    """Claim ids and relation ids as the agent wrote them: file#key, and 'KIND from -> to'."""
+    return {**identities, **{rid: f"{r['kind']} {identities.get(r['fromClaimId'], '?')} -> {identities.get(r['toClaimId'], '?')}" for rid, r in relations.items()}}
+
+
+def grouped_gaps(result: dict, claims: dict | None = None, names: dict | None = None) -> dict:
+    """Group failures by code. `names` maps claim ids to their file#key so the agent can edit the claim instead of searching for a hash."""
+    readable = lambda text: re.sub(r"[a-f0-9]{64}", lambda m: (names or {}).get(m.group(0), m.group(0)), text) if names and isinstance(text, str) else text
     groups: dict[str, dict] = {}
     for failure in result.get("failures", []):
         group = groups.setdefault(failure["code"], {"count": 0, "examples": []})
         group["count"] += 1
-        if len(group["examples"]) < 6:
+        if len(group["examples"]) < 20:
             example = {k: failure[k] for k in ("ref", "detail", "referenceId", "sourceNodeId", "targetNodeId", "suppliedFromClaimId", "suppliedToClaimId", "sourceClaimIds", "targetClaimIds", "requiredAction", "expectedRole", "suppliedField", "expectedField", "candidateCount", "candidates", "layer", "fieldPaths", "repair", "suppliedClaimId", "actualRole", "expected") if k in failure}
             ref = failure.get("ref")
             claim = (claims or {}).get(ref.removeprefix("claim:")) if isinstance(ref, str) else None
+            example.update({k: readable(example[k]) for k in ("ref", "detail") if k in example})
             if claim:
                 example.update(claimType=claim["claimType"], sourceNodeIds=claim["sourceNodeIds"][:3], sourceNodeCount=len(claim["sourceNodeIds"]))
             group["examples"].append(example)
     return {"outcome": result.get("outcome", "FAILED"), "gaps": groups,
-            **{k: result[k] for k in ("phase", "revision", "fingerprint", "coverage", "NO_PROGRESS", "requiredAction", "guidance", "expectedClaimIds", "missingClaimIds", "pendingCount", "nextReviewUnitIds", "progress", "semanticAuditVerdict", "relationOwners", "detachedRelations") if k in result}}
+            **{k: result[k] for k in ("phase", "revision", "fingerprint", "coverage", "NO_PROGRESS", "requiredAction", "guidance", "expectedClaimIds", "missingClaimIds", "pendingCount", "nextReviewUnitIds", "progress", "relationOwners", "detachedRelations") if k in result}}
 
 
 @dataclass
@@ -98,6 +142,11 @@ class ClaimInventory:
     # Set once the API accepted the terminal no-operative-obligations conclusion (INV-C2); no Rule authoring follows.
     concluded: dict | None = None
     validation_observations: dict[str, dict] = field(default_factory=dict)
+    last_failures: list = field(default_factory=list)
+    draft_version: int = 0
+    saved_draft_fingerprint: str | None = None
+    draft_unsaved: bool = False
+    draft_restored: bool = False
     inventory_validation_calls: int = 0
     claims_by_node: dict[str, set[str]] = field(default_factory=dict)
     frontier: Any = field(init=False, default=None)
@@ -143,7 +192,7 @@ class ClaimInventory:
     def graph(self) -> dict:
         from rule_set_preparation.reference_binding import project_reference_accounting
         project_reference_accounting(self.context)
-        return {"contractVersion": "LEGAL_GRAPH_V3", "semanticAudits": sorted(self.context.semantic_audits.values(), key=lambda r: r["sourceNodeId"]), **({"reviewFrontier": self.frontier.binding()} if self.frontier and self.frontier.binding() else {}), **self.context.source_graph.base(),
+        return {"contractVersion": "LEGAL_GRAPH_V3", **({"targetDate": self.context.target_date} if self.context.target_date else {}), **({"reviewFrontier": self.frontier.binding()} if self.frontier and self.frontier.binding() else {}), **self.context.source_graph.base(),
                 **{v: list(self.context.draft[k].values()) for k, v in GRAPH_SECTIONS.items()}}
 
     def binding(self) -> dict:
@@ -252,8 +301,8 @@ class ClaimInventory:
         """A tool refused its input before any validator ran; the state hash still detects ineffective repetition."""
         guidance = extra.pop("guidance", None)
         action = extra.pop("requiredAction", None) or (
-            "update_semantic_claim" if code == "CLAIM_IDENTITY_CONFLICT"
-            else "get_next_review_unit" if self.frontier and self.phase in {DISCOVERY, INVENTORY_VALIDATION}
+            "commit_claims" if code == "CLAIM_IDENTITY_CONFLICT"
+            else "commit_claims" if self.frontier and self.phase in {DISCOVERY, INVENTORY_VALIDATION}
             else "get_claim_inventory")
         layer = extra.pop("layer", None) or self.current_layer or AUTHORING_PRECONDITION
         source = extra.pop("source", None) or self.current_source or SOURCE_BODY
@@ -275,7 +324,7 @@ class ClaimInventory:
         self.last_envelope = envelope
         context.rejection_log.append(envelope)
         del context.rejection_log[:-200]
-        return grouped_gaps(self.observe_validation(result, self.phase, kind=self.rejection_kind(), envelope=envelope), self.context.draft["semanticClaims"])
+        return grouped_gaps(self.observe_validation(result, self.phase, kind=self.rejection_kind(), envelope=envelope), self.context.draft["semanticClaims"], readable_names(self.identities, self.context.draft["claimRelations"]))
 
     def discovery_allowed(self) -> bool:
         return self.phase == DISCOVERY and self.frozen is None
@@ -285,11 +334,11 @@ class ClaimInventory:
         owner = self.frontier.claim_owners.get(claim_id) if self.frontier else None
         if not owner:
             return None
-        return self.rejected("SOURCE_REVIEW_INCOMPLETE", "unit", "Only the owning leased unit may update this claim",
-            requiredAction="reopen_source_review", sourceNodeId=owner,
-            guidance="Call reopen_source_review with source_node_id=" + owner + " and a factual reason. "
-                "Complete or reference-block the current unit before get_next_review_unit can schedule the reopened owner. "
-                "Pending source units run first; update only once the owning unit is leased.")
+        return self.rejected("SOURCE_REVIEW_INCOMPLETE", "unit", "Only the owning claim file may update this claim",
+            requiredAction="commit_claims", sourceNodeId=owner,
+            guidance="Call commit_claims with source_node_id=" + owner + " and a factual reason. "
+                "Complete or reference-block the current unit before commit_claims can schedule the reopened owner. "
+                "Correct the owning claim file and commit it.")
 
     def put_claim(self, key: str, nodes: list[str], claim_type: str, statement: str,
                   actor: str | None, action: str | None, relevant: bool, reason: str | None, *, update_id: str | None = None,
@@ -302,18 +351,18 @@ class ClaimInventory:
                 return foreign
             active = (self.frontier.active or {}).get("sourceNodeId")
             return self.rejected("SOURCE_REVIEW_INCOMPLETE", "unit", "Author only claims anchored on the active review unit",
-                requiredAction="register_semantic_claim" if active else "get_next_review_unit",
-                guidance="Use source_node_ids containing sourceNodeId=" + active if active else "Acquire bounded work with get_next_review_unit first")
+                requiredAction="commit_claims",
+                guidance="Use source_node_ids containing sourceNodeId=" + active if active else "Acquire bounded work with commit_claims first")
         key, nodes = identity_key(key), sorted(set(nodes))
-        from rule_set_preparation.semantic_audit import canonical_support, FRAME_FIELDS
+
         try:
             support = canonical_support(self.context.source_graph, nodes, source_support)
         except (ValueError, TypeError, KeyError, UnicodeError) as error:
             active = (self.frontier.active or {}).get("sourceNodeId") if self.frontier else None
             foreign = active and str(error).startswith("Support must cite")
-            return self.rejected("SOURCE_SUPPORT_INVALID", "source_support", str(error), requiredAction="register_semantic_claim",
+            return self.rejected("SOURCE_SUPPORT_INVALID", "source_support", str(error), requiredAction="commit_claims",
                 **({"guidance": "Anchor the claim and cite spans only on the active unit (sourceNodeId=" + active + "). Text of other units is reviewed when "
-                    "get_next_review_unit schedules them; to leave this unit, account for its references and complete it (REQUIRES_REFERENCE_RESOLUTION defers it)."} if foreign else {}))
+                    "commit_claims schedules them; to leave this unit, account for its references and complete it (REQUIRES_REFERENCE_RESOLUTION defers it)."} if foreign else {}))
         cid = claim_id(self.context.run_id, self.revision, nodes, key)
         if update_id is not None and (cid != update_id or cid not in self.identities):
             return self.rejected("CLAIM_SCHEMA_INVALID", "claim", "An update preserves identity key and source anchors; register a corrected identity explicitly")
@@ -322,12 +371,20 @@ class ClaimInventory:
                  "semanticFrame": {k: semantic_frame.get(k) for k in FRAME_FIELDS} if isinstance(semantic_frame, dict) else None,
                  "claimType": claim_type, "statement": " ".join(unicodedata.normalize("NFC", statement).split()), "operative": {"actor": " ".join(unicodedata.normalize("NFC", actor or "").split()), "modality": claim_type, "action": " ".join(unicodedata.normalize("NFC", action or "").split())} if claim_type in NORMATIVE else None,
                  "state": "RELEVANT" if relevant else "INTENTIONALLY_NON_OPERATIVE", "nonOperativeReason": None if relevant else reason}
+        if isinstance(semantic_frame, dict) and "legalEffect" in semantic_frame:
+            claim["semanticFrame"]["legalEffect"] = deepcopy(semantic_frame["legalEffect"])
+        if isinstance(semantic_frame, dict) and "applicabilityMode" in semantic_frame:
+            claim["semanticFrame"]["applicabilityMode"] = semantic_frame["applicabilityMode"]
         errors = list(Draft7Validator(CLAIM_SCHEMA).iter_errors(claim))
         if not key or len(key) > 128 or errors or any(n not in self.context.source_graph.nodes for n in nodes) or (not relevant and not reason):
             return self.rejected("CLAIM_SCHEMA_INVALID", "claim", "; ".join(".".join(map(str, e.path)) + ": " + e.message[:180] for e in errors[:4]) or "Valid key, source anchors and exclusion reason required")
+        from rule_set_preparation.legal_effect import effect_integrity_error
+        effect_error = effect_integrity_error(claim, self.context.source_graph)
+        if effect_error:
+            return self.rejected("SOURCE_SUPPORT_INVALID", "semantic_frame.legalEffect", effect_error)
         existing = self.context.draft["semanticClaims"].get(cid)
         if existing and existing != claim and update_id is None:
-            return {**self.rejected("CLAIM_IDENTITY_CONFLICT", cid, "Use update_semantic_claim for an intentional correction; this canonical identity already exists"), "canonicalClaimId":cid,"claim":deepcopy(existing)}
+            return {**self.rejected("CLAIM_IDENTITY_CONFLICT", cid, "Use commit_claims for an intentional correction; this canonical identity already exists"), "canonicalClaimId":cid,"claim":deepcopy(existing)}
         self.changed(existing, claim)
         self.context.draft["semanticClaims"][cid] = claim
         self.identities[cid] = key
@@ -337,83 +394,48 @@ class ClaimInventory:
                 self.context.draft["sourceAccounting"].pop(node, None)
                 self.reviewed_nodes.discard(node)
         if self.frontier and cid not in self.frontier.claim_owners:
-            self.frontier.claim_owners[cid] = self.frontier.active["sourceNodeId"]
+            active_ids = {u["sourceNodeId"] for u in (self.frontier.active_batch or ([self.frontier.active] if self.frontier.active else []))}
+            current = (self.frontier.active or {}).get("sourceNodeId")
+            ref_only = bool(nodes and all(self.context.source_graph.is_reference_only(n) for n in nodes))
+            owner = (current if current in nodes else None) or next((n for n in nodes if n in active_ids), None) or (current if ref_only else (nodes[0] if nodes else current))
+            if owner:
+                self.frontier.claim_owners[cid] = owner
         self.context.authored_claim_ids.add(cid)
         return {"outcome": "PASSED", "phase": self.phase, "inventoryRevision": self.revision, "claim": deepcopy(claim), "identityKey": key, "claimFingerprint": fingerprint(claim)}
 
-    def audit_unit(self, node_id: str, graph=None) -> dict:
-        from rule_set_preparation.semantic_audit import audit_input, receipt_current, receipt_passed, attest_receipt, verify_attestation
-        value = audit_input(self.context.source_graph, graph or self.graph(), node_id, self.revision)
-        receipt = self.context.semantic_audits.get(node_id)
-        verified_previous = verify_attestation(receipt, self.context.run_id) if receipt else False
-        if not (receipt_current(value, receipt) and verified_previous):
-            if self.context.semantic_auditor is None:
-                return {"outcome": "FAILED", "failures": [{"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "node:" + node_id, "detail": "Independent governed semantic auditor is required"}]}
-            if verified_previous and hasattr(self.context.semantic_auditor, "restore_receipt"):
-                self.context.semantic_auditor.restore_receipt(receipt)
-            receipt = self.context.semantic_auditor.audit(value)
-            receipt = attest_receipt(receipt, self.context.run_id)
-            self.context.semantic_audits[node_id] = receipt
-            from rule_set_preparation.semantic_audit import publish_audit_receipt
-            publish_audit_receipt(receipt, self.phase, self.stamp)
-        if receipt_passed(value, receipt):
-            return {"outcome": "PASSED", "semanticAudit": receipt}
-        gaps = receipt.get("gaps", [])
-        failures = [{"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "node:" + node_id, "sourceNodeId": node_id, "detail": g["code"] + ": " + g["detail"]} for g in gaps[:12]]
-        failures.extend({"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "claim:" + r["id"], "sourceNodeId": node_id, "detail": r["verdict"] + ": " + ", ".join(r["gapCodes"])} for r in receipt.get("assertions", []) + receipt.get("relations", []) if r["verdict"] != "SUPPORTED" or r["gapCodes"])
-        reopen = self.frontier and (not self.frontier.active or self.frontier.active["sourceNodeId"] != node_id)
-        result = {"outcome": "FAILED", "failures": failures or [{"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "node:" + node_id, "sourceNodeId": node_id, "detail": receipt["verdict"]}],
-                  "requiredAction": "reopen_source_review" if reopen else "register_semantic_claim" if any(g["code"] == "MISSING_ASSERTION" for g in gaps) else "update_semantic_claim",
-                  "guidance": "Repair this same source review unit from independent factual gaps. " + ("Explicitly reopen sourceNodeId=" + node_id + " before editing its claims or relations." if reopen else "Add omissions and correct unsupported assertions/relations, then complete this leased unit again."), "semanticAuditVerdict": receipt["verdict"]}
-        # A faulted relation another unit owns is corrected only in that unit; this unit is re-audited at the next finalize.
-        faulted = [r for r in receipt.get("assertions", []) + receipt.get("relations", []) if r["verdict"] != "SUPPORTED" or r["gapCodes"]]
-        foreign = {r["id"]: self.frontier.relation_owners[r["id"]] for r in faulted if reopen and self.frontier.relation_owners.get(r["id"]) not in (None, node_id)}
-        if foreign:
-            own = [r for r in faulted if r["id"] not in foreign] + [g for g in gaps if not any(g["detail"].startswith(rid + "/") for rid in foreign)]
-            owners = sorted(set(foreign.values()))
-            result.update(relationOwners=foreign, guidance="Relation(s) " + ", ".join(sorted(foreign)) + " belong to unit(s) " + ", ".join(owners) + ": reopen_source_review those units and correct the relations there. "
-                          "sourceNodeId=" + node_id + " cannot change them and is re-audited at the next finalize" + (", but also reopen it for its own gaps." if own else "; do not reopen it."))
-        return result
 
     def review_complete(self) -> bool:
-        """Every review unit is complete (the independent audits are checked by the API before any conclusion)."""
+        """Every review unit is complete (the API verifies committed coverage before any conclusion)."""
         if self.frontier:
             return bool(self.frontier.snapshot.get("progress", {}).get("discoveryCompleteEligible"))
         return self.required_nodes <= self.reviewed_nodes
 
     def validate_inventory(self, finalize: bool, conclude: str | None = None) -> dict:
+        self.last_failures = []
         if self.frozen is not None:
             return {"outcome": "PASSED", "phase": self.phase, **self.binding(), "alreadyFinalized": True}
         if self.frontier:
             status = self.frontier.progress()
             if status.get("outcome") != "PASSED": return status
             if not status["progress"]["discoveryCompleteEligible"]:
-                return self.frontier.failure({"outcome": "FAILED", "failures": [{"code": "SOURCE_REVIEW_INCOMPLETE", "ref": "frontier", "detail": "Pending, in-review or blocked units remain"}], "requiredAction": "get_next_review_unit", "progress": status["progress"]})
+                return self.frontier.failure({"outcome": "FAILED", "failures": [{"code": "SOURCE_REVIEW_INCOMPLETE", "ref": "frontier", "detail": "Pending, in-review or blocked units remain"}], "requiredAction": "discovery_status", "progress": status["progress"]})
         self.inventory_validation_calls += 1
-        for review in self.graph()["sourceAccounting"]:
-            audit = self.audit_unit(review["sourceNodeId"])
-            if audit["outcome"] != "PASSED":
-                return grouped_gaps(self.observe_validation(audit, DISCOVERY), self.context.draft["semanticClaims"])
         self.transition(INVENTORY_VALIDATION)
         graph = normalized_graph(self.graph())
         errors = list(Draft7Validator(SCHEMA["properties"]["semanticGraph"]).iter_errors(graph))
         if errors:
             result = {"outcome": "FAILED", "failures": [{"code": "CLAIM_SCHEMA_INVALID", "ref": "semanticGraph." + ".".join(map(str, error.path)), "detail": error.message[:200]} for error in errors[:20]]}
         else:
-            if self.frontier:
-                recorded = self.context.api.claim_inventory_operation(self.context.run_id, "RECORD_SEMANTIC_AUDITS", self.revision, graph=graph, identities=self.identities)
-                if recorded.get("outcome") != "PASSED":
-                    self.transition(DISCOVERY)
-                    return grouped_gaps(self.observe_validation(recorded, DISCOVERY))
             result = self.context.api.claim_inventory_operation(self.context.run_id, CONCLUDE_ACTION if conclude else "FINALIZE" if finalize else "VALIDATE", self.revision,
                                                                 graph=graph, identities=self.identities, **({"reason": conclude} if conclude else {}))
+        self.last_failures = result.get("failures", [])
         codes = {f.get("code") for f in result.get("failures", [])}
         if "SEMANTIC_CLOSURE_INVALID" in codes:
-            result = {**result, "requiredAction": "reopen_source_review" if self.frontier else "link_semantic_claims",
+            result = {**result, "requiredAction": "commit_claims",
                       "guidance": "Repair the listed typed target/closure gaps in their owning source review units. Every relevant assertion must be accounted for by a verified operative closure; a globally role-compatible claim cannot substitute for a supported relationship."}
         if READINESS_CODES & codes:
             conclusion = "OPERATIVE_CLAIM_MISSING" in codes and self.review_complete()
-            result = {**result, "requiredAction": CONCLUDE_TOOL if conclusion and codes == {"OPERATIVE_CLAIM_MISSING"} else "reopen_source_review" if self.frontier else "register_semantic_claim",
+            result = {**result, "requiredAction": CONCLUDE_TOOL if conclusion and codes == {"OPERATIVE_CLAIM_MISSING"} else "commit_claims",
                       "guidance": "The inventory cannot support any Rule Set. " + (
                           "Every review unit is complete and no relevant duty, prohibition or permission is registered. "
                           "If a unit actually states one that is not registered, reopen that unit and register it with its actor and action. "
@@ -433,8 +455,8 @@ class ClaimInventory:
             self.context.concluded = deepcopy(self.concluded)
             self.context.progress_revision += 1
             self.transition(COMPLETION)
-            return {**grouped_gaps(result, self.context.draft["semanticClaims"]), "failureReason": NO_OPERATIVE_OBLIGATIONS,
-                    "guidance": "The audited source states no obligation: the Preparation is concluded and no Rule Set was created. Stop."}
+            return {**grouped_gaps(result, self.context.draft["semanticClaims"], readable_names(self.identities, self.context.draft["claimRelations"])), "failureReason": NO_OPERATIVE_OBLIGATIONS,
+                    "guidance": "The committed source states no obligation: the Preparation is concluded and no Rule Set was created. Stop."}
         if result.get("outcome") == "PASSED" and finalize:
             expected = fingerprint({"revision": self.revision, "graph": graph})
             if result["fingerprint"] != expected:
@@ -443,12 +465,15 @@ class ClaimInventory:
             self.transition(READY)
         else:
             self.transition(DISCOVERY)
-        return grouped_gaps(result, self.context.draft["semanticClaims"])
+        view = grouped_gaps(result, self.context.draft["semanticClaims"], readable_names(self.identities, self.context.draft["claimRelations"]))
+        if self.context.direct_draft and result.get("outcome") != "PASSED":
+            view.update(requiredAction="get_rule_set_draft_candidate for the named requirement, then submit_rule_set_draft_candidates", guidance="Repair only the affected candidate; other requirements and source coverage remain saved. No separate claim authoring is needed.")
+        return view
 
     def conclude_no_operative_obligations(self, reason: str) -> dict:
-        """INV-C2: end explicitly when the complete, independently audited review found no duty, prohibition or permission.
+        """INV-C2: end explicitly when the durably complete review found no duty, prohibition or permission.
 
-        Only the API decides: it requires every unit reviewed, every receipt current and passed, no other gap, and no
+        Only the API decides: it requires every unit committed, no coverage/reference/integrity gap, and no
         operative-typed claim. Nothing here infers the outcome; a rejection returns the existing gap codes."""
         if self.context.discovery_only:
             return self.rejected("CLAIM_PHASE_INVALID", "diagnostic", "Discovery-only sessions stop at CLAIM_INVENTORY_READY")
@@ -457,20 +482,75 @@ class ClaimInventory:
         if self.frozen is not None:
             return self.rejected("CLAIM_INVENTORY_FROZEN", "claimInventory", "A frozen inventory supports Rule authoring; it cannot conclude without operative obligations", requiredAction="start_rule_authoring")
         if not reason.strip():
-            return self.rejected("CLAIM_SCHEMA_INVALID", "reason", "A factual reason naming what the audited review found is required")
+            return self.rejected("CLAIM_SCHEMA_INVALID", "reason", "A factual reason naming what the complete review found is required")
         if self.frontier:
             status = self.frontier.progress()
             if status.get("outcome") != "PASSED":
                 return status
             if not status["progress"]["discoveryCompleteEligible"]:
                 return self.frontier.failure({"outcome": "FAILED", "failures": [{"code": "SOURCE_REVIEW_INCOMPLETE", "ref": "frontier", "detail": "Pending, in-review or blocked units remain; conclude only after every unit is reviewed"}],
-                                              "requiredAction": "get_next_review_unit", "progress": status["progress"]})
+                                              "requiredAction": "commit_claims", "progress": status["progress"]})
         return self.validate_inventory(False, conclude=reason.strip())
+
+    def restore_frozen_inventory(self, stored: dict | None) -> None:
+        """Recover the API's exact frozen authority, never infer it from completed review counts."""
+        if stored is None:
+            return
+        graph = normalized_graph(stored["graph"])
+        expected = fingerprint({"revision": self.revision, "graph": graph})
+        if stored["revision"] != self.revision or stored["fingerprint"] != expected:
+            raise ValueError("Frozen inventory revision/fingerprint mismatch")
+        if graph != normalized_graph(self.graph()) or stored["identities"] != self.identities:
+            raise ValueError("Committed source reviews differ from the frozen inventory")
+        self.frozen, self.frozen_fingerprint = deepcopy(graph), expected
+
+    def save_authoring_draft(self) -> None:
+        """A mutation is acknowledged only after its complete snapshot is durable."""
+        with self.context.mutation_lock:
+            if not self.frozen:
+                return
+            draft = deepcopy({key: self.context.draft[key] for key in AUTHORING_DRAFT_KEYS})
+            digest = fingerprint(draft)
+            if digest == self.saved_draft_fingerprint:
+                return
+            self.draft_unsaved = True
+            result = self.context.api.claim_inventory_operation(self.context.run_id, "SAVE_AUTHORING_DRAFT", self.revision,
+                                                               draft=draft, draftVersion=self.draft_version)
+            if result.get("outcome") != "PASSED":
+                raise RuntimeError("Authoring draft save rejected: " + ",".join(f.get("code", "UNKNOWN") for f in result.get("failures", [])))
+            self.draft_version = result["draftVersion"]
+            self.saved_draft_fingerprint, self.draft_unsaved = digest, False
+
+    def flush_authoring_draft(self) -> None:
+        if self.draft_unsaved:
+            self.save_authoring_draft()
+
+    def restore_authoring_draft(self, force: bool = False) -> None:
+        """Load this run/revision once, before any authoring mutation, or resync on force=True."""
+        if self.draft_restored and not force:
+            return
+        result = self.context.api.claim_inventory_operation(self.context.run_id, "LOAD_AUTHORING_DRAFT", self.revision)
+        if result.get("outcome") != "PASSED":
+            raise RuntimeError("Authoring draft load rejected")
+        saved = result.get("draft")
+        if saved:
+            local = {key: self.context.draft[key] for key in AUTHORING_DRAFT_KEYS}
+            if not force and any(local.values()) and local != saved:
+                raise RuntimeError("Load the durable authoring draft before local edits")
+            for key in AUTHORING_DRAFT_KEYS:
+                self.context.draft[key] = deepcopy(saved[key])
+            self.context.draft_fp = None
+        self.draft_version = result["draftVersion"]
+        self.context.draft_revision = self.draft_version
+        if self.context.direct_draft and isinstance(result.get("validation"), dict):
+            self.last_failures = result["validation"].get("failures", [])
+        self.saved_draft_fingerprint = fingerprint(saved) if saved is not None else None
+        self.draft_restored = True
 
     def begin_authoring(self) -> dict:
         if self.context.discovery_only: return self.rejected("CLAIM_PHASE_INVALID", "diagnostic", "Discovery-only sessions stop at CLAIM_INVENTORY_READY")
         if self.frozen and self.frozen.get("contractVersion") != "LEGAL_GRAPH_V3":
-            return self.rejected("SEMANTIC_AUDIT_REQUIRED", "claimInventory", "Historical inventories remain read-only; reopen for source support and independent semantic audit", requiredAction="reopen_semantic_claim_inventory")
+            return self.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Historical inventories remain read-only; reopen for source support", requiredAction="reopen_semantic_claim_inventory")
         if self.phase == READY:
             result = self.context.api.claim_inventory_operation(self.context.run_id, "AUTHOR_RULES", self.revision)
             if result.get("outcome") != "PASSED":
@@ -478,6 +558,7 @@ class ClaimInventory:
             self.transition(AUTHORING)
         if self.phase not in {AUTHORING, RULE_VALIDATION, SUBMISSION_READY}:
             return self.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize discovery before Rule authoring")
+        self.restore_authoring_draft()
         roles: dict[str, int] = {}
         from rule_set_preparation.semantic_closure import claim_role
         for claim in (self.frozen or {}).get("claims", []):
@@ -494,6 +575,7 @@ class ClaimInventory:
             return result
         old = deepcopy(self.frozen)
         self.revision = result["revision"]
+        self.draft_version, self.saved_draft_fingerprint, self.draft_restored, self.draft_unsaved = 0, None, False, False
         remap = {c["claimId"]: claim_id(self.context.run_id, self.revision, c["sourceNodeIds"], self.identities[c["claimId"]]) for c in old["claims"]}
         self.identities = {remap[cid]: key for cid, key in self.identities.items()}
         self.context.draft = {key: {} for key in self.context.draft}
@@ -524,6 +606,5 @@ class ClaimInventory:
         self.context.authored_claim_ids = set(remap.values())
         self.context.validated_packet = self.context.last_validation = None
         self.frozen = self.frozen_fingerprint = None
-        self.context.semantic_audits.clear()
         self.transition(DISCOVERY)
         return {**result, "remappedClaims": list(remap.items())[:20], "remappedClaimCount": len(remap)}

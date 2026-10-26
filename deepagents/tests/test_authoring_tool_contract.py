@@ -256,3 +256,93 @@ def test_L_duplicate_mutation_is_idempotent_and_leaves_no_trace_in_the_draft_or_
 
     steps = [Step("start_rule_authoring", {}), Step("author_legal_requirement", BASE, check=first), Step("author_legal_requirement", BASE, check=resent)]
     run_script(ctx, steps, tmp_path, monkeypatch, events=events)
+
+
+def test_a_requirement_without_binding_ids_takes_them_from_the_verified_closure(tmp_path, monkeypatch):
+    """author_legal_requirement needs no closure read first: omitted binding arguments are the closure's own authoringArguments."""
+    _, ctx, _, _ = H.restore(FX)
+    stated = {k: v for k, v in NEW.items() if k != "applicability_claim_ids"}
+    probe = run_script(ctx, [Step("author_legal_requirement", stated)], tmp_path, monkeypatch)
+    assert probe.results[-1]["outcome"] == "PASSED", probe.results
+    assert SCOPE in [b["claimId"] for b in ctx.draft["legalRequirements"]["R-new"]["claimBindings"]]
+
+
+def test_incompatible_anchors_are_read_one_by_one_instead_of_rejected(tmp_path, monkeypatch):
+    """Reading the closure of anchors that cannot share a Requirement is not an error the agent can repeat into a stall."""
+    _, ctx, _, _ = H.restore(FX)
+    pair = [c for c in (DUTY, DUTY2) if c]
+    probe = run_script(ctx, [Step("get_semantic_closure", {"operative_claim_ids": pair})], tmp_path, monkeypatch)
+    result = probe.results[-1]
+    assert result["outcome"] == "PASSED"
+    assert result.get("aggregation") == "INCOMPATIBLE" or "authoringArguments" in result, result
+
+
+def test_a_closure_read_of_an_unknown_or_non_operative_id_names_it_and_offers_real_anchors(tmp_path, monkeypatch):
+    _, ctx, _, _ = H.restore(FX)
+    probe = run_script(ctx, [Step("get_semantic_closure", {"operative_claim_ids": [GHOST]}), Step("get_semantic_closure", {"operative_claim_ids": [DEF]}),
+                             Step("get_semantic_closure", {"operative_claim_ids": [DUTY2]})], tmp_path, monkeypatch, max_turns=20)
+    unknown, definition, good = probe.results[-3:]
+    assert unknown["outcome"] == "FAILED" and "Unknown claim ID" in str(unknown) and unknown["gaps"]["CLAIM_REQUIREMENT_MISMATCH"]["examples"][0]["candidates"], unknown
+    assert definition["outcome"] == "FAILED" and "not a relevant operative anchor" in str(definition), definition
+    assert good["outcome"] == "PASSED"
+
+
+def test_a_candidate_saved_with_stray_whitespace_is_removable_by_its_visible_id(tmp_path, monkeypatch):
+    _, ctx, _, _ = H.restore(FX)
+
+    def pad(context, result, view, text):
+        row = context.draft["legalRequirements"].pop("R-new")
+        context.draft["legalRequirements"]["R-new\n"] = row
+        return True
+    probe = run_script(ctx, [Step("author_legal_requirement", NEW), Step("get_rule_authoring_status", {}, check=pad),
+                             Step("remove_rule_candidate", {"kind": "LEGAL_REQUIREMENT", "candidate_id": "R-new", "reason": "invalid id"})], tmp_path, monkeypatch)
+    assert probe.results[-1]["outcome"] == "PASSED", probe.results[-1]
+    assert not ctx.draft["legalRequirements"]
+
+
+def test_one_operative_claim_anchors_one_requirement(tmp_path, monkeypatch):
+    _, ctx, _, _ = H.restore(FX)
+    again = {**NEW, "requirement_key": "R-same-claim-other-key"}
+    probe = run_script(ctx, [Step("author_legal_requirement", NEW), Step("author_legal_requirement", again),
+                             Step("author_legal_requirement", {**NEW, "title": "reworded"})], tmp_path, monkeypatch)
+    first, duplicate, rewritten = probe.results[-3:]
+    assert first["outcome"] == "PASSED" and rewritten["outcome"] == "PASSED"           # the same key may be re-authored
+    assert duplicate["outcome"] == "FAILED" and "already belongs to Requirement 'R-new'" in str(duplicate), duplicate
+    assert list(ctx.draft["legalRequirements"]) == ["R-new"] and ctx.draft["legalRequirements"]["R-new"]["title"] == "reworded"
+
+
+def test_native_argument_error_is_repaired_without_terminating_preparation(tmp_path, monkeypatch):
+    _, ctx, _, _ = H.restore(FX)
+    (tmp_path / 'legal-source').mkdir()
+    (tmp_path / 'legal-source/INDEX.md').write_text('Pinned source index')
+    probe = run_script(ctx, [
+        Step('read_file', {'path': '/legal-source/INDEX.md'},
+             check=lambda c, r, v, t: r['outcome'] == 'FAILED' or pytest.fail(str(r))),
+        Step('read_file', {'file_path': '/legal-source/INDEX.md'},
+             check=lambda c, r, v, t: 'Pinned source index' in t or pytest.fail(str(t))),
+        Step('author_legal_requirement', BASE),
+    ], tmp_path, monkeypatch)
+    assert probe.results[-1]['outcome'] == 'PASSED' and len(ctx.draft['legalRequirements']) == 1
+    assert any(row['rejectionSource'] == 'FRAMEWORK_TOOL_ERROR' for row in ctx.rejection_log)
+
+
+def test_native_repair_identity_keeps_changed_paths_distinct_and_stops_identical_retries():
+    from langchain_core.messages import ToolMessage
+    from middleware.failure_policy import NoProgressDetected
+    from rule_set_preparation.authoring_recorder import AuthoringToolCallRecorder
+
+    _, ctx, _, _ = H.restore(FX)
+    recorder, before = AuthoringToolCallRecorder(ctx), deepcopy(ctx.draft)
+
+    def missing(path):
+        call = {'name': 'ls', 'args': {'path': path}, 'id': 'native-path'}
+        result = ToolMessage(content=f"Error: Path '{path}': path_not_found", tool_call_id=call['id'], name='ls', status='error')
+        return recorder._record_result(call, result)
+
+    for path in ['/legal-source/a', '/legal-source/b', '/legal-source/c']:
+        assert missing(path).status == 'error'
+    assert len({row['ref'] for row in ctx.rejection_log}) == 3
+    assert missing('/legal-source/c').status == 'error'
+    with pytest.raises(NoProgressDetected):
+        missing('/legal-source/c')
+    assert ctx.draft == before

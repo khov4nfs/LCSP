@@ -9,18 +9,21 @@ import {
   type AgentExecutionState,
 } from "@lcsp/contracts/assessment";
 import type { MessageKey } from "@lcsp/i18n";
-import { SEMANTIC_AUDIT } from "@lcsp/contracts/compliance-rule-set";
+import {
+  CLAIM_DISCOVERY_ACTIVITY_KINDS,
+  COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES,
+} from "@lcsp/contracts/compliance-rule-set";
 
 const ACTIVITY_KEYS = {
   started: "pages.complianceRuleSets.activity.started",
   loadedSource: "pages.complianceRuleSets.activity.loadedSource",
+  claimFileCommitted: "pages.complianceRuleSets.activity.claimFileCommitted",
   readerStarted: "pages.complianceRuleSets.activity.readerStarted",
   readingSource: "pages.complianceRuleSets.activity.readingSource",
   searchingSource: "pages.complianceRuleSets.activity.searchingSource",
   inspectingSource: "pages.complianceRuleSets.activity.inspectingSource",
   readerCompleted: "pages.complianceRuleSets.activity.readerCompleted",
   modelTurn: "pages.complianceRuleSets.activity.modelTurn",
-  semanticAudit: "pages.complianceRuleSets.activity.semanticAudit",
   synthesizing: "pages.complianceRuleSets.activity.synthesizing",
   validating: "pages.complianceRuleSets.activity.validating",
   validationPassed: "pages.complianceRuleSets.activity.validationPassed",
@@ -31,6 +34,7 @@ const ACTIVITY_KEYS = {
   executionFinished: "pages.complianceRuleSets.activity.executionFinished",
   failed: "pages.complianceRuleSets.activity.failed",
   cancelled: "pages.complianceRuleSets.activity.cancelled",
+  paused: "pages.complianceRuleSets.activity.paused",
 } as const satisfies Record<string, MessageKey>;
 
 const EVENT_TYPES = ASSESSMENT_AGENT_STREAM_EVENT_TYPES;
@@ -39,6 +43,7 @@ const ACTIVITY_STATUSES = {
   completed: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
   failed: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
   cancelled: AGENT_EXECUTION_STATES.CANCELLED,
+  paused: AGENT_EXECUTION_STATES.PAUSED,
 } as const;
 type PreparationActivityStatus =
   (typeof ACTIVITY_STATUSES)[keyof typeof ACTIVITY_STATUSES];
@@ -64,6 +69,9 @@ export type PreparationActivityDetails = {
   outputTokens: number | null;
   totalTokens: number | null;
   sourcePath: string | null;
+  claimFile: string | null;
+  committedNodes: number | null;
+  rejected: number | null;
 };
 
 export type PreparationTokenUsage = {
@@ -103,22 +111,24 @@ export function projectPreparationActivity(
     }
     if (event.eventType === EVENT_TYPES.boundaryCompleted) {
       const outcome =
-        executionState === AGENT_EXECUTION_STATES.SUCCEEDED
-          ? {
-              key: ACTIVITY_KEYS.completed,
-              status: ACTIVITY_STATUSES.completed,
-            }
-          : executionState === AGENT_EXECUTION_STATES.FAILED
-            ? { key: ACTIVITY_KEYS.failed, status: ACTIVITY_STATUSES.failed }
-            : executionState === AGENT_EXECUTION_STATES.CANCELLED
-              ? {
-                  key: ACTIVITY_KEYS.cancelled,
-                  status: ACTIVITY_STATUSES.cancelled,
-                }
-              : {
-                  key: ACTIVITY_KEYS.executionFinished,
-                  status: ACTIVITY_STATUSES.completed,
-                };
+        executionState === AGENT_EXECUTION_STATES.PAUSED
+          ? { key: ACTIVITY_KEYS.paused, status: ACTIVITY_STATUSES.paused }
+          : executionState === AGENT_EXECUTION_STATES.SUCCEEDED
+            ? {
+                key: ACTIVITY_KEYS.completed,
+                status: ACTIVITY_STATUSES.completed,
+              }
+            : executionState === AGENT_EXECUTION_STATES.FAILED
+              ? { key: ACTIVITY_KEYS.failed, status: ACTIVITY_STATUSES.failed }
+              : executionState === AGENT_EXECUTION_STATES.CANCELLED
+                ? {
+                    key: ACTIVITY_KEYS.cancelled,
+                    status: ACTIVITY_STATUSES.cancelled,
+                  }
+                : {
+                    key: ACTIVITY_KEYS.executionFinished,
+                    status: ACTIVITY_STATUSES.completed,
+                  };
       add(drafts, byId, activity(event, outcome.key, outcome.status));
       continue;
     }
@@ -126,7 +136,15 @@ export function projectPreparationActivity(
       add(
         drafts,
         byId,
-        activity(event, ACTIVITY_KEYS.failed, ACTIVITY_STATUSES.failed),
+        activity(
+          event,
+          executionState === AGENT_EXECUTION_STATES.PAUSED
+            ? ACTIVITY_KEYS.paused
+            : ACTIVITY_KEYS.failed,
+          executionState === AGENT_EXECUTION_STATES.PAUSED
+            ? ACTIVITY_STATUSES.paused
+            : ACTIVITY_STATUSES.failed,
+        ),
       );
       continue;
     }
@@ -140,7 +158,7 @@ export function projectPreparationActivity(
     }
     if (event.eventType === EVENT_TYPES.customProgress) {
       const key = stringValue(data?.activity_kind);
-      if (key === "SOURCE_MATERIALIZED") {
+      if (key === CLAIM_DISCOVERY_ACTIVITY_KINDS.SOURCE_MATERIALIZED) {
         add(
           drafts,
           byId,
@@ -151,19 +169,38 @@ export function projectPreparationActivity(
           ),
         );
       }
+      if (key === CLAIM_DISCOVERY_ACTIVITY_KINDS.PREPARATION_PAUSED) {
+        add(
+          drafts,
+          byId,
+          activity(event, ACTIVITY_KEYS.paused, ACTIVITY_STATUSES.paused),
+        );
+      }
+      if (
+        key === CLAIM_DISCOVERY_ACTIVITY_KINDS.CLAIM_FILE_COMMITTED &&
+        stringValue(data?.file)
+      ) {
+        const next = activity(
+          event,
+          ACTIVITY_KEYS.claimFileCommitted,
+          ACTIVITY_STATUSES.completed,
+          {
+            claimFile: stringValue(data?.file),
+            committedNodes: countOrNull(data?.committedNodes),
+            rejected: countOrNull(data?.rejected),
+          },
+        );
+        // Re-commits replace the file row; counters remain a snapshot, never a sum of retries.
+        next.id = `claim-file:${next.details.claimFile}`;
+        mergeActivity(drafts, byId, next.id, next);
+      }
       continue;
     }
     if (
       event.eventType === EVENT_TYPES.modelCallStarted ||
       event.eventType === EVENT_TYPES.modelCallCompleted
     ) {
-      const next = activity(
-        event,
-        data?.agent_role === SEMANTIC_AUDIT.role
-          ? ACTIVITY_KEYS.semanticAudit
-          : ACTIVITY_KEYS.modelTurn,
-        status,
-      );
+      const next = activity(event, ACTIVITY_KEYS.modelTurn, status);
       mergeActivity(drafts, byId, existingId, next);
       continue;
     }
@@ -182,11 +219,13 @@ export function projectPreparationActivity(
 
   if (terminal) {
     const terminalStatus =
-      executionState === AGENT_EXECUTION_STATES.FAILED
-        ? ACTIVITY_STATUSES.failed
-        : executionState === AGENT_EXECUTION_STATES.CANCELLED
-          ? ACTIVITY_STATUSES.cancelled
-          : ACTIVITY_STATUSES.completed;
+      executionState === AGENT_EXECUTION_STATES.PAUSED
+        ? ACTIVITY_STATUSES.paused
+        : executionState === AGENT_EXECUTION_STATES.FAILED
+          ? ACTIVITY_STATUSES.failed
+          : executionState === AGENT_EXECUTION_STATES.CANCELLED
+            ? ACTIVITY_STATUSES.cancelled
+            : ACTIVITY_STATUSES.completed;
     for (const draft of drafts) {
       if (draft.status === ACTIVITY_STATUSES.running) {
         draft.status = terminalStatus;
@@ -223,8 +262,32 @@ export function preparationTokenUsage(
   return total;
 }
 
+export function preparationModelCalls(events: AssessmentAgentStreamEvent[]): number {
+  return new Set(events.filter((e) => e.eventType === EVENT_TYPES.modelCallStarted || e.eventType === EVENT_TYPES.modelCallCompleted).map((event) => {
+    const data = record(event.data);
+    return stringValue(data?.invocation_id) ?? stringValue(data?.model_step_id) ?? event.messageId ?? event.eventId;
+  })).size;
+}
+
+export type PreparationProgressSummary = {
+  reviewed: number;
+  total: number;
+  remaining: number | null;
+  reviewedWithClaims: number | null;
+  reviewedNoClaims: number | null;
+  inReview: number | null;
+  pending: number | null;
+  blocked: number | null;
+  persistedClaims: number | null;
+  claims: number | null;
+  requirements: number | null;
+  rules: number | null;
+};
+
 /** Display only counters emitted by the selected run; absent telemetry is not zero progress. */
-export function preparationProgress(events: AssessmentAgentStreamEvent[]) {
+export function preparationProgress(
+  events: AssessmentAgentStreamEvent[],
+): PreparationProgressSummary | null {
   for (const event of [...events].sort((a, b) => b.sequence - a.sequence)) {
     if (
       event.eventType !== EVENT_TYPES.customProgress ||
@@ -233,12 +296,30 @@ export function preparationProgress(events: AssessmentAgentStreamEvent[]) {
       continue;
     const data = record(event.data);
     const progress = record(record(data?.review_frontier)?.progress);
-    const reviewed = numberOrNull(data?.source_nodes_reviewed);
     const total = numberOrNull(progress?.total);
-    if (reviewed === null || total === null) continue;
+    const verifiedFrontier =
+      (numberOrNull(progress?.reviewedWithClaims) ?? 0) +
+      (numberOrNull(progress?.reviewedNoClaims) ?? 0);
+    const reviewed = Math.max(
+      numberOrNull(data?.source_nodes_reviewed) ?? 0,
+      verifiedFrontier,
+    );
+    if (total === null) continue;
     return {
       reviewed,
       total,
+      remaining:
+        progress?.pending !== undefined
+          ? numberValue(progress.pending) +
+            numberValue(progress.inReview) +
+            numberValue(progress.blocked)
+          : numberOrNull(data?.source_nodes_remaining),
+      reviewedWithClaims: numberOrNull(progress?.reviewedWithClaims),
+      reviewedNoClaims: numberOrNull(progress?.reviewedNoClaims),
+      inReview: numberOrNull(progress?.inReview),
+      pending: numberOrNull(progress?.pending),
+      blocked: numberOrNull(progress?.blocked),
+      persistedClaims: numberOrNull(progress?.persistedClaims),
       claims: numberOrNull(data?.claim_count),
       requirements: numberOrNull(data?.requirement_count),
       rules: numberOrNull(data?.assessment_rule_count),
@@ -271,7 +352,8 @@ function toolLabel(
   if (tool === "validate_compliance_rule_set") {
     return {
       key:
-        stringValue(data?.outcome) === "PASSED"
+        stringValue(data?.outcome) ===
+        COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES.PASSED
           ? ACTIVITY_KEYS.validationPassed
           : eventType === EVENT_TYPES.toolResult && stringValue(data?.outcome)
             ? ACTIVITY_KEYS.validationFailed
@@ -321,6 +403,9 @@ function activity(
         record(record(event.data)?.usage)?.total_tokens,
       ),
       sourcePath: stringValue(record(event.data)?.source_path),
+      claimFile: null,
+      committedNodes: null,
+      rejected: null,
       ...overrides,
     },
   };
@@ -388,4 +473,12 @@ function statusOf(value: string | null): PreparationActivity["status"] {
     return ACTIVITY_STATUSES.completed;
   }
   return ACTIVITY_STATUSES.running;
+}
+
+function countOrNull(value: unknown): number | null {
+  return Array.isArray(value)
+    ? value.length
+    : record(value)
+      ? Object.keys(value as Record<string, unknown>).length
+      : numberOrNull(value);
 }

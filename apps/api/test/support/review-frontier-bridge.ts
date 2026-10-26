@@ -8,8 +8,6 @@ import { PrismaClient } from "@prisma/client";
 import {
   sourceReviewOperationSchema,
   claimInventoryOperationSchema,
-  sourceReviewPayloadSchema,
-  LEGAL_SEMANTIC_GRAPH_VERSION,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   SourceReviewHandler,
@@ -23,7 +21,6 @@ import { ClaimInventoryHandler } from "../../src/modules/compliance-rule-set/app
 import { ClaimInventoryCommand } from "../../src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.command.js";
 import { LegalDocumentGraphService } from "../../src/modules/legal-source/application/services/legal-document-graph.service.js";
 import { LegalSourceSnapshotLoader } from "../../src/modules/compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
-import { pinnedMaterializationId } from "../../src/modules/compliance-rule-set/infrastructure/persistence/preparation-inventory.persistence.js";
 import type { PrismaService } from "../../src/infrastructure/prisma/prisma.service.js";
 import {
   legalSourceFactory,
@@ -34,11 +31,10 @@ import { seedRetainedReferenceBinding } from "./seed-retained-reference-binding.
 import { sourceReviewUnits } from "../../src/modules/compliance-rule-set/domain/source-review-frontier.js";
 import { seedReferenceDependencies } from "./seed-reference-dependencies.js";
 import type { ModelEdge } from "./reference-dependency-model.js";
-import { semanticAuditInput } from "../../src/modules/compliance-rule-set/domain/semantic-audit.js";
 
 const url = process.env.DATABASE_URL ?? "";
 if (
-  !/^postgresql:\/\/postgres:[^@]+@127\.0\.0\.1:55449\/lcsp_review_frontier_test(?:\?schema=public)?$/u.test(
+  !/^postgresql:\/\/postgres:[^@]+@127\.0\.0\.1:554(?:49|[6-9]\d)\/lcsp_review_frontier_test(?:\?schema=public)?$/u.test(
     url,
   )
 )
@@ -48,6 +44,7 @@ type BridgeInput = {
   request: unknown;
   small?: boolean;
   targetDescendant?: boolean;
+  referenceOnlyTarget?: boolean;
   nodes?: number;
   edges?: ModelEdge[];
   requests?: unknown[];
@@ -66,6 +63,7 @@ async function invoke(input: BridgeInput) {
       input.nodes,
       input.edges,
       input.action === "SEED_FAILED_LIVE",
+      input.referenceOnlyTarget,
     );
   } else if (input.action === "RACE") {
     result = await Promise.all(
@@ -77,61 +75,6 @@ async function invoke(input: BridgeInput) {
           ),
         ),
       ),
-    );
-  } else if (input.action === "AUDIT_INPUT") {
-    const request = input.request as {
-      preparationRunId: string;
-      sourceNodeId: string;
-      payload: unknown;
-      claimIds: string[];
-    };
-    const run = await db.ruleSetPreparationRun.findUniqueOrThrow({
-      where: { id: request.preparationRunId },
-    });
-    const source = (await graphs.export(
-      run.legalSourceVersionId,
-      await pinnedMaterializationId(db, run.id),
-    ))!;
-    const rows = await db.ruleSetPreparationSourceReview.findMany({
-      where: { preparationRunId: run.id, inventoryRevision: 1 },
-    });
-    const payloads = rows
-      .filter((r) => r.sourceNodeId !== request.sourceNodeId)
-      .map((r) => sourceReviewPayloadSchema.parse(r.payload))
-      .concat(sourceReviewPayloadSchema.parse(request.payload));
-    result = semanticAuditInput(
-      source,
-      {
-        contractVersion: LEGAL_SEMANTIC_GRAPH_VERSION,
-        materializationId: source.materializationId,
-        legalSourceVersionId: source.legalSourceVersionId,
-        claims: [
-          ...new Map(
-            payloads.flatMap((p) => p.claims).map((c) => [c.claimId, c]),
-          ).values(),
-        ],
-        relations: [
-          ...new Map(
-            payloads
-              .flatMap((p) =>
-                p.relations.filter(
-                  (r) => !p.invalidatedRelationIds?.includes(r.relationId),
-                ),
-              )
-              .map((r) => [r.relationId, r]),
-          ).values(),
-        ],
-        sourceAccounting: [
-          {
-            sourceNodeId: request.sourceNodeId,
-            claimIds: request.claimIds,
-            nonSemanticReason: null,
-          },
-        ],
-        referenceAccounting: [],
-      },
-      request.sourceNodeId,
-      1,
     );
   } else if (input.action === "STATE") {
     const { preparationRunId } = input.request as { preparationRunId: string };
@@ -157,6 +100,18 @@ async function invoke(input: BridgeInput) {
           sourceNodeId,
         },
       },
+      data: { leaseExpiresAt: new Date(0) },
+    });
+  } else if (input.action === "RECLAIM") {
+    // What the claim handler does when a worker reclaims a run: a new process owns a new review operation and the
+    // previous process's leases expire at once.
+    const { preparationRunId } = input.request as { preparationRunId: string };
+    await db.ruleSetPreparationRun.update({
+      where: { id: preparationRunId },
+      data: { reviewOperationId: null },
+    });
+    result = await db.ruleSetPreparationSourceReview.updateMany({
+      where: { preparationRunId, state: "IN_REVIEW" },
       data: { leaseExpiresAt: new Date(0) },
     });
   } else if (input.action === "SEED_RETAINED") {

@@ -4,11 +4,12 @@ import type { MessageKey } from "@lcsp/i18n";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
 import type { AgentExecutionState } from "@lcsp/contracts/assessment";
-import { resolveAppMessage } from "@/lib/i18n";
+import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { WorkDisclosure } from "@/components/molecules/work-disclosure";
 import {
   preparationTokenUsage,
+  preparationModelCalls,
   preparationProgress,
   projectPreparationActivity,
 } from "../../utils/rule-set-preparation-activity";
@@ -20,6 +21,7 @@ type Props = {
   terminal: boolean;
   executionState: AgentExecutionState | null;
   connected: boolean;
+  directDraft?: boolean;
 };
 
 export function RuleSetPreparationActivity({
@@ -27,6 +29,7 @@ export function RuleSetPreparationActivity({
   terminal,
   executionState,
   connected,
+  directDraft = false,
 }: Props) {
   const activities = projectPreparationActivity(
     events,
@@ -38,6 +41,18 @@ export function RuleSetPreparationActivity({
   const visibleActivities = activities.slice(
     -PREPARATION_ACTIVITY_VISIBLE_LIMIT,
   );
+  const coverageRate =
+    progress && progress.total > 0
+      ? `${((progress.reviewed / progress.total) * 100).toFixed(1)}%`
+      : null;
+  const tokensPerUnit =
+    progress && progress.reviewed > 0
+      ? Math.round(usage.totalTokens / progress.reviewed)
+      : null;
+  const tokensPerClaim =
+    progress && progress.persistedClaims && progress.persistedClaims > 0
+      ? Math.round(usage.totalTokens / progress.persistedClaims)
+      : null;
   return (
     <section
       className="rounded-lg border border-border/70 bg-muted/20 p-4"
@@ -70,22 +85,73 @@ export function RuleSetPreparationActivity({
         </span>
       </div>
       {progress ? (
-        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <Detail
-            labelKey="pages.complianceRuleSets.activity.sourceReviews"
-            value={`${progress.reviewed.toLocaleString()} / ${progress.total.toLocaleString()}`}
+            labelKey="pages.complianceRuleSets.activity.sourceCoverage"
+            value={`${progress.reviewed.toLocaleString()} / ${progress.total.toLocaleString()}${coverageRate ? ` (${coverageRate})` : ""}`}
           />
           <Detail
+            labelKey="pages.complianceRuleSets.activity.sourceRemaining"
+            value={
+              progress.remaining !== null
+                ? progress.remaining.toLocaleString()
+                : (progress.total - progress.reviewed).toLocaleString()
+            }
+          />
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.reviewedWithClaims"
+            value={progress.reviewedWithClaims?.toLocaleString() ?? null}
+          /> : null}
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.reviewedNoClaims"
+            value={progress.reviewedNoClaims?.toLocaleString() ?? null}
+          /> : null}
+
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.inReview"
+            value={progress.inReview?.toLocaleString() ?? null}
+          />
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.pendingUnits"
+            value={progress.pending?.toLocaleString() ?? null}
+          />
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.verifiedClaims"
+            value={progress.persistedClaims?.toLocaleString() ?? null}
+          /> : null}
+          {!directDraft ? <Detail
             labelKey="pages.complianceRuleSets.activity.draftClaims"
-            value={progress.claims}
+            value={progress.claims?.toLocaleString() ?? null}
+          /> : null}
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.tokenEfficiency"
+            value={
+              tokensPerUnit !== null
+                ? formatAppMessage(
+                    "pages.complianceRuleSets.activity.tokensPerUnitValue",
+                    { count: tokensPerUnit.toLocaleString() },
+                  )
+                : null
+            }
           />
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.tokensPerClaim"
+            value={
+              tokensPerClaim !== null
+                ? formatAppMessage(
+                    "pages.complianceRuleSets.activity.tokensPerClaimValue",
+                    { count: tokensPerClaim.toLocaleString() },
+                  )
+                : null
+            }
+          /> : null}
           <Detail
             labelKey="pages.complianceRuleSets.activity.requirements"
-            value={progress.requirements}
+            value={progress.requirements?.toLocaleString() ?? null}
           />
           <Detail
             labelKey="pages.complianceRuleSets.activity.rules"
-            value={progress.rules}
+            value={progress.rules?.toLocaleString() ?? null}
           />
         </dl>
       ) : null}
@@ -101,7 +167,13 @@ export function RuleSetPreparationActivity({
               className="rounded-md border border-border/60 bg-background p-3"
             >
               <WorkDisclosure
-                summary={resolveAppMessage(item.labelKey)}
+                summary={
+                  item.details.claimFile
+                    ? formatAppMessage(item.labelKey, {
+                        file: item.details.claimFile,
+                      })
+                    : resolveAppMessage(item.labelKey)
+                }
                 running={
                   !terminal &&
                   item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
@@ -126,7 +198,9 @@ export function RuleSetPreparationActivity({
                           : item.status ===
                               ASSESSMENT_RUNTIME_RUN_STATUSES.completed
                             ? "pages.complianceRuleSets.activity.statuses.COMPLETED"
-                            : "pages.complianceRuleSets.activity.statuses.CANCELLED",
+                            : item.status === AGENT_EXECUTION_STATES.PAUSED
+                              ? "pages.complianceRuleSets.activity.statuses.PAUSED"
+                              : "pages.complianceRuleSets.activity.statuses.CANCELLED",
                     )}
                     {item.details.provider || item.details.model
                       ? ` · ${[item.details.provider, item.details.model]
@@ -138,6 +212,18 @@ export function RuleSetPreparationActivity({
                 className="text-foreground"
               >
                 <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+                  <Detail
+                    labelKey="pages.complianceRuleSets.activity.claimFile"
+                    value={item.details.claimFile}
+                  />
+                  <Detail
+                    labelKey="pages.complianceRuleSets.activity.committedNodes"
+                    value={item.details.committedNodes}
+                  />
+                  <Detail
+                    labelKey="pages.complianceRuleSets.activity.rejectedNodes"
+                    value={item.details.rejected}
+                  />
                   <Detail
                     labelKey="pages.complianceRuleSets.activity.agent"
                     value={item.details.agent}
@@ -193,6 +279,9 @@ export function RuleSetPreparationActivity({
         </ol>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
+        {resolveAppMessage("pages.complianceRuleSets.activity.modelCalls")}: {preparationModelCalls(events).toLocaleString()}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
         {resolveAppMessage("pages.complianceRuleSets.activity.tokenUsage")}:{" "}
         {usage.totalTokens.toLocaleString()}
       </p>

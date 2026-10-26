@@ -26,6 +26,7 @@ import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import { ResumeRuleSetPreparationCommand } from "../../application/commands/resume-rule-set-preparation/resume-rule-set-preparation.command.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { GetComplianceRuleSetResultQuery } from "../../application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.query.js";
 import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.query.js";
@@ -80,6 +81,23 @@ export class ComplianceRuleSetAdminController {
     return this.commands
       .execute(
         new RetryRuleSetPreparationCommand(
+          preparationRunId,
+          req.rbacContext.userId,
+          req.correlationId || randomUUID(),
+        ),
+      )
+      .then(resultEnvelope);
+  }
+
+  @Post("preparations/:preparationRunId/resume")
+  @HttpCode(HttpStatus.ACCEPTED)
+  resume(
+    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.commands
+      .execute(
+        new ResumeRuleSetPreparationCommand(
           preparationRunId,
           req.rbacContext.userId,
           req.correlationId || randomUUID(),

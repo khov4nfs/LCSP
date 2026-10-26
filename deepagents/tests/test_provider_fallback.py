@@ -240,8 +240,8 @@ async def test_configured_workflow_chain_rotates_only_own_keys_in_provider_order
     async def ahandle(request):
         return handle(request)
 
-    request = _FakeRequest(policy.resolve_agent_model("legal-semantic-auditor"))
-    state = AgentRunState(run_id="ordered-workflow-control", agent_role="legal-semantic-auditor")
+    request = _FakeRequest(policy.resolve_agent_model("root"))
+    state = AgentRunState(run_id="ordered-workflow-control", agent_role="root")
     with activate_agent_run_state(state):
         if success_at is None:
             with pytest.raises(TerminalCredentialError):
@@ -864,6 +864,16 @@ def test_a_provider_refusal_is_a_resample_not_a_rejected_request():
     assert is_terminal_task_error(refusal) is False
     assert retry_model_error(refusal) is True
     assert provider_fallback_failure(refusal) is True
+
+
+def test_native_stream_content_filter_is_a_provider_refusal():
+    import httpx
+    from openai import APIError
+    from middleware.failure_policy import is_provider_refusal
+    error = APIError('private provider response', request=httpx.Request('POST', 'https://provider.invalid'),
+                     body={'code': 'content_filter'})
+    assert is_provider_refusal(error)
+    assert not is_provider_refusal(APIError('ordinary error', request=error.request, body={'code': 'invalid_request'}))
 
 
 def test_a_refusing_route_falls_back_to_the_next_route(monkeypatch):
@@ -1627,3 +1637,63 @@ def test_same_provider_different_model_route_is_a_distinct_fallback(monkeypatch)
     assert seen == [("openai", ALPHA), ("openai", "model-beta"), ("openai", "model-beta")]
     assert session.provider_route_disabled(route_key("openai", ALPHA, "openai")) is True
     assert session.provider_route_disabled(route_key("openai", "model-beta", "openai")) is False
+
+
+def test_inception_safety_refusal_wording_is_a_provider_refusal_not_a_terminal_error():
+    from middleware.failure_policy import is_provider_refusal, is_terminal_task_error
+    error = RuntimeError("I'm sorry, but I can't help with this because it involves potentially dangerous or harmful content.")
+    assert is_provider_refusal(error) and not is_terminal_task_error(error)
+
+
+def test_openai_api_error_triggers_provider_fallback_to_next_route(monkeypatch):
+    from openai import APIError as OpenAIAPIError
+    import httpx
+
+    _routes(monkeypatch, "inception", "google_genai")
+    monkeypatch.setenv("INCEPTION_API_KEY", "inc-key")
+    monkeypatch.setenv("GOOGLE_API_KEY", "goog-key")
+    monkeypatch.setattr(
+        "middleware.provider_fallback.fallback_model",
+        lambda config: _FakeModel(config.provider, config.model),
+    )
+    session = _run_session("api-error-fallback")
+    seen = []
+
+    def handler(request):
+        seen.append(request.model.provider)
+        if request.model.provider == "inception":
+            req = httpx.Request("POST", "https://api.inception.ai/v1/chat/completions")
+            raise OpenAIAPIError("upstream gateway timeout", request=req, body=None)
+        return ModelResponse(result=[])
+
+    fallback = ProviderFallbackMiddleware()
+    with activate_agent_run_state(session):
+        res = fallback.wrap_model_call(_FakeRequest(_FakeModel("inception", DELTA)), handler)
+
+    assert seen == ["inception", "google_genai"]
+    assert res is not None
+
+
+def test_openai_bad_request_remains_terminal_without_fallback(monkeypatch):
+    from openai import BadRequestError
+    import httpx
+
+    _routes(monkeypatch, "inception", "google_genai")
+    monkeypatch.setenv("INCEPTION_API_KEY", "inc-key")
+    monkeypatch.setenv("GOOGLE_API_KEY", "goog-key")
+    session = _run_session("bad-request-terminal")
+    seen = []
+
+    def handler(request):
+        seen.append(request.model.provider)
+        req = httpx.Request("POST", "https://api.inception.ai/v1/chat/completions")
+        resp = httpx.Response(400, request=req)
+        raise BadRequestError("invalid prompt argument", response=resp, body=None)
+
+    fallback = ProviderFallbackMiddleware()
+    with pytest.raises(BadRequestError):
+        with activate_agent_run_state(session):
+            fallback.wrap_model_call(_FakeRequest(_FakeModel("inception", DELTA)), handler)
+
+    assert seen == ["inception"]
+

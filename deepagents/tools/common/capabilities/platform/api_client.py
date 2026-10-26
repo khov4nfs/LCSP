@@ -448,7 +448,7 @@ class WorkerApiClient:
         """Claim one Rule Set Preparation run; returns only its pinned legal_source bundle."""
         data = self._post_with_retry(
             InternalPath.COMPLIANCE_RULE_SET_CLAIMS,
-            {"preparationRunId": preparation_run_id},
+            {"preparationRunId": preparation_run_id, "supportedExecutionContracts": ["CLAIM_INVENTORY_V1", "DIRECT_DRAFT_V1"]},
             redact=False,
         )
         if not isinstance(data, dict):

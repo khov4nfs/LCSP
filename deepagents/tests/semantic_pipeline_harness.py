@@ -1,6 +1,6 @@
 """Same-source V3 inventory through real freeze/authoring/Rule Validator/submission boundaries.
 
-Persistence is explicitly in memory. The caller supplies independent receipts, or a scripted auditor for mechanical-only tests.
+Persistence is explicitly in memory. Fixtures contain committed claims for deterministic mechanical tests.
 No Preparation is created or dispatched.
 """
 from copy import deepcopy
@@ -9,7 +9,6 @@ from claim_protocol_harness import ScriptedApi, call
 from corrected_semantic_fixture import corrected_graph
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
 from rule_set_preparation.claim_inventory import READY, normalized_graph, fingerprint
-from rule_set_preparation.semantic_audit import audit_input
 from rule_set_preparation.semantic_closure import operative
 
 
@@ -23,13 +22,10 @@ def frozen_frontier_snapshot(graph):
 
 
 def authoring_fixture():
-    """Scripted audit receipts for authoring/memory mechanics; never semantic acceptance evidence."""
-    from structural_semantic_fixture import StructuralFixtureAuditor
+    """Committed claim fixture for authoring and memory mechanics."""
     fixture, source, graph, identities, _ = corrected_graph()
-    auditor = StructuralFixtureAuditor()
-    graph["semanticAudits"] = [auditor.audit(audit_input(source, graph, r["sourceNodeId"], 1)) for r in graph["sourceAccounting"]]
     graph = normalized_graph(graph)
-    return {"label": "Same-source V3 authoring mechanics; SCRIPTED verifier verdicts", "preparationId": fixture["identity"]["preparationRunId"],
+    return {"label": "Same-source V3 authoring mechanics; deterministic committed claims", "preparationId": fixture["identity"]["preparationRunId"],
             "sourceVersionId": source.version, "graph": source.graph, "chunks": list(source.chunks.values()),
             "frozenInventory": {"revision": 1, "fingerprint": fingerprint({"revision": 1, "graph": graph}), "graph": graph, "identities": identities},
             "observedFrontierSnapshot": frozen_frontier_snapshot(graph)}
@@ -44,9 +40,8 @@ def authoring_plan():
     return [(f"R-{i}", *[[r["claimId"][:8] for r in aggregate_closure(graph, ids)["claims"] if r["role"] in group] for group in roles]) for i, ids in enumerate(groups)]
 
 
-def pipeline_context(auditor):
+def pipeline_context():
     fixture, source, graph, identities, keys = corrected_graph()
-    graph["semanticAudits"] = [auditor.audit(audit_input(source, graph, review["sourceNodeId"], 1)) for review in graph["sourceAccounting"]]
     graph = normalized_graph(graph)
     source_snapshot = {"legalSourceVersionId": source.version, "documentGraph": source.graph, "retrievalIndexValid": True,
                        "chunks": [{k: v for k, v in c.items() if k not in {"chunkId", "content"}} for c in source.chunks.values()]}
@@ -54,12 +49,11 @@ def pipeline_context(auditor):
     run_id = fixture["identity"]["preparationRunId"]
     ready = api.claim_inventory_operation(run_id, "FINALIZE", 1, graph=graph, identities=identities)
     assert ready["outcome"] == "PASSED", ready
-    ctx = RuleSetPreparationContext(run_id, api, source_graph=source, frontier_enabled=True, semantic_auditor=auditor)
+    ctx = RuleSetPreparationContext(run_id, api, source_graph=source, frontier_enabled=True)
     tools = {t.name: t for t in build_rule_set_tools(ctx)}
     for field, key in [("semanticClaims", "claims"), ("claimRelations", "relations"), ("sourceAccounting", "sourceAccounting"), ("referenceAccounting", "referenceAccounting")]:
         identity = {"claims": "claimId", "relations": "relationId", "sourceAccounting": "sourceNodeId", "referenceAccounting": "referenceId"}[key]
         ctx.draft[field] = {r[identity]: deepcopy(r) for r in graph[key]}
-    ctx.semantic_audits = {r["sourceNodeId"]: deepcopy(r) for r in graph["semanticAudits"]}
     ledger = ctx.inventory
     ledger.identities = identities
     ledger.rebuild_node_index()

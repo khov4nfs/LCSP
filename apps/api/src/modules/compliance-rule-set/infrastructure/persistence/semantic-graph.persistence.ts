@@ -24,7 +24,6 @@ export function readSemanticGraph(
     legalSourceVersionId: graph.legalSourceVersionId,
     sourceAccounting: graph.sourceAccounting,
     referenceAccounting: graph.referenceAccounting,
-    ...(graph.semanticAudits ? { semanticAudits: graph.semanticAudits } : {}),
     claims: graph.claims.map((claim) => ({
       claimId: claim.claimId,
       legalSourceVersionId: claim.legalSourceVersionId,
@@ -69,7 +68,6 @@ export async function writeSemanticGraph(
       contractVersion: graph.contractVersion,
       sourceAccounting: graph.sourceAccounting,
       referenceAccounting: graph.referenceAccounting,
-      semanticAudits: graph.semanticAudits ?? Prisma.DbNull,
       graphDigest: sha256Hex(canonicalJson(graph)),
     },
   });

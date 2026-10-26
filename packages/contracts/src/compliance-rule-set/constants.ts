@@ -56,12 +56,12 @@ export type ComplianceRuleSetValidationOutcome =
 export const COMPLIANCE_RULE_SET_FAILURE_CODES = {
   claimInventoryRequired: "CLAIM_INVENTORY_REQUIRED",
   staleInventoryBinding: "STALE_INVENTORY_BINDING",
+  staleAuthoringDraft: "STALE_AUTHORING_DRAFT",
   claimPhaseInvalid: "CLAIM_PHASE_INVALID",
   SOURCE_STRUCTURE_REQUIRED: "SOURCE_STRUCTURE_REQUIRED",
   SEMANTIC_GRAPH_REQUIRED: "SEMANTIC_GRAPH_REQUIRED",
   SEMANTIC_CLAIM_INVALID: "SEMANTIC_CLAIM_INVALID",
   SOURCE_SUPPORT_INVALID: "SOURCE_SUPPORT_INVALID",
-  SEMANTIC_AUDIT_REQUIRED: "SEMANTIC_AUDIT_REQUIRED",
   SEMANTIC_CLOSURE_INVALID: "SEMANTIC_CLOSURE_INVALID",
   INCOMPLETE_STRUCTURAL_ACCOUNTING: "INCOMPLETE_STRUCTURAL_ACCOUNTING",
   UNACCOUNTED_SEMANTIC_CLAIM: "UNACCOUNTED_SEMANTIC_CLAIM",
@@ -102,13 +102,14 @@ export type ComplianceRuleSetFailureCode =
 
 /** Why a Rule Set Preparation execution failed before producing an activated rule set. */
 export const RULE_SET_PREPARATION_FAILURE_REASONS = {
+  AGENT_BUDGET_REACHED: "AGENT_BUDGET_REACHED",
   MODEL_ERROR: "MODEL_ERROR",
   NO_SUBMISSION: "NO_SUBMISSION",
   RULE_SET_VALIDATION_FAILED: "RULE_SET_VALIDATION_FAILED",
   SOURCE_VERSION_UNAVAILABLE: "SOURCE_VERSION_UNAVAILABLE",
   RUNTIME_ERROR: "RUNTIME_ERROR",
   /**
-   * Terminal outcome of a complete, independently audited review whose inventory has no relevant duty, prohibition or
+   * Terminal outcome of a complete, completed review whose inventory has no relevant duty, prohibition or
    * permission. It is recorded only by the validated claim-inventory conclusion, never reported by a worker, and it
    * creates or activates no Rule Set.
    */
@@ -193,4 +194,14 @@ export const LEGAL_REQUIREMENT_CONTEXT_FIELDS = {
   APPLICABILITY_CONDITION: "APPLICABILITY_CONDITION",
   QUALIFIER: "QUALIFIER",
   EXCEPTION: "EXCEPTION",
+} as const;
+
+export const CLAIM_DISCOVERY_ACTIVITY_KINDS = {
+  SOURCE_MATERIALIZED: "SOURCE_MATERIALIZED",
+  CLAIM_FILE_COMMITTED: "CLAIM_FILE_COMMITTED",
+  PREPARATION_PAUSED: "PREPARATION_PAUSED",
+} as const;
+export const LEGAL_APPLICABILITY_MODES = {
+  UNCONDITIONAL: "UNCONDITIONAL",
+  CONDITIONAL: "CONDITIONAL",
 } as const;

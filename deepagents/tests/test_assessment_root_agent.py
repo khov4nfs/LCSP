@@ -1095,7 +1095,8 @@ def test_generic_runtime_code_names_no_legal_role_category_or_instrument() -> No
         *sorted((root / "deepagents" / "assessment_root").glob("*.py")),
         root / "deepagents" / "assessment_root" / "instructions.md",
         *sorted((root / "deepagents" / "rule_set_preparation").glob("*.py")),
-        root / "deepagents" / "rule_set_preparation" / "instructions.md",
+        root / "deepagents" / "rule_set_preparation" / "instructions-common.md",
+        root / "deepagents" / "rule_set_preparation" / "instructions-authoring.md",
         *sorted((root / "apps" / "api" / "src" / "modules" / "assessment").rglob("*.ts")),
         *sorted((root / "apps" / "api" / "src" / "modules" / "compliance-rule-set").rglob("*.ts")),
     ]

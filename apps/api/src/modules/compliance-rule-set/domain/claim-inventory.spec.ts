@@ -5,8 +5,6 @@ import {
   validPacket,
 } from "../../../../test/support/compliance-rule-set-fixtures.js";
 import { canonicalInventoryFixture } from "../../../../test/support/canonical-claim-inventory-fixture.js";
-import { refreshStructuralAudits } from "../../../../test/support/structural-semantic-fixture.js";
-import { signSemanticAuditFixture } from "./semantic-audit-attestation.js";
 import {
   authoringReadinessGaps,
   canonicalClaimId,
@@ -19,12 +17,7 @@ import { validateSemanticClaimGraph } from "./semantic-claim-integrity.validator
 const RUN = "00000000-0000-4000-8000-000000000009";
 function fixture() {
   const packet = validPacket();
-  const inventory = canonicalInventoryFixture(
-    packet,
-    RUN,
-    1,
-    fixtureLegalSource().documentGraph!,
-  );
+  const inventory = canonicalInventoryFixture(packet, RUN, 1);
   return { packet, ...inventory, source: fixtureLegalSource() };
 }
 describe("Frozen Preparation claim inventory", () => {
@@ -62,9 +55,7 @@ describe("Frozen Preparation claim inventory", () => {
     f.graph.claims[0].statement += " clarified wording";
     expect(
       validateClaimInventory(RUN, 1, f.graph, f.identities, f.source).failures,
-    ).toContainEqual(
-      expect.objectContaining({ code: F.SEMANTIC_AUDIT_REQUIRED }),
-    );
+    ).toEqual([]);
     expect(f.graph.claims[0].claimId).toBe(id);
   });
   it("fingerprint ignores set ordering, retaining all claim and relation meaning", () => {
@@ -188,7 +179,7 @@ describe("Frozen Preparation claim inventory", () => {
         : "No further semantic material in this scripted scale fixture",
     }));
     const started = performance.now();
-    // This fixture deliberately has unaudited, unanchored synthetic context claims.
+    // This fixture deliberately has unanchored synthetic context claims.
     // Benchmark the structural accounting layer, not V3 semantic freeze approval.
     const structural = validateSemanticClaimGraph(
       {
@@ -334,8 +325,8 @@ describe("Frozen Preparation claim inventory", () => {
   });
 
   describe("terminal non-operative outcome (INV-C2)", () => {
-    /** Every unit reviewed and independently audited; the only claims left are non-operative (a definition). */
-    const auditedWithoutOperativeClaims = (keepDefinition = true) => {
+    /** Every unit reviewed and completed; the only claims left are non-operative (a definition). */
+    const completedWithoutOperativeClaims = (keepDefinition = true) => {
       const f = fixture();
       const keep = new Set(
         keepDefinition
@@ -361,10 +352,6 @@ describe("Frozen Preparation claim inventory", () => {
       f.identities = Object.fromEntries(
         Object.entries(f.identities).filter(([id]) => keep.has(id)),
       );
-      refreshStructuralAudits(f.graph, f.source.documentGraph!, 1);
-      f.graph.semanticAudits = f.graph.semanticAudits!.map((receipt) =>
-        signSemanticAuditFixture(receipt, RUN),
-      );
       return f;
     };
     const gate = (f: ReturnType<typeof fixture>) =>
@@ -372,9 +359,9 @@ describe("Frozen Preparation claim inventory", () => {
     const codes = (failures: { code: string }[]) => failures.map((g) => g.code);
 
     it.each([true, false])(
-      "is available only for a fully reviewed, audited inventory whose single gap is the absence of an operative claim (definition kept: %s)",
+      "is available only for a fully reviewed inventory whose single gap is the absence of an operative claim (definition kept: %s)",
       (keepDefinition) => {
-        const f = auditedWithoutOperativeClaims(keepDefinition);
+        const f = completedWithoutOperativeClaims(keepDefinition);
         const failures = gate(f);
         expect(codes(failures)).toEqual([F.OPERATIVE_CLAIM_MISSING]);
         expect(noOperativeObligationsFailures(f.graph, failures)).toEqual([]);
@@ -383,42 +370,11 @@ describe("Frozen Preparation claim inventory", () => {
     );
 
     it("is unavailable while any review unit is unreviewed and reports the existing accounting code", () => {
-      const f = auditedWithoutOperativeClaims();
+      const f = completedWithoutOperativeClaims();
       f.graph.sourceAccounting.pop();
       const failures = gate(f);
       const refusal = noOperativeObligationsFailures(f.graph, failures);
       expect(codes(refusal)).toContain(F.INCOMPLETE_STRUCTURAL_ACCOUNTING);
-      expect(codes(refusal)).not.toContain(F.OPERATIVE_CLAIM_MISSING);
-    });
-
-    it.each([
-      [
-        "missing",
-        (f: ReturnType<typeof fixture>) => {
-          f.graph.semanticAudits!.pop();
-        },
-      ],
-      [
-        "failed",
-        (f: ReturnType<typeof fixture>) => {
-          const receipt = f.graph.semanticAudits![0];
-          receipt.verdict = "MISSING_ASSERTION";
-          receipt.gaps = [
-            { code: "MISSING_ASSERTION", detail: "A stated duty is absent" },
-          ];
-        },
-      ],
-      [
-        "stale",
-        (f: ReturnType<typeof fixture>) => {
-          f.graph.semanticAudits![0].inventoryRevision = 2;
-        },
-      ],
-    ])("is unavailable when one independent audit is %s", (_name, mutate) => {
-      const f = auditedWithoutOperativeClaims();
-      mutate(f);
-      const refusal = noOperativeObligationsFailures(f.graph, gate(f));
-      expect(codes(refusal)).toContain(F.SEMANTIC_AUDIT_REQUIRED);
       expect(codes(refusal)).not.toContain(F.OPERATIVE_CLAIM_MISSING);
     });
 
@@ -453,7 +409,7 @@ describe("Frozen Preparation claim inventory", () => {
     });
 
     it("never infers the outcome from silence: an empty gate result with no operative claim is refused", () => {
-      const f = auditedWithoutOperativeClaims();
+      const f = completedWithoutOperativeClaims();
       expect(codes(noOperativeObligationsFailures(f.graph, []))).toEqual([
         F.claimPhaseInvalid,
       ]);

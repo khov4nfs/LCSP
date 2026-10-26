@@ -9,6 +9,7 @@ limit long before the source is covered.
 from __future__ import annotations
 
 from typing import Any
+import json
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -17,10 +18,8 @@ from rule_set_preparation.tools import ITEM_ID_KEYS, RuleSetPreparationContext
 
 ADD_TOOL = "add_to_packet_draft"
 INCREMENTAL_TOOLS = frozenset({
-    "inspect_semantic_reference_binding", "bind_semantic_reference", "mark_reference_non_material",
-    "register_semantic_claim", "update_semantic_claim", "remove_semantic_claim", "link_semantic_claims",
-    "remove_semantic_relation", "review_source_node", "review_source_reference", "author_legal_requirement",
-    "author_assessment_rule", "remove_rule_candidate", "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_source_support", "get_next_review_unit", "get_review_progress", "complete_source_review", "reopen_source_review", "expand_review_frontier",
+    "get_applicable_legal_state", "author_legal_requirement", "author_assessment_rule", "remove_rule_candidate",
+    "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure",
 })
 CHECK_TOOLS = frozenset({"validate_compliance_rule_set", "remove_from_packet_draft",
                          "validate_semantic_claim_inventory"})
@@ -28,7 +27,7 @@ KEEP_RECENT_ADDS = 3
 KEEP_RECENT_CHECKS = 2
 # Rule authoring: reads are navigation, not bookkeeping. They get their own small budget so they can neither evict
 # the model's Requirement/Rule results nor be mistaken for them; what they carried lives in the runtime digest.
-AUTHORING_READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_source_support"})
+AUTHORING_READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure"})
 KEEP_RECENT_AUTHORING_READS = 2
 _GIST_KEYS = ("title", "concept", "kind")
 
@@ -115,7 +114,27 @@ class DraftHistoryMiddleware(AgentMiddleware):
     def __init__(self, context: RuleSetPreparationContext):
         self.context = context
 
+
     def _view(self, messages: list[Any]) -> list[Any]:
+        if getattr(self.context, "direct_draft", False):
+            # New packages read durable authority; earlier packages never need to be reinterpreted.
+            for i in range(len(messages) - 1, -1, -1):
+                message = messages[i]
+                if not isinstance(message, ToolMessage) or message.name not in {"submit_rule_set_draft_candidates", "correct_rule_set_draft_submission"} or not isinstance(message.content, str):
+                    continue
+                try:
+                    result = json.loads(message.content.partition("\n\n[Pinned source observation metadata]")[0])
+                except ValueError:
+                    continue
+                if result.get("outcome") != "PASSED" or "nextPackage" not in result:
+                    continue
+                tail = next((j for j in range(i + 1, len(messages)) if isinstance(messages[j], AIMessage)), len(messages))
+                return [HumanMessage(content="Accepted candidates are persisted. Current bounded legal analysis package:\n" + json.dumps(result, ensure_ascii=False)), *messages[tail:]]
+            starts = [i for i, m in enumerate(messages) if isinstance(m, AIMessage) and any(c["name"] == "get_next_legal_analysis_package" for c in m.tool_calls)]
+            if not starts:
+                return list(messages)
+            ledger = self.context.inventory
+            return [HumanMessage(content=f"Accepted Rule Set Draft is in PostgreSQL, version {ledger.draft_version}: {len(self.context.draft['legalRequirements'])} requirements and {len(self.context.draft['assessmentRules'])} assessment rules. Use get_rule_set_draft_candidate for a targeted correction; do not recreate accepted work."), *messages[starts[-1]:]]
         state = getattr(self.context, "authoring", None)
         authoring = state is not None and state.active()
         view = compact_draft_history(list(messages), authoring=authoring)
@@ -126,9 +145,13 @@ class DraftHistoryMiddleware(AgentMiddleware):
         return view
 
     def wrap_model_call(self, request, handler):
+        if not getattr(self.context, "direct_draft", False) and self.context.inventory is not None and not self.context.inventory.frozen:
+            return handler(request)
         self.context.model_turn = (self.context.model_turn or 0) + 1
         return handler(request.override(messages=self._view(request.messages)))
 
     async def awrap_model_call(self, request, handler):
+        if not getattr(self.context, "direct_draft", False) and self.context.inventory is not None and not self.context.inventory.frozen:
+            return await handler(request)
         self.context.model_turn = (self.context.model_turn or 0) + 1
         return await handler(request.override(messages=self._view(request.messages)))

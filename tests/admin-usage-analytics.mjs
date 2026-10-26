@@ -40,7 +40,7 @@ try {
  await report(producer,{attemptStatus:S.STARTED});
  await report(producer,{attemptStatus:S.COMPLETED,...measured});
  await Promise.all(Array.from({length:6},()=>report(producer,{attemptStatus:S.COMPLETED,...measured})));
- await report(`${marker}-auditor`,{assessmentId:undefined,preparationRunId:preparation,runId:preparation,agentRole:"legal-semantic-auditor",attemptStatus:S.COMPLETED,provider:"APX",model:"claude-sonnet-4-6-free",...measured});
+ await report(`${marker}-author`,{assessmentId:undefined,preparationRunId:preparation,runId:preparation,agentRole:"claim-author",attemptStatus:S.COMPLETED,provider:"APX",model:"claude-sonnet-4-6-free",...measured});
  await report(`${marker}-partial`,{attemptStatus:S.COMPLETED,outputTokens:"3"});
  await report(`${marker}-unknown-model`,{attemptStatus:S.COMPLETED,model:"unverified-model",...measured});
  await report(timeout,{attemptStatus:S.STARTED});
@@ -58,7 +58,7 @@ try {
  eq(data.summary.knownEstimatedCostUsd,"0.00021179");
  eq(data.breakdowns.filter(x=>x.dimension==="AGENT_ROLE").length,2);
  eq(data.items.find(x=>x.invocationId===producer).referenceCost.estimatedCostUsd,"0.0000704");
- const persisted = (await stack.q(`SELECT "userId","assessmentId","runId","referenceCostSnapshot" FROM "LlmUsageEvent" WHERE "invocationId"=$1`,[`${marker}-auditor`])).rows[0];
+ const persisted = (await stack.q(`SELECT "userId","assessmentId","runId","referenceCostSnapshot" FROM "LlmUsageEvent" WHERE "invocationId"=$1`,[`${marker}-author`])).rows[0];
  eq(persisted.userId,users.owner.id); eq(persisted.assessmentId,null); eq(persisted.runId,preparation);
  eq(persisted.referenceCostSnapshot.canonicalModel,"claude-sonnet-4-6");
  eq((await http("GET",path,undefined,users.owner.token)).status,403);

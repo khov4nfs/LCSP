@@ -20,9 +20,11 @@ from orchestration.agent_stream import DURABLE, SEMANTIC_SCHEMA_VERSION, publish
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
-from rule_set_preparation.legal_source_files import read_pins, refute_source_block
+from rule_set_preparation.legal_source_files import refute_source_block
 from rule_set_preparation.source_graph import PinnedSourceGraph
-from rule_set_preparation.claim_inventory import ClaimInventory, AUTHORING, RULE_VALIDATION, SUBMISSION_READY, COMPLETION, grouped_gaps
+from rule_set_preparation.claim_inventory import (
+    AUTHORING, AUTHORING_DRAFT_KEYS, ClaimInventory, COMPLETION, RULE_VALIDATION, SUBMISSION_READY, grouped_gaps,
+)
 from rule_set_preparation.claim_tools import build_claim_tools
 
 logger = get_logger(__name__)
@@ -110,11 +112,12 @@ class RuleSetPreparationContext:
     source_graph: PinnedSourceGraph | None = None
     frontier_enabled: bool = True
     discovery_only: bool = False
+    direct_draft: bool = False
+    direct_state: Any = None
+    target_date: str | None = None
     authored_claim_ids: set[str] = field(default_factory=set)
     inventory: ClaimInventory | None = None
     authoring: Any = None
-    semantic_auditor: Any = None
-    semantic_audits: dict[str, dict[str, Any]] = field(default_factory=dict)
     mutation_lock: Any = field(default_factory=threading.RLock, repr=False)
     model_turn: int | None = None
     # Ordering for authoring telemetry: never infer order from wall-clock time. event_sequence is monotonic per run; draft_revision
@@ -160,7 +163,7 @@ class RuleSetPreparationContext:
     def draft_packet(self) -> dict[str, Any]:
         packet = {key: list(items.values()) for key, items in self.draft.items() if key not in GRAPH_SECTIONS}
         if self.source_graph is not None:
-            packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V3", "semanticAudits": list(self.semantic_audits.values()), **self.source_graph.base(),
+            packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V3", **self.source_graph.base(),
                                        **{field: list(self.draft[key].values()) for key, field in GRAPH_SECTIONS.items()}}
         if self.inventory is not None:
             packet["semanticGraph"] = self.inventory.graph()
@@ -208,6 +211,29 @@ def _items_named_by(failures: list[dict]) -> set[tuple[str, str]]:
     return named
 
 
+def _packet_field_repair(packet: dict, path: str) -> str:
+    """Name the Requirement and the call that repairs a rejected packet field; the bare path sent agents to reopen the inventory."""
+    match = re.fullmatch(r"packet\.legalRequirements\.(\d+)\.coverage\.state", path)
+    rows = packet.get("legalRequirements") or []
+    if match and int(match[1]) < len(rows):
+        rid = rows[int(match[1])]["legalRequirementId"]
+        return (f"Requirement '{rid}' is assessable but no AssessmentRule references it: call author_assessment_rule with legal_requirement_ids ['{rid}'], "
+                "or author it again as external (non_repository_duty with a non_assessable_reason). Never reopen the inventory for this.")
+    match = re.fullmatch(r"packet\.legalRequirements\.(\d+)\.legalRequirementId", path)
+    if match and int(match[1]) < len(packet.get("legalRequirements") or []):
+        rid = packet["legalRequirements"][int(match[1])]["legalRequirementId"]
+        return (f"Requirement id '{rid}' is not a valid id (ASCII letters, digits and . _ : - only, starting with a letter or digit, at most 128 characters): "
+                "remove_rule_candidate for it, then author it again with a valid requirement_key and re-author the AssessmentRules that named it.")
+    match = re.fullmatch(r"packet\.assessmentRules\.(\d+)\.legalRequirementIds\.(\d+)", path)
+    rules = packet.get("assessmentRules") or []
+    if match and int(match[1]) < len(rules) and int(match[2]) < len(rules[int(match[1])]["legalRequirementIds"]):
+        rule = rules[int(match[1])]
+        return (f"AssessmentRule '{rule['assessmentRuleId']}' lists Requirement '{rule['legalRequirementIds'][int(match[2])]}', which is not a Requirement of this draft "
+                "(it was removed or never authored): call author_assessment_rule again with the same assessment_rule_id and existing assessable legal_requirement_ids, "
+                "or remove_rule_candidate for the rule. get_rule_authoring_status lists the real ids.")
+    return "Repair this candidate field using the typed authoring tool"
+
+
 def _model_view(result: dict, context: "RuleSetPreparationContext | None" = None) -> dict:
     """The validation result as the agent sees it: uncovered provisions grouped and bounded."""
     failures = result.get("failures") or []
@@ -241,7 +267,8 @@ def _model_view(result: dict, context: "RuleSetPreparationContext | None" = None
         # agent corrects the item (it is the INDEX.md row, not a guess) instead of deleting it.
         stale = [f for f in view.get("failures") or () if f.get("code") == "STALE_SOURCE_HASH"]
         if stale:
-            pins = read_pins(context.source_root)
+            pins = {(context.source_graph.nodes[nid]["documentId"], context.source_graph.chunks[cid]["locator"]): context.source_graph.chunks[cid]["contentSha256"]
+                    for nid, chunk_ids in context.source_graph.chunk_ids.items() for cid in chunk_ids} if context.source_graph else {}
             fixed = []
             for failure in view["failures"]:
                 key = str(failure.get("ref", "")).partition("|locator:")[2].partition("::")
@@ -373,11 +400,12 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
 
     @tool(args_schema=PREPARATION_PROGRESS_SCHEMA)
     def record_preparation_progress(
-        establishedFindings: list[str],
-        unresolvedMaterialWork: list[str],
-        currentTarget: str,
-        intendedAction: str,
-        expectedInformationGain: str,
+        establishedFindings: list[str] | None = None,
+        unresolvedMaterialWork: list[str] | None = None,
+        currentTarget: str | None = None,
+        intendedAction: str | None = None,
+        expectedInformationGain: str | None = None,
+        **kwargs: Any,
     ) -> str:
         """Record concise source-grounded findings, unresolved work and the next factual investigation action.
 
@@ -385,11 +413,31 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         private reasoning; cite source identifiers/locators when useful.
         """
         progress = {
-            "establishedFindings": establishedFindings,
-            "unresolvedMaterialWork": unresolvedMaterialWork,
-            "currentTarget": currentTarget,
-            "intendedAction": intendedAction,
-            "expectedInformationGain": expectedInformationGain,
+            "establishedFindings": (
+                establishedFindings
+                if establishedFindings is not None
+                else list(context.progress_state.get("establishedFindings") or [])
+            ),
+            "unresolvedMaterialWork": (
+                unresolvedMaterialWork
+                if unresolvedMaterialWork is not None
+                else list(context.progress_state.get("unresolvedMaterialWork") or [])
+            ),
+            "currentTarget": (
+                currentTarget
+                if currentTarget is not None
+                else str(context.progress_state.get("currentTarget") or "")
+            ),
+            "intendedAction": (
+                intendedAction
+                if intendedAction is not None
+                else str(context.progress_state.get("intendedAction") or "")
+            ),
+            "expectedInformationGain": (
+                expectedInformationGain
+                if expectedInformationGain is not None
+                else str(context.progress_state.get("expectedInformationGain") or "")
+            ),
         }
         with context.observation_lock:
             if any(context.progress_state[key] != progress[key] for key in (
@@ -408,8 +456,24 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             context.validation_calls += 1
         else:
             inventory = context.inventory
+            if context.direct_draft and inventory.frozen is None:
+                from rule_set_preparation.direct_draft import project_context_relations
+                project_context_relations(context)
+                draft = deepcopy({key: context.draft[key] for key in AUTHORING_DRAFT_KEYS})
+                saved_draft = context.api.claim_inventory_operation(context.run_id, "SAVE_AUTHORING_DRAFT", inventory.revision,
+                                                      draft=draft, draftVersion=inventory.draft_version)
+                if isinstance(saved_draft, dict) and "draftVersion" in saved_draft:
+                    inventory.draft_version = saved_draft["draftVersion"]
+                result = inventory.validate_inventory(finalize=True)
+                if result.get("outcome") != "PASSED":
+                    return json.dumps(result, ensure_ascii=False)
+                result = inventory.begin_authoring()
+                if result.get("outcome") != "PASSED":
+                    return json.dumps(result, ensure_ascii=False)
             if inventory.frozen is None or inventory.phase not in {AUTHORING, RULE_VALIDATION, SUBMISSION_READY}:
                 return json.dumps(inventory.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize inventory and start Rule authoring first"))
+            inventory.restore_authoring_draft()
+            inventory.flush_authoring_draft()
             # An attempt exists only once the real Rule Validator is about to run; a refused call is not one.
             context.validation_calls += 1
             inventory.transition(RULE_VALIDATION)
@@ -447,7 +511,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                 return json.dumps({"error": str(error)})
             if isinstance(error, WorkerCallbackError) and error.status_code != 400:
                 raise
-            result = {"outcome": "FAILED", "failures": [{"code": "CLAIM_SCHEMA_INVALID", "ref": path, "detail": "Repair this candidate field using the typed authoring tool"}
+            result = {"outcome": "FAILED", "failures": [{"code": "CLAIM_SCHEMA_INVALID", "ref": path, "detail": _packet_field_repair(packet, path)}
                       for path in sorted(set(re.findall(r"packet\.[A-Za-z0-9_.]+", str(error))))[:20]] or [{"code": "CLAIM_SCHEMA_INVALID", "ref": "packet", "detail": str(error)[:200]}]}
         if context.inventory is not None:
             result = context.inventory.observe_validation(result, RULE_VALIDATION, packet)
@@ -591,6 +655,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         """
         if context.inventory is not None and (packet is not None or ignored):
             return json.dumps(context.inventory.rejected("CLAIM_SCHEMA_INVALID", "validate_compliance_rule_set", "No arguments: use typed authoring tools and validate the current frozen-inventory draft"))
+        if context.inventory is not None:
+            context.inventory.flush_authoring_draft()
         return run_validation(packet)
 
     @tool(args_schema=OPTIONAL_PACKET_INPUT_SCHEMA)
@@ -609,6 +675,9 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             return json.dumps({"sourceBlocked": context.source_blocked})
         if context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished.", "concluded": context.concluded["failureReason"]})
+        if context.inventory is not None:
+            context.inventory.restore_authoring_draft()
+            context.inventory.flush_authoring_draft()
         candidate: Any = packet
         gate: dict | None = None
         try:
@@ -664,7 +733,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         "required": ["reason", "path"],
         "additionalProperties": False,
     })
-    def report_rule_set_source_blocked(reason: str, path: str, **ignored: Any) -> str:
+    def report_rule_set_source_blocked(reason: str = "", path: str = "", **ignored: Any) -> str:
         """End WITHOUT submission only when the pinned source cannot be read or its pins
         are inconsistent. Do not use for unfinished work, ambiguous provisions or validation
         feedback that can be corrected. Name the affected pinned source path and reason.
@@ -717,11 +786,21 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             @wraps(function)
             def invoke(*args, **kwargs):
                 with context.mutation_lock:
-                    return function(*args, **kwargs)
+                    try:
+                        return function(*args, **kwargs)
+                    except Exception as err:
+                        return json.dumps({"outcome": "FAILED", "error": f"{type(err).__name__}: {str(err)}"})
             return invoke
         for governed in common[:4]:
             governed.func = serialize(governed.func)
         tools = common[:4] + build_claim_tools(context)
+        if context.direct_draft:
+            from rule_set_preparation.direct_draft import build_direct_draft_tools
+            validate_compliance_rule_set.description = "Validate the persisted Rule Set Draft, exact source support, source coverage, references, legal effects and rule bindings. Returns specific errors. No arguments."
+            submit_compliance_rule_set.description = "Activate the exact validated Rule Set Draft through the governed API. Validation must pass first. No arguments."
+            return [*common[:4], *[t for t in tools if t.name == "get_applicable_legal_state"], *build_direct_draft_tools(context)]
+        from rule_set_preparation.claim_files import build_claim_file_tools
+        tools += build_claim_file_tools(context)
         return [t for t in tools if not (context.discovery_only and t.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"})]
     # Isolated legacy tool unit tests have no source graph. The real runner always supplies one.
     return common

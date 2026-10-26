@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolveMessage } from "@lcsp/i18n";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -7,31 +9,13 @@ import {
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
-import { SEMANTIC_AUDIT } from "@lcsp/contracts/compliance-rule-set";
+import { CLAIM_DISCOVERY_ACTIVITY_KINDS } from "@lcsp/contracts/compliance-rule-set";
 
 import {
   preparationTokenUsage,
   preparationProgress,
   projectPreparationActivity,
 } from "../src/features/admin/utils/rule-set-preparation-activity";
-
-test("independent Auditor calls retain their role and distinct activity label", () => {
-  const [activity] = projectPreparationActivity([
-    event(1, T.modelCallStarted, {
-      data: { agent_role: SEMANTIC_AUDIT.role, model_step_id: "audit-call" },
-    }),
-    event(2, T.modelCallCompleted, {
-      status: "COMPLETED",
-      data: { agent_role: SEMANTIC_AUDIT.role, model_step_id: "audit-call" },
-    }),
-  ]);
-  assert.equal(
-    activity?.labelKey,
-    "pages.complianceRuleSets.activity.semanticAudit",
-  );
-  assert.equal(activity?.details.agent, SEMANTIC_AUDIT.role);
-  assert.equal(activity?.status, "COMPLETED");
-});
 
 test("frontier counters use the latest recorded progress without inventing missing values", () => {
   assert.equal(preparationProgress([event(1, T.boundaryStarted)]), null);
@@ -52,6 +36,13 @@ test("frontier counters use the latest recorded progress without inventing missi
     {
       reviewed: 5,
       total: 3231,
+      remaining: null,
+      reviewedWithClaims: null,
+      reviewedNoClaims: null,
+      inReview: null,
+      pending: null,
+      blocked: null,
+      persistedClaims: null,
       claims: 7,
       requirements: null,
       rules: null,
@@ -253,4 +244,92 @@ test("cancellation is terminal and settles every active preparation activity", (
     "pages.complianceRuleSets.activity.cancelled",
   );
   assert.ok(activities.every((activity) => activity.status === "CANCELLED"));
+});
+
+const committed = JSON.parse(
+  readFileSync(
+    new URL(
+      "../src/public/assets/mocks/admin/claim-file-activity.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+test("article commit events retain per-file progress and replace retries without adding counts", () => {
+  const activities = projectPreparationActivity([
+    event(1, T.customProgress, { data: committed }),
+    event(2, T.customProgress, {
+      data: { ...committed, committedNodes: 3, rejected: 0 },
+    }),
+    event(3, T.customProgress, {
+      data: {
+        ...committed,
+        file: "luat-134/dieu-6.json",
+        committedNodes: ["node-1"],
+        rejected: { claim1: ["source gap"], claim2: ["other gap"] },
+      },
+    }),
+  ]);
+  assert.equal(activities.length, 2);
+  assert.equal(activities[0]?.details.claimFile, committed.file);
+  assert.equal(activities[0]?.details.committedNodes, 3);
+  assert.equal(activities[0]?.details.rejected, 0);
+  assert.equal(activities[1]?.details.committedNodes, 1);
+  assert.equal(activities[1]?.details.rejected, 2);
+  for (const locale of ["en", "vi"] as const) {
+    assert.notEqual(
+      resolveMessage(locale, activities[0]!.labelKey),
+      activities[0]!.labelKey,
+    );
+    assert.match(resolveMessage(locale, activities[0]!.labelKey), /\{file\}/u);
+  }
+});
+test("file events leave authoritative frontier counts intact", () => {
+  const progress = preparationProgress([
+    event(1, T.customProgress, {
+      data: {
+        review_frontier: {
+          progress: {
+            total: 10,
+            pending: 2,
+            inReview: 1,
+            blocked: 1,
+            reviewedWithClaims: 4,
+            reviewedNoClaims: 2,
+            persistedClaims: 7,
+          },
+        },
+      },
+    }),
+    event(2, T.customProgress, { data: committed }),
+  ]);
+  assert.equal(progress?.reviewed, 6);
+  assert.equal(progress?.remaining, 4);
+  assert.equal(progress?.persistedClaims, 7);
+});
+test("budget PAUSED is distinct from failure and settles active work", () => {
+  const activities = projectPreparationActivity(
+    [event(1, T.boundaryStarted), event(2, T.boundaryFailed)],
+    true,
+    AGENT_EXECUTION_STATES.PAUSED,
+  );
+  assert.ok(
+    activities.every((a) => a.status === AGENT_EXECUTION_STATES.PAUSED),
+  );
+  assert.equal(
+    activities.at(-1)?.labelKey,
+    "pages.complianceRuleSets.activity.paused",
+  );
+});
+
+test("budget pause telemetry is visible before the history refresh", () => {
+  const [activity] = projectPreparationActivity([
+    event(1, T.customProgress, {
+      data: {
+        activity_kind: CLAIM_DISCOVERY_ACTIVITY_KINDS.PREPARATION_PAUSED,
+      },
+    }),
+  ]);
+  assert.equal(activity?.labelKey, "pages.complianceRuleSets.activity.paused");
+  assert.equal(activity?.status, AGENT_EXECUTION_STATES.PAUSED);
 });

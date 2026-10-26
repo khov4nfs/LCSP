@@ -46,9 +46,8 @@ def main(output: str, *, token_only: bool = False) -> dict:
         for family in {httpx, sdk_httpx}:
             patch.setattr(family.HTTPTransport, "handle_request", no_network)
             patch.setattr(family.AsyncHTTPTransport, "handle_async_request", no_network)
-        primary, rotated, auditor = native(), native(key="offline-rotated-key"), native("semantic-primary")
-        models = [primary, rotated, auditor, native("semantic-primary", key="offline-rotated-key"),
-                  native("fallback"), native("fallback-01"), native("fallback-02"), native("semantic-final")]
+        primary, rotated, author = native(), native(key="offline-rotated-key"), native()
+        models = [primary, rotated, native("fallback"), native("fallback-01"), native("fallback-02")]
         candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
         budget = budget_for(*models, run_id="offline-admission-rehearsal", maximum_calls=7, candidate_sha=candidate)
         if token_only:
@@ -74,7 +73,7 @@ def main(output: str, *, token_only: bool = False) -> dict:
         # credential rotation, route fallback and innermost metering remain real.
         patch.setattr(BaseChatModel, "_generate_with_cache", dispatch)
         with activate_agent_run_state(state):
-            for role, model in [("rule-set-preparation", primary), ("legal-semantic-auditor", auditor)]:
+            for role, model in [("rule-set-preparation", primary), ("claim-author", author)]:
                 create_agent(model, tools=[], middleware=[AgentRoleMiddleware(role), *MODEL_GOVERNANCE_MIDDLEWARE]).invoke({"messages": [HumanMessage("offline fixture")]})
             summary = _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SUMMARIZATION")
             with ThreadPoolExecutor(max_workers=2) as pool:
@@ -90,7 +89,7 @@ def main(output: str, *, token_only: bool = False) -> dict:
         assert ledger == recovered["admission"]
         assert ledger["admittedAttempts"] == 7 and ledger["unresolvedAttempts"] == 3
         assert recovered["modelCalls"] == 4
-        assert {r["role"] for r in dispatches} == {"rule-set-preparation", "legal-semantic-auditor"}
+        assert {r["role"] for r in dispatches} == {"rule-set-preparation", "claim-author"}
         with sqlite3.connect(state.store) as db:
             assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert ledger["inputExposure"] <= budget.maximum_input_tokens

@@ -39,34 +39,34 @@ routes:
     options:
       max_output_tokens: 64000
       streaming: true
-  semantic-primary:
-    provider: miraiapi
-    protocol: anthropic
-    model: claude-sonnet-5
+  preparation:
+    provider: inception
+    model: mercury-3
     options:
+      context_window_tokens: 1000000
+      max_output_tokens: 65536
       streaming: true
-  semantic-final:
-    provider: apx
-    protocol: anthropic
-    model: claude-sonnet-4-6-free
+      reasoning_effort: high
+  preparation-fallback:
+    provider: google_genai
+    model: gemini-3.5-flash-lite
     options:
-      max_output_tokens: 64000
+      context_window_tokens: 1000000
+      max_output_tokens: 65536
       streaming: true
-      thinking:
-        type: adaptive
-      effort: high
-
+      thinking_config:
+        thinking_level: HIGH
 # Role -> route. `default` is required and used for any role not listed.
 roles:
   default: primary
   root: primary
   assessment-root: primary
   repository-researcher: primary
-  rule-set-preparation: primary
-  legal-semantic-auditor: semantic-primary
+  rule-set-preparation: preparation
   response-transform: fallback-01
+  claim-author: preparation
 
 # Ordered fallback chain per route (optional; cycles are rejected).
 fallbacks:
   primary: [fallback, fallback-01, fallback-02]
-  semantic-primary: [fallback, fallback-01, semantic-final]
+  preparation: [preparation-fallback]

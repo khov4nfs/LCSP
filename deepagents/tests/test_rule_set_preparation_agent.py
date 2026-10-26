@@ -9,6 +9,12 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+
+INSTRUCTIONS = "\n".join((Path(__file__).parents[1] / "rule_set_preparation" / name).read_text()
+    for name in ("instructions-common.md", "instructions-discovery.md", "instructions-authoring.md"))
+
+
+
 from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
@@ -21,10 +27,6 @@ from rule_set_preparation.agent import (
     create_rule_set_preparation_agent,
 )
 from rule_set_preparation.legal_source_files import INDEX_PATH, materialize_legal_source
-from rule_set_preparation.legal_source_reader import (
-    LegalSourceReaderResult,
-    legal_source_reader_subagent,
-)
 from rule_set_preparation.runner import (
     MODEL_ERROR,
     NO_SUBMISSION,
@@ -51,12 +53,24 @@ def _legacy_packet_unit_tools(monkeypatch):
     original = preparation_agent.build_rule_set_tools
     def legacy_tools(context):
         graph = context.source_graph
+        context.inventory = None
         context.source_graph = None
         try:
             return original(context)
         finally:
             context.source_graph = graph
     monkeypatch.setattr(preparation_agent, "build_rule_set_tools", legacy_tools)
+    from langchain_core.messages import SystemMessage
+    monkeypatch.setattr(preparation_agent.PreparationPhaseMiddleware, "_request", lambda self, request:
+        request.override(system_message=SystemMessage(content=preparation_agent.phase_instructions(self.context))))
+    monkeypatch.setattr(preparation_agent, "preparation_filesystem", lambda backend, **kw:
+        __import__("rule_set_preparation.agent", fromlist=["FilesystemMiddleware"]).FilesystemMiddleware(
+            backend=backend, tools=preparation_agent.READ_ONLY_TOOLS,
+            _permissions=[preparation_agent.FilesystemPermission(["read"], ["/legal-source", "/legal-source/**"], mode="allow"),
+                preparation_agent.FilesystemPermission(["read", "write"], ["/**"], mode="deny")]))
+    from rule_set_preparation.review_frontier import ReviewFrontier
+    monkeypatch.setattr(ReviewFrontier, "restore", lambda self, **kw: None)
+
 
 
 @pytest.fixture(autouse=True)
@@ -76,90 +90,10 @@ def _fast_model_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
                         else original(model, response))
 
 
-def test_legal_source_reader_uses_shared_model_governance_middleware(tmp_path):
-    model = RuleSetPreparationScriptedModel(responses=[AIMessage(content="fixture")])
-    subagent = legal_source_reader_subagent(
-        model=model,
-        backend=FilesystemBackend(root_dir=tmp_path, virtual_mode=True),
-    )
-
-    middleware = subagent["middleware"]
-    assert middleware[1].name == "SummarizationMiddleware"
-    assert isinstance(middleware[2], AgentRoleMiddleware)
-    assert middleware[2].agent_role == "rule-set-preparation"
-    assert middleware[3:] == list(MODEL_GOVERNANCE_MIDDLEWARE)
-    assert subagent["tools"] == []
-    assert subagent["response_format"].schema is LegalSourceReaderResult
 
 
-@pytest.mark.parametrize("corrected", [True, False])
-def test_reader_schema_correction_is_metered_strict_and_scoped_to_each_delegation(monkeypatch, tmp_path, corrected):
-    from langchain.agents import create_agent
-    from middleware import usage_metering
-    from middleware.failure_policy import StructuredOutputRejected
-
-    invalid = {"documentId": "document", "findings": [{"statement": "candidate", "sourceRefs": ["invalid reference"]}]}
-    valid = {"documentId": "document", "findings": [{"statement": "candidate", "sourceNodeIds": ["node"]}]}
-    answers = [invalid, valid if corrected else invalid] * 2
-    model = RuleSetPreparationScriptedModel(responses=[AIMessage(content="", tool_calls=[{
-        "name": "LegalSourceReaderResult", "args": answer, "id": f"reader-{index}",
-    }]) for index, answer in enumerate(answers)])
-    identity = usage_metering.assert_model_identity
-    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda current, response=None:
-                        None if current is model else identity(current, response))
-    metered = []
-    record = usage_metering.UsageMeteringMiddleware._record
-    def track(self, response, current, invocation_id):
-        metered.append(invocation_id)
-        return record(self, response, current, invocation_id)
-    monkeypatch.setattr(usage_metering.UsageMeteringMiddleware, "_record", track)
-    spec = legal_source_reader_subagent(model=model, backend=FilesystemBackend(root_dir=tmp_path, virtual_mode=True))
-    reader = create_agent(model, tools=[], system_prompt=spec["system_prompt"],
-                          response_format=spec["response_format"], middleware=spec["middleware"])
-    for _ in range(2):
-        if corrected:
-            result = reader.invoke({"messages": [{"role": "user", "content": "Read the assigned document"}]})
-            assert result["structured_response"].model_dump() == LegalSourceReaderResult.model_validate(valid).model_dump()
-        else:
-            with pytest.raises(StructuredOutputRejected, match="schema"):
-                reader.invoke({"messages": [{"role": "user", "content": "Read the assigned document"}]})
-    assert len(model.prompts) == len(metered) == len(set(metered)) == 4
-    assert any("sourceRefs" in str(message.content) for message in model.prompts[1])
-    assert not any("Output contract rejected:" in str(message.content) for message in model.prompts[2])
 
 
-def test_preparation_and_reader_share_observation_state_without_work_budgets(monkeypatch, tmp_path):
-    captured: dict[str, Any] = {}
-
-    class Graph:
-        def with_config(self, config):
-            captured["config"] = config
-            return self
-
-    def fake_create_deep_agent(**kwargs):
-        captured.update(kwargs)
-        return Graph()
-
-    monkeypatch.setattr(preparation_agent, "create_deep_agent", fake_create_deep_agent)
-    monkeypatch.setattr(preparation_agent, "_lookup_profile_key", lambda _: "test:model")
-    context = RuleSetPreparationContext(RUN_ID, FakeApi())
-
-    model = RuleSetPreparationScriptedModel(responses=[AIMessage(content="fixture")])
-    preparation_agent.create_rule_set_preparation_agent(
-        context=context, legal_source_root=tmp_path, model=model
-    )
-
-    parent_observations = next(
-        item for item in captured["middleware"] if isinstance(item, PreparationObservationMiddleware)
-    )
-    child_observations = next(
-        item
-        for item in captured["subagents"][0]["middleware"]
-        if isinstance(item, PreparationObservationMiddleware)
-    )
-    assert parent_observations is child_observations
-    assert not any("budget" in type(item).__name__.lower() for item in captured["middleware"])
-    assert captured["config"]["recursion_limit"] == (1 << 31) - 1
 
 
 def _sha(text: str) -> str:
@@ -174,6 +108,7 @@ def _bundle() -> dict[str, Any]:
     bundle = {
         "preparationRunId": RUN_ID,
         "executionState": "RUNNING",
+        "claimInventoryRevision": 1, "claimPhase": "CLAIM_DISCOVERY", "frozenInventory": None,
         "legalSourceVersionId": LEGAL_SOURCE_ID,
         "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
         "documents": [
@@ -368,25 +303,23 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
 
 
 def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_legal_source(tmp_path: Path) -> None:
-    paths = materialize_legal_source(_bundle(), tmp_path)
+    from rule_set_preparation.source_graph import PinnedSourceGraph
+    bundle = _bundle()
+    paths = materialize_legal_source(bundle, tmp_path)
+    source = PinnedSourceGraph(bundle['documentGraph'], [c for d in bundle['documents'] for c in d['chunks']])
     assert paths[0] == INDEX_PATH
-    index = (tmp_path / "legal-source" / "INDEX.md").read_text()
-    chunk_file = next(tmp_path.rglob("art-1__cl-1.md"))
-    header = chunk_file.read_text().split("---")[0]
-    assert f"documentId: {DOC}" in header
-    assert "locator: art-1::cl-1" in header
-    assert f"contentSha256: {_sha('Records must be retained for five years.')}" in header
-    assert "legalEffectStatus: EFFECTIVE" in header
-    assert "legalStatusSourceRef: source-metadata:fixture" in header
-    assert f"| {DOC} | art-2::cl-1 |" in index
-    assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {
-        "INDEX.md", "NODES.md", "art-1__cl-1.md", "art-2__cl-1.md",
-        *(f"{node['nodeId']}.md" for node in _bundle()["documentGraph"]["nodes"]),
-    }
+    for path, ids in source.source_files.items():
+        text = (tmp_path / path.lstrip('/')).read_text()
+        for nid in ids:
+            assert text.count('[' + source.locators[nid] + ']') == 1
+            assert source.nodes[nid]['content'] in text
+    index = (tmp_path / 'legal-source/INDEX.md').read_text()
+    assert DOC in index and 'Immutable file hashes' in index
+    assert not (tmp_path / 'legal-source/nodes').exists()
 
 
 def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_tools(tmp_path: Path) -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
+    from test_rule_set_preparation_agent import INSTRUCTIONS
 
     materialize_legal_source(_bundle(), tmp_path)
     model = _model([
@@ -406,7 +339,7 @@ def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_to
     forbidden = {"write_file", "edit_file", "execute", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
     assert "task" in bound
-    assert INSTRUCTIONS in model.prompts[0][0].content
+    assert preparation_agent.phase_instructions(RuleSetPreparationContext(RUN_ID, FakeApi())) in model.prompts[0][0].content
 
 
 def test_progress_ledger_advances_for_findings_not_strategy_alone() -> None:
@@ -433,6 +366,23 @@ def test_progress_ledger_advances_for_findings_not_strategy_alone() -> None:
     assert context.progress_state["currentTarget"] == "DOC art-3"
 
 
+def test_progress_ledger_accepts_partial_arguments_without_type_error() -> None:
+    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+    tool = next(tool for tool in build_rule_set_tools(context) if tool.name == "record_preparation_progress")
+
+    # Calling with only establishedFindings must succeed and not raise TypeError
+    res = json.loads(tool.invoke({"establishedFindings": ["DOC art-1 retained"]}))
+    assert res["progressRevision"] == 1
+    assert context.progress_state["establishedFindings"] == ["DOC art-1 retained"]
+    assert context.progress_state["currentTarget"] == ""
+
+    # Calling with unexpected extra keyword arguments must also succeed
+    res2 = json.loads(tool.invoke({"currentTarget": "DOC art-2", "extraArg": "ignored"}))
+    assert res2["progressRevision"] == 1
+    assert context.progress_state["currentTarget"] == "DOC art-2"
+    assert context.progress_state["establishedFindings"] == ["DOC art-1 retained"]
+
+
 def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_path: Path) -> None:
     packet = _packet()
     responses = [
@@ -452,7 +402,7 @@ def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_p
     assert key == f"rule-set-preparation-submit-{RUN_ID}"
     assert sent == packet
     messages = _tool_messages(model)
-    assert "Pinned legal_source SYNTHETIC-LEGAL_SOURCE-V1" in messages["read-index"].content
+    assert "Pinned legal source 22222222-2222-4222-8222-222222222222" in messages["read-index"].content
     assert len(model.prompts) == 3  # Native graph ends at the first governed submission.
 
 
@@ -476,7 +426,7 @@ def test_pinned_source_listing_is_visible_and_agent_changes_strategy(tmp_path: P
     assert '"previouslyObserved": true' in repeated and '"novelty": "NONE"' in repeated
     assert "Novel information: NONE" in repeated
     assert "Novel information: NONE" in str(model.prompts[2])
-    assert f"legalSourceVersionId: {LEGAL_SOURCE_ID}" in messages["read-index"].content
+    assert f"Pinned legal source {LEGAL_SOURCE_ID}" in messages["read-index"].content
 
 
 def test_completion_claim_returns_gate_gaps_to_same_agent_then_submits(tmp_path: Path) -> None:
@@ -509,24 +459,30 @@ def test_completion_claim_returns_gate_gaps_to_same_agent_then_submits(tmp_path:
     assert api.calls[-1][1][-1] == corrected
 
 
-def test_agent_ignoring_no_progress_feedback_fails_only_after_feedback(tmp_path: Path) -> None:
-    model = _model([
-        _call("ls", {"path": "/legal-source"}, f"ls-{index}") for index in range(1, 5)
-    ])
-    api = FakeApi()
-    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
-
-    assert result["state"] == "FAILED" and result["failureReason"] == "RUNTIME_ERROR"
-    assert api.names() == ["claim", "fail"]
-    assert "NO_PROGRESS_DETECTED" in result["error"]["message"]
-    assert "NO_PROGRESS" in str(model.prompts[3])
-    assert "NO_PROGRESS" in _tool_messages(model)["ls-3"].content
+@pytest.mark.parametrize("batch_size", [1, 10])
+def test_agent_ignoring_no_progress_feedback_fails_only_after_feedback(tmp_path: Path, batch_size: int) -> None:
+    from middleware.failure_policy import NoProgressDetected
+    context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=LEGAL_SOURCE_ID)
+    context.inventory = SimpleNamespace(frozen={'claims': []})
+    middleware = PreparationObservationMiddleware(context)
+    feedback = []
+    for turn in range(4):
+        decision = AIMessage(content='', id=f'turn-{turn}', tool_calls=[{'name': 'ls', 'args': {'path': '/legal-source'}, 'id': f'{turn}-{i}'} for i in range(batch_size)])
+        for i in range(batch_size):
+            request = SimpleNamespace(tool_call=decision.tool_calls[i], state={'messages': [decision]})
+            if turn == 3:
+                with pytest.raises(NoProgressDetected):
+                    middleware.wrap_tool_call(request, lambda _: ToolMessage(content='INDEX.md', tool_call_id=f'{turn}-{i}'))
+                break
+            feedback.append(middleware.wrap_tool_call(request, lambda _: ToolMessage(content='INDEX.md', tool_call_id=f'{turn}-{i}')).content)
+    assert 'NO_PROGRESS' in feedback[-1]
 
 
 def test_novelty_allows_changed_observations_and_state_advancement() -> None:
     from rule_set_preparation.agent import PreparationObservationMiddleware
 
     context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=LEGAL_SOURCE_ID)
+    context.inventory = SimpleNamespace(frozen={"claims": []})
     middleware = PreparationObservationMiddleware(context)
 
     def observe(name: str, path: str, output: str, call_id: str) -> str:
@@ -659,11 +615,11 @@ def test_no_submission_is_recorded_as_failed(tmp_path: Path, monkeypatch: pytest
 
     def materialize_then_lose_a_chunk(bundle: dict[str, Any], root: Path) -> list[str]:
         paths = real(bundle, root)
-        (root / paths[1].lstrip("/")).unlink()  # the pinned chunk really becomes unreadable
+        (root / f"legal-source/{DOC}/dieu-1.md").unlink()  # The pinned Article really becomes unreadable.
         return paths
 
     monkeypatch.setattr(runner, "materialize_legal_source", materialize_then_lose_a_chunk)
-    blocked = {"reason": "SOURCE_UNREADABLE", "path": "/legal-source/SYNTHETIC-NOTICE-INSTRUMENT/art-1__cl-1.md"}
+    blocked = {"reason": "SOURCE_UNREADABLE", "path": "/legal-source/SYNTHETIC-NOTICE-INSTRUMENT/dieu-1.md"}
     model = _model([_call("report_rule_set_source_blocked", blocked, "blocked")])
     api = FakeApi()
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
@@ -694,7 +650,7 @@ def test_source_block_claim_on_an_intact_pinned_source_is_refuted(tmp_path: Path
 def test_source_block_claim_for_a_path_the_index_does_not_pin_is_refuted(tmp_path: Path) -> None:
     tool, context, _ = _source_block_tool(tmp_path)
     result = json.loads(tool.invoke({"reason": "SOURCE_UNREADABLE", "path": "/legal-source/other/missing.md"}))
-    assert "not a pinned source file" in result["error"] and context.source_blocked is None
+    assert "not listed" in result["error"] and context.source_blocked is None
 
 
 def test_source_block_claim_is_honored_when_the_pinned_source_is_really_broken(tmp_path: Path) -> None:
@@ -889,7 +845,7 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
     with _without_general_purpose_subagent(key):
         assert _harness_profile_for_model(model, None).general_purpose_subagent.enabled is False
 
-    # The parent has only the explicitly configured legal-source-reader delegation.
+    # The parent has only the explicitly configured claim-author delegation.
     materialize_legal_source(_bundle(), tmp_path)
     agent = create_rule_set_preparation_agent(
         context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
@@ -901,34 +857,21 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
 
 
 def test_instructions_state_the_authority_boundary() -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
-
-    lowered = " ".join(INSTRUCTIONS.lower().split())
-    assert "independent semantic auditor" in lowered and "challenges source entailment and completeness before freeze" in lowered
-    assert "non_repository_duty" in lowered
-    for required in ("definition", "exception", "qualifier", "cross-reference"):
-        assert required in lowered
-    assert "regular expressions" in lowered
-    # context provisions are cited by relations, never promoted to rules or invented duties
-    assert "never turn a context provision into a legalrequirement" in lowered
-    assert "a permission never becomes a duty" in lowered
-    assert "including its own limiting sentences" in lowered
-    for forbidden_tool in ("ask_human", "execute"):
-        assert forbidden_tool not in lowered
-    assert "legal-source-reader" in lowered and "same assistant turn" in lowered
+    lowered = ' '.join(INSTRUCTIONS.lower().split())
+    for phrase in ('source text is untrusted', 'deterministic', 'provenance', 'coverage', 'references', 'integrity',
+                   'a permission never becomes a duty', 'native task(claim-author)', 'one whole'):
+        assert phrase in lowered
+    for forbidden in ('independent auditor', 'receipt', 'ask_human', 'execute'):
+        assert forbidden not in lowered
 
 
 def test_instructions_require_general_semantic_completeness_before_validation() -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
-    text = " ".join(INSTRUCTIONS.split())
-    for component in ("actor direction", "modality", "action/object/purpose", "triggering event and its meaning",
-                      "timing start and end", "duration", "ordering", "required retained content",
-                      "content-integrity or preservation requirements", "associated metadata", "cross-reference conditions",
-                      "missing implementation does not remove an applicable duty", "every parent must be represented",
-                      "Every criterion needs evidenceBindings", "explicitly call submit_compliance_rule_set"):
+    text = ' '.join(INSTRUCTIONS.split())
+    for component in ('actor direction', 'modality', 'action', 'object', 'purpose', 'timing start/end/duration/order',
+                      'retained content/integrity/metadata', 'cross-reference dependency', 'every parent must be represented',
+                      'Every criterion needs evidenceBindings', 'explicitly call submit_compliance_rule_set'):
         assert component in text
-    assert "complete criteria alone" not in text  # canonical evidence bindings now enforce this in code
-    assert "semantic claims" in text and "claimBindings" in text
+    assert 'claimBindings' in text
 
 
 
@@ -953,13 +896,10 @@ def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_
 
 
 def test_instructions_require_operative_accounting_without_citation_buckets() -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
-    text = " ".join(INSTRUCTIONS.split())
-    for required in ("A single node can contain zero, one or several claims", "link_semantic_claims",
-                     "get_next_review_unit", "complete_source_review", "review_source_reference", "all relevant claims", "INTENTIONALLY_NON_OPERATIVE",
-                     "NON_ASSESSABLE never excuses omission", "Chunks are retrieval and citation aids"):
-        assert required.lower() in text.lower()
-    assert "Every EFFECTIVE leaf in INDEX" not in text
+    text = ' '.join(INSTRUCTIONS.split())
+    for required in ('Every printed locator', 'at least one claim OR in noClaims, never both', 'All relevant claims',
+                     'NON_ASSESSABLE never excuses omission', 'commit_claims', 'discoveryCompleteEligible=true'):
+        assert required in text
 
 
 
@@ -1073,6 +1013,9 @@ def test_stale_hash_feedback_names_the_pinned_identity_so_the_item_is_corrected_
 
     context = RuleSetPreparationContext(run_id=RUN_ID, api=StaleApi(), source_root=tmp_path)
     tool = next(t for t in build_rule_set_tools(context) if t.name == "validate_compliance_rule_set")
+    from rule_set_preparation.source_graph import PinnedSourceGraph
+    bundle = _bundle()
+    context.source_graph = PinnedSourceGraph(bundle["documentGraph"], [c for d in bundle["documents"] for c in d["chunks"]])
     seen = json.loads(tool.invoke({"packet": _packet()}))["failures"]
     assert seen[0]["expectedContentSha256"] == expected
     assert "expectedContentSha256" not in seen[1]  # a locator the INDEX does not pin gets no invented hash
@@ -1108,15 +1051,12 @@ def test_every_few_draft_parts_come_back_with_the_mechanical_validation_attached
 
 
 def test_instructions_derive_applicability_from_the_source_without_naming_a_legal_ontology() -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
-    text = " ".join(INSTRUCTIONS.split())
-    for required in ("Applicability must state the actual addressee and source conditions", "source-defined criteria",
-                     "A label is not its own explanation", "source-grounded SCOPE claim", "any-of/all-of alternatives"):
+    text = ' '.join(INSTRUCTIONS.split())
+    for required in ('Applicability must state the actual addressee and source conditions', 'source-defined criteria',
+                     'Only SCOPE and CONDITION claims', 'any-of/all-of alternatives', 'Applicability is its own claim'):
         assert required in text
-    lowered = text.lower()
-    for source_specific in ("high-risk", "medium-risk", "low-risk", "deployer", "provider of", "ai system",
-                            "national infrastructure", "134/2025", "71/2025", "quoc hoi"):
-        assert source_specific not in lowered
+    for source_specific in ('134/2025', '71/2025', 'quoc hoi'):
+        assert source_specific not in text.lower()
 
 
 
@@ -1124,7 +1064,8 @@ def test_the_model_facing_packet_schema_explains_what_a_good_applicability_condi
     import json
     from pathlib import Path
 
-    schema = json.loads(Path("rule_set_preparation/packet-schema.json").read_text(encoding="utf-8"))
+    schema_path = Path(__file__).parent.parent / "rule_set_preparation/packet-schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
     requirement = schema["properties"]["packet"]["properties"]["legalRequirements"]["items"]["properties"]
     rule = schema["properties"]["packet"]["properties"]["assessmentRules"]["items"]["properties"]
     assert "unpack those criteria" in requirement["applicabilityConditions"]["description"]

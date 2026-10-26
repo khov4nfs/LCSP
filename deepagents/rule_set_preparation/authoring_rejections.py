@@ -46,6 +46,8 @@ REPAIR = {
     "INVALID_ENUM": "Use one of the enum values listed in the tool contract.",
     "EMPTY_REQUIRED_LIST": "Provide at least one ID in the listed argument.",
     "DUPLICATE_ITEMS": "List each ID once; remove the duplicate entries and resend.",
+    "DUPLICATE_REQUIREMENT": "That operative claim is already bound by another Requirement (named in the detail). Keep it: author the same requirement_key again to change it, or remove_rule_candidate it first. An operative claim anchors one Requirement.",
+    "INVALID_ID": "An id may use only ASCII letters, digits and . _ : - and must start with a letter or digit (no spaces or accented letters); choose a new id and resend.",
     "INVALID_VALUE": "A value violates the declared length or count limit; shorten it and resend.",
     "UNKNOWN_CLAIM": "Copy exact claim IDs from get_rule_authoring_context or get_claim_inventory; the candidates shown are real IDs of the right role.",
     "ROLE_MISMATCH": "Move the claim to the argument that matches its accounting role (expectedField). Role follows claim type and is not negotiable.",
@@ -56,6 +58,7 @@ REPAIR = {
     "UNKNOWN_CANDIDATE": "Use the exact id of an existing candidate of that kind; the candidates shown are the real ones.",
     "ROW_INVALID": "The selected claim cannot form a valid Requirement row as selected; change the claim named in suppliedClaimId or select a more complete claim.",
     "UNPARSEABLE_ARGUMENTS": "Your last tool call was not valid JSON and was not executed. Send it again as a complete JSON object.",
+    "INCOMPATIBLE_AGGREGATION": "One Requirement may bind only operative claims with the same actor, modality, assessability and the same applicability, qualifier and exception claims. Author a separate Requirement for each claim that differs (the safe default is one operative claim per Requirement).",
     "UNKNOWN_TOOL": "That tool does not exist. Use one of the tool names from your tool list.",
     "FRAMEWORK_ERROR": "The tool call was refused before the tool ran; fix the argument named in the error and resend it.",
 }
@@ -127,7 +130,7 @@ def field_paths_of(errors: list[Any]) -> list[str]:
 
 def classify_schema_error(error: Any) -> str:
     return {"required": "MISSING_ARGUMENT", "type": "WRONG_TYPE", "additionalProperties": "UNKNOWN_ARGUMENT", "enum": "INVALID_ENUM", "minItems": "EMPTY_REQUIRED_LIST",
-            "uniqueItems": "DUPLICATE_ITEMS", "minLength": "INVALID_VALUE", "maxLength": "INVALID_VALUE", "maxItems": "INVALID_VALUE"}.get(error.validator, "WRONG_TYPE")
+            "uniqueItems": "DUPLICATE_ITEMS", "minLength": "INVALID_VALUE", "maxLength": "INVALID_VALUE", "maxItems": "INVALID_VALUE", "pattern": "INVALID_ID"}.get(error.validator, "WRONG_TYPE")
 
 
 def draft_fingerprint(draft: dict) -> str:

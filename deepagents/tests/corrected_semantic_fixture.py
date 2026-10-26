@@ -6,7 +6,7 @@ Requirements/AssessmentRules are generated through the real authoring tools from
 from copy import deepcopy
 
 from rule_set_preparation.claim_inventory import claim_id, fingerprint, normalized_graph
-from rule_set_preparation.semantic_audit import FRAME_FIELDS, canonical_support
+from rule_set_preparation.claim_inventory import FRAME_FIELDS, canonical_support
 from semantic_fidelity_harness import retained
 
 
@@ -198,9 +198,10 @@ def corrected_graph():
         if candidate is None:
             raise AssertionError("Corrected semantic fixture must explicitly interpret every material reference: " + ref["text"])
         row = {**candidate, "referenceId": ref["referenceId"]}; row["relationId"] = fingerprint({k:v for k,v in row.items() if k != "relationId"}); relations.append(row)
-    review_ids = {r["sourceNodeId"] for r in fixture["frozenInventory"]["graph"]["sourceAccounting"]}
+    review_ids = source.review_node_ids()
     graph = {"contractVersion": "LEGAL_GRAPH_V3", "materializationId": source.graph["materializationId"], "legalSourceVersionId": source.version, "claims": claims, "relations": relations,
-             "reviewFrontier": deepcopy(fixture["frozenInventory"]["graph"]["reviewFrontier"]), "semanticAudits": [],
-             "sourceAccounting": [{"sourceNodeId": nid, "claimIds": sorted(c["claimId"] for c in claims if nid in c["sourceNodeIds"]), "nonSemanticReason": None} for nid in sorted(review_ids)],
+             "reviewFrontier": deepcopy(fixture["frozenInventory"]["graph"]["reviewFrontier"]),
+             "sourceAccounting": [{"sourceNodeId": nid, "claimIds": sorted(c["claimId"] for c in claims if nid in c["sourceNodeIds"]),
+                 "nonSemanticReason": None if any(nid in c["sourceNodeIds"] for c in claims) else "Synthetic Article title; its assertions are represented on the cited body units"} for nid in sorted(review_ids)],
              "referenceAccounting": [{"referenceId": r["referenceId"], "material": True, "relationIds": sorted(e["relationId"] for e in relations if e["referenceId"] == r["referenceId"]), "nonMaterialReason": None} for r in source.graph["references"]]}
     return fixture, source, normalized_graph(graph), identities, keys

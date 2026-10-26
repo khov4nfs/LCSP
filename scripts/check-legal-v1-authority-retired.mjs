@@ -24,7 +24,7 @@ const SCAN_ROOTS = [
   "package.json",
 ];
 const EXCLUDED =
-  /(^|\/)(node_modules|dist|\.venv|\.mda|\.uv-cache|\.next|__pycache__|\.ruff_cache|\.langgraph_api|tests?|migrations)\/|\.(spec|test)\.[cm]?[jt]sx?$|scripts\/(check-legal-v1-authority-retired\.mjs|purge-retired-assessment-state\.py)$|\.lock$/;
+  /(^|\/)(node_modules|dist|\.venv|\.mda|\.uv-cache|\.next|__pycache__|\.ruff_cache|\.langgraph_api|tests?|migrations)\/|\.(spec|test)\.[cm]?[jt]sx?$|scripts\/(check-legal-v1-authority-retired\.mjs|check-canonical-terminology\.mjs|purge-retired-assessment-state\.py)$|\.lock$/;
 
 const RETIRED = [
   [

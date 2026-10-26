@@ -29,6 +29,8 @@ import {
   legalSourceChunkQuerySchema,
   updateLegalSourceRequestSchema,
   updateLegalSourceDocumentEffectSchema,
+  updateLegalSourceDocumentCorpusRoleSchema,
+  type UpdateLegalSourceDocumentCorpusRole,
   uploadLegalSourceDocumentMetadataSchema,
   type CreateLegalSourceRequest,
   type CreateLegalSourceVersionRequest,
@@ -227,6 +229,27 @@ export class LegalSourceAdminController {
       actorId: req.rbacContext.userId,
       correlationId: this.correlation(req),
     });
+  }
+
+  @Patch(
+    "legal-source-versions/:versionId/documents/:documentRowId/corpus-role",
+  )
+  updateDocumentCorpusRole(
+    @Param("versionId", uuid()) versionId: string,
+    @Param("documentRowId", uuid()) documentRowId: string,
+    @Body(validated(updateLegalSourceDocumentCorpusRoleSchema))
+    request: UpdateLegalSourceDocumentCorpusRole,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.documents
+      .updateCorpusRole({
+        versionId,
+        documentRowId,
+        actorId: req.rbacContext.userId,
+        correlationId: this.correlation(req),
+        request,
+      })
+      .then(resultEnvelope);
   }
 
   @Patch("legal-source-versions/:versionId/documents/:documentRowId/effect")

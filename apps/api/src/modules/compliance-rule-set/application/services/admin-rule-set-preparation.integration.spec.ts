@@ -55,7 +55,7 @@ import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/co
 const url = new URL(process.env.DATABASE_URL ?? "postgresql://unused/unused");
 const isolated =
   url.hostname === "127.0.0.1" &&
-  url.port === "55445" &&
+  url.port === "55495" &&
   url.pathname === "/lcsp_admin_prepare_test";
 const database = isolated ? describe : describe.skip;
 const tag = `admin-trigger-${randomUUID().slice(0, 8)}`;

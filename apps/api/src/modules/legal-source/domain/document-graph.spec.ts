@@ -367,6 +367,50 @@ describe("Legal Document AST: structural interpretation only", () => {
       ),
     ).toBeDefined();
   });
+  it.each([true, false])(
+    "inherits a named instrument from a parent clause with an empty title (target present: %s)",
+    (includeTarget) => {
+      const origin = document(
+        [
+          "Điều 3. Local text\n9. Local provision.\nĐiều 43. Amendments\n1. Bãi bỏ một số khoản của Luật số 71/2025/QH15 như sau:\na) Bãi bỏ khoản 9 Điều 3;\nb) Xem khoản 9 Điều 3 của Luật này.",
+        ],
+        "origin",
+      );
+      const target = {
+        ...document(["Điều 3. Target\n9. Target provision."], "target"),
+        title: "Luật số 71/2025/QH15",
+      };
+      const graph = buildLegalDocumentGraph(
+        version,
+        includeTarget ? [origin, target] : [origin],
+      );
+      expect(
+        graph.nodes.find(
+          (n) =>
+            n.documentId === "origin" &&
+            n.nodeType === N.CLAUSE &&
+            n.label === "1",
+        )?.title,
+      ).toBe("");
+      const inherited = graph.references.find((r) => {
+        const node = graph.nodes.find((n) => n.nodeId === r.fromNodeId)!;
+        return node.nodeType === N.POINT && node.label === "a";
+      })!;
+      expect(inherited.resolutionState).toBe(
+        includeTarget ? R.RESOLVED : R.UNRESOLVED,
+      );
+      expect(
+        graph.nodes.find((n) => n.nodeId === inherited.toNodeId)?.documentId,
+      ).toBe(includeTarget ? "target" : undefined);
+      const explicitSelf = graph.references.find((r) => {
+        const node = graph.nodes.find((n) => n.nodeId === r.fromNodeId)!;
+        return node.nodeType === N.POINT && node.label === "b";
+      })!;
+      expect(
+        graph.nodes.find((n) => n.nodeId === explicitSelf.toNodeId)?.documentId,
+      ).toBe("origin");
+    },
+  );
   it.each([
     "The operator must appoint a person to attend the annual public information session in person.",
     "The service may disappoint a reviewer at checkpoint b or subarticle 7.",

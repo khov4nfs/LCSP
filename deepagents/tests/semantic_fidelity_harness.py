@@ -13,9 +13,3 @@ RETAINED = Path(__file__).with_name("fixtures") / "source-semantic-regression.js
 def retained():
     fixture = json.loads(RETAINED.read_text())
     return fixture, PinnedSourceGraph(fixture["source"], fixture["chunks"]), {}
-
-
-def bridge(action, source, graph, **fields):
-    request = {"action": action, "source": source.graph, "graph": graph, "revision": 1, **fields}
-    result = subprocess.run(["pnpm", "exec", "tsx", "apps/api/test/support/semantic-audit-bridge.ts"], cwd=ROOT, input=json.dumps(request), capture_output=True, text=True, check=True)
-    return json.loads(result.stdout)

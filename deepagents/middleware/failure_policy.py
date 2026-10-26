@@ -55,6 +55,10 @@ _PROVIDER_REFUSAL_PHRASES = (
     "cannot assist with that",
     "unable to help with that",
     "unable to assist with that",
+    # Inception's wording for a safety refusal of legal text that merely describes prohibited conduct.
+    "can't help with this because it involves",
+    "cannot help with this because it involves",
+    "potentially dangerous or harmful content",
 )
 
 
@@ -243,6 +247,8 @@ def is_provider_refusal(error: BaseException) -> bool:
     Not a terminal task error: resampling or another route is expected to answer, and a task that
     legitimately analyses statute text must not die on a route's occasional false-positive refusal.
     """
+    if "content_filter" in _error_codes(error):
+        return True
     seen: set[int] = set()
     current: BaseException | None = error
     while current is not None and id(current) not in seen:

@@ -9,6 +9,8 @@ import {
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
   LEGAL_SOURCE_CHUNK_STATUSES,
+  LEGAL_SOURCE_EVENT_TYPES,
+  type UpdateLegalSourceDocumentCorpusRole,
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
   LEGAL_SOURCE_INGESTION_OUTCOMES,
   LEGAL_SOURCE_DOCUMENT_INGESTION_STATES as States,
@@ -38,6 +40,7 @@ import {
 
 import {
   toPrismaLegalSourceDocumentIngestionState,
+  toPrismaLegalSourceDocumentCorpusRole,
   toPrismaLegalSourceDocumentOrigin,
   toPrismaLegalSourceLifecycleStatus,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
@@ -299,6 +302,63 @@ export class LegalSourceDocumentService {
     });
   }
 
+  async updateCorpusRole(input: {
+    versionId: string;
+    documentRowId: string;
+    actorId: string;
+    correlationId: string;
+    request: UpdateLegalSourceDocumentCorpusRole;
+  }): Promise<LegalSourceDocumentView> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const version = await this.lockDraft(
+          tx,
+          input.versionId,
+          input.correlationId,
+        );
+        // A diagnostic can pin a DRAFT; changing its denominator would invalidate the persisted frontier.
+        if (
+          await tx.ruleSetPreparationRun.count({
+            where: { legalSourceVersionId: version.id },
+          })
+        )
+          throw problemException(Errors.versionInUse, input.correlationId, {
+            status: HttpStatus.CONFLICT,
+          });
+        const document = await this.findDocument(
+          tx,
+          version.id,
+          input.documentRowId,
+          input.correlationId,
+        );
+        const role = toPrismaLegalSourceDocumentCorpusRole(
+          input.request.corpusRole,
+        );
+        if (document.corpusRole === role)
+          return this.view(tx, document.id, true);
+        await tx.legalSourceDocument.update({
+          where: { id: document.id },
+          data: { corpusRole: role },
+        });
+        await discardDraftDocumentGraphs(tx, version.id);
+        await this.record(
+          tx,
+          LEGAL_SOURCE_EVENT_TYPES.documentCorpusRoleUpdated,
+          input,
+          version.id,
+          {
+            documentRowId: document.id,
+            documentId: document.documentId,
+            corpusRole: input.request.corpusRole,
+          },
+        );
+        return this.view(tx, document.id, true);
+        // Discarding a full draft materialization (thousands of nodes) outlasts Prisma's 5 s default.
+      },
+      { maxWait: 10000, timeout: 120000 },
+    );
+  }
+
   async updateEffect(input: {
     versionId: string;
     documentRowId: string;
@@ -416,7 +476,7 @@ export class LegalSourceDocumentService {
       await this.ensureStructuralIndex(tx, version);
       await this.record(
         tx,
-        "LEGAL_SOURCE_DOCUMENT_EFFECT_UPDATED",
+        LEGAL_SOURCE_EVENT_TYPES.documentEffectUpdated,
         input,
         version.id,
         {

@@ -68,7 +68,6 @@ export async function pinFixtureRequest<T>(
     packet,
     run.id,
     run.claimInventoryRevision,
-    graph,
   );
   const candidate = complianceRuleSetPacketSchema.safeParse(packet);
   if (!candidate.success) return { ...body, packet };
@@ -89,10 +88,6 @@ export async function pinFixtureRequest<T>(
     const units = new Set(sourceReviewUnits(graph).map((n) => n.nodeId));
     packet.semanticGraph!.sourceAccounting =
       packet.semanticGraph!.sourceAccounting.filter((r) =>
-        units.has(r.sourceNodeId),
-      );
-    packet.semanticGraph!.semanticAudits =
-      packet.semanticGraph!.semanticAudits?.filter((r) =>
         units.has(r.sourceNodeId),
       );
     packet.claimInventory = {

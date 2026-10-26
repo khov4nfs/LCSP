@@ -13,6 +13,7 @@ import {
 import { canonicalClaimId, inventoryHash } from "./claim-inventory.js";
 import {
   completedReviewStates,
+  referenceOnlyNodeIds,
   normalizeReviewPayload,
 } from "./source-review-frontier.js";
 import { semanticReferenceBindings } from "./semantic-reference-binding.js";
@@ -77,13 +78,19 @@ export function referenceDependencyView(
   revision: number,
 ) {
   const binding = semanticReferenceBindings(graph);
-  const nodes = new Set(graph.nodes.map((n) => n.nodeId));
+  const referenceOnly = referenceOnlyNodeIds(graph);
+  const nodes = new Set(
+    graph.nodes
+      .filter((n) => !referenceOnly.has(n.nodeId))
+      .map((n) => n.nodeId),
+  );
   const scoped = rows.filter(
     (r) =>
       r.preparationRunId === runId &&
       r.inventoryRevision === revision &&
       r.legalSourceVersionId === graph.legalSourceVersionId &&
-      r.materializationId === graph.materializationId,
+      r.materializationId === graph.materializationId &&
+      !referenceOnly.has(r.sourceNodeId),
   );
   const endpoints = new Map<
     string,
@@ -165,9 +172,9 @@ export function referenceDependencyView(
       bindingCanProceed: classification === D.AVAILABLE,
       classification,
       claims,
-      endpointFingerprint: inventoryHash(
-        claims.map((e) => [e.claim.claimId, e.fingerprint]),
-      ),
+      endpointFingerprint: inventoryHash([
+        ...claims.map((e) => [e.claim.claimId, e.fingerprint]),
+      ]),
     };
   };
   const reviewComplete = (sourceNodeId: string) =>

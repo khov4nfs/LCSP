@@ -1,5 +1,5 @@
 """Projection of verified typed edges, not a source-law interpreter. Mirrors the API gate."""
-from rule_set_preparation.semantic_audit import digest
+from rule_set_preparation.claim_inventory import fingerprint
 
 INWARD = {"CONDITION_OF", "QUALIFIES", "EXCEPTION_TO", "TEMPORALLY_APPLIES_TO", "EVIDENCE_SLICE_OF", "PRESERVES", "CONTEXT_FOR"}
 
@@ -18,7 +18,7 @@ def claim_role(claim):
 def semantic_closure(graph, anchor_id):
     claims = {c["claimId"]: c for c in graph["claims"]}
     if not operative(claims.get(anchor_id)):
-        raise ValueError("Verified legal normative operative anchor required")
+        raise ValueError("Committed legal normative operative anchor required")
     roles, queue = {anchor_id: "OPERATIVE_PROPOSITION"}, [anchor_id]
     while queue:
         cid = queue.pop(0)
@@ -50,7 +50,7 @@ def aggregate_closure(graph, anchor_ids):
     closures = [semantic_closure(graph, cid) for cid in anchor_ids]
     def profile(closure):
         anchor = claims[closure["anchorId"]]
-        return digest({"actor": anchor["operative"]["actor"], "modality": anchor["operative"]["modality"], "assessability": anchor["assessability"], "modifiers": [c for c in closure["claims"] if c["role"] in {"APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"}]})
+        return fingerprint({"actor": anchor["operative"]["actor"], "modality": anchor["operative"]["modality"], "assessability": anchor["assessability"], "modifiers": [c for c in closure["claims"] if c["role"] in {"APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"}]})
     if not closures or len({profile(c) for c in closures}) != 1:
         raise ValueError("INCOMPATIBLE_OPERATIVE_AGGREGATION")
     roles = {}

@@ -39,6 +39,11 @@ export type CommonMessages = {
 
 export type PagesMessages = {
   complianceRuleSets: {
+    resume: string;
+    resuming: string;
+    resumeFailed: string;
+    stages: { CORPUS_READY: string; PREPARING_RULE_SET: string; VALIDATION_REQUIRED: string; VALIDATION_FAILED: string; RULE_SET_READY: string; ACTIVE: string };
+    draft: { documents: string; requirements: string; rules: string; references: string; blocked: string; validationErrors: string; available: string; unavailable: string; boundedPreview: string };
     title: string;
     description: string;
     active: string;
@@ -84,6 +89,7 @@ export type PagesMessages = {
     replacingActiveVersion: string;
     activeVersionRemainsInUse: string;
     activity: {
+      modelCalls: string;
       title: string;
       live: string;
       reconnecting: string;
@@ -94,8 +100,16 @@ export type PagesMessages = {
         COMPLETED: string;
         FAILED: string;
         CANCELLED: string;
+        PAUSED: string;
       };
+      paused: string;
       started: string;
+      claimFileCommitted: string;
+      claimFile: string;
+      committedNodes: string;
+      rejectedNodes: string;
+      tokensPerUnitValue: string;
+      tokensPerClaimValue: string;
       loadedSource: string;
       readerStarted: string;
       readingSource: string;
@@ -103,8 +117,17 @@ export type PagesMessages = {
       inspectingSource: string;
       readerCompleted: string;
       modelTurn: string;
-      semanticAudit: string;
       sourceReviews: string;
+      sourceCoverage: string;
+      sourceCoveragePct: string;
+      sourceRemaining: string;
+      reviewedWithClaims: string;
+      reviewedNoClaims: string;
+      inReview: string;
+      pendingUnits: string;
+      verifiedClaims: string;
+      tokenEfficiency: string;
+      tokensPerClaim: string;
       draftClaims: string;
       requirements: string;
       rules: string;
@@ -148,6 +171,7 @@ export type PagesMessages = {
       INVALID: string;
     };
     failureReasons: {
+      AGENT_BUDGET_REACHED: string;
       MODEL_ERROR: string;
       NO_SUBMISSION: string;
       RULE_SET_VALIDATION_FAILED: string;

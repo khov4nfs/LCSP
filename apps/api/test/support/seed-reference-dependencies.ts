@@ -1,3 +1,4 @@
+import { LegalSourceDocumentCorpusRole } from "@prisma/client";
 /** Test-only reconstruction. The bridge enforces an exact owned local DB before calling this. */
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -37,6 +38,7 @@ export async function seedReferenceDependencies(
   n = 2,
   edges: ModelEdge[] = [],
   retained = false,
+  referenceOnlyTarget = false,
 ) {
   const runId = randomUUID();
   const saved = retained
@@ -94,6 +96,12 @@ export async function seedReferenceDependencies(
       contentSha256: modelHash(node.content),
     }));
     graph.chunkMappings = [];
+  }
+  if (referenceOnlyTarget) {
+    graph.nodes = graph.nodes.map((node, i) =>
+      i ? { ...node, documentId: "reference-only-b" } : node,
+    );
+    graph.referenceOnlyDocumentIds = ["reference-only-b"];
   }
   const version = graph.legalSourceVersionId;
   const idMap: Record<string, string> = {};
@@ -170,6 +178,18 @@ export async function seedReferenceDependencies(
           sourceEffectStatus: "IN_FORCE",
         },
       });
+      if (referenceOnlyTarget)
+        await tx.legalSourceDocument.create({
+          data: {
+            legalSourceVersionId: version,
+            documentId: "reference-only-b",
+            corpusRole: LegalSourceDocumentCorpusRole.REFERENCE_ONLY,
+            title: "Reference-only B",
+            sourceUrl: "https://example.invalid/b",
+            sourceSha256: inventoryHash("b"),
+            sourceEffectStatus: "EFFECTIVE",
+          },
+        });
       await tx.legalDocumentMaterialization.upsert({
         where: { id: graph.materializationId },
         update: {},
@@ -292,32 +312,33 @@ export async function seedReferenceDependencies(
         (h, item) => xorReviewHash(h, item.stateFingerprint),
         zeroReviewAccumulator,
       );
-      await tx.ruleSetPreparationReviewFrontier.create({
-        data: {
-          preparationRunId: runId,
-          inventoryRevision: 1,
-          materializationId: graph.materializationId,
-          legalSourceVersionId: version,
-          fingerprint,
-          stateAccumulator,
-          stateFingerprint: inventoryHash({
+      if (!referenceOnlyTarget)
+        await tx.ruleSetPreparationReviewFrontier.create({
+          data: {
+            preparationRunId: runId,
+            inventoryRevision: 1,
+            materializationId: graph.materializationId,
+            legalSourceVersionId: version,
             fingerprint,
-            accumulator: stateAccumulator,
-          }),
-          unitCount: items.length,
-          pendingCount: items.filter((i) => i.state === S.PENDING).length,
-          blockedCount: items.filter((i) => i.state === S.BLOCKED_REFERENCE)
-            .length,
-          reviewedWithClaimsCount: items.filter(
-            (i) => i.state === S.REVIEWED_WITH_CLAIMS,
-          ).length,
-          persistedClaimCount: items.reduce(
-            (sum, item) => sum + item.ownedClaimCount,
-            0,
-          ),
-          items: { create: items },
-        },
-      });
+            stateAccumulator,
+            stateFingerprint: inventoryHash({
+              fingerprint,
+              accumulator: stateAccumulator,
+            }),
+            unitCount: items.length,
+            pendingCount: items.filter((i) => i.state === S.PENDING).length,
+            blockedCount: items.filter((i) => i.state === S.BLOCKED_REFERENCE)
+              .length,
+            reviewedWithClaimsCount: items.filter(
+              (i) => i.state === S.REVIEWED_WITH_CLAIMS,
+            ).length,
+            persistedClaimCount: items.reduce(
+              (sum, item) => sum + item.ownedClaimCount,
+              0,
+            ),
+            items: { create: items },
+          },
+        });
     },
     { timeout: 30000 },
   );

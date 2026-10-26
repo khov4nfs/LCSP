@@ -19,6 +19,7 @@ import {
 
 import {
   fromPrismaLegalSourceDocumentIngestionState,
+  fromPrismaLegalSourceDocumentCorpusRole,
   fromPrismaLegalSourceDocumentOrigin,
   fromPrismaLegalSourceLifecycleStatus,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
@@ -54,6 +55,7 @@ export function toDocumentView(
     sourceUrl: row.sourceUrl,
     sourceSha256: row.sourceSha256,
     sourceEffectStatus: row.sourceEffectStatus,
+    corpusRole: fromPrismaLegalSourceDocumentCorpusRole(row.corpusRole),
     effectiveDate: iso(row.effectiveDate),
     structureProfile: row.structureProfile,
     chunkCount: row._count.chunks,

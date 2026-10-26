@@ -19,7 +19,11 @@ DEFINITION = "12ff1db191f504d0aaca9f8fc0cd7088e2c3b2973aa8ec26b5726901e30b188a"
 def retained_runtime():
     ctx = RuleSetPreparationContext(FIXTURE["runId"], object(), frontier_enabled=False,
         source_graph=PinnedSourceGraph(deepcopy(FIXTURE["graph"]), []))
-    tools = {t.name: t for t in build_rule_set_tools(ctx)}
+    from rule_set_preparation.claim_tools import build_claim_tools
+    from structural_semantic_fixture import MechanicalTools
+    tools = MechanicalTools(ctx, build_rule_set_tools(ctx))
+    tools.operations = {}
+    build_claim_tools(ctx, operations=tools.operations)
     for review in FIXTURE["reviews"]:
         for claim in review["payload"]["claims"]:
             ctx.draft["semanticClaims"][claim["claimId"]] = deepcopy(claim)
@@ -29,13 +33,13 @@ def retained_runtime():
 
 
 def call(tools, name, **args):
-    return json.loads(tools[name].invoke(args))
+    return tools.operations[name](**args)
 
 
 def test_retained_same_source_fake_target_rejected_before_mutation():
     ctx, tools = retained_runtime()
     before = deepcopy(ctx.draft)
-    result = call(tools, "link_semantic_claims", from_claim_id=SCOPE, to_claim_id=FAKE_TARGET,
+    result = call(tools, "link", from_claim_id=SCOPE, to_claim_id=FAKE_TARGET,
                   kind="CROSS_REFERENCE", reference_id=REFERENCE)
     assert result["outcome"] == "FAILED", result
     assert "SEMANTIC_DEPENDENCY_DETACHED" in result["gaps"]
@@ -45,30 +49,29 @@ def test_retained_same_source_fake_target_rejected_before_mutation():
 def test_inspect_exact_retained_definition_and_atomic_idempotent_binding():
     ctx, tools = retained_runtime()
     before = deepcopy(ctx.draft)
-    inspection = call(tools, "inspect_semantic_reference_binding", reference_id=REFERENCE)
+    from rule_set_preparation.reference_binding import side_claims
+    targets = side_claims(ctx.source_graph, ctx.draft["semanticClaims"], TARGET)
     assert ctx.draft == before
-    assert inspection == call(tools, "inspect_semantic_reference_binding", reference_id=REFERENCE)
-    assert inspection["bindingCanProceed"]
-    assert [c["claimId"] for c in inspection["targetClaims"]] == [DEFINITION]
+    assert [c["claimId"] for c in targets] == [DEFINITION]
     args = dict(reference_id=REFERENCE, from_claim_id=SCOPE, to_claim_id=DEFINITION, kind="DEFINITION")
-    result = call(tools, "bind_semantic_reference", **args)
+    result = call(tools, "link", **args)
     assert result["outcome"] == "PASSED", result
-    assert result == call(tools, "bind_semantic_reference", **args)
+    assert result == call(tools, "link", **args)
     assert len(ctx.draft["claimRelations"]) == 1
     assert result["referenceAccounting"]["relationIds"] == [result["relation"]["relationId"]]
 
 
 def test_remove_relation_and_claim_reprojects_remaining_bindings():
     ctx, tools = retained_runtime()
-    one = call(tools, "bind_semantic_reference", reference_id=REFERENCE, from_claim_id=SCOPE, to_claim_id=DEFINITION, kind="DEFINITION")["relation"]
-    two = call(tools, "bind_semantic_reference", reference_id=REFERENCE, from_claim_id=FAKE_TARGET, to_claim_id=DEFINITION, kind="CROSS_REFERENCE")["relation"]
-    rejected = call(tools, "mark_reference_non_material", reference_id=REFERENCE, reason="Contradictory decision")
+    one = call(tools, "link", reference_id=REFERENCE, from_claim_id=SCOPE, to_claim_id=DEFINITION, kind="DEFINITION")["relation"]
+    two = call(tools, "link", reference_id=REFERENCE, from_claim_id=FAKE_TARGET, to_claim_id=DEFINITION, kind="CROSS_REFERENCE")["relation"]
+    rejected = call(tools, "non_material", reference_id=REFERENCE, reason="Contradictory decision")
     assert rejected["outcome"] == "FAILED"
-    assert call(tools, "remove_semantic_relation", relation_id=one["relationId"], reason="One duplicate legal role is unnecessary")["outcome"] == "PASSED"
+    assert call(tools, "unlink", relation_id=one["relationId"], reason="One duplicate legal role is unnecessary")["outcome"] == "PASSED"
     assert ctx.draft["referenceAccounting"][REFERENCE]["relationIds"] == [two["relationId"]]
-    assert call(tools, "remove_semantic_claim", claim_id=FAKE_TARGET, reason="Redundant source-side cross-reference claim")["outcome"] == "PASSED"
+    assert call(tools, "remove", claim_id=FAKE_TARGET, reason="Redundant source-side cross-reference claim")["outcome"] == "PASSED"
     assert REFERENCE not in ctx.draft["referenceAccounting"]
-    assert call(tools, "mark_reference_non_material", reference_id=REFERENCE, reason="No remaining claim depends on the definition in this scripted scope")["outcome"] == "PASSED"
+    assert call(tools, "non_material", reference_id=REFERENCE, reason="No remaining claim depends on the definition in this scripted scope")["outcome"] == "PASSED"
     assert not ctx.draft["referenceAccounting"][REFERENCE]["material"]
 
 
@@ -84,14 +87,14 @@ def test_binding_requires_durable_endpoint_but_not_completed_target_review():
     ctx.api = SimpleNamespace(source_review_operation=lambda *args, **kwargs: {"outcome": "PASSED", "endpoints": endpoints, "frontierRevision": 1, "frontierFingerprint": "a" * 64, "frontierStateFingerprint": "b" * 64})
     before = deepcopy(ctx.draft)
     args = dict(reference_id=REFERENCE, from_claim_id=SCOPE, to_claim_id=DEFINITION, kind="DEFINITION")
-    rejected = call(tools, "bind_semantic_reference", **args)
+    rejected = call(tools, "link", **args)
     assert rejected["targetClaimAvailability"] == "NOT_AVAILABLE"
     assert ctx.draft == before
     # The claim is committed in a blocked review; completion accounting is absent.
     assert TARGET not in ctx.draft["sourceAccounting"]
     endpoints.append({"claim": ctx.draft["semanticClaims"][DEFINITION], "owner": TARGET,
                       "fingerprint": endpoint_fingerprint(ctx.draft["semanticClaims"][DEFINITION])})
-    accepted = call(tools, "bind_semantic_reference", **args)
+    accepted = call(tools, "link", **args)
     assert accepted["outcome"] == "PASSED"
     assert frontier.relation_owners[accepted["relation"]["relationId"]] == SOURCE
 

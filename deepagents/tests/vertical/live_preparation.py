@@ -43,7 +43,7 @@ ALLOWED_PREFIXES = (
 
 
 class LiveUsage(AgentRunState):
-    """Use the governed per-response port, including independent Auditor calls."""
+    """Use the governed per-response port for the parent and native claim authors."""
 
     def __init__(self, run_id: str, usage_out: str, *, budget: RunBudget | None = None,
                  budget_fingerprint: str | None = None, bounded: bool = False) -> None:
@@ -143,6 +143,110 @@ def recover_usage(usage_out: str, run_id: str) -> dict:
     return summary
 
 
+def recover_cumulative_usage(target: str | Path | list[str | Path], run_id: str, *,
+                             write_out: str | Path | None = None) -> dict:
+    """Aggregate usage evidence across multiple resume sessions / sqlite stores for a run."""
+    if isinstance(target, (list, tuple, set)):
+        candidates = [Path(p) for p in target]
+    elif Path(target).is_dir():
+        candidates = sorted(Path(target).glob("*.sqlite3"))
+    else:
+        p = Path(target)
+        candidates = [p if p.suffix == ".sqlite3" else Path(str(p) + ".sqlite3")]
+
+    fields = ("inputTokens", "inputTokensIncludingCache", "cachedInputTokens", "cacheWriteTokens",
+              "cacheWrite5mTokens", "cacheWrite1hTokens", "outputTokens", "visibleOutputTokens",
+              "reasoningTokens", "totalTokens", "providerResponseId")
+
+    matched_stores: list[Path] = []
+    all_rows: list[dict] = []
+    for store in candidates:
+        if not store.exists():
+            continue
+        try:
+            rows = read_usage_evidence(store)
+        except Exception:
+            continue
+        run_rows = [row for row in rows if row.get("runId") == run_id]
+        if run_rows:
+            matched_stores.append(store)
+            all_rows.extend(run_rows)
+
+    if not matched_stores:
+        return {
+            "runId": run_id, "accountingState": "UNAVAILABLE", "modelCalls": None,
+            "sessionCount": 0, "sessionStores": [], "inputTokens": None, "outputTokens": None,
+            "profileKey": None,
+        }
+
+    start_times = [row["startedAt"] for row in all_rows if row.get("event") == "RUN_STARTED" and "startedAt" in row]
+    started = min(start_times) if start_times else time.time()
+
+    records_by_id: dict[str, dict] = {}
+    for row in all_rows:
+        if row.get("event") == "MODEL_RESPONSE":
+            records_by_id[row["invocationId"]] = row
+        elif row.get("event") == "MODEL_ATTEMPT" and row.get("attemptStatus") == "COMPLETED":
+            if row["invocationId"] not in records_by_id:
+                records_by_id[row["invocationId"]] = {
+                    **row, "event": "MODEL_RESPONSE",
+                    "usage": {k: row[k] for k in fields if k in row} or None,
+                    "reportedUsage": None, "recoveredFromAttemptCommit": True,
+                }
+
+    records = list(records_by_id.values())
+    response_ids = set(records_by_id.keys())
+
+    attempts: dict[str, dict] = {}
+    for row in all_rows:
+        if row.get("event") == "MODEL_ATTEMPT":
+            prev = attempts.get(row["invocationId"])
+            if not prev or prev.get("attemptStatus") != "COMPLETED":
+                attempts[row["invocationId"]] = row
+
+    complete = all(row.get("usage") is not None and "inputTokens" in row["usage"] and "outputTokens" in row["usage"] for row in records) if records else False
+    known = [row["usage"] for row in records if row.get("usage") is not None]
+    profiles = sorted({f"{row['provider']}:{row['model']}" for row in records if "provider" in row and "model" in row})
+    response_coverage = not (attempts.keys() - response_ids)
+
+    summary = {
+        "runId": run_id,
+        "accountingState": "COMPLETE" if (complete and response_coverage) else ("MISSING_PROVIDER_USAGE" if (records or attempts) else "UNAVAILABLE"),
+        "coverage": "physical_attempts" if attempts else ("completed_provider_responses_only" if records else "none"),
+        "modelCalls": len(records),
+        "sessionCount": len(matched_stores),
+        "sessionStores": [str(s) for s in matched_stores],
+        "missingUsageCalls": sum(not row.get("usage") or "inputTokens" not in row["usage"] or "outputTokens" not in row["usage"] for row in records),
+        "invocations": records,
+        "seconds": round(time.time() - started, 1),
+        "profiles": profiles,
+        "profileKey": profiles[0] if len(profiles) == 1 else None,
+        "physicalAttempts": len(attempts) if attempts else None,
+        "successfulResponses": len(records),
+        "unresolvedAttempts": sum(r.get("attemptStatus") in {"STARTED", "OUTCOME_UNKNOWN"} for r in attempts.values()) if attempts else None,
+        "failedAttempts": sum(r.get("attemptStatus") == "FAILED" for r in attempts.values()) if attempts else None,
+        "attempts": list(attempts.values()),
+    }
+
+    for field in ("inputTokens", "inputTokensIncludingCache", "outputTokens"):
+        summary["known" + field[0].upper() + field[1:]] = sum(int(row[field]) for row in known if field in row)
+        summary[field] = summary["known" + field[0].upper() + field[1:]] if response_coverage and len(known) == len(records) and all(field in row for row in known) else None
+    for field in ("cachedInputTokens", "cacheWriteTokens", "reasoningTokens", "totalTokens"):
+        values = [int(row[field]) for row in known if field in row]
+        summary["known" + field[0].upper() + field[1:]] = sum(values) if values else None
+        summary[field] = sum(values) if response_coverage and values and len(values) == len(records) else None
+
+    if write_out is not None:
+        target_path = Path(write_out)
+        with tempfile.NamedTemporaryFile(mode="w", dir=target_path.parent, delete=False, encoding="utf-8") as handle:
+            json.dump(summary, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(handle.name, target_path)
+
+    return summary
+
+
 def _load_llm_env() -> None:
     env_file = ROOT / ".env"
     if not env_file.exists():
@@ -154,22 +258,6 @@ def _load_llm_env() -> None:
         name = name.strip()
         if name.startswith(ALLOWED_PREFIXES) and name not in os.environ:
             os.environ[name] = value.strip().strip('"').strip("'")
-
-
-def _route_rule_set_preparation_to(route_id: str, model: str | None = None) -> None:
-    """Point only the rule-set-preparation role at ``route_id`` (optionally overriding that
-    route's model) through a temporary routes file; the repository config is never changed."""
-    import yaml
-
-    config = yaml.safe_load((ROOT / "deepagents" / "config" / "model_routes.yaml").read_text(encoding="utf-8"))
-    if route_id not in config["routes"]:
-        raise RuntimeError(f"unknown route {route_id!r}")
-    if model:
-        config["routes"][route_id]["model"] = model
-    config["roles"]["rule-set-preparation"] = route_id
-    target = Path(tempfile.mkdtemp(prefix="lcsp-live-routes-")) / "model_routes.yaml"
-    target.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-    os.environ["LCSP_MODEL_ROUTES_FILE"] = str(target)
 
 
 class LiveTrace(BaseCallbackHandler):
@@ -209,6 +297,8 @@ class LiveTrace(BaseCallbackHandler):
             value = None
         if isinstance(value, dict):
             fields["outcome"] = value.get("outcome") if value.get("outcome") in ("PASSED", "FAILED") else None
+            if fields["outcome"] == "FAILED":
+                fields["rejection"] = text[:1500]  # the validators' gap codes and fixes, so a rejected loop is attributable
             unit = value.get("unit")
             if isinstance(unit, dict):
                 node_id = unit.get("sourceNodeId")
@@ -246,13 +336,11 @@ def main() -> int:
     if sys.argv[1:2] == ["--recover-usage"]:
         print(json.dumps(recover_usage(*sys.argv[2:4])))
         return 0
+    if sys.argv[1:2] == ["--recover-cumulative-usage"]:
+        print(json.dumps(recover_cumulative_usage(sys.argv[2], sys.argv[3])))
+        return 0
     base, key, run_id, usage_out = sys.argv[1:5]
     _load_llm_env()
-    if not os.environ.get("LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"):
-        os.environ["LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"] = "7c" * 32
-    if os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"):
-        _route_rule_set_preparation_to(os.environ["LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"], os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_MODEL"))
-
     from rule_set_preparation.runner import run_rule_set_preparation
     from tools.common.capabilities.platform.api_client import WorkerApiClient
 
@@ -271,18 +359,21 @@ def main() -> int:
         import subprocess
         if budget.candidate_sha != subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip():
             raise PaidAdmissionError("CANDIDATE_CHANGED", run_id)
+    # A paid run is bounded either by an admission budget file or by the run quotas the Preparation pauses on.
+    if budget is None and not (os.environ.get("LCSP_RSP_MAX_MODEL_CALLS") and os.environ.get("LCSP_RSP_MAX_INPUT_TOKENS")):
+        raise PaidAdmissionError("MISSING_RUN_BUDGET", run_id)
     usage = LiveUsage(run_id, usage_out, budget=budget,
-                      budget_fingerprint=os.environ.get("LCSP_LIVE_BUDGET_SHA256"), bounded=True)
+                      budget_fingerprint=os.environ.get("LCSP_LIVE_BUDGET_SHA256"), bounded=budget is not None)
     api = WorkerApiClient(base, key)
     usage.api_client = api
     usage.preparation_run_id = run_id
-    from rule_set_preparation.agent import RULE_SET_PREPARATION_ROLE
-    from model_policy import resolve_agent_model
-
+    from orchestration.agent_stream import AgentStreamSession, BufferedAgentStreamEmitter, activate_agent_stream
+    session = AgentStreamSession(assessment_id=None, run_id=run_id, correlation_id=run_id,
+        boundary_name="rule_set_preparation_requested", boundary_type="RULE_SET_PREPARATION",
+        boundary_id=run_id, preparation_run_id=run_id, emit_payload=BufferedAgentStreamEmitter(api.post_agent_stream_event))
     try:
-        with activate_agent_run_state(usage):
-            model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
-            result = run_rule_set_preparation(api, run_id, model=model, callbacks=[trace_callback])
+        with activate_agent_run_state(usage), activate_agent_stream(session):
+            result = run_rule_set_preparation(api, run_id, callbacks=[trace_callback], work_dir=Path(usage_out).with_suffix(".workspace"))
     finally:
         recover_usage(usage_out, run_id)
     print(json.dumps(result))

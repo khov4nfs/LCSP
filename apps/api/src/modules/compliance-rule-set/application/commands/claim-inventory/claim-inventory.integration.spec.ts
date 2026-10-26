@@ -6,6 +6,7 @@ import {
   PrismaClient,
   AgentExecutionState,
   ClaimPreparationPhase,
+  PreparationExecutionContract,
 } from "@prisma/client";
 import {
   CLAIM_INVENTORY_ACTIONS as A,
@@ -73,6 +74,8 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       ),
     );
     const id = start.preparationRunId;
+    // This suite exercises immutable historical claim-first runs; new direct runs have their own HTTP acceptance.
+    await db.ruleSetPreparationRun.update({ where: { id }, data: { executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1 } });
     await new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
@@ -172,6 +175,72 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       outcome: O.FAILED,
       failures: [expect.objectContaining({ code: G.FROZEN })],
     });
+    const draft = {
+      legalRequirements: Object.fromEntries(
+        request.packet.legalRequirements.map((r) => [r.legalRequirementId, r]),
+      ),
+      assessmentRules: Object.fromEntries(
+        request.packet.assessmentRules.map((r) => [r.assessmentRuleId, r]),
+      ),
+      contextRelations: Object.fromEntries(
+        request.packet.contextRelations.map((r) => [r.relationId, r]),
+      ),
+    };
+    expect(await operation(A.LOAD_AUTHORING_DRAFT, 1)).toMatchObject({
+      outcome: O.PASSED,
+      draft: null,
+      draftVersion: 0,
+    });
+    expect(
+      await operation(A.SAVE_AUTHORING_DRAFT, 1, { draft, draftVersion: 0 }),
+    ).toMatchObject({ outcome: O.PASSED, draftVersion: 1 });
+    // A lost save response can be retried, but an older snapshot cannot replace a newer one.
+    expect(
+      await operation(A.SAVE_AUTHORING_DRAFT, 1, { draft, draftVersion: 0 }),
+    ).toMatchObject({ outcome: O.PASSED, draftVersion: 1, replayed: true });
+    const newer = structuredClone(draft);
+    Object.values(newer.legalRequirements)[0].title += " repaired";
+    expect(
+      await operation(A.SAVE_AUTHORING_DRAFT, 1, {
+        draft: newer,
+        draftVersion: 1,
+      }),
+    ).toMatchObject({ outcome: O.PASSED, draftVersion: 2 });
+    expect(
+      await operation(A.SAVE_AUTHORING_DRAFT, 1, { draft, draftVersion: 0 }),
+    ).toMatchObject({
+      outcome: O.FAILED,
+      failures: [expect.objectContaining({ code: G.DRAFT_STALE })],
+    });
+    expect(await operation(A.LOAD_AUTHORING_DRAFT, 1)).toMatchObject({
+      outcome: O.PASSED,
+      draft: newer,
+      draftVersion: 2,
+    });
+    expect(
+      await operation(A.SAVE_AUTHORING_DRAFT, 1, {
+        draft: {
+          ...draft,
+          legalRequirements: {
+            wrong: Object.values(draft.legalRequirements)[0],
+          },
+        },
+        draftVersion: 2,
+      }),
+    ).toMatchObject({ outcome: O.FAILED });
+    // A partial typed candidate is durable authoring work, never an accepted final Rule Set.
+    const partial = { ...newer, assessmentRules: {} };
+    expect(
+      await operation(A.SAVE_AUTHORING_DRAFT, 1, {
+        draft: partial,
+        draftVersion: 2,
+      }),
+    ).toMatchObject({ outcome: O.PASSED, draftVersion: 3 });
+    expect(await operation(A.LOAD_AUTHORING_DRAFT, 1)).toMatchObject({
+      outcome: O.PASSED,
+      draft: partial,
+      draftVersion: 3,
+    });
     expect(
       await operation(A.REOPEN, 1, {
         reason: "Material temporal claim needs correction",
@@ -201,7 +270,7 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     const sourceGraph = await new LegalDocumentGraphService(service).export(
       source.id,
     );
-    const next = canonicalInventoryFixture(request.packet, id, 2, sourceGraph!);
+    const next = canonicalInventoryFixture(request.packet, id, 2);
     const reviewed = await completeFixtureFrontier(
       service,
       id,
@@ -222,6 +291,37 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
         identities: next.identities,
       }),
     ).toMatchObject({ outcome: O.PASSED, revision: 2 });
+    await db.ruleSetPreparationRun.update({
+      where: { id },
+      data: { startedAt: new Date(0) },
+    });
+    const recovered = await new ClaimRuleSetPreparationHandler(
+      service,
+      new LegalDocumentGraphService(service),
+    ).execute(
+      new ClaimRuleSetPreparationCommand(
+        { preparationRunId: id },
+        randomUUID(),
+      ),
+    );
+    expect(recovered).toMatchObject({
+      claimInventoryRevision: 2,
+      claimPhase: ClaimPreparationPhase.CLAIM_INVENTORY_READY,
+      frozenInventory: {
+        revision: 2,
+        fingerprint: inventoryFingerprint(2, next.graph),
+        graph: next.graph,
+        identities: next.identities,
+      },
+    });
+    expect(await operation(A.LOAD_AUTHORING_DRAFT, 2)).toMatchObject({
+      outcome: O.PASSED,
+      draft: null,
+      draftVersion: 0,
+    });
+    expect(await operation(A.LOAD_AUTHORING_DRAFT, 1)).toMatchObject({
+      outcome: O.FAILED,
+    });
     expect(await operation(A.AUTHOR_RULES, 2)).toMatchObject({
       outcome: O.PASSED,
     });
@@ -270,6 +370,7 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       ),
     );
     const id = start.preparationRunId;
+    await db.ruleSetPreparationRun.update({ where: { id }, data: { executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1 } });
     await new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
@@ -318,18 +419,6 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
           randomUUID(),
         ),
       );
-    // An otherwise structurally complete, model-claimed audit cannot be re-recorded
-    // under a forged receipt seal, even by an authenticated worker request.
-    const forged = structuredClone(lacking);
-    expect(forged.semanticAudits?.length).toBeGreaterThan(0);
-    forged.semanticAudits![0].attestation = "hmac-sha256:" + "0".repeat(64);
-    const refusedForgery = await operation(A.RECORD_SEMANTIC_AUDITS, forged);
-    expect(refusedForgery).toMatchObject({ outcome: O.FAILED });
-    expect(
-      (refusedForgery.failures as { detail: string }[])
-        .map((f) => f.detail)
-        .join("; "),
-    ).toContain("VERIFIER_ATTESTATION_INVALID");
     const refused = await operation(A.FINALIZE);
     expect(refused.outcome).toBe(O.FAILED);
     expect(

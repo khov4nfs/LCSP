@@ -1,27 +1,32 @@
-"""Deterministic graph/artifact invariants. Scripted receipts prove mechanics, never verifier quality."""
+"""Deterministic graph/artifact invariants. Committed fixtures exercise structural invariants."""
 from copy import deepcopy
 
 import pytest
 from claim_protocol_harness import call
 from rule_set_preparation.authoring_rejections import draft_fingerprint
-from rule_set_preparation.semantic_audit import audit_input, receipt_current
 from rule_set_preparation.semantic_closure import semantic_closure
-from semantic_fidelity_harness import bridge
 from semantic_pipeline_harness import pipeline_context, author_all
-from structural_semantic_fixture import StructuralFixtureAuditor
 
 
 @pytest.fixture(scope="module")
 def verified():
-    return pipeline_context(StructuralFixtureAuditor())
+    return pipeline_context()
 
 
 def test_every_anchor_has_identical_python_api_closure_and_no_unrelated_role_pool_binding(verified):
-    ctx, _, _, keys = verified
+    import json
+    import subprocess
+    from pathlib import Path
+    ctx, _, _, _ = verified
     graph = ctx.inventory.frozen
-    for c in graph["claims"]:
-        if c["operative"] and c["semanticAuthority"] == "LEGAL_NORMATIVE":
-            assert bridge("CLOSURE", ctx.source_graph, graph, anchorId=c["claimId"]) == semantic_closure(graph, c["claimId"])
+    anchors = [c['claimId'] for c in graph['claims'] if c['operative'] and c['semanticAuthority'] == 'LEGAL_NORMATIVE']
+    script = """import {readFileSync} from 'node:fs';
+import {semanticClosure} from './apps/api/src/modules/compliance-rule-set/domain/source-completeness.ts';
+const {graph, anchors} = JSON.parse(readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify(anchors.map(id => semanticClosure(graph, id))));"""
+    result = subprocess.run(['pnpm', 'exec', 'tsx', '-e', script], cwd=Path(__file__).resolve().parents[2],
+        input=json.dumps({'graph': graph, 'anchors': anchors}), capture_output=True, text=True, check=True)
+    assert json.loads(result.stdout) == [semantic_closure(graph, anchor) for anchor in anchors]
 
 
 def test_global_role_compatible_temporal_binding_is_refused_without_draft_mutation(verified):
@@ -36,34 +41,8 @@ def test_global_role_compatible_temporal_binding_is_refused_without_draft_mutati
     assert ctx.rejection_log[-1]["draftUnchanged"]
 
 
-@pytest.mark.parametrize("field,value", [("statement", "Different assertion"), ("assessability", "MIXED"), ("semanticAuthority", "CONTEXT")])
-def test_semantic_mutation_invalidates_independent_receipt(verified, field, value):
-    ctx, _, _, keys = verified
-    graph = deepcopy(ctx.inventory.frozen)
-    target = next(c for c in graph["claims"] if c["claimId"] == keys["export.software"]["claimId"])
-    unit = target["sourceNodeIds"][0]
-    receipt = next(r for r in graph["semanticAudits"] if r["sourceNodeId"] == unit)
-    target[field] = value
-    assert not receipt_current(audit_input(ctx.source_graph, graph, unit, 1), receipt)
-    assert any(f["code"] == "SEMANTIC_AUDIT_REQUIRED" for f in bridge("GATE", ctx.source_graph, graph))
 
 
-def test_review_history_is_bound_to_current_question_and_final_operation_in_python_and_api(verified):
-    """Synthetic provenance trace, not an independent source-law verdict."""
-    from uuid import uuid4
-    from rule_set_preparation.semantic_audit import assertion_input, digest, receipt_passed
-    ctx, _, _, _ = verified
-    graph = deepcopy(ctx.inventory.frozen)
-    receipt = graph["semanticAudits"][0]
-    value = audit_input(ctx.source_graph, graph, receipt["sourceNodeId"], 1)
-    receipt["reviewHistory"] = [{"inputFingerprint": digest(assertion_input(value, receipt["sourceCatalog"])), "initialOperationId": str(uuid4()),
-        "initialVerdict": "WRONG_ACTOR", "initialGaps": [{"code": "WRONG_ACTOR", "detail": "Scripted provenance-only finding"}],
-        "reviewOperationId": receipt["verifierOperationId"], "reviewVerdict": "SUPPORTED", "reviewGaps": []}]
-    assert receipt_passed(value, receipt)
-    assert not bridge("GATE", ctx.source_graph, graph)
-    receipt["reviewHistory"][0]["reviewOperationId"] = str(uuid4())
-    assert not receipt_passed(value, receipt)
-    assert any(f["code"] == "SEMANTIC_AUDIT_REQUIRED" for f in bridge("GATE", ctx.source_graph, graph))
 
 
 def artifact_review(packet, keys):
@@ -91,7 +70,7 @@ def artifact_review(packet, keys):
         "DELEGATED_FULFILLMENT": edge("provider.delivery", "export.delivery", "INCORPORATES") and edge("preserves.operator", "export.delivery", "PRESERVES") and bool(parents("provider.delivery")),
         "EVIDENCE_NO_SHADOW_LAW": keys["guidance.encryption"]["semanticAuthority"] == "EVIDENCE_GUIDANCE" and edge("guidance.encryption", "safeguards", "EVIDENCE_SLICE_OF") and not parents("guidance.encryption"),
         "PROVENANCE": all(c["sourceSupport"] for c in graph["claims"]) and all(r["sourceRefs"] for r in reqs),
-        "STRUCTURAL_HIERARCHY": len(graph["sourceAccounting"]) == 11 and all(r["claimIds"] for r in graph["sourceAccounting"]),
+        "STRUCTURAL_HIERARCHY": len(graph["sourceAccounting"]) == 14 and all(r["claimIds"] or r["nonSemanticReason"] for r in graph["sourceAccounting"]),
         "REFERENCE_RESOLUTION": len(graph["referenceAccounting"]) == 11 and any(edge("portability.prohibition", "exception.transfer", "INCORPORATES") for _ in [0]),
         "CLAIM_ACCOUNTING": bound == {c["claimId"] for c in graph["claims"] if c["state"] == "RELEVANT"},
         "LEGITIMATE_NARROWING": bool(parents("safeguards")) and all(set(a["legalRequirementIds"]) <= assessable for a in packet["assessmentRules"]),
@@ -100,7 +79,7 @@ def artifact_review(packet, keys):
 
 
 def test_corrected_same_source_graph_reaches_real_validator_submission_and_nineteen_artifact_invariants():
-    ctx, tools, api, keys = pipeline_context(StructuralFixtureAuditor())
+    ctx, tools, api, keys = pipeline_context()
     author_all(ctx, tools, keys)
     validation = call(tools, "validate_compliance_rule_set")
     assert validation["outcome"] == "PASSED", validation

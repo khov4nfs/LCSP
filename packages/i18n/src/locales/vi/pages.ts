@@ -1,6 +1,11 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
   complianceRuleSets: {
+    resume: "Tiếp tục chuẩn bị",
+    resuming: "Đang tiếp tục…",
+    resumeFailed: "Không thể tiếp tục chuẩn bị. Hãy làm mới trang và kiểm tra trạng thái hiện tại.",
+    stages: { CORPUS_READY: "Nguồn pháp lý đã sẵn sàng", PREPARING_RULE_SET: "Đang chuẩn bị bộ quy tắc", VALIDATION_REQUIRED: "Cần kiểm tra tính hợp lệ", VALIDATION_FAILED: "Kiểm tra tính hợp lệ thất bại", RULE_SET_READY: "Bộ quy tắc đã sẵn sàng", ACTIVE: "Đang hoạt động" },
+    draft: { documents: "Văn bản nguồn pháp lý", requirements: "Yêu cầu pháp lý trong bản nháp", rules: "Quy tắc đánh giá trong bản nháp", references: "Tham chiếu pháp lý chưa được giải quyết", blocked: "Đơn vị nguồn đang bị chặn bởi tham chiếu pháp lý:", validationErrors: "Lỗi kiểm tra tính hợp lệ", available: "Các đánh giá có thể sử dụng bộ quy tắc đang hoạt động này.", unavailable: "Các đánh giá chưa thể sử dụng bản nháp này.", boundedPreview: "Đang hiển thị 20 mục đầu tiên." },
     title: "Bộ quy tắc tuân thủ",
     description:
       "Bộ quy tắc được các đánh giá dùng chung và chuẩn bị khi Phiên bản nguồn pháp lý được kích hoạt. Quản trị viên cũng có thể chuẩn bị nguồn hiện tại, hoặc chuẩn bị phiên bản mới sẽ tự động thay thế phiên bản đang hoạt động sau khi vượt qua kiểm tra.",
@@ -55,6 +60,7 @@ export const viPages = {
     keepRunning: "Tiếp tục chạy",
     confirmCancel: "Hủy lượt chuẩn bị",
     activity: {
+      modelCalls: "Số lượt gọi mô hình trong hoạt động đã tải",
       title: "Hoạt động chuẩn bị",
       live: "Trực tiếp",
       reconnecting: "Đang kết nối lại",
@@ -65,8 +71,16 @@ export const viPages = {
         COMPLETED: "Đã hoàn tất",
         FAILED: "Thất bại",
         CANCELLED: "Đã hủy",
+        PAUSED: "Tạm dừng",
       },
+      paused: "Đã tạm dừng chuẩn bị do đạt giới hạn ngân sách",
       started: "Đã bắt đầu chuẩn bị",
+      claimFileCommitted: "Đã lưu tệp Điều: {file}",
+      claimFile: "Tệp Điều",
+      committedNodes: "Đơn vị nguồn đã lưu",
+      rejectedNodes: "Mục bị từ chối",
+      tokensPerUnitValue: "{count} / đơn vị nguồn",
+      tokensPerClaimValue: "{count} / nhận định",
       loadedSource: "Đã nạp Nguồn pháp lý được ghim",
       readerStarted: "Đang phân tích nguồn pháp lý",
       readingSource: "Đang đọc quy định trong nguồn pháp lý",
@@ -74,8 +88,17 @@ export const viPages = {
       inspectingSource: "Đang kiểm tra cấu trúc nguồn pháp lý",
       readerCompleted: "Đã hoàn tất phân tích nguồn pháp lý",
       modelTurn: "Đang xây dựng bộ quy tắc",
-      semanticAudit: "Kiểm toán ngữ nghĩa độc lập",
       sourceReviews: "Đơn vị nguồn đã rà soát",
+      sourceCoverage: "Độ bao phủ nguồn",
+      sourceCoveragePct: "Tỷ lệ bao phủ",
+      sourceRemaining: "Đơn vị nguồn còn lại",
+      reviewedWithClaims: "Đã rà soát (có nhận định)",
+      reviewedNoClaims: "Đã rà soát (không có nhận định)",
+      inReview: "Đang rà soát",
+      pendingUnits: "Đơn vị đang chờ",
+      verifiedClaims: "Nhận định đã lưu",
+      tokenEfficiency: "Token trên mỗi đơn vị hoàn tất",
+      tokensPerClaim: "Token trên mỗi nhận định",
       draftClaims: "Nhận định đang xây dựng",
       requirements: "Yêu cầu pháp lý",
       rules: "Quy tắc đánh giá",
@@ -120,13 +143,15 @@ export const viPages = {
       INVALID: "Không hợp lệ",
     },
     failureReasons: {
+      AGENT_BUDGET_REACHED:
+        "Đã đạt giới hạn ngân sách; tiếp tục để chuẩn bị phần còn lại",
       MODEL_ERROR: "Lỗi mô hình",
       NO_SUBMISSION: "Chưa gửi bộ quy tắc nào",
       RULE_SET_VALIDATION_FAILED: "Kiểm tra toàn vẹn thất bại",
       SOURCE_VERSION_UNAVAILABLE: "Phiên bản nguồn pháp lý không khả dụng",
       RUNTIME_ERROR: "Lỗi thực thi",
       NO_OPERATIVE_OBLIGATIONS:
-        "Nguồn đã kiểm toán không nêu nghĩa vụ nào nên không tạo bộ quy tắc",
+        "Quá trình rà soát nguồn hoàn tất không xác định nghĩa vụ có tính thi hành nên không tạo bộ quy tắc",
     },
     result: {
       title: "Kết quả bộ quy tắc",

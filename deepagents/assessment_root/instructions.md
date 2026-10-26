@@ -82,8 +82,9 @@ what you submit. Nothing you are not told by a governed tool is a fact.
    `request_finalization`. The Completion Gate checks persisted pins, current evidence/facts,
    decision coverage, human requests and execution state. It does not choose applicability,
    criterion outcomes or compliance. If it returns blockers, investigate and resolve them; never
-   ask it to repair a decision. If it returns zero blockers and `FINALIZING`, write one finding
-   for every pinned rule and call `submit_final_report`.
+   ask it to repair a decision. If it returns zero blockers and `FINALIZING`, write findings
+   for your investigated rules (baseline findings for uninvestigated rules are filled automatically)
+   and call `submit_final_report`.
 
 9. The final report narrative is yours, but its outcomes and provenance are frozen accepted state.
    Explain each persisted decision and make only evidence-grounded recommendations. Do not add a

@@ -33,6 +33,7 @@ describe("COMPLETE retained live payload persistence guard", () => {
           Promise.resolve({
             id: "a6a2e411-d6e6-423d-b124-5c4eb427fe38",
             claimInventoryRevision: 1,
+            reviewOperationId: "79680043-e61c-42d6-84b9-65d2dc612c07",
             legalSourceVersionId: fixture.graph.legalSourceVersionId,
             executionState: AgentExecutionState.RUNNING,
             claimPhase: P.CLAIM_DISCOVERY,
@@ -53,17 +54,15 @@ describe("COMPLETE retained live payload persistence guard", () => {
           }),
         findMany: () =>
           Promise.resolve(
-            fixture.reviews
-              .filter((r) => r !== sourceReview)
-              .map((r) => ({
-                ...r,
-                preparationRunId: "a6a2e411-d6e6-423d-b124-5c4eb427fe38",
-                inventoryRevision: 1,
-                legalSourceVersionId: fixture.graph.legalSourceVersionId,
-                materializationId: fixture.graph.materializationId,
-                completionFingerprint: inventoryHash(r.payload),
-                state: SourceReviewState.REVIEWED_WITH_CLAIMS,
-              })),
+            fixture.reviews.map((r) => ({
+              ...r,
+              preparationRunId: "a6a2e411-d6e6-423d-b124-5c4eb427fe38",
+              inventoryRevision: 1,
+              legalSourceVersionId: fixture.graph.legalSourceVersionId,
+              materializationId: fixture.graph.materializationId,
+              completionFingerprint: inventoryHash(r.payload),
+              state: SourceReviewState.REVIEWED_WITH_CLAIMS,
+            })),
           ),
         update,
       },

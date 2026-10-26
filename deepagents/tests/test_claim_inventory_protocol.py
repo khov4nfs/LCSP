@@ -3,10 +3,13 @@ import json
 from copy import deepcopy
 
 import pytest
+
+
+
 from middleware.failure_policy import NoProgressDetected
 from rule_set_preparation.claim_inventory import claim_id, fingerprint, normalized_graph
 
-from structural_semantic_fixture import StructuralFixtureAuditor, mechanical_arguments
+from structural_semantic_fixture import mechanical_arguments
 from claim_protocol_harness import RUN, ScriptedApi, runtime, bridge, call, discover, author
 
 
@@ -38,7 +41,7 @@ def test_incomplete_inventory_feedback_then_no_progress_before_submission(seed):
     _, ctx, tools, _ = runtime(seed)
     # The graph schema needs at least one claim, but missing reviews are a real inventory gap.
     c = seed["packet"]["semanticGraph"]["claims"][0]
-    call(tools, "register_semantic_claim", identity_key="duty", source_node_ids=c["sourceNodeIds"], claim_type="DUTY", statement=c["statement"], actor=c["operative"]["actor"], action=c["operative"]["action"])
+    call(tools, "register", identity_key="duty", source_node_ids=c["sourceNodeIds"], claim_type="DUTY", statement=c["statement"], actor=c["operative"]["actor"], action=c["operative"]["action"])
     assert "NO_PROGRESS" not in call(tools, "validate_semantic_claim_inventory")
     second = call(tools, "validate_semantic_claim_inventory")
     assert second["NO_PROGRESS"]
@@ -73,7 +76,7 @@ def test_freeze_forbids_mutation_and_reopen_invalidates_and_remaps(seed):
     author(seed, ctx, tools, remap)
     old = ctx.draft_packet()
     cid = next(iter(ctx.inventory.identities))
-    assert call(tools, "update_semantic_claim", claim_id=cid, claim_type="CONTEXT", statement="changed")["outcome"] == "FAILED"
+    assert call(tools, "update", claim_id=cid, claim_type="CONTEXT", statement="changed")["outcome"] == "FAILED"
     reopened = call(tools, "reopen_semantic_claim_inventory", reason="Additional material claim discovered in source review")
     assert reopened["revision"] == 2
     assert not ctx.draft["legalRequirements"] and not ctx.draft["assessmentRules"]
@@ -90,11 +93,11 @@ def test_canonical_identity_ignores_wording_order_and_call_order():
 
 def test_schema_failure_no_progress_uses_effective_state_not_invalid_literal(seed):
     _, ctx, tools, _ = runtime(seed)
-    call(tools, "register_semantic_claim", identity_key="test", source_node_ids=[], claim_type="DUTY", statement="bad one")
-    result = call(tools, "register_semantic_claim", identity_key="other", source_node_ids=[], claim_type="DUTY", statement="different invalid wording")
+    call(tools, "register", identity_key="test", source_node_ids=[], claim_type="DUTY", statement="bad one")
+    result = call(tools, "register", identity_key="other", source_node_ids=[], claim_type="DUTY", statement="different invalid wording")
     assert result["NO_PROGRESS"]
     with pytest.raises(NoProgressDetected):
-        call(tools, "register_semantic_claim", identity_key="third", source_node_ids=[], claim_type="DUTY", statement="still invalid")
+        call(tools, "register", identity_key="third", source_node_ids=[], claim_type="DUTY", statement="still invalid")
     assert not ctx.inventory.identities
 
 
@@ -121,12 +124,12 @@ def test_four_claims_in_one_review_stay_distinct_and_omissions_have_specific_ids
         if kind == "DUTY":
             args["assessability"] = "EXTERNAL_FULFILLMENT"
             args["semantic_frame"]["externalFulfillmentAspect"] = "Actual compensation payment by the authority"
-        result = call(tools, "register_semantic_claim", **args)
+        result = call(tools, "register", **args)
         ids[kind] = result["claim"]["claimId"]
     for kind in ["EXCEPTION", "TRANSITION_RULE"]:
-        assert call(tools, "link_semantic_claims", from_claim_id=ids[kind], to_claim_id=ids["DUTY"], kind="EXCEPTION_TO" if kind == "EXCEPTION" else "TEMPORALLY_APPLIES_TO")["outcome"] == "PASSED"
-    call(tools, "link_semantic_claims", from_claim_id=ids["CONTEXT"], to_claim_id=ids["DUTY"], kind="CONTEXT_FOR")
-    assert call(tools, "review_source_node", source_node_id=node, claim_ids=list(ids.values()))["outcome"] == "PASSED"
+        assert call(tools, "link", from_claim_id=ids[kind], to_claim_id=ids["DUTY"], kind="EXCEPTION_TO" if kind == "EXCEPTION" else "TEMPORALLY_APPLIES_TO")["outcome"] == "PASSED"
+    call(tools, "link", from_claim_id=ids["CONTEXT"], to_claim_id=ids["DUTY"], kind="CONTEXT_FOR")
+    assert call(tools, "account_source", source_node_id=node, claim_ids=list(ids.values()))["outcome"] == "PASSED"
     assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "PASSED"
     assert len(next(r for r in ctx.inventory.frozen["sourceAccounting"] if r["sourceNodeId"] == node)["claimIds"]) == 4
     author(seed, ctx, tools, remap)
@@ -176,7 +179,7 @@ def test_indexed_review_and_paginated_claim_lookup_at_corpus_scale(seed):
     for node, claims in ctx.inventory.claims_by_node.items():
         # At most 128 claims per review is the bounded tool contract; this test measures lookup, not oversized mutation rejection.
         if len(claims) <= 128:
-            result = call(tools, "review_source_node", source_node_id=node, claim_ids=sorted(claims))
+            result = call(tools, "account_source", source_node_id=node, claim_ids=sorted(claims))
             assert result["outcome"] == "PASSED"
     result = call(tools, "get_claim_inventory", kind="CLAIMS", source_node_id=nodes[0], limit=10)
     assert len(result["items"]) == 10 and result["total"] >= 100
@@ -184,52 +187,35 @@ def test_indexed_review_and_paginated_claim_lookup_at_corpus_scale(seed):
 
 
 def test_native_managed_agent_uses_same_thread_phase_protocol_without_provider(seed, tmp_path, monkeypatch):
-    from types import SimpleNamespace
     from langchain_core.messages import AIMessage
     from middleware import usage_metering
-    from rule_set_preparation.runner import run_rule_set_preparation
-    from functools import partial
-    from rule_set_preparation.tools import RuleSetPreparationContext
-    monkeypatch.setattr("rule_set_preparation.runner.RuleSetPreparationContext",partial(RuleSetPreparationContext,frontier_enabled=False, semantic_auditor=StructuralFixtureAuditor()))
+    from rule_set_preparation.agent import create_rule_set_preparation_agent
     from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
-    # Record a scripted legal author's typed actions, then drive the actual Managed Deep Agent graph.
-    seed, ctx, tools, _ = runtime(seed)
+    seed, recorded_ctx, tools, _ = runtime(seed)
+    remap = discover(seed, recorded_ctx, tools)
+    assert call(tools, 'finalize_semantic_claim_inventory')['outcome'] == 'PASSED'
     actions = []
-    def record(name, args):
-        actions.append(AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": "phase-" + str(len(actions))}]))
     class RecordingTool:
         def __init__(self, name, tool): self.name, self.tool = name, tool
         def invoke(self, args):
-            record(self.name, args)
+            actions.append(AIMessage(content='', tool_calls=[{'name': self.name, 'args': args, 'id': str(len(actions))}]))
             return self.tool.invoke(args)
     recording = {name: RecordingTool(name, tool) for name, tool in tools.items()}
-    remap = discover(seed, ctx, recording)
-    call(recording, "finalize_semantic_claim_inventory")
-    author(seed, ctx, recording, remap)
-    call(recording, "validate_compliance_rule_set")
-    record("submit_compliance_rule_set", {})
-    source = seed["source"]
-    graph = source["documentGraph"]
-    nodes = {n["nodeId"]: n for n in graph["nodes"]}
-    owners = {m["chunkId"]: m["legalDocumentNodeId"] for m in graph["chunkMappings"]}
-    bundle = {"preparationRunId": RUN, "executionState": "RUNNING", "legalSourceVersionId": source["legalSourceVersionId"],
-              "legalSourceVersion": "SYNTHETIC-PROTOCOL-PROBE", "documentGraph": graph,
-              "documents": [{"documentId": source["chunks"][0]["documentId"], "title": "Synthetic protocol probe",
-                             "sourceUrl": "https://example.invalid/protocol-probe", "sourceSha256": "sha256:" + "a" * 64,
-                             "sourceEffectStatus": "IN_FORCE", "chunks": [{**c, "chunkId": c["id"], "content": nodes[owners[c["id"]]]["content"], "hierarchy": {"path": c["locator"].split("::")}} for c in source["chunks"]]}]}
-    api = ScriptedApi(seed)
-    api.claim_rule_set_preparation = lambda run_id: deepcopy(bundle)
-    api.fail_rule_set_preparation = lambda *args: None
-    original = usage_metering.assert_model_identity
-    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda model, response=None: None if isinstance(model, RuleSetPreparationScriptedModel) else original(model, response))
-    monkeypatch.setattr(usage_metering, "logger", SimpleNamespace(info=lambda *a, **kw: None, warning=lambda *a, **kw: None, error=lambda *a, **kw: None, debug=lambda *a, **kw: None))
+    author(seed, recorded_ctx, recording, remap)
+    call(recording, 'validate_compliance_rule_set')
+    actions.append(AIMessage(content='', tool_calls=[{'name': 'submit_compliance_rule_set', 'args': {}, 'id': 'submit'}]))
+    _, ctx, current, api = runtime(seed)
+    discover(seed, ctx, current)
+    assert call(current, 'finalize_semantic_claim_inventory')['outcome'] == 'PASSED'
+    frozen = deepcopy(ctx.inventory.frozen)
     model = RuleSetPreparationScriptedModel(responses=actions)
-    result = run_rule_set_preparation(api, RUN, model=model, work_dir=tmp_path)
-    assert result["state"] == "SUCCEEDED", result
-    assert api.submitted["claimInventory"]["revision"] == 1
-    bound = {name for names in model.bound_tool_names for name in names}
-    assert "register_semantic_claim" in bound and "finalize_semantic_claim_inventory" in bound
-    assert "add_to_packet_draft" not in bound
+    identity = usage_metering.assert_model_identity
+    monkeypatch.setattr(usage_metering, 'assert_model_identity', lambda m, response=None: None if m is model else identity(m, response))
+    agent = create_rule_set_preparation_agent(context=ctx, legal_source_root=tmp_path, model=model)
+    agent.invoke({'messages': [{'role': 'user', 'content': 'Author, validate and submit the committed inventory'}]})
+    assert ctx.submission and api.submitted['claimInventory']['revision'] == 1
+    assert ctx.inventory.frozen == frozen and ctx.inventory.phase == 'COMPLETION'
+    assert 'author_legal_requirement' in {name for names in model.bound_tool_names for name in names}
 
 
 def test_typed_tools_convert_for_provider_and_candidate_removal_preserves_freeze(seed):
@@ -255,21 +241,17 @@ def test_native_graph_terminates_repeated_inventory_validation_after_feedback(se
     from rule_set_preparation.agent import create_rule_set_preparation_agent
     from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
     _, ctx, _, api = runtime(seed)
-    claim = seed["packet"]["semanticGraph"]["claims"][0]
-    messages = [{"name": "register_semantic_claim", "args": {"identity_key": "single-duty", "source_node_ids": claim["sourceNodeIds"],
-                 "claim_type": "DUTY", "statement": claim["statement"], "actor": claim["operative"]["actor"], "action": claim["operative"]["action"]}, "id": "discovery"}]
-    messages += [{"name": "validate_semantic_claim_inventory", "args": {}, "id": "invalid-" + str(i)} for i in range(4 if parallel_batch else 3)]
-    responses = ([AIMessage(content="", tool_calls=[messages[0]]), AIMessage(content="", tool_calls=messages[1:4]),
-                  AIMessage(content="", tool_calls=[messages[4]])] if parallel_batch else
-                 [AIMessage(content="", tool_calls=[call]) for call in messages])
+    calls = [{'name': 'finalize_semantic_claim_inventory', 'args': {}, 'id': f'invalid-{i}'} for i in range(4 if parallel_batch else 3)]
+    responses = ([AIMessage(content='', tool_calls=calls[:3]), AIMessage(content='', tool_calls=calls[3:])] if parallel_batch else
+        [AIMessage(content='', tool_calls=[c]) for c in calls])
     model = RuleSetPreparationScriptedModel(responses=responses)
-    original = usage_metering.assert_model_identity
-    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda m, response=None: None if isinstance(m, RuleSetPreparationScriptedModel) else original(m, response))
+    identity = usage_metering.assert_model_identity
+    monkeypatch.setattr(usage_metering, 'assert_model_identity', lambda m, response=None: None if m is model else identity(m, response))
     agent = create_rule_set_preparation_agent(context=ctx, legal_source_root=tmp_path, model=model)
     with pytest.raises(NoProgressDetected):
-        agent.invoke({"messages": [{"role": "user", "content": "Discover then finalize the source claim inventory"}]})
-    assert ctx.inventory.inventory_validation_calls == (4 if parallel_batch else 3) and api.submitted is None
-    assert ctx.trace[-1]["phase"] == "CLAIM_INVENTORY_VALIDATION"
+        agent.invoke({'messages': [{'role': 'user', 'content': 'Finalize without the required coverage'}]})
+    assert ctx.inventory.inventory_validation_calls == 3 and api.submitted is None
+    assert ctx.trace[-1]['phase'] == 'CLAIM_INVENTORY_VALIDATION'
 
 
 def test_empty_inventory_is_actionable_feedback_without_callback_exception(seed):
@@ -322,7 +304,7 @@ def test_parallel_claim_update_cannot_cross_inventory_freeze(seed):
     with ThreadPoolExecutor(max_workers=2) as pool:
         freeze = pool.submit(call, tools, "finalize_semantic_claim_inventory")
         assert entered.wait(5)
-        update = pool.submit(call, tools, "update_semantic_claim", claim_id=claim["claimId"], claim_type="CONTEXT", statement="Late mutation")
+        update = pool.submit(call, tools, "update", claim_id=claim["claimId"], claim_type="CONTEXT", statement="Late mutation")
         assert not update.done()
         release.set()
         assert freeze.result()["outcome"] == "PASSED"

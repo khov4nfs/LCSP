@@ -137,9 +137,10 @@ export class ComplianceRuleSetActivation {
         executionState: PrismaAgentExecutionState;
         claimInventoryRevision: number;
         claimPhase: ClaimPreparationPhase;
+        executionContract: import("@prisma/client").PreparationExecutionContract;
       }>
     >(
-      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
     );
     if (!preparation) {
       throw problemException(
@@ -179,6 +180,7 @@ export class ComplianceRuleSetActivation {
     if (
       ctx.failures.length === 0 &&
       (inventoryGaps.length ||
+        !(await matchesPersistedDirectDraft(tx, { id: ctx.runId, ...preparation }, ctx.packet)) ||
         preparation.claimPhase !== ClaimPreparationPhase.SUBMISSION_READY)
     )
       throw problemException(
@@ -370,6 +372,7 @@ export class ComplianceRuleSetActivation {
         id: ruleRowId.get(rule.legalRequirementId)!,
         ruleSetVersionId,
         legalRequirementId: rule.legalRequirementId,
+        applicabilityMode: rule.applicabilityMode,
         title: rule.title,
         proposition: rule.proposition,
         operativePropositions: rule.operativePropositions,
@@ -495,3 +498,4 @@ export class ComplianceRuleSetActivation {
     }
   }
 }
+import { matchesPersistedDirectDraft } from "./preparation-inventory.persistence.js";

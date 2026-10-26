@@ -1,6 +1,7 @@
+
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - isolated packet-layer fixture
 """Native, provider-free regressions for the preparation terminal contract."""
 
-from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
 
 import json
 from copy import deepcopy
@@ -50,7 +51,7 @@ def test_premature_normal_stop_continues_same_preparation(tmp_path: Path, monkey
     packet = _packet()
     model = _model([
         _call("read_file", {"file_path": INDEX_PATH}, "index"),
-        _call("read_file", {"file_path": f"/legal-source/{DOC}/art-1__cl-1.md"}, "provision"),
+        _call("read_file", {"file_path": f"/legal-source/{DOC}/dieu-1.md"}, "provision"),
         *[AIMessage(content='[[tool_calls]] [{"name":"validate_compliance_rule_set"}]',
                     response_metadata={"finish_reason": "stop"}) for _ in range(normal_stops)],
         _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
@@ -113,7 +114,7 @@ def test_preparation_stream_trace_emits_redacted_meaningful_native_tool_activity
         "",
         run_id="task-1",
         inputs={
-            "subagent_type": "legal-source-reader",
+            "subagent_type": "claim-author",
             "description": "Analyze /legal-source/LAW-71-2025-QH15 only",
         },
     )
@@ -142,10 +143,10 @@ def test_preparation_stream_trace_emits_redacted_meaningful_native_tool_activity
     }
     assert emitted[2][1]["data"] == {
         "native_tool": "task",
-        "subagent_type": "legal-source-reader",
+        "subagent_type": "claim-author",
         "source_path": "/legal-source/LAW-71-2025-QH15",
     }
-    assert emitted[3][1]["subagent_name"] == "legal-source-reader"
+    assert emitted[3][1]["subagent_name"] == "claim-author"
     assert emitted[3][1]["data"]["source_path"] == "/legal-source/LAW-71-2025-QH15/article-1.md"
     assert "private" not in repr(emitted)
 
@@ -206,7 +207,7 @@ def test_legal_source_root_and_descendants_are_readable_only(tmp_path: Path) -> 
         _call("grep", {"pattern": "Records", "path": path, "output_mode": "content"}, "grep-nested"),
         _call("glob", {"pattern": "**/*.md", "path": "/legal-source"}, "glob"),
         _call("read_file", {"file_path": INDEX_PATH}, "index"),
-        _call("read_file", {"file_path": f"{path}/art-1__cl-1.md"}, "chunk"),
+        _call("read_file", {"file_path": f"{path}/dieu-1.md"}, "chunk"),
         _call("grep", {"pattern": "OUTSIDE", "path": "/", "output_mode": "content"}, "outside-grep"),
         _call("read_file", {"file_path": "/outside.txt"}, "outside-read"),
         _call("write_file", {"file_path": "/legal-source/mutated.md", "content": "MUTATED"}, "write"),
@@ -221,7 +222,7 @@ def test_legal_source_root_and_descendants_are_readable_only(tmp_path: Path) -> 
         assert "permission denied" not in messages[call_id].content
     for call_id in ["grep-root", "grep-nested", "chunk"]:
         assert "Records must be retained" in messages[call_id].content
-    assert "INDEX.md" in messages["ls"].content and "art-1__cl-1.md" in messages["glob"].content
+    assert "INDEX.md" in messages["ls"].content and "dieu-1.md" in messages["glob"].content
     for call_id in ["outside-grep", "outside-read"]:
         assert "OUTSIDE-PRIVATE" not in messages[call_id].content
         assert "permission denied" in messages[call_id].content

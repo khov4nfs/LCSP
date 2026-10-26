@@ -1,3 +1,4 @@
+import { ResumeRuleSetPreparationHandler } from "./application/commands/resume-rule-set-preparation/resume-rule-set-preparation.handler.js";
 import {
   SourceReviewHandler,
   StartClaimDiscoveryDiagnosticHandler,
@@ -51,6 +52,7 @@ import { ReactivateComplianceRuleSetHandler } from "./application/commands/react
     StartRuleSetPreparationHandler,
     PrepareCurrentRuleSetHandler,
     RetryRuleSetPreparationHandler,
+    ResumeRuleSetPreparationHandler,
     LegalSourceActivatedConsumer,
     ClaimRuleSetPreparationHandler,
     FailRuleSetPreparationHandler,

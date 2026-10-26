@@ -55,10 +55,10 @@ describe("Deterministic body review units", () => {
         .referenceAccounting,
     ).toEqual([]);
   });
-  it("reproduces the real17-node fixture and removes five heading-only container dispositions", () => {
+  it("retains Article titles as claim owners while excluding other empty structural containers", () => {
     expect(graph.nodes).toHaveLength(17);
     const units = sourceReviewUnits(graph);
-    expect(units).toHaveLength(11);
+    expect(units).toHaveLength(14);
     expect(units.some((n) => n.structuralPath.endsWith("/article/1"))).toBe(
       true,
     );
@@ -66,7 +66,7 @@ describe("Deterministic body review units", () => {
       units.some((n) => n.structuralPath.endsWith("/article/6/paragraph/2")),
     ).toBe(true);
     expect(units.some((n) => n.structuralPath.endsWith("/article/6"))).toBe(
-      false,
+      true,
     );
     expect([...reviewReferenceOwners(graph).values()].every(Boolean)).toBe(
       true,
@@ -85,7 +85,7 @@ describe("Deterministic body review units", () => {
           : n,
       ),
     });
-    expect(units).toHaveLength(12);
+    expect(units).toHaveLength(14);
     const leaf = graph.nodes.find((n) =>
       n.structuralPath.endsWith("/article/1"),
     )!;

@@ -11,10 +11,7 @@ import {
   LEGAL_REQUIREMENT_COVERAGE_STATES as COVERAGE,
 } from "@lcsp/contracts/compliance-rule-set";
 import { LEGAL_REFERENCE_RESOLUTION_STATES as R } from "@lcsp/contracts/legal-source";
-import {
-  supportStructuralFixture,
-  refreshStructuralAudits,
-} from "../../../../test/support/structural-semantic-fixture.js";
+import { supportStructuralFixture } from "../../../../test/support/structural-semantic-fixture.js";
 import { validateSemanticClaimGraph } from "./semantic-claim-integrity.validator.js";
 import {
   authorFixtureClaims,
@@ -36,6 +33,26 @@ const validate = (
 ) => validateComplianceRuleSetPacket(packet, source, () => false);
 
 describe("Completion Gate V2: Agent-authored claims, exact accounting and downstream authority", () => {
+  it("rejects duplicate operative owners under different Requirement IDs without rejecting shared modifiers", () => {
+    const packet = validPacket();
+    expect(validate(packet).failures).toEqual([]);
+    const duplicate = {
+      ...structuredClone(packet.legalRequirements[0]),
+      legalRequirementId: "duplicate-owner",
+    };
+    packet.legalRequirements.push(duplicate);
+    const failures = validate(packet).failures.filter(
+      (f) => f.code === F.CLAIM_REQUIREMENT_MISMATCH,
+    );
+    expect(failures).toContainEqual(
+      expect.objectContaining({
+        ref: "legalRequirement:duplicate-owner",
+        detail: expect.stringContaining(
+          `already belongs to Requirement ${packet.legalRequirements[0].legalRequirementId}`,
+        ),
+      }),
+    );
+  });
   it("accepts canonical claim provenance without legacy chunk citations and still rejects unknown effect", () => {
     const source = fixtureLegalSource(),
       packet = validPacket();
@@ -157,7 +174,7 @@ describe("Completion Gate V2: Agent-authored claims, exact accounting and downst
       })),
     });
     packet.assessmentRules = rendered.assessmentRules;
-    // The V3 gate requires explicit typed closure edges and fresh audit receipts.
+    // The V3 gate requires explicit typed closure edges and source support.
     // This is only a synthetic structural role-matrix test, not source entailment.
     supportStructuralFixture(packet, fixtureLegalSource().documentGraph!);
     expect(validate(packet).failures).toEqual([]);
@@ -387,8 +404,6 @@ describe("Completion Gate V2: Agent-authored claims, exact accounting and downst
       relationIds: [relation.relationId],
       nonMaterialReason: null,
     });
-    // The synthetic source reference changed the audit evidence neighborhood.
-    refreshStructuralAudits(good.semanticGraph!, source.documentGraph!, 1);
     expect(validate(good, source).failures).toEqual([]);
     const bad = structuredClone(good),
       reversed = bad.semanticGraph!.relations.find(

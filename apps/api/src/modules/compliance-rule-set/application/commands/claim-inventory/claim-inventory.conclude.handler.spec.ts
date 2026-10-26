@@ -22,8 +22,6 @@ import {
   validPacket,
 } from "../../../../../../test/support/compliance-rule-set-fixtures.js";
 import { canonicalInventoryFixture } from "../../../../../../test/support/canonical-claim-inventory-fixture.js";
-import { refreshStructuralAudits } from "../../../../../../test/support/structural-semantic-fixture.js";
-import { signSemanticAuditFixture } from "../../../domain/semantic-audit-attestation.js";
 import {
   inventoryFingerprint,
   inventoryHash,
@@ -38,15 +36,10 @@ import { ClaimInventoryCommand } from "./claim-inventory.command.js";
 const RUN = "00000000-0000-4000-8000-000000000009";
 const FRONTIER = "f".repeat(64);
 
-/** A completed, independently audited review whose inventory states no duty (one definition may remain). */
-function persisted({ duty = false, unreviewed = false, audit = "ok" } = {}) {
+/** A completed, completed review whose inventory states no duty (one definition may remain). */
+function persisted({ duty = false, unreviewed = false } = {}) {
   const source = fixtureLegalSource();
-  const base = canonicalInventoryFixture(
-    validPacket(),
-    RUN,
-    1,
-    source.documentGraph!,
-  );
+  const base = canonicalInventoryFixture(validPacket(), RUN, 1);
   const graph = base.graph;
   const keep = new Set(
     graph.claims
@@ -72,23 +65,6 @@ function persisted({ duty = false, unreviewed = false, audit = "ok" } = {}) {
   const identities = Object.fromEntries(
     Object.entries(base.identities).filter(([id]) => keep.has(id)),
   );
-  refreshStructuralAudits(graph, source.documentGraph!, 1);
-  graph.semanticAudits = graph.semanticAudits!.map((receipt) =>
-    signSemanticAuditFixture(receipt, RUN),
-  );
-  if (audit === "missing") graph.semanticAudits.pop();
-  if (audit === "failed") {
-    graph.semanticAudits[0] = signSemanticAuditFixture(
-      {
-        ...graph.semanticAudits[0],
-        verdict: "MISSING_ASSERTION",
-        gaps: [
-          { code: "MISSING_ASSERTION", detail: "A stated duty is absent" },
-        ],
-      },
-      RUN,
-    );
-  }
   const claimOwner = new Map<string, string>();
   for (const row of graph.sourceAccounting)
     for (const id of row.claimIds) claimOwner.set(id, row.sourceNodeId);
@@ -136,10 +112,6 @@ function persisted({ duty = false, unreviewed = false, audit = "ok" } = {}) {
     graph: candidate,
     identities,
     items,
-    audits: (graph.semanticAudits ?? []).map((receipt) => ({
-      sourceNodeId: receipt.sourceNodeId,
-      receipt,
-    })),
   };
 }
 
@@ -183,9 +155,6 @@ function harness(
     ruleSetPreparationSourceReview: {
       findMany: () => Promise.resolve(state.items),
     },
-    ruleSetPreparationSemanticAudit: {
-      findMany: () => Promise.resolve(state.audits),
-    },
   };
   const handler = new ClaimInventoryHandler(
     {
@@ -216,7 +185,7 @@ function harness(
 }
 
 describe("CONCLUDE_NO_OPERATIVE_OBLIGATIONS (INV-C2)", () => {
-  it("records the audited inventory and ends the Preparation FAILED with the explicit reason, creating no Rule Set", async () => {
+  it("records the committed inventory and ends the Preparation FAILED with the explicit reason, creating no Rule Set", async () => {
     const state = persisted();
     const { execute, calls } = harness(state);
     const result = await execute(A.CONCLUDE_NO_OPERATIVE_OBLIGATIONS);
@@ -276,16 +245,6 @@ describe("CONCLUDE_NO_OPERATIVE_OBLIGATIONS (INV-C2)", () => {
 
   it.each([
     ["an unreviewed unit", persisted({ unreviewed: true }), G.INVALID],
-    [
-      "a missing independent audit",
-      persisted({ audit: "missing" }),
-      F.SEMANTIC_AUDIT_REQUIRED,
-    ],
-    [
-      "a failed independent audit",
-      persisted({ audit: "failed" }),
-      F.SEMANTIC_AUDIT_REQUIRED,
-    ],
     ["a stated duty", persisted({ duty: true }), F.claimPhaseInvalid],
   ])(
     "is rejected with its existing code and writes nothing for %s",

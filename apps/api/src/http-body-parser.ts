@@ -1,6 +1,13 @@
 import { json, raw } from "express";
 import type { RequestHandler } from "express";
 
+const LARGE_COMPLIANCE_RULE_SET_ENDPOINTS = new Set([
+  "/internal/compliance-rule-set/source-reviews",
+  "/internal/compliance-rule-set/claim-inventories",
+  "/internal/compliance-rule-set/validations",
+  "/internal/compliance-rule-set/submissions",
+]);
+
 /** Installs the raw SePay boundary before any JSON parser can consume its bytes. */
 export function httpBodyParser(): RequestHandler {
   return (req, res, next) => {
@@ -30,6 +37,11 @@ export function httpBodyParser(): RequestHandler {
         /^\/internal\/legal-sources\/documents\/[^/]+\/ingestion-result$/,
       )
     ) {
+      (json({ limit: "50mb" }) as RequestHandler)(req, res, next);
+      return;
+    }
+    if (LARGE_COMPLIANCE_RULE_SET_ENDPOINTS.has(req.path)) {
+      // Direct draft payloads (source reviews, validations, submissions, inventories) grow with full corpus.
       (json({ limit: "50mb" }) as RequestHandler)(req, res, next);
       return;
     }

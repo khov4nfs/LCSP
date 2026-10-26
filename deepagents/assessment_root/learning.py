@@ -110,5 +110,5 @@ def retrieve_shared_heuristics(query: Annotated[str, Field(min_length=2, max_len
     """
     store = get_store()
     if store is None:
-        raise RuntimeError("native learning Store is unavailable")
+        return {"authority": HEURISTIC_AUTHORITY, "heuristics": [], "warning": "native learning Store is unavailable"}
     return {"authority": HEURISTIC_AUTHORITY, "heuristics": retrieve_heuristics(store, query)}

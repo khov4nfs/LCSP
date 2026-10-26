@@ -7,12 +7,18 @@ import {
   LEGAL_SOURCE_CHUNK_STATUSES as EFFECT,
   legalSourceExtractionGapSchema,
   type LegalSourceChunkStatus,
+  type LegalSourceDocumentCorpusRole,
+  LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES,
   type LegalDocumentGraph,
   type LegalDocumentNode,
   type LegalDocumentNodeType,
   type LegalDocumentReference,
 } from "@lcsp/contracts/legal-source";
-import { LEGAL_STRUCTURE_HEADINGS } from "./document-structure.config.js";
+import {
+  LEGAL_STRUCTURE_HEADINGS,
+  LEGAL_STRUCTURE_REFERENCE,
+  structuralWordType,
+} from "./document-structure.config.js";
 
 export interface StructuralSourceChunk {
   id: string;
@@ -29,6 +35,7 @@ export interface StructuralSourceDocument {
   documentId: string;
   title: string;
   sourceSha256: string;
+  corpusRole?: LegalSourceDocumentCorpusRole;
   snapshotPath: string | null;
   extraction: unknown;
   provenance?: unknown;
@@ -360,6 +367,66 @@ function adaptLegacy(document: StructuralSourceDocument) {
   return { nodes: draft.nodes, ownerByChunk };
 }
 
+/** Printed instrument numbers are identity, never evidence of legal effect. */
+export function legalDocumentIdentifiers(value: string): string[] {
+  return [
+    ...value.matchAll(
+      /(?<![\p{L}\p{N}])\d+\s*\/\s*(?:\d{4}\s*\/\s*)?[\p{L}][\p{L}\d]*(?:[-–][\p{L}\d]+)*/gu,
+    ),
+  ].map((m) => m[0].replace(/\s/gu, "").toLocaleUpperCase("vi"));
+}
+
+/** A locator is a structural address; an ambiguous address returns all candidates. */
+export function legalLocatorSuffix(locator: string): string | null {
+  const aliases: Record<string, string> = {
+    art: "article",
+    article: "article",
+    điều: "article",
+    cl: "clause",
+    clause: "clause",
+    khoản: "clause",
+    paragraph: "clause",
+    pt: "point",
+    point: "point",
+    điểm: "point",
+    chap: "chapter",
+    chapter: "chapter",
+    chương: "chapter",
+    sec: "section",
+    section: "section",
+    mục: "section",
+    annex: "annex",
+    "phụ lục": "annex",
+    part: "part",
+    phần: "part",
+    table: "table",
+    bảng: "table",
+  };
+  const parts = locator
+    .toLocaleLowerCase("vi")
+    .replace(/^\/+|\/+$/gu, "")
+    .split("::");
+  if (
+    parts.length > 1 ||
+    /^(art|cl|pt|chap|sec|annex|part|table|article|điều|clause|khoản|point|điểm|chapter|chương|section|mục)[-\s]/u.test(
+      parts[0],
+    )
+  ) {
+    const segments = parts.map((p) =>
+      /^(art|cl|pt|chap|sec|annex|part|table|article|điều|clause|khoản|point|điểm|chapter|chương|section|mục)[-\s]([\p{L}\d.-]+)$/u.exec(
+        p.trim(),
+      ),
+    );
+    if (segments.some((s) => !s)) return null;
+    return segments.map((s) => `/${aliases[s![1]] ?? s![1]}/${s![2]}`).join("");
+  }
+  return /^(?:(?:document|part|title|chapter|subchapter|section|subsection|article|clause|paragraph|point|item|annex|schedule|table|unstructured_block)\/[\p{L}\d._-]+)(?:\/(?:[a-z_]+)\/[\p{L}\d._-]+)*$/u.test(
+    parts[0],
+  )
+    ? "/" + parts[0]
+    : null;
+}
+
 function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
   const byId = new Map(nodes.map((n) => [n.nodeId, n]));
   const lookup = new Map<string, LegalDocumentNode[]>();
@@ -368,10 +435,122 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
     lookup.set(k, [...(lookup.get(k) ?? []), n]);
   }
   const result: LegalDocumentReference[] = [];
+  const documents = nodes.filter((n) => n.nodeType === N.DOCUMENT);
+  const identifiers = new Map(
+    documents.map((n) => [n.documentId, legalDocumentIdentifiers(n.title)]),
+  );
+  const documentScope = (
+    node: LegalDocumentNode,
+    start: number,
+    end: number,
+  ) => {
+    const suffix = node.content.slice(end).split(/[;\n]/u, 1)[0];
+    const prefix = node.content.slice(0, start).split(/[;\n]/u).at(-1) ?? "";
+    // A shared trailing instrument applies to a syntactic list of provision locators.
+    // `of the <Name>` / `of another <Name>` names some other instrument even when its name does not start with a keyword.
+    const named =
+      /(?:của\s+|of\s+(?:the\s+)?)(?:luật|bộ luật|nghị định|thông tư|quyết định|law|act|decree|regulation)\s+[^.;\n]+|\bof\s+(?:the|another)\s+[^.;\n]+/iu.exec(
+        suffix,
+      );
+    const direct =
+      /^\s+(?:luật|bộ luật|nghị định|thông tư|quyết định|law|act|decree|regulation)\s+[^.;\n]+/iu.exec(
+        suffix,
+      );
+    const expression = named?.[0] ?? direct?.[0];
+    if (
+      expression &&
+      /(?:luật|bộ luật|nghị định|thông tư|quyết định)\s+này(?!\p{L})/iu.test(
+        expression,
+      )
+    )
+      return [node.documentId];
+    const explicit = legalDocumentIdentifiers(expression ?? "");
+    if (!explicit.length && !expression)
+      explicit.push(...legalDocumentIdentifiers(prefix));
+    if (explicit.length)
+      return documents
+        .filter((d) =>
+          identifiers.get(d.documentId)!.some((id) => explicit.includes(id)),
+        )
+        .map((d) => d.documentId);
+    if (expression) {
+      const name = normalized(
+        expression.replace(/^(?:của\s+|of\s+(?:(?:the|another)\s+)?)/iu, ""),
+      ).toLocaleLowerCase("vi");
+      const matches = documents.filter((d) =>
+        normalized(d.title).toLocaleLowerCase("vi").endsWith(name),
+      );
+      return matches.map((d) => d.documentId);
+    }
+    // Nested lists inherit an explicitly named instrument from their structural lead-in, not the current document.
+    let owner: LegalDocumentNode | undefined = node;
+    while (owner && owner.nodeType !== N.DOCUMENT) {
+      const leadIn = owner.content.split("\n", 1)[0].trim();
+      const headingIds = legalDocumentIdentifiers(
+        owner.title || (leadIn.endsWith(":") ? leadIn : ""),
+      );
+      if (headingIds.length)
+        return documents
+          .filter((d) =>
+            identifiers
+              .get(d.documentId)!
+              .some((id) => headingIds.includes(id)),
+          )
+          .map((d) => d.documentId);
+      owner = owner.parentNodeId ? byId.get(owner.parentNodeId) : undefined;
+    }
+    return [node.documentId];
+  };
+  const add = (
+    node: LegalDocumentNode,
+    index: number,
+    text: string,
+    candidates: LegalDocumentNode[],
+  ) => {
+    const ids = [...new Set(candidates.map((n) => n.nodeId))].sort();
+    if (
+      index === 0 &&
+      LEGAL_STRUCTURE_HEADINGS.some(
+        (h) =>
+          h.type === node.nodeType &&
+          h.pattern.exec(node.content.split("\n")[0])?.[1] === node.label,
+      )
+    )
+      return;
+    result.push({
+      referenceId: structuralHash([node.nodeId, index, text]),
+      fromNodeId: node.nodeId,
+      toNodeId: ids.length === 1 ? ids[0] : null,
+      text,
+      charStart: index,
+      charEnd: index + text.length,
+      resolutionState:
+        ids.length === 1 ? R.RESOLVED : ids.length ? R.AMBIGUOUS : R.UNRESOLVED,
+      candidateNodeIds: ids,
+    });
+  };
   // A reference is syntactic. Words such as "subject to" never become semantic edge types.
   const pattern =
     /(?<![\p{L}\p{N}_])(?:(?:(?:point|điểm)\s+\(?([\p{L}])\)?\s+(?:(?:paragraph|khoản)\s+(\d+)\s+)?)?(?:(?:paragraph|khoản)\s+(\d+)\s+)?(?:article|điều|section)\s+(\d+[a-z]?)(?:\((\d+)\))?(?:\(([a-z])\))?|(?:paragraph|khoản)\s+(\d+)|(?:point|điểm)\s+\(?([\p{L}])\)?)(?![\p{L}\p{N}_])/giu;
   for (const node of nodes) {
+    for (const match of node.content.matchAll(LEGAL_STRUCTURE_REFERENCE)) {
+      const groups = match.slice(1).filter((v) => v !== undefined);
+      const type = structuralWordType(groups[0]);
+      if (!type) continue;
+      const scope = documentScope(
+        node,
+        match.index,
+        match.index + match[0].length,
+      );
+      add(
+        node,
+        match.index,
+        match[0],
+        scope.flatMap(
+          (id) => lookup.get(`${id}|${key(type, groups[1])}`) ?? [],
+        ),
+      );
+    }
     for (const m of node.content.matchAll(pattern)) {
       // The heading labels identify nodes; they are not self-references.
       if (
@@ -393,12 +572,15 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
       const article = m[4];
       const paragraph = m[2] ?? m[3] ?? m[5] ?? m[7];
       const point = m[1] ?? m[6] ?? m[8];
+      const scope = documentScope(node, m.index, m.index + m[0].length);
       if (article)
         candidates = [
-          ...(lookup.get(`${node.documentId}|${key(N.ARTICLE, article)}`) ??
-            []),
-          ...(lookup.get(`${node.documentId}|${key(N.SECTION, article)}`) ??
-            []),
+          ...scope.flatMap(
+            (id) => lookup.get(`${id}|${key(N.ARTICLE, article)}`) ?? [],
+          ),
+          ...scope.flatMap(
+            (id) => lookup.get(`${id}|${key(N.SECTION, article)}`) ?? [],
+          ),
         ];
       else candidates = ancestor ? [ancestor] : [];
       if (!article && !paragraph && point) {
@@ -415,9 +597,10 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
       if (paragraph) {
         const paths = candidates.map((n) => n.structuralPath + "/");
         candidates = [N.CLAUSE, N.PARAGRAPH]
-          .flatMap(
-            (type) =>
-              lookup.get(`${node.documentId}|${key(type, paragraph)}`) ?? [],
+          .flatMap((type) =>
+            scope.flatMap(
+              (id) => lookup.get(`${id}|${key(type, paragraph)}`) ?? [],
+            ),
           )
           .filter((n) =>
             paths.some((path) => n.structuralPath.startsWith(path)),
@@ -425,48 +608,18 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
       }
       if (point) {
         const paths = candidates.map((n) => n.structuralPath + "/");
-        candidates = (
-          lookup.get(`${node.documentId}|${key(N.POINT, point)}`) ?? []
-        ).filter((n) =>
-          paths.some((path) => n.structuralPath.startsWith(path)),
-        );
+        candidates = scope
+          .flatMap((id) => lookup.get(`${id}|${key(N.POINT, point)}`) ?? [])
+          .filter((n) =>
+            paths.some((path) => n.structuralPath.startsWith(path)),
+          );
       }
-      // A named other instrument cannot be deterministically resolved as this document.
-      const suffix = node.content.slice(m.index + m[0].length);
-      if (
-        /^\s+(?:of|của)\s+(?:the\s+|another\s+|luật\s+|bộ luật\s+)/iu.test(
-          suffix,
-        ) &&
-        !/^\s+của\s+(?:luật|bộ luật)\s+này\b/iu.test(suffix)
-      )
-        candidates = [];
-      const ids = candidates.map((n) => n.nodeId).sort();
-      if (
-        m.index === 0 &&
-        ids.length === 1 &&
-        ids[0] === node.nodeId &&
-        LEGAL_STRUCTURE_HEADINGS.some(
-          (h) =>
-            h.type === node.nodeType &&
-            h.pattern.test(node.content.split("\n")[0]),
-        )
-      )
-        continue;
-      result.push({
-        referenceId: structuralHash([node.nodeId, m.index, m[0]]),
-        fromNodeId: node.nodeId,
-        toNodeId: ids.length === 1 ? ids[0] : null,
-        text: m[0],
-        charStart: m.index,
-        charEnd: m.index + m[0].length,
-        resolutionState:
-          ids.length === 1
-            ? R.RESOLVED
-            : ids.length
-              ? R.AMBIGUOUS
-              : R.UNRESOLVED,
-        candidateNodeIds: ids,
-      });
+      add(
+        node,
+        m.index,
+        m[0],
+        candidates.filter((n) => scope.includes(n.documentId)),
+      );
     }
   }
   return result;
@@ -655,7 +808,14 @@ export function buildLegalDocumentGraph(
     }
   }
   const extractionGaps = extractionGapsOf(documents);
+  const referenceOnlyDocumentIds = documents
+    .filter(
+      (d) => d.corpusRole === LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.REFERENCE_ONLY,
+    )
+    .map((d) => d.documentId)
+    .sort();
   const sourceDigest = structuralHash([
+    ...(referenceOnlyDocumentIds.length ? [referenceOnlyDocumentIds] : []),
     extractionGaps,
     documents
       .map(
@@ -691,6 +851,7 @@ export function buildLegalDocumentGraph(
     sourceDigest,
     inputModes: [...inputModes].sort(),
     extractionGaps,
+    ...(referenceOnlyDocumentIds.length ? { referenceOnlyDocumentIds } : {}),
     nodes,
     references: references(nodes),
     chunkMappings,

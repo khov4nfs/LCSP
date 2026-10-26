@@ -6,13 +6,18 @@ if (process.argv[2] === "--self-check") {
   const canary = ".canonical-terminology-self-check.txt";
   assert.equal(existsSync(canary), false, "self-check must not overwrite existing work");
   try {
-    writeFileSync(canary, "LegalCorpus LegalPortfolio EngineeringRule LegalPreparation\n");
+    writeFileSync(canary, "LegalCorpus LegalPortfolio EngineeringRule LegalPreparation\nCorpusApprovalRecord legalCorpusVersionId CORPUS_UNAVAILABLE\nadmin/corpus-versions event.legal-corpus.activated.v1 .corpus\nLegalSourceDocumentCorpusRole corpusRole LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES structured legal corpus ...corpus\n");
     const result = spawnSync(process.execPath, [process.argv[1]], { encoding: "utf8" });
     const report = JSON.parse(result.stdout);
     assert.notEqual(result.status, 0);
     assert.equal(report.defects.find((hit) => hit.file === canary)?.classification, "DEFECT");
     assert.deepEqual(report.defects.find((hit) => hit.file === canary)?.matches,
       ["LegalCorpus", "LegalPortfolio", "EngineeringRule", "LegalPreparation"]);
+    assert.deepEqual(report.defects.find((hit) => hit.file === canary && hit.line === 2)?.matches,
+      ["CorpusApprovalRecord", "legalCorpusVersion", "CORPUS_UNAVAILABLE"]);
+    assert.deepEqual(report.defects.find((hit) => hit.file === canary && hit.line === 3)?.matches,
+      ["corpus-versions", "legal-corpus", ".corpus"]);
+    assert.equal(report.defects.some((hit) => hit.file === canary && hit.line === 4), false);
   } finally {
     unlinkSync(canary);
   }
@@ -20,8 +25,8 @@ if (process.argv[2] === "--self-check") {
   process.exit(0);
 }
 
-// Retirement checks and upgrade fixtures must retain the exact names they reject or upgrade.
-const retired = /LegalCorpus|LegalPortfolio|LegalPreparation|EngineeringRule|legal-corpus|legal-portfolio|legal-preparation|engineeringRule|portfolioVersion|legalPortfolioVersion|portfolioRule|portfolioDigest|LegalRule|legalRule|LEGAL_RULE|legal_rule|legal-rule|\bcorpus\b|Corpus|CORPUS|\bportfolio\b|Portfolio|PORTFOLIO|engineering[_ -]rule|ENGINEERING_RULE|LEGAL_PREPARATION|legal_preparation/g;
+// A source collection and its document roles are current vocabulary; retired aggregate identities and routes are not.
+const retired = /LegalCorpus|CorpusApprovalRecord|legalCorpusVersion|CORPUS_UNAVAILABLE|LEGAL_CORPUS_VERSION|corpus-versions|\/corpus\/|(?<!\.)\.corpus\b|LegalPortfolio|LegalPreparation|EngineeringRule|legal-corpus|legal-portfolio|legal-preparation|engineeringRule|portfolioVersion|legalPortfolioVersion|portfolioRule|portfolioDigest|LegalRule|legalRule|LEGAL_RULE|legal_rule|legal-rule|\bportfolio\b|Portfolio|PORTFOLIO|engineering[_ -]rule|ENGINEERING_RULE|LEGAL_PREPARATION|legal_preparation/g;
 const fixtures = new Set([
   "tests/canonical-physical-terminology-migration.py",
   "tests/compliance-rule-set-terminology-migration.py",

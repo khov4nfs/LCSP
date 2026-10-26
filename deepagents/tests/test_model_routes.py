@@ -315,6 +315,14 @@ def test_workflow_roles_resolve_mirai_inception_gemini_apx_with_native_options(m
         if role == "response-transform":  # rewrites a finished answer's language on the light Gemini route
             assert (primary.provider, primary.model, mp.fallback_routes(primary.route_id)) == ("google_genai", "gemini-3.5-flash-lite", ())
             continue
+        if role in {"claim-author", "rule-set-preparation"}:
+            assert (primary.provider, primary.protocol) == ("inception", "openai")
+            assert primary.options["reasoning_effort"] == "high"
+            assert primary.options["context_window_tokens"] == 1000000
+            fallback, = mp.fallback_routes(primary.route_id)
+            assert fallback.provider == "google_genai"
+            assert fallback.options["thinking_config"] == {"thinking_level": "HIGH"}
+            continue
         chain = (primary, *mp.fallback_routes(primary.route_id))
         assert [(r.provider, r.protocol, r.model) for r in chain] == [
             ("miraiapi", "anthropic", "claude-sonnet-5"),
@@ -325,8 +333,4 @@ def test_workflow_roles_resolve_mirai_inception_gemini_apx_with_native_options(m
         assert all(r.options["streaming"] for r in chain)
         assert "thinking" not in primary.options and "effort" not in primary.options
         assert [r.options["max_output_tokens"] for r in chain[1:]] == [32768, 65536, 64000]
-        if role == "legal-semantic-auditor":
-            assert chain[-1].options["thinking"] == {"type": "adaptive"}
-            assert chain[-1].options["effort"] == "high"
-        else:
-            assert "thinking" not in chain[-1].options
+        assert "thinking" not in chain[-1].options

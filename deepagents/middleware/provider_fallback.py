@@ -9,6 +9,10 @@ import asyncio
 import time
 
 from langchain.agents.middleware import AgentMiddleware
+from anthropic import APIError as AnthropicAPIError
+from openai import APIError as OpenAIAPIError
+from langchain_google_genai.chat_models import GoogleAPIError
+import httpx
 
 from middleware.failure_policy import (
     TerminalCredentialError,
@@ -104,6 +108,25 @@ def _require_credentials(chain: tuple[ResolvedModelConfig, ...]) -> None:
             )
 
 
+_PROVIDER_API_ERRORS = (
+    OpenAIAPIError,
+    AnthropicAPIError,
+    GoogleAPIError,
+    httpx.HTTPError,
+)
+
+
+def _is_provider_api_error(error: BaseException) -> bool:
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, _PROVIDER_API_ERRORS):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def _contains_terminal_credential_error(error: BaseException) -> bool:
     seen: set[int] = set()
     current: BaseException | None = error
@@ -138,6 +161,7 @@ def provider_fallback_failure(error: BaseException) -> bool:
         is_auth_failure(error)
         or is_provider_capacity_failure(error)
         or credential_failure(error)
+        or _is_provider_api_error(error)
     )
 
 

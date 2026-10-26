@@ -96,7 +96,7 @@ def test_post_settled_usage_preserves_every_reported_token_bucket_on_wire(client
     }
     payload = SettledUsagePayload(
         preparationRunId="run", runId="run", invocationId="attempt",
-        agentRole="legal-semantic-auditor", provider="MIRAIAPI", model="claude-sonnet-5",
+        agentRole="claim-author", provider="MIRAIAPI", model="claude-sonnet-5",
         attemptStatus="COMPLETED", occurredAt="2026-10-23T00:00:00Z", **counters,
     )
     with patch("tools.common.capabilities.platform.api_client.httpx.post",

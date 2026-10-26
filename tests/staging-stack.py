@@ -156,15 +156,13 @@ def dropped_tables() -> list[str]:
 
 def environment(run_id: str, image_ids: dict, provider: dict) -> dict[str, dict[str, str]]:
     prefix = f"lcsp-release-staging-{run_id}"
-    db_password, broker_password, worker_key, attestation_key = (secrets.token_hex(32) for _ in range(4))
+    db_password, broker_password, worker_key = (secrets.token_hex(32) for _ in range(3))
     database = f"postgresql://postgres:{db_password}@{prefix}-postgres:5432/lcsp_staging?schema=public"
     broker = f"amqp://release:{broker_password}@{prefix}-rabbitmq:5672/"
     common = {
         "NODE_ENV": "production", "PYTHON_DOTENV_DISABLED": "1",
         "DATABASE_URL": database, "RABBITMQ_URL": broker, "RABBITMQ_EXCHANGE": "lcsp.events",
         "NESTJS_API_BASE_URL": f"http://{prefix}-api:8080", "WORKER_API_KEY": worker_key,
-        # API and worker must share it: the worker seals audit receipts, the API verifies them.
-        "LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY": attestation_key,
         "LCSP_AGENT_SERVER_URL": f"http://{prefix}-server:8000",
         "LCSP_AGENT_RUNTIME_MODE": "production", "LCSP_REPOSITORY_SANDBOX_IMAGE": image_ids["worker"],
         "LANGGRAPH_CHECKPOINT_DATABASE_URL": database.replace("/lcsp_staging?schema=public", "/lcsp_langgraph"),

@@ -1,3 +1,4 @@
+import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "@lcsp/contracts/legal-source";
 import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import { Injectable } from "@nestjs/common";
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
@@ -18,14 +19,22 @@ export class LegalSourceSnapshotLoader {
   ) {}
 
   async load(
-    run: { id: string; legalSourceVersionId: string },
+    run: {
+      id: string;
+      legalSourceVersionId: string;
+      claimInventoryRevision?: number;
+    },
     packet: ComplianceRuleSetPacket,
   ): Promise<{ snapshot: LegalSourceSnapshot; foreignHashes: Set<string> }> {
     const { legalSourceVersionId } = run;
     const [documents, chunks, validIndex] = await Promise.all([
       this.prisma.legalSourceDocument.findMany({
         where: { legalSourceVersionId: legalSourceVersionId },
-        select: { documentId: true, sourceEffectStatus: true },
+        select: {
+          documentId: true,
+          sourceEffectStatus: true,
+          corpusRole: true,
+        },
       }),
       this.prisma.legalDocumentChunk.findMany({
         where: { legalSourceVersionId: legalSourceVersionId },
@@ -92,6 +101,13 @@ export class LegalSourceSnapshotLoader {
     }
     return {
       snapshot: {
+        referenceOnlyDocumentIds: documents
+          .filter(
+            (d) =>
+              d.corpusRole ===
+              LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.REFERENCE_ONLY,
+          )
+          .map((d) => d.documentId),
         documentGraph: await this.graph.export(
           legalSourceVersionId,
           await pinnedMaterializationId(this.prisma, run.id),

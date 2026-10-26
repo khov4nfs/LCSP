@@ -3,24 +3,39 @@ import type {
   LegalDocumentGraph,
   LegalDocumentNode,
 } from "@lcsp/contracts/legal-source";
-import { SOURCE_REVIEW_STATES as S } from "@lcsp/contracts/legal-source";
+import {
+  LEGAL_DOCUMENT_NODE_TYPES,
+  SOURCE_REVIEW_STATES as S,
+} from "@lcsp/contracts/legal-source";
 import { LEGAL_STRUCTURE_HEADINGS } from "../../legal-source/domain/document-structure.config.js";
 import { inventoryHash } from "./claim-inventory.js";
 import { materialReferenceAccounting } from "./semantic-reference-binding.js";
 
-/** Structural headings remain ancestor context; no legal meaning is inferred from source words. */
+export function referenceOnlyNodeIds(
+  graph: Pick<LegalDocumentGraph, "nodes" | "referenceOnlyDocumentIds">,
+) {
+  const documents = new Set(graph.referenceOnlyDocumentIds ?? []);
+  return new Set(
+    graph.nodes.filter((n) => documents.has(n.documentId)).map((n) => n.nodeId),
+  );
+}
+
+/** Article titles can supply an addressee; other structural headings remain ancestor context. */
 export function sourceReviewUnits(
-  graph: Pick<LegalDocumentGraph, "nodes">,
+  graph: Pick<LegalDocumentGraph, "nodes" | "referenceOnlyDocumentIds">,
 ): LegalDocumentNode[] {
+  const referenceOnly = referenceOnlyNodeIds(graph);
   const parents = new Set(graph.nodes.map((n) => n.parentNodeId));
   const selected = new Set(
     graph.nodes
       .filter((node) => {
+        if (referenceOnly.has(node.nodeId)) return false;
         const lines = node.content
           .trim()
           .split(/\r?\n/u)
           .filter((line) => line.trim());
         if (!lines.length) return false;
+        if (node.nodeType === LEGAL_DOCUMENT_NODE_TYPES.ARTICLE) return true;
         if (!parents.has(node.nodeId) || lines.length !== 1) return true;
         return !LEGAL_STRUCTURE_HEADINGS.some((spec) => {
           if (spec.type !== node.nodeType) return false;
@@ -106,6 +121,7 @@ export function reviewedFrontierFingerprint(
 /** Assign container-heading references to one descendant work item without duplicating work. */
 export function reviewReferenceOwners(graph: LegalDocumentGraph) {
   const units = new Set(sourceReviewUnits(graph).map((n) => n.nodeId));
+  const referenceOnly = referenceOnlyNodeIds(graph);
   const children = new Map<string, string[]>();
   const byId = new Map(graph.nodes.map((n) => [n.nodeId, n]));
   for (const n of graph.nodes)
@@ -122,6 +138,7 @@ export function reviewReferenceOwners(graph: LegalDocumentGraph) {
   const cache = new Map<string, string | null>();
   const visiting = new Set<string>();
   const owner = (id: string): string | null => {
+    if (referenceOnly.has(id)) return null;
     if (cache.has(id)) return cache.get(id)!;
     if (visiting.has(id)) throw new Error("Invalid document hierarchy cycle");
     visiting.add(id);

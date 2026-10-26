@@ -1,6 +1,7 @@
 import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   LEGAL_REQUIREMENT_CONTEXT_FIELDS,
+  LEGAL_APPLICABILITY_MODES,
   type LegalRequirementCoverageState,
 } from "./constants.ts";
 import type {
@@ -99,6 +100,7 @@ export function deriveAssessmentApplicabilityGuidance(
       [
         `LegalRequirement: ${rule.legalRequirementId}`,
         `Proposition: ${rule.proposition}`,
+        ...(rule.applicabilityMode ? [`Applicability mode: ${rule.applicabilityMode}`] : []),
         ...(rule.claimBindings ?? []).flatMap((binding) => {
           const claim = semanticGraph?.claims.find(
             (c) => c.claimId === binding.claimId,
@@ -157,7 +159,10 @@ export function deriveAssessmentApplicabilityGuidance(
 export function declaresApplicabilityScope(
   coverageState: LegalRequirementCoverageState | string,
   applicabilityConditions: readonly string[],
+  applicabilityMode?: string,
 ): boolean {
+  if (applicabilityMode === LEGAL_APPLICABILITY_MODES.UNCONDITIONAL)
+    return applicabilityConditions.length === 0;
   if (
     coverageState !==
     LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES

@@ -5,7 +5,6 @@ import {
   legalSemanticFrameSchema,
   LEGAL_ASSESSABILITIES,
   LEGAL_SEMANTIC_AUTHORITIES,
-  semanticAuditReceiptSchema,
 } from "./semantic-support.ts";
 import {
   LEGAL_CONTEXT_RELATION_KINDS,
@@ -90,8 +89,8 @@ export const legalSemanticClaimSchema = z.strictObject({
   nonOperativeReason: text.nullable(),
 });
 export const legalSemanticGraphSchema = z.strictObject({
+  targetDate: z.string().date().optional(),
   contractVersion: z.enum(["LEGAL_GRAPH_V2", LEGAL_SEMANTIC_GRAPH_VERSION]),
-  semanticAudits: z.array(semanticAuditReceiptSchema).max(40000).optional(),
   reviewFrontier: reviewFrontierBindingSchema.optional(),
   materializationId: hash,
   legalSourceVersionId: z.string().uuid(),

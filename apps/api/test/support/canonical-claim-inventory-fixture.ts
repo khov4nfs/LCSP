@@ -1,6 +1,3 @@
-import type { LegalDocumentGraph } from "@lcsp/contracts/legal-source";
-import { refreshStructuralAudits } from "./structural-semantic-fixture.js";
-import { signSemanticAuditFixture } from "../../src/modules/compliance-rule-set/domain/semantic-audit-attestation.js";
 import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import {
   canonicalClaimId,
@@ -13,7 +10,6 @@ export function canonicalInventoryFixture(
   packet: ComplianceRuleSetPacket,
   runId: string,
   revision = 1,
-  source?: LegalDocumentGraph,
 ) {
   const graph = packet.semanticGraph!;
   const identities: Record<string, string> = {};
@@ -45,13 +41,6 @@ export function canonicalInventoryFixture(
     }));
   }
   packet.semanticGraph = normalizeInventory(graph);
-  if (source) {
-    refreshStructuralAudits(packet.semanticGraph, source, revision);
-    packet.semanticGraph.semanticAudits =
-      packet.semanticGraph.semanticAudits?.map((receipt) =>
-        signSemanticAuditFixture(receipt, runId),
-      );
-  }
   packet.claimInventory = {
     revision,
     fingerprint: inventoryFingerprint(revision, packet.semanticGraph),

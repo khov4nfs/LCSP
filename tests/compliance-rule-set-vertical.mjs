@@ -178,8 +178,8 @@ try {
     "the journey freezes one inventory before typed authoring",
   );
   ok(
-    frozen[0].fingerprint && frozen[0].graph.semanticAudits.length > 0,
-    "frozen inventory retains the real audited review receipts",
+    frozen[0].fingerprint,
+    "the frozen inventory is sealed by a fingerprint",
   );
   ok(
     first.scriptedCalls.some(
@@ -290,12 +290,8 @@ try {
   eq(stale.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.RUNTIME_ERROR);
   eq(stale.submission, null);
   ok(
-    stale.scriptedCalls.some(
-      (step) =>
-        step.tool === "register_semantic_claim" &&
-        step.result?.gaps?.SOURCE_SUPPORT_INVALID,
-    ),
-    "stale support hash rejected before freeze",
+    JSON.stringify(stale.scriptedChildRejections).includes("SOURCE_SUPPORT_INVALID"),
+    "stale support quotation rejected by commit_claims before freeze",
   );
   eq(
     (

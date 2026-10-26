@@ -238,6 +238,7 @@ export class LegalSourceManagementService {
             sourceSha256: document.sourceSha256,
             effectiveDate: document.effectiveDate,
             sourceEffectStatus: document.sourceEffectStatus,
+            corpusRole: document.corpusRole,
             snapshotPath: document.snapshotPath,
             origin: document.origin,
             ingestionState: document.ingestionState,

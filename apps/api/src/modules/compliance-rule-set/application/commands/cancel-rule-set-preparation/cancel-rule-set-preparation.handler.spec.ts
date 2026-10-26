@@ -142,7 +142,6 @@ describe("Cancel Rule Set Preparation", () => {
     PrismaAgentExecutionState.SUCCEEDED,
     PrismaAgentExecutionState.FAILED,
     PrismaAgentExecutionState.INTERRUPTED,
-    PrismaAgentExecutionState.PAUSED,
   ])("refuses cancellation from terminal/control state %s", async (state) => {
     const { handler, tx, runtime } = build(state);
 
@@ -151,6 +150,14 @@ describe("Cancel Rule Set Preparation", () => {
     });
 
     expect(tx.ruleSetPreparationRun.updateMany).not.toHaveBeenCalled();
+    expect(runtime.cancel).not.toHaveBeenCalled();
+  });
+
+  it("cancels a PAUSED run without an active worker", async () => {
+    const { handler, runtime } = build(PrismaAgentExecutionState.PAUSED);
+    expect(await handler.execute(command())).toMatchObject({
+      executionState: AGENT_EXECUTION_STATES.CANCELLED,
+    });
     expect(runtime.cancel).not.toHaveBeenCalled();
   });
 

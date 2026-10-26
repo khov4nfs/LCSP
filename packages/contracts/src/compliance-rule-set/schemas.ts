@@ -1,7 +1,10 @@
+import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "../legal-source/management.ts";
+import { PREPARATION_EXECUTION_CONTRACTS, RULE_SET_PREPARATION_STAGES } from "./direct-draft.ts";
 import { z } from "zod";
 import {
   claimInventoryBindingSchema,
   type ClaimInventoryBinding,
+  CLAIM_PREPARATION_PHASES,
 } from "./preparation-inventory.ts";
 import { legalDocumentGraphSchema } from "../legal-source/document-graph.ts";
 import {
@@ -29,6 +32,7 @@ import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   LEGAL_OPERATIVE_MODALITIES,
+  LEGAL_APPLICABILITY_MODES,
   LEGAL_REQUIREMENT_CONTEXT_FIELDS,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
   COMPLIANCE_RULE_SET_LIMITS,
@@ -165,6 +169,7 @@ export const legalRequirementCoverageSchema = z
 export const legalRequirementSchema = z
   .object({
     legalRequirementId: idSchema,
+    applicabilityMode: z.enum(LEGAL_APPLICABILITY_MODES).optional(),
     claimInventoryRevision: z.number().int().positive().optional(),
     claimBindings: z.array(legalClaimBindingSchema).max(256).optional(),
     semanticContext: shortTextListSchema.optional(),
@@ -386,6 +391,28 @@ export const legalContextRelationSchema = z
 export type LegalContextRelationInput = z.infer<
   typeof legalContextRelationSchema
 >;
+
+/** Partial authoring state is durable, but each candidate retains the packet's typed contract. */
+export const ruleSetPreparationAuthoringDraftSchema = z
+  .strictObject({
+    legalRequirements: z.record(idSchema, legalRequirementSchema),
+    assessmentRules: z.record(idSchema, assessmentRuleAuthoringSchema),
+    contextRelations: z.record(idSchema, legalContextRelationSchema),
+  })
+  .superRefine((draft, context) => {
+    for (const [section, rows, idField] of [
+      ["legalRequirements", draft.legalRequirements, "legalRequirementId"],
+      ["assessmentRules", draft.assessmentRules, "assessmentRuleId"],
+      ["contextRelations", draft.contextRelations, "relationId"],
+    ] as const)
+      for (const [id, row] of Object.entries(rows))
+        if ((row as Record<string, unknown>)[idField] !== id)
+          context.addIssue({
+            code: "custom",
+            path: [section, id, idField],
+            message: "Candidate identity must equal its draft key",
+          });
+  });
 
 export const complianceRuleSetPacketSchema = z
   .object({
@@ -768,7 +795,7 @@ export type ComplianceRuleSetValidateResult = z.infer<
 >;
 
 export const ruleSetPreparationClaimRequestSchema = z
-  .object({ preparationRunId: z.string().uuid() })
+  .object({ preparationRunId: z.string().uuid(), supportedExecutionContracts: z.array(z.enum(PREPARATION_EXECUTION_CONTRACTS)).min(1).optional() })
   .strict();
 export type RuleSetPreparationClaimRequest = z.infer<
   typeof ruleSetPreparationClaimRequestSchema
@@ -781,8 +808,20 @@ export type RuleSetPreparationClaimRequest = z.infer<
 export const ruleSetPreparationLegalSourceBundleSchema = z
   .object({
     documentGraph: legalDocumentGraphSchema,
+    executionContract: z.enum(PREPARATION_EXECUTION_CONTRACTS).default(PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1),
+    targetDate: z.string().date().optional(),
     preparationRunId: z.string().uuid(),
     executionState: agentExecutionStateSchema,
+    claimInventoryRevision: z.number().int().positive(),
+    claimPhase: z.enum(CLAIM_PREPARATION_PHASES),
+    frozenInventory: z
+      .strictObject({
+        revision: z.number().int().positive(),
+        fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+        graph: legalSemanticGraphSchema,
+        identities: z.record(z.string(), z.string()),
+      })
+      .nullable(),
     legalSourceVersionId: z.string().uuid(),
     legalSourceVersion: z.string().min(1),
     documents: z.array(
@@ -793,6 +832,9 @@ export const ruleSetPreparationLegalSourceBundleSchema = z
           sourceUrl: z.string(),
           sourceSha256: z.string(),
           sourceEffectStatus: z.string(),
+          corpusRole: z
+            .enum(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES)
+            .default(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.OPERATIVE),
           chunks: z.array(
             z
               .object({
@@ -864,6 +906,20 @@ export const complianceRuleSetHistorySchema = z.strictObject({
   ),
   preparations: z.array(
     ruleSetPreparationRunSchema.extend({
+      executionContract: z.enum(PREPARATION_EXECUTION_CONTRACTS).optional(),
+      resumable: z.boolean().optional(),
+      draft: z.strictObject({
+        stage: z.enum(RULE_SET_PREPARATION_STAGES),
+        sourceDocuments: z.array(z.strictObject({ documentId: z.string(), title: z.string() })),
+        coverage: z.strictObject({ total: z.number().int().nonnegative(), completed: z.number().int().nonnegative(), blocked: z.number().int().nonnegative() }),
+        requirementCount: z.number().int().nonnegative(),
+        assessmentRuleCount: z.number().int().nonnegative(),
+        requirements: z.array(z.strictObject({ legalRequirementId: idSchema, title: z.string() })).max(20),
+        assessmentRules: z.array(z.strictObject({ assessmentRuleId: idSchema, concept: z.string() })).max(20),
+        validation: complianceRuleSetValidateResultSchema.nullable(),
+        assessmentsCanUseRuleSet: z.boolean(),
+        unresolvedReferences: z.array(z.strictObject({ referenceId: sha256Schema, sourceNodeId: sha256Schema, reason: z.string().nullable() })).max(20),
+      }).optional(),
       legalSourceVersion: z.string().min(1),
       createdAt: z.iso.datetime(),
       completedAt: z.iso.datetime().nullable(),

@@ -33,7 +33,7 @@ export const LEGAL_REFERENCE_RESOLUTION_STATES = {
   UNRESOLVED: "UNRESOLVED",
 } as const;
 export const LEGAL_DOCUMENT_GRAPH = {
-  parserRevision: "legal-structure-v3",
+  parserRevision: "legal-structure-v5",
   materializationRevision: "legal-graph-v2",
   maxContextNodes: 20,
   maxContextCharacters: 24000,
@@ -128,6 +128,7 @@ export const legalDocumentGraphSchema = z.strictObject({
       legalSourceExtractionGapSchema.extend({ documentId: z.string().min(1) }),
     )
     .optional(),
+  referenceOnlyDocumentIds: z.array(z.string().min(1)).optional(),
   nodes: z.array(legalDocumentNodeSchema),
   references: z.array(legalDocumentReferenceSchema),
   chunkMappings: z.array(legalChunkNodeMappingSchema),
@@ -136,6 +137,9 @@ export const legalDocumentGraphSchema = z.strictObject({
 export type LegalDocumentGraph = z.infer<typeof legalDocumentGraphSchema>;
 
 export const LEGAL_GRAPH_TRAVERSALS = {
+  DOCUMENTS: "DOCUMENTS",
+  STRUCTURE: "STRUCTURE",
+  DESCENDANTS: "DESCENDANTS",
   NODE: "NODE",
   PARENT: "PARENT",
   CHILDREN: "CHILDREN",
@@ -149,6 +153,10 @@ export const LEGAL_GRAPH_TRAVERSALS = {
 export const legalGraphQuerySchema = z
   .strictObject({
     nodeId: hash.optional(),
+    materializationId: hash.optional(),
+    documentId: z.string().trim().min(1).max(500).optional(),
+    locator: z.string().trim().min(1).max(500).optional(),
+    nodeType: z.enum(LEGAL_DOCUMENT_NODE_TYPES).optional(),
     query: z.string().trim().min(1).max(500).optional(),
     traversal: z
       .enum(LEGAL_GRAPH_TRAVERSALS)
@@ -157,5 +165,6 @@ export const legalGraphQuerySchema = z
     offset: z.coerce.number().int().min(0).default(0),
     contentOffset: z.coerce.number().int().min(0).optional(),
   })
-  .refine((v) => Boolean(v.nodeId || v.query), "nodeId or query required");
+  .refine((v) => Boolean(v.nodeId || v.query || v.documentId || v.traversal === LEGAL_GRAPH_TRAVERSALS.DOCUMENTS), "nodeId, query or documentId required")
+  .refine((v) => !v.locator || Boolean(v.documentId), "locator requires documentId");
 export type LegalGraphQuery = z.infer<typeof legalGraphQuerySchema>;

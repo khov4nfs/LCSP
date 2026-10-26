@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from middleware import usage_metering, usage_recovery
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware, activate_agent_run_state
-from vertical.live_preparation import LiveUsage, recover_usage
+from vertical.live_preparation import LiveUsage, recover_usage, recover_cumulative_usage
 
 
 def response(input_tokens=10, output_tokens=3):
@@ -114,38 +114,6 @@ def test_24_attempt_interruption_recovery_keeps_unknown_totals(tmp_path):
     assert first["invocations"] == again["invocations"] and first["admission"] == again["admission"]
 
 
-def test_real_producer_and_independent_auditor_share_the_journal(tmp_path, monkeypatch):
-    from rule_set_preparation.semantic_audit import SemanticAuditor, audit_input
-    from semantic_verifier_fixture import model_response
-    from structural_semantic_fixture import StructuralFixtureAuditor
-    from test_semantic_auditor import example
-    from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
-
-    monkeypatch.setenv("LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY", "7c" * 32)
-    source, graph, node = example()
-    value = audit_input(source, graph, node, 1)
-    verdict = StructuralFixtureAuditor().audit(value)
-    wire = model_response(verdict, value=value)
-    # Single-pass schema also requires source-unit omissions, even when empty.
-    wire["omissions"] = []
-    producer_message = AIMessage(content="producer", usage_metadata={"input_tokens": 11, "output_tokens": 2, "total_tokens": 13})
-    auditor_message = AIMessage(content="", tool_calls=[{"name": "SourceSemanticAuditVerdict", "args": wire, "id": "audit"}],
-                                usage_metadata={"input_tokens": 17, "output_tokens": 4, "total_tokens": 21})
-    producer = RuleSetPreparationScriptedModel(model_name="producer-usage", responses=[producer_message])
-    auditor = RuleSetPreparationScriptedModel(model_name="auditor-usage", responses=[auditor_message])
-    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda *_: None)  # provider-free fixture identities
-    import model_policy
-    monkeypatch.setattr(model_policy, "resolve_agent_model", lambda role: auditor if role == "legal-semantic-auditor" else producer)
-    out = str(tmp_path / "usage.json")
-    with activate_agent_run_state(LiveUsage("run", out)):
-        create_agent(producer, tools=[], middleware=[AgentRoleMiddleware("rule-set-preparation"), *MODEL_GOVERNANCE_MIDDLEWARE]).invoke({"messages": [HumanMessage("fixture")]})
-        assert recover_usage(out, "run")["modelCalls"] == 1
-        SemanticAuditor(single_pass=True).audit(value)
-    summary = recover_usage(out, "run")
-    assert summary["modelCalls"] == 2
-    assert summary["inputTokens"] == 28 and summary["outputTokens"] == 6
-    assert {r["agentRole"] for r in summary["invocations"]} == {"rule-set-preparation", "legal-semantic-auditor"}
-    assert {r["model"] for r in summary["invocations"]} == {"producer-usage", "auditor-usage"}
 
 
 @pytest.mark.parametrize("fallback_succeeds", [False, True])
@@ -238,7 +206,7 @@ from types import SimpleNamespace
 from vertical.live_preparation import LiveUsage
 state = LiveUsage("interrupted", sys.argv[1])
 model = SimpleNamespace(provider="apx", protocol="anthropic", model_name="fixture")
-for role, invocation in [("rule-set-preparation", "producer"), ("legal-semantic-auditor", "auditor")]:
+for role, invocation in [("rule-set-preparation", "producer"), ("claim-author", "author")]:
     state.record(SimpleNamespace(usage_metadata={"input_tokens": 7, "output_tokens": 3}), model, invocation, agent_role=role)
 Path(sys.argv[2]).touch()
 if sys.argv[3] == "crash": os._exit(23)
@@ -259,8 +227,118 @@ time.sleep(30)
         recovered = subprocess.check_output([sys.executable, str(cli), "--recover-usage", out, "interrupted"], env=env, text=True)
         summary = json.loads(recovered.strip().splitlines()[-1])
         assert summary["modelCalls"] == 2 and summary["inputTokens"] is None and summary["inputTokensIncludingCache"] == 14 and summary["outputTokens"] == 6
-        assert {r["agentRole"] for r in summary["invocations"]} == {"rule-set-preparation", "legal-semantic-auditor"}
+        assert {r["agentRole"] for r in summary["invocations"]} == {"rule-set-preparation", "claim-author"}
     finally:
         if child.poll() is None:
             child.kill()
         child.communicate(timeout=5)
+
+
+def test_usage_accounting_cross_checks_totals_across_all_resumes_without_resetting_cumulative_budget(tmp_path):
+    from middleware.paid_admission import TokenRunBudget, TokenPolicy, RunAdmission, fingerprint, PaidAdmissionError, request_identity
+
+    # PART 1: Multi-session resumption on the same persistent SQLite store
+    same_store_out = str(tmp_path / "same_store_usage.json")
+    run_id = "run-same-store-resumed"
+
+    # Session 1: 3 calls
+    session1 = LiveUsage(run_id, same_store_out)
+    session1.record(response(10, 3), MODEL, "sess1-call1")
+    session1.record(response(15, 5), MODEL, "sess1-call2")
+    session1.record(response(20, 6), MODEL, "sess1-call3")
+    rec1 = recover_usage(same_store_out, run_id)
+    assert rec1["modelCalls"] == 3
+    # Canonical input tokens exclude cache_read (2) and cache_creation (1): (10-3) + (15-3) + (20-3) = 7 + 12 + 17 = 36
+    assert rec1["inputTokens"] == (10 - 3) + (15 - 3) + (20 - 3)
+    assert rec1["outputTokens"] == 3 + 5 + 6  # 14
+
+    # Session 2: Resumes on the SAME persistent SQLite store with 2 more calls
+    session2 = LiveUsage(run_id, same_store_out)
+    session2.record(response(12, 4), MODEL, "sess2-call1")
+    session2.record(response(18, 7), MODEL, "sess2-call2")
+    rec2 = recover_usage(same_store_out, run_id)
+    assert rec2["modelCalls"] == 5
+    assert rec2["inputTokens"] == 36 + (12 - 3) + (18 - 3)  # 36 + 9 + 15 = 60
+    assert rec2["outputTokens"] == 14 + 4 + 7  # 25
+
+    # Session 3: Resumes again with 1 call
+    session3 = LiveUsage(run_id, same_store_out)
+    session3.record(response(30, 10), MODEL, "sess3-call1")
+    rec3 = recover_usage(same_store_out, run_id)
+    assert rec3["modelCalls"] == 6
+    assert rec3["inputTokens"] == 60 + (30 - 3)  # 60 + 27 = 87
+    assert rec3["outputTokens"] == 25 + 10  # 35
+    assert len({inv["invocationId"] for inv in rec3["invocations"]}) == 6
+
+    # Cumulative budget enforcement across resume boundaries:
+    # A bounded admission with maximum 2 calls must admit call 1 and call 2, then reject call 3 even across process re-instantiation
+    from test_paid_admission import native, policy_for, budget_for
+    from middleware.paid_admission import request_identity
+
+    model_admit = native()
+    original_budget = budget_for(model_admit)
+    p_dict = {k: v for k, v in policy_for(model_admit).model_dump().items() if k in TokenPolicy.model_fields}
+    policy = TokenPolicy.model_validate(p_dict)
+    b_values = {k: v for k, v in original_budget.model_dump().items() if k in TokenRunBudget.model_fields}
+    b_values.update(schema_version=3, policies=(policy,), maximum_calls=2)
+    budget = TokenRunBudget.model_validate(b_values)
+    b_fp = fingerprint(budget.model_dump(mode="json"))
+
+    budget_store = tmp_path / "budget_bound.sqlite3"
+    adm_a = RunAdmission(budget_store, budget, b_fp)
+    req_id = request_identity(model_admit, budget.credential_salt)
+    adm_a.admit("att-1", req_id)
+
+    # Session B resumes on same budget store
+    adm_b = RunAdmission(budget_store, budget, b_fp)
+    adm_b.admit("att-2", req_id)
+
+    # Attempt 3 must fail because maximum_calls=2 is cumulative and was NOT reset on resume
+    with pytest.raises(PaidAdmissionError) as err:
+        adm_b.admit("att-3", req_id)
+    assert "CALL_LIMIT" in str(err.value)
+
+    # PART 2: Multi-store reconciliation across distinct session SQLite files
+    multi_dir = tmp_path / "multi_sessions"
+    multi_dir.mkdir()
+    multi_run = "run-multi-store-resumed"
+
+    s1_out = str(multi_dir / "usage-session1.json")
+    u1 = LiveUsage(multi_run, s1_out)
+    u1.record(response(20, 5), MODEL, "multi-sess1-call1")
+    u1.record(response(25, 6), MODEL, "multi-sess1-call2")
+
+    s2_out = str(multi_dir / "usage-session2.json")
+    u2 = LiveUsage(multi_run, s2_out)
+    u2.record(response(30, 8), MODEL, "multi-sess2-call1")
+
+    s3_out = str(multi_dir / "usage-session3.json")
+    u3 = LiveUsage(multi_run, s3_out)
+    u3.record(response(15, 3), MODEL, "multi-sess3-call1")
+    u3.record(response(40, 12), MODEL, "multi-sess3-call2")
+
+    # Reconcile all stores in directory
+    summary_dir = recover_cumulative_usage(multi_dir, multi_run)
+    assert summary_dir["runId"] == multi_run
+    assert summary_dir["sessionCount"] == 3
+    assert summary_dir["modelCalls"] == 5
+    expected_in = (20 - 3) + (25 - 3) + (30 - 3) + (15 - 3) + (40 - 3)  # 17 + 22 + 27 + 12 + 37 = 115
+    expected_out = 5 + 6 + 8 + 3 + 12  # 34
+    assert summary_dir["inputTokens"] == expected_in
+    assert summary_dir["outputTokens"] == expected_out
+    assert summary_dir["accountingState"] == "COMPLETE"
+    assert len({inv["invocationId"] for inv in summary_dir["invocations"]}) == 5
+
+    # Reconcile explicit list of stores with write_out file
+    summary_file = multi_dir / "cumulative-summary.json"
+    summary_list = recover_cumulative_usage(
+        [Path(s1_out + ".sqlite3"), Path(s2_out + ".sqlite3"), Path(s3_out + ".sqlite3")],
+        multi_run,
+        write_out=summary_file,
+    )
+    assert summary_list["modelCalls"] == 5
+    assert summary_file.exists()
+    written = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert written["modelCalls"] == 5
+    assert written["inputTokens"] == expected_in
+

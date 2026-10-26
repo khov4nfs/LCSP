@@ -167,7 +167,7 @@ def test_missing_usage_is_unresolved_and_never_refunded(tmp_path, usage):
     assert result["attempts"][0]["actual_charge"] is None
 
 
-@pytest.mark.parametrize("route", ["primary", "fallback", "fallback-01", "fallback-02", "semantic-primary", "semantic-final"])
+@pytest.mark.parametrize("route", ["primary", "fallback", "fallback-01", "fallback-02", "fallback", "fallback-02"])
 def test_unknown_tariff_is_terminal_and_cannot_fallback(tmp_path, route):
     model = native(route)
     state = state_for(tmp_path, model, policies=())
@@ -441,55 +441,28 @@ def test_retry_rotation_fallback_and_terminal_exhaustion_are_all_admitted(tmp_pa
     assert not provider_fallback_failure(error) and not retry_model_error(error)
 
 
-def test_real_governed_producer_auditor_and_internal_runnable_share_budget(tmp_path, monkeypatch):
+def test_real_governed_parent_author_and_internal_runnable_share_budget(tmp_path, monkeypatch):
     from langchain_anthropic import ChatAnthropic
-    primary, auditor = native(), native("semantic-primary")
-    primary.streaming = auditor.streaming = False
-    state = state_for(tmp_path, primary, auditor, maximum_calls=3)
+    primary, author = native(), native("primary")
+    primary.streaming = author.streaming = False
+    state = state_for(tmp_path, primary, maximum_calls=3)
     seen = []
     def generate(self, *args, **kwargs):
         seen.append(model_route_config(self).route_id)
         return ChatResult(generations=[ChatGeneration(message=answer().result[0])])
     monkeypatch.setattr(ChatAnthropic, "_generate", generate)
     with activate_agent_run_state(state):
-        for role, model in [("rule-set-preparation", primary), ("legal-semantic-auditor", auditor)]:
+        for role, model in [("rule-set-preparation", primary), ("claim-author", author)]:
             create_agent(model, tools=[], middleware=[AgentRoleMiddleware(role), *MODEL_GOVERNANCE_MIDDLEWARE]).invoke({"messages": [HumanMessage("offline")]})
         _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SUMMARIZATION").invoke("offline")
         with pytest.raises(PaidAdmissionError, match="CALL_LIMIT"):
             _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SOURCE_READER").invoke("offline")
-    assert seen == ["primary", "semantic-primary", "primary"]
-    assert {json.loads(r["identity"])["agent_role"] for r in snapshot(state)["attempts"]} == {"rule-set-preparation", "legal-semantic-auditor"}
+    assert seen == ["primary", "primary", "primary"]
+    assert {json.loads(r["identity"])["agent_role"] for r in snapshot(state)["attempts"]} == {"rule-set-preparation", "claim-author"}
     serialized = json.dumps(snapshot(state))
     assert "PRIVATE_PROMPT" not in serialized and "CONFIDENTIAL_RESPONSE" not in serialized and "offline-admission-key" not in serialized
 
 
-def test_independent_semantic_auditor_runs_its_own_admitted_invocation(tmp_path, monkeypatch):
-    from langchain_core.language_models import BaseChatModel
-    from rule_set_preparation.semantic_audit import SemanticAuditor, audit_input
-    from semantic_verifier_fixture import model_response
-    from structural_semantic_fixture import StructuralFixtureAuditor
-    from test_semantic_auditor import example
-    monkeypatch.setenv("LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY", "7c" * 32)
-    source, graph, node = example()
-    value = audit_input(source, graph, node, 1)
-    wire = model_response(StructuralFixtureAuditor().audit(value), value=value)
-    wire["omissions"] = []
-    producer, auditor = native(), native("semantic-primary")
-    state = state_for(tmp_path, producer, auditor, maximum_calls=2)
-    seen = []
-    def dispatch(model, *args, **kwargs):
-        route = model_route_config(model).route_id
-        seen.append(route)
-        message = answer().result[0]
-        if route == "semantic-primary":
-            message = AIMessage(content="", tool_calls=[{"name": "SourceSemanticAuditVerdict", "args": wire, "id": "audit"}], usage_metadata=message.usage_metadata)
-        return ChatResult(generations=[ChatGeneration(message=message)])
-    monkeypatch.setattr(BaseChatModel, "_generate_with_cache", dispatch)
-    with activate_agent_run_state(state):
-        create_agent(producer, tools=[], middleware=[AgentRoleMiddleware("rule-set-preparation"), *MODEL_GOVERNANCE_MIDDLEWARE]).invoke({"messages": [HumanMessage("offline fixture")]})
-        SemanticAuditor(single_pass=True).audit(value)
-    assert seen == ["primary", "semantic-primary"]
-    assert snapshot(state)["admittedAttempts"] == 2
 
 
 def test_application_retry_has_a_new_physical_reservation(tmp_path, monkeypatch):
@@ -507,7 +480,7 @@ def test_application_retry_has_a_new_physical_reservation(tmp_path, monkeypatch)
     assert len(seen) == 2 and snapshot(state)["admittedAttempts"] == 2 and snapshot(state)["unresolvedAttempts"] == 1
 
 
-@pytest.mark.parametrize("route", ["primary", "fallback", "fallback-01", "fallback-02", "semantic-primary", "semantic-final"])
+@pytest.mark.parametrize("route", ["primary", "fallback", "fallback-01", "fallback-02", "fallback", "fallback-02"])
 def test_every_configured_route_uses_single_attempt_and_native_output_cap(tmp_path, route):
     model = native(route); state = state_for(tmp_path, model)
     seen = []

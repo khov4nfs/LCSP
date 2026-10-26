@@ -7,7 +7,8 @@ from pathlib import Path
 from middleware.failure_policy import NoProgressDetected
 from rule_set_preparation.source_graph import PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
-from structural_semantic_fixture import StructuralFixtureAuditor, semantic_arguments, MechanicalTools, mechanical_arguments
+from structural_semantic_fixture import semantic_arguments, MechanicalTools, mechanical_arguments
+from rule_set_preparation.claim_tools import build_claim_tools
 
 ROOT = Path(__file__).resolve().parents[2]
 RUN = "00000000-0000-4000-8000-000000000009"
@@ -26,10 +27,21 @@ class ScriptedApi:
         self.frozen = None
         self.revision = 1
         self.submitted = None
+        self.drafts = {}
 
     def claim_inventory_operation(self, run_id, action, revision, **fields):
         if revision != self.revision:
             return {"outcome": "FAILED", "failures": [{"code": "STALE_INVENTORY_BINDING", "ref": "claimInventory"}]}
+        if action in {"LOAD_AUTHORING_DRAFT", "SAVE_AUTHORING_DRAFT"}:
+            saved = self.drafts.get((run_id, revision), {"draftVersion": 0, "draft": None})
+            if action == "SAVE_AUTHORING_DRAFT":
+                if fields["draftVersion"] != saved["draftVersion"]:
+                    if fields["draftVersion"] == saved["draftVersion"] - 1 and fields["draft"] == saved["draft"]:
+                        return {"outcome": "PASSED", "draftVersion": saved["draftVersion"], "replayed": True}
+                    return {"outcome": "FAILED", "failures": [{"code": "STALE_AUTHORING_DRAFT"}]}
+                saved = {"draftVersion": saved["draftVersion"] + 1, "draft": deepcopy(fields["draft"])}
+                self.drafts[run_id, revision] = saved
+            return {"outcome": "PASSED", **deepcopy(saved)}
         if action == "REOPEN":
             self.revision += 1; self.frozen = None
             return {"outcome": "PASSED", "revision": self.revision}
@@ -58,32 +70,48 @@ def runtime(seed):
     owners = {m["chunkId"]: m["legalDocumentNodeId"] for m in graph["chunkMappings"]}
     chunks = [{**c, "chunkId": c["id"], "content": nodes[owners[c["id"]]]["content"]} for c in seed["source"]["chunks"]]
     api = ScriptedApi(seed)
-    context = RuleSetPreparationContext(RUN, api, frontier_enabled=False, source_graph=PinnedSourceGraph(graph, chunks), semantic_auditor=StructuralFixtureAuditor())
+    context = RuleSetPreparationContext(RUN, api, frontier_enabled=False, source_graph=PinnedSourceGraph(graph, chunks))
     tools = MechanicalTools(context, build_rule_set_tools(context))
+    tools.operations = {}
+    build_claim_tools(context, operations=tools.operations)
     return seed, context, tools, api
 
 
 def call(tools, name, **args):
-    if name in {"register_semantic_claim", "update_semantic_claim"} and isinstance(tools, MechanicalTools):
+    if name in {"register", "update"} and isinstance(tools, MechanicalTools):
         args = mechanical_arguments(tools.context, args)
+    if isinstance(tools, MechanicalTools) and name in tools.operations:
+        with tools.context.mutation_lock:
+            return tools.operations[name](**args)
+    if isinstance(tools, MechanicalTools) and name == "account_source":
+        ledger, draft = tools.context.inventory, tools.context.draft
+        nid, ids = args["source_node_id"], args["claim_ids"]
+        expected = ledger.claims_by_node.get(nid, set())
+        if set(ids) != expected or (not ids and not args.get("no_relevant_claim_reason")):
+            return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID", nid, "Account every claim or provide a no-claim reason")
+        draft["sourceAccounting"][nid] = {"sourceNodeId": nid, "claimIds": ids, "nonSemanticReason": args.get("no_relevant_claim_reason")}
+        ledger.rebuild_node_index()
+        return {"outcome": "PASSED"}
+    if isinstance(tools, MechanicalTools) and name == "account_reference":
+        return tools.operations["non_material"](args["reference_id"], args["non_material_reason"])
     return json.loads(tools[name].invoke(args))
 
 
 def discover(seed, context, tools):
     remap = {}
     for c in seed["packet"]["semanticGraph"]["claims"]:
-        result = call(tools, "register_semantic_claim", identity_key=c["claimId"], source_node_ids=c["sourceNodeIds"],
+        result = call(tools, "register", identity_key=c["claimId"], source_node_ids=c["sourceNodeIds"],
                       claim_type=c["claimType"], statement=c["statement"], **semantic_arguments(c), **({"actor": c["operative"]["actor"], "action": c["operative"]["action"]} if c["operative"] else {}))
         assert result["outcome"] == "PASSED", result
         remap[c["claimId"]] = result["claim"]["claimId"]
     for r in seed["packet"]["semanticGraph"]["relations"]:
-        assert call(tools, "link_semantic_claims", from_claim_id=remap[r["fromClaimId"]], to_claim_id=remap[r["toClaimId"]], kind=r["kind"])["outcome"] == "PASSED"
+        assert call(tools, "link", from_claim_id=remap[r["fromClaimId"]], to_claim_id=remap[r["toClaimId"]], kind=r["kind"])["outcome"] == "PASSED"
     for r in seed["packet"]["semanticGraph"]["sourceAccounting"]:
-        assert call(tools, "review_source_node", source_node_id=r["sourceNodeId"], claim_ids=[remap[cid] for cid in r["claimIds"]],
+        assert call(tools, "account_source", source_node_id=r["sourceNodeId"], claim_ids=[remap[cid] for cid in r["claimIds"]],
                     **({"no_relevant_claim_reason": r["nonSemanticReason"]} if r["nonSemanticReason"] else {}))["outcome"] == "PASSED"
     for r in seed["packet"]["semanticGraph"]["referenceAccounting"]:
         assert not r["material"], "Bridge fixture has no material reference edges"
-        call(tools, "review_source_reference", reference_id=r["referenceId"], material=False, relation_ids=[], non_material_reason=r["nonMaterialReason"])
+        call(tools, "account_reference", reference_id=r["referenceId"], material=False, relation_ids=[], non_material_reason=r["nonMaterialReason"])
     return remap
 
 
@@ -107,7 +135,7 @@ def author(seed, context, tools, remap, omit_claim=None):
 def main():
     seed, ctx, tools, api = runtime(bridge({"action": "INIT"}))
     c = seed["packet"]["semanticGraph"]["claims"][0]
-    call(tools, "register_semantic_claim", identity_key="duty", source_node_ids=c["sourceNodeIds"], claim_type="DUTY", statement=c["statement"], actor=c["operative"]["actor"], action=c["operative"]["action"])
+    call(tools, "register", identity_key="duty", source_node_ids=c["sourceNodeIds"], claim_type="DUTY", statement=c["statement"], actor=c["operative"]["actor"], action=c["operative"]["action"])
     assert call(tools, "validate_semantic_claim_inventory")["outcome"] == "FAILED"
     assert call(tools, "validate_semantic_claim_inventory")["NO_PROGRESS"]
     try:
