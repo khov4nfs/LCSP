@@ -68,6 +68,20 @@ def inception_base_url() -> str:
 
 
 def mirai_base_url(protocol: str = "openai") -> str:
+    """Business purpose: Select Mirai's endpoint shape for the explicitly chosen wire protocol.
+
+    Business rules:
+    - Use the fixed existing Mirai root for Anthropic messages and its /v1 endpoint for OpenAI-compatible requests.
+
+    Execution flow:
+    1. Match the requested protocol and return the corresponding endpoint.
+
+    Failure cases:
+    - Unsupported Mirai protocols raise ValueError before client initialization.
+
+    Side effects:
+    - None: pure endpoint selection without credential access or provider requests.
+    """
     if protocol == "openai":
         return f"{MIRAI_DEFAULT_BASE_URL}/v1"
     if protocol == "anthropic":
@@ -92,6 +106,21 @@ def provider_tokens(provider: str) -> tuple[str, ...]:
 
 
 def credential_init_kwargs(provider: str) -> dict[str, object]:
+    """Business purpose: Give the native provider client one credential slot while leaving rotation and retries under platform control.
+
+    Business rules:
+    - Never pass a comma-separated credential list to an SDK; Mirai must not inherit a native SDK key from another provider.
+    - When explicit tokens exist, select the first token and apply the provider's existing no-SDK-retry setting.
+
+    Execution flow:
+    1. Read the configured provider tokens, enforce Mirai's required credential, then return the selected credential/retry options or an empty mapping.
+
+    Failure cases:
+    - Missing Mirai credentials raise RuntimeError; token parsing errors propagate rather than silently using another provider's key.
+
+    Side effects:
+    - Reads credential configuration and returns secret constructor options to its caller; never logs tokens or invokes inference.
+    """
     tokens = provider_tokens(provider)
     if not tokens:
         # Proxy credentials must never inherit a native SDK's environment key.

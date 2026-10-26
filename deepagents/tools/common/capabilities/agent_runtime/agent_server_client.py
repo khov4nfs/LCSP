@@ -488,6 +488,24 @@ def reconcile_stale_agent_runs(*, server_url: str | None = None) -> int:
 
 
 def _agent_server_process_started_at(server_url: str) -> datetime:
+    """Business purpose: Establish the safe cutoff used to distinguish current Agent Server runs from stale persisted runs.
+
+    Business rules:
+    - The Agent Server process start metric is authoritative when available.
+    - The generation timestamp fallback is accepted only for the exact launcher-owned loopback server in a non-production runtime and only when it is not in the future.
+    - Production or remote servers without the metric cannot use a local launcher timestamp.
+
+    Execution flow:
+    1. Request `/metrics` and require a successful HTTP response.
+    2. Parse `process_start_time_seconds` when the server exposes it.
+    3. Otherwise validate the guarded local generation URL and timestamp fallback.
+
+    Failure cases:
+    - HTTP, network, or metrics parsing failures propagate; missing metrics without an eligible fallback raises RuntimeError.
+
+    Side effects:
+    - Performs one read-only HTTP request to the Agent Server metrics endpoint; it does not change run state.
+    """
     response = httpx.get(f"{server_url}/metrics", timeout=2.0)
     response.raise_for_status()
     prefix = "process_start_time_seconds "

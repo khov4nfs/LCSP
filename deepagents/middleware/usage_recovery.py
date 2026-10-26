@@ -34,7 +34,22 @@ MAX_PENDING_ROWS = 1000
 
 
 def usage_recovery_key(payload: SettledUsagePayload) -> str:
-    """Stable per-invocation key; usage is idempotent on the API side."""
+    """Stable per-invocation key; usage is idempotent on the API side.
+
+    Business purpose: Identify a usage callback idempotently within its Assessment or Preparation run and invocation lifecycle.
+
+    Business rules:
+    - Include the owner, run and invocation identities; include attemptStatus when present so lifecycle receipts remain distinct.
+
+    Execution flow:
+    1. Build the stable usage key from the validated callback payload identities and optional attempt status.
+
+    Failure cases:
+    - Required identity shape is owned by SettledUsagePayload; this helper adds no fallback invocation identity.
+
+    Side effects:
+    - None: pure key construction without provider replay or accounting mutation.
+    """
     return f"usage:{payload.assessmentId or payload.preparationRunId}:{payload.runId}:{payload.invocationId}" + (f":{payload.attemptStatus}" if payload.attemptStatus else "")
 
 
@@ -48,7 +63,22 @@ def enqueue_usage(path: str | Path, payload: SettledUsagePayload) -> None:
 
 
 def record_usage_evidence(path: str | Path, key: str, payload: dict[str, Any]) -> None:
-    """Archive one invocation atomically; never drain it as an assessment callback."""
+    """Archive one invocation atomically; never drain it as an assessment callback.
+
+    Business purpose: Durably retain invocation evidence independently of callback delivery.
+
+    Business rules:
+    - Evidence rows remain RECORDED and are never drained as provider work; an existing recovery key is not overwritten.
+
+    Execution flow:
+    1. Open the journal, require full synchronous durability, insert the evidence idempotently, commit and close the connection.
+
+    Failure cases:
+    - SQLite or JSON serialization failures propagate; the connection closes on every path and failed writes are not reported as committed.
+
+    Side effects:
+    - Creates/initializes the local journal as needed and commits one immutable-key EVIDENCE row.
+    """
     db = _connect(path)
     try:
         db.execute("PRAGMA synchronous=FULL")
@@ -64,7 +94,22 @@ def record_usage_evidence(path: str | Path, key: str, payload: dict[str, Any]) -
 
 
 def read_usage_evidence(path: str | Path) -> list[dict[str, Any]]:
-    """Read committed evidence without replaying providers or deleting records."""
+    """Read committed evidence without replaying providers or deleting records.
+
+    Business purpose: Read committed invocation evidence for reconciliation without replaying providers or deleting history.
+
+    Business rules:
+    - Open the resolved journal in read-only mode and return EVIDENCE rows in insertion order.
+
+    Execution flow:
+    1. Connect read-only, decode each retained evidence payload, and close the connection.
+
+    Failure cases:
+    - Missing/unreadable journals, SQLite errors or malformed retained JSON propagate rather than inventing evidence.
+
+    Side effects:
+    - Read-only local SQLite access; no callbacks, provider requests or journal writes.
+    """
     db = sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=10)
     try:
         return [json.loads(row[0]) for row in db.execute(
@@ -79,6 +124,23 @@ def drain(path: str | Path, api_client: Any) -> int:
 
     Transient failures remain pending. Permanent contract failures are retained
     as POISON for reconciliation, never replayed as provider work.
+
+    Business purpose: Recover and deliver durable usage callbacks while retaining invocation evidence and poisoned records.
+
+    Business rules:
+    - Reconstruct missing lifecycle callbacks from MODEL_ATTEMPT evidence; never replay model inference.
+    - Permanent contract/invalid-payload failures become POISON; transient failures remain pending and do not block unrelated rows.
+
+    Execution flow:
+    1. Rebuild missing USAGE callbacks from committed evidence and read pending rows in order.
+    2. Normalize and deliver each usage payload, quarantining permanent failures and retaining transient ones.
+    3. Mark lifecycle callbacks DELIVERED or delete legacy delivered rows, committing each success and returning the delivered count.
+
+    Failure cases:
+    - Invalid JSON/schema rows are quarantined; transient callback failures remain pending; journal/reconstruction errors propagate with connection cleanup.
+
+    Side effects:
+    - Sends usage API callbacks, inserts recovered callback rows and updates/deletes delivery rows; retains EVIDENCE and performs no provider work.
     """
     db = _connect(path)
     delivered = 0
@@ -164,6 +226,20 @@ def start_background_worker(
 
 
 def _enqueue(path: str | Path, kind: str, key: str, payload: dict[str, Any]) -> None:
+    """Business purpose: Persist an idempotent callback while preventing telemetry backlog from exhausting disk.
+
+    Business rules:
+    - Existing recovery keys are preserved; a full pending queue rejects new lifecycle receipts but logs/drops legacy payloads without attempt status.
+
+    Execution flow:
+    1. Open the durable journal, count pending rows, apply the existing capacity policy, then insert/commit the callback and close.
+
+    Failure cases:
+    - A new lifecycle callback at capacity raises RuntimeError to stop further model work; SQLite/serialization failures propagate and connections close.
+
+    Side effects:
+    - Creates the local journal if needed and commits a pending row, or logs a legacy drop; never invokes a provider.
+    """
     db = _connect(path)
     try:
         db.execute("PRAGMA synchronous=FULL")

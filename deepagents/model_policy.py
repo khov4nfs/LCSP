@@ -145,7 +145,22 @@ def canonical_provider(provider: str) -> str:
 
 
 def provider_client(provider: str, protocol: str | None = None) -> str:
-    """Return non-secret telemetry describing the provider client."""
+    """Return non-secret telemetry describing the provider client.
+
+    Business purpose: Describe the native/compatible transport selected for a validated provider and protocol without exposing secrets.
+
+    Business rules:
+    - Provider identity remains distinct from wire protocol; dual-protocol providers accept only their supported transports.
+
+    Execution flow:
+    1. Validate the provider, choose its default or explicit protocol, then return the matching non-secret client descriptor.
+
+    Failure cases:
+    - Unsupported providers, protocols or provider/protocol combinations raise RuntimeError.
+
+    Side effects:
+    - None: returns telemetry metadata without credentials, client initialization or inference.
+    """
     provider = canonical_provider(provider)
     protocol = _PROVIDERS[provider][0] if protocol is None else protocol
     if protocol not in PROTOCOLS:
@@ -168,7 +183,22 @@ def provider_client(provider: str, protocol: str | None = None) -> str:
 def provider_init_kwargs(
     provider: str, protocol: str | None = None
 ) -> dict[str, object]:
-    """Return transport-only constructor kwargs for one provider (no model facts)."""
+    """Return transport-only constructor kwargs for one provider (no model facts).
+
+    Business purpose: Build transport options for the chosen provider/protocol without inventing model capabilities.
+
+    Business rules:
+    - Validate provider/protocol compatibility; proxy URLs, timeouts and streaming options follow the existing transport policy.
+
+    Execution flow:
+    1. Resolve the default/explicit protocol, validate compatibility, then assemble proxy options or copy the native provider's constructor options.
+
+    Failure cases:
+    - Unsupported providers/protocols raise RuntimeError; endpoint or timeout configuration failures propagate.
+
+    Side effects:
+    - Reads transport configuration and returns constructor options; makes no model request or credential rotation.
+    """
     provider = canonical_provider(provider)
     protocol = _PROVIDERS[provider][0] if protocol is None else protocol
     if protocol not in PROTOCOLS:

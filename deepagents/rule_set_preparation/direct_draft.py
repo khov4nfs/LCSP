@@ -35,6 +35,21 @@ FIELDS = {"APPLICABILITY_CONDITION": "applicabilityConditions", "QUALIFIER": "qu
 
 
 def _normalize_json_arg(val: Any) -> Any:
+    """Business purpose: Accept a JSON object/array supplied either as a native value or serialized text in a candidate submission.
+
+    Business rules:
+    - Only strings that look like a complete object or array are parsed; invalid JSON and other scalar text remain unchanged for schema validation.
+
+    Execution flow:
+    1. Trim string input and check its outer delimiters.
+    2. Parse matching JSON when valid; otherwise return the original value.
+
+    Failure cases:
+    - JSON parse errors preserve the original input so the caller can return ordinary schema repair feedback.
+
+    Side effects:
+    - None: normalizes an in-memory input value only.
+    """
     if isinstance(val, str):
         trimmed = val.strip()
         if (trimmed.startswith("{") and trimmed.endswith("}")) or (trimmed.startswith("[") and trimmed.endswith("]")):
@@ -46,12 +61,44 @@ def _normalize_json_arg(val: Any) -> Any:
 
 
 def rejected(code, detail, ref="draft"):
+    """Business purpose: Format a direct-draft submission failure with a stable code, affected reference and corrective action.
+
+    Business rules:
+    - Stale package failures require fetching a current package; other failures ask for a targeted correction while preserving already accepted candidates.
+
+    Execution flow:
+    1. Select the required action from the failure code.
+    2. Return the standard FAILED result with one structured failure and its reference.
+
+    Failure cases:
+    - This function constructs failure results and does not throw for a rejected candidate.
+
+    Side effects:
+    - None: creates an in-memory repair response.
+    """
     action = "get_next_legal_analysis_package" if code == "STALE_AUTHORING_DRAFT" else "Correct only the affected candidate or source-unit disposition; accepted candidates remain saved"
     return {"outcome": "FAILED", "failures": [{"code": code, "ref": ref, "detail": detail}], "requiredAction": action}
 
 
 def project_context_relations(context):
-    """Deterministically project cross-requirement claim relations into typed contextRelations."""
+    """Deterministically project cross-requirement claim relations into typed contextRelations.
+
+    Business purpose: Project typed cross-Requirement claim relations into the compatibility `contextRelations` view.
+
+    Business rules:
+    - Only supported DEFINITION, SCOPE, QUALIFIER, EXCEPTION and CROSS_REFERENCE kinds are projected; same-Requirement links are omitted and IDs are deterministic.
+
+    Execution flow:
+    1. Index claim IDs by the Requirements that bind them.
+    2. Traverse supported typed claim relations and generate every cross-Requirement pair.
+    3. Replace the draft's projected contextRelations mapping.
+
+    Failure cases:
+    - Unsupported relation kinds are skipped; malformed endpoint references fail through the draft contract.
+
+    Side effects:
+    - Replaces `context.draft["contextRelations"]`; it does not create new legal claims or perform legal interpretation.
+    """
     claim_to_reqs = defaultdict(set)
     for rid, req in context.draft["legalRequirements"].items():
         for b in req.get("claimBindings", []):
@@ -89,6 +136,22 @@ class DirectDraft:
 
     @property
     def rejected_submission(self):
+        """Business purpose: Return the rejected payload associated with the current direct-draft package for precise repair.
+
+        Business rules:
+        - Prefer the current package's rejection; otherwise expose the most recently retained rejection, and return `None` when none exists.
+
+        Execution flow:
+        1. Check whether any rejected payload is retained.
+        2. Return the current package's payload when available.
+        3. Otherwise return the most recent payload.
+
+        Failure cases:
+        - Missing or stale package association falls back to the latest retained rejection without fabricating one.
+
+        Side effects:
+        - None: reads the rejection cache.
+        """
         if not self.rejected_submissions:
             return None
         if self.package and self.package.get("packageId") in self.rejected_submissions:
@@ -97,6 +160,21 @@ class DirectDraft:
 
     @rejected_submission.setter
     def rejected_submission(self, value):
+        """Business purpose: Clear or store one rejected direct-draft payload so the agent can repair the exact failed submission.
+
+        Business rules:
+        - Assigning `None` clears all retained rejected submissions; a mapping is stored only when it has a packageId.
+
+        Execution flow:
+        1. Clear the cache when given `None`.
+        2. Otherwise validate the package key and save the payload under that package ID.
+
+        Failure cases:
+        - Values without a packageId are ignored and cannot be used to patch an unrelated package.
+
+        Side effects:
+        - Mutates the run-local rejected-submission cache.
+        """
         if value is None:
             self.rejected_submissions.clear()
         elif isinstance(value, dict) and "packageId" in value:
@@ -104,13 +182,59 @@ class DirectDraft:
 
     @property
     def ledger(self):
+        """Business purpose: Expose the ClaimInventory attached to the direct-draft run context.
+
+        Business rules:
+        - The context inventory remains the sole lifecycle and frontier authority.
+
+        Execution flow:
+        1. Read and return `context.inventory`.
+
+        Failure cases:
+        - If inventory is not initialized, the property returns `None`; callers decide whether that state is valid.
+
+        Side effects:
+        - None: read-only context projection.
+        """
         return self.context.inventory
 
     @property
     def source(self):
+        """Business purpose: Expose the pinned LegalDocumentGraph used for direct-draft evidence checks.
+
+        Business rules:
+        - Candidate support and references are resolved only through the context's pinned graph.
+
+        Execution flow:
+        1. Read and return `context.source_graph`.
+
+        Failure cases:
+        - An absent graph returns `None`; source-dependent methods must not infer missing source content.
+
+        Side effects:
+        - None: read-only context projection.
+        """
         return self.context.source_graph
 
     def next_package(self):
+        """Business purpose: Assign the next bounded set of unreviewed pinned source units for direct legal analysis.
+
+        Business rules:
+        - Units are never reassigned after completion unless reopened or affected by the latest validation failure; packages stay bound to the current draft version.
+        - Packages follow source-file order, include only exact ancestor context and cap both units and source text.
+
+        Execution flow:
+        1. Under the mutation lock, refresh frontier progress and restore the durable authoring draft.
+        2. Select pending/reopened units, or units implicated by the last validation failure.
+        3. Return the completion action if none remain; otherwise group a bounded same-file batch.
+        4. Attach exact ancestor context, references and draft-version/package identity, then retain the package.
+
+        Failure cases:
+        - Frontier refusal is returned; units blocked on references remain visible when no ordinary pending units are available.
+
+        Side effects:
+        - Reads/restores durable draft state and updates the run-local current/package map; it does not decide legal meaning.
+        """
         with self.context.mutation_lock:
             progress = self.ledger.frontier.progress()
             if progress.get("outcome") != "PASSED":
@@ -162,6 +286,23 @@ class DirectDraft:
                     "requiredAction": "Read any truncated nodes and material references, then submit_rule_set_draft_candidates"}
 
     def candidate(self, candidate_id):
+        """Business purpose: Return one persisted Requirement candidate with its authored facts, source quotes and linked AssessmentRule for targeted repair.
+
+        Business rules:
+        - The requested candidate must exist in the current draft; support quotes are sliced from the pinned source, and the response includes only relevant reviewed units.
+
+        Execution flow:
+        1. Find the Requirement and its bound semantic claims.
+        2. Project claim roles into candidate facts with exact source excerpts.
+        3. Find linked rules, derive the package from the candidate's reviewed source units and retain it for correction.
+        4. Return the candidate and its package metadata.
+
+        Failure cases:
+        - A candidate ID absent from the current draft returns CLAIM_SCHEMA_INVALID; malformed persisted bindings surface instead of being reconstructed from model memory.
+
+        Side effects:
+        - Adds the candidate package to the run-local package cache; no draft fact is changed.
+        """
         row = self.context.draft["legalRequirements"].get(candidate_id)
         if row is None:
             return rejected("CLAIM_SCHEMA_INVALID", "Unknown candidate identity", candidate_id)
@@ -192,6 +333,22 @@ class DirectDraft:
                 "investigationFocus": rules[0]["criteria"][0].get("investigationFocus")} if rules else None}}
 
     def _drop(self, candidate_id):
+        """Business purpose: Remove one Requirement candidate and every draft object owned by its bindings before it is replaced.
+
+        Business rules:
+        - Only the identified candidate is removed; associated claims, owned relations, dependent AssessmentRules and contextRelations are removed to prevent dangling references.
+
+        Execution flow:
+        1. Remove the Requirement and return when it did not exist.
+        2. Remove its bound claims from the draft, identity ledger, authored set and frontier ownership.
+        3. Delete relations involving those claims, rules citing the candidate and projected context relations involving it.
+
+        Failure cases:
+        - Missing candidate is an idempotent no-op; malformed draft relationships surface as state errors.
+
+        Side effects:
+        - Mutates the in-memory direct-draft candidate, claim, relation and ownership indexes.
+        """
         row = self.context.draft["legalRequirements"].pop(candidate_id, None)
         if not row:
             return
@@ -214,6 +371,24 @@ class DirectDraft:
                 del self.context.draft["contextRelations"][rid]
 
     def _fact(self, key, fact, claim_type, authority, assessability, frame, relevant=True):
+        """Business purpose: Register one model-authored legal fact as a source-supported semantic claim in the direct-draft working inventory.
+
+        Business rules:
+        - Support quotes must resolve to pinned source spans; operative requirements cannot originate in reference-only material, and every claim needs a review-unit owner.
+        - The deterministic layer records evidence and typed fields but does not invent or judge the legal proposition.
+
+        Execution flow:
+        1. Resolve each quote into an exact source span and source-node set.
+        2. Select the owning reviewed source unit, preferring actual support.
+        3. Create the claim through the inventory and reject any non-passing result.
+        4. Return the created claim.
+
+        Failure cases:
+        - Reference-only operative origin, absent source-bearing owner or inventory rejection raises ValueError so the enclosing submission can roll back.
+
+        Side effects:
+        - Mutates the local claim inventory and draft identity map through `put_claim`.
+        """
         spans = [support_span(self.source, s["nodeId"], s["quote"]) for s in fact["support"]]
         ids = sorted({s["nodeId"] for s in spans})
         if key[0] == "obligation" and any(self.source.is_reference_only(nid) for nid in ids):
@@ -237,6 +412,22 @@ class DirectDraft:
         return result["claim"]
 
     def _refs(self, claim):
+        """Business purpose: Derive deduplicated legal-source chunk references for a semantic claim's support nodes.
+
+        Business rules:
+        - References come only from pinned chunks attached to the node or its ancestors; identity is document, locator and content hash.
+
+        Execution flow:
+        1. Traverse each claim source node and its ancestors to find chunk IDs.
+        2. Build the source-reference projection for each chunk.
+        3. Deduplicate by stable fingerprint and return the references.
+
+        Failure cases:
+        - Missing source nodes/chunks fail as inconsistent pinned-graph state rather than producing a guessed citation.
+
+        Side effects:
+        - None: returns source provenance derived from the graph.
+        """
         refs = {}
         for nid in claim["sourceNodeIds"]:
             owner = next((n for n in [nid, *self.source.ancestors(nid)] if self.source.chunk_ids.get(n)), None)
@@ -247,6 +438,24 @@ class DirectDraft:
         return list(refs.values())
 
     def _candidate(self, value, operations):
+        """Business purpose: Convert one source-backed model candidate into governed Requirement, claim, relation and optional AssessmentRule draft rows.
+
+        Business rules:
+        - Repository assessability must match AssessmentRule/non-assessable-reason fields; obligations and modifiers retain their supplied support, and typed relations are linked through existing claim operations.
+        - This builder enforces structure and provenance; the model remains responsible for legal interpretation.
+
+        Execution flow:
+        1. Remove the previous candidate version and validate its assessability pairing.
+        2. Build the Requirement frame and source-backed semantic claims for obligations, conditions, qualifiers, exceptions and definitions.
+        3. Link modifier claims to operative anchors and create the Requirement row with exact references.
+        4. Create the optional AssessmentRule and its criterion/evidence binding.
+
+        Failure cases:
+        - Missing support, duplicate identity, invalid role pairing, failed relation operations or duplicate Rule identity raise ValueError for whole-submission rollback.
+
+        Side effects:
+        - Mutates the in-memory legalRequirements, semanticClaims, claimRelations and assessmentRules draft sections.
+        """
         candidate_id = value["candidateId"]
         self._drop(candidate_id)
         is_repo_assessable = value["repositoryAssessability"] in ("REPOSITORY_VERIFIABLE", "MIXED")
@@ -305,6 +514,22 @@ class DirectDraft:
                 **{key: [] for key in ("investigationGoals", "startingNodeTypes", "targetNodeTypes", "edgeStrategies", "graphQueries", "keywords", "commonApis", "commonLibraries", "patterns", "requiredEvidence", "supportingEvidence", "negativeEvidence")}}
 
     def submit(self, payload):
+        """Business purpose: Submit one direct-draft payload and retain only rejected payloads that are still repairable against the same package.
+
+        Business rules:
+        - Successful submissions clear their package rejection; stale draft versions invalidate all package/rejection caches; other failures are retained only for a current package.
+
+        Execution flow:
+        1. Call `_submit` with the candidate payload.
+        2. Clear stale rejection state after success or invalidate packages on stale-draft failure.
+        3. Save other rejected payloads for the package and return precise correction guidance.
+
+        Failure cases:
+        - Stale package failures require a new analysis package; unrecognized package IDs are not retained for correction.
+
+        Side effects:
+        - Mutates run-local package/rejection caches; durable draft effects are owned by `_submit`.
+        """
         result = self._submit(payload)
         pkg_id = payload.get("packageId") if isinstance(payload, dict) else None
         if result.get("outcome") == "PASSED":
@@ -320,6 +545,23 @@ class DirectDraft:
         return result
 
     def correct(self, package_id, patches):
+        """Business purpose: Apply targeted JSON-pointer patches to the latest rejected submission for one current package.
+
+        Business rules:
+        - Corrections are limited to candidate facts, source-unit dispositions, references, legal effects and candidate removals; the full payload is revalidated before persistence.
+        - A current package/version and a previously rejected payload are required.
+
+        Execution flow:
+        1. Verify the package version and find its rejected payload.
+        2. Parse and validate one to 64 `{path, value}` patches and apply them to a copy.
+        3. Resubmit the complete corrected payload through the normal validation path.
+
+        Failure cases:
+        - Stale package or absent rejection returns STALE_AUTHORING_DRAFT; malformed pointers return CLAIM_SCHEMA_INVALID without accepting the patch.
+
+        Side effects:
+        - Replaces rejected-submission state only through the ordinary `submit` flow; it does not patch durable draft data directly.
+        """
         pkg = self.packages.get(package_id)
         if not pkg or (pkg.get("draftVersion") is not None and pkg.get("draftVersion") != self.ledger.draft_version):
             self.packages.pop(package_id, None)
@@ -377,6 +619,25 @@ class DirectDraft:
         return self.submit(value)
 
     def _submit(self, payload):
+        """Business purpose: Validate and atomically persist one bounded direct-draft submission against the current pinned source package.
+
+        Business rules:
+        - The package and draft version must be current; source-unit ownership, exact support, legal-effect/reference accounting, candidate assessability, duplicate obligation ownership and typed draft schemas are enforced before completion.
+        - Unknown facts and unresolved dependencies remain blocked with factual reasons; deterministic validation never supplies legal conclusions.
+
+        Execution flow:
+        1. Normalize JSON-valued fields and validate any reference-only dispositions and the full submission schema.
+        2. Lock the run, verify package identity/version and source-unit membership, and adopt touched review units.
+        3. Snapshot the draft and ownership state; apply candidate removals/upserts, legal effects, references and source dispositions.
+        4. Validate all draft sections and references, then complete the frontier batch through the governed API.
+        5. On success, clear stale validation/package state and return accepted IDs and the next package; on local validation failure restore the snapshot and return repair feedback.
+
+        Failure cases:
+        - Schema, stale package, unsupported source evidence, invalid reference binding, incomplete unit accounting or frontier/API refusal returns a failure; caught validation errors restore draft and ownership state.
+
+        Side effects:
+        - Mutates local draft/identity/frontier projections and persists accepted draft/source-review completion through the governed source-review operation.
+        """
         if not isinstance(payload, dict):
             return rejected("CLAIM_SCHEMA_INVALID", "Submission payload must be an object")
         payload = dict(payload)
@@ -620,17 +881,65 @@ class DirectDraft:
 
 
 def build_direct_draft_tools(context):
+    """Business purpose: Expose the native bounded-package, candidate-read, submission and targeted-correction tools for a direct-draft run.
+
+    Business rules:
+    - All tools share the run's DirectDraft state; accepted work is persisted by the governed submit path, and corrections operate only on rejected payloads.
+
+    Execution flow:
+    1. Reuse the context's DirectDraft state or initialize and attach one.
+    2. Define package/candidate read tools and schema-governed submission/correction tools.
+    3. Return the four model-facing tools without running them.
+
+    Failure cases:
+    - Invalid tool input is handled by the declared schema or DirectDraft failure result; construction errors propagate.
+
+    Side effects:
+    - May attach a run-local DirectDraft instance and constructs tool objects; persistent effects occur only on tool invocation.
+    """
     state = context.direct_state or DirectDraft(context)
     context.direct_state = state
 
     @tool
     def get_next_legal_analysis_package() -> str:
-        """Get one bounded Article-based package of pending source units, exact ancestors and references. Completed units are not assigned again."""
+        """Get one bounded Article-based package of pending source units, exact ancestors and references. Completed units are not assigned again.
+
+        Business purpose: Give the agent the next bounded pinned-source package for independent legal analysis.
+
+        Business rules:
+        - Only pending/reopened source units and their exact ancestor context are assigned; completed units are not assigned again unless the governed frontier reopens them.
+
+        Execution flow:
+        1. Ask the shared DirectDraft state for its next package.
+        2. Serialize pinned source, package revision and the required next action.
+
+        Failure cases:
+        - Frontier failures are returned in the package result; an exhausted frontier reports `complete=true` instead of an invented package.
+
+        Side effects:
+        - Reads durable source-review state and updates run-local package bookkeeping.
+        """
         return json.dumps(state.next_package(), ensure_ascii=False)
 
     @tool
     def get_rule_set_draft_candidate(candidate_id: str) -> str:
-        """Read one persisted candidate's facts and evidence for a targeted correction. Never reconstruct the entire Article draft."""
+        """Read one persisted candidate's facts and evidence for a targeted correction. Never reconstruct the entire Article draft.
+
+        Business purpose: Retrieve one persisted candidate's authored facts and exact support for a targeted correction.
+
+        Business rules:
+        - The tool returns only the requested candidate and source evidence needed to revise it; it does not reconstruct the whole Article draft.
+
+        Execution flow:
+        1. Resolve the candidate ID through DirectDraft.
+        2. Serialize its facts, exact quotes and linked AssessmentRule.
+
+        Failure cases:
+        - A candidate ID absent from the current draft returns a repairable CLAIM_SCHEMA_INVALID result.
+
+        Side effects:
+        - Adds package metadata to the local correction cache; no candidate content is mutated.
+        """
         return json.dumps(state.candidate(candidate_id), ensure_ascii=False)
 
     @tool(args_schema=SUBMISSION_SCHEMA)
@@ -650,7 +959,23 @@ def build_direct_draft_tools(context):
 
     @tool
     def correct_rule_set_draft_submission(package_id: str, patches: list[dict[str, Any]]) -> str:
-        """Correct only fields of the last rejected submission, retaining all its other exact authored facts. Each patch has path and value, e.g. {"path":"/candidates/0/nonAssessableReason","value":"External performance"}. Use the same package_id. The complete corrected submission is revalidated and saved atomically; nothing rejected is accepted silently."""
+        """Correct only fields of the last rejected submission, retaining all its other exact authored facts. Each patch has path and value, e.g. {"path":"/candidates/0/nonAssessableReason","value":"External performance"}. Use the same package_id. The complete corrected submission is revalidated and saved atomically; nothing rejected is accepted silently.
+
+        Business purpose: Let the agent repair selected fields of the last rejected direct-draft submission.
+
+        Business rules:
+        - Patches must name the same current package; all unchanged authored facts are retained and the complete payload is validated again before any persistence.
+
+        Execution flow:
+        1. Pass package ID and path/value patches to DirectDraft correction.
+        2. Serialize the corrected submission result.
+
+        Failure cases:
+        - Stale package, absent rejected payload or invalid JSON pointer returns a structured failure; rejected facts are never accepted silently.
+
+        Side effects:
+        - Invocation may persist the complete corrected submission through the normal governed draft/frontier flow.
+        """
         return json.dumps(state.correct(package_id, patches), ensure_ascii=False)
 
     return [get_next_legal_analysis_package, get_rule_set_draft_candidate, submit_rule_set_draft_candidates, correct_rule_set_draft_submission]

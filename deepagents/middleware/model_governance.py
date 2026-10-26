@@ -69,11 +69,43 @@ class OneNativeSchemaRepair:
     """Explicit per-invocation opt-in; the shared guard permits one native correction."""
 
     def __call__(self, error):
+        """Business purpose: Give the model one safe, actionable correction message after native structured-output validation fails.
+
+        Business rules:
+        - Remove Pydantic input_value details, normalize whitespace, and cap the diagnostic at 400 characters.
+        - Tell the model to correct its output against the supplied schema and identities.
+
+        Execution flow:
+        1. Convert the validation error to text and redact input values.
+        2. Collapse whitespace, truncate the detail, and prefix it with the output-contract correction instruction.
+
+        Failure cases:
+        - The callback returns bounded feedback rather than raising when the error text contains no usable detail.
+
+        Side effects:
+        - Pure formatting; it does not change messages or invoke a model.
+        """
         detail = " ".join(_PYDANTIC_INPUT_VALUE.sub(", input_type=", str(error)).split())
         return "Output contract rejected: " + detail[:400] + ". Correct the returned data to the supplied schema and identities."
 
     def allow_feedback(self, messages, names):
         # Native subagents reuse their compiled graph across concurrent task conversations.
+        """Business purpose: Prevent repeated native schema-repair feedback within the same tool conversation.
+
+        Business rules:
+        - Feedback is disallowed when a ToolMessage from one of the governed tool names already starts with the repair prefix.
+        - The decision is derived from the supplied conversation messages, so concurrent conversations do not share repair state.
+
+        Execution flow:
+        1. Scan messages for a matching ToolMessage name and repair-prefix content.
+        2. Return false when prior repair feedback exists; otherwise return true.
+
+        Failure cases:
+        - Messages without a matching tool feedback message allow the single repair path.
+
+        Side effects:
+        - Pure conversation inspection; it does not mutate messages or persist a repair counter.
+        """
         return not any(
             isinstance(message, ToolMessage)
             and message.name in names
@@ -91,6 +123,27 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
         # A sample whose tool calls cannot execute would otherwise reach the tool
         # node and end the whole run as a terminal schema error; discard it before
         # any tool runs so ModelRetry re-samples the same request instead.
+        """Business purpose: Enforce structured-output and tool-call contracts before malformed model samples reach tool execution or assessment logic.
+
+        Business rules:
+        - Malformed tool-call samples are rejected first; requests without a governed response format and provider-native strategies pass through.
+        - A native schema repair is allowed only for the explicit OneNativeSchemaRepair strategy and only before prior repair feedback.
+        - Text-only output for a tool strategy is accepted only when it parses as one schema-valid JSON object.
+
+        Execution flow:
+        1. Inspect the response for capped or malformed tool calls and reject such a sample before tool execution.
+        2. Pass through ungoverned formats or an already populated structured response.
+        3. Detect schema-tool validation feedback; allow the one opted-in repair or raise a structured-output rejection.
+        4. For a final text-only response, parse and validate the JSON object, returning it as structured output only when a schema matches.
+        5. Pass through responses that do not violate these conditions.
+
+        Failure cases:
+        - Raise MalformedToolCallSample for an unusable tool-call sample and StructuredOutputRejected for disabled repair or invalid text-only structured output.
+        - Log a warning for malformed tool-call samples with the reason and response shape before raising.
+
+        Side effects:
+        - Reads the request and response and may emit a malformed-sample warning; it does not execute tools or call a model.
+        """
         reason = _malformed_tool_call_reason(request, response)
         if reason is not None:
             logger.warning("MODEL_MALFORMED_TOOL_CALL_SAMPLE", reason=reason, sample=response_shape(response))
@@ -158,6 +211,25 @@ def _malformed_tool_call_reason(request, response) -> str | None:
     # request carries native tools or the dicts a provider middleware rewrote them into (Gemini). A
     # tool that answers invalid arguments itself (``handle_validation_error``) gives the model
     # correction feedback; discarding its sample would only re-roll a mistake that feedback fixes.
+    """Business purpose: Identify unusable tool-call samples before the tool node executes them.
+
+    Business rules:
+    - Validate against the original request tool contracts even when provider middleware rewrites their representation.
+    - Do not discard arguments that the tool itself handles through handle_validation_error.
+    - Report only token-cap, parse, field-path, and error-kind information; never include argument values.
+
+    Execution flow:
+    1. Build normalized contracts from the request's original tools when available.
+    2. Inspect AI messages containing tool calls, first checking output-cap metadata and then unparseable calls.
+    3. Validate each known contract unless the tool handles invalid arguments, and return the first issue found.
+    4. Return None when no governed tool-call defect is found.
+
+    Failure cases:
+    - Tool names without an available contract are not independently rejected here; the authoritative tool boundary remains responsible for them.
+
+    Side effects:
+    - Pure inspection and validation; it does not execute tools, log, or mutate the response.
+    """
     contracts = request_tool_contracts(request)
     for message in response.result:
         if not isinstance(message, AIMessage):
@@ -273,6 +345,22 @@ class _GovernedInternalModelRunnable:
 
     @staticmethod
     def _message(result) -> AIMessage:
+        """Business purpose: Extract the model response that Deep Agents' governed internal operation expects.
+
+        Business rules:
+        - Select the last AIMessage from a dictionary result's messages collection.
+        - Do not treat non-AI messages or non-dictionary results as a successful model answer.
+
+        Execution flow:
+        1. Read the messages list when the result is a dictionary.
+        2. Search it in reverse for the final AIMessage and return that message.
+
+        Failure cases:
+        - Raise RuntimeError when no AIMessage is present so summarization cannot continue with an empty or unrelated result.
+
+        Side effects:
+        - Pure result projection; it does not call a model or change the result.
+        """
         messages = result.get("messages", []) if isinstance(result, dict) else []
         message = next(
             (item for item in reversed(messages) if isinstance(item, AIMessage)), None
@@ -282,6 +370,23 @@ class _GovernedInternalModelRunnable:
         return message
 
     def invoke(self, prompt, config=None, **_kwargs):
+        """Business purpose: Route a synchronous framework-owned internal prompt through the LCSP-governed agent stack.
+
+        Business rules:
+        - Internal prompts must be text; inference runs through the compiled agent configured with the supplied role and governance middleware.
+        - Return the final AIMessage rather than exposing the agent result envelope.
+
+        Execution flow:
+        1. Reject non-string prompts.
+        2. Wrap the text in a HumanMessage and invoke the governed agent with the caller's config.
+        3. Extract and return the final AIMessage.
+
+        Failure cases:
+        - Raise TypeError for non-text prompts and propagate agent or missing-response failures.
+
+        Side effects:
+        - Performs a governed model inference, including the configured runtime's provider routing, metering, and audit effects.
+        """
         if not isinstance(prompt, str):
             raise TypeError("governed internal model prompt must be text")
         result = self._agent.invoke(
@@ -290,6 +395,23 @@ class _GovernedInternalModelRunnable:
         return self._message(result)
 
     async def ainvoke(self, prompt, config=None, **_kwargs):
+        """Business purpose: Route an asynchronous framework-owned internal prompt through the LCSP-governed agent stack.
+
+        Business rules:
+        - Internal prompts must be text; inference runs through the compiled agent configured with the supplied role and governance middleware.
+        - Return the final AIMessage rather than exposing the agent result envelope.
+
+        Execution flow:
+        1. Reject non-string prompts.
+        2. Wrap the text in a HumanMessage and await the governed agent with the caller's config.
+        3. Extract and return the final AIMessage.
+
+        Failure cases:
+        - Raise TypeError for non-text prompts and propagate agent or missing-response failures.
+
+        Side effects:
+        - Performs governed asynchronous inference, including configured provider routing, metering, and audit effects.
+        """
         if not isinstance(prompt, str):
             raise TypeError("governed internal model prompt must be text")
         result = await self._agent.ainvoke(
@@ -299,7 +421,24 @@ class _GovernedInternalModelRunnable:
 
 
 def governed_summarization_middleware(model, *, backend, role: str):
-    """Route Deep Agents' framework-owned summary call through LCSP governance."""
+    """Business purpose: Route Deep Agents' framework-owned summarization inference through LCSP model governance.
+
+    Business rules:
+    - Preserve Deep Agents' summarization middleware behavior while replacing its direct summary model with the governed internal runnable.
+    - Fail closed if the installed Deep Agents helper no longer exposes the summary-model integration point.
+
+    Execution flow:
+    1. Construct the standard summarization middleware for the requested model and backend.
+    2. Verify that its internal helper exposes _summary_model.
+    3. Replace that model with a governed runnable marked for the requested role and SUMMARIZATION operation.
+    4. Return the configured middleware.
+
+    Failure cases:
+    - Raise RuntimeError when the framework integration point is absent so summaries cannot silently bypass governance.
+
+    Side effects:
+    - Mutates the newly constructed middleware's summary-model configuration; future summarization invokes the governed model stack.
+    """
     from deepagents.middleware.summarization import create_summarization_middleware
 
     middleware = create_summarization_middleware(model, backend)

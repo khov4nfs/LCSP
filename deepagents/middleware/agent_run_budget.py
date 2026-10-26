@@ -129,6 +129,20 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return self.finalize_after + self.grace_calls
 
     def after_model(self, state, runtime) -> dict[str, Any] | None:
+        """Business purpose: Advance the checkpointed model-turn count used by the run's existing finalization policy.
+
+        Business rules:
+        - Explicit shared-quota mode uses its reservation counters instead of this graph-state count.
+
+        Execution flow:
+        1. Return no update in shared-quota mode; otherwise increment the normalized run model-call count.
+
+        Failure cases:
+        - Missing count state is handled by the shared counter reader; this hook does not reject an otherwise valid model response.
+
+        Side effects:
+        - Returns a graph-state count update; performs no provider call or durable financial settlement.
+        """
         if self.run_quotas is not None:
             return None
         return {RUN_MODEL_CALL_COUNT_KEY: _run_model_calls(state) + 1}
@@ -137,16 +151,58 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return self.after_model(state, runtime)
 
     def wrap_model_call(self, request, handler):
+        """Business purpose: Apply the existing run budget before one synchronous model request and reconcile quota input after success.
+
+        Business rules:
+        - The shared bounded-request policy owns admission/context/finalization behavior; usage reconciliation occurs only after a returned response.
+
+        Execution flow:
+        1. Obtain the budget-approved request, call the handler, reconcile reported input usage, and return its response.
+
+        Failure cases:
+        - Budget rejections and handler errors propagate without invoking successful-response reconciliation.
+
+        Side effects:
+        - May reserve shared counters, publish policy events or alter request context/tools, then invokes the model handler.
+        """
         response = handler(self._bounded_request(request))
         self._settle_quota(request, response)
         return response
 
     async def awrap_model_call(self, request, handler):
+        """Business purpose: Apply the existing run budget before one asynchronous model request and reconcile quota input after success.
+
+        Business rules:
+        - The shared bounded-request policy owns admission/context/finalization behavior; usage reconciliation occurs only after a returned response.
+
+        Execution flow:
+        1. Obtain the budget-approved request, await the handler, reconcile reported input usage, and return its response.
+
+        Failure cases:
+        - Budget rejections and handler errors propagate without invoking successful-response reconciliation.
+
+        Side effects:
+        - May reserve shared counters, publish policy events or alter request context/tools, then invokes the model handler.
+        """
         response = await handler(self._bounded_request(request))
         self._settle_quota(request, response)
         return response
 
     def _settle_quota(self, request, response):
+        """Business purpose: Replace the shared quota's estimated input reservation with reported model input usage when available.
+
+        Business rules:
+        - Reconcile only in explicit quota mode and only when response messages report input_tokens; hold the shared lock for the adjustment.
+
+        Execution flow:
+        1. Sum available response input usage, recompute the original estimate, and adjust the quota by reported minus reserved input.
+
+        Failure cases:
+        - Absent quota configuration or reported usage leaves counters unchanged; malformed reported values are not silently converted to zero.
+
+        Side effects:
+        - Mutates the in-memory shared quota input counter; no historical receipt or customer balance is rewritten.
+        """
         if self.run_quotas is None:
             return
         reported = [m.usage_metadata["input_tokens"] for m in getattr(response, "result", [])
@@ -157,6 +213,23 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                 self.quota_input_tokens += sum(reported) - reserved
 
     def _bounded_request(self, request):
+        """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
+
+        Business rules:
+        - Shared-quota mode reserves call/input estimates atomically and neither edits context nor withdraws tools.
+        - Standard mode stops at the hard call limit, trims older tool results near context capacity, and restricts late calls to configured finalization tools.
+
+        Execution flow:
+        1. In quota mode reject an exceeded configured threshold or reserve the next request.
+        2. Otherwise enforce the hard call count and trim old tool results when context warrants it.
+        3. Return the original/trimmed request or a finalization-only request with an unresolved-work instruction.
+
+        Failure cases:
+        - Quota or hard-limit exhaustion raises AgentRunBudgetExceeded; context limits request finalization without inventing completed work.
+
+        Side effects:
+        - Updates in-memory quota reservations and emits budget/trim telemetry; may return a modified message/tool request without calling the provider.
+        """
         if self.run_quotas is not None:
             tokens = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
             with self.quota_lock:

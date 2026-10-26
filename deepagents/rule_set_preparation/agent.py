@@ -57,12 +57,63 @@ class PreparationObservationMiddleware(AgentMiddleware):
         self.context = context
 
     def wrap_tool_call(self, request, handler):
+        """Business purpose: Return the result of a synchronous Preparation tool call with its pinned-source observation checked and, when appropriate, attached as feedback.
+
+        Business rules:
+        - Only the observer's existing phase and tool allowlist can produce observation feedback; the tool result remains the source of the observation.
+        - A no-progress terminal state is raised by the shared observer so the run cannot silently loop on the same evidence.
+
+        Execution flow:
+        1. Execute the requested synchronous handler once.
+        2. Pass the returned result and request metadata to the shared observation policy.
+        3. Return its annotated result or propagate its terminal no-progress failure.
+
+        Failure cases:
+        - Handler errors propagate without being converted into legal findings; repeated non-progress observations raise NoProgressDetected.
+
+        Side effects:
+        - Observation bookkeeping and stream events may be updated; no source text or legal decision is changed.
+        """
         return self._observe(request, handler(request))
 
     async def awrap_tool_call(self, request, handler):
+        """Business purpose: Apply the same pinned-source observation feedback to an asynchronous Preparation tool call.
+
+        Business rules:
+        - Preserve asynchronous handler behavior and the same phase, tool and no-progress rules used by the synchronous path.
+
+        Execution flow:
+        1. Await the requested handler once.
+        2. Send its result to the shared observation policy.
+        3. Return the annotated result or propagate a terminal no-progress failure.
+
+        Failure cases:
+        - Handler and NoProgressDetected exceptions propagate to the runner; they are not turned into legal findings.
+
+        Side effects:
+        - Updates run-local observation state and may publish progress events; it does not alter source or assessment authority.
+        """
         return self._observe(request, await handler(request))
 
     def _observe(self, request, result):
+        """Business purpose: Tell the Preparation agent whether an allowed pinned-source observation adds evidence or repeats prior work.
+
+        Business rules:
+        - Compare the tool, arguments and exact pinned LegalSourceVersion together with the result; errors are fingerprinted without rejected argument values.
+        - Parallel calls from one model decision do not trigger premature stagnation feedback, and observation feedback never decides legal meaning.
+
+        Execution flow:
+        1. Ignore observations outside the active phase, allowlist, or ToolMessage result contract.
+        2. Fingerprint the observation and update novelty, progress revision and repetition stage under the observation lock.
+        3. Publish source-inspection progress and attach bounded guidance to the result.
+        4. Raise NoProgressDetected when the same observation persists through the terminal stage without progress.
+
+        Failure cases:
+        - Unsupported result shapes pass through unchanged; terminal repetition fails the run instead of returning another identical result.
+
+        Side effects:
+        - Mutates run-local observation counters and publishes progress events; it does not mutate the pinned graph or authored legal content.
+        """
         if not self.context.direct_draft and self.context.inventory is not None and not self.context.inventory.frozen:
             return result
         call = getattr(request, "tool_call", None)
@@ -155,6 +206,21 @@ class PreparationObservationMiddleware(AgentMiddleware):
 
 
 def _observation_hash(value: Any) -> str:
+    """Business purpose: Produce a stable identifier for source observations and model decisions.
+
+    Business rules:
+    - Use sorted compact JSON with default=str for non-JSON values; fall back to the value's type representation only if serialization still raises TypeError or ValueError.
+
+    Execution flow:
+    1. Serialize the supplied value deterministically where possible.
+    2. Hash the encoded representation with SHA-256 and return its hexadecimal digest.
+
+    Failure cases:
+    - Remaining JSON type/value errors use the type fallback; encoding replaces invalid Unicode rather than failing the observation path.
+
+    Side effects:
+    - None: pure fingerprint calculation with no persistence or external calls.
+    """
     try:
         normalized = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
     except (TypeError, ValueError):
@@ -163,6 +229,22 @@ def _observation_hash(value: Any) -> str:
 
 
 def _with_observation_feedback(content: Any, feedback: dict[str, Any]) -> Any:
+    """Business purpose: Add the shared pinned-source observation notice to a tool result format that the agent can read.
+
+    Business rules:
+    - Strings receive a textual suffix and list content receives one text block; unsupported content types are returned unchanged.
+
+    Execution flow:
+    1. Serialize the feedback into the observation marker.
+    2. Append the marker according to the supported content shape.
+    3. Preserve all existing content and return the resulting value.
+
+    Failure cases:
+    - Non-string/non-list content is left untouched rather than coerced or replaced.
+
+    Side effects:
+    - None: constructs returned content in memory without changing the original source or tool state.
+    """
     marker = "[Pinned source observation metadata]\n" + json.dumps(feedback, ensure_ascii=False)
     if isinstance(content, str):
         return content + "\n\n" + marker
@@ -183,12 +265,44 @@ class PreparationCompletionMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+        """Business purpose: Stop model execution once Preparation has reached a terminal state or discovery-only work has frozen its claim inventory.
+
+        Business rules:
+        - Discovery-only work ends at CLAIM_INVENTORY_READY; submission, verified source-blocking and accepted no-operative-obligation conclusion also end the agent turn.
+
+        Execution flow:
+        1. Inspect the run phase and terminal outcome markers.
+        2. Return the framework end directive when the lifecycle is complete, otherwise allow the model call.
+
+        Failure cases:
+        - No separate business failure is created; an unfinished run continues to the model.
+
+        Side effects:
+        - None: reads run state and returns middleware routing metadata.
+        """
         if (self.context.discovery_only and self.context.inventory and self.context.inventory.phase == "CLAIM_INVENTORY_READY") or self.context.submission is not None or self.context.source_blocked is not None or self.context.concluded is not None:
             return {"jump_to": "end"}
         return None
 
     @hook_config(can_jump_to=["model"])
     def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+        """Business purpose: Continue the existing Preparation lifecycle when the model stops without completing its authorized work.
+
+        Business rules:
+        - A terminal discovery, submission, source-blocked or no-obligation state is never restarted.
+        - Discovery-only, direct-draft and full Preparation receive distinct continuation instructions; legal interpretation remains with the agent.
+
+        Execution flow:
+        1. Ignore tool-calling responses and already terminal states.
+        2. Record and log a normal stop with the last validation and model response metadata.
+        3. Add the phase-specific next-action message and route the graph back to the model.
+
+        Failure cases:
+        - Provider/runtime exceptions are handled by the runner; this hook only reacts to a normal non-terminal stop.
+
+        Side effects:
+        - Appends a run trace entry and logger record, then returns a continuation HumanMessage; it does not author or persist legal decisions.
+        """
         response = state["messages"][-1]
         if not isinstance(response, AIMessage) or response.tool_calls:
             return None
@@ -245,6 +359,22 @@ AUTHORING_TOOLS = frozenset({"ls", "glob", "grep", "read_file", "write_todos", "
 
 
 def phase_instructions(context):
+    """Business purpose: Select the system instructions matching the current Rule Set Preparation lifecycle.
+
+    Business rules:
+    - Direct drafting uses its dedicated prompt; otherwise prompt selection follows whether the claim inventory is frozen and whether discovery-only mode forbids authoring.
+
+    Execution flow:
+    1. Read the direct-draft mode and inventory freeze state.
+    2. Load the common prompt plus the correct discovery or authoring instructions.
+    3. Append the discovery-only stop condition when that lifecycle flag is active.
+
+    Failure cases:
+    - Missing prompt files or read errors propagate so Preparation cannot run with partial instructions.
+
+    Side effects:
+    - Reads local instruction files and returns text; it does not mutate run or legal-source state.
+    """
     if context.direct_draft:
         return Path(__file__).with_name("instructions-direct.md").read_text()
     part = "authoring" if context.inventory and context.inventory.frozen else "discovery"
@@ -260,6 +390,23 @@ class PreparationPhaseMiddleware(AgentMiddleware):
         self.context = context
 
     def _request(self, request):
+        """Business purpose: Present only the tool set authorized for the active Preparation phase and refresh the phase-specific system instructions.
+
+        Business rules:
+        - Direct draft, frozen-inventory authoring and discovery each use a separate allowlist; tool availability is a server-side runtime boundary, not a legal judgment.
+        - The post-phase system prompt suffix is preserved while the phase instructions are refreshed.
+
+        Execution flow:
+        1. Select the allowed tool names from the current lifecycle state.
+        2. Retain only matching tools in the model request.
+        3. Replace the phase prefix while preserving the existing suffix and return the overridden request.
+
+        Failure cases:
+        - Tools outside the selected phase are omitted; malformed request objects or prompt loading errors propagate.
+
+        Side effects:
+        - Constructs an in-memory model request; it does not execute tools or change persisted state.
+        """
         allowed = ({*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "write_todos", "get_next_legal_analysis_package", "get_rule_set_draft_candidate", "submit_rule_set_draft_candidates", "correct_rule_set_draft_submission", "get_applicable_legal_state", "validate_compliance_rule_set", "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked"}
                    if self.context.direct_draft else AUTHORING_TOOLS if self.context.inventory and self.context.inventory.frozen else DISCOVERY_TOOLS)
         from langchain_core.messages import SystemMessage
@@ -269,13 +416,60 @@ class PreparationPhaseMiddleware(AgentMiddleware):
             system_message=SystemMessage(content=phase_instructions(self.context) + "\n<LCSP_PHASE_END>" + suffix))
 
     def wrap_model_call(self, request, handler):
+        """Business purpose: Apply the Preparation phase's tool and instruction boundary to synchronous model requests.
+
+        Business rules:
+        - The handler receives only the request produced by the shared phase filter.
+
+        Execution flow:
+        1. Build the phase-constrained request.
+        2. Invoke the synchronous model handler with it and return the response.
+
+        Failure cases:
+        - Request filtering and model errors propagate to the run controller.
+
+        Side effects:
+        - Performs one model invocation through the supplied handler; no legal decision is made by the middleware.
+        """
         return handler(self._request(request))
 
     async def awrap_model_call(self, request, handler):
+        """Business purpose: Apply the Preparation phase's tool and instruction boundary to asynchronous model requests.
+
+        Business rules:
+        - The handler receives only the request produced by the shared phase filter.
+
+        Execution flow:
+        1. Build the phase-constrained request.
+        2. Await the asynchronous model handler and return its response.
+
+        Failure cases:
+        - Request filtering and model errors propagate to the run controller.
+
+        Side effects:
+        - Performs one model invocation through the supplied handler; no legal decision is made by the middleware.
+        """
         return await handler(self._request(request))
 
 
 def preparation_filesystem(backend, *, files):
+    """Business purpose: Give the Preparation agent a filesystem limited to pinned legal source and its authorized work area.
+
+    Business rules:
+    - Legal-source files are read-only; `/work` is writable only when claim-file work is enabled, and all other paths are denied.
+    - Full filesystem editing tools are exposed only in the enabled claim-file phase; otherwise only read-only tools are available.
+
+    Execution flow:
+    1. Build ordered allow/deny path permissions from the requested phase.
+    2. Construct the filesystem middleware over the supplied backend.
+    3. Attach bounded error formatting to each native filesystem tool.
+
+    Failure cases:
+    - Middleware/backend construction errors propagate; rejected operations return the native tool's bounded error text.
+
+    Side effects:
+    - Constructs middleware and changes tool validation handlers in memory; it does not itself read or write source files.
+    """
     permissions = [FilesystemPermission(["read"], [LEGAL_SOURCE_ROOT, f"{LEGAL_SOURCE_ROOT}/**"], mode="allow")]
     if files:
         permissions += [FilesystemPermission(["read", "write"], ["/work", "/work/**"], mode="allow")]
@@ -287,6 +481,23 @@ def preparation_filesystem(backend, *, files):
 
 
 def claim_author_subagent(context, model, backend, budget):
+    """Business purpose: Configure one native child agent to complete exactly one assigned Article claim file.
+
+    Business rules:
+    - The prompt assigns one claims subtree and forbids sibling edits; filesystem permissions allow writes throughout /work rather than enforcing that per-Article boundary. The only governed domain tool exposed is `commit_claims`.
+    - It must not delegate, finalize, validate or submit; the configured model-call limit ends a stuck child for coordinator reassignment.
+
+    Execution flow:
+    1. Bind the claim-author model, run context, filesystem and budget middleware.
+    2. Supply phase instructions plus the one-Article assignment contract.
+    3. Return the subagent specification for the parent coordinator.
+
+    Failure cases:
+    - Middleware/model configuration errors propagate during agent construction; the configured run limit terminates repeated child calls.
+
+    Side effects:
+    - Creates an in-memory subagent configuration; the child may later write its assigned claim file and commit it through governed tools.
+    """
     return {"name": "claim-author", "description": "Read one whole assigned Article, write its claim file and commit it; return one summary line.",
         "model": model, "tools": [t for t in build_rule_set_tools(context) if t.name == "commit_claims"],
         "system_prompt": phase_instructions(context) + "\nYou own exactly one Article assignment (one source file and its claim file) given by the parent. Read source only under /legal-source and existing work only under /work. Write only your assigned /work/claims subtree. Never delegate, finalize, validate or submit. Return exactly ONE line: done: X articles, Y claims, Z waiting reference.",
@@ -355,6 +566,25 @@ def create_rule_set_preparation_agent(
     ``legal_source_root`` holds only the pinned legal_source (see ``materialize_legal_source``). The
     parent coordinates native ``claim-author`` tasks. Each child reads one whole Article, writes
     its claim file and commits it through deterministic checks.
+
+    Business purpose: Build the native agent graph that prepares one Rule Set from its pinned source and durable run context.
+
+    Business rules:
+    - The supplied LegalSourceVersion is the only legal source; phase middleware limits tools, claim-author children own one Article, and only governed validation/submission tools can complete the run.
+    - Direct draft and discovery use their separate lifecycle; the default checkpoint is disabled so an unrelated Agent Server Postgres saver is not inherited.
+    - The graph concurrency is one for direct draft and two for full Preparation.
+
+    Execution flow:
+    1. Resolve the preparation and claim-author model routes, then bind phase instructions and source root.
+    2. Initialize claim work storage, filesystem, observation and budget middleware.
+    3. Build the tools and lifecycle middleware, and attach the native claim-author child only outside direct-draft mode.
+    4. Create and configure the agent graph with the supplied optional checkpoint and store.
+
+    Failure cases:
+    - Model resolution, prompt access, backend, tool or graph construction errors propagate; they are not converted into a fabricated submission.
+
+    Side effects:
+    - Creates the local work directory and agent objects and updates the run context's source root; actual model/tool execution occurs only when the caller invokes the graph.
     """
     author_model = model
     if model is None:

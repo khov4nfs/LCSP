@@ -60,6 +60,21 @@ class AssessmentRuntimeClient:
         with_lease: bool = True,
         params: dict[str, str] | None = None,
     ) -> Any:
+        """Business purpose: Transport an Assessment Root operation through the server-governed worker API and return its envelope data.
+
+        Business rules:
+        - Use the client's Assessment identity and worker authentication; include its execution lease only when requested.
+
+        Execution flow:
+        1. Send the method, body and query with governed headers and the configured timeout.
+        2. Parse the JSON envelope, raise AssessmentApiError for HTTP/error-envelope or non-object failures, then return data.
+
+        Failure cases:
+        - Transport/timeouts propagate; invalid response JSON becomes an empty payload, and reported API failures preserve the server-supplied code and dictionary metadata without additional redaction here.
+
+        Side effects:
+        - Performs an HTTP request whose domain effects are determined by the selected endpoint; creates a correlation header.
+        """
         url = f"{self._base}/internal/assessment-runtime/{self.assessment_id}{path}"
         response = httpx.request(
             method,
@@ -120,11 +135,41 @@ class AssessmentRuntimeClient:
         return self._call("GET", "/rule-set")
 
     def legal_source_text(self, document_id: str, locator: str) -> dict[str, Any]:
-        """One provision of the Legal Source Version the pinned rule set was prepared from."""
+        """One provision of the Legal Source Version the pinned rule set was prepared from.
+
+        Business purpose: Retrieve a provision from the Legal Source Version pinned by this Assessment's Rule Set.
+
+        Business rules:
+        - Send document identity and locator to the leased server endpoint; the server owns pin and authorization validation.
+
+        Execution flow:
+        1. Issue the governed GET request for the specified document and locator and return its legal-source payload.
+
+        Failure cases:
+        - Missing provisions, stale leases and other HTTP or transport failures propagate through the shared client.
+
+        Side effects:
+        - Read-only HTTP retrieval; no legal interpretation or source mutation occurs.
+        """
         return self._call("GET", "/legal-source/text", params={"documentId": document_id, "locator": locator})
 
     def legal_source_search(self, query: str) -> dict[str, Any]:
-        """Keyword search over that same pinned Legal Source Version."""
+        """Keyword search over that same pinned Legal Source Version.
+
+        Business purpose: Search legal text within the Legal Source Version pinned to this Assessment.
+
+        Business rules:
+        - The server constrains the search to the Assessment pins; a search result does not establish legal applicability.
+
+        Execution flow:
+        1. Send the query to the governed pinned-source search endpoint and return its result.
+
+        Failure cases:
+        - API validation, authentication and transport failures propagate through the shared request path.
+
+        Side effects:
+        - Read-only HTTP search without changing legal sources, facts or decisions.
+        """
         return self._call("GET", "/legal-source/search", params={"query": query})
 
     # ---- governed writes -----------------------------------------------------------------------

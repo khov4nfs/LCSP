@@ -193,7 +193,22 @@ class GeminiToolNullabilityMiddleware(AgentMiddleware):
 
 @contextmanager
 def _publish_original_tools(request: Any, tools_replacement: list[Any] | None) -> Iterator[None]:
-    """Expose the tools this middleware is about to rewrite to the checks running inside it."""
+    """Business purpose: Preserve the model request's original tool contracts while provider compatibility middleware rewrites tools into a provider-specific form.
+
+    Business rules:
+    - Publish a context-local tuple of the incoming request tools only when a replacement is actually supplied.
+    - Always restore the prior context value after the wrapped call, including when it raises.
+
+    Execution flow:
+    1. If no tool replacement exists, yield without changing context.
+    2. Otherwise set ORIGINAL_REQUEST_TOOLS from the incoming request, yield to the wrapped call, and reset the context token in a finally block.
+
+    Failure cases:
+    - Exceptions from the wrapped call propagate after context restoration.
+
+    Side effects:
+    - Temporarily changes a context-local value for nested request validation; it does not mutate the request's tool list.
+    """
     if tools_replacement is None:
         yield
         return
@@ -224,6 +239,23 @@ class ProviderSchemaCompatibilityMiddleware(AgentMiddleware):
         return request.override(**overrides) if overrides else request
 
     def wrap_model_call(self, request, handler):
+        """Business purpose: Make a synchronous model request's response format and tools compatible with the provider while preserving original tool contracts for inner governance checks.
+
+        Business rules:
+        - Compute only provider-compatible replacements supported for the request model.
+        - Preserve call-time Gemini model settings and leave the request unchanged when no override is needed.
+
+        Execution flow:
+        1. Derive compatible response-format and tool replacements.
+        2. Publish original tools within a context-local scope when tools are rewritten.
+        3. Build the overridden request and pass it to the next handler.
+
+        Failure cases:
+        - Compatibility conversion or the downstream handler may fail; those errors propagate without being converted.
+
+        Side effects:
+        - Calls the downstream model handler and temporarily publishes original tools in context for nested validation.
+        """
         replacement = gemini_compatible_response_format(
             request.model, request.response_format
         )
@@ -236,6 +268,23 @@ class ProviderSchemaCompatibilityMiddleware(AgentMiddleware):
             )
 
     async def awrap_model_call(self, request, handler):
+        """Business purpose: Make an asynchronous model request's response format and tools compatible with the provider while preserving original tool contracts for inner governance checks.
+
+        Business rules:
+        - Compute only provider-compatible replacements supported for the request model.
+        - Preserve call-time Gemini model settings and leave the request unchanged when no override is needed.
+
+        Execution flow:
+        1. Derive compatible response-format and tool replacements.
+        2. Publish original tools within a context-local scope when tools are rewritten.
+        3. Build the overridden request and await the next handler.
+
+        Failure cases:
+        - Compatibility conversion or the downstream handler may fail; those errors propagate after context restoration.
+
+        Side effects:
+        - Awaits the downstream model handler and temporarily publishes original tools in context for nested validation.
+        """
         replacement = gemini_compatible_response_format(
             request.model, request.response_format
         )

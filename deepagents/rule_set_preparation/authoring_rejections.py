@@ -65,10 +65,40 @@ REPAIR = {
 
 
 def canonical(value: Any) -> str:
+    """Business purpose: Serialize rejected-call arguments into a stable representation for fingerprints.
+
+    Business rules:
+    - JSON keys are sorted, Unicode is preserved and compact separators make equivalent mappings hash consistently.
+
+    Execution flow:
+    1. Encode the supplied value as deterministic JSON, using `str` for otherwise unsupported values.
+    2. Return the canonical string.
+
+    Failure cases:
+    - JSON serialization errors not covered by the fallback propagate to the caller.
+
+    Side effects:
+    - None: pure serialization without logging or persistence.
+    """
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
 
 
 def args_fingerprint(args: Any) -> str:
+    """Business purpose: Give an argument set a bounded stable identity for duplicate-rejection tracking.
+
+    Business rules:
+    - Fingerprints are SHA-256 over canonical arguments and are shortened to 32 hexadecimal characters; raw argument content is not returned.
+
+    Execution flow:
+    1. Canonicalize the arguments.
+    2. Hash the encoded value and return its 32-character prefix.
+
+    Failure cases:
+    - Canonical serialization errors propagate; the function does not substitute an unrelated identity.
+
+    Side effects:
+    - None: pure hashing; no arguments or credentials are persisted here.
+    """
     return hashlib.sha256(canonical(args).encode()).hexdigest()[:32]
 
 
@@ -77,10 +107,41 @@ SECRET = re.compile(r"(sk-[A-Za-z0-9_-]{8,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+\S+|
 
 
 def redact(value: str) -> str:
+    """Business purpose: Remove credential-like values before free text enters a durable rejection envelope.
+
+    Business rules:
+    - Secret-shaped strings are replaced while valid 64-character claim IDs are retained for evidence traceability.
+
+    Execution flow:
+    1. Scan the supplied text for configured credential and opaque-token patterns.
+    2. Replace each sensitive match and return the sanitized text.
+
+    Failure cases:
+    - A non-string input violates the function contract and is not coerced.
+
+    Side effects:
+    - None: returns sanitized text in memory; it does not log or store the original.
+    """
     return SECRET.sub(lambda m: m.group(0) if CLAIM_ID.match(m.group(0)) else "[redacted]", value)
 
 
 def _text(value: str) -> Any:
+    """Business purpose: Represent free-text arguments with bounded, redacted diagnostics while retaining exact claim identities.
+
+    Business rules:
+    - Claim IDs remain intact; all other text is represented by character length, a stable hash and a redacted short head.
+
+    Execution flow:
+    1. Preserve a valid claim ID directly.
+    2. Hash other text and compute its whitespace-normalized, redacted head.
+    3. Return the bounded diagnostic object.
+
+    Failure cases:
+    - Hash encoding errors propagate; text is not stored verbatim as a fallback.
+
+    Side effects:
+    - None: computes a diagnostic projection without persistence.
+    """
     if CLAIM_ID.match(value):
         return value
     digest = hashlib.sha256(value.encode()).hexdigest()[:12]
@@ -88,6 +149,22 @@ def _text(value: str) -> Any:
 
 
 def _item(value: Any) -> Any:
+    """Business purpose: Bound one argument value before it is included in rejection diagnostics.
+
+    Business rules:
+    - Safe scalars remain scalar; strings are redacted and capped except exact claim IDs, while complex values are represented by type only.
+
+    Execution flow:
+    1. Classify the supplied value.
+    2. Sanitize or summarize it according to its scalar type and length.
+    3. Return the bounded item projection.
+
+    Failure cases:
+    - Unsupported values are reduced to their type instead of serialized as potentially sensitive content.
+
+    Side effects:
+    - None: formats one in-memory diagnostic value.
+    """
     if isinstance(value, str):
         value = redact(value)
         return value if CLAIM_ID.match(value) or len(value) <= MAX_ITEM_CHARS else value[:MAX_ITEM_CHARS] + "…"
@@ -97,7 +174,24 @@ def _item(value: Any) -> Any:
 
 
 def sanitize_args(args: Any) -> Any:
-    """Keys, types and IDs survive; free text becomes length/hash/head; lists are capped. Bounded in total size."""
+    """Keys, types and IDs survive; free text becomes length/hash/head; lists are capped. Bounded in total size.
+
+    Business purpose: Retain enough argument shape to repair a rejected tool call without persisting an unbounded or sensitive payload.
+
+    Business rules:
+    - At most 24 sorted keys and 12 list items are retained; free text is redacted/summarized and the complete projection stays under MAX_ARGS_CHARS or falls back to key names.
+
+    Execution flow:
+    1. Reject non-object inputs to a type marker.
+    2. Sanitize sorted keys and each value by type, preserving IDs needed for correction.
+    3. Return the projection if it fits the bound, otherwise return only bounded argument keys.
+
+    Failure cases:
+    - Unexpected value shapes are represented by type; no raw arbitrary object is emitted.
+
+    Side effects:
+    - None: creates a bounded diagnostic projection without writing an event.
+    """
     if not isinstance(args, dict):
         return {"type": type(args).__name__}
     out: dict[str, Any] = {}
@@ -114,7 +208,24 @@ def sanitize_args(args: Any) -> Any:
 
 
 def field_paths_of(errors: list[Any]) -> list[str]:
-    """Argument paths named by jsonschema errors; a missing required property is the property itself."""
+    """Argument paths named by jsonschema errors; a missing required property is the property itself.
+
+    Business purpose: Identify the exact argument fields rejected by JSON Schema for actionable tool repair.
+
+    Business rules:
+    - Required and additional-property failures name the absent/unknown property; all output paths are deduplicated, sorted and capped at MAX_FIELD_PATHS.
+
+    Execution flow:
+    1. Convert each validator error's absolute path into a field path.
+    2. Expand missing required and undeclared property names where schema metadata permits.
+    3. Return the bounded unique paths.
+
+    Failure cases:
+    - Errors without a field path use `<root>`; malformed error objects may propagate their attribute/type failure.
+
+    Side effects:
+    - None: derives diagnostic paths without changing schema or arguments.
+    """
     found: list[str] = []
     for error in errors:
         path = [str(p) for p in error.absolute_path]
@@ -129,12 +240,44 @@ def field_paths_of(errors: list[Any]) -> list[str]:
 
 
 def classify_schema_error(error: Any) -> str:
+    """Business purpose: Map a JSON Schema validator failure to the stable authoring repair category.
+
+    Business rules:
+    - Known schema keywords use their fixed rejection codes; every other validator kind maps to WRONG_TYPE.
+
+    Execution flow:
+    1. Read the validator keyword.
+    2. Return its mapped repair code or the default code.
+
+    Failure cases:
+        - An unrecognized validator keyword remains repairable as WRONG_TYPE rather than disappearing from the ledger.
+
+    Side effects:
+    - None: pure code mapping.
+    """
     return {"required": "MISSING_ARGUMENT", "type": "WRONG_TYPE", "additionalProperties": "UNKNOWN_ARGUMENT", "enum": "INVALID_ENUM", "minItems": "EMPTY_REQUIRED_LIST",
             "uniqueItems": "DUPLICATE_ITEMS", "minLength": "INVALID_VALUE", "maxLength": "INVALID_VALUE", "maxItems": "INVALID_VALUE", "pattern": "INVALID_ID"}.get(error.validator, "WRONG_TYPE")
 
 
 def draft_fingerprint(draft: dict) -> str:
-    """Identity of the authored Requirement/AssessmentRule candidates; frozen claims are not part of it."""
+    """Identity of the authored Requirement/AssessmentRule candidates; frozen claims are not part of it.
+
+    Business purpose: Identify the current Requirement and AssessmentRule candidate set for rejection provenance.
+
+    Business rules:
+    - Only `legalRequirements` and `assessmentRules` participate; frozen claims and other draft sections are deliberately excluded.
+
+    Execution flow:
+    1. Build the two-section candidate projection.
+    2. Canonically serialize and SHA-256 hash it.
+    3. Return the shortened hexadecimal fingerprint.
+
+    Failure cases:
+    - Missing required section keys or serialization failures propagate; this helper hashes section values without validating their types.
+
+    Side effects:
+    - None: pure candidate identity calculation.
+    """
     return hashlib.sha256(canonical({"legalRequirements": draft["legalRequirements"], "assessmentRules": draft["assessmentRules"]}).encode()).hexdigest()[:32]
 
 
@@ -142,6 +285,23 @@ def build_envelope(*, tool: str, layer: str, source: str, code: str, args: Any, 
                    required_action: str | None, repair_key: str, inventory: dict, draft_before: str, draft_after: str,
                    draft_revision: int, sequence: int, model_turn: int | None, phase: str, tool_call_id: str | None = None,
                    extra: dict | None = None) -> dict:
+    """Business purpose: Assemble one audit-ready, repairable record for a rejected Rule Authoring call.
+
+    Business rules:
+    - Rejection layer/source, stable code, pinned inventory revision/fingerprint, draft revision/fingerprints and call ordering stay explicit.
+    - Arguments, free text, paths and extra string values pass through bounded sanitization; the envelope records whether the draft stayed unchanged.
+
+    Execution flow:
+    1. Redact identifiers and details and sanitize arguments and field paths.
+    2. Capture inventory, draft, model-turn and phase provenance with the deterministic repair instruction.
+    3. Add only supplied non-null extra fields and return the envelope.
+
+    Failure cases:
+    - Missing required envelope inputs or fingerprinting errors propagate; no success record is substituted.
+
+    Side effects:
+    - None directly: returns an envelope for the caller's ledger to persist.
+    """
     envelope = {
         "sequence": sequence, "modelTurn": model_turn, "phase": phase, "toolName": redact(tool), "toolCallId": tool_call_id,
         "rejectionLayer": layer, "rejectionSource": source, "rejectionCode": code, "fieldPaths": [redact(p) for p in field_paths[:MAX_FIELD_PATHS]],

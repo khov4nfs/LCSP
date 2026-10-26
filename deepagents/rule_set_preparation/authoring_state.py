@@ -35,16 +35,63 @@ AUTHORED_BY = {"author_legal_requirement": "LEGAL_REQUIREMENT", "author_assessme
 
 
 def summary(claim: dict) -> str:
+    """Business purpose: Give the agent a compact readable label for one frozen semantic claim.
+
+    Business rules:
+    - Collapse whitespace and cap the display text at SUMMARY_CHARS without changing the stored statement.
+
+    Execution flow:
+    1. Read the claim statement.
+    2. Normalize its spacing and return the bounded summary.
+
+    Failure cases:
+    - Missing or non-string statements fail as invalid claim data; no replacement wording is invented.
+
+    Side effects:
+    - None: returns a display projection without modifying the claim.
+    """
     return " ".join(claim["statement"].split())[:SUMMARY_CHARS]
 
 
 def normalize_page(limit: Any, offset: Any, maximum: int = MAX_PAGE) -> tuple[int, int]:
-    """Safe read pagination only: a harmless oversized or missing page size must not poison convergence."""
+    """Safe read pagination only: a harmless oversized or missing page size must not poison convergence.
+
+    Business purpose: Keep read-only working-set pagination within safe page bounds.
+
+    Business rules:
+    - Missing, non-integer or nonpositive limits use the maximum; positive integer limits are capped and only positive integer offsets survive. Python booleans follow integer semantics: True is 1, while False uses the maximum limit or zero offset.
+
+    Execution flow:
+    1. Clamp the requested limit to the supplied maximum.
+    2. Normalize the offset to a nonnegative integer.
+    3. Return the applied limit and start offset.
+
+    Failure cases:
+    - Invalid pagination is normalized instead of failing a read request.
+
+    Side effects:
+    - None: computes pagination values only.
+    """
     applied = maximum if not isinstance(limit, int) or limit < 1 else min(limit, maximum)
     return applied, offset if isinstance(offset, int) and offset > 0 else 0
 
 
 def target_of(args: dict) -> str:
+    """Business purpose: Resolve the stable candidate target named by a Rule Authoring mutation.
+
+    Business rules:
+    - Prefer `requirement_key`, then `assessment_rule_id`, then `candidate_id`; only nonempty strings count as targets.
+
+    Execution flow:
+    1. Inspect candidate identity fields in precedence order.
+    2. Return the first valid string or the empty string when none is supplied.
+
+    Failure cases:
+    - Missing or malformed target values return no target so the caller can retain a tool-wide rejection.
+
+    Side effects:
+    - None: reads the argument mapping.
+    """
     for name in ("requirement_key", "assessment_rule_id", "candidate_id"):
         value = args.get(name)
         if isinstance(value, str) and value:
@@ -53,7 +100,23 @@ def target_of(args: dict) -> str:
 
 
 def referenced_ids(tool: str, args: dict) -> set[str]:
-    """The IDs a mutation points at. Two calls that point at the same IDs are attempts at the same thing, whatever key they carry."""
+    """The IDs a mutation points at. Two calls that point at the same IDs are attempts at the same thing, whatever key they carry.
+
+    Business purpose: Identify the claim or candidate IDs a mutation targets so retries and corrections can be related.
+
+    Business rules:
+    - Requirement authoring keys by operative claims; AssessmentRule authoring keys by Requirement IDs; removal keys by candidate ID. Applicability and context claims remain shareable.
+
+    Execution flow:
+    1. Select the identity argument for the recognized mutation tool.
+    2. Keep only string IDs and return them as a set.
+
+    Failure cases:
+    - Unrecognized tools and malformed list values return an empty set rather than an inferred identity.
+
+    Side effects:
+    - None: derives references without modifying the working set.
+    """
     if tool == "author_legal_requirement":
         # A Requirement is identified by its operative claims. Applicability, qualifier and context claims are shared across Requirements by design.
         value = args.get("operative_claim_ids")
@@ -67,6 +130,21 @@ def referenced_ids(tool: str, args: dict) -> set[str]:
 
 
 def rejection_key(tool: str, args: dict) -> str:
+    """Business purpose: Group an unresolved rejection by tool and its current target for correction tracking.
+
+    Business rules:
+    - The key uses the first recognized target field; calls without one share the tool's empty-target bucket.
+
+    Execution flow:
+    1. Resolve the target with `target_of`.
+    2. Return the tool name followed by the target.
+
+    Failure cases:
+    - Missing target fields produce an empty target suffix so the rejection is still recorded.
+
+    Side effects:
+    - None: creates a working-set lookup key.
+    """
     return f"{tool}:{target_of(args)}"
 
 
@@ -83,13 +161,59 @@ class AuthoringWorkingSet:
 
     # --- derived from the authority ------------------------------------------------------------------------------
     def active(self) -> bool:
+        """Business purpose: Determine whether the frozen claim inventory permits Rule Authoring working-set behavior.
+
+        Business rules:
+        - A ledger is active only when a frozen inventory exists and its phase is one of the authoring phases.
+
+        Execution flow:
+        1. Read the context inventory.
+        2. Check its freeze marker and current phase.
+        3. Return the eligibility result.
+
+        Failure cases:
+        - A missing ledger or non-authoring phase returns false, preventing stale digest/rejection state from being treated as active.
+
+        Side effects:
+        - None: reads lifecycle state only.
+        """
         ledger = self.context.inventory
         return ledger is not None and ledger.frozen is not None and ledger.phase in AUTHORING_PHASES
 
     def claims(self) -> list[dict]:
+        """Business purpose: Return only relevant claims from the authoritative frozen inventory for Rule Authoring.
+
+        Business rules:
+        - The frozen inventory is the source of truth; claims marked outside RELEVANT are excluded.
+
+        Execution flow:
+        1. Read frozen inventory claim rows.
+        2. Filter to relevant semantic claims and return them.
+
+        Failure cases:
+        - Called without a frozen inventory, the method fails on invalid lifecycle use rather than inventing a claim set.
+
+        Side effects:
+        - None: returns claim references without modifying the ledger.
+        """
         return [c for c in self.context.inventory.frozen["claims"] if c["state"] == "RELEVANT"]
 
     def bound(self) -> dict[str, list[str]]:
+        """Business purpose: Map each semantic claim already attached to a Requirement to its Requirement IDs.
+
+        Business rules:
+        - Bindings in the current draft are authoritative for whether a claim has been accounted; one claim can list each owning Requirement.
+
+        Execution flow:
+        1. Traverse every drafted Requirement's claim bindings.
+        2. Accumulate owner IDs by claim ID and return the mapping.
+
+        Failure cases:
+        - Missing/malformed draft structures surface as an invalid draft instead of silently marking claims unbound.
+
+        Side effects:
+        - None: builds an in-memory index over the current draft.
+        """
         owners: dict[str, list[str]] = {}
         for key, requirement in self.context.draft["legalRequirements"].items():
             for binding in requirement.get("claimBindings", []):
@@ -97,18 +221,67 @@ class AuthoringWorkingSet:
         return owners
 
     def role_counts(self) -> dict[str, int]:
+        """Business purpose: Summarize the frozen relevant claim inventory by the accounting role used during Requirement authoring.
+
+        Business rules:
+        - Role assignment comes from `claim_role`; output order follows the fixed ROLE_ORDER and omits empty roles.
+
+        Execution flow:
+        1. Classify each relevant frozen claim.
+        2. Count claims per role.
+        3. Return counts in canonical authoring order.
+
+        Failure cases:
+        - An unrecognized claim type fails through the role classifier rather than receiving a guessed role.
+
+        Side effects:
+        - None: computes role counts only.
+        """
         counts: dict[str, int] = {}
         for claim in self.claims():
             counts[claim_role(claim)] = counts.get(claim_role(claim), 0) + 1
         return {role: counts[role] for role in ROLE_ORDER if role in counts}
 
     def ordered(self, role: str | None = None, unaccounted_only: bool = False) -> list[dict]:
+        """Business purpose: Present relevant frozen claims in a stable role/ID order for authoring and paging.
+
+        Business rules:
+        - Optional role filtering is exact; `unaccounted_only` excludes claims already bound to a Requirement.
+
+        Execution flow:
+        1. Derive current Requirement bindings.
+        2. Filter relevant claims by requested role and accounted status.
+        3. Sort by fixed role order and claim ID.
+
+        Failure cases:
+        - An unknown role yields no matches; malformed claim roles surface through the canonical role classifier.
+
+        Side effects:
+        - None: returns a sorted view without changing claim state.
+        """
         bound = self.bound()
         rows = [c for c in self.claims() if (role is None or claim_role(c) == role) and (not unaccounted_only or c["claimId"] not in bound)]
         return sorted(rows, key=lambda c: (ROLE_ORDER.index(claim_role(c)), c["claimId"]))
 
     def requirement_rows(self) -> list[dict]:
-        """Every authored Requirement with the AssessmentRules that already cite it: the model must not have to remember these IDs."""
+        """Every authored Requirement with the AssessmentRules that already cite it: the model must not have to remember these IDs.
+
+        Business purpose: Project drafted Requirements with their linked AssessmentRules and assessability status.
+
+        Business rules:
+        - `COVERED_BY_ASSESSMENT_RULES` Requirements need at least one linked rule; non-assessable Requirements do not.
+
+        Execution flow:
+        1. Index AssessmentRule IDs by their referenced Requirement IDs.
+        2. Order Requirement rows by ID and derive title, assessability and missing-rule state.
+        3. Return the authoring status rows.
+
+        Failure cases:
+        - Malformed draft coverage or identity fields surface as invalid draft state rather than a false coverage result.
+
+        Side effects:
+        - None: creates a read projection of the current draft.
+        """
         rules: dict[str, list[str]] = {}
         for rule_id, rule in self.context.draft["assessmentRules"].items():
             for rid in rule.get("legalRequirementIds", []):
@@ -122,12 +295,58 @@ class AuthoringWorkingSet:
 
     # --- volatile facts the model would otherwise lose --------------------------------------------------------------
     def surface(self, claim_ids) -> None:
+        """Business purpose: Remember which frozen claim IDs have already been shown to the agent.
+
+        Business rules:
+        - Only string claim IDs are added; this is navigation telemetry and never establishes legal relevance or authorship.
+
+        Execution flow:
+        1. Filter the supplied IDs to strings.
+        2. Add them to the surfaced set.
+
+        Failure cases:
+        - Non-string values are ignored.
+
+        Side effects:
+        - Updates only the run-local surfaced-ID set.
+        """
         self.surfaced.update(cid for cid in claim_ids if isinstance(cid, str))
 
     def note_page(self, view: str, result: dict) -> None:
+        """Business purpose: Retain the latest pagination cursor metadata for a model-facing inventory view.
+
+        Business rules:
+        - Only the defined offset/count/continuation fields are retained; source claims and response payloads are not copied into the cursor.
+
+        Execution flow:
+        1. Select the page metadata keys from the result.
+        2. Replace the cursor for that view name.
+
+        Failure cases:
+        - Missing response fields are stored as `None`; an invalid result shape fails as caller misuse.
+
+        Side effects:
+        - Updates the run-local cursor index used by the authoring digest.
+        """
         self.cursors[view] = {k: result.get(k) for k in ("offset", "appliedLimit", "returnedCount", "total", "nextOffset", "hasMore")}
 
     def _resolve(self, key: str, how: str, call_id: str | None, by_tool: str | None = None) -> None:
+        """Business purpose: Close one outstanding authoring rejection with an explicit reason and durable resolution event.
+
+        Business rules:
+        - Only an existing outstanding key can be resolved; resolution order uses the run's monotonic event sequence and the retained resolved log is capped.
+
+        Execution flow:
+        1. Remove the rejection from the outstanding set and return if it was absent.
+        2. Advance the event sequence and append a resolution record, trimming older retained records.
+        3. Publish the durable rejection-resolution event with rejection and resolving tool provenance.
+
+        Failure cases:
+        - A missing key is a no-op; event publication errors propagate after the in-memory resolution has been recorded.
+
+        Side effects:
+        - Mutates outstanding/resolved ledgers and event sequence and publishes a durable progress event.
+        """
         entry = self.outstanding.pop(key, None)
         if entry is None:
             return
@@ -145,7 +364,26 @@ class AuthoringWorkingSet:
             "outstanding_remaining": len(self.outstanding)})
 
     def observe_tool(self, tool: str, args: dict, result: dict, *, call_id: str | None = None, envelope: dict | None = None) -> None:
-        """Record or resolve the model's unresolved correction after every tool call."""
+        """Record or resolve the model's unresolved correction after every tool call.
+
+        Business purpose: Keep repair obligations, surfaced claims and last mutations synchronized with each Rule Authoring tool result.
+
+        Business rules:
+        - Only active frozen-inventory authoring is tracked; a failed call opens/replaces an unresolved rejection, and only a later matching successful call or explicit abandonment resolves it.
+        - Read tools update navigation only; they do not establish legal completeness.
+
+        Execution flow:
+        1. Derive the rejection target and inspect success/failure outcome.
+        2. On failure, capture bounded envelope details, repeat count, referenced IDs and constraints, then cap outstanding entries with explicit supersession.
+        3. On success, resolve matching/abandoned rejections, track mutations and surface rows from successful reads.
+        4. Advance the working-set revision.
+
+        Failure cases:
+        - Inactive phase is a no-op; malformed result/envelope data can fail visibly rather than being counted as a successful correction.
+
+        Side effects:
+        - Updates authoring indexes and may publish durable rejection-resolution events; it does not change the Rule draft.
+        """
         if not self.active():
             return
         key = rejection_key(tool, args)
@@ -200,7 +438,24 @@ class AuthoringWorkingSet:
         self.revision += 1
 
     def reset(self) -> None:
-        """A new phase makes every old correction irrelevant."""
+        """A new phase makes every old correction irrelevant.
+
+        Business purpose: Clear phase-local authoring navigation and correction state when the lifecycle enters a new phase.
+
+        Business rules:
+        - Outstanding rejections are explicitly resolved as PHASE_CHANGED before cursors, surfaced IDs and last mutation are cleared.
+
+        Execution flow:
+        1. Resolve every outstanding rejection with phase-change provenance.
+        2. Clear pagination and surfaced-claim state.
+        3. Clear last-mutation metadata.
+
+        Failure cases:
+        - Durable resolution publication errors propagate; cleared state is not reported as a successful resolution if publication fails.
+
+        Side effects:
+        - Mutates run-local authoring state and publishes durable resolution events.
+        """
         for key in list(self.outstanding):
             self._resolve(key, "PHASE_CHANGED", None)
         self.cursors.clear()
@@ -209,6 +464,22 @@ class AuthoringWorkingSet:
 
     # --- model-facing views -----------------------------------------------------------------------------------------
     def page_view(self, role: str | None, offset: Any, limit: Any) -> dict:
+        """Business purpose: Return a bounded page of relevant frozen claims with their role, source count and Requirement bindings.
+
+        Business rules:
+        - Operative-only and unaccounted filters use the frozen claim roles and current Requirement bindings; pagination is capped and stable.
+
+        Execution flow:
+        1. Normalize page bounds and select the requested role/accounted subset.
+        2. Build the claim summary page and frozen inventory provenance.
+        3. Record surfaced IDs and cursor metadata, then return the page.
+
+        Failure cases:
+        - Invalid role classification fails rather than changing a claim's accounting role.
+
+        Side effects:
+        - Updates run-local surfaced claim IDs and page cursors; it does not modify frozen inventory or draft candidates.
+        """
         applied, start = normalize_page(limit, offset, VIEW_MAX_PAGE)
         unaccounted = role == "UNACCOUNTED"
         rows = [c for c in self.ordered(None if unaccounted else role, unaccounted_only=unaccounted) if role != "OPERATIVE_PROPOSITION" or operative(c)]
@@ -227,6 +498,22 @@ class AuthoringWorkingSet:
         return result
 
     def next_actions(self) -> list[str]:
+        """Business purpose: Tell the author which valid next operation addresses the current unresolved Requirement work.
+
+        Business rules:
+        - The newest unresolved rejection takes priority; otherwise unbound relevant claims and assessable Requirements without a Rule are reported before validation/submission.
+
+        Execution flow:
+        1. Return repair guidance for the newest outstanding rejection, if any.
+        2. Identify relevant unbound claims and assessable Requirements missing AssessmentRules.
+        3. Return those authoring actions or the validation/submission action when none remain.
+
+        Failure cases:
+        - No current Requirements still returns author_legal_requirement as the next valid operation instead of claiming completion.
+
+        Side effects:
+        - None: derives guidance from working-set state.
+        """
         if self.outstanding:
             newest = max(self.outstanding.values(), key=lambda item: item["sequence"])
             return [f"Repair the unresolved {newest['toolName']} rejection (requiredAction: {newest.get('requiredAction')}), then continue."]
@@ -243,6 +530,22 @@ class AuthoringWorkingSet:
         return actions
 
     def status_view(self, offset: Any, limit: Any) -> dict:
+        """Business purpose: Return a paged status projection of authored Requirements, AssessmentRules, unbound claims and open rejections.
+
+        Business rules:
+        - Counts and identifiers come from the frozen inventory and current draft; unresolved claims/rejections remain visible, and page size is capped.
+
+        Execution flow:
+        1. Normalize the requested Requirement page.
+        2. Derive assessability, linked-rule gaps and unbound claim roles.
+        3. Return inventory/draft fingerprints, counts, bounded rejection details and valid next actions.
+
+        Failure cases:
+        - Invalid pagination is normalized; malformed draft bindings surface as invalid state rather than being counted as complete.
+
+        Side effects:
+        - None: returns a read-only status projection.
+        """
         applied, start = normalize_page(limit, offset, VIEW_MAX_PAGE)
         rows = self.requirement_rows()
         page = rows[start:start + applied]
@@ -265,11 +568,44 @@ class AuthoringWorkingSet:
 
     @staticmethod
     def public_rejection(item: dict) -> dict:
+        """Business purpose: Project a rejection envelope into the safe fields shown to the agent or status consumer.
+
+        Business rules:
+        - Only the explicit allowlist of repair/provenance fields is exposed; absent, empty and null values are omitted.
+
+        Execution flow:
+        1. Select allowed diagnostic fields from the rejection.
+        2. Remove empty values and return the public projection.
+
+        Failure cases:
+        - Missing allowed keys are omitted; non-mapping input is rejected by normal mapping access.
+
+        Side effects:
+        - None: does not mutate the rejection envelope.
+        """
         keys = ("toolName", "target", "rejectionLayer", "rejectionSource", "rejectionCode", "fieldPaths", "ref", "detail", "requiredAction", "repair", "sequence", "modelTurn",
                 "argsFingerprint", "repeats", "draftUnchanged", "draftRevisionBefore", "constraints", "toolCallId")
         return {k: item.get(k) for k in keys if item.get(k) not in (None, [], {})}
 
     def digest(self) -> str | None:
+        """Business purpose: Reconstruct bounded authoring context from the frozen inventory and durable draft for each model turn.
+
+        Business rules:
+        - The digest is available only in an active frozen authoring phase; it shows exact IDs, unresolved rejections, surfaced pages and verified operative anchors without becoming legal authority.
+        - Claim and Requirement listings are capped and point to the paged tools for omitted rows.
+
+        Execution flow:
+        1. Return `None` when authoring is inactive.
+        2. Summarize phase, inventory and draft revisions, claims, Requirement coverage and recent validation gaps.
+        3. Add outstanding rejection repair instructions, read cursors, verified operative anchors and next actions.
+        4. Return the assembled prompt text.
+
+        Failure cases:
+        - Invalid draft or role state propagates; the method does not infer missing Requirement bindings.
+
+        Side effects:
+        - None: builds an in-memory digest; publication is handled separately.
+        """
         if not self.active():
             return None
         ledger, context = self.context.inventory, self.context
@@ -327,6 +663,22 @@ class AuthoringWorkingSet:
         return "\n".join(lines)
 
     def telemetry(self, digest: str) -> dict:
+        """Business purpose: Build bounded counters and revision fingerprints for a durable authoring-context event.
+
+        Business rules:
+        - Telemetry contains counts, IDs/code summaries and digest byte length, not the full digest or private reasoning.
+
+        Execution flow:
+        1. Derive current rejection, Requirement and unread-claim counts.
+        2. Include inventory/draft revisions and last mutation metadata.
+        3. Return the telemetry mapping.
+
+        Failure cases:
+        - Invalid inventory/draft state propagates rather than yielding misleading counts.
+
+        Side effects:
+        - None directly: returns an event payload for the publisher.
+        """
         ledger, context = self.context.inventory, self.context
         newest = max(self.outstanding.values(), key=lambda item: item["sequence"]) if self.outstanding else None
         rows = self.requirement_rows()
@@ -339,6 +691,22 @@ class AuthoringWorkingSet:
                 "lastMutationTool": (self.last_mutation or {}).get("toolName"), "digestBytes": len(digest.encode())}
 
     def publish_if_changed(self, digest: str) -> None:
+        """Business purpose: Publish authoring context once per distinct digest so progress history remains durable without duplicate events.
+
+        Business rules:
+        - SHA-256 equality with the prior digest suppresses publication; event sequence increments only for a changed digest.
+
+        Execution flow:
+        1. Fingerprint the digest and return if unchanged.
+        2. Save the new fingerprint and advance the context event sequence.
+        3. Publish a durable RULE_AUTHORING_CONTEXT event with current telemetry.
+
+        Failure cases:
+        - Stream publication errors propagate after the local deduplication fingerprint advances, so a later same-digest call is suppressed.
+
+        Side effects:
+        - Updates the last-digest marker and event sequence and emits a durable progress event.
+        """
         fingerprint = hashlib.sha256(digest.encode()).hexdigest()
         if fingerprint == self._last_digest:
             return

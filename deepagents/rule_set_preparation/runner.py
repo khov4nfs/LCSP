@@ -127,6 +127,22 @@ class PreparationStreamTrace(BaseCallbackHandler):
         )
 
     def on_tool_end(self, output, *, run_id, **kwargs):
+        """Business purpose: Publish a bounded completion/failure event when a tracked native Preparation tool finishes.
+
+        Business rules:
+        - Only names recorded from the allowlisted activity tools are emitted; JSON result content contributes only a string outcome, never arbitrary payload data.
+
+        Execution flow:
+        1. Remove the tool and subagent identity from the active-call maps under lock.
+        2. Ignore untracked names.
+        3. Extract a safe outcome when the result is JSON and publish the corresponding TOOL_RESULT event.
+
+        Failure cases:
+        - Non-JSON results omit outcome; stream publication errors propagate to the callback runner.
+
+        Side effects:
+        - Mutates active-call tracking maps and publishes a tool-result event.
+        """
         with self._lock:
             name = self._names.pop(str(run_id), None)
             subagent = self._subagent_names.pop(str(run_id), None)
@@ -171,12 +187,45 @@ class PreparationStreamTrace(BaseCallbackHandler):
         )
 
     def active_tool_names(self) -> list[str]:
+        """Business purpose: Provide a bounded unique list of native tools currently active for safe failure diagnostics.
+
+        Business rules:
+        - Names are read under the callback lock, deduplicated, sorted and capped at 20.
+
+        Execution flow:
+        1. Acquire the callback lock.
+        2. Collect and sort active tool names.
+        3. Return the bounded list.
+
+        Failure cases:
+        - An empty active set returns an empty list; no diagnostic is inferred.
+
+        Side effects:
+        - None: reads callback state only.
+        """
         with self._lock:
             return sorted(set(self._names.values()))[:20]
 
 
 def _flush_draft(context) -> None:
-    """Whatever ended the run, the authored candidates are saved first so the next process resumes them."""
+    """Whatever ended the run, the authored candidates are saved first so the next process resumes them.
+
+    Business purpose: Preserve the current authoring draft before a run exits so a later process can resume accepted candidate work.
+
+    Business rules:
+    - Draft flush is attempted only when a ClaimInventory exists; a flush failure must not mask the primary run outcome.
+
+    Execution flow:
+    1. Check for an initialized inventory.
+    2. Invoke its durable authoring-draft flush.
+    3. Log a warning and suppress any flush exception.
+
+    Failure cases:
+    - Flush errors are logged and swallowed to preserve the original cancellation/runtime failure.
+
+    Side effects:
+    - May persist the current authoring draft and writes a warning log on failure.
+    """
     try:
         if context.inventory is not None:
             context.inventory.flush_authoring_draft()
@@ -196,6 +245,31 @@ def run_rule_set_preparation(
 
     The API owns every state transition: an activated or invalid submission is recorded by
     the submit transaction itself; this function records ``FAILED`` only when the agent
+    explicitly reported a blocked source or encountered a model/runtime/legal-source error.
+
+    Business purpose: Claim and execute one governed Rule Set Preparation run, returning its authoritative lifecycle outcome and submission evidence.
+
+    Business rules:
+    - The API claim is the single execution gate; extraction gaps stop before model calls, source pins remain fixed, and only API callbacks authorize durable lifecycle transitions.
+    - Budget exhaustion pauses the run; cancellation is re-raised; provider/runtime errors are classified without exposing provider payloads.
+
+    Execution flow:
+    1. Claim the run and stop on duplicate delivery; classify unavailable source pins as failure.
+    2. Build the pinned source graph, reject extraction gaps, materialize source files and restore inventory/draft/frontier state.
+    3. Construct and invoke the native Preparation agent with isolated runnable config and stream tracing.
+    4. Flush the draft on cancellation, pause on configured budget exhaustion, or record safe failure diagnostics and fail the run.
+    5. Return the recorded no-obligation, discovery-ready, no-submission or validated submission outcome.
+
+    Failure cases:
+    - Source claim/materialization, extraction, agent construction, model/provider, runtime, callback or submission errors return the specific failed/paused/ready state; an already claimed run performs no duplicate execution.
+
+    Side effects:
+    - Claims the run, reads pinned source, materializes local files, restores durable state, runs the model/tool graph, flushes draft state and may call governed fail/submit operations and publish progress events.
+
+    Execute one run and return `{"state": ..., "submission": ..., "failureReason": ...}`.
+
+    The API owns every state transition: an activated or invalid submission is recorded by
+    the submit transaction itself; this function records `FAILED` only when the agent
     explicitly reported a blocked source or encountered a model/runtime/legal-source error.
     """
     try:

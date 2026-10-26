@@ -37,7 +37,27 @@ class LegalPdfOcr:
     def extract_pages(
         self, *, pdf_path: Path, page_numbers: Sequence[int], language: str = "vie+eng", dpi: int = 300,
     ) -> list[OcrPage]:
-        """Recognize selected original pages with bounded temporary storage and subprocess lifetimes."""
+        """Recognize selected original pages with bounded temporary storage and subprocess lifetimes.
+
+        Business purpose: Produce page-numbered OCR text and hashes for a human-reviewable scanned legal PDF source.
+
+        Business rules:
+        - Both PDF rendering and OCR binaries must be installed, and every requested language pack must be available.
+        - Page numbers must be exact positive integers; each selected page is rendered and recognized independently.
+        - OCR output is evidence for operator review and is not approved, normalized, or ingested into the legal corpus here.
+
+        Execution flow:
+        1. Verify the renderer, OCR engine, and requested language data.
+        2. For each requested page in caller order, validate its number and render only that page into a temporary directory.
+        3. OCR the rendered page, hash its returned text, and append the page result.
+
+        Failure cases:
+        - Invalid page numbers raise ValueError; missing tools or language data raise RuntimeError.
+        - Render/OCR subprocess failures and empty OCR output propagate as errors rather than producing an empty accepted page.
+
+        Side effects:
+        - Runs local pdftoppm and Tesseract subprocesses and creates per-page temporary image files that are removed on exit.
+        """
         self._require_command("pdftoppm")
         self._require_command("tesseract")
         self._require_language(language)
@@ -147,6 +167,23 @@ class LegalPdfOcr:
             )
 
     def _run(self, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        """Business purpose: Execute one bounded OCR prerequisite command and capture its result for explicit review or hashing.
+
+        Business rules:
+        - Commands run with checked exit status, captured text output, a 90-second timeout, and a single OpenMP worker.
+        - The provided argument sequence is executed directly; shell interpretation is not enabled.
+
+        Execution flow:
+        1. Copy the process environment and set the OCR thread limit.
+        2. Run the command with output capture and timeout enforcement.
+        3. Return the completed process result only for a successful exit.
+
+        Failure cases:
+        - A nonzero exit or timeout propagates subprocess's CalledProcessError or TimeoutExpired; no output artifact is accepted on failure.
+
+        Side effects:
+        - Starts a local subprocess and may consume temporary OCR resources; it does not persist artifacts itself.
+        """
         return self._run_command(
             command,
             check=True,

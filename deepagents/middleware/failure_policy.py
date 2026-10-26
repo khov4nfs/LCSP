@@ -97,6 +97,22 @@ class PaidAdmissionError(AgentRunBudgetExceeded):
 
 
 def is_paid_admission_error(error: BaseException) -> bool:
+    """Business purpose: Keep a paid-call admission denial from being treated as a provider failure that can trigger another paid attempt.
+
+    Business rules:
+    - Only a PaidAdmissionError in the explicit cause/context chain establishes this classification.
+    - Traverse chained exceptions once so a cyclic chain cannot loop indefinitely.
+
+    Execution flow:
+    1. Follow each exception's cause, falling back to its context.
+    2. Return true on the first PaidAdmissionError; otherwise return false at the end of the chain.
+
+    Failure cases:
+    - An unrelated exception chain returns false; this classifier does not infer admission denial from status codes.
+
+    Side effects:
+    - Pure classification; it does not log, persist state, or invoke a provider.
+    """
     seen: set[int] = set()
     while error is not None and id(error) not in seen:
         seen.add(id(error))
@@ -225,11 +241,21 @@ def is_provider_route_incompatibility(error: BaseException) -> bool:
 
 
 def is_provider_model_unavailable(error: BaseException) -> bool:
-    """Return whether the provider said the model route is unusable right now.
+    """Business purpose: Distinguish an unavailable provider model route from a rejected task so another configured route can be considered.
 
-    Not a terminal task error: the agent turn is well formed, so the same request
-    on another provider is expected to succeed. Not retried on the same route
-    either — a withdrawn or overloaded model does not come back within a turn.
+    Business rules:
+    - An Anthropic model-not-found exception or a recognized provider model-unavailable code establishes the condition.
+    - Route unavailability is not terminal for the task, but retrying that same route within the turn is not useful.
+
+    Execution flow:
+    1. Search the cause/context chain for AnthropicModelNotFoundError, guarding against cycles.
+    2. If none is present, check the error-code set for a recognized unavailable-model code.
+
+    Failure cases:
+    - Unrecognized errors return false and remain subject to the other retry classifiers.
+
+    Side effects:
+    - Pure classification with no provider calls or state changes.
     """
     seen: set[int] = set()
     current: BaseException | None = error
@@ -242,10 +268,22 @@ def is_provider_model_unavailable(error: BaseException) -> bool:
 
 
 def is_provider_refusal(error: BaseException) -> bool:
-    """Return whether the provider's model declined this one sample instead of failing the request.
+    """Business purpose: Identify a provider refusal of one generated sample so retry policy can resample or use another route.
 
-    Not a terminal task error: resampling or another route is expected to answer, and a task that
-    legitimately analyses statute text must not die on a route's occasional false-positive refusal.
+    Business rules:
+    - A content_filter code or a recognized refusal phrase in the chained error text is treated as a sample refusal.
+    - A refusal is not by itself a terminal task error because a later sample or route may answer.
+
+    Execution flow:
+    1. Check normalized provider error codes for content_filter.
+    2. Traverse the cause/context chain once, normalize apostrophes and casing, and search for known refusal phrases.
+    3. Return false when no refusal signal is found.
+
+    Failure cases:
+    - Unrecognized wording and codes return false; the classifier does not interpret arbitrary provider text as a refusal.
+
+    Side effects:
+    - Pure classification; it does not retry or change route state.
     """
     if "content_filter" in _error_codes(error):
         return True
@@ -261,6 +299,24 @@ def is_provider_refusal(error: BaseException) -> bool:
 
 
 def is_terminal_task_error(error: BaseException) -> bool:
+    """Business purpose: Stop retries for failures that cannot converge by resending the same rejected task payload.
+
+    Business rules:
+    - Type, validation, structured-output, terminal credential, run-budget, and no-progress errors in the chain are terminal.
+    - Callback-client rejection and provider 400/404/422 errors are terminal unless classified as model unavailability or a provider refusal.
+    - Non-retryable ModelError is terminal except for credential-specific and unavailable-model errors, which other policies may route around.
+
+    Execution flow:
+    1. Walk the cause/context chain once and check the explicit terminal exception classes.
+    2. Check callback-client rejection and request-level provider statuses with the model-unavailable and refusal exceptions.
+    3. Apply ModelError retryability rules, then return false if the chain has no terminal signal.
+
+    Failure cases:
+    - A non-terminal result does not guarantee retry success; it leaves the decision to credential, provider-route, and model retry policies.
+
+    Side effects:
+    - Pure classification; it does not mutate task state or invoke a model.
+    """
     seen: set[int] = set()
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
@@ -321,6 +377,22 @@ def _is_non_retryable_boundary_error(error: BaseException) -> bool:
 def retry_model_error(error: Exception) -> bool:
     # Re-sending the same request with the same rejected credential cannot succeed.
     # Queue redelivery policy lives in is_terminal_boundary_error.
+    """Business purpose: Decide whether the model retry layer may resubmit a failed inference.
+
+    Business rules:
+    - Paid-call admission, terminal task, authentication, provider-capacity, and unavailable-model failures are not retried on the same model attempt.
+    - Other errors remain eligible for the surrounding bounded model retry policy.
+
+    Execution flow:
+    1. Apply each exclusion classifier to the original error and its chained causes.
+    2. Return true only when none of the excluded conditions applies.
+
+    Failure cases:
+    - Classification alone does not guarantee another attempt; outer retry limits and provider routing still govern execution.
+
+    Side effects:
+    - Pure classification with no scheduling, logging, or provider call.
+    """
     return (
         not is_paid_admission_error(error)
         and not is_terminal_task_error(error)

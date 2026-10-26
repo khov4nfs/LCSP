@@ -20,10 +20,41 @@ CLAIMS_ROOT = "/work/claims"
 
 
 def claim_path(source_path):
+    """Business purpose: Map one pinned legal-source article path to its corresponding work-area claim JSON path.
+
+    Business rules:
+    - The source-relative directory and article name stay aligned while only the `/legal-source/` root and `.md` extension change.
+
+    Execution flow:
+    1. Replace the source root with `/work/claims/`.
+    2. Replace the Markdown suffix with `.json` and return the virtual path.
+
+    Failure cases:
+    - Paths without the expected source root are returned unchanged apart from suffix handling, so callers must validate source membership separately.
+
+    Side effects:
+    - None: performs path projection only.
+    """
     return source_path.replace("/legal-source/", CLAIMS_ROOT + "/", 1).removesuffix(".md") + ".json"
 
 
 def disk_path(context, virtual):
+    """Business purpose: Resolve an agent-supplied claim-file path to a local file beneath the run's claims directory.
+
+    Business rules:
+    - Paths must be absolute `.json` paths under `/work/claims`; parent traversal and symlink escapes are forbidden.
+
+    Execution flow:
+    1. Parse and validate the virtual path and suffix.
+    2. Resolve it against the run source root.
+    3. Confirm the real path stays within `work/claims` and return it.
+
+    Failure cases:
+    - Invalid roots, traversal, wrong suffix or symlink escape raise ValueError before file access.
+
+    Side effects:
+    - None: resolves a path without reading or writing the file.
+    """
     path = PurePosixPath(virtual)
     if not path.is_absolute() or ".." in path.parts or not path.is_relative_to(CLAIMS_ROOT) or path.suffix != ".json":
         raise ValueError("Use an absolute .json path under /work/claims; traversal is forbidden")
@@ -35,10 +66,40 @@ def disk_path(context, virtual):
 
 
 def global_key(path, key):
+    """Business purpose: Produce a claim identity key that is unique across claim files.
+
+    Business rules:
+    - The file-relative path and claim key are joined with `#` so identical local keys in different articles remain distinct.
+
+    Execution flow:
+    1. Remove the `/work/claims/` prefix.
+    2. Append the claim key after the separator and return the identity.
+
+    Failure cases:
+    - Non-string path/key values violate the caller contract and are not normalized into an identity.
+
+    Side effects:
+    - None: pure identity formatting.
+    """
     return path.removeprefix(CLAIMS_ROOT + "/") + "#" + key
 
 
 def target_key(path, target):
+    """Business purpose: Resolve a relation target into its claim-file path and local claim key.
+
+    Business rules:
+    - A target without `#` belongs to the current file; a cross-file target uses its explicit path, adding `/work/claims/` when needed.
+
+    Execution flow:
+    1. Return the current file and full target when no separator exists.
+    2. Otherwise split at the final `#`, normalize the target file root and return file/key.
+
+    Failure cases:
+    - Empty or malformed components are returned for the later path/identity validator to reject.
+
+    Side effects:
+    - None: parses relation address text.
+    """
     if "#" not in target:
         return path, target
     file, key = target.rsplit("#", 1)
@@ -50,7 +111,24 @@ modifier_types = {"CONDITION_OF": {"SCOPE", "CONDITION"}, "QUALIFIES": {"QUALIFI
 
 
 def _normalize(value):
-    """Mechanical defaults for omitted fields, applied after schema validation: the rest of the pipeline sees the full shape."""
+    """Mechanical defaults for omitted fields, applied after schema validation: the rest of the pipeline sees the full shape.
+
+    Business purpose: Expand schema-valid claim-file JSON into the complete internal shape used by deterministic claim checks.
+
+    Business rules:
+    - Omitted optional fields receive established defaults; modifier relations may be reversed to the modifier claim, and a material reference binding implies its corresponding outgoing relation.
+
+    Execution flow:
+    1. Add default no-claims, references, claim fields and relation lists.
+    2. Reorient modifier relations that were written from the affected claim.
+    3. Add missing relations implied by material reference bindings.
+
+    Failure cases:
+    - Invalid nested shapes raise during normalization; the caller runs it only after schema validation passes.
+
+    Side effects:
+    - Mutates the in-memory loaded claim-file value; it does not write the file or commit claims.
+    """
     value.setdefault("noClaims", {})
     value.setdefault("references", {})
     for claim in value["claims"]:
@@ -81,7 +159,24 @@ def _normalize(value):
 
 
 def _cite_effect_targets(source, value):
-    """A legalEffect target is cited as printed under /legal-source (<document>#<locator>); its node id is looked up here."""
+    """A legalEffect target is cited as printed under /legal-source (<document>#<locator>); its node id is looked up here.
+
+    Business purpose: Resolve printed legal-effect target locators to node IDs in the pinned source graph.
+
+    Business rules:
+    - Only targets that resolve from their document/locator are rewritten; unresolved printed addresses remain as supplied for validation.
+
+    Execution flow:
+    1. Inspect each claim's legal-effect frame and its targets.
+    2. Split each printed `document#locator` address and resolve it through the source graph.
+    3. Replace the address with the node ID when a node is found.
+
+    Failure cases:
+    - Missing or malformed frame data is skipped where the shape is unsupported; unresolved locators are left for the integrity gate.
+
+    Side effects:
+    - Mutates the loaded value's target identifiers in memory; no durable source or claim state changes.
+    """
     for claim in value.get("claims", []) if isinstance(value, dict) else []:
         effect = (claim.get("frame") or {}).get("legalEffect") if isinstance(claim, dict) and isinstance(claim.get("frame"), dict) else None
         for target in (effect or {}).get("targets", []):
@@ -92,6 +187,22 @@ def _cite_effect_targets(source, value):
 
 
 def _schema_issues(issue):
+    """Business purpose: Flatten nested JSON Schema anyOf failures into the actionable leaf issues shown for a claim file.
+
+    Business rules:
+    - Generic type alternatives at the same path are suppressed when a more specific nested validator failure exists.
+
+    Execution flow:
+    1. Inspect whether the issue is an anyOf failure.
+    2. Recurse into useful nested contexts when present.
+    3. Otherwise return the issue itself as a one-item list.
+
+    Failure cases:
+    - An anyOf with no informative children remains a direct validation failure.
+
+    Side effects:
+    - None: projects schema errors without changing the input.
+    """
     if issue.validator == "anyOf":
         nested = [child for child in issue.context if child.validator != "type" or child.absolute_path != issue.absolute_path]
         if nested:
@@ -100,6 +211,23 @@ def _schema_issues(issue):
 
 
 def _load(context, path):
+    """Business purpose: Load and deterministically validate one claim JSON file against its pinned article and claim-file schema.
+
+    Business rules:
+    - Only safe `/work/claims` paths are read; legal-effect locators are resolved against the pinned source, and defaults are applied only after schema validation succeeds.
+
+    Execution flow:
+    1. Resolve and read UTF-8 JSON from the run work area.
+    2. Parse and resolve printed effect targets, attaching location-specific parse errors when JSON is malformed.
+    3. Collect sorted leaf schema issues and normalize the value only when valid.
+    4. Return the normalized value and validation issues.
+
+    Failure cases:
+    - Path, decoding and JSON errors propagate to the deterministic caller; schema failures are returned without normalization.
+
+    Side effects:
+    - Reads one local claim file and changes only the loaded in-memory value.
+    """
     raw = disk_path(context, path).read_text(encoding="utf-8")
     try:
         value = json.loads(raw)
@@ -124,6 +252,22 @@ def resolve_support(source, document, ids, support):
 
     A wrong or invented locator is corrected when the verbatim quote sits in exactly one node of this file: the stored
     span is always the source's own slice, so provenance stays exact while the author saves a repair round.
+
+    Business purpose: Convert a claim-file support quote and printed locator into an exact span in pinned legal text.
+
+    Business rules:
+    - A quote must match source text verbatim; a wrong locator can be repaired only when the quote occurs in exactly one node of the same article.
+
+    Execution flow:
+    1. Resolve the printed locator and validate the quote against that node.
+    2. If it does not fit, search the article for a unique exact quote and return its actual node and locator.
+    3. Otherwise raise a typed support error with the allowed repair guidance.
+
+    Failure cases:
+    - Invalid quotes raise SOURCE_SUPPORT_INVALID; unknown locators raise LOCATOR_UNKNOWN rather than accepting unverified support.
+
+    Side effects:
+    - None: reads pinned source and returns its exact support span.
     """
     locator, quote = support["locator"], support["quote"]
     nid = source.resolve_locator(document, locator)
@@ -145,12 +289,47 @@ def resolve_support(source, document, ids, support):
 
 
 def _reference_only_target(source, reference_id):
+    """Business purpose: Identify references whose resolved target is a source document reserved for reference-only use.
+
+    Business rules:
+    - A target is reference-only only when the reference is RESOLVED and the pinned graph confirms the target node's role.
+
+    Execution flow:
+    1. Read the reference record, defaulting missing identities to an empty record.
+    2. Check resolution state and target role.
+    3. Return the boolean result.
+
+    Failure cases:
+    - Missing or unresolved references return false; they are not assumed to be reference-only.
+
+    Side effects:
+    - None: reads pinned reference metadata.
+    """
     reference = source.references.get(reference_id, {})
     return reference.get("resolutionState") == "RESOLVED" and source.is_reference_only(reference.get("toNodeId"))
 
 
 def check_claims(context, paths):
-    """Collect every deterministic error. No draft mutation, API call or model invocation."""
+    """Collect every deterministic error. No draft mutation, API call or model invocation.
+
+    Business purpose: Validate a set of article claim files and produce claim candidates without mutating the inventory or calling the API.
+
+    Business rules:
+    - Every reviewable source locator and explicit reference must be accounted for; claim identity, source version, actor/action roles, quotes, typed relations and legal-effect data must match pinned evidence.
+    - The function reports deterministic schema/provenance errors only; it does not interpret substantive law.
+
+    Execution flow:
+    1. Load each unique safe path and collect JSON/schema/article identity failures.
+    2. Validate claim keys, operative fields, exact source support, structural coverage and reference dispositions.
+    3. Resolve relation endpoints and check relation direction, operative targets and exact reference binding.
+    4. Return grouped errors together with valid loaded files and candidate claims.
+
+    Failure cases:
+    - Empty path lists, unreadable or invalid files, uncovered locators, unknown references and unsupported links return explicit failures; no candidate is accepted through an invalid file.
+
+    Side effects:
+    - Reads claim files and builds in-memory validation results/candidates only; no draft, API or model state is changed.
+    """
     if not paths:
         return {"outcome": "FAILED", "errors": {"_request": {"_file": [{"code": "CLAIM_PATHS_EMPTY", "fix": "Supply at least one /work/claims .json path"}]}}}, {}, {}
     source, errors, files, candidates = context.source_graph, {}, {}, {}
@@ -159,6 +338,21 @@ def check_claims(context, paths):
     file_nodes = {claim_path(p): ids for p, ids in source.source_files.items()}
 
     def error(path, key, code, detail, fix):
+        """Business purpose: Group one claim-file validation issue under its file and claim key.
+
+        Business rules:
+        - Each error retains a stable code, detail and repair instruction and is appended without replacing earlier errors.
+
+        Execution flow:
+        1. Create the file and claim buckets when absent.
+        2. Append the structured issue to the selected claim's error list.
+
+        Failure cases:
+        - Malformed error data propagates as caller misuse rather than erasing prior issues.
+
+        Side effects:
+        - Mutates only the local grouped error accumulator.
+        """
         errors.setdefault(path, {}).setdefault(str(key), []).append({"code": code, "detail": detail, "fix": fix})
 
     for path in dict.fromkeys(paths):
@@ -252,6 +446,22 @@ def check_claims(context, paths):
             error(path, "_file", "REFERENCE_UNKNOWN", rid, "Use only referenceIds annotated in this source file")
 
     def candidate_at(path, key):
+        """Business purpose: Resolve a relation endpoint to the deterministic candidate identity supported by a claim file.
+
+        Business rules:
+        - Prefer the already validated candidate in the current batch; otherwise load the target file and derive its identity from pinned source support.
+
+        Execution flow:
+        1. Return the current-batch candidate when present.
+        2. Load and validate the target file, find the requested claim key and resolve its support nodes.
+        3. Return endpoint identity/provenance or `None` when it cannot be verified.
+
+        Failure cases:
+        - Invalid files, missing keys, unresolvable support and file/path errors return `None` so the caller reports a missing target.
+
+        Side effects:
+        - Reads files and builds a transient endpoint projection; it does not commit the target claim.
+        """
         if (path, key) in candidates:
             return candidates[path, key]
         try:
@@ -310,12 +520,47 @@ def check_claims(context, paths):
 
 
 def _operations(context):
+    """Business purpose: Build the existing governed claim-operation callbacks used by claim-file commits.
+
+    Business rules:
+    - Claim-file persistence reuses the same register/update/link/remove/reference operations as interactive discovery.
+
+    Execution flow:
+    1. Create an operation mapping.
+    2. Bind the existing claim tools to the run context and mapping.
+    3. Return the populated operations.
+
+    Failure cases:
+    - Tool construction errors propagate; no fallback mutation path is created.
+
+    Side effects:
+    - Constructs callbacks in memory; operation effects occur only when callers invoke them.
+    """
     operations = {}
     build_claim_tools(context, operations=operations)
     return operations
 
 
 def commit_claims(context, paths):
+    """Business purpose: Validate claim files and submit their reviewed source units to the durable source-review frontier.
+
+    Business rules:
+    - Discovery must remain open and use the persisted frontier; commits adopt INIT-authorized review units rather than acquiring NEXT leases.
+    - Claims, outgoing relations, reference decisions and each unit's disposition must be source-backed and complete before the API marks units reviewed; local draft operations stage before the COMPLETE request.
+
+    Execution flow:
+    1. Under the run mutation lock, validate all files and reject the batch with per-file progress events if any deterministic issue exists.
+    2. Restore the frontier, verify discovery eligibility and adopt only the pinned review units represented by the files.
+    3. Register/update claims, remove omitted owned claims, replace outgoing relations and apply material/non-material reference accounting.
+    4. Build unit completion dispositions, reopen changed reviewed units, then persist one COMPLETE batch.
+    5. Reload durable authority, project API failures into file feedback and publish commit events.
+
+    Failure cases:
+    - Frozen discovery, missing frontier, stale/refused restore, unsupported source ownership, detached references or API validation failures stop or reject the batch; failures before COMPLETE may leave local staged draft changes, while durable review completion remains API-owned.
+
+    Side effects:
+    - Mutates run-local draft/frontier projections, invokes governed inventory/source-review operations, writes claim-file review results and publishes per-file progress events.
+    """
     with context.mutation_lock:
         checked, files, candidates = check_claims(context, paths)
         if checked["outcome"] != "PASSED":
@@ -432,6 +677,22 @@ def commit_claims(context, paths):
 
 
 def _events(paths, committed, rejected, node_files=None):
+    """Business purpose: Publish one progress event per submitted claim file with its committed units and rejection details.
+
+    Business rules:
+    - Duplicate input paths emit once; committed nodes are associated only through the supplied node-to-file mapping.
+
+    Execution flow:
+    1. Iterate unique requested file paths.
+    2. Select that file's committed nodes and rejection projection.
+    3. Publish a RUNNING CLAIM_FILE_COMMITTED event.
+
+    Failure cases:
+    - Stream publication errors propagate; the event is observational and does not reverse the commit.
+
+    Side effects:
+    - Emits agent progress events only.
+    """
     for path in dict.fromkeys(paths):
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "CLAIM_FILE_COMMITTED", "file": path,
             "committedNodes": [nid for nid in committed if (node_files or {}).get(nid) == path],
@@ -447,6 +708,22 @@ def is_pure_heading(source, nid):
 
     This permits a structural disposition when the author leaves the heading unclaimed; a cited Article title remains
     reviewable source support. A container with sentence-final punctuation or more than three lines is left to the author.
+
+    Business purpose: Decide whether a structural source node may receive the standard no-claim disposition without semantic review.
+
+    Business rules:
+    - Only a nonempty container with children, at most three short lines and no sentence-final punctuation qualifies; a cited article title is still reviewable support.
+
+    Execution flow:
+    1. Normalize nonempty source lines.
+    2. Check the node's container type, child presence, line/count bounds and punctuation.
+    3. Return whether the node is only a heading.
+
+    Failure cases:
+    - Missing node/source data propagates; non-qualifying content remains for an author rather than being released.
+
+    Side effects:
+    - None: classifies source structure without writing a disposition.
     """
     node = source.nodes[nid]
     lines = [line.strip() for line in node["content"].strip().splitlines() if line.strip()]
@@ -455,7 +732,24 @@ def is_pure_heading(source, nid):
 
 
 def _account_heading_files(context):
-    """Commit the claim files of heading-only containers (no claims, factual reason) through the normal commit path."""
+    """Commit the claim files of heading-only containers (no claims, factual reason) through the normal commit path.
+
+    Business purpose: Account for claim files containing only eligible structural headings through the normal source-review commit path.
+
+    Business rules:
+    - Discovery must be open and a frontier must exist; every required node in a file must be pending and a pure heading, with no owned references.
+
+    Execution flow:
+    1. Identify complete pending heading-only files.
+    2. Write a claim file with no semantic claims and the fixed structural reason for each locator.
+    3. Commit those files with the standard claim-file operation and return its bounded summary.
+
+    Failure cases:
+    - Ineligible phase/frontier or no eligible files returns `None`; commit failures are reported in the summary and do not mark units complete independently.
+
+    Side effects:
+    - Writes generated claim JSON files and invokes the durable commit path for qualifying headings.
+    """
     source, frontier, ledger = context.source_graph, context.inventory.frontier, context.inventory
     if frontier is None or not ledger.discovery_allowed():
         return None
@@ -489,6 +783,22 @@ def release_unconnected(context, failures):
     Declaring such a claim non-operative is the disposition the gate itself offers and changes no closure, so it is done here
     instead of sending an author to search the corpus for a use that does not exist. Returns the identities it released
     (empty when nothing changed or the re-commit failed); the finalize reply lists them.
+
+    Business purpose: Close only unreachable definition/context claims that the inventory gate identifies as non-operative.
+
+    Business rules:
+    - A claim is releasable only when the failure detail starts with UNREACHABLE_RELEVANT_CLAIM, its type is DEFINITION or CONTEXT, and its identity is present in the inventory; operative claims and restrictions are never released.
+
+    Execution flow:
+    1. Match gate failures to eligible persisted claim identities.
+    2. Rewrite only those claims as irrelevant with the fixed source-faithful reason and remove their outgoing relations.
+    3. Recommit the affected claim files and return identities only after a successful commit.
+
+    Failure cases:
+    - No eligible claims or a rejected recommit returns an empty list; file/JSON errors propagate for recovery.
+
+    Side effects:
+    - Rewrites local claim files and may persist the narrowed claim inventory through `commit_claims`.
     """
     released = {}
     for failure in failures:
@@ -516,6 +826,23 @@ def discovery_status(context):
     A claim-author's context grows with every file it holds and each turn re-reads it, so the assignment size is the
     cost lever (measured: one author for 44 articles averaged 61k input tokens per call).
     Heading-only containers (chapter titles) are accounted here without an author.
+
+    Business purpose: Show durable source-review progress and delegate each remaining whole Article as a claim-file assignment.
+
+    Business rules:
+    - Progress and assignments derive from the pinned source review units and persisted accounting; heading-only files may be handled automatically.
+    - Finalization is offered only when the frontier says discovery is complete.
+
+    Execution flow:
+    1. Account eligible heading-only files.
+    2. Under the mutation lock, query durable frontier progress.
+    3. Group remaining review locators by source file and return the required discovery or finalization action.
+
+    Failure cases:
+    - Frontier refusals are returned unchanged; an incomplete or failed progress query is not presented as complete.
+
+    Side effects:
+    - May generate/commit heading-only claim files and reads persisted source-review progress.
     """
     headings = _account_heading_files(context)
     with context.mutation_lock:
@@ -537,7 +864,25 @@ def discovery_status(context):
 
 
 def rebuild_claim_files(context):
-    """Recover committed file projections from LOAD payloads, never from lost conversations."""
+    """Recover committed file projections from LOAD payloads, never from lost conversations.
+
+    Business purpose: Reconstruct local claim-file projections from durable source-review LOAD payloads after a worker resumes.
+
+    Business rules:
+    - Persisted claims, identities, relations, reference accounting and source dispositions are authoritative; lost agent conversation is never used to recreate evidence.
+
+    Execution flow:
+    1. Restore the frontier and fail if durable state cannot be loaded.
+    2. Group committed claims and reviews by pinned source file, rebuilding local and cross-file relation addresses.
+    3. Reconstruct exact source quotes, no-claim reasons and reference decisions from persisted evidence.
+    4. Write each nonempty reconstructed claim JSON file beneath the work area.
+
+    Failure cases:
+    - Restore, identity, source-locator or file-write failures propagate; no conversation-derived claim is substituted.
+
+    Side effects:
+    - Reads durable frontier state and writes reconstructed local claim files.
+    """
     frontier, source = context.inventory.frontier, context.source_graph
     refused = frontier.restore()
     if refused:
@@ -550,12 +895,44 @@ def rebuild_claim_files(context):
         if not claims and not reviews:
             continue
         def local_name(cid):
+            """Business purpose: Convert a persisted global claim identity back to its claim-file-local key when it belongs to the current file.
+
+            Business rules:
+            - Strip the current file identity prefix only for an exact normalized prefix match; preserve cross-file identities intact.
+
+            Execution flow:
+            1. Read the persisted global identity for the claim.
+            2. Compare it with the current virtual claim-file prefix.
+            3. Return the local key on match, otherwise the full identity.
+
+            Failure cases:
+            - Missing persisted identity fails visibly rather than creating a new local key.
+
+            Side effects:
+            - None: formats a reconstructed key.
+            """
             identity = names[cid]
             return identity.rsplit("#", 1)[-1] if identity.startswith(identity_key(virtual.removeprefix(CLAIMS_ROOT + "/") + "#")) else identity
         rows = []
         for claim in claims:
             cid, operative = claim["claimId"], claim["operative"]
             def destination(target):
+                """Business purpose: Render one persisted relation target as a local or cross-file claim-file address.
+
+                Business rules:
+                - Same-file relations use only the target key; cross-file relations include the target file beneath `/work/claims`.
+
+                Execution flow:
+                1. Resolve the target claim's persisted owner node and source file.
+                2. Read its stable local key.
+                3. Return the correctly scoped relation address.
+
+                Failure cases:
+                - Missing owner, source file or persisted identity propagates instead of emitting a guessed target.
+
+                Side effects:
+                - None: builds a relation address for reconstruction.
+                """
                 owner_path = claim_path(source.node_files[frontier.claim_owners[target]])
                 target_name = names[target].rsplit("#", 1)[-1]
                 return target_name if owner_path == virtual else owner_path.removeprefix(CLAIMS_ROOT + "/") + "#" + target_name
@@ -583,15 +960,63 @@ def rebuild_claim_files(context):
 
 
 def build_claim_file_tools(context):
+    """Business purpose: Expose governed claim-file commit and durable discovery-status tools for one preparation run.
+
+    Business rules:
+    - A ClaimInventory is initialized only when absent; tool calls are bound to the supplied run context and preserve server-controlled API operations.
+
+    Execution flow:
+    1. Ensure the run has its claim inventory.
+    2. Create the commit and status tool wrappers.
+    3. Remove the implementation-only `_tool` suffix from their public names and return them.
+
+    Failure cases:
+    - Tool/schema construction errors propagate; no ungoverned file mutation tool is substituted.
+
+    Side effects:
+    - May initialize run-local ClaimInventory and returns model-facing tool objects; tool effects occur on invocation.
+    """
     if context.inventory is None:
         context.inventory = ClaimInventory(context)
     @tool
     def commit_claims_tool(paths: list[str]) -> str:
-        """Check files deterministically, then persist one COMPLETE batch. Include both files for circular references."""
+        """Check files deterministically, then persist one COMPLETE batch. Include both files for circular references.
+
+        Business purpose: Let the agent submit one or more claim files to deterministic validation and durable source review.
+
+        Business rules:
+        - Claim contents are checked against pinned source and frontier rules; cross-reference cycles require both source files in the same batch.
+
+        Execution flow:
+        1. Pass the supplied virtual paths to `commit_claims`.
+        2. Serialize its grouped validation or commit result for the agent.
+
+        Failure cases:
+        - Invalid paths, evidence, references, phase or frontier state return the governed failure result; they are not represented as committed.
+
+        Side effects:
+        - Invocation may read/write claim files, mutate the run draft and persist source-review state through the existing API.
+        """
         return json.dumps(commit_claims(context, paths), ensure_ascii=False)
     @tool
     def discovery_status_tool() -> str:
-        """Read durable frontier progress grouped by claim file, remaining locators and waiting references."""
+        """Read durable frontier progress grouped by claim file, remaining locators and waiting references.
+
+        Business purpose: Let the agent inspect durable discovery progress and the remaining whole-Article claim assignments.
+
+        Business rules:
+        - Status derives from the pinned review frontier and durable source accounting; it does not infer completion from conversation history.
+
+        Execution flow:
+        1. Query `discovery_status` for the current run.
+        2. Serialize frontier progress, assignments and the required next action.
+
+        Failure cases:
+        - Restore or progress failures remain visible in the returned result.
+
+        Side effects:
+        - Invocation may automatically account and commit eligible heading-only files; otherwise it reads durable status.
+        """
         return json.dumps(discovery_status(context), ensure_ascii=False)
     result = [commit_claims_tool, discovery_status_tool]
     for item in result:

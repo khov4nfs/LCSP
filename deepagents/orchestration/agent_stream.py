@@ -165,6 +165,20 @@ class AgentStreamSession:
     _active_model_call: dict[str, Any] | None = field(default=None, init=False, repr=False)
 
     def model_call_diagnostics(self) -> dict[str, dict[str, Any] | None]:
+        """Business purpose: Expose a safe snapshot of the current boundary's completed, failing and active model-call diagnostics.
+
+        Business rules:
+        - Read all three diagnostic slots under the sequence lock and return copies so callers cannot overwrite session state.
+
+        Execution flow:
+        1. Acquire the lock and copy each available diagnostic dictionary, retaining null for absent slots.
+
+        Failure cases:
+        - An absent model-call slot is returned as null rather than fabricated success or failure.
+
+        Side effects:
+        - Read-only access to run-local telemetry state; no external calls or durable changes.
+        """
         with self._sequence_lock:
             return {
                 "last_completed_model_call": dict(self._last_completed_model_call)
@@ -174,6 +188,23 @@ class AgentStreamSession:
             }
 
     def emit(self, event_type: str, **fields: Any) -> None:
+        """Business purpose: Publish ordered, sanitized telemetry tied to the correct customer-visible boundary and native model step.
+
+        Business rules:
+        - Suppress events after cancellation except MODEL_CALL_CANCELLED; preserve native runtime/model-step identity.
+        - Only allowlisted scalar routing diagnostics are retained, and sequence increments are protected by the shared lock.
+
+        Execution flow:
+        1. Apply cancellation and runtime/model-step context, then update model-call diagnostic state for lifecycle events.
+        2. Allocate the next sequence and assemble boundary/run/correlation metadata.
+        3. Sanitize the payload and deliver it through the supplied emitter.
+
+        Failure cases:
+        - Cancelled non-cancellation events are ignored; sanitizer/emitter failures propagate instead of fabricating delivery.
+
+        Side effects:
+        - Updates run-local diagnostics/sequence and invokes the telemetry emitter; it does not decide Assessment outcomes.
+        """
         cancel = active_agent_stream_cancel.get()
         if cancel is not None and cancel.is_set() and event_type != "MODEL_CALL_CANCELLED":
             return

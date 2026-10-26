@@ -197,7 +197,25 @@ def _redact_mapping(
 
 
 def _is_sensitive_key(key_text: str, redacted_keys: set[str] | None) -> bool:
-    """Return whether a structured field name has a secret-denoting segment."""
+    """Business purpose: Decide whether a structured field name marks a value for redaction in operational and model-facing diagnostics.
+
+    Business rules:
+    - Explicitly safe metadata names override matching, and exact sensitive names are rejected before segment analysis.
+    - Other names are sensitive only when a normalized field-name segment matches the configured secret vocabulary; substring matches alone do not qualify.
+    - Add the original key to redacted_keys only when it is classified as sensitive and a collector was supplied.
+
+    Execution flow:
+    1. Return false for an allowlisted safe metadata key.
+    2. Match exact sensitive names and optionally record the key.
+    3. Split the remaining field name into normalized segments and match the sensitive segment set.
+    4. Optionally record and return true for a sensitive match, otherwise return false.
+
+    Failure cases:
+    - Names without a configured exact name or segment return false and are not added to the collector.
+
+    Side effects:
+    - May append the classified key to the caller-provided redacted_keys set; it does not alter the source object or redact a value itself.
+    """
     if key_text in SAFE_METADATA_KEY_NAMES:
         return False
     if key_text in SENSITIVE_KEY_NAMES:

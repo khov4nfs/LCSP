@@ -12,6 +12,22 @@ INDEX_PATH = LEGAL_SOURCE_ROOT + "/INDEX.md"
 
 
 def safe_component(value):
+    """Business purpose: Convert a document identity into one safe filesystem path component.
+
+    Business rules:
+    - Characters outside Unicode word characters, dot and hyphen become underscores; empty, `.` and `..` results are rejected.
+
+    Execution flow:
+    1. Stringify the identity and replace disallowed path characters.
+    2. Reject a component that could denote no name or a traversal directory.
+    3. Return the safe component.
+
+    Failure cases:
+    - Empty, current-directory and parent-directory components raise ValueError.
+
+    Side effects:
+    - None: sanitizes an identity for path construction.
+    """
     component = re.sub(r"[^\w.-]", "_", str(value), flags=re.UNICODE)
     if component in {"", ".", ".."}:
         raise ValueError("Invalid source path component")
@@ -19,6 +35,24 @@ def safe_component(value):
 
 
 def materialize_legal_source(bundle, root: Path):
+    """Business purpose: Materialize the exact pinned LegalDocumentGraph as readable source files, locators, reference annotations and an immutable hash index for one preparation run.
+
+    Business rules:
+    - Source text is copied from the pinned graph unchanged and marked untrusted; operative and reference-only documents retain distinct roles.
+    - Only the run-local generated `legal-source` tree is replaced, and claim work directories are prepared only for operative files.
+
+    Execution flow:
+    1. Build and validate the pinned source graph.
+    2. Remove the prior generated legal-source tree and render each source article with exact locators, hierarchy and explicit references.
+    3. Write per-document indexes and SHA-256 rows, then write the corpus index.
+    4. Return the index and materialized virtual paths.
+
+    Failure cases:
+    - Invalid graph addresses or filesystem read/write failures propagate; incomplete extraction is rejected by the caller before materialization.
+
+    Side effects:
+    - Deletes and recreates the run-local legal-source directory and creates operative claim-work directories; no remote legal source is modified.
+    """
     from rule_set_preparation.source_graph import PinnedSourceGraph
     source = PinnedSourceGraph(bundle["documentGraph"], [c for d in bundle["documents"] for c in d["chunks"]])
     source.source_files  # Validate addresses before replacing this generated source tree.
@@ -68,6 +102,23 @@ def materialize_legal_source(bundle, root: Path):
 
 
 def refute_source_block(root, reason, path):
+    """Business purpose: Verify whether a reported pinned-source problem is supported by the run-local source files and their recorded hashes.
+
+    Business rules:
+    - SOURCE_UNREADABLE is refuted when the named indexed path can be read; SOURCE_PINS_INCONSISTENT is refuted only when every indexed file matches its SHA-256 entry.
+
+    Execution flow:
+    1. Read the immutable index; return no refutation if it is unavailable.
+    2. For an unreadable claim, validate index membership and attempt the named read.
+    3. For inconsistent pins, compare every indexed file with its recorded hash.
+    4. Return a refutation explanation when the source is readable/intact, otherwise `None`.
+
+    Failure cases:
+    - Missing index, missing file or hash mismatch is not treated as proof of source integrity; it returns `None` for the caller to preserve the blocker.
+
+    Side effects:
+    - Reads local source/index files only; it does not alter hashes or source contents.
+    """
     index_path = root / "legal-source/INDEX.md"
     try:
         index = index_path.read_text(encoding="utf-8")

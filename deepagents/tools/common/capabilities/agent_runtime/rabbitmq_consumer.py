@@ -298,7 +298,28 @@ def _reconcile_local_agent_server_stale_runs(
     timeout_seconds: float,
     stopping: Event,
 ) -> None:
-    """Clear persisted local-dev runs that predate the current Agent Server process."""
+    """Clear eligible stale Agent Server runs before RabbitMQ delivery begins.
+
+    Business purpose: Reconcile persisted busy runs that predate the current Agent Server process so local runtime delivery does not inherit stale work.
+
+    Business rules:
+    - Reconciliation defaults on only outside production for URLs beginning http://127.0.0.1: or http://localhost:; the explicit environment setting can override that default.
+    - Production Agent Server restores durable runs itself, so stale-run reconciliation must remain disabled there unless an operator explicitly overrides it.
+    - A run is reconciled only after the Agent Server reports ready, and the lower-level reconciler uses its process-start cutoff.
+
+    Execution flow:
+    1. Resolve server URL, runtime mode, and the default/overridden reconciliation setting.
+    2. Return without work when reconciliation is disabled.
+    3. Poll `/ok` until the server is ready, shutdown is requested, or the readiness deadline expires.
+    4. Reconcile eligible stale runs and log a warning when any run was interrupted.
+
+    Failure cases:
+    - Failure to become ready by the deadline raises RuntimeError with the server and last observed failure; shutdown stops the loop without raising.
+    - HTTP/network and reconciliation exceptions are retried while the readiness deadline remains and shutdown has not been requested.
+
+    Side effects:
+    - Performs readiness HTTP requests and may interrupt stale LangGraph runs through `reconcile_stale_agent_runs`; it does not update customer assessment decisions.
+    """
     server_url = os.getenv("LCSP_AGENT_SERVER_URL", DEFAULT_AGENT_SERVER_URL).rstrip("/")
     production = (
         os.getenv("LCSP_AGENT_RUNTIME_MODE", "").strip().lower() == "production"

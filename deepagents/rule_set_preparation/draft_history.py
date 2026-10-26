@@ -44,7 +44,24 @@ def _gists(call_args: dict[str, Any]) -> dict[str, dict[str, str]]:
 
 
 def _kind(message: Any, authoring: bool = False) -> str | None:
-    """'add', 'check' (or, while authoring, 'read') for a message made only of draft-bookkeeping calls, otherwise None."""
+    """'add', 'check' (or, while authoring, 'read') for a message made only of draft-bookkeeping calls, otherwise None.
+
+    Business purpose: Classify an AI message as an incremental draft, validation/check or authoring-read round that may be compacted.
+
+    Business rules:
+    - Messages containing unrelated tools or no tool calls are retained; authoring read calls are tracked separately from mutations.
+
+    Execution flow:
+    1. Require an AIMessage with tool calls.
+    2. Reject messages with tool names outside the allowed bookkeeping sets.
+    3. Return the authoring read/add/check kind or `None`.
+
+    Failure cases:
+    - Unsupported message types or mixed unrelated tool batches return `None` rather than being removed from history.
+
+    Side effects:
+    - None: classifies message history only.
+    """
     if not isinstance(message, AIMessage) or not message.tool_calls:
         return None
     names = {call["name"] for call in message.tool_calls}
@@ -63,6 +80,27 @@ def compact_draft_history(
 
     A dropped round is only safe when the Agent's next valid transition survives without it. While authoring that is
     the runtime digest (state) plus the bounded read tools (detail), which the middleware appends to every request.
+
+    Business purpose: Reduce repeated draft-bookkeeping history while preserving recent operations and a compact recovery summary.
+
+    Business rules:
+    - Only recognized bookkeeping call/result pairs beyond configured retention windows are removed; durable run state and exact item labels remain available for recovery.
+    - Authoring compaction relies on the runtime digest and bounded read tools, while ordinary draft compaction lists added item labels.
+
+    Execution flow:
+    1. Classify message rounds and select older add/check/read rounds beyond their separate keep limits.
+    2. Collect IDs of tool results tied to removed calls and summarize removed draft labels or retrieval instructions.
+    3. Remove the selected calls/results and insert one summary at the first removed position.
+
+    Failure cases:
+    - If nothing qualifies, return the original messages; mixed tool rounds remain intact.
+
+    Side effects:
+    - Returns a new conversation projection; stored draft, source review and original message list are not mutated.
+
+    Drop old draft-bookkeeping rounds (the call and its result) and list their item labels once.
+
+    A dropped round is only safe when the Agent's next valid transition survives without it. While authoring that is the runtime digest (state) plus the bounded read tools (detail), which the middleware appends to every request.
     """
     kinds = {i: _kind(m, authoring) for i, m in enumerate(messages)}
     adds = [i for i, k in kinds.items() if k == "add"]
@@ -116,6 +154,22 @@ class DraftHistoryMiddleware(AgentMiddleware):
 
 
     def _view(self, messages: list[Any]) -> list[Any]:
+        """Business purpose: Build the conversation view required for the current direct-draft or frozen-inventory authoring turn.
+
+        Business rules:
+        - Direct draft treats accepted candidates as durable and resumes from the latest successful package receipt; ordinary authoring compacts old bookkeeping and appends the current state digest.
+
+        Execution flow:
+        1. For direct draft, locate the latest accepted submission receipt with a next package and retain its continuation tail.
+        2. Otherwise retain the latest package request with a durable draft-count summary, or return the original messages if none exists.
+        3. For non-direct authoring, compact safe bookkeeping history and append/publish the current digest when active.
+
+        Failure cases:
+        - Unparseable JSON submission receipts are skipped; valid non-object JSON or other unexpected receipt shapes may raise instead of reconstructing accepted state.
+
+        Side effects:
+        - May publish a changed authoring digest; returns a new message view without mutating durable draft state.
+        """
         if getattr(self.context, "direct_draft", False):
             # New packages read durable authority; earlier packages never need to be reinterpreted.
             for i in range(len(messages) - 1, -1, -1):
@@ -145,12 +199,44 @@ class DraftHistoryMiddleware(AgentMiddleware):
         return view
 
     def wrap_model_call(self, request, handler):
+        """Business purpose: Supply a compact, current conversation view to synchronous model calls after the relevant Preparation lifecycle is active.
+
+        Business rules:
+        - Unfrozen discovery is passed through unchanged; other phases increment the run-local model-turn counter and use `_view`.
+
+        Execution flow:
+        1. Pass through when non-direct discovery has not frozen the inventory.
+        2. Increment the model-turn count.
+        3. Replace request messages with the current compact view and invoke the handler.
+
+        Failure cases:
+        - Digest/view construction and model errors propagate to the run lifecycle.
+
+        Side effects:
+        - Increments run-local model-turn state and performs one model invocation; the durable draft is unchanged by the middleware.
+        """
         if not getattr(self.context, "direct_draft", False) and self.context.inventory is not None and not self.context.inventory.frozen:
             return handler(request)
         self.context.model_turn = (self.context.model_turn or 0) + 1
         return handler(request.override(messages=self._view(request.messages)))
 
     async def awrap_model_call(self, request, handler):
+        """Business purpose: Supply a compact, current conversation view to asynchronous model calls after the relevant Preparation lifecycle is active.
+
+        Business rules:
+        - Unfrozen discovery is passed through unchanged; other phases increment the run-local model-turn counter and use `_view`.
+
+        Execution flow:
+        1. Pass through when non-direct discovery has not frozen the inventory.
+        2. Increment the model-turn count.
+        3. Replace request messages with the current compact view and await the handler.
+
+        Failure cases:
+        - Digest/view construction and model errors propagate to the run lifecycle.
+
+        Side effects:
+        - Increments run-local model-turn state and performs one model invocation; the durable draft is unchanged by the middleware.
+        """
         if not getattr(self.context, "direct_draft", False) and self.context.inventory is not None and not self.context.inventory.frozen:
             return await handler(request)
         self.context.model_turn = (self.context.model_turn or 0) + 1

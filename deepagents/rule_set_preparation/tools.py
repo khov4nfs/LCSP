@@ -90,9 +90,41 @@ PREPARATION_PROGRESS_SCHEMA = {
 class RuleSetApi(Protocol):
     """The slice of the worker API client the agent tools use."""
 
-    def claim_inventory_operation(self, run_id: str, action: str, revision: int, **fields: Any) -> dict: ...
+    def claim_inventory_operation(self, run_id: str, action: str, revision: int, **fields: Any) -> dict:
+        """Business purpose: Define the worker API boundary for versioned claim-inventory lifecycle operations.
 
-    def source_review_operation(self, run_id: str, revision: int, action: str, **fields: Any) -> dict: ...
+        Business rules:
+        - Calls carry the preparation run ID, inventory revision, action and action-specific fields; the remote API owns authorization and persistence.
+
+        Execution flow:
+        1. Accept a run-scoped inventory action request.
+        2. Return the API's structured result mapping.
+
+        Failure cases:
+        - API errors are surfaced by the implementation as its governed failure contract.
+
+        Side effects:
+        - Implementations invoke a remote claim-inventory operation that may read or persist durable lifecycle state.
+        """
+        ...
+
+    def source_review_operation(self, run_id: str, revision: int, action: str, **fields: Any) -> dict:
+        """Business purpose: Define the worker API boundary for INIT, LOAD, PROGRESS, COMPLETE and REOPEN source-review actions.
+
+        Business rules:
+        - Calls are pinned to the preparation run and inventory revision; the API validates source/frontier revisions and ownership.
+
+        Execution flow:
+        1. Accept the run ID, inventory revision, action and action fields.
+        2. Return the API's structured review result.
+
+        Failure cases:
+        - Stale, unauthorized or incomplete review operations are returned through the API failure contract.
+
+        Side effects:
+        - Implementations invoke a remote source-review operation that may load or persist durable frontier state.
+        """
+        ...
 
     def validate_compliance_rule_set(self, preparation_run_id: str, packet: dict) -> dict: ...
 
@@ -161,6 +193,23 @@ class RuleSetPreparationContext:
     trace: list[dict[str, Any]] = field(default_factory=list)
 
     def draft_packet(self) -> dict[str, Any]:
+        """Business purpose: Assemble the current Rule Set candidate packet with the correct source and claim-inventory provenance.
+
+        Business rules:
+        - Draft sections exclude graph-owned fields; a live source graph supplies its base metadata, while an initialized/frozen inventory supersedes that graph with its authoritative graph and frozen binding.
+
+        Execution flow:
+        1. Copy non-graph draft sections into packet lists.
+        2. Add the pinned graph projection when a source graph exists.
+        3. Replace it with the current inventory graph and then frozen graph/binding when those authorities are available.
+        4. Return the packet.
+
+        Failure cases:
+        - Invalid draft structures propagate; absent source/inventory state is represented by the sections that are actually available.
+
+        Side effects:
+        - None: constructs an in-memory validation/submission packet.
+        """
         packet = {key: list(items.values()) for key, items in self.draft.items() if key not in GRAPH_SECTIONS}
         if self.source_graph is not None:
             packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V3", **self.source_graph.base(),
@@ -173,6 +222,21 @@ class RuleSetPreparationContext:
         return packet
 
     def draft_counts(self) -> dict[str, int]:
+        """Business purpose: Return counts of the current drafted sections without exposing candidate content.
+
+        Business rules:
+        - Graph sections are counted only when a source graph exists or the section contains draft rows.
+
+        Execution flow:
+        1. Iterate draft sections.
+        2. Count included items and return counts by section.
+
+        Failure cases:
+        - Malformed section mappings fail visibly rather than reporting fabricated counts.
+
+        Side effects:
+        - None: read-only count projection.
+        """
         return {key: len(items) for key, items in self.draft.items() if key not in GRAPH_SECTIONS or self.source_graph is not None or items}
 
     @property
@@ -212,7 +276,24 @@ def _items_named_by(failures: list[dict]) -> set[tuple[str, str]]:
 
 
 def _packet_field_repair(packet: dict, path: str) -> str:
-    """Name the Requirement and the call that repairs a rejected packet field; the bare path sent agents to reopen the inventory."""
+    """Name the Requirement and the call that repairs a rejected packet field; the bare path sent agents to reopen the inventory.
+
+    Business purpose: Turn common Requirement/AssessmentRule packet-field validation failures into a specific legal-candidate repair action.
+
+    Business rules:
+    - Advice is specialized only for known assessable-without-rule, invalid Requirement ID and unknown Requirement reference paths; other failures receive general typed-authoring guidance.
+
+    Execution flow:
+    1. Match the validator path to a supported packet field pattern.
+    2. Read the affected Requirement or AssessmentRule identity from the candidate packet.
+    3. Return the exact authoring/removal call that addresses the ownership gap.
+
+    Failure cases:
+    - Unrecognized paths or out-of-range item indexes return generic repair guidance instead of guessing an owner.
+
+    Side effects:
+    - None: formats repair guidance from the supplied packet.
+    """
     match = re.fullmatch(r"packet\.legalRequirements\.(\d+)\.coverage\.state", path)
     rows = packet.get("legalRequirements") or []
     if match and int(match[1]) < len(rows):
@@ -235,7 +316,25 @@ def _packet_field_repair(packet: dict, path: str) -> str:
 
 
 def _model_view(result: dict, context: "RuleSetPreparationContext | None" = None) -> dict:
-    """The validation result as the agent sees it: uncovered provisions grouped and bounded."""
+    """The validation result as the agent sees it: uncovered provisions grouped and bounded.
+
+    Business purpose: Project a validation response into bounded, actionable feedback for the Preparation agent.
+
+    Business rules:
+    - Structural/provenance failures remain distinct; uncovered source locators are grouped by document and capped, and stale source hashes may include the authoritative pinned hash.
+
+    Execution flow:
+    1. Bound oversized failure lists while retaining gap counts.
+    2. Remove individual coverage failures and group their locators into an uncovered-provision summary.
+    3. Enrich stale-hash errors from the pinned graph and include current draft labels when present.
+    4. Return the model-facing validation view.
+
+    Failure cases:
+    - Missing or malformed optional context leaves the original result details intact; it does not convert failed validation into a pass.
+
+    Side effects:
+    - None: creates a response projection without changing the validator result or draft.
+    """
     failures = result.get("failures") or []
     uncovered = [f for f in failures if f.get("code") == COVERAGE_FAILURE]
     view = result
@@ -311,11 +410,44 @@ _PROVENANCE_GAP_CODES = frozenset({
 
 
 def _fingerprint(value: Any) -> str:
+    """Business purpose: Create a stable full SHA-256 fingerprint for completion candidates, gate references and progress state.
+
+    Business rules:
+    - JSON keys are sorted, compact serialization is used, Unicode is preserved and unsupported values stringify deterministically.
+
+    Execution flow:
+    1. Serialize the supplied value with deterministic JSON options.
+    2. Encode as UTF-8 with replacement for invalid characters.
+    3. Return the hexadecimal SHA-256 digest.
+
+    Failure cases:
+    - Serialization failures outside the configured fallback propagate to the caller.
+
+    Side effects:
+    - None: pure fingerprint calculation.
+    """
     encoded = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
     return hashlib.sha256(encoded.encode("utf-8", errors="replace")).hexdigest()
 
 
 def _completion_gap_projection(gate: dict | None) -> tuple[list[str], list[str], str]:
+    """Business purpose: Separate completion-gate structural gaps from source-provenance gaps and fingerprint the reported locations.
+
+    Business rules:
+    - Only stable uppercase gap codes are retained; known source-status/hash/reference codes are provenance gaps, while uncovered provisions count as structural coverage gaps.
+
+    Execution flow:
+    1. Read valid failure codes and classify each into structural or provenance sets.
+    2. Fingerprint every string reference.
+    3. Add coverage gaps and document/locator fingerprints from the uncovered-provision projection.
+    4. Return sorted gap-code lists and a fingerprint of all gap identities.
+
+    Failure cases:
+    - Malformed gate/failure structures are ignored where their types are unsupported; they cannot create a false pass.
+
+    Side effects:
+    - None: builds a deterministic gap projection.
+    """
     structural: set[str] = set()
     provenance: set[str] = set()
     fingerprints: list[tuple[str, str | None]] = []
@@ -346,6 +478,23 @@ def _record_completion_submission(
     context: RuleSetPreparationContext, candidate: Any, gate: dict | None, *, accepted: bool,
     gate_rejected: bool,
 ) -> tuple[bool, bool]:
+    """Business purpose: Record completion attempts and detect an unchanged rejected candidate that makes no preparation progress.
+
+    Business rules:
+    - A repeat is detected only for the same candidate, same mechanical gap fingerprint and unchanged progress revision; accepted completion resets repeat state.
+
+    Execution flow:
+    1. Project structural/provenance gaps and fingerprint the candidate.
+    2. Under the observation lock, advance the attempt ordinal and compare candidate/gap/progress state.
+    3. Publish a durable completion-attempt event and, when the same rejected state repeats after feedback, publish NO_PROGRESS_DETECTED.
+    4. Return whether feedback is due and whether a no-progress condition was detected.
+
+    Failure cases:
+    - Invalid candidate/gate data cannot produce a candidate fingerprint; stream publication errors propagate.
+
+    Side effects:
+    - Updates completion counters/fingerprints and publishes durable progress events; it does not accept or mutate the Rule Set candidate.
+    """
     structural, provenance, gap_fingerprint = _completion_gap_projection(gate)
     candidate_fingerprint = _fingerprint(candidate) if isinstance(candidate, dict) else None
     feedback = detected = False
@@ -390,7 +539,26 @@ def _record_completion_submission(
 
 
 def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
-    """Bind validation, submission and explicit source-blocking to one run."""
+    """Bind validation, submission and explicit source-blocking to one run.
+
+    Business purpose: Bind the governed Preparation validation, submission, progress and source-blocking tools to one run context.
+
+    Business rules:
+    - Frozen-inventory runs expose typed claim/Requirement authoring paths and no free-form packet replacement; lifecycle terminal states cannot be mutated.
+    - Validation checks mechanical structure/provenance, while substantive legal interpretation and completeness remain with the agent.
+
+    Execution flow:
+    1. Initialize ClaimInventory and AuthoringWorkingSet when a pinned source graph requires them.
+    2. Construct run-scoped progress, validation, submission, source-blocking and draft tools.
+    3. Apply mutation locking and select legacy, discovery, authoring or direct-draft tool sets.
+    4. Return only tools supported by the active lifecycle.
+
+    Failure cases:
+    - Invalid phase/tool arguments return repairable governed feedback; API/runtime failures propagate through tool policies.
+
+    Side effects:
+    - May initialize run-local inventory/authoring state and returns tool objects; tool effects occur only when invoked.
+    """
 
     if context.source_graph is not None and context.inventory is None:
         context.inventory = ClaimInventory(context)
@@ -411,6 +579,22 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
 
         This is an execution-local working ledger, not legal output or chain-of-thought. Do not include
         private reasoning; cite source identifiers/locators when useful.
+
+        Business purpose: Maintain a concise execution-local ledger of source-grounded findings, unresolved work and the next factual investigation action.
+
+        Business rules:
+        - Omitted fields preserve their current values; this ledger is not legal output or chain-of-thought and must not contain private reasoning.
+
+        Execution flow:
+        1. Merge supplied fields with current progress state.
+        2. Under the observation lock, increment progress revision when established findings or unresolved work change.
+        3. Save the new progress state and return it with its revision.
+
+        Failure cases:
+        - Schema-invalid values are rejected by the tool contract; internal state update errors propagate.
+
+        Side effects:
+        - Updates only run-local progress state and may advance progress revision.
         """
         progress = {
             "establishedFindings": (
@@ -448,6 +632,25 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         return json.dumps({"progressState": progress, "progressRevision": context.progress_revision})
 
     def run_validation(packet: dict | None = None) -> str:
+        """Business purpose: Run the correct mechanical Rule Set or semantic-inventory validation for the current Preparation lifecycle.
+
+        Business rules:
+        - Source-blocked or concluded runs cannot validate; frozen authoring validates only its persisted draft and lifecycle phases, while direct-draft discovery must finalize and freeze inventory before Rule authoring.
+        - A passing result records the exact candidate packet; inventory-backed authoring advances to submission readiness, while the legacy no-inventory path retains the validated packet without a phase transition. Validation never decides substantive law.
+
+        Execution flow:
+        1. Reject terminal source-blocked/concluded state and prepare direct-draft inventory if required.
+        2. Verify authoring phase, restore/flush the current draft, and record a real validator attempt.
+        3. Validate the supplied complete packet or current draft through the governed API/claim inventory.
+        4. Record validation events, transition phase, update removable items and preserve the exact packet only on pass.
+        5. Return grouped/bounded validation feedback.
+
+        Failure cases:
+        - Empty draft, wrong lifecycle phase, schema errors, incomplete claim accounting and API refusals remain failures; non-client callback errors propagate.
+
+        Side effects:
+        - May persist/flush an authoring draft, transition inventory state and publish validation/coverage events; it does not submit or activate a Rule Set.
+        """
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
         if context.concluded is not None:
@@ -557,6 +760,24 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         (legalRequirementId, assessmentRuleId, relationId): an item with a label that is already
         in the draft REPLACES it, which is how you correct an item. Nothing is checked here; call
         validate_compliance_rule_set with no arguments to validate the whole draft.
+
+        Business purpose: Add or replace labeled parts of the legacy Rule Set packet draft before the whole packet is validated.
+
+        Business rules:
+        - Terminal runs reject mutation; frozen-inventory runs must use typed authoring tools; every submitted item needs its canonical identity label, and an existing label replaces that item.
+        - Any changed draft invalidates previous validation; the tool never interprets or validates legal meaning as part of the add.
+
+        Execution flow:
+        1. Reject terminal or frozen-inventory usage.
+        2. Verify labels for all supplied packet sections before changing anything.
+        3. Add/replace labeled items, advance progress when content changes and clear stale validation.
+        4. Return counts and automatically attach a dry-run validation after the configured number of add calls.
+
+        Failure cases:
+        - Missing labels reject the entire add; terminal/frozen phases return repair feedback; validation failures remain attached rather than accepting a pass.
+
+        Side effects:
+        - Mutates the run-local packet draft, trace and progress revision and may publish progress/validation events.
         """
         if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
@@ -613,7 +834,24 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         **ignored: Any,
     ) -> str:
         """Remove items from the packet draft by label. Only items named by the latest validation
-        failures can be removed; to change any other item send it again with the same label."""
+        failures can be removed; to change any other item send it again with the same label.
+
+        Business purpose: Remove only packet items that the most recent validation failure explicitly identifies as removable.
+
+        Business rules:
+        - Terminal runs cannot change; unknown labels and items not named by the latest validation failure are retained and reported.
+
+        Execution flow:
+        1. Reject terminal state.
+        2. Process requested Requirement, AssessmentRule and relation labels against the current draft and removable allowlist.
+        3. Clear stale validation, record removal counts and return unknown/refused labels with repair guidance.
+
+        Failure cases:
+        - Labels absent from the draft or not named by the latest validation failure are not deleted; malformed requests are rejected by the declared schema.
+
+        Side effects:
+        - Mutates local draft/removable state and validation trace; it does not persist or activate the packet.
+        """
         if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
         removals = {"legalRequirements": legalRequirementIds, "assessmentRules": assessmentRuleIds,
@@ -652,6 +890,22 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         "failures": [...]}; each failure has a code, the packet-local ref it concerns and a short
         detail, and uncovered source provisions are listed under "uncoveredProvisions". Fix every
         failure and validate again before the single submission.
+
+        Business purpose: Expose a dry-run validation of the current Rule Set draft or a complete packet in legacy mode.
+
+        Business rules:
+        - Frozen-inventory calls accept no packet replacement and validate the current persisted authoring draft; passing a gate does not submit or activate the Rule Set.
+
+        Execution flow:
+        1. Reject packet arguments when a frozen inventory owns the draft.
+        2. Flush the current authoring draft when applicable.
+        3. Run the shared validator and serialize its mechanical findings.
+
+        Failure cases:
+        - Wrong phase, malformed packet or failed validation returns explicit repair gaps; no passing result is fabricated.
+
+        Side effects:
+        - May flush the current authoring draft and update validation/phase telemetry; no submission or activation occurs.
         """
         if context.inventory is not None and (packet is not None or ignored):
             return json.dumps(context.inventory.rejected("CLAIM_SCHEMA_INVALID", "validate_compliance_rule_set", "No arguments: use typed authoring tools and validate the current frozen-inventory draft"))
@@ -666,6 +920,24 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         A rejected gate returns its exact mechanical gaps to this same agent for repair. The gate
         checks structure and provenance only; this agent owns legal interpretation and completeness.
         A passing claim is submitted through the canonical atomic activation operation.
+
+        Business purpose: Submit the exact mechanically validated Rule Set candidate once through the canonical governed API.
+
+        Business rules:
+        - Frozen-inventory calls accept no replacement packet; only a passing exact candidate may be submitted, and existing submission/source-blocked/concluded states are terminal.
+        - The deterministic gate checks structure and provenance; legal interpretation and completeness remain agent responsibilities.
+
+        Execution flow:
+        1. Return the existing terminal result when already submitted or blocked/concluded.
+        2. Restore/flush the current draft, select the exact validated candidate and run or reuse its validation gate.
+        3. Return repair gaps for a failed gate, tracking repeated unchanged completion attempts.
+        4. Submit a passing packet with the run's idempotency key, transition inventory and record completion provenance.
+
+        Failure cases:
+        - Gate failures remain rejected; callback/value errors are returned as errors; repeated same candidate/gaps/progress raises NoProgressDetected.
+
+        Side effects:
+        - Calls the governed submission API and may transition inventory, update run trace/revision and publish durable completion events.
         """
         if context.inventory is not None and (packet is not None or ignored):
             return json.dumps(context.inventory.rejected("CLAIM_SCHEMA_INVALID", "submit_compliance_rule_set", "No arguments: explicitly submit the exact validated draft"))
@@ -737,6 +1009,22 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         """End WITHOUT submission only when the pinned source cannot be read or its pins
         are inconsistent. Do not use for unfinished work, ambiguous provisions or validation
         feedback that can be corrected. Name the affected pinned source path and reason.
+
+        Business purpose: End Preparation without submission only when the pinned source cannot be read or its recorded pins are inconsistent.
+
+        Business rules:
+        - Reasons and paths are constrained to declared source-blocking cases under `/legal-source`; an intact readable source refutes the claim and requires work to continue.
+
+        Execution flow:
+        1. Reject already submitted runs, unsupported reasons and paths outside the pinned source tree.
+        2. Verify readability or immutable index hashes when a local source root exists.
+        3. Return a refutation when evidence contradicts the block claim; otherwise retain the reported blocker as terminal context.
+
+        Failure cases:
+        - Invalid reason/path or a concrete refutation returns repair guidance; a missing/unreadable source index or mismatched hash does not count as a refutation and leaves the blocker report recorded.
+
+        Side effects:
+        - A retained blocker updates run-local terminal/progress/trace state and logging; it does not submit, validate or activate a Rule Set.
         """
         if context.submission is not None:
             return json.dumps({"alreadySubmitted": True})

@@ -5,6 +5,23 @@ from datetime import date
 
 
 def effect_integrity_error(claim, source):
+    """Business purpose: Check the structural integrity of one legal-effect frame against its pinned source graph.
+
+    Business rules:
+    - An effect needs at least one resolved or explicitly unresolved target; resolved targets must be distinct pinned nodes, and supplied dates must form a valid increasing interval.
+
+    Execution flow:
+    1. Return no issue when the claim has no effect frame.
+    2. Validate target presence, identity and pinned membership.
+    3. Parse optional ISO dates and verify the end follows the start.
+    4. Return the first integrity message or `None`.
+
+    Failure cases:
+    - Missing targets, duplicate/foreign nodes, malformed dates or reversed periods return a specific error string.
+
+    Side effects:
+    - None: performs deterministic structure and date checks only.
+    """
     effect = (claim.get("semanticFrame") or {}).get("legalEffect")
     if effect is None:
         return None
@@ -24,7 +41,26 @@ def effect_integrity_error(claim, source):
 
 
 def applicable_legal_state(context, node_id, at_date, offset=0, limit=20):
-    """Never turn a draft, unknown date or unresolved condition into operative authority."""
+    """Never turn a draft, unknown date or unresolved condition into operative authority.
+
+    Business purpose: Project verified, date-scoped legal-effect claims that structurally target one pinned provision.
+
+    Business rules:
+    - Only source-accounted claims with an effective date, no unresolved conditions/targets and a non-reference effect contribute to applicable kinds.
+    - Incomplete corpus review, draft claims, unknown dates, conflicts or unresolved conditions remain explicit; this projection is not a substantive legal interpretation.
+
+    Execution flow:
+    1. Validate the requested date and target node, then restore the durable review frontier.
+    2. Load the claim graph and select effects that target the node or an allowed subtree.
+    3. Mark each effect verified only when its owner has source accounting and classify its temporal state.
+    4. Derive applicable verified kinds, completeness/conflict flags and a bounded paginated evidence response.
+
+    Failure cases:
+    - Invalid dates, nodes outside the pinned source or frontier restore failures return explicit failure responses; unresolved material facts keep the result incomplete.
+
+    Side effects:
+    - Restores durable frontier state and reads the claim graph; it does not mutate legal-effect claims or resolve legal ambiguities.
+    """
     from .claim_inventory import utf16_slice
     try:
         date.fromisoformat(at_date)

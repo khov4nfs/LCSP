@@ -129,7 +129,25 @@ def _default_protocol(provider: str, model: str) -> str:
 
 
 def parse_model_routes(text: str, providers: tuple[str, ...]) -> tuple[dict, dict, dict]:
-    """Validate YAML text; return ``(routes, roles, fallbacks)``. Raises ``ValueError``."""
+    """Validate YAML text; return ``(routes, roles, fallbacks)``. Raises ``ValueError``.
+
+    Business purpose: Validate the complete model-routing configuration before it can govern agent provider selection.
+
+    Business rules:
+    - Require version 1, unique YAML keys, declared providers/protocols, nonblank model identities and valid options.
+    - Roles must reference known routes with a default role; fallback references must exist and the fallback graph must be acyclic.
+
+    Execution flow:
+    1. Reject tabs and parse YAML with the unique-key safe loader.
+    2. Validate top-level shape, routes, roles and ordered fallback chains.
+    3. Walk fallback edges to reject cycles and return normalized route/role/fallback mappings.
+
+    Failure cases:
+    - Malformed YAML, duplicate or unrecognized keys, invalid option/value shapes, missing references and fallback cycles raise ValueError.
+
+    Side effects:
+    - None: parses in-memory text without loading secrets, changing active routes or invoking providers.
+    """
     if "\t" in text:  # PyYAML and js-yaml disagree on tab handling; forbid tabs outright
         raise ValueError("invalid YAML: tab characters are not allowed (indent with spaces)")
     try:

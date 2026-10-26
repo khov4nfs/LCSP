@@ -36,6 +36,29 @@ class ManagedDocumentIngestBoundary(AgentBoundaryBase):
         self._client = client or DocumentIngestionClient(config.nestjs_api_base_url, config.worker_api_key)
 
     def handle(self, message: dict[str, Any], correlationId: str) -> dict[str, Any]:
+        """Business purpose: Process one queued managed-document ingestion attempt through the API-owned result lifecycle.
+
+        Business rules:
+        - The command must contain a UUID-shaped document row identifier and a positive integer attempt; booleans are not valid attempts.
+        - The API owns ingestion state transitions, retry eligibility, and whether a posted result is applied.
+        - Settled stale deliveries are skipped, transient API errors are retried by the boundary, and permanent API/content refusals are not retried as the same payload.
+        - A parser crash is converted to an explicit extraction failure so the API can settle that document attempt.
+
+        Execution flow:
+        1. Validate document and attempt identity before making any API request.
+        2. Fetch the original bytes and profile, applying settled/retryable/permanent API error handling.
+        3. Ingest the document; convert unexpected parser errors to the standard extraction failure result.
+        4. Post the ingestion result, skip settled deliveries, and submit a failed result if the API rejects the content itself.
+        5. Log and return the original extraction result's state with the last API response's applied flag; after a fallback FAILED post these fields can describe different payloads.
+
+        Failure cases:
+        - Invalid command fields raise NonRetryableAgentBoundaryError.
+        - Retryable API errors propagate for broker retry; permanent fetch errors become nonretryable boundary errors.
+        - If the fallback failed-result post also fails, its API error propagates rather than claiming the attempt was settled.
+
+        Side effects:
+        - Fetches original document bytes and posts an ingestion result through the worker API, may invoke local extraction/chunking, and emits structured logs; it does not mutate lifecycle state locally.
+        """
         document_row_id = message.get("documentRowId")
         attempt = message.get("attempt")
         if not isinstance(document_row_id, str) or not _UUID.match(document_row_id):

@@ -23,9 +23,40 @@ class ReviewFrontier:
 
     @property
     def context(self):
+        """Business purpose: Expose the run context owned by this ReviewFrontier's ClaimInventory.
+
+        Business rules:
+        - The scheduler and its source-review operations always use the inventory's existing run context.
+
+        Execution flow:
+        1. Read `inventory.context` and return it.
+
+        Failure cases:
+        - Invalid inventory construction fails through attribute access instead of using another context.
+
+        Side effects:
+        - None: read-only property.
+        """
         return self.inventory.context
 
     def request(self, action, **fields):
+        """Business purpose: Send one versioned source-review action through the server-governed API and retain its current progress snapshot.
+
+        Business rules:
+        - Every request includes this run's operation ID and inventory revision; successful responses alone update frontier snapshot/progress revision.
+
+        Execution flow:
+        1. Call the source-review operation with run identity, revision, action and supplied fields.
+        2. Normalize per-unit failures into the inventory's flat failure shape.
+        3. On success, advance progress revision when the frontier fingerprint changed and retain the response snapshot.
+        4. Return the normalized result.
+
+        Failure cases:
+        - API failures are returned without advancing the success snapshot; malformed responses propagate as contract errors.
+
+        Side effects:
+        - Calls the governed source-review API and may update run-local snapshot and progress revision.
+        """
         result = self.context.api.source_review_operation(self.context.run_id, self.inventory.revision, action,
             operationId=self.operation_id, **fields)
         if result.get("failures"):
@@ -41,7 +72,25 @@ class ReviewFrontier:
         return result
 
     def restore(self, force=False):
-        """Reconstruct committed evidence without promoting the active local draft to authority."""
+        """Reconstruct committed evidence without promoting the active local draft to authority.
+
+        Business purpose: Reconstruct the local claim/reference/frontier projection from committed LOAD records without treating the current local draft as durable authority.
+
+        Business rules:
+        - INIT and paged LOAD are authoritative; changed owners replace only their persisted rows, while external dependency fingerprints are retained for relation validation.
+
+        Execution flow:
+        1. Skip when already loaded unless force is requested, then initialize the frontier.
+        2. Page all LOAD records, replacing owned claims/relations/reference accounting and restoring source dispositions.
+        3. Rebuild inventory indexes, backfill legacy relation dependencies and re-project reference accounting.
+        4. Record the loaded frontier cursor/fingerprint.
+
+        Failure cases:
+        - INIT or any LOAD failure is returned; incomplete restore does not mark the frontier loaded.
+
+        Side effects:
+        - Calls source-review API reads and reconstructs local draft, identity, owner and relation state; it does not promote unsaved local rows to durable authority.
+        """
         if self.loaded and not force:
             return None
         result=self.request("INIT")
@@ -106,6 +155,21 @@ class ReviewFrontier:
         return None
 
     def binding(self):
+        """Business purpose: Return the current durable frontier revision/fingerprint binding for validation and submission provenance.
+
+        Business rules:
+        - No binding is exposed before a successful frontier snapshot; reviewed fingerprint falls back to the snapshot's state fingerprint for older responses.
+
+        Execution flow:
+        1. Return `None` when no snapshot exists.
+        2. Project frontier revision, fingerprint and reviewed fingerprint from the snapshot.
+
+        Failure cases:
+        - Incomplete snapshot data fails visibly instead of generating replacement provenance.
+
+        Side effects:
+        - None: returns a provenance projection.
+        """
         if not self.snapshot:
             return None
         return {"revision": self.snapshot["frontierRevision"], "fingerprint": self.snapshot["frontierFingerprint"],
@@ -113,12 +177,45 @@ class ReviewFrontier:
 
     def failure(self, result):
         # A refused queue operation or an early finalize is not an inventory validation run.
+        """Business purpose: Record a refused frontier operation as a discovery-tool rejection and return grouped actionable gaps.
+
+        Business rules:
+        - Queue refusals and early-finalize attempts are classified as CLAIM_DISCOVERY_TOOL_REJECTED, not as a Rule inventory validation run.
+
+        Execution flow:
+        1. Let ClaimInventory observe the failure in the current phase.
+        2. Group its gaps against the current semantic claim set.
+        3. Return the grouped result.
+
+        Failure cases:
+        - Error normalization/grouping failures propagate; the refusal is not represented as successful source review.
+
+        Side effects:
+        - May update inventory rejection/trace state; does not mark any review unit complete.
+        """
         result = self.inventory.observe_validation(result, self.inventory.phase, kind="CLAIM_DISCOVERY_TOOL_REJECTED")
         from rule_set_preparation.claim_inventory import grouped_gaps
         return grouped_gaps(result, self.context.draft["semanticClaims"])
 
 
     def progress(self):
+        """Business purpose: Return current durable source-review progress plus the claim count and required next action.
+
+        Business rules:
+        - Progress is refreshed from the persisted frontier; completion is eligible only when the server's progress projection says discovery is complete.
+
+        Execution flow:
+        1. Force a restore of durable review records and return grouped failure if it is refused.
+        2. Request PROGRESS and group any refusal.
+        3. Add local claim count, active unit and discovery/finalization action.
+        4. Return the progress view.
+
+        Failure cases:
+        - Restore or PROGRESS failures return grouped gaps and never imply completion.
+
+        Side effects:
+        - Reads API frontier state and refreshes local projection metadata.
+        """
         restored=self.restore(force=True)
         if restored: return self.failure(restored)
         result = self.request("PROGRESS")
@@ -130,12 +227,44 @@ class ReviewFrontier:
         return result
 
     def owned_claims(self, node_id=None):
+        """Business purpose: List semantic claims assigned to one review unit or the currently active source unit.
+
+        Business rules:
+        - Ownership is determined by the frontier's claim-owner map; no active unit returns an empty list.
+
+        Execution flow:
+        1. Choose the explicit node ID or current active node.
+        2. Return draft claims whose recorded owner matches that node.
+
+        Failure cases:
+        - Missing active/explicit node returns no claims; inconsistent ownership is not inferred from support text.
+
+        Side effects:
+        - None: read-only owned-claim projection.
+        """
         target_node = node_id or (self.active["sourceNodeId"] if self.active else None)
         if not target_node:
             return []
         return [c for cid, c in self.context.draft["semanticClaims"].items() if self.claim_owners.get(cid) == target_node]
 
     def allowed(self, node_ids=None, claim_id=None):
+        """Business purpose: Check whether the active review assignment may operate on the supplied source nodes and claim identity.
+
+        Business rules:
+        - Work must be within the active batch (or active unit); reference-only source nodes may be inspected outside the batch, but a claim must still belong to an active owner.
+
+        Execution flow:
+        1. Derive active unit IDs.
+        2. Reject when there is no active unit.
+        3. Check source-node scope and claim ownership independently.
+        4. Return whether both constraints pass.
+
+        Failure cases:
+        - No active assignment or any out-of-scope claim returns false.
+
+        Side effects:
+        - None: enforces local assignment scope without mutation.
+        """
         active_ids = {u["sourceNodeId"] for u in self.active_batch} if self.active_batch else ({self.active["sourceNodeId"]} if self.active else set())
         if not active_ids:
             return False
@@ -143,7 +272,25 @@ class ReviewFrontier:
         return (not node_ids or ref_only or bool(set(node_ids) & active_ids)) and (not claim_id or self.claim_owners.get(claim_id) in active_ids)
 
     def adopt(self, node_ids):
-        """Use pinned units with INIT authority; file commits never acquire NEXT leases."""
+        """Use pinned units with INIT authority; file commits never acquire NEXT leases.
+
+        Business purpose: Attach pinned review units to the local active batch using INIT authority for deterministic claim-file commits.
+
+        Business rules:
+        - The locally derived review-unit count must match INIT progress; file commits never acquire a NEXT lease.
+
+        Execution flow:
+        1. Restore persisted frontier state.
+        2. Compare pinned review-unit count with the INIT total.
+        3. Select only requested IDs that are actual review units and set active batch/current unit.
+        4. Return no refusal when adoption succeeds.
+
+        Failure cases:
+        - Restore failure is returned; a count mismatch returns SOURCE_REVIEW_INCOMPLETE without adopting units.
+
+        Side effects:
+        - Reads durable frontier state and updates local active-batch ownership.
+        """
         refused = self.restore()
         if refused:
             return refused
@@ -158,7 +305,26 @@ class ReviewFrontier:
         return None
 
     def complete_batch(self, units):
-        """Persist the checked files in one COMPLETE request, then reload durable authority."""
+        """Persist the checked files in one COMPLETE request, then reload durable authority.
+
+        Business purpose: Persist a checked source-review batch and then reload the resulting durable frontier authority.
+
+        Business rules:
+        - Completion includes the owned claim/relation/reference payload and source/frontier revisions; direct draft also submits its current draft/version in the same operation.
+        - API outcomes remain authoritative, and stale direct-draft versions restore the saved authoring draft.
+
+        Execution flow:
+        1. Build per-unit payloads from local ownership and dependency state.
+        2. Invoke COMPLETE with the pinned frontier revisions and optional direct-draft snapshot.
+        3. Synchronize returned draft version or reload stale authoring state.
+        4. Project detached-reference guidance, clear active units, force a durable restore and return the result.
+
+        Failure cases:
+        - API refusals are grouped with exact failures; failed restore returns a grouped failure rather than preserving a locally assumed completion.
+
+        Side effects:
+        - Calls the durable source-review API and updates local draft/frontier versions, assignments and validation guidance.
+        """
         batch = []
         for row in units:
             nid = row["source_node_id"]
@@ -204,7 +370,25 @@ class ReviewFrontier:
         return result if result.get("outcome") == "PASSED" else {**self.failure(result), "failures": result.get("failures", [])}
 
     def reference_guidance(self, result, listed):
-        """The API names one unaccounted reference per refusal; list every one and the allowed ways to account for it."""
+        """The API names one unaccounted reference per refusal; list every one and the allowed ways to account for it.
+
+        Business purpose: Explain how to resolve detached claim relations or unaccounted references reported by a frontier refusal.
+
+        Business rules:
+        - Guidance identifies only relations owned by the active unit; each reference must be bound, explicitly non-material with a truthful reason, or retained in a blocked reference-resolution disposition.
+        - The author cannot create claims for another unit's source text.
+
+        Execution flow:
+        1. Inspect structured failure codes and locate relevant active-unit relation/reference IDs.
+        2. Return targeted edit/recommit guidance for detached relations.
+        3. Otherwise list all unaccounted references and the allowed binding, non-material or waiting actions.
+
+        Failure cases:
+        - Unrelated failures pass through unchanged; absent active ownership does not trigger fabricated reference guidance.
+
+        Side effects:
+        - None: returns repair guidance without changing source accounting.
+        """
         active = (self.active or {}).get("sourceNodeId")
         relations = self.context.draft["claimRelations"]
         detached = {}
@@ -240,6 +424,22 @@ class ReviewFrontier:
 
 
     def reopen(self, source_node_id, reason):
+        """Business purpose: Reopen one previously reviewed source unit when its source-backed findings have changed.
+
+        Business rules:
+        - The request is pinned to the current source/frontier revisions; local state changes only after the API accepts REOPEN.
+
+        Execution flow:
+        1. Request REOPEN for the source node with a reason and current frontier provenance.
+        2. On success, mark the unit REOPENED, clear its source-accounting projection and rebuild node indexes.
+        3. Return success or grouped failure.
+
+        Failure cases:
+        - Refused reopen returns the governed grouped gaps without clearing source accounting.
+
+        Side effects:
+        - Calls the durable source-review API and may update local review state/indexes.
+        """
         result = self.request("REOPEN", sourceNodeId=source_node_id, reason=reason, sourceRevision=self.snapshot["sourceRevision"], frontierRevision=self.snapshot["frontierRevision"])
         if result.get("outcome") == "PASSED":
             self.states[source_node_id] = "REOPENED"
