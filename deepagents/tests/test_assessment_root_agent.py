@@ -1162,6 +1162,31 @@ def test_initial_context_failure_settles_claimed_root_without_hydrating_reposito
     assert client.calls == [("claim", ASSESSMENT), ("finish", "FAILED")]
 
 
+@pytest.mark.parametrize("authority", ["EVIDENCE_CITED", "HUMAN_PROVIDED"])
+def test_root_context_preserves_fact_authority_when_reloading_accepted_claims(tmp_path, authority):
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    context = client.context()
+    context["facts"] = [
+        {
+            "factId": "77777777-7777-4777-8777-777777777777",
+            "caseRevision": 1,
+            "kind": "USE_CASE",
+            "state": "ACCEPTED",
+            "authority": authority,
+            "statement": "The README describes persistent examination logs.",
+            "evidenceIds": ["66666666-6666-4666-8666-666666666666"],
+        },
+    ]
+    client.context = lambda: context
+
+    result = json.loads(_tools(run)["get_assessment_context"].invoke({}))
+
+    assert result["facts"] == context["facts"]
+    assert client.case_revision == 0
+    assert not any(name == "fact" for name, _ in client.calls)
+
+
 def test_root_context_exposes_runtime_view_limits_and_rejects_wrong_source_pins(tmp_path):
     client = FakeClient()
     backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)

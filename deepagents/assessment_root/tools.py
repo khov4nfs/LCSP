@@ -500,6 +500,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
         Business rules:
         - Case pins, coverage, facts and evidence come from the API, not the model's memory.
+        - Preserve each fact's authority so evidence-derived claims remain distinguishable from human-provided context.
         - Runtime source metadata must match those pins; incomplete visibility cannot establish absence.
 
         Execution flow:
@@ -535,6 +536,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                     "caseRevision": f["caseRevision"],
                     "kind": f["kind"],
                     "state": f["state"],
+                    "authority": f["authority"],
                     "statement": f["statement"],
                     "evidenceIds": f["evidenceIds"],
                 }
