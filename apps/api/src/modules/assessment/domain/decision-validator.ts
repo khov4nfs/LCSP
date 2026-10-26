@@ -64,10 +64,19 @@ export interface DecisionValidationContext {
 }
 
 /**
- * DETERMINISTIC_GUARD. Checks a Root-authored packet's exact identity, pins, revisions,
- * criterion completeness and reference authority against server state. It never re-evaluates
- * what the Root decided: applicability, criterion outcomes, compliance, rationale and the
- * sufficiency of evidence are all left untouched.
+ * Business purpose: Gate Root-authored decisions against the authoritative Customer case.
+ * Business rules:
+ * - Rule identity/version, repository/source pins, case revision, criteria and accepted
+ *   evidence/fact references must match the persisted authority.
+ * Execution flow:
+ * 1. Check exact identities, applicability-basis structure and all referenced evidence and
+ *   facts, collecting individual validation failures.
+ * Failure cases:
+ * - Missing, stale, rejected or incomplete references produce typed failures.
+ * Side effects:
+ * - None; the stored case and model-authored conclusions remain unchanged.
+ *   DETERMINISTIC_GUARD: Applicability, compliance, rationale and factual sufficiency remain
+ *   decisions of the Root rather than this structural validator.
  */
 export function validateRuleDecision(
   decision: RuleDecision,
@@ -228,13 +237,19 @@ const ELEMENT_COUNT_KEY = {
 } as const;
 
 /**
- * Structure of the element-by-element applicability findings, never their correctness:
- * every finding names an element the linked requirement really declares and carries the
- * references its finding needs; the overall applicability must cohere with the findings; and,
- * where the requirements declare elements at all, a duty is not declared inapplicable (or
- * applicable) without a finding that supports it. "Not established" never counts as support
- * for either outcome, so a missing fact cannot become NOT_APPLICABLE. Which roles, categories or
- * conditions exist comes only from the pinned rule set.
+ * Business purpose: Validate the legal-element basis behind submitted applicability findings.
+ * Business rules:
+ * - Findings name real source-declared conditions, qualifiers or exceptions; referenced
+ *   established/refuted findings must support the overall applicability outcome.
+ * Execution flow:
+ * 1. Scan entries, detect establishing/refuting conditions and compare their basis with the
+ *   submitted APPLICABLE or NOT_APPLICABLE conclusion.
+ * Failure cases:
+ * - Invalid indices, absent references or contradictory findings emit failures.
+ * Side effects:
+ * - None; only the provided failure collector receives diagnostic entries. NOT_ESTABLISHED
+ *   cannot support NOT_APPLICABLE. The pinned Rule Set defines which elements exist; this
+ *   function does not determine whether the underlying legal claim is true.
  */
 function validateApplicabilityBasis(
   decision: RuleDecision,

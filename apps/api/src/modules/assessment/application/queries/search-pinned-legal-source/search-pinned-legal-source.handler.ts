@@ -13,7 +13,18 @@ import { SearchPinnedLegalSourceQuery } from "./search-pinned-legal-source.query
 const { MAX_TERMS, MAX_RESULTS, SNIPPET_RADIUS } =
   PINNED_LEGAL_SOURCE_SEARCH_LIMITS;
 
-/** Whitespace-separated terms, each at least two characters, deduplicated and bounded. */
+/**
+ * Business purpose: Normalize a Root legal-source search expression.
+ * Business rules:
+ * - Keep unique whitespace-separated terms at least two characters long, bounded by the
+ *   configured maximum for safe corpus search.
+ * Execution flow:
+ * 1. Split, trim, filter, deduplicate and truncate the search terms.
+ * Failure cases:
+ * - Empty or too-short input yields no query terms, never an unscoped search.
+ * Side effects:
+ * - None; input remains unchanged.
+ */
 export function searchTermsOf(text: string): string[] {
   return [
     ...new Set(
@@ -25,6 +36,18 @@ export function searchTermsOf(text: string): string[] {
   ].slice(0, MAX_TERMS);
 }
 
+/**
+ * Business purpose: Present a bounded source excerpt around the first search occurrence.
+ * Business rules:
+ * - Match terms case-insensitively without changing pinned legal text; mark omitted text at
+ *   boundaries with ellipses.
+ * Execution flow:
+ * 1. Find the earliest occurrence and slice the configured surrounding radius.
+ * Failure cases:
+ * - No matching term returns a bounded excerpt from the beginning of the source.
+ * Side effects:
+ * - None; returns only an excerpt of immutable source text.
+ */
 export function snippetAround(
   content: string,
   terms: readonly string[],
@@ -52,6 +75,19 @@ export class SearchPinnedLegalSourceHandler implements IQueryHandler<SearchPinne
     private readonly support: AssessmentCaseSupport,
   ) {}
 
+  /**
+   * Business purpose: Retrieve provisions from the legal source pinned to this Customer case.
+   * Business rules:
+   * - Authorize the execution lease, use the source of the pinned Rule Set and keep exact
+   *   document/locator/hash provenance in every returned match.
+   * Execution flow:
+   * 1. Authorize and load pins in a transaction, search bounded ordered chunks, then return
+   *   excerpts and an explicit truncation indicator.
+   * Failure cases:
+   * - Invalid leases or missing pins propagate errors; empty terms return no matches.
+   * Side effects:
+   * - Read-only transaction; no legal source or assessment decision is mutated.
+   */
   async execute(
     input: SearchPinnedLegalSourceQuery,
   ): Promise<PinnedLegalSourceSearchResult> {

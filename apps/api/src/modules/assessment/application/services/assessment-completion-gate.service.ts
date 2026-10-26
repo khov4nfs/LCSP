@@ -37,7 +37,17 @@ const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([
   BLOCKER_REASONS.REQUIRED_RUNTIME_INPUT_UNAVAILABLE,
 ]);
 
-/** The repository range an evidence payload cites, or null when it cites none. */
+/**
+ * Business purpose: Extract an exact repository source range for report provenance.
+ * Business rules:
+ * - Only a path and integer start/end lines constitute a cited range.
+ * Execution flow:
+ * 1. Inspect the stored evidence payload and project its location fields.
+ * Failure cases:
+ * - Missing or malformed location fields return null, not a fabricated citation.
+ * Side effects:
+ * - None; evidence stays unchanged.
+ */
 function citedRange(
   payload: unknown,
 ): { path: string; startLine: number; endLine: number } | null {
@@ -91,6 +101,19 @@ export interface AssessmentCompletionInspection {
 export class AssessmentCompletionGate {
   constructor(private readonly support: AssessmentCaseSupport) {}
 
+  /**
+   * Business purpose: Determine whether a Customer Assessment is eligible for finalization.
+   * Business rules:
+   * - Every pinned rule requires a current accepted decision and valid provenance; human
+   *   requests, stopped executions, stale evidence and broken source pins block completion.
+   * Execution flow:
+   * 1. Read the case, pins, coverage, decisions, evidence and facts; validate each persisted
+   *   decision and assemble a report snapshot only if no blockers remain.
+   * Failure cases:
+   * - Missing or stale records produce typed blockers; database errors propagate.
+   * Side effects:
+   * - Read-only transaction; this gate never manufactures decisions or evidence.
+   */
   async inspectInTx(
     tx: Prisma.TransactionClient,
     assessmentId: string,
