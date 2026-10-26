@@ -74,12 +74,32 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
   ) {}
 
   /**
-   * Validates scan-to-snapshot binding, claims queued work when needed, and streams the immutable pinned archive.
-   * Completed scans remain valid read-only provenance for downstream AssessmentRule investigation; they are never re-claimed.
+   * Business purpose: Stream the repository archive for the exact immutable snapshot commit used by the requesting scan.
+   * Completed scans remain read-only provenance for downstream rule investigation and are never re-claimed.
+   *
+   * Business rules:
+   * - The scan job must reference the requested snapshot and be in a state allowed for this archive flow.
+   * - Repository identity and active connection identity must match the snapshot; retired GitHub App authentication is unsupported.
+   * - Hydration tickets are claimed through their lifecycle and only a verified redirect result may be streamed.
+   * - Cache reuse is keyed by snapshot and commit; it never substitutes a different repository revision.
+   *
+   * Execution flow:
+   * 1. Validate scan-to-snapshot binding and eligible lifecycle state; atomically claim queued non-hydration scan work.
+   * 2. Load the snapshot and active repository connection, verify repository/authentication shape, then check the pinned archive cache.
+   * 3. For a cache miss, claim hydration delivery if needed, resolve a credential lease, and download the archive for the pinned commit.
+   * 4. Require verified redirect validation, capture the stream for reruns when possible, and return immutable snapshot metadata with the stream.
+   * 5. On retrieval failure, finalize any claimed hydration ticket, mark invalid credentials when identified, map the failure to a safe API problem, and dispose the lease.
+   *
+   * Failure cases:
+   * - Scan/snapshot mismatch, unsupported job state, or a failed conditional claim raises `snapshotScanMismatch` (HTTP 409).
+   * - Missing snapshots or unusable connections raise `snapshotNotFound` (HTTP 404); retired app credentials raise the unsupported-authentication conflict.
+   * - Archive transport and credential-resolution failures raise `snapshotRetrievalFailed`, preserving HTTP 429 for upstream throttling and using HTTP 502 otherwise.
+   *
+   * Side effects:
+   * - May transition a queued scan or hydration ticket, resolve and dispose a credential lease, make an outbound repository archive request, update invalid-credential state, capture a temporary cache copy, and write diagnostic logs.
    *
    * @param query - Snapshot identifier, scan-job identifier, and correlation context.
    * @returns Repository archive stream metadata for the exact pinned commit.
-   * @throws When scan/snapshot/connection state is inconsistent or GitHub archive retrieval fails.
    */
   async execute(
     query: StreamSnapshotArchiveQuery,

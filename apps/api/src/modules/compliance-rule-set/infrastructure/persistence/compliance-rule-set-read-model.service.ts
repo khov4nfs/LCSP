@@ -19,6 +19,25 @@ import {
 export class ComplianceRuleSetReadModelLoader {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Business purpose: Reconstruct one stored Rule Set version as the validated contract read model used by Assessment and admin flows.
+   *
+   * Business rules:
+   * - The requested version is loaded using the caller's exact persistence predicate; its own source pins, stored children, latest frozen inventory, and source provenance define the projection.
+   * - AssessmentRule source links are exposed only when their chunk belongs to the Rule Set's pinned Legal Source Version.
+   * - The contract schema is the final boundary for the assembled read model.
+   *
+   * Execution flow:
+   * 1. Load the Rule Set and ordered Preparation, semantic graph, Requirement, AssessmentRule, provenance, and context-relation records.
+   * 2. Resolve contract source chunk IDs within the pinned source version and map the latest frozen inventory and legal source metadata.
+   * 3. Parse the complete projection against the shared Rule Set read-model schema.
+   *
+   * Failure cases:
+   * - No matching version returns the active-rule-set-not-found problem; missing or malformed persisted relations fail database or schema validation.
+   *
+   * Side effects:
+   * - None beyond database reads; does not alter lifecycle or persisted child data.
+   */
   async load(
     where: Prisma.ComplianceRuleSetVersionWhereInput,
     correlationId: string,

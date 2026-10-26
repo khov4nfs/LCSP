@@ -33,6 +33,28 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
     private readonly graph: LegalDocumentGraphService,
   ) {}
 
+  /**
+   * Business purpose: Give one worker exclusive, leased ownership of a queued or abandoned Preparation and return its pinned source package.
+   *
+   * Business rules:
+   * - The worker must support the run's execution contract; a published run cannot be claimed.
+   * - QUEUED runs transition to RUNNING once, while RUNNING runs can be taken over only after the claim lease expires.
+   * - Compare-and-set state checks prevent concurrent deliveries from claiming the same live run.
+   * - Reuse the materialization pinned by an existing inventory frontier when available; otherwise materialize the source graph.
+   *
+   * Execution flow:
+   * 1. Load the run and reject a missing run or unsupported worker contract.
+   * 2. Claim a queued run or refresh an expired running lease, clearing the prior review operation as part of the transition.
+   * 3. Expire prior leases for in-review units, load the run's Legal Source documents and frozen inventory, and export the pinned graph.
+   * 4. Map the pinned source and run state into the validated worker bundle.
+   *
+   * Failure cases:
+   * - A missing run returns not found; an unsupported contract, active competing claim, or already-published run returns a preparation conflict.
+   * - Missing pinned source data or an invalid response bundle fails the operation instead of substituting another source revision.
+   *
+   * Side effects:
+   * - Updates run claim timestamps/state and active review lease expirations; reads source, graph, and inventory records.
+   */
   async execute(
     input: ClaimRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationLegalSourceBundle> {

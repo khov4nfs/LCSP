@@ -60,6 +60,27 @@ export class BillingUsageKernel {
     return assessment.ownerId;
   }
 
+  /**
+   * Business purpose: Attribute Preparation usage to its real requesting user while keeping
+   *   system-requested work ownerless.
+   *
+   * Business rules:
+   * - The Preparation run must exist; the canonical system actor maps to null instead of a
+   *   fabricated customer.
+   * - A user-requested run must reference an existing user.
+   *
+   * Execution flow:
+   * 1. Read the run’s requester.
+   * 2. Return null for the system actor, otherwise resolve and return the existing requester’s
+   *   user ID.
+   *
+   * Failure cases:
+   * - A missing run, unavailable resolver or missing requester raises OwnershipMismatchError;
+   *   database errors propagate.
+   *
+   * Side effects:
+   * - Read-only database lookups; no usage, reservation or credit movement.
+   */
   async resolvePreparationOwner(runId: string): Promise<string | null> {
     const run = await this.prisma?.ruleSetPreparationRun.findUnique({
       where: { id: runId },
@@ -77,7 +98,38 @@ export class BillingUsageKernel {
     return owner.id;
   }
 
-  /** Idempotent on (userId, invocationId); stores only what the provider reported. */
+  /**
+   * Business purpose: Record provider-reported invocation telemetry idempotently, preserving
+   *   late completion and unknown usage without charging a wallet.
+   *
+   * Business rules:
+   * - Require invocation/provider/model identity, nonnegative reported token buckets and a
+   *   temporally valid effective model when supplied.
+   * - A replay must preserve workflow, actor-role, provider/model and occurrence identity; one
+   *   provider response cannot belong to another invocation.
+   * - Completed usage wins delivery races; absent token buckets stay absent, provider totals
+   *   are not reconstructed, and official reference costs remain estimates.
+   *
+   * Execution flow:
+   * 1. Serialize the owner/run transaction and validate incoming usage identity, tokens and
+   *   effective-model metadata.
+   * 2. Resolve an existing invocation, reconcile a later attempt outcome or verify an exact
+   *   completed replay.
+   * 3. For a new invocation, reject duplicate response ownership and resolve the immutable
+   *   routing-policy snapshot if supplied.
+   * 4. Persist only reported token fields, attempt metadata and the reference estimate, marking
+   *   unavailable usage explicitly.
+   *
+   * Failure cases:
+   * - Invalid identity/tokens/model timing raises the existing billing errors; conflicting
+   *   replays or reused provider responses raise BillingIdempotencyConflictError.
+   * - Transaction/repository failures propagate without partial transactional writes; missing
+   *   provider usage is UNAVAILABLE rather than invented zero usage.
+   *
+   * Side effects:
+   * - Creates or updates usage receipts and may ensure a routing-policy snapshot inside the
+   *   transaction; never reserves/debits credits or invokes a model.
+   */
   recordUsage(i: LlmUsageRecordInput) {
     return this.transactions.runForUser(i.userId ?? i.runId, async (repos) => {
       const { usage } = repos;

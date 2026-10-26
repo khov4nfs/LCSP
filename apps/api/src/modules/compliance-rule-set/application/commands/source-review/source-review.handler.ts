@@ -60,6 +60,22 @@ import {
   StartClaimDiscoveryDiagnosticCommand,
 } from "./source-review.command.js";
 
+/**
+ * Business purpose: Read one persisted source-review payload through the shared contract before using its claims and relationships.
+ *
+ * Business rules:
+ * - Persisted review content must satisfy the public source-review payload schema; malformed stored data is not silently repaired.
+ *
+ * Execution flow:
+ * 1. Parse the row's stored payload against the source-review contract.
+ * 2. Return the typed claims, identities, relations, and accounting projection.
+ *
+ * Failure cases:
+ * - Schema-invalid persisted payloads throw validation errors to the consuming review gate.
+ *
+ * Side effects:
+ * - None; parses data in memory.
+ */
 export function reviewPayload(item: RuleSetPreparationSourceReview) {
   return sourceReviewPayloadSchema.parse(item.payload);
 }
@@ -70,6 +86,27 @@ export class StartClaimDiscoveryDiagnosticHandler implements ICommandHandler<Sta
     private readonly prisma: PrismaService,
     private readonly graph: LegalDocumentGraphService,
   ) {}
+  /**
+   * Business purpose: Start or reuse a source-only claim-discovery session for an explicitly isolated diagnostic environment.
+   *
+   * Business rules:
+   * - Diagnostics require the feature flag and one of the explicitly allowed isolated staging or local review databases.
+   * - The immutable Legal Source graph must already be materialized; the idempotency key cannot be reused for another source or a non-diagnostic run.
+   * - This diagnostic run cannot author Rules or conclude a customer Preparation.
+   *
+   * Execution flow:
+   * 1. Verify the diagnostic flag and database identity allowlist.
+   * 2. Export the existing source graph and fail if it is unavailable.
+   * 3. Create a RUNNING discovery-only diagnostic or reuse the same-key diagnostic without resetting its state, then verify its source/session identity.
+   * 4. Load the source chunks and return the graph, run ID, and discovery-only mode.
+   *
+   * Failure cases:
+   * - Disallowed environment, missing graph, or key collision returns a typed failed diagnostic outcome without starting a customer Preparation.
+   * - Persistence, graph export, and chunk-read errors propagate.
+   *
+   * Side effects:
+   * - May create the isolated discovery-only run and reads the existing graph/chunks; it does not enqueue paid Preparation work.
+   */
   async execute(input: StartClaimDiscoveryDiagnosticCommand) {
     const url = new URL(
       process.env.DATABASE_URL ?? "postgresql://disabled/disabled",
@@ -154,6 +191,30 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
     private readonly prisma: PrismaService,
     private readonly graph: LegalDocumentGraphService,
   ) {}
+  /**
+   * Business purpose: Manage deterministic legal-source review units and commit their source-grounded semantic claims into one Preparation inventory.
+   *
+   * Business rules:
+   * - Every request is serialized against the run and current inventory revision; mutating completion must also match the pinned materialization, frontier revision, and active review operation.
+   * - Only a running CLAIM_DISCOVERY frontier may be changed; a frozen or finished frontier requires explicit inventory reopening.
+   * - Claims must have canonical identities and valid source anchors; unblocked completion additionally requires source-support validation, explicit disposition, and correctly accounted references and semantic relationships.
+   * - Direct-draft completion must carry the loaded draft version and exact inventory revision; rejected packages do not partially write review decisions.
+   * - Reference dependencies and invalidated endpoint bindings remain blocked or reopened until their source evidence is reconsidered.
+   *
+   * Execution flow:
+   * 1. Normalize any supplied payload, lock the Preparation, and verify its current revision.
+   * 2. On INIT, build the frontier from the pinned graph, assign references to review owners, and create pending units; PROGRESS reconciles wakeable blocked dependencies before returning bounded state, while LOAD only reads the selected payloads.
+   * 3. For completion, validate operation/revision pins, draft revision, unit dispositions, claim identity/source support, reference accounting, and dependency endpoints before writing decisions.
+   * 4. Update frontier counts/fingerprints, reopen dependents affected by changed endpoints, persist an accepted direct draft when included, and reconcile newly wakeable blockers.
+   * 5. For explicit REOPEN, require a reason; for EXPAND, require a reason and existing outgoing references, then update and return the frontier.
+   *
+   * Failure cases:
+   * - Missing/stale runs or pins, unavailable graphs, incomplete source accounting, invalid claims/dispositions, changed endpoint meanings, unsupported actions, and held leases return typed failed results.
+   * - A malformed persisted payload, graph, or database operation propagates and rolls back the transaction.
+   *
+   * Side effects:
+   * - Transactionally creates/updates frontier and review rows, counters, operation/lease state, expansion history, and an accepted direct draft; it never makes a model call or mutates legal source text.
+   */
   async execute({
     request: input,
   }: SourceReviewCommand): Promise<Record<string, unknown>> {
@@ -168,6 +229,23 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
         const run = await tx.ruleSetPreparationRun.findUnique({
           where: { id: input.preparationRunId },
         });
+        /**
+         * Business purpose: Return one source-review action failure with its required next operation.
+         *
+         * Business rules:
+         * - The supplied gap code, reference, and detail remain explicit to the caller.
+         * - The default next step is claim commitment unless a caller provides a more specific action.
+         *
+         * Execution flow:
+         * 1. Accept the failure identity and optional next action/metadata.
+         * 2. Construct a typed FAILED response without changing the frontier.
+         *
+         * Failure cases:
+         * - None beyond the validation gap being represented in the result.
+         *
+         * Side effects:
+         * - None; builds an in-memory action response.
+         */
         const failed = (
           code: string,
           ref: string,
@@ -301,7 +379,39 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           });
           run.reviewOperationId = input.operationId;
         }
+        /**
+         * Business purpose: Address one review row within the current run and inventory revision.
+         *
+         * Business rules:
+         * - The composite identity always includes the transaction's current run and revision.
+         *
+         * Execution flow:
+         * 1. Add the requested source node ID to the current frontier key.
+         *
+         * Failure cases:
+         * - None; missing rows are handled by the persistence operation using this key.
+         *
+         * Side effects:
+         * - None; constructs an in-memory database key.
+         */
         const itemKey = (sourceNodeId: string) => ({ ...key, sourceNodeId });
+        /**
+         * Business purpose: Project current frontier counters into the progress response and determine whether discovery can complete.
+         *
+         * Business rules:
+         * - Completion eligibility requires at least one unit and no pending, in-review, or blocked units.
+         * - Reviewed counts and persisted claim counts are reported without changing their source rows.
+         *
+         * Execution flow:
+         * 1. Read the frontier's unit/state/claim counters.
+         * 2. Compute the discovery-complete predicate from open and blocked counts.
+         *
+         * Failure cases:
+         * - None; a missing frontier is prevented by the enclosing transaction flow.
+         *
+         * Side effects:
+         * - None; returns a counter snapshot.
+         */
         const progress = () => ({
           total: frontier!.unitCount,
           pending: frontier!.pendingCount,
@@ -325,6 +435,24 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           [S.REVIEWED_NO_CLAIMS]: "reviewedNoClaimsCount",
           [S.BLOCKED_REFERENCE]: "blockedCount",
         };
+        /**
+         * Business purpose: Reconcile frontier counters and fingerprints after a review row changes.
+         *
+         * Business rules:
+         * - State buckets and owned-claim counts reflect the row's persisted before/after values.
+         * - The aggregate fingerprint removes the previous row hash and adds the current row hash.
+         *
+         * Execution flow:
+         * 1. When a previous row is supplied, reload its updated value and compute the new state fingerprint.
+         * 2. Adjust affected state and claim counters and update the row fingerprint.
+         * 3. Persist the aggregate accumulator and frontier state fingerprint.
+         *
+         * Failure cases:
+         * - A missing expected row or failed database write aborts the surrounding transaction.
+         *
+         * Side effects:
+         * - Updates the review row fingerprint and its frontier counters/fingerprint inside the current transaction.
+         */
         const changed = async (
           _change: unknown,
           previous?: RuleSetPreparationSourceReview,
@@ -376,6 +504,24 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
         let completionRows: RuleSetPreparationSourceReview[] | undefined;
         let dependencySnapshot:
           Awaited<ReturnType<typeof loadDependencies>> | undefined;
+        /**
+         * Business purpose: Rebuild reference-dependency evidence from the frontier's exact pinned graph and review rows.
+         *
+         * Business rules:
+         * - The exported materialization must equal the frontier's stored materialization before dependency claims can be trusted.
+         * - Completion batch projections are used when validating an atomic batch; otherwise persisted rows are loaded.
+         *
+         * Execution flow:
+         * 1. Export the pinned graph.
+         * 2. Verify its materialization ID and select the applicable review rows.
+         * 3. Build the canonical reference-dependency view for this run/revision.
+         *
+         * Failure cases:
+         * - Missing or changed structural materialization throws, aborting the current action.
+         *
+         * Side effects:
+         * - Reads the graph and review rows; returns an in-memory dependency snapshot.
+         */
         const loadDependencies = async () => {
           const graph = await this.graph.export(
             run.legalSourceVersionId,
@@ -399,8 +545,42 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             ),
           };
         };
+        /**
+         * Business purpose: Reuse one dependency snapshot while the current action evaluates the same candidate review state.
+         *
+         * Business rules:
+         * - The snapshot is shared only within this transaction/action and is invalidated after review rows change.
+         *
+         * Execution flow:
+         * 1. Return the cached snapshot when available.
+         * 2. Otherwise load and cache dependencies from the pinned graph and rows.
+         *
+         * Failure cases:
+         * - Graph or row loading errors propagate from the loader.
+         *
+         * Side effects:
+         * - Updates only the local dependency snapshot cache.
+         */
         const dependencies = async () =>
           (dependencySnapshot ??= await loadDependencies());
+        /**
+         * Business purpose: Reopen blocked review units when a committed target or waited-for source unit now permits reconsideration.
+         *
+         * Business rules:
+         * - Reconciliation runs only for an unfrozen frontier during running claim discovery.
+         * - A blocker wakes only when the dependency rules detect a new usable endpoint or completed awaited owner.
+         *
+         * Execution flow:
+         * 1. Skip when no blockers exist or the run/frontier is no longer mutable.
+         * 2. Load the dependency view and test each blocked row's wake conditions.
+         * 3. Move wakeable rows to REOPENED, clear their lease/operation, and refresh frontier counters and fingerprints.
+         *
+         * Failure cases:
+         * - Graph, payload, and persistence failures propagate so reconciliation cannot silently lose a blocked dependency.
+         *
+         * Side effects:
+         * - Updates blocked review rows and frontier state in the active transaction.
+         */
         const reconcileBlocked = async () => {
           if (
             !frontier!.blockedCount ||
@@ -433,6 +613,24 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           }
           dependencySnapshot = undefined;
         };
+        /**
+         * Business purpose: Withdraw dependent review completion when a committed semantic claim endpoint changes.
+         *
+         * Business rules:
+         * - Endpoint identity is compared by canonical claim ID and semantic fingerprint; only relations referencing changed or removed claims are invalidated.
+         * - A dependent row remains available for repair, but must be reopened and reviewed before its old completion can authorize the graph.
+         *
+         * Execution flow:
+         * 1. Compare previous and replacement endpoint fingerprints to identify changed claim IDs.
+         * 2. Inspect other review payloads and mark affected relation IDs as invalidated.
+         * 3. Reopen changed dependent rows, clear completion and lease ownership, and reconcile their frontier counters.
+         *
+         * Failure cases:
+         * - Invalid persisted payloads or write failures abort the enclosing transaction.
+         *
+         * Side effects:
+         * - Updates dependent review payloads, reasons, state, completion/lease fields, and frontier fingerprints.
+         */
         const invalidateDependents = async (
           previous: RuleSetPreparationSourceReview,
           payload: NonNullable<typeof input.payload>,
@@ -493,6 +691,24 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           dependencySnapshot = undefined;
           return invalidated;
         };
+        /**
+         * Business purpose: Return the current pinned frontier and progress after an accepted read or review action.
+         *
+         * Business rules:
+         * - A reviewed-frontier fingerprint is exposed only when every review unit is complete and none remain blocked.
+         * - Optional action data is added without replacing the authoritative frontier pins.
+         *
+         * Execution flow:
+         * 1. Snapshot progress counters.
+         * 2. When completion is eligible, fingerprint the persisted reviewed rows against the frontier definition.
+         * 3. Return source/frontier revisions and fingerprints with progress and action metadata.
+         *
+         * Failure cases:
+         * - Database read or fingerprint errors propagate; an incomplete frontier returns a null reviewed fingerprint.
+         *
+         * Side effects:
+         * - Reads review rows only when a completion fingerprint is eligible; does not mutate the frontier.
+         */
         const reply = async (extra = {}) => {
           const currentProgress = progress();
           const reviewedFingerprint = currentProgress.discoveryCompleteEligible
@@ -616,6 +832,28 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             "reopen_semantic_claim_inventory",
           );
 
+        /**
+         * Business purpose: Decide whether one Agent-authored source-unit review can be committed as completed or explicitly blocked.
+         *
+         * Business rules:
+         * - Completion needs a typed disposition, current source/frontier pins, existing unit, and valid operation ownership.
+         * - Claims must use canonical identities, belong to their source unit, cite existing nodes in the exact graph, and have valid source support.
+         * - Claim dispositions, reference accounting, semantic relation bindings, dependency fingerprints, and blocked-reference reasons must agree with the review contract.
+         * - A changed target claim invalidates dependent bindings; only an explicit reference-resolution disposition may retain unchanged quarantined relations.
+         *
+         * Execution flow:
+         * 1. Verify previously invalidated relations are retained only as unchanged blocked-repair evidence, and validate pinned structural reference bindings.
+         * 2. Check completion identity, row state/lease ownership, source anchors, canonical claim ownership, claim disposition, and linked cross-review endpoints.
+         * 3. Validate references and material/non-material accounting, then require source-support checks for nonblocked completions.
+         * 4. Return the approved state and payload for the caller's transactional write.
+         *
+         * Failure cases:
+         * - Returns typed failures for stale pins, invalid operation/lease, malformed claims, detached references, missing dependency evidence, or unsupported disposition.
+         * - Source graph export and persisted payload/schema errors propagate rather than being converted into accepted evidence.
+         *
+         * Side effects:
+         * - None; validates and returns a prospective completion without writing the review row.
+         */
         const validateCompletion = async (
           input: SourceReviewCommand["request"],
           existing: RuleSetPreparationSourceReview,

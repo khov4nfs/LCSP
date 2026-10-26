@@ -21,6 +21,30 @@ type Aggregate = {
 @QueryHandler(GetAdminUsageQuery)
 export class GetAdminUsageHandler implements IQueryHandler<GetAdminUsageQuery> {
   constructor(private readonly prisma: PrismaService) {}
+  /**
+   * Business purpose: Provide Admin usage analytics and a paginated invocation ledger without
+   *   hiding unknown usage or incomplete reference costs.
+   *
+   * Business rules:
+   * - Apply the validated filters to both the overview and detail rows; default the inclusive
+   *   time range to the last 30 days.
+   * - Compute overview/group totals over all matching receipts, independently of pagination,
+   *   and retain unknown-token and incomplete-cost counts.
+   * - Official reference estimates are informational and do not establish provider charges or
+   *   financial settlement.
+   *
+   * Execution flow:
+   * 1. Build parameter-bound filters and the predefined token/dimension aggregations.
+   * 2. Read all aggregates and the requested receipt page in one repeatable-read transaction.
+   * 3. Project known token sums, unknown counts, reference estimates and pagination metadata.
+   *
+   * Failure cases:
+   * - Database failures, invalid stored reference-cost snapshots and unsupported date/number
+   *   representations propagate; an empty result yields a zero-count summary.
+   *
+   * Side effects:
+   * - Read-only database transaction; no invocation, wallet, reservation or charge is changed.
+   */
   async execute({
     filters: f,
   }: GetAdminUsageQuery): Promise<AdminUsageAnalytics> {
@@ -86,6 +110,25 @@ export class GetAdminUsageHandler implements IQueryHandler<GetAdminUsageQuery> {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
+    /**
+     * Business purpose: Expose a known usage-cost subtotal without representing an incomplete
+     *   estimate as the full cost.
+     *
+     * Business rules:
+     * - Convert integer attodollars precisely; publish estimatedCostUsd only when
+     *   incompleteCostInvocations is zero.
+     *
+     * Execution flow:
+     * 1. Convert the stored known subtotal to USD and set the complete-estimate field to null
+     *   when cost evidence is incomplete.
+     *
+     * Failure cases:
+     * - Malformed attodollar input fails conversion; incomplete evidence retains its known
+     *   subtotal and a null full estimate.
+     *
+     * Side effects:
+     * - None: pure aggregate projection with no billing mutation.
+     */
     const convert = (row: Aggregate) => {
       const { costAttodollars, ...summary } = row.summary;
       const knownEstimatedCostUsd = attodollarsToUsd(BigInt(costAttodollars));

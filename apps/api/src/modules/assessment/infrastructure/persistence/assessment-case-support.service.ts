@@ -157,6 +157,32 @@ export class AssessmentCaseSupport {
     }
   }
 
+  /**
+   * Business purpose: Assemble server-owned rule, fact and evidence authority for deterministic
+   *   validation of a Root-authored decision.
+   *
+   * Business rules:
+   * - Resolve the AssessmentRule and directly related legal-context targets only within the
+   *   pinned Rule Set.
+   * - Load cited facts and their supporting evidence only from this Assessment;
+   *   applicability-element counts come from linked LegalRequirements, never inferred legal
+   *   categories.
+   *
+   * Execution flow:
+   * 1. Read the pinned rule, linked requirements and outgoing context targets.
+   * 2. Resolve the decision’s cited facts, then collect direct evidence references and those
+   *   facts’ evidence links.
+   * 3. Return exact pins/revision, criterion and legal-context identities, declared-element
+   *   counts and record maps.
+   *
+   * Failure cases:
+   * - A missing rule remains null and missing facts/evidence remain absent, allowing the
+   *   validator to reject them; database failures propagate.
+   *
+   * Side effects:
+   * - Read-only queries inside the supplied transaction; does not accept references or alter
+   *   model conclusions.
+   */
   async buildValidationContext(
     tx: Prisma.TransactionClient,
     input: { assessmentId: string; pins: PinnedCase; decision: RuleDecision },

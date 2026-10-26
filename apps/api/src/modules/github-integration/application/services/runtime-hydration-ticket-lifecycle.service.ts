@@ -34,6 +34,24 @@ export class RuntimeHydrationTicketLifecycle {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Business purpose: Identify a repository scan job created specifically to hydrate an Assessment Root's pinned snapshot.
+   *
+   * Business rules:
+   * - The trigger must be TRUSTED and the idempotency key must exactly bind the ticket to its assessment and snapshot.
+   * - A matching key prefix alone is insufficient when either pinned identity differs.
+   *
+   * Execution flow:
+   * 1. Compare the trigger source with the trusted-trigger contract value.
+   * 2. Compare the idempotency key with the assessment/snapshot-qualified hydration key.
+   * 3. Return true only when both identity checks pass.
+   *
+   * Failure cases:
+   * - Any mismatch returns false so callers cannot use hydration-specific lifecycle rules for an ordinary scan job.
+   *
+   * Side effects:
+   * - None: this is a deterministic predicate over supplied ticket fields.
+   */
   isHydrationTicket(ticket: {
     assessmentId: string;
     snapshotId: string;
@@ -47,6 +65,26 @@ export class RuntimeHydrationTicketLifecycle {
     );
   }
 
+  /**
+   * Business purpose: Claim one retryable trusted hydration ticket before delivering its pinned repository archive.
+   *
+   * Business rules:
+   * - Only QUEUED and FAILED states may be claimed; the database update must match ticket, assessment, snapshot, trigger, key, and prior state.
+   * - An in-process active-delivery set prevents concurrent claims for the same ticket within this service instance.
+   * - A successful claim increments attempts and clears the prior blocked reason.
+   *
+   * Execution flow:
+   * 1. Reject nonretryable states and tickets already active in this process.
+   * 2. Mark the ticket active locally, then conditionally transition the exact database row to RUNNING.
+   * 3. Remove the local active marker if persistence fails; retain it until finalization after a successful claim.
+   *
+   * Failure cases:
+   * - Nonretryable state, duplicate local delivery, or a failed conditional update raises a conflict.
+   * - Any database error propagates after releasing the local marker.
+   *
+   * Side effects:
+   * - Updates the matching RepositoryScanJob to RUNNING, increments its attempt count, clears its blocked reason, and maintains an in-memory delivery guard.
+   */
   async claim(
     ticketId: string,
     assessmentId: string,
@@ -92,6 +130,27 @@ export class RuntimeHydrationTicketLifecycle {
     }
   }
 
+  /**
+   * Business purpose: Persist the completed or failed outcome of a claimed pinned-archive delivery.
+   *
+   * Business rules:
+   * - The ticket must be a trusted hydration ticket for the supplied snapshot.
+   * - A RUNNING ticket may transition to the requested terminal outcome; an already identical terminal result is idempotent, while conflicting states are rejected.
+   * - Failed delivery records the delivery-failed reason; successful delivery clears the blocked reason.
+   *
+   * Execution flow:
+   * 1. Load and verify ticket, snapshot, trusted trigger, and idempotency identity.
+   * 2. Return for an exact already-finalized result or require the persisted state to remain RUNNING.
+   * 3. Conditionally write the terminal status and reconcile a lost update only when the persisted result matches exactly.
+   * 4. Release the in-process active-delivery marker in all cases.
+   *
+   * Failure cases:
+   * - Identity mismatch, a conflicting terminal state, or a race to a different outcome raises a conflict.
+   * - Database failures propagate; the local active marker is still cleared in `finally`.
+   *
+   * Side effects:
+   * - May update RepositoryScanJob status and blocked reason; always releases the ticket from the in-memory active-delivery set.
+   */
   async finalizeDelivery(input: {
     ticketId: string;
     snapshotId: string;
@@ -168,6 +227,27 @@ export class RuntimeHydrationTicketLifecycle {
     }
   }
 
+  /**
+   * Business purpose: Safely close a stranded hydration ticket after its pinned Assessment Root execution has become terminal.
+   *
+   * Business rules:
+   * - Reconciliation is forbidden during an active local delivery and requires exact trusted ticket/snapshot identity.
+   * - The runtime must have no active lease, the AssessmentCase must pin this ticket and snapshot, and the completed turn must belong to the Root boundary and runtime thread.
+   * - A terminal Root permits the stranded ticket to be reconciled as FAILED with outcome-unproven reason; it does not prove archive delivery.
+   *
+   * Execution flow:
+   * 1. Reject an active delivery, load the ticket, and verify its trusted identity.
+   * 2. Return the current status unchanged when the ticket is no longer RUNNING.
+   * 3. Verify runtime lease, pinned case, completed Root turn, and terminal execution state.
+   * 4. Conditionally persist the explicit outcome-unproven failure and accept a concurrent update only when it matches that outcome.
+   *
+   * Failure cases:
+   * - Active delivery, mismatched pin/thread/boundary, a live lease, nonterminal execution, or conflicting update raises a conflict.
+   * - Database errors propagate; no successful archive-delivery outcome is inferred from runtime termination alone.
+   *
+   * Side effects:
+   * - May transition the RepositoryScanJob to FAILED with the outcome-unproven reason; otherwise returns the verified current status without mutation.
+   */
   async reconcileTerminalRuntime(input: {
     ticketId: string;
     snapshotId: string;

@@ -12,8 +12,8 @@ import { ComplianceRuleSetReadModelLoader } from "../../../infrastructure/persis
 import { GetComplianceRuleSetResultQuery } from "./get-compliance-rule-set-result.query.js";
 
 /**
- * Admin read of one stored rule set version of any lifecycle that was ever published (ACTIVE or
- * SUPERSEDED), with the Legal Source Version it was prepared from. Rows are read, never written.
+ * Admin read of one stored Rule Set version, including INVALID, ACTIVE and SUPERSEDED results,
+ * with the Legal Source Version it was prepared from. Rows are read, never written.
  */
 @QueryHandler(GetComplianceRuleSetResultQuery)
 export class GetComplianceRuleSetResultHandler implements IQueryHandler<GetComplianceRuleSetResultQuery> {
@@ -22,6 +22,25 @@ export class GetComplianceRuleSetResultHandler implements IQueryHandler<GetCompl
     private readonly readModel: ComplianceRuleSetReadModelLoader,
   ) {}
 
+  /**
+   * Business purpose: Return the stored Rule Set result with the source version from which it was prepared.
+   *
+   * Business rules:
+   * - The query addresses one stored Rule Set version by ID, including failed INVALID results and later-superseded versions.
+   * - Returned Rule Set and Legal Source data must satisfy the shared result contract.
+   * - This query reads persisted history and does not change active authority.
+   *
+   * Execution flow:
+   * 1. Load the requested version's Preparation and Legal Source summary.
+   * 2. Load its validated Rule Set read model and map source document counts and lifecycle timestamps.
+   * 3. Parse and return the complete result against the public schema.
+   *
+   * Failure cases:
+   * - An unknown version returns the Rule Set not-found problem; read-model or contract validation errors propagate.
+   *
+   * Side effects:
+   * - None beyond database reads; no Rule Set, audit, or lifecycle records are written.
+   */
   async execute(
     input: GetComplianceRuleSetResultQuery,
   ): Promise<ComplianceRuleSetResult> {

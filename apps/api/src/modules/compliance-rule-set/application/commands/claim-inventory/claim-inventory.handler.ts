@@ -43,6 +43,28 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
     private readonly prisma: PrismaService,
     private readonly source: LegalSourceSnapshotLoader,
   ) {}
+  /**
+   * Business purpose: Move one Preparation's source-grounded claim inventory through validation, freeze, and Rule authoring readiness.
+   *
+   * Business rules:
+   * - Every action is bound to the run's current inventory revision and serialized by the Preparation row lock.
+   * - Only a running Preparation may change inventory; a discovery-only run may only finalize its diagnostic inventory.
+   * - Frozen claims cannot be changed in place; explicit reopening advances the revision and invalidates downstream authoring state.
+   * - The no-operative-obligations outcome is allowed only when validation reports that absence and no operative-typed claim exists; it does not waive other failures.
+   *
+   * Execution flow:
+   * 1. Lock and load the run, then handle idempotent conclusion/reopen, draft load/save, or authoring-phase actions.
+   * 2. For validation or finalization, normalize the submitted graph, require the pinned date and completed review frontier, and reconstruct claims and accounting from persisted reviews.
+   * 3. Validate canonical identities, source support, topology, retrieval readiness, and any persisted direct draft against the pinned Legal Source snapshot.
+   * 4. Return VALIDATE results and fingerprints without freezing. A successful FINALIZE or no-obligations conclusion persists the fingerprinted inventory/frontier freeze and advances to authoring readiness or the explicit terminal result.
+   *
+   * Failure cases:
+   * - Missing runs throw the preparation-run-not-found problem; stale revisions, invalid phases, changed frozen graphs, incomplete reviews, bad drafts, and invalid provenance return typed failed outcomes.
+   * - Database or source-loading errors propagate and roll back transactional writes.
+   *
+   * Side effects:
+   * - Reads the pinned graph and persisted review evidence; may save a draft, advance or conclude the run, freeze an inventory/frontier, and persist validation results in one transaction.
+   */
   async execute({
     request: input,
     correlationId,
@@ -61,6 +83,23 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             correlationId,
             { status: 404 },
           );
+        /**
+         * Business purpose: Return one action-level inventory rejection with the current run context.
+         *
+         * Business rules:
+         * - Rejections retain the run's current preparation phase and inventory revision.
+         * - The helper reports a failed outcome rather than mutating lifecycle state.
+         *
+         * Execution flow:
+         * 1. Accept the specific gap code and explanatory detail.
+         * 2. Package them with the current phase and revision as the action result.
+         *
+         * Failure cases:
+         * - None beyond the original validation failure represented by the returned result.
+         *
+         * Side effects:
+         * - None; constructs an in-memory response object.
+         */
         const fail = (code: string, detail: string) => ({
           outcome: O.FAILED,
           phase: P[run.claimPhase],

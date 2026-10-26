@@ -34,6 +34,26 @@ export class CancelRuleSetPreparationHandler implements ICommandHandler<CancelRu
     private readonly commands: CommandBus,
   ) {}
 
+  /**
+   * Business purpose: Stop one unpublished Preparation run while preserving any existing active Rule Set.
+   *
+   * Business rules:
+   * - Missing runs are rejected; already-cancelled runs replay successfully.
+   * - Only PAUSED, QUEUED, or RUNNING runs without a published Rule Set may be cancelled.
+   * - The run-row lock serializes cancellation with submission; a replacement run never supersedes or edits the current Rule Set here.
+   *
+   * Execution flow:
+   * 1. Lock and load the Preparation run and its publication state in a transaction.
+   * 2. Cancel the runtime for a RUNNING run, then compare-and-set the run to CANCELLED.
+   * 3. After commit, publish cancellation activity on a best-effort basis and return the run projection.
+   *
+   * Failure cases:
+   * - An unknown run returns the preparation-run-not-found problem.
+   * - A terminal or published run, or a failed compare-and-set, returns a preparation-run conflict.
+   *
+   * Side effects:
+   * - Updates the run state and completion time, may cancel the agent runtime, and attempts an Agent Stream event after commit.
+   */
   async execute(
     input: CancelRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationRun> {

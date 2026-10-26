@@ -41,8 +41,25 @@ export interface StructuralSourceDocument {
   provenance?: unknown;
   chunks: StructuralSourceChunk[];
 }
-/** Source extraction limitations remain visible across materialization and Agent export.
- * These are extraction facts, never inferred legal propositions. */
+/**
+ * Business purpose: Carry recorded source-extraction gaps into graph and Agent views without converting them into legal conclusions.
+ *
+ * Business rules:
+ * - Only an explicit `extraction.gaps` array is surfaced; absent gap metadata contributes no gap rows.
+ * - Each gap must satisfy the shared extraction-gap contract and remains associated with its source document.
+ * - Gap records describe extraction limitations, never legal propositions.
+ *
+ * Execution flow:
+ * 1. Read each document's optional extraction-gap value.
+ * 2. Reject a present non-array value and validate each entry with the shared schema.
+ * 3. Attach document identity and sort the resulting gaps by document, page, and kind.
+ *
+ * Failure cases:
+ * - A malformed gap container throws an error; schema-invalid entries propagate the schema parser's failure.
+ *
+ * Side effects:
+ * - None: the function returns a derived, sorted view of the supplied extraction metadata.
+ */
 export function extractionGapsOf(
   documents: ReadonlyArray<
     Pick<StructuralSourceDocument, "documentId" | "extraction">
@@ -81,18 +98,104 @@ interface DraftNode {
   charEnd: number | null;
   rank: number;
 }
+/**
+ * Business purpose: Derive deterministic SHA-256 identities for legal-document graph content and structural nodes.
+ *
+ * Business rules:
+ * - The digest covers the JSON serialization exactly as emitted, so callers must build values in the intended property and array order.
+ * - Hashes identify supplied structure and content; they do not certify legal meaning or evidentiary sufficiency.
+ *
+ * Execution flow:
+ * 1. Serialize the supplied value with JSON.stringify.
+ * 2. Hash that serialization with SHA-256 and return its hexadecimal digest.
+ *
+ * Failure cases:
+ * - Values that cannot be serialized by JSON.stringify propagate a runtime error rather than receiving an unstable identity.
+ *
+ * Side effects:
+ * - None: hashing is performed in memory without changing the source value.
+ */
 export function structuralHash(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
+/**
+ * Business purpose: Normalize node text before calculating a structure-based content fingerprint.
+ *
+ * Business rules:
+ * - Unicode is normalized to NFC, whitespace runs collapse to one space, and surrounding whitespace is removed.
+ * - Normalization is for stable structural identity and does not replace the original text stored in a graph node.
+ *
+ * Execution flow:
+ * 1. Convert the string to NFC.
+ * 2. Collapse whitespace runs and trim the result.
+ *
+ * Failure cases:
+ * - No domain rejection is added; invalid runtime inputs propagate ordinary string-method errors.
+ *
+ * Side effects:
+ * - None: this helper returns a new normalized string without mutating source text.
+ */
 const normalized = (text: string) =>
   text.normalize("NFC").replace(/\s+/gu, " ").trim();
+/**
+ * Business purpose: Create the normalized lookup key used to resolve structural labels inside a legal-source document.
+ *
+ * Business rules:
+ * - Node type remains part of the key, while the label is lowercased using the fixed en-US locale.
+ * - This key is a lookup aid and does not establish a cross-document legal reference by itself.
+ *
+ * Execution flow:
+ * 1. Lowercase the label using the fixed locale.
+ * 2. Prefix it with the supplied node type and the graph lookup separator.
+ *
+ * Failure cases:
+ * - Empty type or label values are composed as provided; callers own structural input validation.
+ *
+ * Side effects:
+ * - None: a key string is returned without changing either input.
+ */
 const key = (type: string, label: string) =>
   `${type}:${label.toLocaleLowerCase("en-US")}`;
 
+/**
+ * Business purpose: Create an in-memory node builder that assigns stable paths and sibling ordinals during document parsing.
+ *
+ * Business rules:
+ * - Repeated type/label paths receive occurrence suffixes so distinct repeated headings remain addressable.
+ * - Each node's ordinal is local to its parent, and newly created nodes begin with empty content and unknown source ranges.
+ *
+ * Execution flow:
+ * 1. Initialize the ordered node list, repeated-path counter, and per-parent child counter.
+ * 2. Return the list with an `add` operation that assigns identity, path, and ordinal while appending each new node.
+ *
+ * Failure cases:
+ * - No domain failure is raised for repeated labels; malformed parent or label inputs propagate ordinary runtime errors.
+ *
+ * Side effects:
+ * - Mutates only the builder's in-memory node list and counters; it does not persist graph data.
+ */
 function createDrafts() {
   const nodes: DraftNode[] = [];
   const repeats = new Map<string, number>();
   const childCounts = new Map<DraftNode | null, number>();
+  /**
+   * Business purpose: Add one structural node to the current document parse with a deterministic path and sibling position.
+   *
+   * Business rules:
+   * - The structural path combines parent path, lowercase node type, and lowercase label.
+   * - Duplicate base paths get an occurrence suffix, while ordinals advance independently for each parent.
+   *
+   * Execution flow:
+   * 1. Derive the base path and increment its occurrence counter.
+   * 2. Build the draft node with the parent's next ordinal and empty content/source spans.
+   * 3. Advance the parent's sibling counter, append the node, and return it.
+   *
+   * Failure cases:
+   * - Invalid values that cannot produce a path propagate runtime errors; repeated labels are disambiguated rather than rejected.
+   *
+   * Side effects:
+   * - Updates the enclosing builder's counters and node list only.
+   */
   const add = (
     type: LegalDocumentNodeType,
     label: string,
@@ -124,6 +227,27 @@ function createDrafts() {
   return { nodes, add };
 }
 
+/**
+ * Business purpose: Convert extracted page text into a reviewable legal-document hierarchy while retaining source spans and body text.
+ *
+ * Business rules:
+ * - Only configured structural headings and the supported numbered/lettered forms create legal hierarchy nodes.
+ * - Unrecognized Markdown headings are kept as UNSTRUCTURED_BLOCK nodes; ordinary prose stays in its current node.
+ * - A wrapped lowercase continuation is not promoted to a duplicate heading, and structure detection does not determine legal effect.
+ *
+ * Execution flow:
+ * 1. Create the document root and walk pages and physical lines in source order.
+ * 2. Recognize configured headings or contextual clause/paragraph and point labels, preserving generic Markdown headings separately.
+ * 3. Update the hierarchy stack, append each raw line to its owner, and track character and available page ranges.
+ * 4. Return the ordered draft nodes for deterministic graph identity assignment.
+ *
+ * Failure cases:
+ * - Unrecognized legal structure remains body text or an unstructured block instead of receiving a guessed legal node type.
+ * - Malformed document or page inputs propagate ordinary parsing/runtime errors.
+ *
+ * Side effects:
+ * - Mutates only draft nodes held in memory; the extracted source document is not changed or persisted.
+ */
 function parseText(document: StructuralSourceDocument, pages: string[]) {
   const draft = createDrafts();
   const root = draft.add(
@@ -245,7 +369,27 @@ function parseText(document: StructuralSourceDocument, pages: string[]) {
   return draft.nodes;
 }
 
-/** Historical content stays immutable. Only trustworthy structural metadata is read. */
+/**
+ * Business purpose: Adapt legacy chunk-based legal-source content into graph nodes without inventing unavailable document offsets.
+ *
+ * Business rules:
+ * - Existing chunk text is retained; hierarchy comes only from recorded chapter metadata and recognized locator segments.
+ * - Retrieval suffixes are not treated as legal hierarchy, and character spans remain null because legacy chunk offsets are not document offsets.
+ * - Points recognized inside a legacy clause get structural nodes while the chunk remains mapped to its original clause owner.
+ *
+ * Execution flow:
+ * 1. Create a document root and sort chunks by locator for stable processing.
+ * 2. Build chapter and supported locator hierarchy from stored metadata, assigning each chunk to its structural owner.
+ * 3. Split lettered points into child nodes where recognized and aggregate stored page spans upward.
+ * 4. Clear unavailable character spans and return both nodes and chunk-owner mappings.
+ *
+ * Failure cases:
+ * - Missing or unrecognized hierarchy remains under a generic unstructured node rather than being inferred from content semantics.
+ * - Malformed hierarchy values may fail through ordinary runtime operations; source chunks are not fabricated to repair them.
+ *
+ * Side effects:
+ * - Mutates only the newly created in-memory draft nodes; historical source chunks and metadata remain unchanged.
+ */
 function adaptLegacy(document: StructuralSourceDocument) {
   const draft = createDrafts();
   const root = draft.add(
@@ -367,7 +511,23 @@ function adaptLegacy(document: StructuralSourceDocument) {
   return { nodes: draft.nodes, ownerByChunk };
 }
 
-/** Printed instrument numbers are identity, never evidence of legal effect. */
+/**
+ * Business purpose: Extract normalized printed legal-instrument identifiers for matching source documents by citation identity.
+ *
+ * Business rules:
+ * - Only the configured number/year/instrument-code shape is recognized.
+ * - Whitespace is removed and the identifier is uppercased with the Vietnamese locale; identifiers do not establish legal effect.
+ *
+ * Execution flow:
+ * 1. Find each identifier-shaped substring in the supplied title or text.
+ * 2. Normalize every match and return the identifiers in source order.
+ *
+ * Failure cases:
+ * - Text with no matching instrument identifier returns an empty list rather than a guessed identifier.
+ *
+ * Side effects:
+ * - None: matching and normalization operate only on the supplied string.
+ */
 export function legalDocumentIdentifiers(value: string): string[] {
   return [
     ...value.matchAll(
@@ -376,7 +536,24 @@ export function legalDocumentIdentifiers(value: string): string[] {
   ].map((m) => m[0].replace(/\s/gu, "").toLocaleUpperCase("vi"));
 }
 
-/** A locator is a structural address; an ambiguous address returns all candidates. */
+/**
+ * Business purpose: Normalize a supported legal locator into a structural-path suffix for exact graph lookup.
+ *
+ * Business rules:
+ * - Recognized English and Vietnamese shorthand terms map to configured node types; canonical structural paths are also accepted.
+ * - Unsupported or malformed locator forms stay unresolved as null; this formatter does not choose among matching nodes.
+ *
+ * Execution flow:
+ * 1. Normalize case and trim surrounding slashes, then split shorthand paths on `::`.
+ * 2. Translate recognized shorthand segments to canonical node-type path segments.
+ * 3. For non-shorthand input, accept only the supported canonical structural-path grammar.
+ *
+ * Failure cases:
+ * - Any unrecognized shorthand segment or invalid canonical path returns null so callers can reject or preserve unresolved state.
+ *
+ * Side effects:
+ * - None: the helper produces a path suffix in memory without querying or altering the graph.
+ */
 export function legalLocatorSuffix(locator: string): string | null {
   const aliases: Record<string, string> = {
     art: "article",
@@ -427,6 +604,26 @@ export function legalLocatorSuffix(locator: string): string | null {
     : null;
 }
 
+/**
+ * Business purpose: Build syntactic cross-reference records between legal-document graph nodes for source navigation.
+ *
+ * Business rules:
+ * - References are resolved only from recognized text patterns, document identity, and structural ancestry; no legal relation type or legal meaning is inferred.
+ * - One candidate is RESOLVED, multiple candidates are AMBIGUOUS, and no candidates are UNRESOLVED.
+ * - Structural headings that identify their own node are excluded from self-reference records.
+ *
+ * Execution flow:
+ * 1. Index nodes by identity and by document-scoped type/label, and collect document instrument identifiers.
+ * 2. For each node, determine the relevant instrument scope and inspect configured reference patterns.
+ * 3. Resolve candidate nodes within that scope and emit stable, source-offset reference records.
+ *
+ * Failure cases:
+ * - Unrecognized reference wording is omitted; recognized wording with no target is retained as UNRESOLVED.
+ * - Malformed node data may propagate ordinary map or string-operation errors rather than yielding fabricated targets.
+ *
+ * Side effects:
+ * - None: the function builds reference records in memory and does not alter graph nodes or source content.
+ */
 function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
   const byId = new Map(nodes.map((n) => [n.nodeId, n]));
   const lookup = new Map<string, LegalDocumentNode[]>();
@@ -439,6 +636,26 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
   const identifiers = new Map(
     documents.map((n) => [n.documentId, legalDocumentIdentifiers(n.title)]),
   );
+  /**
+   * Business purpose: Select the document identities that may satisfy a syntactic reference found in one node.
+   *
+   * Business rules:
+   * - Explicitly named or numbered instruments constrain the search to matching document titles.
+   * - Recognized Vietnamese instrument self-references ending in "này" stay in the node's document; nested lists may inherit an instrument identity from a structural lead-in.
+   * - The current document is the fallback only when no explicit instrument context is found.
+   *
+   * Execution flow:
+   * 1. Inspect trailing and leading text around the reference for a named or numbered instrument.
+   * 2. Resolve explicit identifiers or a normalized title suffix against the graph's document nodes.
+   * 3. If needed, inspect structural ancestors for an instrument identifier; otherwise use the current document.
+   *
+   * Failure cases:
+   * - Explicit but unmatched instrument references yield an empty scope; the caller records them unresolved.
+   * - No source text or ancestor context is synthesized when the supplied node lacks it.
+   *
+   * Side effects:
+   * - None: document scope is derived from the supplied node text and graph nodes.
+   */
   const documentScope = (
     node: LegalDocumentNode,
     start: number,
@@ -501,6 +718,25 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
     }
     return [node.documentId];
   };
+  /**
+   * Business purpose: Record one recognized source-text reference with its exact candidate set and resolution state.
+   *
+   * Business rules:
+   * - Candidate node IDs are deduplicated and sorted so the same reference has a stable representation.
+   * - A target node is assigned only when exactly one candidate remains; zero or multiple candidates preserve unresolved or ambiguous state.
+   * - A structural heading label at the start of its own node is not recorded as a reference.
+   *
+   * Execution flow:
+   * 1. Normalize the candidate node identity set.
+   * 2. Skip a recognized heading's own opening label when it is merely the node title.
+   * 3. Emit a stable reference ID, source character range, optional unique target, and resolution state.
+   *
+   * Failure cases:
+   * - Empty candidates produce UNRESOLVED; multiple unique candidates produce AMBIGUOUS rather than choosing one.
+   *
+   * Side effects:
+   * - Appends one reference record to the enclosing in-memory result list when the heading-self-reference rule does not skip it.
+   */
   const add = (
     node: LegalDocumentNode,
     index: number,
@@ -625,7 +861,28 @@ function references(nodes: LegalDocumentNode[]): LegalDocumentReference[] {
   return result;
 }
 
-/** Pure, provider-free materialization. Pages and retrieval windows never participate in node IDs. */
+/**
+ * Business purpose: Build the version-pinned legal-document structure used for deterministic source retrieval and navigation.
+ *
+ * Business rules:
+ * - Documents are processed in stable identifier order; extracted page text is preferred when it is a nonempty array of strings, otherwise the legacy chunk adapter is used.
+ * - Node identity depends on source version, document, structural path, and normalized node content, not retrieval-window boundaries.
+ * - Legal effect is copied only from recorded chunk or provenance metadata; absent or mixed status remains UNKNOWN.
+ * - Cross-references are syntactic navigation records and do not express substantive legal relationships.
+ *
+ * Execution flow:
+ * 1. Record extraction mode and derive draft nodes from each document's available source representation.
+ * 2. Assign stable node IDs, persisted source ranges, and chunk-to-node mappings using source positions or structural locators.
+ * 3. Propagate only recorded legal-effect metadata and retain extraction gaps and reference-only document identities.
+ * 4. Build syntactic references and bounded retrieval units, then calculate source and graph digests.
+ *
+ * Failure cases:
+ * - Malformed extraction-gap metadata or invalid values required by hashing propagate errors; unavailable extracted pages use the legacy adapter rather than fabricated text.
+ * - When extracted source offsets are unavailable, chunk mapping uses a matching structural locator or the first deterministic fallback node; that navigation association is not a legal finding.
+ *
+ * Side effects:
+ * - None: this provider-free builder returns an in-memory graph and does not modify source documents or persistence.
+ */
 export function buildLegalDocumentGraph(
   legalSourceVersionId: string,
   documents: StructuralSourceDocument[],
@@ -860,6 +1117,25 @@ export function buildLegalDocumentGraph(
   return { ...graph, graphDigest: structuralHash(graph) };
 }
 
+/**
+ * Business purpose: Split each legal-document graph node into bounded retrieval windows that preserve exact source offsets and content hashes.
+ *
+ * Business rules:
+ * - A requested window must be a safe integer of at least two characters and no larger than the configured maximum.
+ * - Window boundaries must not divide a UTF-16 surrogate pair, and each unit remains linked to its source node.
+ *
+ * Execution flow:
+ * 1. Validate the requested window size against the configured retrieval limit.
+ * 2. Walk each node's content in bounded windows, adjusting a boundary when it would split a surrogate pair.
+ * 3. Emit deterministic unit identities, ordinals, source character ranges, and SHA-256 content hashes.
+ *
+ * Failure cases:
+ * - An unsafe, too-small, or over-limit window size raises `Invalid retrieval window size`.
+ * - Empty node content yields no retrieval units; malformed node values propagate runtime errors.
+ *
+ * Side effects:
+ * - None: the function derives retrieval-unit records in memory without modifying the source nodes.
+ */
 export function buildLegalRetrievalUnits(
   nodes: LegalDocumentNode[],
   windowCharacters: number = REVISION.retrievalWindowCharacters,

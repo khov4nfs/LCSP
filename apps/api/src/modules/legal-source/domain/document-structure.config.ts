@@ -151,6 +151,23 @@ const SPECS: readonly StructureSpec[] = [
   },
 ];
 
+/**
+ * Business purpose: Turn configured legal-structure words into literal, whitespace-tolerant regular-expression text.
+ *
+ * Business rules:
+ * - Punctuation and regex metacharacters in the configured vocabulary must match literally.
+ * - Any whitespace run in a phrase matches one or more whitespace characters in source text.
+ *
+ * Execution flow:
+ * 1. Escape regex metacharacters in the configured word or phrase.
+ * 2. Replace escaped whitespace runs with the regex whitespace token.
+ *
+ * Failure cases:
+ * - Empty input returns an empty pattern fragment; invalid runtime values are not coerced or silently repaired.
+ *
+ * Side effects:
+ * - None: the helper only transforms a string used to compile structural patterns.
+ */
 const escape = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&").replace(/\s+/gu, "\\s+");
 
@@ -177,7 +194,23 @@ export const LEGAL_STRUCTURE_HEADINGS: readonly LegalStructureHeading[] =
     ),
   }));
 
-/** Case-insensitive spelling of a word, so a reference label next to it can stay case-sensitive. */
+/**
+ * Business purpose: Build a case-insensitive pattern for the configured type word in a legal-structure reference.
+ *
+ * Business rules:
+ * - Case variants are generated only for characters whose upper- and lowercase forms are single characters.
+ * - Other characters are regex-escaped, and whitespace remains flexible for multiword labels.
+ *
+ * Execution flow:
+ * 1. Expand each input character into a case pair or an escaped literal.
+ * 2. Join the character patterns and normalize whitespace tokens for use in the reference matcher.
+ *
+ * Failure cases:
+ * - Empty input produces an empty pattern fragment; malformed strings are not interpreted as a different legal label.
+ *
+ * Side effects:
+ * - None: this helper builds a regular-expression source string in memory.
+ */
 function anyCase(word: string): string {
   return [...word]
     .map((character) => {
@@ -220,7 +253,23 @@ export const LEGAL_STRUCTURE_REFERENCE = new RegExp(
   "gu",
 );
 
-/** The node type a structural word names, in any configured language and case. */
+/**
+ * Business purpose: Resolve a configured English or Vietnamese structural word to its legal-document graph node type.
+ *
+ * Business rules:
+ * - Matching ignores case and collapses whitespace using the same normalization as the configured structure vocabulary.
+ * - Unknown words remain unresolved; this lookup does not infer structure from an unconfigured term.
+ *
+ * Execution flow:
+ * 1. Lowercase the word and collapse internal whitespace.
+ * 2. Return the configured node type when the normalized word is present, otherwise return undefined.
+ *
+ * Failure cases:
+ * - Words absent from the configured map return undefined, so callers cannot assign an unrecognized structural type.
+ *
+ * Side effects:
+ * - None: the function reads the module's fixed vocabulary map and returns a value.
+ */
 export function structuralWordType(
   word: string,
 ): LegalDocumentNodeType | undefined {

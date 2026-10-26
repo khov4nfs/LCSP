@@ -52,11 +52,51 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
     private readonly outbox: OutboxRepository,
   ) {}
 
+  /**
+   * Business purpose: Restore a previously activated Rule Set as the single active version through an auditable, idempotent transition.
+   *
+   * Business rules:
+   * - Only an active administrator may request reactivation, and the caller must identify the expected current active version.
+   * - Reactivation is refused during Preparation, for an already-active target, or for a target that is not a valid previously activated and superseded version.
+   * - The target's successful validation, successful Preparation, source lifecycle, activation record, run/source pins, stored digest, and relational integrity must still agree.
+   * - A prior semantic-authority-containment rejection permanently excludes the target from this path.
+   *
+   * Execution flow:
+   * 1. Hash the request and enter a transaction; verify the active admin and acquire the global activation lock.
+   * 2. Replay a matching idempotency record, or verify the expected active version, target eligibility, and stored packet integrity.
+   * 3. Supersede the current version, activate the target, then persist the audit event, outbox event, and transition record atomically.
+   * 4. Return the schema-validated transition receipt; translate known uniqueness, relation, and serialization conflicts to the reactivation conflict result.
+   *
+   * Failure cases:
+   * - Missing actors or denied roles return forbidden; a missing target returns not found.
+   * - Stale active pins, ineligible or corrupt targets, changed idempotency payloads, and transaction conflicts return typed conflicts.
+   * - Any transaction failure rolls back both lifecycle changes and their audit/outbox records.
+   *
+   * Side effects:
+   * - Changes the two Rule Set lifecycle records and atomically writes the audit event, outbox event, and immutable reactivation record.
+   */
   async execute(command: ReactivateComplianceRuleSetCommand) {
     const { targetRuleSetVersionId, request, actorId, correlationId } = command;
     const requestDigest = sha256Hex(
       canonicalJson({ targetRuleSetVersionId, actorId, ...request }),
     );
+    /**
+     * Business purpose: Give reactivation precondition failures one consistent conflict response.
+     *
+     * Business rules:
+     * - The caller's correlation ID is retained so the rejected transition can be traced.
+     * - This helper represents a rejected lifecycle request and does not classify the underlying legal content.
+     *
+     * Execution flow:
+     * 1. Accept the specific reactivation conflict code.
+     * 2. Create the shared HTTP conflict problem for this request.
+     *
+     * Failure cases:
+     * - The returned problem identifies the supplied rejected transition code.
+     *
+     * Side effects:
+     * - None; constructs a problem exception for the surrounding transaction to reject.
+     */
     const conflict = (code: string) =>
       problemException(code, correlationId, { status: HttpStatus.CONFLICT });
     try {
@@ -78,6 +118,23 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             await tx.complianceRuleSetReactivationRecord.findUnique({
               where: { idempotencyKey: request.idempotencyKey },
             });
+          /**
+           * Business purpose: Project a persisted reactivation record into the public transition receipt.
+           *
+           * Business rules:
+           * - Receipt fields come from the immutable record, and replay status reflects whether this request reused it.
+           * - The shared result schema validates the receipt before it is returned.
+           *
+           * Execution flow:
+           * 1. Map target, previous-active, digest, timestamps, audit, and outbox identifiers from the record.
+           * 2. Attach the replay marker and parse the result against the contract.
+           *
+           * Failure cases:
+           * - A record that does not satisfy the result contract fails schema validation.
+           *
+           * Side effects:
+           * - None; constructs a validated in-memory result.
+           */
           const result = (
             record: Prisma.ComplianceRuleSetReactivationRecordGetPayload<object>,
             replayed: boolean,

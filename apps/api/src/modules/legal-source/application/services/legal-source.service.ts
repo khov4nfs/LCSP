@@ -622,6 +622,23 @@ export class LegalSourceService {
     };
   }
 
+  /**
+   * Business purpose: Provide the exact stored chunks and provenance for an active Legal Source Version to authorized downstream consumers.
+   *
+   * Business rules:
+   * - The requested version identifier must resolve to a version whose lifecycle is ACTIVE.
+   * - Chunk content, locator, hashes, status, and legal-status source references are returned from that version without interpretation.
+   *
+   * Execution flow:
+   * 1. Find the requested ACTIVE version and load its chunks in stable identifier order.
+   * 2. Return the version identity and the stored chunk fields required for source-backed retrieval.
+   *
+   * Failure cases:
+   * - Missing or non-active versions raise `activeLegalSourceNotFound` with HTTP 404.
+   *
+   * Side effects:
+   * - None beyond read-only Prisma access; this method neither activates a version nor changes chunk provenance.
+   */
   async getActiveChunks(legalSourceVersionId: string) {
     const legalSource = await this.prisma.legalSourceVersion.findFirst({
       where: {

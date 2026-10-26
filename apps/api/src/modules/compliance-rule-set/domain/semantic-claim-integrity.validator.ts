@@ -51,7 +51,23 @@ const allowedRoles: Record<string, readonly string[]> = {
   [C.CONTEXT]: [ROLE.CONTEXT],
   [C.CROSS_REFERENCE]: [ROLE.CONTEXT],
 };
-/** Claim types the role matrix lets ground `role`; the single source for readiness gates. */
+/**
+ * Business purpose: Return the claim types the shared accounting matrix permits for one Requirement binding role.
+ *
+ * Business rules:
+ * - Role eligibility comes only from the central claim-type-to-role matrix used by semantic validation and authoring readiness.
+ * - Unknown roles have no claim types and cannot gain authority through a fallback.
+ *
+ * Execution flow:
+ * 1. Enumerate claim types and their allowed roles.
+ * 2. Return types whose role list contains the requested role.
+ *
+ * Failure cases:
+ * - None; an unsupported role returns an empty list.
+ *
+ * Side effects:
+ * - None; returns an in-memory role projection.
+ */
 export const claimTypesForRole = (role: string): string[] =>
   Object.entries(allowedRoles)
     .filter(([, roles]) => roles.includes(role))
@@ -63,6 +79,22 @@ const fields = {
   [ROLE.CONTEXT]: "semanticContext",
   [ROLE.DEFINITION]: "semanticContext",
 } as const;
+/**
+ * Business purpose: Compare structured authoring projections where exact serialized equality is required.
+ *
+ * Business rules:
+ * - Equality follows JSON.stringify output, including array order and the object's current property ordering.
+ *
+ * Execution flow:
+ * 1. Serialize each value using JSON rules.
+ * 2. Compare the resulting strings.
+ *
+ * Failure cases:
+ * - Unsupported values follow JSON.stringify behavior; serialization errors propagate.
+ *
+ * Side effects:
+ * - None; performs an in-memory comparison.
+ */
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
 const requirementRelationKind = {
@@ -84,7 +116,28 @@ const requirementRelationKind = {
   [S.CONTEXT_FOR]: K.CROSS_REFERENCE,
 } as const;
 
-/** Checks Agent-declared structure/lineage, never classifies or interprets source prose. */
+/**
+ * Business purpose: Validate semantic claims, their source accounting, Requirements, AssessmentRules, and dependency links against one pinned Legal Source snapshot.
+ *
+ * Business rules:
+ * - The semantic graph and derived source structure must identify the exact pinned Legal Source Version and materialization.
+ * - Claim spans, source-node hierarchy, retrieval windows, review accounting, Requirement roles, explicit references, and evidence requests must be structurally complete and source-bound.
+ * - Applicability modes and authored criteria must preserve their linked operative propositions and conditions; deterministic validation never interprets source prose or repairs legal meaning.
+ * - Inventory-only diagnostics may scope structural review and omit downstream Requirement/AssessmentRule checks, but do not establish whole-source completion.
+ *
+ * Execution flow:
+ * 1. Require the derived source graph and authored semantic graph, then verify their immutable source pins.
+ * 2. Validate graph/retrieval structure, claim anchors and effect status, and complete source/review accounting.
+ * 3. Validate Requirement bindings against claim roles/closures and exact source lineage, then check dependency edges and explicit reference accounting.
+ * 4. Validate each AssessmentRule's parent/criterion links and derived evidence requests, accumulating coverage and typed failures.
+ *
+ * Failure cases:
+ * - Missing graphs, stale pins, malformed source/retrieval structure, incomplete accounting, invalid bindings, unresolved material references, or non-derived downstream requests are reported as structured failures.
+ * - Source parsing and unexpected runtime errors propagate; no semantic verdict is substituted.
+ *
+ * Side effects:
+ * - None outside local calculation; returns accumulated failures and coverage counts without persistence or source mutation.
+ */
 export function validateSemanticClaimGraph(
   packet: ComplianceRuleSetPacket,
   source: LegalSourceSnapshot,
@@ -92,6 +145,22 @@ export function validateSemanticClaimGraph(
   diagnosticReviewScope?: Set<string>,
 ) {
   const failures: ComplianceRuleSetValidationFailure[] = [];
+  /**
+   * Business purpose: Add one typed failure to the current semantic validation result.
+   *
+   * Business rules:
+   * - The originating gate supplies the canonical code, affected reference, and detail; this helper does not reinterpret it.
+   *
+   * Execution flow:
+   * 1. Accept the failure code and affected reference.
+   * 2. Append a structured validation failure, preserving optional detail.
+   *
+   * Failure cases:
+   * - Invalid failure object construction propagates as an ordinary in-memory error.
+   *
+   * Side effects:
+   * - Mutates only the local failures array used for the returned validation result.
+   */
   const fail = (
     code: ComplianceRuleSetValidationFailure["code"],
     ref: string,

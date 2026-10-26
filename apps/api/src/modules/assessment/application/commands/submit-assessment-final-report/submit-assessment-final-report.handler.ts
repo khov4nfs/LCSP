@@ -57,14 +57,50 @@ function deterministicUuid(value: string): string {
 
 type Tx = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
+/**
+ * Business purpose: Project stored textual applicability conditions, qualifiers and
+ *   exceptions into report legal-basis entries.
+ *
+ * Business rules:
+ * - Only string members of an array are retained, verbatim and in their stored order; this is
+ *   shape normalization rather than legal interpretation.
+ *
+ * Execution flow:
+ * 1. Filter an array to its string entries, otherwise return an empty list.
+ *
+ * Failure cases:
+ * - Absent or non-array JSON produces an empty list; non-string members are omitted rather
+ *   than rendered as legal text.
+ *
+ * Side effects:
+ * - None: returns a new list without changing persisted legal requirements.
+ */
 const textList = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
 
 /**
- * The pinned rule and the source-derived elements (conditions, qualifiers, exceptions, source
- * provisions) each decision was made against, read from the immutable rule set rows.
+ * Business purpose: Attach the pinned source-derived legal basis to each requested report
+ *   finding.
+ *
+ * Business rules:
+ * - Read only requested AssessmentRules within the supplied Rule Set; retain linked
+ *   LegalRequirement identities, applicability text and exact source provenance.
+ * - Order requirements and their provenance by stored ordinals; do not substitute the
+ *   currently active Rule Set.
+ *
+ * Execution flow:
+ * 1. Load requested pinned rules with linked requirements and ordered provenance.
+ * 2. Normalize the stored text lists and order requirement entries.
+ * 3. Return a map keyed by AssessmentRule identity for report assembly.
+ *
+ * Failure cases:
+ * - Missing rules have no map entry and are not fabricated; database errors propagate and
+ *   report-schema validation remains the caller’s responsibility.
+ *
+ * Side effects:
+ * - Read-only queries through the supplied transaction; no legal or report state is mutated.
  */
 async function loadLegalBasis(
   tx: Tx,
@@ -127,7 +163,27 @@ async function loadLegalBasis(
   );
 }
 
-/** The evidence and facts a decision cites, resolved from the frozen accepted snapshot. */
+/**
+ * Business purpose: Include the accepted frozen evidence and facts that a particular report
+ *   decision cites.
+ *
+ * Business rules:
+ * - Resolve references solely from the completion snapshot; include supporting evidence of
+ *   cited facts as well as directly cited evidence.
+ * - Retain stored commit and source locations without creating citations for missing records.
+ *
+ * Execution flow:
+ * 1. Collect the decision’s evidence and fact identities.
+ * 2. Select cited snapshot facts and add their supporting evidence identities.
+ * 3. Project matching frozen evidence and facts for the finding.
+ *
+ * Failure cases:
+ * - References missing from the snapshot produce no invented record; upstream completion
+ *   validation owns rejection of incomplete authority.
+ *
+ * Side effects:
+ * - None: pure projection of the supplied decision and frozen snapshot.
+ */
 function citedRecords(
   decision: AssessmentFinalReportArtifact["findings"][number]["decision"],
   snapshot: {
@@ -210,6 +266,37 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
     private readonly storage: ArtifactStorageService,
   ) {}
 
+  /**
+   * Business purpose: Persist one integrity-checked final report and complete the eligible
+   *   Customer Assessment, with exact-request replay support.
+   *
+   * Business rules:
+   * - Authorize the Root lease; a new report requires FINALIZING and a blocker-free completion
+   *   snapshot.
+   * - Narrative rule identities must exactly cover frozen decisions; preserve pins, revisions,
+   *   decision fingerprints and source-backed legal/evidence/fact projections.
+   * - An existing ACTIVE report can be replayed only for the same request digest and verified
+   *   artifact identity, hash, byte size and decision fingerprint.
+   *
+   * Execution flow:
+   * 1. Authorize the execution and verify an existing report for idempotent replay, if present.
+   * 2. For a new report, enforce finalization eligibility and exact finding coverage.
+   * 3. Assemble pinned legal basis and frozen citations, validate the report and reject
+   *   unresolved report language.
+   * 4. Write the immutable artifact, persist BUILDING then ACTIVE metadata/events, and
+   *   transition the Assessment to COMPLETE.
+   *
+   * Failure cases:
+   * - Conflicting or damaged existing reports are rejected; wrong lifecycle, completion
+   *   blockers or mismatched findings prevent publication.
+   * - Schema, unresolved-language, storage and hash-verification failures propagate; database
+   *   failures roll back transactional metadata/events but cannot undo already written
+   *   immutable storage bytes.
+   *
+   * Side effects:
+   * - Writes immutable artifact bytes, report metadata and audit/runtime events, then completes
+   *   the lifecycle transaction; an exact replay only reads and verifies stored content.
+   */
   async execute(
     command: SubmitAssessmentFinalReportCommand,
   ): Promise<AssessmentFinalReportResult> {

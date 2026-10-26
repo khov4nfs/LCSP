@@ -104,17 +104,67 @@ for (const [network, prefix] of [
   NON_PUBLIC.addSubnet(network, prefix, "ipv6");
 }
 
+/**
+ * Business purpose: Exclude non-IP and explicitly reserved/private addresses before a legal-source import connects to a host.
+ *
+ * Business rules:
+ * - The address must parse as IPv4 or IPv6 and must not belong to a subnet in the maintained NON_PUBLIC block list.
+ * - This predicate is the importer's address policy; it does not resolve DNS or verify a hostname itself.
+ *
+ * Execution flow:
+ * 1. Determine the IP family of the supplied address.
+ * 2. Reject non-address input and check valid addresses against the corresponding reserved-range list.
+ *
+ * Failure cases:
+ * - Invalid IP strings and blocked ranges return false so callers fail closed.
+ *
+ * Side effects:
+ * - None: the helper performs local address parsing and block-list lookup only.
+ */
 export function isPublicAddress(address: string): boolean {
   const family = isIP(address);
   if (family === 0) return false;
   return !NON_PUBLIC.check(address, family === 4 ? "ipv4" : "ipv6");
 }
 
+/**
+ * Business purpose: Stop a legal-source import with the stable rejection reason required by the import contract.
+ *
+ * Business rules:
+ * - Import policy failures are represented as a typed `ImportRejectedError` rather than a generic network error.
+ * - The supplied reason is preserved unchanged for the caller's safe error mapping.
+ *
+ * Execution flow:
+ * 1. Construct and throw an `ImportRejectedError` for the supplied rejection reason.
+ *
+ * Failure cases:
+ * - Every invocation throws; it never returns a placeholder or successful response.
+ *
+ * Side effects:
+ * - None: no network or persistence work is performed by the rejection helper.
+ */
 function reject(reason: LegalSourceImportRejectionReason): never {
   throw new ImportRejectedError(reason);
 }
 
-/** Syntactic rules a URL must satisfy before any DNS lookup or connection. */
+/**
+ * Business purpose: Enforce the legal-source URL import boundary before a hostname can trigger DNS or network access.
+ *
+ * Business rules:
+ * - Only HTTPS URLs without embedded credentials and using the default 443 port are eligible.
+ * - The host must be a hostname, not an IP literal; address safety is checked separately after DNS resolution.
+ *
+ * Execution flow:
+ * 1. Parse the input as a URL and reject malformed input.
+ * 2. Validate scheme, credentials, port, and hostname shape.
+ * 3. Return the parsed URL only when all pre-connection rules pass.
+ *
+ * Failure cases:
+ * - Invalid syntax, non-HTTPS scheme, credentials, a non-443 port, or an IP-literal host throws the corresponding typed rejection reason.
+ *
+ * Side effects:
+ * - None: URL validation occurs before any DNS lookup or connection.
+ */
 export function parseImportUrl(raw: string): URL {
   let url: URL;
   try {
@@ -133,11 +183,47 @@ export function parseImportUrl(raw: string): URL {
   return url;
 }
 
+/**
+ * Business purpose: Normalize the server's declared response media type for legal-source import policy checks.
+ *
+ * Business rules:
+ * - Only the media-type token before parameters is used, trimmed and lowercased.
+ * - Missing or empty declarations remain null so the downstream byte detector can decide whether content is usable.
+ *
+ * Execution flow:
+ * 1. Read the first semicolon-delimited header component.
+ * 2. Return its normalized value or null when absent.
+ *
+ * Failure cases:
+ * - Missing and blank headers return null; this helper does not reject the response by itself.
+ *
+ * Side effects:
+ * - None: the header string is normalized in memory.
+ */
 function mediaTypeOf(header: string | undefined): string | null {
   const type = header?.split(";")[0]?.trim().toLowerCase();
   return type ? type : null;
 }
 
+/**
+ * Business purpose: Derive a safe display filename for the fetched legal-source document from response metadata or its URL.
+ *
+ * Business rules:
+ * - A content-disposition filename is preferred; otherwise the final URL path segment is decoded and used.
+ * - Control characters and path separators are stripped, and output is capped at 255 characters.
+ * - An empty candidate remains null so the caller can represent the absence of a filename.
+ *
+ * Execution flow:
+ * 1. Extract a filename parameter or decode the URL's last path segment.
+ * 2. Remove controls and separators, trim, and cap the candidate.
+ * 3. Return the cleaned filename or null when it is empty.
+ *
+ * Failure cases:
+ * - An invalid percent escape in the fallback path may propagate `decodeURIComponent`'s URIError; no fabricated filename is substituted.
+ *
+ * Side effects:
+ * - None: filename metadata is derived in memory and no local path is opened.
+ */
 function fileNameOf(url: URL, disposition: string | undefined): string | null {
   const quoted = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/iu.exec(
     disposition ?? "",
@@ -152,6 +238,23 @@ function fileNameOf(url: URL, disposition: string | undefined): string | null {
   return cleaned === "" ? null : cleaned;
 }
 
+/**
+ * Business purpose: Read one response header consistently when Node represents it as either a scalar or an array.
+ *
+ * Business rules:
+ * - When multiple values are present, only the first value is used for import metadata and transport decisions.
+ * - Missing values remain undefined.
+ *
+ * Execution flow:
+ * 1. Read the named value from the parsed HTTP headers.
+ * 2. Return the first array member or the scalar value unchanged.
+ *
+ * Failure cases:
+ * - Missing headers return undefined; no fallback value is invented.
+ *
+ * Side effects:
+ * - None: the helper reads an in-memory header record only.
+ */
 function headerValue(headers: IncomingHttpHeaders, name: string) {
   const value = headers[name];
   return Array.isArray(value) ? value[0] : value;
@@ -160,6 +263,23 @@ function headerValue(headers: IncomingHttpHeaders, name: string) {
 /** Real network access: the connection is pinned to the address that was validated. */
 @Injectable()
 export class NodeSafeFetchTransport implements SafeFetchTransport {
+  /**
+   * Business purpose: Resolve every address for an import hostname so the caller can reject unsafe DNS answers.
+   *
+   * Business rules:
+   * - Address resolution returns all DNS answers in resolver order for per-address safety validation and pinned transport.
+   * - DNS failure is represented as an empty result so the fetcher rejects the unresolved host.
+   *
+   * Execution flow:
+   * 1. Ask the platform resolver for all hostname addresses without reordering them.
+   * 2. Return the resolved address/family pairs, or an empty array if resolution fails.
+   *
+   * Failure cases:
+   * - Resolver errors are deliberately converted to an empty result; the fetcher maps that to HOST_NOT_RESOLVABLE.
+   *
+   * Side effects:
+   * - Performs a DNS lookup; it does not open an HTTP connection or persist the result.
+   */
   async resolve(hostname: string): Promise<ResolvedAddress[]> {
     try {
       return await lookup(hostname, { all: true, verbatim: true });
@@ -168,6 +288,26 @@ export class NodeSafeFetchTransport implements SafeFetchTransport {
     }
   }
 
+  /**
+   * Business purpose: Retrieve one bounded HTTPS response using an address that the caller already validated.
+   *
+   * Business rules:
+   * - The connection is pinned to the validated address while TLS verifies the original hostname.
+   * - Response size is capped from both content-length and streamed bytes, and request time is bounded.
+   * - Only the metadata needed by the importer is retained with the response body.
+   *
+   * Execution flow:
+   * 1. Start an HTTPS GET for the original host and path using the supplied pinned address.
+   * 2. Reject bodies that exceed the maximum size and collect bounded chunks plus selected response headers.
+   * 3. Resolve on response completion or reject on transport, size, or timeout failure.
+   *
+   * Failure cases:
+   * - Oversized responses raise RESPONSE_TOO_LARGE; timeout and network errors map to typed import rejection reasons.
+   * - The transport does not follow redirects; the service validates each redirect before issuing another request.
+   *
+   * Side effects:
+   * - Opens one outbound HTTPS request and allocates a bounded response buffer; it does not persist fetched content.
+   */
   get(input: {
     url: URL;
     address: ResolvedAddress;
@@ -175,6 +315,23 @@ export class NodeSafeFetchTransport implements SafeFetchTransport {
     timeoutMs: number;
   }): Promise<SafeFetchResponse> {
     return new Promise((resolve, reject_) => {
+      /**
+       * Business purpose: Settle the pending bounded archive request with its response or transport error.
+       *
+       * Business rules:
+       * - A non-null error rejects the promise; only an error-free response resolves it.
+       * - The response is not replaced with empty content when transport fails.
+       *
+       * Execution flow:
+       * 1. Check the callback error.
+       * 2. Reject on error or resolve with the completed response value.
+       *
+       * Failure cases:
+       * - Any supplied error rejects the request promise and remains visible to the transport caller.
+       *
+       * Side effects:
+       * - Settles the enclosing request promise once for the network completion path.
+       */
       const settle = (error: Error | null, value?: SafeFetchResponse) =>
         error ? reject_(error) : resolve(value as SafeFetchResponse);
       const req = httpsRequest(
@@ -185,6 +342,23 @@ export class NodeSafeFetchTransport implements SafeFetchTransport {
           path: `${input.url.pathname}${input.url.search}`,
           method: "GET",
           // Connect to the validated address; TLS still verifies the certificate for the name.
+          /**
+           * Business purpose: Keep Node's connection lookup pinned to the address already checked by the import policy.
+           *
+           * Business rules:
+           * - Both single-address and auto-select-family lookup shapes return only the supplied validated address.
+           * - The resolver-provided hostname is ignored so a DNS rebinding response cannot change the destination.
+           *
+           * Execution flow:
+           * 1. Inspect whether Node requested all candidate addresses.
+           * 2. Return the validated address in the callback's expected shape for that request mode.
+           *
+           * Failure cases:
+           * - Callback errors are left to Node's HTTPS client; no fallback address is consulted.
+           *
+           * Side effects:
+           * - Supplies address data to the outbound HTTPS request; it performs no additional DNS lookup.
+           */
           lookup: (_name, options, callback) => {
             // Node asks for every address when auto-select-family is on, one otherwise.
             if ((options as { all?: boolean }).all) {
@@ -269,6 +443,28 @@ export class NodeSafeFetchTransport implements SafeFetchTransport {
 export class SafeUrlFetcherService {
   constructor(private readonly transport: NodeSafeFetchTransport) {}
 
+  /**
+   * Business purpose: Fetch one public document as a bounded immutable-source candidate for legal-source import.
+   *
+   * Business rules:
+   * - The URL and each redirect must satisfy HTTPS, credential, port, hostname, and public-address rules.
+   * - Every DNS answer must be public, and transport connects only to an address already validated for that hostname.
+   * - At most three redirects are followed; successful responses must be HTTP 200, nonempty, and declare a supported or undeclared content type.
+   * - Request time and body size use the shared legal-source limits; content type is returned for downstream byte-level verification.
+   *
+   * Execution flow:
+   * 1. Parse and validate the requested URL before DNS resolution.
+   * 2. Resolve and validate addresses, trying each pinned address when a connection attempt fails.
+   * 3. Validate every redirect through the same URL policy and enforce the redirect limit.
+   * 4. Validate the terminal response and return source bytes, URL lineage, selected headers, and retrieval time.
+   *
+   * Failure cases:
+   * - Unsafe URLs or addresses, unresolved hosts, rejected redirects, excessive redirects, non-200 responses, unsupported content types, empty bodies, timeouts, and transport errors raise typed import rejection errors.
+   * - Connection failures may move to another validated address; policy failures are not retried as a different outcome.
+   *
+   * Side effects:
+   * - Performs DNS lookups and outbound HTTPS requests and allocates a bounded response buffer; persistence is left to the importing workflow.
+   */
   async fetch(rawUrl: string): Promise<FetchedDocument> {
     const requestedUrl = parseImportUrl(rawUrl);
     let current = requestedUrl;

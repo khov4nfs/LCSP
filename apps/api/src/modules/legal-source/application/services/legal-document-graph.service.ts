@@ -20,10 +20,44 @@ import {
 } from "../../domain/document-graph.js";
 
 const BATCH_SIZE = 500;
+/**
+ * Business purpose: Divide derived legal-document graph rows into bounded database insert batches.
+ *
+ * Business rules:
+ * - Batch size is fixed at 500 so materialization writes remain bounded and preserve the input row order.
+ * - Empty input produces no batches and therefore no insert operation.
+ *
+ * Execution flow:
+ * 1. Calculate the number of required batches from the row count.
+ * 2. Slice the input into consecutive groups of at most 500 rows.
+ *
+ * Failure cases:
+ * - No domain failure is generated; invalid non-array inputs propagate ordinary JavaScript errors.
+ *
+ * Side effects:
+ * - None: rows are copied into slices but are not persisted here.
+ */
 const batches = <T>(items: T[]) =>
   Array.from({ length: Math.ceil(items.length / BATCH_SIZE) }, (_, i) =>
     items.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE),
   );
+/**
+ * Business purpose: Bound legal-document node text before returning it to an agent or API caller.
+ *
+ * Business rules:
+ * - A shared character budget is consumed in input order, and each title is capped at 512 characters.
+ * - Truncation is explicit so consumers can distinguish complete source text from bounded context.
+ *
+ * Execution flow:
+ * 1. Slice each node's content to the remaining nonnegative budget.
+ * 2. Reduce the budget by returned content length and mark whether that node was truncated.
+ *
+ * Failure cases:
+ * - A negative or exhausted budget yields empty content for later nodes; the helper does not throw for that state.
+ *
+ * Side effects:
+ * - None: the function returns projected node objects and does not mutate the input nodes.
+ */
 function boundedNodes<T extends { content: string; title: string }>(
   nodes: T[],
   budget: number = REVISION.maxContextCharacters,
@@ -45,6 +79,26 @@ function boundedNodes<T extends { content: string; title: string }>(
 export class LegalDocumentGraphService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Business purpose: Persist the deterministic document graph derived from one immutable legal-source version.
+   *
+   * Business rules:
+   * - A per-version advisory lock and shared row lock prevent competing materializations from using changing source rows.
+   * - An existing identical revision is reused; the same materialization identity with a different graph digest is a conflict.
+   * - This index lifecycle does not create Rule Sets, Preparation runs, outbox work, or model decisions.
+   *
+   * Execution flow:
+   * 1. Lock the version, load its documents and chunks in stable order, and build the deterministic graph.
+   * 2. Reuse a matching materialization or reject a digest conflict for an existing identity.
+   * 3. Create the materialization and insert nodes, references, chunk mappings, and retrieval units in bounded batches.
+   *
+   * Failure cases:
+   * - A missing source version raises `sourceNotFound`; conflicting graph content raises `revisionConflict`.
+   * - Any database or graph-build failure rolls back the full transaction rather than leaving partial index rows.
+   *
+   * Side effects:
+   * - Creates one derived materialization and its graph rows within a Prisma transaction; no legal-source lifecycle state is changed.
+   */
   async materialize(legalSourceVersionId: string): Promise<LegalDocumentGraph> {
     return this.prisma.$transaction(
       async (tx) => {
@@ -137,6 +191,23 @@ export class LegalDocumentGraphService {
     );
   }
 
+  /**
+   * Business purpose: Find the newest materialization that matches the platform's currently configured graph revisions.
+   *
+   * Business rules:
+   * - A current graph must match both parser and materialization revision constants for the requested source version.
+   * - Older pinned graphs are not returned as current merely because they are the newest stored row.
+   *
+   * Execution flow:
+   * 1. Query materializations for the version and exact configured revisions.
+   * 2. Return the newest matching row or null when none exists.
+   *
+   * Failure cases:
+   * - Database errors propagate; absence of a matching revision is represented as null.
+   *
+   * Side effects:
+   * - None beyond a read-only Prisma query.
+   */
   async current(legalSourceVersionId: string) {
     return this.prisma.legalDocumentMaterialization.findFirst({
       where: {
@@ -148,7 +219,25 @@ export class LegalDocumentGraphService {
     });
   }
 
-  /** A pinned materialization stays readable after a parser revision bump; unpinned reads get the current revision. */
+  /**
+   * Business purpose: Export a version's derived legal-document graph while preserving any explicit historical materialization pin.
+   *
+   * Business rules:
+   * - A supplied materialization identifier is scoped to the requested LegalSourceVersion and remains readable across parser revisions.
+   * - Without a pin, only the currently configured graph revision is selected.
+   * - The export carries recorded extraction gaps and reference-only document identity as provenance; it does not repair missing source data.
+   *
+   * Execution flow:
+   * 1. Resolve the pinned materialization or current revision; return null when it does not exist.
+   * 2. Load its graph rows and source extraction/corpus metadata.
+   * 3. Remove persistence-only columns and return the contract graph shape.
+   *
+   * Failure cases:
+   * - A pin belonging to another version or a missing current materialization returns null; database or mapping errors propagate.
+   *
+   * Side effects:
+   * - None beyond read-only Prisma queries and in-memory projection.
+   */
   async export(
     legalSourceVersionId: string,
     pinnedMaterializationId?: string,
@@ -234,6 +323,26 @@ export class LegalDocumentGraphService {
     };
   }
 
+  /**
+   * Business purpose: Retrieve bounded structural, reference, chunk, or text context from a Legal Source Version graph.
+   *
+   * Business rules:
+   * - Every query is scoped to the requested source version and one materialization; an explicit materialization pin is never silently replaced.
+   * - Document locators resolve structurally and may be RESOLVED, AMBIGUOUS, or UNRESOLVED; the service does not infer legal meaning.
+   * - Results are paged and bounded by the graph's node and character context limits.
+   *
+   * Execution flow:
+   * 1. Resolve the pinned or current graph, materializing the current revision only when an unpinned read has none.
+   * 2. Apply optional document identity, text, locator, node, and traversal filters within that version and graph.
+   * 3. Return the selected rows with pagination, resolution, truncation, and traversal metadata appropriate to the query.
+   *
+   * Failure cases:
+   * - A requested missing graph raises `notMaterialized`; an invalid locator raises `invalid`; a missing node raises `nodeNotFound`.
+   * - A pinned graph that is absent is not replaced with a different revision; Prisma and materialization failures propagate.
+   *
+   * Side effects:
+   * - Usually read-only; an unpinned request with no current graph may persist a derived graph through `materialize`.
+   */
   async query(legalSourceVersionId: string, query: LegalGraphQuery) {
     let graph = query.materializationId
       ? await this.prisma.legalDocumentMaterialization.findFirst({
@@ -444,6 +553,23 @@ export class LegalDocumentGraphService {
         this.prisma.legalDocumentRetrievalUnit.count({ where }),
       ]);
       let budget = REVISION.maxContextCharacters - base.node.content.length;
+      /**
+       * Business purpose: Keep chunk and retrieval-unit text within the remaining context budget for this node query.
+       *
+       * Business rules:
+       * - Input order determines which rows retain text when the shared node budget is exhausted.
+       * - Every returned row states whether its source content was truncated.
+       *
+       * Execution flow:
+       * 1. Slice each row's content to the remaining nonnegative character budget.
+       * 2. Reduce the captured budget by the returned text length and attach the truncation flag.
+       *
+       * Failure cases:
+       * - An exhausted budget returns empty content for subsequent rows; no business error is raised.
+       *
+       * Side effects:
+       * - Mutates only the query-local remaining character budget; no input row or persisted record is changed.
+       */
       const trim = <V extends { content: string }>(rows: V[]) =>
         rows.map((row) => {
           const content = row.content.slice(0, Math.max(0, budget));

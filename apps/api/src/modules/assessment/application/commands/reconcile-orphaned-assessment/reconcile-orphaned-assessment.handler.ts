@@ -22,6 +22,31 @@ export class ReconcileOrphanedAssessmentHandler implements ICommandHandler<Recon
     private readonly lifecycle: AssessmentLifecycleCoordinator,
   ) {}
 
+  /**
+   * Business purpose: Cancel an owner’s abandoned Assessment only when repository setup stalled
+   *   before any Root execution began.
+   *
+   * Business rules:
+   * - The owner must match; only ACTIVE, never-started QUEUED runtime state with no lease,
+   *   checkpoint, turn or runtime event is eligible.
+   * - An already CANCELLED Assessment is an idempotent no-op; at least one stale repository
+   *   scan must be failed before cancellation.
+   *
+   * Execution flow:
+   * 1. Lock and load the Assessment and owner-bound runtime in one transaction.
+   * 2. Verify that execution never started, then fail eligible stale repository scans.
+   * 3. Cancel through the lifecycle coordinator and mark the runtime CANCELLED with its lease
+   *   cleared.
+   *
+   * Failure cases:
+   * - Missing ownership/runtime returns ASSESSMENT_NOT_FOUND; started or otherwise ineligible
+   *   work and absent stale scans return the repository-setup state conflict.
+   * - Transaction errors roll back scan, lifecycle and runtime changes together.
+   *
+   * Side effects:
+   * - Persists stale scan failures, lifecycle/coordinator events and runtime cancellation
+   *   within the caller-visible transaction.
+   */
   execute(command: ReconcileOrphanedAssessmentCommand) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw(

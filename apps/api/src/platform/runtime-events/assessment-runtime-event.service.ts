@@ -321,6 +321,26 @@ export class AssessmentRuntimeEventService {
     );
   }
 
+  /**
+   * Business purpose: Replay persisted agent-stream journal events when a customer or runtime observer subscribes after events were emitted.
+   *
+   * Business rules:
+   * - Assessment-specific replay uses the owner-checked history page; all-assessment replay first lists the owner's assessments and bounds per-assessment query allocation by the shared total limit.
+   * - Preparation replay is scoped by the supplied preparation run and journal tool name, with authorization of that run scope owned by the caller.
+   * - Rows are restored in event order and malformed journal payloads that cannot be projected to events are omitted.
+   *
+   * Execution flow:
+   * 1. When a preparation run is selected, fetch its bounded journal window and restore the rows in chronological order.
+   * 2. Otherwise, when one assessment is selected, delegate to its owner-checked paginated history query.
+   * 3. Otherwise, list assessments owned by the caller, load bounded event windows with controlled concurrency, restore valid rows, and sort the combined stream.
+   *
+   * Failure cases:
+   * - Missing or invalid stored event payloads are excluded; database and page-query errors propagate to the subscription setup.
+   * - An assessment not owned by the caller yields no owned history through the delegated page lookup.
+   *
+   * Side effects:
+   * - None beyond read-only journal and assessment queries; events are projected in memory and not re-persisted.
+   */
   private async getDurableAgentStreamEvents(
     ownerId: string,
     assessmentId: string | null = null,

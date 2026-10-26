@@ -30,6 +30,27 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
     private readonly legalSource: LegalSourceSnapshotLoader,
   ) {}
 
+  /**
+   * Business purpose: Record whether the current authoring packet is ready for submission without granting Rule Set activation authority.
+   *
+   * Business rules:
+   * - Discovery-only runs cannot enter Rule authoring or validation.
+   * - The packet must match the current frozen inventory revision and accepted direct draft, and all source references use the run's pinned Legal Source.
+   * - Only a running run in an authoring, validation, or submission-ready phase can record validation.
+   *
+   * Execution flow:
+   * 1. Load the run's source pin and authoring state, rejecting missing or discovery-only runs.
+   * 2. Load the pinned source and validate packet structure, citations, frozen inventory, and persisted draft equality.
+   * 3. Compare-and-set the draft validation result and move valid packets to SUBMISSION_READY or invalid packets back to RULE_AUTHORING.
+   * 4. Return the coverage and all accumulated validation failures.
+   *
+   * Failure cases:
+   * - A missing run returns not found; a discovery-only run returns a submit-request conflict.
+   * - A stale phase/revision causes a claim-phase failure in the returned result; source and persistence errors propagate.
+   *
+   * Side effects:
+   * - Reads source, frozen inventory, and accepted draft, then records draft validation and claim phase when the guarded update succeeds; it does not activate a Rule Set.
+   */
   async execute(
     input: ValidateComplianceRuleSetCommand,
   ): Promise<ComplianceRuleSetValidateResult> {

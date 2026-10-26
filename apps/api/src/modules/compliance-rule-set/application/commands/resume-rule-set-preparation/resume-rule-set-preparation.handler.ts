@@ -29,6 +29,26 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
     private readonly outbox: OutboxRepository,
   ) {}
 
+  /**
+   * Business purpose: Requeue an interrupted Preparation while retaining its accumulated source review and draft state.
+   *
+   * Business rules:
+   * - A QUEUED or RUNNING unpublished run is an idempotent replay and is not enqueued again.
+   * - Only a budget-paused run or a FAILED run caused by a model/runtime error may resume.
+   * - Published or otherwise terminal runs cannot be resumed through this command.
+   *
+   * Execution flow:
+   * 1. Lock and load the run and its published Rule Set link.
+   * 2. Return an already-open run, or reject an ineligible lifecycle state.
+   * 3. Enqueue one idempotent preparation request and reset the eligible run to QUEUED with refreshed correlation and outbox identity.
+   *
+   * Failure cases:
+   * - A missing run returns not found; a published or non-resumable run returns a preparation conflict.
+   * - Outbox or database failures roll back the queued-state change.
+   *
+   * Side effects:
+   * - Writes a preparation-request outbox event and resets execution/failure/completion/review-operation/draft-validation fields in one transaction.
+   */
   async execute(input: ResumeRuleSetPreparationCommand) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw(

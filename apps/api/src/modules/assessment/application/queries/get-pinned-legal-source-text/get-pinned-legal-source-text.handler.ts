@@ -25,6 +25,29 @@ export class GetPinnedLegalSourceTextHandler implements IQueryHandler<GetPinnedL
     private readonly support: AssessmentCaseSupport,
   ) {}
 
+  /**
+   * Business purpose: Give the authorized Root the exact legal provision used to prepare this
+   *   Assessment’s pinned Rule Set.
+   *
+   * Business rules:
+   * - The execution lease is authorized before reading case pins; the lookup is restricted to
+   *   the pinned Rule Set’s LegalSourceVersion, document and locator.
+   * - Return immutable text, hash, hierarchy and recorded legal-effect metadata without
+   *   interpreting applicability.
+   *
+   * Execution flow:
+   * 1. Authorize the Root lease and load its case pins in a transaction.
+   * 2. Resolve the pinned legal source and retrieve the exact document/locator.
+   * 3. Validate and return the source-text projection with its provenance.
+   *
+   * Failure cases:
+   * - An absent provision returns REQUEST_INVALID with LEGAL_SOURCE_PROVISION_NOT_FOUND and
+   *   HTTP 404; invalid leases, missing pins and malformed projections propagate their existing
+   *   errors.
+   *
+   * Side effects:
+   * - Read-only database transaction; no source, decision or Assessment state is changed.
+   */
   async execute(
     input: GetPinnedLegalSourceTextQuery,
   ): Promise<PinnedLegalSourceText> {

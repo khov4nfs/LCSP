@@ -83,9 +83,26 @@ export function sha256Hex(value: string): string {
 }
 
 /**
- * Mechanical integrity validation of one complete rule set packet against the
- * one pinned legalSource: identity, hash, citation, locator, provenance, shape and
- * completeness only. It never classifies, interprets or repairs legal meaning.
+ * Business purpose: Verify that a complete Rule Set packet is structurally valid and bound to one pinned Legal Source version.
+ *
+ * Business rules:
+ * - Requirement, AssessmentRule, context-relation and per-rule criterion identities must be unique; source-reference bindings and entity links must be valid.
+ * - Every source citation must resolve to the exact pinned chunk/hash with current legal-effect status and provenance.
+ * - Assessment applicability, criteria, scope declarations, and evidence requests must preserve linked Requirement structure; this validator does not interpret or repair legal meaning.
+ * - A successful result exposes only server-resolved source bindings; failures remain explicit and prevent activation upstream.
+ *
+ * Execution flow:
+ * 1. Require a valid retrieval index and nonempty requirements/rules, then check identities and derived AssessmentRule bindings.
+ * 2. Resolve source references against the pinned snapshot and collect clean citation bindings, status, and mixed-source failures.
+ * 3. Verify rule links, context-relation links, coverage, applicability-scope declaration, and semantic-claim graph integrity.
+ * 4. Return the accumulated failures, clean resolved chunks, and structural/retrieval coverage.
+ *
+ * Failure cases:
+ * - Returns typed failures for missing/duplicate/orphan records, unresolved or stale citations, invalid effect status, incomplete coverage, missing scope declarations, and semantic-binding gaps.
+ * - Malformed input or unexpected runtime failures propagate; no legal judgment or source repair is generated.
+ *
+ * Side effects:
+ * - None; validates the submitted packet against the supplied immutable source snapshot.
  */
 export function validateComplianceRuleSetPacket(
   packet: ComplianceRuleSetPacket,
@@ -292,6 +309,25 @@ export function validateComplianceRuleSetPacket(
   let cleanClaims = 0;
   let foreignClaims = 0;
   const checkedClaims = new Set<string>();
+  /**
+   * Business purpose: Resolve one declared citation to its exact chunk in the pinned Legal Source for a packet owner.
+   *
+   * Business rules:
+   * - Reference-only documents cannot support Requirements or AssessmentRules.
+   * - The locator, content hash, and current legal-effect status must match the pinned chunk; a matching hash from another source is still stale for this packet.
+   * - Only clean owner/citation pairs are counted and placed in the server-resolved map.
+   *
+   * Execution flow:
+   * 1. Build the source key and identify its packet owner.
+   * 2. Reject reference-only, missing, or hash-mismatched chunks, classifying known foreign hashes for mixed-source detection.
+   * 3. Reject repealed, future, or unknown effect status; otherwise record the clean resolution once per owner.
+   *
+   * Failure cases:
+   * - Appends typed failures for unsupported documents, unresolved locators, stale hashes, repealed/future sources, and unknown legal status.
+   *
+   * Side effects:
+   * - Updates only the enclosing validation's local counters, checked-key set, resolved map, and failure list.
+   */
   const checkClaim = (ref: ComplianceRuleSetSourceRef, owner: string) => {
     const key = sourceClaimKey(ref);
     const chunk = chunkByKey.get(key);
@@ -457,6 +493,23 @@ export function validateComplianceRuleSetPacket(
     packet.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),
   );
   const contextByRule = new Map<string, Set<string>>();
+  /**
+   * Business purpose: Resolve a context-relation citation key only when it is already verified as a current pinned source chunk.
+   *
+   * Business rules:
+   * - The exact citation hash must match the chunk returned by source validation.
+   * - Only EFFECTIVE source chunks produce a key suitable for operative-context comparison.
+   *
+   * Execution flow:
+   * 1. Look up the validated chunk by document and locator.
+   * 2. Return the source key only when its hash matches and its effect status is EFFECTIVE.
+   *
+   * Failure cases:
+   * - Missing, stale, repealed, future, or unknown chunks return null.
+   *
+   * Side effects:
+   * - None; reads the local resolved-source map.
+   */
   const cleanKey = (ref: ComplianceRuleSetSourceRef) => {
     const key = sourceClaimKey(ref);
     const chunk = resolved.get(key);

@@ -21,6 +21,24 @@ import {
   semanticClosure,
 } from "./source-completeness.js";
 
+/**
+ * Business purpose: Produce a stable identity representation for claim inventories and their persisted fingerprints.
+ *
+ * Business rules:
+ * - Array order remains meaningful, while object keys are sorted before serialization.
+ * - Primitive values use JSON serialization so equivalent inventory records hash consistently.
+ *
+ * Execution flow:
+ * 1. Recursively canonicalize array entries in their existing order.
+ * 2. Recursively canonicalize object values in sorted-key order and serialize each key.
+ * 3. Serialize primitive values using JSON rules.
+ *
+ * Failure cases:
+ * - Unsupported JavaScript values retain JSON.stringify's behavior rather than receiving an invented representation.
+ *
+ * Side effects:
+ * - None; returns a canonical string without mutating the supplied value.
+ */
 export function inventoryCanonical(value: unknown): string {
   if (Array.isArray(value))
     return `[${value.map(inventoryCanonical).join(",")}]`;
@@ -31,10 +49,61 @@ export function inventoryCanonical(value: unknown): string {
       .join(",")}}`;
   return JSON.stringify(value);
 }
+/**
+ * Business purpose: Bind a Preparation inventory value to a deterministic content digest.
+ *
+ * Business rules:
+ * - The digest is computed over the canonical inventory representation so object key order cannot change identity.
+ * - Array ordering and all canonicalized values remain part of the digest.
+ *
+ * Execution flow:
+ * 1. Convert the supplied value to its canonical JSON representation.
+ * 2. Return the SHA-256 digest in hexadecimal form.
+ *
+ * Failure cases:
+ * - Hash construction errors propagate; unsupported values follow inventoryCanonical's JSON behavior.
+ *
+ * Side effects:
+ * - None; computes a digest in memory.
+ */
 export const inventoryHash = (value: unknown) =>
   createHash("sha256").update(inventoryCanonical(value)).digest("hex");
+/**
+ * Business purpose: Normalize a worker-supplied semantic identity key before assigning a canonical claim ID.
+ *
+ * Business rules:
+ * - Unicode compatibility forms, surrounding whitespace, case, and repeated whitespace do not create distinct identity keys.
+ * - The caller's substantive key text is retained after those normalization rules.
+ *
+ * Execution flow:
+ * 1. Apply Unicode NFKC normalization.
+ * 2. Trim, lowercase, and collapse whitespace runs to one space.
+ *
+ * Failure cases:
+ * - Invalid Unicode normalization input propagates the runtime error.
+ *
+ * Side effects:
+ * - None; returns a normalized key without changing the input.
+ */
 export const normalizeIdentityKey = (key: string) =>
   key.normalize("NFKC").trim().toLowerCase().replace(/\s+/gu, " ");
+/**
+ * Business purpose: Give a source-grounded claim one deterministic identity within a specific Preparation revision.
+ *
+ * Business rules:
+ * - Claim identity binds the run, inventory revision, sorted source-node anchors, and normalized semantic key.
+ * - The same key in a different run or revision is a different claim identity.
+ *
+ * Execution flow:
+ * 1. Sort source node IDs and normalize the identity key.
+ * 2. Hash the complete run/revision/source/key tuple using the inventory hash.
+ *
+ * Failure cases:
+ * - Canonical serialization or hashing errors propagate; no fallback identity is generated.
+ *
+ * Side effects:
+ * - None; returns a deterministic claim ID.
+ */
 export function canonicalClaimId(
   runId: string,
   revision: number,
@@ -48,6 +117,23 @@ export function canonicalClaimId(
     identityKey: normalizeIdentityKey(key),
   });
 }
+/**
+ * Business purpose: Normalize collection ordering before comparing or freezing a semantic claim inventory.
+ *
+ * Business rules:
+ * - Claim source anchors, claims, relations, source accounting, and reference accounting use stable order for equality and hashing.
+ * - Graph meaning and record contents are preserved; only collection order is normalized.
+ *
+ * Execution flow:
+ * 1. Copy the graph and sort claim anchors and claim rows.
+ * 2. Sort relations and both accounting collections by their canonical IDs.
+ *
+ * Failure cases:
+ * - Malformed inputs fail through ordinary property access or sorting errors rather than being repaired.
+ *
+ * Side effects:
+ * - None; returns a normalized copy and leaves the supplied graph unchanged.
+ */
 export function normalizeInventory(
   graph: LegalSemanticGraph,
 ): LegalSemanticGraph {
@@ -67,6 +153,23 @@ export function normalizeInventory(
       .sort((a, b) => a.referenceId.localeCompare(b.referenceId)),
   };
 }
+/**
+ * Business purpose: Bind a normalized semantic claim graph to the exact Preparation inventory revision.
+ *
+ * Business rules:
+ * - Revision is part of the fingerprint, so reopening an inventory cannot silently reuse an earlier revision's identity.
+ * - Collection ordering is normalized before hashing.
+ *
+ * Execution flow:
+ * 1. Normalize the graph's order-sensitive collections.
+ * 2. Hash the revision and normalized graph together.
+ *
+ * Failure cases:
+ * - Canonicalization and hashing errors propagate without creating a partial fingerprint.
+ *
+ * Side effects:
+ * - None; computes an in-memory fingerprint.
+ */
 export function inventoryFingerprint(
   revision: number,
   graph: LegalSemanticGraph,
@@ -74,15 +177,47 @@ export function inventoryFingerprint(
   return inventoryHash({ revision, graph: normalizeInventory(graph) });
 }
 /**
- * Necessary conditions for ANY valid Rule Set, so a frozen inventory that fails them can never be authored:
- * a Rule Set needs an AssessmentRule, hence an assessable Requirement, hence an operative proposition and a
- * non-empty applicabilityConditions list whose every entry has claim authority in the applicability role.
- * Decides capability from the role matrix only; it never reads or classifies source prose.
+ * Business purpose: Identify frozen inventories that cannot support any valid Requirement and AssessmentRule.
+ *
+ * Business rules:
+ * - A relevant operative claim is required unless a separate explicit no-obligations outcome is being validated.
+ * - Assessable, conditional operative claims need a claim-authorized applicability condition in their semantic closure.
+ * - Every claim marked RELEVANT must be reachable from an operative closure before the inventory can become authoring-ready.
+ * - The role matrix determines permitted claim types; this gate never interprets source prose.
+ *
+ * Execution flow:
+ * 1. Select relevant claims and identify operative claims using the shared role and authority rules.
+ * 2. Check each operative claim's closure for required applicability authority and collect reachable claim IDs.
+ * 3. Report each other relevant claim that is outside every operative closure.
+ *
+ * Failure cases:
+ * - Returns structured failures for missing operative claims, missing applicability authority, and unreachable relevant claims.
+ * - Semantic closure exceptions are left to the topology gate, which reports the underlying structural failure.
+ *
+ * Side effects:
+ * - None; inspects the graph and returns readiness failures.
  */
 export function authoringReadinessGaps(
   graph: LegalSemanticGraph,
 ): ComplianceRuleSetValidationFailure[] {
   const relevant = graph.claims.filter((c) => c.state === STATE.RELEVANT);
+  /**
+   * Business purpose: Find relevant claim types that the accounting matrix permits for one inventory role.
+   *
+   * Business rules:
+   * - Only claims in RELEVANT state can establish a role's readiness.
+   * - Claim-type eligibility comes from claimTypesForRole, not from source-text heuristics.
+   *
+   * Execution flow:
+   * 1. Read the allowed claim types for the requested accounting role.
+   * 2. Return those types and their relevant graph claims.
+   *
+   * Failure cases:
+   * - An unknown role yields no permitted claim types and therefore no matching claims.
+   *
+   * Side effects:
+   * - None; returns an in-memory projection.
+   */
   const bearing = (role: string) => {
     const types = claimTypesForRole(role);
     return {
@@ -136,10 +271,24 @@ export function authoringReadinessGaps(
   return failures;
 }
 /**
- * INV-C2: a complete review of a source that states no duty, prohibition or permission ends the
- * Preparation with an explicit outcome instead of failing under pressure to invent one. `failures` are the failures of
- * validateClaimInventory for this same inventory, so every other gate (all units reviewed, closure and provenance) keeps its existing code. Only the absence of an operative claim is waived,
- * and only when the gate itself reported it. Returns why the outcome is unavailable; [] means it may be recorded.
+ * Business purpose: Permit an explicit completed Preparation outcome when the source inventory contains no operative obligation.
+ *
+ * Business rules:
+ * - Any operative-typed claim blocks this outcome even when excluded, so an existing duty cannot be hidden by disposition.
+ * - Only the validator's explicit OPERATIVE_CLAIM_MISSING failure may be waived; all other inventory gates remain required.
+ * - The outcome is unavailable when validation did not establish the absence of operative claims.
+ *
+ * Execution flow:
+ * 1. Reject the conclusion if any claim has an operative proposition type.
+ * 2. Preserve every failure except the dedicated missing-operative-claim failure.
+ * 3. Return no failures only when that dedicated absence failure was actually present.
+ *
+ * Failure cases:
+ * - Returns a claim-phase failure for operative-typed claims or when the inventory gate did not report their absence.
+ * - Returns all unrelated validation failures unchanged.
+ *
+ * Side effects:
+ * - None; determines whether the explicit conclusion can be recorded.
  */
 export function noOperativeObligationsFailures(
   graph: LegalSemanticGraph,
@@ -171,6 +320,26 @@ export function noOperativeObligationsFailures(
         },
       ];
 }
+/**
+ * Business purpose: Validate a proposed semantic claim inventory before it is frozen for Rule authoring.
+ *
+ * Business rules:
+ * - Claims must bind the current run and revision through canonical identity keys and unique structured claim identity.
+ * - Source support, semantic topology, retrieval readiness, and complete inventory-wide authoring readiness are required.
+ * - A scoped diagnostic checks only its selected review units and cannot establish full-inventory authoring readiness.
+ *
+ * Execution flow:
+ * 1. Run the semantic graph validator in inventory-only mode and apply source-supported freeze checks.
+ * 2. Apply whole-inventory readiness unless the caller supplied a diagnostic review scope, and require a valid retrieval index.
+ * 3. Check each claim's canonical ID and structured identity for duplicates, then require exactly one identity key per claim.
+ *
+ * Failure cases:
+ * - Accumulates typed failures for source, semantic, identity, duplicate, and retrieval-index gaps rather than inferring missing facts.
+ * - Underlying graph/source validation errors propagate.
+ *
+ * Side effects:
+ * - None; validates supplied values and returns failures with coverage counts.
+ */
 export function validateClaimInventory(
   runId: string,
   revision: number,
@@ -239,6 +408,26 @@ export function validateClaimInventory(
     });
   return result;
 }
+/**
+ * Business purpose: Ensure authoring or submission remains bound to the exact frozen claim inventory.
+ *
+ * Business rules:
+ * - A packet cannot reference an old revision or proceed without a frozen inventory.
+ * - Packet binding, semantic graph digest, current run revision, and every Requirement revision must match the frozen record.
+ * - Changing claims requires an explicit inventory reopen that creates a new revision.
+ *
+ * Execution flow:
+ * 1. Reject a packet-level revision that differs from the current run revision.
+ * 2. Require a frozen inventory record.
+ * 3. Compare current, frozen, packet, graph-fingerprint, and Requirement revisions and return any stale-binding failure.
+ *
+ * Failure cases:
+ * - Returns a claim-inventory-required failure when no frozen inventory exists.
+ * - Returns a stale-inventory-binding failure for any revision, fingerprint, graph, or Requirement mismatch.
+ *
+ * Side effects:
+ * - None; checks persisted and submitted snapshots without mutation.
+ */
 export function validateFrozenInventory(
   packet: ComplianceRuleSetPacket,
   frozen: {
