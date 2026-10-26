@@ -67,8 +67,9 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
     app.post(
       "/billing/sepay/webhook",
       (req: express.Request, res: express.Response) => {
-        const isBuffer = Buffer.isBuffer(req.body);
-        const length = Buffer.isBuffer(req.body) ? req.body.length : 0;
+        const rawBody = Buffer.isBuffer(req.body) ? req.body : undefined;
+        const isBuffer = rawBody !== undefined;
+        const length = rawBody ? rawBody.length : 0;
         res.json({ ok: true, isBuffer, length });
       },
     );
