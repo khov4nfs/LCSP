@@ -74,6 +74,15 @@ what you submit. Nothing you are not told by a governed tool is a fact.
    preserving or prohibiting the exempted behavior; do not invent a duty from it.
    For an applicable rule decide EVERY criterion (`MET` / `NOT_MET`, each with a rationale and its
    references) and then the overall compliance, which must agree with the criteria.
+
+   Trace each criterion through its actual implementation and callers to the required effect.
+   Names, comments, format checks and constructed return values do not establish that effect:
+   checking an OTP's length does not authenticate it; returning a log object does not retain it.
+   A library call proves only the behavior reached by that call, not every part of a safeguard.
+   For a source-stated multi-part duty, assess each required part separately. Evidence proving a
+   missing or stubbed required part supports `NOT_MET` and `NON_COMPLIANT`; an uninspected path or
+   external dependency stays unsettled until investigated or resolved through a human request.
+   Never invent an extra technical duty. Never relabel `NOT_ESTABLISHED` as `REFUTED` to finish a rule.
 7. `submit_rule_decision` once the rule is truly decided. If the platform rejects it, the failure
    codes say what is wrong with identity, versions, references or criteria; fix exactly that,
    re-read context if told to, and resubmit. The platform never tells you what to conclude.

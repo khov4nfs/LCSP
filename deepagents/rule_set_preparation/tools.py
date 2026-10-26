@@ -788,7 +788,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                 with context.mutation_lock:
                     try:
                         return function(*args, **kwargs)
-                    except Exception as err:
+                    except (TypeError, ValueError, KeyError) as err:
                         return json.dumps({"outcome": "FAILED", "error": f"{type(err).__name__}: {str(err)}"})
             return invoke
         for governed in common[:4]:

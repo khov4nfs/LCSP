@@ -54,7 +54,13 @@ export function storedRuleSetIntegrityValid(
     const semanticGraph = row.semanticGraph
       ? {
           ...readSemanticGraph(row.semanticGraph),
-          ...((inventory?.graph as { targetDate?: string } | undefined)?.targetDate ? { targetDate: (inventory!.graph as { targetDate: string }).targetDate } : {}),
+          ...((inventory?.graph as { targetDate?: string } | undefined)
+            ?.targetDate
+            ? {
+                targetDate: (inventory.graph as { targetDate: string })
+                  .targetDate,
+              }
+            : {}),
           ...((inventory?.graph as { reviewFrontier?: unknown } | undefined)
             ?.reviewFrontier
             ? {
@@ -111,7 +117,9 @@ export function storedRuleSetIntegrityValid(
           ? { operativePropositions: rule.operativePropositions }
           : {}),
         applicabilityConditions: rule.applicabilityConditions,
-        ...(rule.applicabilityMode ? { applicabilityMode: rule.applicabilityMode } : {}),
+        ...(rule.applicabilityMode
+          ? { applicabilityMode: rule.applicabilityMode }
+          : {}),
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,
         nonRepositoryDuty: rule.nonRepositoryDuty,

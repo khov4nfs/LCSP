@@ -75,7 +75,12 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     );
     const id = start.preparationRunId;
     // This suite exercises immutable historical claim-first runs; new direct runs have their own HTTP acceptance.
-    await db.ruleSetPreparationRun.update({ where: { id }, data: { executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1 } });
+    await db.ruleSetPreparationRun.update({
+      where: { id },
+      data: {
+        executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1,
+      },
+    });
     await new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
@@ -370,7 +375,12 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       ),
     );
     const id = start.preparationRunId;
-    await db.ruleSetPreparationRun.update({ where: { id }, data: { executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1 } });
+    await db.ruleSetPreparationRun.update({
+      where: { id },
+      data: {
+        executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1,
+      },
+    });
     await new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),

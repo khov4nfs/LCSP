@@ -1,4 +1,9 @@
-import { legalSemanticGraphSchema, complianceRuleSetPacketSchema, ruleSetPreparationAuthoringDraftSchema, type ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
+import {
+  legalSemanticGraphSchema,
+  complianceRuleSetPacketSchema,
+  ruleSetPreparationAuthoringDraftSchema,
+  type ComplianceRuleSetPacket,
+} from "@lcsp/contracts/compliance-rule-set";
 import { PreparationExecutionContract } from "@prisma/client";
 import { inventoryHash } from "../../domain/claim-inventory.js";
 import type { Prisma } from "@prisma/client";
@@ -37,11 +42,23 @@ export async function pinnedMaterializationId(
 /** A valid older draft must not replace a newer accepted candidate snapshot. */
 export async function matchesPersistedDirectDraft(
   prisma: PrismaService | Prisma.TransactionClient,
-  run: { id: string; claimInventoryRevision: number; executionContract?: PreparationExecutionContract },
+  run: {
+    id: string;
+    claimInventoryRevision: number;
+    executionContract?: PreparationExecutionContract;
+  },
   packet: ComplianceRuleSetPacket,
 ) {
-  if (run.executionContract !== PreparationExecutionContract.DIRECT_DRAFT_V1) return true;
-  const saved = await prisma.ruleSetPreparationAuthoringDraft.findUnique({ where: { preparationRunId_revision: { preparationRunId: run.id, revision: run.claimInventoryRevision } } });
+  if (run.executionContract !== PreparationExecutionContract.DIRECT_DRAFT_V1)
+    return true;
+  const saved = await prisma.ruleSetPreparationAuthoringDraft.findUnique({
+    where: {
+      preparationRunId_revision: {
+        preparationRunId: run.id,
+        revision: run.claimInventoryRevision,
+      },
+    },
+  });
   const draft = ruleSetPreparationAuthoringDraftSchema.safeParse(saved?.draft);
   if (!draft.success) return false;
   const expected = complianceRuleSetPacketSchema.safeParse({
@@ -52,9 +69,18 @@ export async function matchesPersistedDirectDraft(
   });
   if (!expected.success) return false;
   const candidates = (p: ComplianceRuleSetPacket) => ({
-    legalRequirements: [...p.legalRequirements].sort((a, b) => a.legalRequirementId.localeCompare(b.legalRequirementId)),
-    assessmentRules: [...p.assessmentRules].sort((a, b) => a.assessmentRuleId.localeCompare(b.assessmentRuleId)),
-    contextRelations: [...p.contextRelations].sort((a, b) => a.relationId.localeCompare(b.relationId)),
+    legalRequirements: [...p.legalRequirements].sort((a, b) =>
+      a.legalRequirementId.localeCompare(b.legalRequirementId),
+    ),
+    assessmentRules: [...p.assessmentRules].sort((a, b) =>
+      a.assessmentRuleId.localeCompare(b.assessmentRuleId),
+    ),
+    contextRelations: [...p.contextRelations].sort((a, b) =>
+      a.relationId.localeCompare(b.relationId),
+    ),
   });
-  return inventoryHash(candidates(expected.data)) === inventoryHash(candidates(packet));
+  return (
+    inventoryHash(candidates(expected.data)) ===
+    inventoryHash(candidates(packet))
+  );
 }

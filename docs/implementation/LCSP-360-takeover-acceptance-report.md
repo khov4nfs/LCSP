@@ -1,8 +1,66 @@
 # LCSP-360 takeover acceptance
 
-Status: implementation and focused recovery verified; clean full-corpus acceptance is still in progress. This report supersedes runtime claims in the earlier worker reports, without changing their historical evidence.
+Status: **release BLOCKED; PR #427 remains Draft**. The delivery correction below supersedes the final-acceptance/merge recommendation on commit `d56331804140834aec9abff7ce105a08c78f59d7`. Earlier focused recovery evidence remains historical evidence, not current release acceptance.
 
-## Repository and authority
+## Final delivery correction — 2026-10-26
+
+### CI/security: root cause and fix
+
+The [autofix run on d56331804](https://github.com/khov4nfs/LCSP/actions/runs/40260039928) failed. API lint reported 15 unsafe-any errors in `http-body-parser.spec.ts`; automatic formatting also left an uncommitted diff, so API/Web checks were skipped. The test now narrows parsed fields, types test responses and reads raw-body length only inside a `Buffer.isBuffer` guard. Changed API files receive the same lint/format fixes required by CI.
+
+The [CodeQL check](https://github.com/khov4nfs/LCSP/runs/121370385412) failed with `Potential type confusion` at `http-body-parser.spec.ts:28`, where the test previously read `req.body?.length`. This is an unsafe test response projection, not an observed production parser exploit. The guarded Buffer access fixes the reported path; no suppression or alert dismissal is used. A successful Analyze job alone does not establish a successful aggregate CodeQL check.
+
+The exact Python result was **2 failed, 1,885 passed, 22 skipped**. Both failures were in `tests/test_claim_inventory_protocol.py`:
+
+- `test_rule_validation_no_progress_cannot_be_evaded_by_titles_or_progress_notes`: `DID NOT RAISE NoProgressDetected`.
+- `test_callback_runtime_failure_is_not_mislabeled_as_claim_shape_error`: `DID NOT RAISE WorkerCallbackError`.
+
+The inventory tool's serialization wrapper caught all exceptions and converted terminal control/callback errors into JSON feedback. It now catches only malformed-input errors (`TypeError`, `ValueError`, `KeyError`); runtime and callback errors propagate to their existing failure policy. Both original failing tests pass locally without changing their assertions.
+
+Local correction checks: **1,892 Python tests passed / 22 skipped** in 148.48 seconds, **43 focused API tests passed**, **7 provider-free semantic oracle tests passed**, and changed-file API ESLint passed across 171 files. These results are local verification; external/database integrations skipped by pytest and fresh live semantic execution remain separate gates.
+
+Full API typechecking also exposed the optional `semanticFrame` spread in `reference-only.spec.ts`: the known fixture frame must be non-null when extending it with a legal effect. The fixture now states that invariant, preserving the existing complete frame instead of inferring optional required fields.
+API typechecking and its focused reference-only/legal-effect/parser rerun subsequently passed (23 tests, including the six parser cases already counted above).
+
+The develop ruleset requires **Require Jira issue key**, **Docker sandbox E2E** and **V2 required release gate**, with strict current-base checks. The corrected candidate must run those checks, autofix and security checks on the same new commit. Old green checks on `95e2a0d` or `640d183f5` are not evidence for this candidate. Current completion evidence belongs in the existing [delivery comment](https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6406994481) with its exact new SHA and run links.
+
+### Separate acceptance denominators
+
+The retained representative receipt reports active Rule Set `97004ff3-9240-4e37-8a94-9ade8832c00a`, 243 rules, four representative rules, 17 completed model calls, 716,360 input and 7,064 output tokens, and 51.27 seconds. These are retained historical measurements, not a fresh execution in this correction.
+
+| Evidence                                 | Count | What it establishes                                                                                                         |
+| ---------------------------------------- | ----: | --------------------------------------------------------------------------------------------------------------------------- |
+| Synthetic API contract fixture decisions |   239 | Submission/coverage/finalization plumbing using a manifest evidence reference; no semantic investigation of those rules.    |
+| Representative AI decisions              |     4 | A real model investigated four selected rules in a controlled repository; semantic correctness must be reviewed separately. |
+| Total persisted RESOLVED coverage        |   243 | 239 fixtures + 4 AI decisions. **Not 243 genuine investigations.**                                                          |
+
+The six evidence records include one synthetic baseline record; they must not all be counted as AI-collected evidence. The harness now records fixture rule IDs before model execution and reports synthetic/AI decision and evidence counts separately.
+
+### Semantic evidence: failed historical oracle, new regression gate
+
+The historical representative trace accepted all four AI decisions as COMPLIANT. Direct source review refutes three positive verdicts: `src/auth.py` only checks identity/OTP string length and digits; `src/audit.py` returns a dictionary containing `retentionDays`; `src/data_log.py` returns a dictionary. Neither logging function persists its result. Accepted API decisions and COMPLETE lifecycle prove structural acceptance, not these semantic conclusions. The old `PASSED` receipt remains preserved and is not a semantic PASS.
+
+The representative harness now requires NOT_MET/NON_COMPLIANT for the cosmetic authentication and logging cases. Outcome diversity alone is insufficient. Shared live-evaluation cases add these independent expectations:
+
+| Regression                                                              | Expected result                                                                                                                                      |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OTP format check without issued-challenge authentication                | NOT_MET / NON_COMPLIANT.                                                                                                                             |
+| Audit object without persistence/retention                              | NOT_MET / NON_COMPLIANT.                                                                                                                             |
+| Encryption implemented but required key separation absent               | Encryption MET, key separation NOT_MET, overall NON_COMPLIANT.                                                                                       |
+| Actual audience applicability cannot be established                     | No accepted decision; material human request remains OPEN and assessment is not COMPLETE. NOT_ESTABLISHED must not become REFUTED or NOT_APPLICABLE. |
+| Input schema directly refutes the source-stated applicability condition | Referenced REFUTED basis, NOT_APPLICABLE, no criteria and no compliance verdict.                                                                     |
+
+Agent instructions require tracing the implementation and callers to each source-stated effect, without inventing technical duties. The same regression oracle is invoked by `assessment-root-live-eval.mjs` and tested against deliberately false positive packets. Offline fixture/oracle tests establish that the acceptance gate rejects wrong results; they **do not establish that a live model now reasons correctly**. Fresh governed real-model execution and independent semantic review remain **NOT_PROVEN**. No paid rerun is authorized or performed by this correction.
+
+### Budget governance and release boundary
+
+The earlier cumulative table claiming 2,265 calls / 155,468,116 tokens / 348.73 minutes is a historical aggregate requiring reconciliation against run IDs and durable physical-attempt/usage records. It is not proof of an approved envelope, exact provider charges or zero unknown exposure. `direct_investigator_root.py` uses default production model governance (`governance=None`); callback call/input limits and an alarm do not by themselves prove run-scoped admission, retry/fallback accounting or settlement. The separate `live_root.py` harness explicitly uses `governance=()` and labels its billing exclusion; its semantic results cannot establish production budget governance.
+
+Still required: reconcile approved run/envelope identities, restart/cumulative counters, physical provider attempts, failed/unknown usage, durable journal settlements and any financial ceiling claims. No cost or budget-governance PASS is inferred from successful finalization or completed-call token totals.
+
+Release remains BLOCKED until same-SHA CI/security, genuine adversarial semantic evidence, budget reconciliation and applicable release/staging gates actually pass. No merge, production deployment or Draft removal is part of this correction.
+
+## Historical takeover checkpoint: repository and authority
 
 The takeover started on `fix/LCSP-360-corpus-driven-applicability` at `3417d75682b9c645f6f792cad596987219db92f0`, with the existing implementation uncommitted. The starting patch, file hashes, previous disposable database and observed rows were preserved outside Git. PR #427 remains Draft. No production deployment or `lcsp_dev` lifecycle changes are part of this acceptance.
 
@@ -32,9 +90,9 @@ Focused tests cover concurrent stale snapshots, lost responses, invalid candidat
 
 Real-model/API recovery evidence:
 
-| Case | Run | Observed result |
-| --- | --- | --- |
-| Budget pause | `7ece997e-6193-48de-b349-130edbc9b4dd` | Three acknowledged requirements at draft v3 survived Admin HTTP 202 resume unchanged; final v7, six requirements, one rule, PASSED/ACTIVE, zero duplicate owners. |
+| Case                                         | Run                                    | Observed result                                                                                                                                                                                                        |
+| -------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Budget pause                                 | `7ece997e-6193-48de-b349-130edbc9b4dd` | Three acknowledged requirements at draft v3 survived Admin HTTP 202 resume unchanged; final v7, six requirements, one rule, PASSED/ACTIVE, zero duplicate owners.                                                      |
 | Hard crash before local save acknowledgement | `8359ae14-791c-46de-98a9-f578d1aede2e` | Fault injector exited 73 after real HTTP SAVE committed v1. The same requirement JSON survived a new process and Admin HTTP 202 resume; final v9, six requirements, three rules, PASSED/ACTIVE, zero duplicate owners. |
 
 The crash test used a cache-local fault injector, genuine model-authored candidates and the supported Worker failure API after worker death. It did not insert claims or mutate lifecycle rows directly.

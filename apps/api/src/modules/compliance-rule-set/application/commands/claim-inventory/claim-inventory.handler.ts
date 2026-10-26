@@ -145,7 +145,13 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           input.action === A.SAVE_AUTHORING_DRAFT ||
           input.action === A.LOAD_AUTHORING_DRAFT
         ) {
-          if (!frozen && !(run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1))
+          if (
+            !frozen &&
+            !(
+              run.executionContract ===
+              PreparationExecutionContract.DIRECT_DRAFT_V1
+            )
+          )
             return fail(G.PHASE, "A frozen inventory is required for a draft");
           const draftKey = {
             preparationRunId_revision: {
@@ -314,8 +320,16 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             "Graph and canonical identity keys are required",
           );
         const graph = normalizeInventory(input.graph);
-        if (run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1 && (!run.targetDate || graph.targetDate !== run.targetDate.toISOString().slice(0, 10)))
-          return fail(G.STALE, "Direct draft must use the run's pinned target date");
+        if (
+          run.executionContract ===
+            PreparationExecutionContract.DIRECT_DRAFT_V1 &&
+          (!run.targetDate ||
+            graph.targetDate !== run.targetDate.toISOString().slice(0, 10))
+        )
+          return fail(
+            G.STALE,
+            "Direct draft must use the run's pinned target date",
+          );
         const fingerprint = inventoryFingerprint(input.revision, graph);
         if (conclude && frozen)
           return fail(
@@ -431,10 +445,23 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
         const failures = conclude
           ? noOperativeObligationsFailures(persistentGraph, result.failures)
           : result.failures;
-        if (!conclude && run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1) {
-          const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({ where: { preparationRunId_revision: { preparationRunId: run.id, revision: input.revision } } });
-          const draft = ruleSetPreparationAuthoringDraftSchema.safeParse(saved?.draft);
-          if (!draft.success) return fail(G.SCHEMA, "A persisted direct draft is required");
+        if (
+          !conclude &&
+          run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1
+        ) {
+          const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({
+            where: {
+              preparationRunId_revision: {
+                preparationRunId: run.id,
+                revision: input.revision,
+              },
+            },
+          });
+          const draft = ruleSetPreparationAuthoringDraftSchema.safeParse(
+            saved?.draft,
+          );
+          if (!draft.success)
+            return fail(G.SCHEMA, "A persisted direct draft is required");
           const packet = complianceRuleSetPacketSchema.safeParse({
             legalRequirements: Object.values(draft.data.legalRequirements),
             assessmentRules: Object.values(draft.data.assessmentRules),
@@ -442,9 +469,30 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             semanticGraph: persistentGraph,
             claimInventory: { revision: input.revision, fingerprint },
           });
-          if (!packet.success) return fail(G.SCHEMA, packet.error.issues.slice(0, 20).map((i) => i.path.join(".") + ": " + i.message).join("; "));
-          failures.push(...validateComplianceRuleSetPacket(packet.data, snapshot, () => false).failures);
-          await tx.ruleSetPreparationRun.update({ where: { id: run.id }, data: { draftValidation: { outcome: failures.length ? O.FAILED : O.PASSED, failures } as Prisma.InputJsonValue } });
+          if (!packet.success)
+            return fail(
+              G.SCHEMA,
+              packet.error.issues
+                .slice(0, 20)
+                .map((i) => i.path.join(".") + ": " + i.message)
+                .join("; "),
+            );
+          failures.push(
+            ...validateComplianceRuleSetPacket(
+              packet.data,
+              snapshot,
+              () => false,
+            ).failures,
+          );
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: {
+              draftValidation: {
+                outcome: failures.length ? O.FAILED : O.PASSED,
+                failures,
+              },
+            },
+          });
         }
         if (failures.length)
           return {

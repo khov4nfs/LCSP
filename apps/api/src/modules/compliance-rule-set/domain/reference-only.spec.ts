@@ -176,7 +176,9 @@ describe("reference-only coverage and claim authority", () => {
     acc.material = true;
     acc.relationIds = [relation.relationId];
     acc.nonMaterialReason = null;
-    expect(validateSemanticClaimGraph(packet, source, true).failures).toEqual([]);
+    expect(validateSemanticClaimGraph(packet, source, true).failures).toEqual(
+      [],
+    );
   });
 
   it("permits material reference accounting into B when backed by a legal effect", () => {
@@ -185,7 +187,7 @@ describe("reference-only coverage and claim authority", () => {
       ...semantic.claims[0],
       claimId: "effect-b-1",
       semanticFrame: {
-        ...semantic.claims[0].semanticFrame,
+        ...semantic.claims[0].semanticFrame!,
         legalEffect: {
           kind: EffectKinds.REPEALS,
           targets: [{ nodeId: b.nodeId, scope: Scopes.EXACT }],
@@ -206,13 +208,17 @@ describe("reference-only coverage and claim authority", () => {
     acc.material = true;
     acc.relationIds = [];
     acc.nonMaterialReason = null;
-    expect(validateSemanticClaimGraph(packet, source, true).failures).toEqual([]);
+    expect(validateSemanticClaimGraph(packet, source, true).failures).toEqual(
+      [],
+    );
   });
 
   it("refuses forged REFERENCE_ONLY_TARGET when target is not a reference-only node", () => {
     const { source, packet, graph, semantic, origin } = {
       ...fixture(),
-      origin: fixture().source.documentGraph!.nodes.find((n) => n.content.trim())!,
+      origin: fixture().source.documentGraph!.nodes.find((n) =>
+        n.content.trim(),
+      )!,
     };
     const nonRefOnlyRef = {
       referenceId: "9".repeat(64),

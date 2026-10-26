@@ -180,7 +180,11 @@ export class ComplianceRuleSetActivation {
     if (
       ctx.failures.length === 0 &&
       (inventoryGaps.length ||
-        !(await matchesPersistedDirectDraft(tx, { id: ctx.runId, ...preparation }, ctx.packet)) ||
+        !(await matchesPersistedDirectDraft(
+          tx,
+          { id: ctx.runId, ...preparation },
+          ctx.packet,
+        )) ||
         preparation.claimPhase !== ClaimPreparationPhase.SUBMISSION_READY)
     )
       throw problemException(

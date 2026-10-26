@@ -728,12 +728,13 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             (await dependencies()).graph,
           );
           if (
-            payload.claims.some((c) =>
-              c.operative !== null &&
-              [
-                ...c.sourceNodeIds,
-                ...(c.sourceSupport ?? []).map((s) => s.nodeId),
-              ].some((id) => referenceOnly.has(id)),
+            payload.claims.some(
+              (c) =>
+                c.operative !== null &&
+                [
+                  ...c.sourceNodeIds,
+                  ...(c.sourceSupport ?? []).map((s) => s.nodeId),
+                ].some((id) => referenceOnly.has(id)),
             )
           )
             return failed(
@@ -991,8 +992,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               ref.toNodeId &&
               referenceOnly.has(ref.toNodeId) &&
               !accounting?.material &&
-              (accounting?.nonMaterialReason !==
-                REFERENCE_ONLY_TARGET_REASON ||
+              (accounting?.nonMaterialReason !== REFERENCE_ONLY_TARGET_REASON ||
                 accounting.relationIds.length ||
                 input.referenceIds?.includes(ref.referenceId))
             )
@@ -1014,14 +1014,13 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               continue;
             const hasLegalEffect = Boolean(
               ref.toNodeId &&
-                payload.claims.some((c) =>
-                  c.semanticFrame?.legalEffect?.targets.some(
-                    (t) =>
-                      t.nodeId === ref.toNodeId ||
-                      (t.scope === "SUBTREE" &&
-                        within(ref.toNodeId!, t.nodeId)),
-                  ),
+              payload.claims.some((c) =>
+                c.semanticFrame?.legalEffect?.targets.some(
+                  (t) =>
+                    t.nodeId === ref.toNodeId ||
+                    (t.scope === "SUBTREE" && within(ref.toNodeId!, t.nodeId)),
                 ),
+              ),
             );
             if (
               !accounting ||
@@ -1074,19 +1073,65 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           };
         };
         if (input.action === A.COMPLETE) {
-          const direct = run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1;
-          const draftKey = { preparationRunId_revision: { preparationRunId: run.id, revision: input.inventoryRevision } };
-          const savedDraft = direct ? await tx.ruleSetPreparationAuthoringDraft.findUnique({ where: draftKey }) : null;
-          const parsedDraft = direct ? ruleSetPreparationAuthoringDraftSchema.safeParse(input.draft) : null;
+          const direct =
+            run.executionContract ===
+            PreparationExecutionContract.DIRECT_DRAFT_V1;
+          const draftKey = {
+            preparationRunId_revision: {
+              preparationRunId: run.id,
+              revision: input.inventoryRevision,
+            },
+          };
+          const savedDraft = direct
+            ? await tx.ruleSetPreparationAuthoringDraft.findUnique({
+                where: draftKey,
+              })
+            : null;
+          const parsedDraft = direct
+            ? ruleSetPreparationAuthoringDraftSchema.safeParse(input.draft)
+            : null;
           const draftVersion = savedDraft?.draftVersion ?? 0;
-          if (direct && (!parsedDraft?.success || input.draftVersion === undefined))
-            return failed(CLAIM_INVENTORY_GAPS.SCHEMA, "draft", "Direct preparation requires typed candidates and their loaded draft version");
-          if (direct && input.draftVersion !== draftVersion && !(input.draftVersion === draftVersion - 1 && savedDraft && inventoryHash(savedDraft.draft) === inventoryHash(parsedDraft!.data)))
-            return failed(CLAIM_INVENTORY_GAPS.DRAFT_STALE, "draftVersion", "Reload the persisted draft before editing it");
-          if (direct && Object.values(parsedDraft!.data!.legalRequirements).some((r) => r.claimInventoryRevision !== input.inventoryRevision))
-            return failed(CLAIM_INVENTORY_GAPS.STALE, "draft", "Requirements must bind this exact source review revision");
+          if (
+            direct &&
+            (!parsedDraft?.success || input.draftVersion === undefined)
+          )
+            return failed(
+              CLAIM_INVENTORY_GAPS.SCHEMA,
+              "draft",
+              "Direct preparation requires typed candidates and their loaded draft version",
+            );
+          if (
+            direct &&
+            input.draftVersion !== draftVersion &&
+            !(
+              input.draftVersion === draftVersion - 1 &&
+              savedDraft &&
+              inventoryHash(savedDraft.draft) ===
+                inventoryHash(parsedDraft!.data)
+            )
+          )
+            return failed(
+              CLAIM_INVENTORY_GAPS.DRAFT_STALE,
+              "draftVersion",
+              "Reload the persisted draft before editing it",
+            );
+          if (
+            direct &&
+            Object.values(parsedDraft!.data!.legalRequirements).some(
+              (r) => r.claimInventoryRevision !== input.inventoryRevision,
+            )
+          )
+            return failed(
+              CLAIM_INVENTORY_GAPS.STALE,
+              "draft",
+              "Requirements must bind this exact source review revision",
+            );
           if (!direct && input.draft)
-            return failed(G.BINDING, "draft", "Historical preparation contracts cannot accept direct drafts");
+            return failed(
+              G.BINDING,
+              "draft",
+              "Historical preparation contracts cannot accept direct drafts",
+            );
           if (!input.sourceRevision || !input.frontierRevision)
             return failed(
               G.STALE,
@@ -1180,7 +1225,14 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           dependencySnapshot = undefined;
           // A direct package acknowledges candidates and their evidence together, never a partial write.
           if (direct && failures.size)
-            return { outcome: O.FAILED, completedSourceNodeIds: [], failures: [...failures].map(([sourceNodeId, failure]) => ({ sourceNodeId, failure })) };
+            return {
+              outcome: O.FAILED,
+              completedSourceNodeIds: [],
+              failures: [...failures].map(([sourceNodeId, failure]) => ({
+                sourceNodeId,
+                failure,
+              })),
+            };
           const completed: Extract<
             Awaited<ReturnType<typeof validateCompletion>>,
             { existing: RuleSetPreparationSourceReview }
@@ -1234,15 +1286,29 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               failures: input.batch ? rejected : rejected[0].failure.failures,
             };
           let acceptedDraftVersion = draftVersion;
-          if (direct && input.draftVersion === draftVersion && (!savedDraft || inventoryHash(savedDraft.draft) !== inventoryHash(parsedDraft!.data))) {
+          if (
+            direct &&
+            input.draftVersion === draftVersion &&
+            (!savedDraft ||
+              inventoryHash(savedDraft.draft) !==
+                inventoryHash(parsedDraft!.data))
+          ) {
             acceptedDraftVersion += 1;
             const draft = parsedDraft!.data! as Prisma.InputJsonValue;
             await tx.ruleSetPreparationAuthoringDraft.upsert({
               where: draftKey,
-              create: { preparationRunId: run.id, revision: input.inventoryRevision, draft, draftVersion: acceptedDraftVersion },
+              create: {
+                preparationRunId: run.id,
+                revision: input.inventoryRevision,
+                draft,
+                draftVersion: acceptedDraftVersion,
+              },
               update: { draft, draftVersion: acceptedDraftVersion },
             });
-            await tx.ruleSetPreparationRun.update({ where: { id: run.id }, data: { draftValidation: Prisma.DbNull } });
+            await tx.ruleSetPreparationRun.update({
+              where: { id: run.id },
+              data: { draftValidation: Prisma.DbNull },
+            });
           }
           return reply({
             ...(direct ? { draftVersion: acceptedDraftVersion } : {}),

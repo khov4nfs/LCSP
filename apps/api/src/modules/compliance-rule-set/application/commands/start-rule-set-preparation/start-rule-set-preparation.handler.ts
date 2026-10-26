@@ -16,7 +16,10 @@ import {
 } from "@lcsp/contracts/outbox";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import { AgentExecutionState as PrismaAgentExecutionState, PreparationExecutionContract } from "@prisma/client";
+import {
+  AgentExecutionState as PrismaAgentExecutionState,
+  PreparationExecutionContract,
+} from "@prisma/client";
 
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";

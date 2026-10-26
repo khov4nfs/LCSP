@@ -18,7 +18,12 @@ function build(executionState: State, failureReason: string | null) {
     claimInventoryRevision: 3,
     draftValidation: {
       outcome: "FAILED",
-      failures: [{ code: "LEGAL_REQUIREMENT_UNACCOUNTED", ref: "legalRequirement:art-1" }],
+      failures: [
+        {
+          code: "LEGAL_REQUIREMENT_UNACCOUNTED",
+          ref: "legalRequirement:art-1",
+        },
+      ],
     } as unknown,
   };
   const tx = {

@@ -250,7 +250,12 @@ export function validateSemanticClaimGraph(
       for (const nodeId of claim.sourceNodeIds) {
         const node = nodes.get(nodeId);
         if (!node) continue;
-        const effectiveStatus = effectiveSourceStatus(graph, semantic, nodeId, claim.sourceNodeIds);
+        const effectiveStatus = effectiveSourceStatus(
+          graph,
+          semantic,
+          nodeId,
+          claim.sourceNodeIds,
+        );
         if (effectiveStatus !== EFFECT.EFFECTIVE)
           fail(
             effectiveStatus === EFFECT.REPEALED
@@ -345,10 +350,25 @@ export function validateSemanticClaimGraph(
   for (const requirement of inventoryOnly ? [] : packet.legalRequirements) {
     const ref = `legalRequirement:${requirement.legalRequirementId}`;
     if (requirement.applicabilityMode) {
-      const anchors = (requirement.claimBindings ?? []).filter((b) => b.role === ROLE.OPERATIVE_PROPOSITION).map((b) => claims.get(b.claimId));
-      if (!anchors.length || anchors.some((c) => c?.semanticFrame?.applicabilityMode !== requirement.applicabilityMode) ||
-        (requirement.applicabilityMode === LEGAL_APPLICABILITY_MODES.UNCONDITIONAL && requirement.applicabilityConditions.length > 0))
-        fail(F.CLAIM_REQUIREMENT_MISMATCH, ref, "Applicability mode must preserve every source-backed operative finding and its conditions");
+      const anchors = (requirement.claimBindings ?? [])
+        .filter((b) => b.role === ROLE.OPERATIVE_PROPOSITION)
+        .map((b) => claims.get(b.claimId));
+      if (
+        !anchors.length ||
+        anchors.some(
+          (c) =>
+            c?.semanticFrame?.applicabilityMode !==
+            requirement.applicabilityMode,
+        ) ||
+        (requirement.applicabilityMode ===
+          LEGAL_APPLICABILITY_MODES.UNCONDITIONAL &&
+          requirement.applicabilityConditions.length > 0)
+      )
+        fail(
+          F.CLAIM_REQUIREMENT_MISMATCH,
+          ref,
+          "Applicability mode must preserve every source-backed operative finding and its conditions",
+        );
     }
     for (const gap of requirementClosureFailures(
       semantic,
@@ -392,10 +412,24 @@ export function validateSemanticClaimGraph(
       seen.add(identity);
       let valid: boolean;
       if (binding.role === ROLE.OPERATIVE_PROPOSITION) {
-        const predicate = JSON.stringify([claim.operative, [...(claim.sourceSupport ?? [])].sort((a, b) => a.nodeId.localeCompare(b.nodeId) || a.startOffset - b.startOffset), requirement.applicabilityMode ?? null, requirement.applicabilityConditions, requirement.qualifiers, requirement.exceptions]);
+        const predicate = JSON.stringify([
+          claim.operative,
+          [...(claim.sourceSupport ?? [])].sort(
+            (a, b) =>
+              a.nodeId.localeCompare(b.nodeId) || a.startOffset - b.startOffset,
+          ),
+          requirement.applicabilityMode ?? null,
+          requirement.applicabilityConditions,
+          requirement.qualifiers,
+          requirement.exceptions,
+        ]);
         const predicateOwner = operativePredicates.get(predicate);
         if (predicateOwner && predicateOwner !== requirement.legalRequirementId)
-          fail(F.CLAIM_REQUIREMENT_MISMATCH, ref, `The same supported obligation already belongs to Requirement ${predicateOwner}`);
+          fail(
+            F.CLAIM_REQUIREMENT_MISMATCH,
+            ref,
+            `The same supported obligation already belongs to Requirement ${predicateOwner}`,
+          );
         else operativePredicates.set(predicate, requirement.legalRequirementId);
         const owner = operativeOwners.get(binding.claimId);
         if (owner && owner !== requirement.legalRequirementId)
@@ -607,13 +641,13 @@ export function validateSemanticClaimGraph(
       );
     const hasLegalEffect = Boolean(
       reference.toNodeId &&
-        semantic.claims.some((c) =>
-          c.semanticFrame?.legalEffect?.targets.some(
-            (t) =>
-              t.nodeId === reference.toNodeId ||
-              (t.scope === "SUBTREE" && within(reference.toNodeId!, t.nodeId)),
-          ),
+      semantic.claims.some((c) =>
+        c.semanticFrame?.legalEffect?.targets.some(
+          (t) =>
+            t.nodeId === reference.toNodeId ||
+            (t.scope === "SUBTREE" && within(reference.toNodeId!, t.nodeId)),
         ),
+      ),
     );
     const projected = materialReferenceAccounting(
       reference.referenceId,

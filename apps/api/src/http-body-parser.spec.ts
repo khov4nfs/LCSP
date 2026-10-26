@@ -2,6 +2,21 @@ import express from "express";
 import request from "supertest";
 import { httpBodyParser } from "./http-body-parser.js";
 
+interface TestApiResponse {
+  ok: boolean;
+  length?: number;
+  isBuffer?: boolean;
+  frontierRevision?: number;
+  sourceRevision?: string;
+  batchCount?: number;
+}
+
+interface SourceReviewsBody {
+  frontierRevision?: number;
+  sourceRevision?: string;
+  batch?: unknown[];
+}
+
 describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
   let app: express.Express;
 
@@ -9,24 +24,54 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
     app = express();
     app.use(httpBodyParser());
 
-    app.post("/internal/compliance-rule-set/source-reviews", (req, res) => {
-      res.json({
-        ok: true,
-        length: JSON.stringify(req.body).length,
-        frontierRevision: req.body?.frontierRevision,
-        sourceRevision: req.body?.sourceRevision,
-        batchCount: req.body?.batch?.length,
-      });
-    });
+    app.post(
+      "/internal/compliance-rule-set/source-reviews",
+      (req: express.Request, res: express.Response) => {
+        const body =
+          typeof req.body === "object" && req.body !== null
+            ? (req.body as SourceReviewsBody)
+            : undefined;
+        const length =
+          typeof req.body === "object" && req.body !== null
+            ? JSON.stringify(req.body).length
+            : 0;
+        res.json({
+          ok: true,
+          length,
+          frontierRevision:
+            typeof body?.frontierRevision === "number"
+              ? body.frontierRevision
+              : undefined,
+          sourceRevision:
+            typeof body?.sourceRevision === "string"
+              ? body.sourceRevision
+              : undefined,
+          batchCount: Array.isArray(body?.batch)
+            ? body.batch.length
+            : undefined,
+        });
+      },
+    );
 
-    app.post("/internal/compliance-rule-set/failures", (req, res) => {
-      res.json({ ok: true, length: JSON.stringify(req.body).length });
-    });
+    app.post(
+      "/internal/compliance-rule-set/failures",
+      (req: express.Request, res: express.Response) => {
+        const length =
+          typeof req.body === "object" && req.body !== null
+            ? JSON.stringify(req.body).length
+            : 0;
+        res.json({ ok: true, length });
+      },
+    );
 
-    app.post("/billing/sepay/webhook", (req, res) => {
-      const isBuffer = Buffer.isBuffer(req.body);
-      res.json({ ok: true, isBuffer, length: req.body?.length ?? 0 });
-    });
+    app.post(
+      "/billing/sepay/webhook",
+      (req: express.Request, res: express.Response) => {
+        const isBuffer = Buffer.isBuffer(req.body);
+        const length = Buffer.isBuffer(req.body) ? req.body.length : 0;
+        res.json({ ok: true, isBuffer, length });
+      },
+    );
   });
 
   it("accepts valid JSON payload > 1 MiB on /internal/compliance-rule-set/source-reviews", async () => {
@@ -37,7 +82,8 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
       .send(JSON.stringify({ data: largeData }));
 
     expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
+    const body = res.body as TestApiResponse;
+    expect(body.ok).toBe(true);
   });
 
   it("rejects payload > 1 MiB on unconfigured internal endpoints with 413", async () => {
@@ -58,7 +104,8 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
       .send(JSON.stringify({ data: smallData }));
 
     expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
+    const body = res.body as TestApiResponse;
+    expect(body.ok).toBe(true);
   });
 
   it("enforces raw body and 256kb limit on /billing/sepay/webhook", async () => {
@@ -69,7 +116,9 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
       .send(okPayload);
 
     expect(resOk.status).toBe(200);
-    expect(resOk.body.isBuffer).toBe(true);
+    const bodyOk = resOk.body as TestApiResponse;
+    expect(bodyOk.isBuffer).toBe(true);
+    expect(bodyOk.length).toBe(Buffer.byteLength(okPayload));
 
     const tooBigPayload = "y".repeat(300 * 1024); // 300 KB > 256 KB
     const resTooBig = await request(app)
@@ -107,9 +156,10 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
       );
 
     expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
-    expect(res.body.frontierRevision).toBe(17);
-    expect(res.body.sourceRevision).toBe("6".repeat(64));
-    expect(res.body.batchCount).toBe(500);
+    const body = res.body as TestApiResponse;
+    expect(body.ok).toBe(true);
+    expect(body.frontierRevision).toBe(17);
+    expect(body.sourceRevision).toBe("6".repeat(64));
+    expect(body.batchCount).toBe(500);
   });
 });

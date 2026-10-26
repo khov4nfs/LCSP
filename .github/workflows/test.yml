@@ -114,6 +114,9 @@ jobs:
       - name: Test staging answer selection security
         run: node --test tests/literal-answer-choice.test.mjs
 
+      - name: Test semantic regression oracle (no provider calls)
+        run: node --test tests/assessment-semantic-oracle.test.mjs
+
   decision-pr-review-triage:
     name: PR review shadow triage packet
     if: github.event_name == 'pull_request'

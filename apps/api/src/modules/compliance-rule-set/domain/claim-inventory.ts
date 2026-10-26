@@ -113,7 +113,8 @@ export function authoringReadinessGaps(
         ![ASSESS.EXTERNAL_FULFILLMENT, ASSESS.NON_ASSESSABLE].includes(
           claim.assessability as never,
         ) &&
-        claim.semanticFrame?.applicabilityMode !== LEGAL_APPLICABILITY_MODES.UNCONDITIONAL &&
+        claim.semanticFrame?.applicabilityMode !==
+          LEGAL_APPLICABILITY_MODES.UNCONDITIONAL &&
         !closure.claims.some((c) => c.role === ROLE.APPLICABILITY_CONDITION)
       )
         failures.push({

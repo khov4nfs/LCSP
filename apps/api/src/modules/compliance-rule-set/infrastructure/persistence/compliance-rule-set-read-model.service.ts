@@ -108,7 +108,13 @@ export class ComplianceRuleSetReadModelLoader {
         ? {
             semanticGraph: {
               ...readSemanticGraph(active.semanticGraph),
-              ...((frozen?.graph as { targetDate?: string } | undefined)?.targetDate ? { targetDate: (frozen!.graph as { targetDate: string }).targetDate } : {}),
+              ...((frozen?.graph as { targetDate?: string } | undefined)
+                ?.targetDate
+                ? {
+                    targetDate: (frozen.graph as { targetDate: string })
+                      .targetDate,
+                  }
+                : {}),
               ...((frozen?.graph as { reviewFrontier?: unknown } | undefined)
                 ?.reviewFrontier
                 ? {
@@ -128,7 +134,9 @@ export class ComplianceRuleSetReadModelLoader {
       activatedAt: active.activatedAt?.toISOString() ?? null,
       legalRequirements: active.rules.map((rule) => ({
         legalRequirementId: rule.legalRequirementId,
-        ...(rule.applicabilityMode ? { applicabilityMode: rule.applicabilityMode } : {}),
+        ...(rule.applicabilityMode
+          ? { applicabilityMode: rule.applicabilityMode }
+          : {}),
         ...(active.preparationRun?.claimInventories?.[0]
           ? {
               claimInventoryRevision:

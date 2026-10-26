@@ -47,9 +47,18 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         { status: HttpStatus.NOT_FOUND },
       );
     }
-    const supported = input.request.supportedExecutionContracts ?? [PreparationExecutionContract.CLAIM_INVENTORY_V1];
+    const supported = input.request.supportedExecutionContracts ?? [
+      PreparationExecutionContract.CLAIM_INVENTORY_V1,
+    ];
     if (!supported.includes(run.executionContract))
-      throw problemException(COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict, input.correlationId, { status: HttpStatus.CONFLICT, meta: { reason: "WORKER_EXECUTION_CONTRACT_UNSUPPORTED" } });
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+        input.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: { reason: "WORKER_EXECUTION_CONTRACT_UNSUPPORTED" },
+        },
+      );
     const now = new Date();
     const leaseCutoff = new Date(
       now.getTime() - RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS * 1000,
@@ -153,7 +162,9 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         : await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
       executionContract: run.executionContract,
-      ...(run.targetDate ? { targetDate: run.targetDate.toISOString().slice(0, 10) } : {}),
+      ...(run.targetDate
+        ? { targetDate: run.targetDate.toISOString().slice(0, 10) }
+        : {}),
       executionState: state,
       claimInventoryRevision: run.claimInventoryRevision,
       claimPhase: P[run.claimPhase],

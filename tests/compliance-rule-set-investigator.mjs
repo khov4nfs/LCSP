@@ -500,7 +500,7 @@ This service processes sensitive patient health records.
   assert.equal(auditDecision.applicability, "APPLICABLE");
   assert.equal(auditDecision.compliance, "NON_COMPLIANT", "Unimplemented audit logging must be NON_COMPLIANT");
 
-  // Verify Unestablished / Not Applicable control: biometric-defense
+  // Refuted applicability control; unknown operator facts use the separate unresolved regression.
   const bioDecision = decisionByRule.get("biometric-defense");
   assert.ok(bioDecision, "Decision for biometric-defense must exist");
   assert.equal(

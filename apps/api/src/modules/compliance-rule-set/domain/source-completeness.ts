@@ -348,30 +348,68 @@ export function semanticFreezeFailures(
   }
   return failures;
 }
-import { LEGAL_EFFECT_KINDS, LEGAL_EFFECT_TARGET_SCOPES } from "@lcsp/contracts/compliance-rule-set";
+import {
+  LEGAL_EFFECT_KINDS,
+  LEGAL_EFFECT_TARGET_SCOPES,
+} from "@lcsp/contracts/compliance-rule-set";
 import { LEGAL_SOURCE_CHUNK_STATUSES } from "@lcsp/contracts/legal-source";
 
 /** Project authored effects on the existing pinned AST; never mutate the original text/status. */
-export function effectiveSourceStatus(source: LegalDocumentGraph, graph: LegalSemanticGraph, nodeId: string, supportingNodeIds: readonly string[] = []) {
+export function effectiveSourceStatus(
+  source: LegalDocumentGraph,
+  graph: LegalSemanticGraph,
+  nodeId: string,
+  supportingNodeIds: readonly string[] = [],
+) {
   const node = source.nodes.find((n) => n.nodeId === nodeId);
-  if (!node || !graph.targetDate) return node?.legalEffectStatus ?? LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN;
+  if (!node || !graph.targetDate)
+    return node?.legalEffectStatus ?? LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN;
   const at = graph.targetDate;
   const affected = graph.claims.flatMap((c) => {
     const effect = c.semanticFrame?.legalEffect;
     if (!effect || effect.kind === LEGAL_EFFECT_KINDS.REFERENCES) return [];
     const targets = effect.targets.some((t) => {
       const target = source.nodes.find((n) => n.nodeId === t.nodeId);
-      return t.nodeId === nodeId || (t.scope === LEGAL_EFFECT_TARGET_SCOPES.SUBTREE && target?.documentId === node.documentId && node.structuralPath.startsWith(target.structuralPath + "/"));
+      return (
+        t.nodeId === nodeId ||
+        (t.scope === LEGAL_EFFECT_TARGET_SCOPES.SUBTREE &&
+          target?.documentId === node.documentId &&
+          node.structuralPath.startsWith(target.structuralPath + "/"))
+      );
     });
-    if (!targets || (effect.effectiveFrom && effect.effectiveFrom > at) || (effect.effectiveUntil && effect.effectiveUntil <= at)) return [];
+    if (
+      !targets ||
+      (effect.effectiveFrom && effect.effectiveFrom > at) ||
+      (effect.effectiveUntil && effect.effectiveUntil <= at)
+    )
+      return [];
     return [{ claim: c, effect }];
   });
   if (!affected.length) return node.legalEffectStatus;
-  if (affected.some(({ effect }) => !effect.effectiveFrom || effect.conditions || effect.unresolvedTargets.length)) return LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN;
+  if (
+    affected.some(
+      ({ effect }) =>
+        !effect.effectiveFrom ||
+        effect.conditions ||
+        effect.unresolvedTargets.length,
+    )
+  )
+    return LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN;
   const kinds = new Set(affected.map(({ effect }) => effect.kind));
   if (kinds.size > 1) return LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN;
-  if (kinds.has(LEGAL_EFFECT_KINDS.REPEALS) || kinds.has(LEGAL_EFFECT_KINDS.SUSPENDS)) return LEGAL_SOURCE_CHUNK_STATUSES.REPEALED;
-  if ((kinds.has(LEGAL_EFFECT_KINDS.AMENDS) || kinds.has(LEGAL_EFFECT_KINDS.REPLACES)) &&
-    affected.some(({ claim }) => !claim.sourceNodeIds.some((id) => supportingNodeIds.includes(id)))) return LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN;
+  if (
+    kinds.has(LEGAL_EFFECT_KINDS.REPEALS) ||
+    kinds.has(LEGAL_EFFECT_KINDS.SUSPENDS)
+  )
+    return LEGAL_SOURCE_CHUNK_STATUSES.REPEALED;
+  if (
+    (kinds.has(LEGAL_EFFECT_KINDS.AMENDS) ||
+      kinds.has(LEGAL_EFFECT_KINDS.REPLACES)) &&
+    affected.some(
+      ({ claim }) =>
+        !claim.sourceNodeIds.some((id) => supportingNodeIds.includes(id)),
+    )
+  )
+    return LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN;
   return node.legalEffectStatus;
 }
