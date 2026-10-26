@@ -1,12 +1,17 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { HttpStatus } from "@nestjs/common";
+import { Inject } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { AUTH_RECORD_TYPES } from "../../../infrastructure/persistence/auth-record.persistence.ts";
+import {
+  AUTH_FAILURE_REASONS,
+  authFailure,
+} from "../../errors/auth-application.error.ts";
 import type { RevokeOwnedSessionSuccess } from "../../contracts/auth/settings.contract.ts";
+import {
+  AUTH_SESSION_REPOSITORY,
+  type SessionRepository,
+} from "../../ports/persistence/index.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { RevokeOwnedSessionCommand } from "./revoke-owned-session.command.ts";
 
@@ -15,13 +20,14 @@ import { RevokeOwnedSessionCommand } from "./revoke-owned-session.command.ts";
  *
  * Enforces:
  * 1. Verifies the target session ID exists and belongs to the authenticated user (`command.context.userId`).
- * 2. Throws 404 problemException if session is not found or owned by another user.
+ * 2. Throws 404 application failure if session is not found or owned by another user.
  * 3. Idempotently marks session as revoked.
  */
 @CommandHandler(RevokeOwnedSessionCommand)
 export class RevokeOwnedSessionHandler implements ICommandHandler<RevokeOwnedSessionCommand> {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(AUTH_SESSION_REPOSITORY)
+    private readonly sessions: SessionRepository,
     private readonly support: AuthSupportService,
   ) {}
 
@@ -36,30 +42,20 @@ export class RevokeOwnedSessionHandler implements ICommandHandler<RevokeOwnedSes
   ): Promise<RevokeOwnedSessionSuccess> {
     const correlationId =
       command.requestMeta.correlationId ?? this.support.createCorrelationId();
-    const session = await this.prisma.authRecord.findFirst({
-      where: {
-        id: command.sessionId,
-        userId: command.context.userId,
-        type: AUTH_RECORD_TYPES.session,
-      },
-    });
-
-    if (!session) {
-      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId, {
-        status: HttpStatus.NOT_FOUND,
-      });
-    }
-
-    if (!session.revokedAt) {
-      await this.prisma.authRecord.update({
-        where: { id: session.id },
-        data: { revokedAt: new Date() },
+    const owned = await this.sessions.revokeOwned(
+      command.sessionId,
+      command.context.userId,
+      this.support.now(),
+    );
+    if (!owned) {
+      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId, {
+        reason: AUTH_FAILURE_REASONS.resourceNotFound,
       });
     }
 
     return {
       ok: true,
-      revoked_session_id: session.id,
+      revoked_session_id: command.sessionId,
     };
   }
 }

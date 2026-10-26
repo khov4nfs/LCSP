@@ -13,7 +13,7 @@ import {
   fingerprintToken,
   hashSecret,
   issueOpaqueToken,
-} from "../../../infrastructure/security/security.utils.ts";
+} from "../../../../../platform/security/crypto.utils.js";
 import type { RequestRecoverySuccess } from "../../contracts/auth/recovery.contract.ts";
 import {
   AUTH_RECOVERY_NOTIFIER,

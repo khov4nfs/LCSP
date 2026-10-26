@@ -75,6 +75,24 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def evaluate_dataset(path: Path = DEFAULT_DATASET) -> dict[str, Any]:
+    """Business purpose: Evaluate frozen Jev decisions before considering a model for promotion.
+
+    Business rules:
+    - Score each result by its exact model version and decision class without making live provider calls.
+    - Promotion evidence must respect safety, calibration, sample-size and policy constraints.
+
+    Execution flow:
+    1. Load immutable evaluation records and calculate the reproducible dataset hash.
+    2. Normalize successful outputs and classify provider/schema failures.
+    3. Aggregate model and per-decision metrics before applying activation policies.
+
+    Failure cases:
+    - An unreadable dataset or invalid fixture structure raises an error instead of inventing quality metrics.
+    - Invalid model outputs remain failure observations and do not count as successful decisions.
+
+    Side effects:
+    - None: computes a deterministic report in memory from the supplied frozen fixture.
+    """
     raw = json.loads(path.read_text(encoding="utf-8"))
     records = [_record(item) for item in raw["records"]]
     dataset_hash = "sha256:" + sha256(

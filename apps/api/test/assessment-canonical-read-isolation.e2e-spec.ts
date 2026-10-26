@@ -27,6 +27,7 @@ import {
 import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { AssessmentRuntimeEventService } from "../src/platform/runtime-events/assessment-runtime-event.service.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 import { seedAuthWorkspaceFixture } from "./support/auth-workspace-test-helpers.js";
 
@@ -157,9 +158,9 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
     assert.equal(problemCode(foreignNull), ASSESSMENT_ERROR_CODES.notFound);
   });
 
-  it("scopes workspace snapshots to the authenticated owner", async () => {
+  it("scopes canonical HTTP SSE and durable agent-stream replay by assessment owner", async () => {
     const ownerSnapshotResult = await readSseEvent(
-      `/workspace/runtime-events?agent_stream_only=0`,
+      "/workspace/runtime-events",
       ownerAToken,
       "workspace.runtime",
     );
@@ -175,26 +176,76 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
       [OWNER_A_ASSESSMENT_EVENT_ID],
     );
 
-    const foreignSnapshotResult = await readSseEvent(
-      `/workspace/runtime-events?agent_stream_only=0`,
+    const otherOwnerSnapshot = await readSseEvent(
+      "/workspace/runtime-events",
       ownerBToken,
       "workspace.runtime",
     );
-    assert.equal(foreignSnapshotResult.statusCode, 200);
-    const foreignSnapshot = foreignSnapshotResult.frame;
-    assert.ok(foreignSnapshot);
+    assert.equal(otherOwnerSnapshot.statusCode, 200);
+    assert.ok(otherOwnerSnapshot.frame);
     assert.deepEqual(
-      idsFromSnapshot(foreignSnapshot.data.canonical_assessments),
+      idsFromSnapshot(otherOwnerSnapshot.frame.data.canonical_assessments),
       [OWNER_B_ASSESSMENT_ID],
     );
     assert.deepEqual(
-      idsFromSnapshot(foreignSnapshot.data.canonical_events, "eventId"),
+      idsFromSnapshot(
+        otherOwnerSnapshot.frame.data.canonical_events,
+        "eventId",
+      ),
       [OWNER_B_ASSESSMENT_EVENT_ID],
     );
 
-    // Assessment agent replay uses its assessment boundary, not the workspace snapshot.
-    assert.deepEqual(ownerSnapshot.data.agent_stream_events, []);
-    assert.deepEqual(foreignSnapshot.data.agent_stream_events, []);
+    // The old agent_stream_only query no longer selects a separate HTTP
+    // event. The canonical SSE contract must never emit foreign journal rows.
+    const canonicalOnly = await readSseEvent(
+      `/workspace/runtime-events?agent_stream_only=1&assessment_id=${OWNER_A_PRESENT_ASSESSMENT_ID}`,
+      ownerBToken,
+      "workspace.runtime",
+    );
+    assert.equal(canonicalOnly.statusCode, 200);
+    assert.ok(canonicalOnly.frame);
+    assert.deepEqual(
+      idsFromSnapshot(canonicalOnly.frame.data.canonical_assessments),
+      [OWNER_B_ASSESSMENT_ID],
+    );
+    assert.deepEqual(canonicalOnly.frame.data.agent_stream_events, []);
+
+    // Durable agent-stream history remains an owner-scoped service capability,
+    // not a public endpoint. Test it directly against real PostgreSQL.
+    const runtimeEvents = app.get(AssessmentRuntimeEventService);
+    const ownerHistory = await runtimeEvents.getAgentStreamHistoryPage(
+      OWNER_A_ID,
+      OWNER_A_PRESENT_ASSESSMENT_ID,
+    );
+    assert.deepEqual(
+      ownerHistory.events.map((event) => event.eventId),
+      [OWNER_A_RUNTIME_EVENT_ID],
+    );
+    assert.equal(
+      ownerHistory.events[0]?.assessmentId,
+      OWNER_A_PRESENT_ASSESSMENT_ID,
+    );
+
+    const foreignHistory = await runtimeEvents.getAgentStreamHistoryPage(
+      OWNER_B_ID,
+      OWNER_A_PRESENT_ASSESSMENT_ID,
+    );
+    assert.deepEqual(foreignHistory.events, []);
+    const otherOwnerHistory = await runtimeEvents.getAgentStreamHistoryPage(
+      OWNER_B_ID,
+      OWNER_B_ASSESSMENT_ID,
+    );
+    assert.deepEqual(
+      otherOwnerHistory.events.map((event) => event.eventId),
+      [OWNER_B_RUNTIME_EVENT_ID],
+    );
+
+    // Do not reintroduce the retired public agent-stream history endpoint.
+    const retiredHistory = await httpRequest(app)
+      .get("/workspace/runtime-events/agent-stream-history")
+      .query({ assessment_id: OWNER_A_PRESENT_ASSESSMENT_ID })
+      .set("Authorization", `Bearer ${ownerAToken}`);
+    assert.equal(retiredHistory.status, 404);
   });
 
   it("keeps unauthorized reads pure", async () => {
@@ -204,6 +255,12 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
       .get(`/assessments/${OWNER_A_PRESENT_ASSESSMENT_ID}`)
       .set("Authorization", `Bearer ${ownerBToken}`);
     assert.equal(assessment.status, 404);
+
+    const history = await httpRequest(app)
+      .get("/workspace/runtime-events/agent-stream-history")
+      .query({ assessment_id: OWNER_A_PRESENT_ASSESSMENT_ID })
+      .set("Authorization", `Bearer ${ownerBToken}`);
+    assert.equal(history.status, 404);
 
     const snapshot = await readSseEvent(
       "/workspace/runtime-events",
@@ -217,6 +274,11 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
       [OWNER_B_ASSESSMENT_ID],
     );
     assert.deepEqual(snapshot.frame.data.agent_stream_events, []);
+
+    const foreignReplay = await app
+      .get(AssessmentRuntimeEventService)
+      .getAgentStreamHistoryPage(OWNER_B_ID, OWNER_A_PRESENT_ASSESSMENT_ID);
+    assert.deepEqual(foreignReplay.events, []);
 
     const after = await readAuthorityRows();
     assert.deepEqual(after, before);

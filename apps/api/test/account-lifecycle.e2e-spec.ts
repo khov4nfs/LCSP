@@ -8,6 +8,7 @@ import {
   jest,
 } from "@jest/globals";
 import type {
+  AdminUserActionInput,
   AdminUserDetail,
   AdminUserListResponse,
 } from "@lcsp/contracts/auth";
@@ -33,11 +34,19 @@ import { randomUUID } from "node:crypto";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import {
   ADMIN_COMMAND_HANDLERS,
+  RestoreUserCommand,
+  RestoreUserHandler,
   SuspendUserCommand,
   SuspendUserHandler,
 } from "../src/modules/admin/application/commands/index.js";
 import { ADMIN_QUERY_HANDLERS } from "../src/modules/admin/application/queries/index.js";
 import { AdminUsersController } from "../src/modules/admin/presentation/http/admin-users.controller.js";
+import {
+  AUTH_MFA_ENROLLMENT_REPOSITORY,
+  AUTH_SESSION_REPOSITORY,
+  AUTH_USER_REPOSITORY,
+} from "../src/modules/auth/application/ports/persistence/index.js";
+import { AUTH_AUDIT_EVENT_WRITER } from "../src/modules/auth/application/ports/audit/audit-event-writer.port.js";
 import { AuthAuditService } from "../src/modules/auth/application/services/auth/auth-audit.service.js";
 import { Session } from "../src/modules/auth/domain/entities/session.entity.js";
 import {
@@ -56,18 +65,13 @@ import {
 import { AuditWriterService } from "../src/platform/audit/audit-writer.service.js";
 import { MailService } from "../src/platform/mail/mail.service.js";
 import { HttpExceptionFilter } from "../src/platform/http/filters/http-exception.filter.js";
+import { ResponseTransformInterceptor } from "../src/platform/http/interceptors/response-transform.interceptor.js";
 import { RequireSession } from "../src/platform/rbac/decorators/require-session.decorator.js";
+import { AUTHORIZATION_DECISION_REPOSITORY } from "../src/platform/rbac/authorization-decision.repository.js";
 import { PrismaAuthorizationDecisionRepository } from "../src/platform/rbac/prisma-authorization-decision.repository.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { RbacPreflightService } from "../src/platform/rbac/rbac-preflight.service.js";
-import { ResponseTransformInterceptor } from "../src/platform/http/index.js";
 import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
-import { AUTHORIZATION_DECISION_REPOSITORY } from "../src/platform/rbac/authorization-decision.repository.js";
-import {
-  AUTH_SESSION_REPOSITORY,
-  AUTH_USER_REPOSITORY,
-  AUTH_MFA_ENROLLMENT_REPOSITORY,
-} from "../src/modules/auth/application/ports/persistence/index.js";
 import { httpRequest, successBody } from "./support/http.js";
 const databaseUrl = process.env.LCSP299_TEST_DATABASE_URL;
 const integration = databaseUrl ? describe : describe.skip;
@@ -139,6 +143,7 @@ integration(
           ...ADMIN_QUERY_HANDLERS,
           AuthAuditService,
           AuditWriterService,
+          { provide: AUTH_AUDIT_EVENT_WRITER, useExisting: AuditWriterService },
           HttpExceptionFilter,
           RbacGuard,
           RbacContextLoader,
@@ -148,18 +153,18 @@ integration(
             provide: AUTHORIZATION_DECISION_REPOSITORY,
             useExisting: PrismaAuthorizationDecisionRepository,
           },
-          {
-            provide: AUTH_SESSION_REPOSITORY,
-            useExisting: PrismaSessionRepository,
-          },
-          { provide: AUTH_USER_REPOSITORY, useExisting: PrismaUserRepository },
+          PrismaMfaEnrollmentRepository,
           {
             provide: AUTH_MFA_ENROLLMENT_REPOSITORY,
             useExisting: PrismaMfaEnrollmentRepository,
           },
-          PrismaMfaEnrollmentRepository,
           PrismaSessionRepository,
+          {
+            provide: AUTH_SESSION_REPOSITORY,
+            useExisting: PrismaSessionRepository,
+          },
           PrismaUserRepository,
+          { provide: AUTH_USER_REPOSITORY, useExisting: PrismaUserRepository },
         ],
       }).compile();
       app = module.createNestApplication();
@@ -236,7 +241,7 @@ integration(
         .get(path)
         .set("Authorization", `Bearer ${as.token}`);
     }
-    it("denies anonymous/non-admin list, detail and every Admin write", async () => {
+    it("enforces Admin RBAC and leaves retired create-user endpoint unavailable", async () => {
       expect((await httpRequest(app).get("/admin/users")).status).toBe(401);
       for (const path of ["/admin/users", `/admin/users/${admin.id}`])
         expect((await get(path, target)).status).toBe(403);
@@ -269,7 +274,7 @@ integration(
         ).status,
       ).toBe(404);
     });
-    it("does not label lockout or unverified users as Suspended/Invited", async () => {
+    it("does not infer Invited status from lockout or unverified email", async () => {
       await prisma.user.update({
         where: { id: target.id },
         data: { emailVerified: false, lockUntil: new Date(Date.now() + 60000) },
@@ -278,7 +283,11 @@ integration(
         successBody<AdminUserDetail>(await get(`/admin/users/${target.id}`))
           .status,
       ).toBe(AUTH_ACCOUNT_STATUSES.active);
-      expect((await get("/admin/users?status=INVITED")).status).toBe(400);
+      const retiredStatus = await get("/admin/users?status=INVITED");
+      expect(retiredStatus.status).toBe(400);
+      expect(
+        (retiredStatus.body as { problem?: { code?: string } }).problem?.code,
+      ).toBe(E.invalidInput);
     });
     it("suspends and restores without changing security lockout or reviving sessions", async () => {
       const lockUntil = new Date(Date.now() + 1000);
@@ -374,7 +383,9 @@ integration(
         (await mutate(admin, second.id, "suspend", { expectedVersion: 0 }))
           .status,
       ).toBe(200);
-      await users.save(staleUser);
+      // A stale entity must not be written back wholesale: only the intended
+      // MFA field may be changed, without reverting suspension or role.
+      expect(await users.setMfaRequired(staleUser.id, true)).toBe(false);
       expect(
         (await prisma.user.findUniqueOrThrow({ where: { id: second.id } }))
           .role,
@@ -542,7 +553,50 @@ integration(
       expect(await prisma.adminAccountCommandReceipt.count()).toBe(0);
       expect((await get("/lcsp299-test/protected", target)).status).toBe(200);
     });
-    it("rejects role fields at the HTTP boundary before changing state or receipts", async () => {
+    it("rejects retired commands and role fields before changing state, audit or receipts", async () => {
+      const record = await prisma.authRecord.findFirstOrThrow({
+        where: { userId: admin.id, type: AUTH_RECORD_TYPES.session },
+      });
+      const auditCount = await prisma.auditEvent.count();
+      await expect(
+        app.get(SuspendUserHandler).execute(
+          new SuspendUserCommand(
+            target.id,
+            {
+              role: AUTH_USER_ROLES.admin,
+              expectedVersion: 0,
+            } as unknown as AdminUserActionInput,
+            {
+              userId: admin.id,
+              sessionId: record.id,
+              role: AUTH_USER_ROLES.admin,
+              scope: target.id,
+              correlationId: randomUUID(),
+              idempotencyKey: randomUUID(),
+            },
+          ),
+        ),
+      ).rejects.toThrow();
+      await expect(
+        app.get(RestoreUserHandler).execute(
+          new RestoreUserCommand(
+            target.id,
+            {
+              expectedVersion: 0,
+              role: AUTH_USER_ROLES.admin,
+            } as unknown as AdminUserActionInput,
+            {
+              userId: admin.id,
+              sessionId: record.id,
+              role: AUTH_USER_ROLES.admin,
+              scope: target.id,
+              correlationId: randomUUID(),
+              idempotencyKey: randomUUID(),
+            },
+          ),
+        ),
+      ).rejects.toThrow();
+      expect(await prisma.auditEvent.count()).toBe(auditCount);
       for (const operation of ["suspend", "restore"])
         expect(
           (
