@@ -1,0 +1,66 @@
+{
+  "parentCommit": "d36875dd4d3b46427a78cc6e0557b1502d615c4a",
+  "baselineSha256": "3d0522327577dc5f07971e90e86d6e7cc440b9554ee67fe285ab05b17a43b8d0",
+  "files": [
+    {
+      "path": "apps/api/src/modules/legal-source/application/services/legal-source-document.service.ts",
+      "implementationAstSha256": "403bf75c81fdcf8ac52b237593e830b2731262e9446c1200366a7a9cae8fbd00"
+    },
+    {
+      "path": "apps/web/src/lib/api/legal-source-queries.ts",
+      "implementationAstSha256": "8fdfa7a84540fe43588379fc2c4d89adffcae3008083411043a9909224e9ade9"
+    },
+    {
+      "path": "deepagents/middleware/paid_admission.py",
+      "implementationAstSha256": "28829b0a92dd8b6ed39996ad744f62af3235b3cf5c3b4ab3aaffb04d086cdd3c",
+      "originalDocGuidanceRetained": true
+    },
+    {
+      "path": "deepagents/middleware/usage_metering.py",
+      "implementationAstSha256": "30e9dd3faebcee759ff82a4964a5dc5a9c4ce03433220b09d9df51c097088d39",
+      "originalDocGuidanceRetained": true
+    },
+    {
+      "path": "deepagents/rule_set_preparation/claim_inventory.py",
+      "implementationAstSha256": "b80d8eb83e8bb6fd2dacfd15eac1bf2d2191b62b2f4a3a3f7ea7376ec0126b59",
+      "originalDocGuidanceRetained": true
+    },
+    {
+      "path": "deepagents/rule_set_preparation/claim_tools.py",
+      "implementationAstSha256": "297c31cc7c58d5a98efe4d2d317f6ef014cc400c2d88bdefcf79757d70799501",
+      "originalDocGuidanceRetained": true
+    },
+    {
+      "path": "deepagents/rule_set_preparation/source_graph.py",
+      "implementationAstSha256": "2834d77fdc00bd52be6e06d4d48d455098c929b6453c4230795896b705a0b29c",
+      "originalDocGuidanceRetained": true
+    },
+    {
+      "path": "deepagents/tools/legal/managed_documents/extract.py",
+      "implementationAstSha256": "ee12dc4727832feaca5d3a476949e627293c0f53334a02ecb805e89721fe6f56",
+      "originalDocGuidanceRetained": true
+    },
+    {
+      "path": "packages/contracts/src/assessment/agentic-runtime.ts",
+      "implementationAstSha256": "0e7dffaf1bb7ff9687a34084b74e0c16d3f4f1456485e3b4b2149ea106d19a55"
+    },
+    {
+      "path": "packages/contracts/src/billing/official-reference-pricing.ts",
+      "implementationAstSha256": "1e1dade4c796a6893299e651d1b7771f6ddca426d9788553c31dccdef7581180"
+    },
+    {
+      "path": "packages/contracts/src/compliance-rule-set/applicability.ts",
+      "implementationAstSha256": "d899e60a2426f4078ce633181e539276d84bd7dd33da21fcd710f8b54cb52152"
+    },
+    {
+      "path": "packages/contracts/src/compliance-rule-set/semantic-graph.ts",
+      "implementationAstSha256": "2289f958f25fd642d765dc5962e2f7add667320ef1fc040538801d4f78831792"
+    },
+    {
+      "path": "packages/contracts/src/legal-source/management.ts",
+      "implementationAstSha256": "0de8ed4cc46f754eaa99a60c7991df12496635dd5b45705a86e05d25e1176590"
+    }
+  ],
+  "implementationAstEquality": "PASS",
+  "scope": "Documentation wave only; Root fixes are in the parent commit. Structured AST comparison ignores comments and formatting, preserving syntax kinds, literal values, semantic flags and child structure. Python tool docstrings gain required documentation while original invocation guidance is retained. Live semantic correctness remains a separate gate."
+}

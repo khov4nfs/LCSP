@@ -25,7 +25,19 @@ Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
 
 def fingerprint(value: dict) -> str:
-    """Fingerprint canonical, secret-free configuration or usage evidence."""
+    """Fingerprint canonical, secret-free configuration or usage evidence.
+
+    Business purpose: Bind an evaluation envelope or usage identity to canonical secret-free content.
+
+    Business rules:
+    - Canonical JSON sorts keys and uses compact separators; the digest does not establish the truth of a provider charge policy.
+    Execution flow:
+    1. Serialize the supplied configuration or evidence and return SHA-256.
+    Failure cases:
+    - Non-serializable values propagate failure; no replacement envelope identity is generated.
+    Side effects:
+    - Pure hashing; no journal or provider interaction.
+    """
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -67,6 +79,18 @@ class ChargePolicy(TokenPolicy):
     rounding_quantum: Positive
 
     def charge(self, input_tokens, cached, written, output, reasoning):
+        """Business purpose: Calculate a provider charge under an independently verified pinned tariff.
+
+        Business rules:
+        - Charge disjoint input/cache buckets and split output into visible and reasoning parts; apply the tariff's minimum and rounding quantum.
+        Execution flow:
+        1. Sum fixed and token charges.
+        2. Apply the minimum charge and round upward to the required quantum.
+        Failure cases:
+        - The caller validates usage completeness and bucket consistency; invalid arithmetic inputs propagate instead of assuming zero.
+        Side effects:
+        - Pure tariff calculation; does not settle or bill an attempt.
+        """
         subtotal = (self.fixed_charge + input_tokens * self.input_rate
                     + cached * self.cache_read_rate + written * self.cache_write_rate
                     + (output - reasoning) * self.output_rate + reasoning * self.reasoning_rate)
@@ -74,6 +98,18 @@ class ChargePolicy(TokenPolicy):
         return ((subtotal + self.rounding_quantum - 1) // self.rounding_quantum) * self.rounding_quantum
 
     def exposure(self):
+        """Business purpose: Reserve a conservative maximum charge for a permitted physical provider attempt.
+
+        Business rules:
+        - Use the largest allowed input and output category rates, declared token bounds, fixed/minimum charge and upward rounding.
+        Execution flow:
+        1. Calculate worst-case input/output charge from verified policy bounds.
+        2. Apply the minimum and rounding quantum.
+        Failure cases:
+        - This calculation relies on the pinned policy's verification; it cannot prove the provider honors those bounds.
+        Side effects:
+        - Pure exposure calculation; creates no admission or provider call.
+        """
         input_rate = max(self.input_rate, self.cache_read_rate, self.cache_write_rate)
         output_rate = max(self.output_rate, self.reasoning_rate)
         subtotal = max(self.fixed_charge + self.input_upper_bound * input_rate
@@ -127,6 +163,17 @@ class UnrestrictedRunBudget(TokenRunBudget):
 
 
 def parse_run_budget(value: dict) -> RunBudget | TokenRunBudget | UnrestrictedRunBudget:
+    """Business purpose: Validate an immutable evaluation envelope using its declared governance schema.
+
+    Business rules:
+    - Schema 3 is token-only and schema 4 explicitly unrestricted; other schema values are validated against the schema-2 financial envelope.
+    Execution flow:
+    1. Select the declared envelope model and validate all fields through its frozen schema.
+    Failure cases:
+    - Unrecognized versions, malformed fields or unsupported properties fail model validation; construction never authorizes inference by itself.
+    Side effects:
+    - Pure envelope parsing; no journal writes or model dispatch.
+    """
     model = {3: TokenRunBudget, 4: UnrestrictedRunBudget}.get(value.get("schema_version"), RunBudget)
     return model.model_validate(value)
 
@@ -159,6 +206,19 @@ class RunAdmission:
 
     @contextmanager
     def _transaction(self):
+        """Business purpose: Make admission and usage reconciliation atomic and durable in the existing usage journal.
+
+        Business rules:
+        - Use full synchronous durability, foreign keys and an immediate transaction before exposing mutable admission state.
+        Execution flow:
+        1. Open the journal and acquire its write transaction.
+        2. Run the caller's operation and commit on success.
+        3. Close the connection on every exit.
+        Failure cases:
+        - SQLite/filesystem failures become DURABILITY admission errors; an uncommitted operation is discarded when the connection closes.
+        Side effects:
+        - Creates a SQLite connection and commits authorized journal mutations; never calls a provider.
+        """
         db = None
         try:
             db = _connect(self.path)
@@ -175,6 +235,18 @@ class RunAdmission:
                 db.close()
 
     def _check_identity(self, db):
+        """Business purpose: Reject mutable or substituted run envelopes during every admission operation.
+
+        Business rules:
+        - The current in-memory envelope, stored digest and stored envelope content must match the original immutable identity.
+        Execution flow:
+        1. Load the run's stored envelope.
+        2. Compare all canonical fingerprints and return it only when consistent.
+        Failure cases:
+        - Absent or changed envelope raises BUDGET_CHANGED before the caller can reserve or settle an attempt.
+        Side effects:
+        - Read-only validation within the caller's journal transaction.
+        """
         row = db.execute("SELECT * FROM inference_budgets WHERE run_id=?", (self.run_id,)).fetchone()
         if (fingerprint(self.budget.model_dump(mode="json")) != self.identity or not row
                 or row["fingerprint"] != self.identity or fingerprint(json.loads(row["envelope"])) != self.identity):
@@ -182,7 +254,22 @@ class RunAdmission:
         return row
 
     def admit(self, attempt_id: str, identity: dict, *, reason: str | None = None) -> ChargePolicy | TokenPolicy:
-        """Commit admission or terminal denial before the caller may dispatch."""
+        """Commit admission or terminal denial before the caller may dispatch.
+
+        Business purpose: Durably reserve or deny a physical provider attempt before it can be dispatched.
+
+        Business rules:
+        - Require a verified route/account/endpoint/SDK policy within its validity window and an unchanged run envelope.
+        - Each attempt identity is unique; all non-denied run-wide exposure survives resume and counts against any declared aggregate ceilings.
+        Execution flow:
+        1. Resolve policy identity and expiry conditions.
+        2. Lock the journal, validate the envelope and reject duplicate attempts.
+        3. Compare cumulative reserved exposure with active ceilings and persist admission or terminal denial before returning.
+        Failure cases:
+        - Unrecognized/unverified policy, expiry, exhausted ceilings or prior stop persist DENIED and stop the run; duplicate attempts stop with DUPLICATE_ATTEMPT.
+        Side effects:
+        - Writes attempt identity/history/exposure and possibly the terminal run reason to the journal; performs no provider request.
+        """
         policy = next((p for p in self.budget.policies if (p.route_id, p.credential_fingerprint)
                        == (identity.get("route_id"), identity.get("credential_fingerprint"))), None)
         now = time.time()
@@ -231,6 +318,19 @@ class RunAdmission:
         return policy
 
     def transition(self, attempt_id: str, state: Literal["IN_FLIGHT", "OUTCOME_UNKNOWN"]):
+        """Business purpose: Track an admitted physical attempt becoming in-flight or outcome-unknown without undoing settlement.
+
+        Business rules:
+        - Only ADMITTED can become IN_FLIGHT; ADMITTED/IN_FLIGHT may become OUTCOME_UNKNOWN.
+        - A late durable settlement must never be reverted to unknown.
+        Execution flow:
+        1. Lock and verify the run envelope and attempt.
+        2. Apply only an allowed transition and append its timestamped history.
+        Failure cases:
+        - Missing or denied attempts raise ATTEMPT_IDENTITY; already-ineligible transitions are ignored to preserve later state.
+        Side effects:
+        - Atomically updates journal attempt state/history; retains reserved exposure.
+        """
         with self._transaction() as db:
             self._check_identity(db)
             row = db.execute("SELECT * FROM inference_attempts WHERE run_id=? AND attempt_id=?", (self.run_id, attempt_id)).fetchone()
@@ -244,7 +344,22 @@ class RunAdmission:
                        (state, json.dumps(history), self.run_id, attempt_id))
 
     def settle(self, attempt_id: str, usage: dict | None):
-        """Idempotent authoritative reconciliation; incomplete usage retains all exposure."""
+        """Idempotent authoritative reconciliation; incomplete usage retains all exposure.
+
+        Business purpose: Reconcile one physical attempt against authoritative provider usage without discarding unknown exposure.
+
+        Business rules:
+        - Identical settlement is idempotent; conflicting settled usage stops the run.
+        - Token-only and financial envelopes require different complete buckets; incomplete usage retains full reserved exposure.
+        Execution flow:
+        1. Lock and verify envelope/attempt identity and normalize the required usage fields.
+        2. Preserve unknown state or calculate actual usage/charge under the pinned policy.
+        3. Persist settlement/history or retain increased exposure and stop on a provider-bound breach.
+        Failure cases:
+        - Missing/denied attempt, conflicting settlement or provider-bound breach raises PaidAdmissionError; contradictory reasoning/output cannot establish a charge.
+        Side effects:
+        - Atomically writes attempt usage, exposure, state/history and possibly the run's stop reason; never dispatches inference.
+        """
         failure = None
         with self._transaction() as db:
             self._check_identity(db)
@@ -305,7 +420,22 @@ class RunAdmission:
 
 
 def recover_admission(path: str | Path, run_id: str) -> dict:
-    """Read-only recovery; unresolved ADMITTED/IN_FLIGHT rows keep their full bound."""
+    """Read-only recovery; unresolved ADMITTED/IN_FLIGHT rows keep their full bound.
+
+    Business purpose: Reconstruct persisted run-wide admission and unresolved exposure after restart.
+
+    Business rules:
+    - Open SQLite read-only; unresolved ADMITTED, IN_FLIGHT and OUTCOME_UNKNOWN attempts retain exposure.
+    - Token-only/unrestricted envelopes must not be presented as financially enforced.
+    Execution flow:
+    1. Read the original envelope and ordered attempt ledger.
+    2. Aggregate admitted, unresolved and actual usage/exposure totals.
+    3. Return its stopped/bounded/unrestricted state with explicit financial enforcement status.
+    Failure cases:
+    - No envelope yields LEGACY_UNBOUNDED; missing/corrupt journal data propagates instead of inventing budget approval.
+    Side effects:
+    - Read-only journal access; neither repairs state nor sends model requests.
+    """
     db = sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=10)
     db.row_factory = sqlite3.Row
     try:
@@ -339,7 +469,21 @@ def recover_admission(path: str | Path, run_id: str) -> dict:
 
 
 def reconcile_admission_evidence(path: str | Path, run_id: str, records: list[dict]) -> dict:
-    """Finish a crash-interrupted settlement from already committed usage; never dispatch."""
+    """Finish a crash-interrupted settlement from already committed usage; never dispatch.
+
+    Business purpose: Finish crash-interrupted settlement from already committed provider evidence.
+
+    Business rules:
+    - Only original supported schema-2/3 policy versions may reconcile; every receipt must match a reserved attempt and provider/model identity.
+    Execution flow:
+    1. Recover the persisted admission snapshot and original envelope.
+    2. Validate each receipt against its reserved identity and settle it.
+    3. Return a fresh persisted accounting snapshot.
+    Failure cases:
+    - Unreserved usage raises UNRESERVED_USAGE; provider/model mismatch raises SETTLEMENT_IDENTITY; unsupported original policy versions retain reservations for review.
+    Side effects:
+    - May persist usage settlement under the original envelope; never retries or dispatches a provider request.
+    """
     snapshot = recover_admission(path, run_id)
     if snapshot["state"] == "LEGACY_UNBOUNDED":
         return snapshot
@@ -364,12 +508,38 @@ def reconcile_admission_evidence(path: str | Path, run_id: str, records: list[di
 
 
 def route_fingerprint(route) -> str:
+    """Business purpose: Bind admission policy to one configured provider route and its options.
+
+    Business rules:
+    - Route identity includes provider, protocol, physical model and options; model name alone cannot identify the policy.
+    Execution flow:
+    1. Build the route identity payload and return its canonical fingerprint.
+    Failure cases:
+    - Malformed or non-serializable route configuration propagates; no fallback route is selected here.
+    Side effects:
+    - Pure route hashing; no credentials are exposed or provider contacted.
+    """
     return fingerprint({"routeId": route.route_id, "provider": route.provider, "protocol": route.protocol,
                         "model": route.model, "options": route.options})
 
 
 def request_identity(model, credential_salt: str) -> dict:
-    """Bind billing policy to the actual native client, endpoint and credential."""
+    """Bind billing policy to the actual native client, endpoint and credential.
+
+    Business purpose: Bind admission to the actual native client, account credential, endpoint and SDK versions.
+
+    Business rules:
+    - The model must carry a configured route and match its native protocol/model; sync and async clients must share the observable account endpoint.
+    - Credentials remain salted fingerprints and never appear in the returned identity.
+    Execution flow:
+    1. Inspect the supported native client and verify transport/account consistency.
+    2. Derive route, credential, endpoint and installed SDK fingerprints.
+    3. Return the observable provider/protocol/model identity.
+    Failure cases:
+    - Unbound route/account, unobservable transport or inconsistent client identity raises PaidAdmissionError before admission; missing package metadata propagates.
+    Side effects:
+    - Reads in-process client configuration and package versions; performs no network request or persistent write.
+    """
     from langchain_anthropic import ChatAnthropic
     from langchain_openai import ChatOpenAI
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -415,7 +585,22 @@ def request_identity(model, credential_salt: str) -> dict:
 
 
 def prepare_admitted_request(admission: RunAdmission, request, attempt_id: str, agent_role: str):
-    """Pin native caps/retry settings and reserve the full verified provider bounds."""
+    """Pin native caps/retry settings and reserve the full verified provider bounds.
+
+    Business purpose: Pin the observable request options and reserve its verified provider bounds before bounded dispatch.
+
+    Business rules:
+    - The routes file must match the immutable envelope and the native transport/options must remain observable.
+    - The active output cap cannot exceed its verified policy; bounded Google transport allows one physical request and disables automatic function calls.
+    Execution flow:
+    1. Derive the native request identity and detect changed routes or unbounded options.
+    2. Persist admission or denial for this physical attempt.
+    3. Apply protocol-specific native options and return the admitted request.
+    Failure cases:
+    - Identity/configuration/option failures persist a denial through admission; no request is dispatched on rejection.
+    Side effects:
+    - Writes the admission ledger and returns a native request override; does not invoke the model.
+    """
     from model_policy import DEFAULT_ROUTES_FILE, ROUTES_FILE_ENV
     import os
 

@@ -58,6 +58,22 @@ const sources = {
     "129d6019819379a6f30edc0811d4631ddb085dcd4b3b1d0012a945cd1af1bfbf",
   ],
 } as const;
+/**
+ * Business purpose: Build one versioned official-reference price entry with captured source provenance.
+ *
+ * Business rules:
+ * - Use the developer's captured source URL/hash and standard reference currency/output-reasoning treatment; explicit extra metadata may override defaults.
+ *
+ * Execution flow:
+ * 1. Combine developer/model/provider aliases, capture metadata and category rates.
+ * 2. Apply the supplied entry-specific overrides and return the registry entry.
+ *
+ * Failure cases:
+ * - Invalid developer registry lookup propagates; this constructor does not verify current provider account charges.
+ *
+ * Side effects:
+ * - Pure registry construction; no billing, model request or external price fetch.
+ */
 function price(
   developer: keyof typeof sources,
   model: string,
@@ -199,6 +215,22 @@ export const OFFICIAL_REFERENCE_PRICES: readonly OfficialReferencePrice[] = [
 ];
 
 /** Exact decimal USD; one attodollar is 10^-18 USD. No binary floating-point accumulation. */
+/**
+ * Business purpose: Display a nonnegative reference-cost total in USD without floating-point loss.
+ *
+ * Business rules:
+ * - The caller supplies integer attodollars; retain eighteen decimal places of precision and trim only trailing fractional zeroes.
+ *
+ * Execution flow:
+ * 1. Split the padded integer into whole USD and fractional attodollars.
+ * 2. Return the exact decimal representation without unnecessary fractional zeroes.
+ *
+ * Failure cases:
+ * - Negative/untyped values are outside this formatter's caller contract; it performs no tariff or usage validation.
+ *
+ * Side effects:
+ * - Pure decimal formatting; no financial settlement.
+ */
 export function attodollarsToUsd(value: bigint): string {
   const digits = value.toString().padStart(19, "0");
   let fractionEnd = digits.length;
@@ -208,12 +240,46 @@ export function attodollarsToUsd(value: bigint): string {
     fraction = digits.slice(-18, fractionEnd);
   return fraction ? `${whole}.${fraction}` : whole;
 }
+/**
+ * Business purpose: Convert a decimal USD-per-million reference rate into exact integer attodollars per token.
+ *
+ * Business rules:
+ * - Accept nonnegative decimal strings with at most twelve fractional digits; avoid binary floating-point arithmetic.
+ *
+ * Execution flow:
+ * 1. Validate the rate precision.
+ * 2. Pad its decimal fraction and return the exact integer per-token rate.
+ *
+ * Failure cases:
+ * - Malformed or excessive-precision rates throw Invalid reference price precision rather than round silently.
+ *
+ * Side effects:
+ * - Pure tariff-unit conversion; no usage or ledger mutation.
+ */
 function ratePerToken(ratePerMillion: string): bigint {
   if (!/^\d+(\.\d{1,12})?$/.test(ratePerMillion))
     throw new Error("Invalid reference price precision");
   const [whole, fraction = ""] = ratePerMillion.split(".");
   return BigInt(whole! + fraction.padEnd(12, "0"));
 }
+/**
+ * Business purpose: Produce a qualified official-reference usage estimate with source provenance and explicit missing categories.
+ *
+ * Business rules:
+ * - Choose the latest eligible captured price for provider/model/alias and occurrence time; reference estimates are not actual provider invoices.
+ * - Require consistent usage buckets and any applicable context tier; reasoning is already included in output and is not charged a second time.
+ *
+ * Execution flow:
+ * 1. Resolve the eligible registry entry and validate available counts.
+ * 2. Select context-tier rates and accumulate only known priced categories.
+ * 3. Return UNPRICED, UNKNOWN, PARTIAL or COMPLETE with provenance and an estimate only for COMPLETE.
+ *
+ * Failure cases:
+ * - Invalid numeric counts/rate precision throw; missing prices, context tier or inconsistent/absent buckets retain qualified status and missing categories instead of fabricated full cost.
+ *
+ * Side effects:
+ * - Pure reference calculation; no admission, charge collection or durable settlement.
+ */
 export function estimateOfficialReferenceCost(
   provider: string,
   model: string,
@@ -239,6 +305,22 @@ export function estimateOfficialReferenceCost(
     sourceUrl: entry?.sourceUrl ?? null,
     evidenceSha256: entry?.evidenceSha256 ?? null,
   } as const;
+  /**
+   * Business purpose: Read a provider-reported token bucket without turning absent usage into zero.
+   *
+   * Business rules:
+   * - Null/undefined means unknown; supplied counts must contain only decimal digits before conversion to bigint.
+   *
+   * Execution flow:
+   * 1. Inspect the requested usage field.
+   * 2. Return null when absent or validate and convert its exact count.
+   *
+   * Failure cases:
+   * - Malformed, negative or nondigit counts throw Invalid provider token count.
+   *
+   * Side effects:
+   * - Pure usage projection; no aggregation or persistence.
+   */
   const count = (field: UsageTokenField) => {
     const value = usage[field];
     if (value === null || value === undefined) return null;
@@ -259,6 +341,22 @@ export function estimateOfficialReferenceCost(
     } else if (context > 272000n) rates = entry.longContextRates;
   }
   let cost = 0n;
+  /**
+   * Business purpose: Accumulate one known reference-cost category while retaining incomplete-pricing diagnostics.
+   *
+   * Business rules:
+   * - Missing counts are unknown; nonzero usage needs a rate, while measured zero requires no rate.
+   *
+   * Execution flow:
+   * 1. Read the category count.
+   * 2. Record missing usage/rate or add its exact token-count times per-token price.
+   *
+   * Failure cases:
+   * - Invalid count or rate precision propagates; incomplete categories do not become a complete estimate.
+   *
+   * Side effects:
+   * - Updates only the enclosing calculation's cost and missing-category buffers.
+   */
   const add = (field: UsageTokenField, rate: string | undefined) => {
     const n = count(field);
     if (n === null) missing.push(field);

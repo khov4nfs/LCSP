@@ -110,6 +110,22 @@ export class LegalSourceDocumentService {
     private readonly fetcher: SafeUrlFetcherService,
   ) {}
 
+  /**
+   * Business purpose: Snapshot an uploaded legal document into a draft legal-source version.
+   *
+   * Business rules:
+   * - Sanitize the uploaded filename, preserve submitted effect/structure metadata and identify the origin as UPLOAD; shared admission enforces draft and document limits.
+   *
+   * Execution flow:
+   * 1. Normalize filename and upload provenance.
+   * 2. Delegate immutable byte storage, ingestion enqueue and audit to addDocument.
+   *
+   * Failure cases:
+   * - Empty, oversized, unsupported, duplicate or non-draft documents are rejected by the shared admission path; no partial upload is acknowledged.
+   *
+   * Side effects:
+   * - May persist a content-addressed blob/document and transactionally enqueue ingestion and audit through addDocument.
+   */
   async addUpload(input: {
     versionId: string;
     actorId: string;
@@ -142,6 +158,23 @@ export class LegalSourceDocumentService {
   /**
    * Imports one public document. The bytes are fetched once, hashed and stored as a snapshot; the
    * version never depends on the live URL again.
+   */
+  /**
+   * Business purpose: Import a public legal document once so later use depends on pinned bytes, not the live URL.
+   *
+   * Business rules:
+   * - Precheck draft eligibility before network fetch and recheck under the add-document transaction lock.
+   * - Use SafeUrlFetcher and preserve redirect/retrieval provenance without treating the URL as immutable source content.
+   *
+   * Execution flow:
+   * 1. Verify draft status and fetch through the public-URL safety boundary.
+   * 2. Normalize imported metadata and persist the returned byte snapshot through addDocument.
+   *
+   * Failure cases:
+   * - ImportRejectedError becomes importUrlRejected with 422 and its safe reason; other fetch failures propagate and draft/byte constraints remain enforced.
+   *
+   * Side effects:
+   * - Fetches a public URL and may persist its immutable snapshot, ingestion outbox command and audit record.
    */
   async importFromUrl(input: {
     versionId: string;
@@ -189,6 +222,24 @@ export class LegalSourceDocumentService {
     });
   }
 
+  /**
+   * Business purpose: Start a new fenced ingestion attempt for an eligible draft legal document.
+   *
+   * Business rules:
+   * - Lock the DRAFT version and require a document with original blob/media metadata; READY documents cannot be retried.
+   * - Incrementing ingestionAttempt makes older worker results stale.
+   *
+   * Execution flow:
+   * 1. Validate version/document eligibility under transaction lock.
+   * 2. Invalidate derived graph/index/chunks and reset extraction state to PENDING.
+   * 3. Enqueue the new attempt, audit the retry and return the refreshed document view.
+   *
+   * Failure cases:
+   * - Missing document/version or immutable version rejects; documentNotRetryable returns 409 for READY or missing-source documents; transaction failure rolls back all writes.
+   *
+   * Side effects:
+   * - Deletes stale derived data, updates ingestion attempt/state, and transactionally writes outbox and audit records.
+   */
   async retry(input: {
     versionId: string;
     documentRowId: string;
@@ -267,6 +318,23 @@ export class LegalSourceDocumentService {
     });
   }
 
+  /**
+   * Business purpose: Remove a document and its now-invalid derived authority from a draft legal-source version.
+   *
+   * Business rules:
+   * - Require a locked DRAFT version and a document belonging to it; original blobs are removed only when no document references them.
+   *
+   * Execution flow:
+   * 1. Lock and locate the draft document.
+   * 2. Drop derived structural authority, delete the document and collect an orphan blob.
+   * 3. Record the removal audit in the same transaction.
+   *
+   * Failure cases:
+   * - Missing or immutable version/document rejects; transaction failure prevents partial durable removal.
+   *
+   * Side effects:
+   * - Deletes the draft document/derived graph/index, may remove an unreferenced blob, and writes audit evidence.
+   */
   async remove(input: {
     versionId: string;
     documentRowId: string;
@@ -302,6 +370,24 @@ export class LegalSourceDocumentService {
     });
   }
 
+  /**
+   * Business purpose: Change whether a draft legal document contributes primary review or reference-only context without altering pinned Preparation denominators.
+   *
+   * Business rules:
+   * - Require a locked DRAFT version; any existing Preparation run, including diagnostics, blocks corpus-role changes.
+   * - Return the current view without mutation when the eligible document already has the requested role.
+   *
+   * Execution flow:
+   * 1. Lock the version and reject pinned Preparation use.
+   * 2. Locate the document and compare its mapped role.
+   * 3. Persist a changed role, discard derived graphs and audit the update.
+   *
+   * Failure cases:
+   * - A version in use returns versionInUse 409; missing/immutable targets reject; transaction failures roll back role and derived-graph writes.
+   *
+   * Side effects:
+   * - May update document corpus role, discard draft graph materializations and write audit evidence; no source bytes change.
+   */
   async updateCorpusRole(input: {
     versionId: string;
     documentRowId: string;
@@ -359,6 +445,24 @@ export class LegalSourceDocumentService {
     );
   }
 
+  /**
+   * Business purpose: Record declared legal-effect metadata for a READY document in a draft source version.
+   *
+   * Business rules:
+   * - Require a locked DRAFT version and READY document; provision overrides must cite existing chunk locators.
+   * - Stored metadata is a declaration, not an independent legal-effect determination.
+   *
+   * Execution flow:
+   * 1. Validate target document and override locators.
+   * 2. Apply the document default effect to all chunks and then grouped provision overrides.
+   * 3. Update provenance/effective date, invalidate derived graphs, rebuild structural index and audit the change.
+   *
+   * Failure cases:
+   * - Missing/non-READY document returns 404, immutable version conflicts, unknown override locator returns ingestionResultInvalid 422; transaction failure rolls back the metadata changes.
+   *
+   * Side effects:
+   * - Updates document/chunk effect provenance, replaces derived authority and writes an audit record in one transaction.
+   */
   async updateEffect(input: {
     versionId: string;
     documentRowId: string;
@@ -491,6 +595,22 @@ export class LegalSourceDocumentService {
     });
   }
 
+  /**
+   * Business purpose: Download the stored original bytes of a legal document within the supplied version/active scope.
+   *
+   * Business rules:
+   * - Require matching scope, a stored blob and media type; use the blob's immutable hash and original filename where available.
+   *
+   * Execution flow:
+   * 1. Find the document and blob under scope filters.
+   * 2. Return copied bytes with media type, filename and hash.
+   *
+   * Failure cases:
+   * - Missing/out-of-scope document, absent blob or absent media type returns documentNotFound 404.
+   *
+   * Side effects:
+   * - Read-only database access; never refetches or changes the original source.
+   */
   async readOriginal(
     documentRowId: string,
     scope: { versionId?: string; activeOnly?: boolean },
@@ -528,6 +648,23 @@ export class LegalSourceDocumentService {
     };
   }
 
+  /**
+   * Business purpose: Return a paginated view of persisted legal-document chunks within the caller's selected source scope.
+   *
+   * Business rules:
+   * - Apply supplied version and active-only filters before exposing chunks; preserve page and chunk-hash/effect provenance.
+   *
+   * Execution flow:
+   * 1. Find the scoped document or reject it.
+   * 2. Count and retrieve chunks ordered by page then identity.
+   * 3. Return their content/provenance and requested pagination.
+   *
+   * Failure cases:
+   * - A missing/out-of-scope document returns documentNotFound 404; query failures propagate rather than return a successful empty document.
+   *
+   * Side effects:
+   * - Read-only database queries; no ingestion, source or lifecycle mutation.
+   */
   async listChunks(input: {
     documentRowId: string;
     versionId?: string;
@@ -583,6 +720,23 @@ export class LegalSourceDocumentService {
   }
 
   /** Runtime picks up a document: returns what to extract and marks the attempt as running. */
+  /**
+   * Business purpose: Provide the worker the exact stored bytes for the current draft document ingestion attempt.
+   *
+   * Business rules:
+   * - Require a stored blob and media type, a DRAFT version and matching attempt; only PENDING transitions to PROCESSING.
+   *
+   * Execution flow:
+   * 1. Load the document/blob and lock its version.
+   * 2. Verify attempt/version eligibility and advance pending work to PROCESSING.
+   * 3. Return original bytes, media type, structure profile and blob hash.
+   *
+   * Failure cases:
+   * - Missing source returns documentNotFound 404; immutable version or stale attempt returns documentNotRetryable 409; transaction failures roll back the state change.
+   *
+   * Side effects:
+   * - May update ingestion state to PROCESSING; returns stored immutable bytes without fetching the source URL.
+   */
   async beginIngestion(input: {
     documentRowId: string;
     attempt: number;
@@ -646,6 +800,24 @@ export class LegalSourceDocumentService {
   /**
    * Stores what the runtime produced. A result for a stale attempt or a frozen version is
    * ignored, so a slow or duplicated delivery can never overwrite a newer outcome.
+   */
+  /**
+   * Business purpose: Apply a current worker extraction result while preserving original-source and chunk integrity.
+   *
+   * Business rules:
+   * - Ignore stale attempts, non-draft versions and already READY documents; failed outcomes cannot become successful extraction.
+   * - Accepted pages/chunks require matching hashes, unique locators, bounded content and valid status-override locators.
+   *
+   * Execution flow:
+   * 1. Lock and recheck document/attempt eligibility.
+   * 2. Persist failure state or validate extracted text and all chunks before replacing derived data.
+   * 3. Write chunks in bounded batches, mark the document READY and rebuild a valid structural index when possible.
+   *
+   * Failure cases:
+   * - Missing document returns 404; invalid text/chunk hash, duplicate locator, oversized/NUL content or unknown status locator returns ingestionResultInvalid 422; transaction errors roll back writes.
+   *
+   * Side effects:
+   * - Updates ingestion state/extraction, replaces chunks and draft graph/index authority; stale callbacks return applied:false without those mutations.
    */
   async recordIngestionResult(input: {
     documentRowId: string;
@@ -807,6 +979,23 @@ export class LegalSourceDocumentService {
    * content hash keeps the existing row; changed content replaces it. Returns null when a document
    * is not READY or validation fails (the version then has no valid index).
    */
+  /**
+   * Business purpose: Publish a structural retrieval index only when the version's complete document collection is READY and structurally valid.
+   *
+   * Business rules:
+   * - Empty collections or any non-READY document cannot retain the structural index; structural validation does not establish semantic legal compliance.
+   *
+   * Execution flow:
+   * 1. Read all version documents and chunks and remove stale index records.
+   * 2. Validate the complete structure when all documents are READY.
+   * 3. Persist VALID index provenance and return its manifest/hash, or return null when ineligible/invalid.
+   *
+   * Failure cases:
+   * - Incomplete or structurally invalid collections return null after invalidating stale index records; database/validation exceptions propagate to the transaction.
+   *
+   * Side effects:
+   * - Replaces derived structural retrieval-index records with canonical content/config hashes and validation time when eligible.
+   */
   async ensureStructuralIndex(
     tx: Tx,
     version: LockedVersion,
@@ -856,6 +1045,24 @@ export class LegalSourceDocumentService {
 
   // -- internals -------------------------------------------------------------------------
 
+  /**
+   * Business purpose: Atomically admit a legal document's immutable bytes and create its first ingestion work item.
+   *
+   * Business rules:
+   * - Reject empty/oversized/unsupported content and enforce per-version count and duplicate-byte limits under a DRAFT version lock.
+   * - Store blobs by SHA-256, allocate a collision-free document ID and preserve provided source provenance.
+   *
+   * Execution flow:
+   * 1. Validate bytes and detected media type, then hash the original content.
+   * 2. Lock the draft, enforce collection constraints and create/reuse the blob plus PENDING document.
+   * 3. Invalidate derived authority, enqueue attempt one, audit the origin and return the document view.
+   *
+   * Failure cases:
+   * - Document validation yields the shared empty/too-large/unsupported/limit/duplicate errors; missing or immutable version rejects; all transaction writes roll back together on failure.
+   *
+   * Side effects:
+   * - Creates blob/document metadata, discards stale graphs/index and writes ingestion outbox plus audit records transactionally.
+   */
   private async addDocument(
     input: NewDocument,
   ): Promise<LegalSourceDocumentView> {
@@ -978,6 +1185,22 @@ export class LegalSourceDocumentService {
     });
   }
 
+  /**
+   * Business purpose: Durably hand one legal-document ingestion attempt to the runtime through the existing outbox.
+   *
+   * Business rules:
+   * - Bind version/document/blob/media/profile provenance and use document ID plus attempt for idempotency; inherit the caller's transaction and actor/correlation.
+   *
+   * Execution flow:
+   * 1. Build the canonical ingestion command envelope.
+   * 2. Enqueue it in the supplied transaction under the legal-source version aggregate.
+   *
+   * Failure cases:
+   * - Outbox persistence errors abort the caller's transaction; this method does not dispatch or independently retry the worker.
+   *
+   * Side effects:
+   * - Writes one idempotent outbox message in the caller's transaction.
+   */
   private async enqueueIngestion(
     tx: Tx,
     input: {
@@ -1021,6 +1244,22 @@ export class LegalSourceDocumentService {
     );
   }
 
+  /**
+   * Business purpose: Invalidate derived draft source authority after document content or membership changes.
+   *
+   * Business rules:
+   * - Discard draft document graphs and remove only this version's named structural retrieval index.
+   *
+   * Execution flow:
+   * 1. Discard draft graph materializations.
+   * 2. Delete the matching structural index for the locked source version.
+   *
+   * Failure cases:
+   * - Database errors propagate to the enclosing transaction; stale derived authority is not acknowledged as valid.
+   *
+   * Side effects:
+   * - Deletes derived graph/index records within the supplied transaction; original bytes remain unchanged.
+   */
   private async dropStructuralIndex(tx: Tx, version: LockedVersion) {
     await discardDraftDocumentGraphs(tx, version.id);
     await tx.legalRetrievalIndex.deleteMany({
@@ -1031,6 +1270,22 @@ export class LegalSourceDocumentService {
     });
   }
 
+  /**
+   * Business purpose: Remove original document bytes only when no legal document still references them.
+   *
+   * Business rules:
+   * - An absent hash is a no-op; deletion requires the exact hash and an empty referencing-document relation.
+   *
+   * Execution flow:
+   * 1. Return when no blob identity exists.
+   * 2. Delete only the unreferenced content-addressed blob matching that hash.
+   *
+   * Failure cases:
+   * - Referenced or already-absent blobs produce no deletion; database failures propagate to the caller transaction.
+   *
+   * Side effects:
+   * - May delete one unreferenced blob in the supplied transaction; shared source blobs remain preserved.
+   */
   private async deleteOrphanBlobs(tx: Tx, sha256: string | null) {
     if (!sha256) return;
     await tx.legalSourceDocumentBlob.deleteMany({
@@ -1038,6 +1293,22 @@ export class LegalSourceDocumentService {
     });
   }
 
+  /**
+   * Business purpose: Audit an accepted legal-source document operation with the affected version and actor lineage.
+   *
+   * Business rules:
+   * - Use the legal-source-version resource, ALLOW decision and caller transaction/correlation; include the structural index tool provenance.
+   *
+   * Execution flow:
+   * 1. Combine event-specific payload with index-tool metadata.
+   * 2. Write the audit event in the same transaction as the document operation.
+   *
+   * Failure cases:
+   * - Audit persistence failure aborts the caller's transaction; no unaudited successful mutation is acknowledged.
+   *
+   * Side effects:
+   * - Writes a transactional audit event; no separate model or notification dispatch.
+   */
   private async record(
     tx: Tx,
     eventType: string,
@@ -1062,6 +1333,22 @@ export class LegalSourceDocumentService {
     );
   }
 
+  /**
+   * Business purpose: Return the canonical legal-document projection after a transaction's accepted operation.
+   *
+   * Business rules:
+   * - Include persisted chunk count and apply the caller's draft capability flag through the shared mapper.
+   *
+   * Execution flow:
+   * 1. Read the document with its chunk count.
+   * 2. Map it to the shared LegalSourceDocumentView.
+   *
+   * Failure cases:
+   * - A missing expected row propagates findUniqueOrThrow failure and aborts the enclosing transaction.
+   *
+   * Side effects:
+   * - Read-only projection from the current transaction state.
+   */
   private async view(
     tx: Tx,
     documentRowId: string,
@@ -1074,6 +1361,22 @@ export class LegalSourceDocumentService {
     return toDocumentView(row, draft);
   }
 
+  /**
+   * Business purpose: Prevent a document operation from crossing its selected legal-source version.
+   *
+   * Business rules:
+   * - Both document row ID and owning version ID must match before returning a mutable document record.
+   *
+   * Execution flow:
+   * 1. Find the document under the exact version scope.
+   * 2. Return it or raise the shared document-not-found problem.
+   *
+   * Failure cases:
+   * - Missing/out-of-scope document returns documentNotFound 404; persistence errors propagate.
+   *
+   * Side effects:
+   * - Read-only lookup inside the caller's transaction.
+   */
   private async findDocument(
     tx: Tx,
     versionId: string,
@@ -1091,6 +1394,22 @@ export class LegalSourceDocumentService {
     return document;
   }
 
+  /**
+   * Business purpose: Reject an ineligible legal-source URL import before performing its external fetch.
+   *
+   * Business rules:
+   * - A source version must exist and currently be DRAFT; the later mutation still rechecks eligibility under lock.
+   *
+   * Execution flow:
+   * 1. Read version lifecycle status.
+   * 2. Reject a missing or immutable version and otherwise allow fetch preparation.
+   *
+   * Failure cases:
+   * - Missing version returns sourceNotFound 404; non-draft version returns versionImmutable 409.
+   *
+   * Side effects:
+   * - Read-only database precheck; no row lock, external fetch or persistence here.
+   */
   private async requireDraft(versionId: string, correlationId: string) {
     const version = await this.prisma.legalSourceVersion.findUnique({
       where: { id: versionId },
@@ -1110,6 +1429,22 @@ export class LegalSourceDocumentService {
     }
   }
 
+  /**
+   * Business purpose: Serialize legal-document lifecycle operations on their owning source version.
+   *
+   * Business rules:
+   * - Lock the exact version row for update within the supplied transaction and preserve its stored status/version.
+   *
+   * Execution flow:
+   * 1. Select the source version with a parameterized FOR UPDATE query.
+   * 2. Return the locked identity or reject absence.
+   *
+   * Failure cases:
+   * - Missing version returns sourceNotFound 404; database lock/query failures propagate to the transaction.
+   *
+   * Side effects:
+   * - Acquires a version row lock; does not change lifecycle or source data.
+   */
   private async lockVersion(
     tx: Tx,
     versionId: string,
@@ -1126,6 +1461,22 @@ export class LegalSourceDocumentService {
     return rows[0];
   }
 
+  /**
+   * Business purpose: Serialize a document mutation against the source version's immutable lifecycle boundary.
+   *
+   * Business rules:
+   * - The locked version must be DRAFT before mutation; no active/archived version is writable through this guard.
+   *
+   * Execution flow:
+   * 1. Acquire the version row lock.
+   * 2. Reject non-draft status or return the locked version identity.
+   *
+   * Failure cases:
+   * - Missing version returns sourceNotFound 404; immutable version returns versionImmutable 409.
+   *
+   * Side effects:
+   * - Acquires a database row lock in the caller's transaction; makes no data mutation itself.
+   */
   private async lockDraft(
     tx: Tx,
     versionId: string,

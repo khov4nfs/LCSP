@@ -755,6 +755,21 @@ export const ruleDecisionSchema = z
 export type RuleDecision = z.infer<typeof ruleDecisionSchema>;
 
 /** Every evidence/fact reference of a decision: overall, per criterion and per applicability element. */
+/**
+ * Business purpose: Collect all accepted-reference claims carried by an Assessment rule decision for downstream integrity validation.
+ *
+ * Business rules:
+ * - Include decision-level, criterion-level and applicability-basis references; preserve duplicates and leave validity/deduplication to the consumer.
+ *
+ * Execution flow:
+ * 1. Concatenate the decision references with each criterion and optional applicability finding's references.
+ *
+ * Failure cases:
+ * - Absent applicability basis contributes no references; malformed required decision/criterion arrays propagate rather than invent evidence.
+ *
+ * Side effects:
+ * - Pure projection; does not accept references or persist decisions.
+ */
 export function ruleDecisionReferences(
   decision: RuleDecision,
 ): RuleDecisionReference[] {

@@ -187,6 +187,22 @@ export const LEGAL_SOURCE_STRUCTURAL_INDEX = {
 } as const;
 
 const sha256Schema = z.string().regex(/^sha256:[a-f0-9]{64}$/);
+/**
+ * Business purpose: Normalize optional legal-source management text without persisting blank values.
+ *
+ * Business rules:
+ * - Trim supplied strings and enforce the caller's maximum length; blank text becomes undefined and omitted values remain optional.
+ *
+ * Execution flow:
+ * 1. Construct the bounded trimmed string schema.
+ * 2. Attach empty-to-undefined normalization and optional-input handling.
+ *
+ * Failure cases:
+ * - Non-string or overlength input fails when parsed; the schema does not invent missing metadata.
+ *
+ * Side effects:
+ * - Pure schema construction; normalization runs only during later validation.
+ */
 const optionalText = (max: number) =>
   z
     .string()

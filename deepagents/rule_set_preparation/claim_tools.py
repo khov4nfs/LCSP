@@ -36,11 +36,36 @@ IDS = {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems":
 
 
 def object_schema(properties, required=()):
+    """Business purpose: Declare the accepted argument shape of a governed preparation tool.
+
+    Business rules:
+    - Named tool arguments are closed to undeclared properties; required names are copied from the supplied contract.
+    Execution flow:
+    1. Return the object schema with properties, required names and additionalProperties:false.
+    Failure cases:
+    - This builder does not validate values; the invocation boundary performs schema validation before mutation.
+    Side effects:
+    - Pure schema construction; no inventory or tool invocation.
+    """
     return {"type": "object", "properties": properties, "required": list(required), "additionalProperties": False}
 
 
 def derive_requirement_relations(context):
-    """Project the Agent-authored claim relation's existing kind/direction, without interpretation."""
+    """Project the Agent-authored claim relation's existing kind/direction, without interpretation.
+
+    Business purpose: Project agent-authored semantic relationships into the requirements bound to their endpoint claims.
+
+    Business rules:
+    - Preserve relation direction and the existing configured kind mapping; do not interpret source prose or create a self-relation within one requirement.
+    Execution flow:
+    1. Index requirement owners for each claim binding.
+    2. Read frozen/current claim relations and connect distinct requirement owners of their endpoints.
+    3. Deduplicate canonical relation identities and replace the draft context-relation projection.
+    Failure cases:
+    - Unowned endpoints contribute no requirement relation; malformed required bindings propagate rather than invent an owner.
+    Side effects:
+    - Replaces in-memory contextRelations derived from accepted claim bindings; no external persistence here.
+    """
     owners: dict[str, set[str]] = {}
     for requirement in context.draft["legalRequirements"].values():
         for binding in requirement["claimBindings"]:
@@ -60,7 +85,20 @@ def derive_requirement_relations(context):
 
 
 def _squash(text):
-    """Whitespace-collapsed copy of text plus, for every collapsed character, its index in the original."""
+    """Whitespace-collapsed copy of text plus, for every collapsed character, its index in the original.
+
+    Business purpose: Locate source quotes despite whitespace variation while preserving original text coordinates.
+
+    Business rules:
+    - Collapse internal whitespace to one space and retain the original index for every emitted character.
+    Execution flow:
+    1. Walk the text and collect visible characters or the first separator in each whitespace run.
+    2. Return the collapsed text and its source-index map.
+    Failure cases:
+    - Empty input returns empty outputs; invalid non-text values propagate iteration/type failures.
+    Side effects:
+    - Pure text/index transformation; no source content changes.
+    """
     out, index, space = [], [], False
     for i, ch in enumerate(text):
         if ch.isspace():
@@ -80,6 +118,20 @@ def support_span(source, node_id, quote):
 
     A quote that differs from the source only in whitespace/line breaks still resolves to the exact original slice,
     so the stored span, hash and text are always the source's own bytes.
+
+    Business purpose: Resolve a unique source quotation into exact hashed UTF-16 support coordinates.
+
+    Business rules:
+    - Accept verbatim text or whitespace-only variation, but require one unique occurrence in the selected pinned node.
+    - Store the original source slice and hash, never the normalized search copy.
+    Execution flow:
+    1. Validate the quote and locate an exact or whitespace-normalized unique match.
+    2. Recover the original slice and convert its boundaries to UTF-16 offsets.
+    3. Return node identity, offsets and exact source-text hash.
+    Failure cases:
+    - Empty, absent or repeated quotes raise ValueError with correction guidance; no paraphrase or arbitrary match is accepted.
+    Side effects:
+    - Read-only source validation and hashing; no claim is registered.
     """
     from rule_set_preparation.claim_inventory import text_sha
     node = source.nodes.get(node_id)
@@ -106,7 +158,20 @@ def support_span(source, node_id, quote):
 
 
 def locate_quote(source, node_ids, quote):
-    """The one node among node_ids whose text carries the quote exactly once (whitespace-tolerant), else None."""
+    """The one node among node_ids whose text carries the quote exactly once (whitespace-tolerant), else None.
+
+    Business purpose: Find the single supplied legal node that uniquely supports a quotation.
+
+    Business rules:
+    - A candidate counts only when support_span verifies a unique verbatim/whitespace-tolerant occurrence; cross-node ambiguity remains unresolved.
+    Execution flow:
+    1. Try source-span resolution for each candidate node.
+    2. Return its identity only when exactly one candidate succeeds.
+    Failure cases:
+    - No match, multiple matching nodes or per-node quote errors yield None rather than a guessed source node.
+    Side effects:
+    - Read-only source lookup; no support span or claim is persisted.
+    """
     hits = []
     for nid in node_ids:
         try:
@@ -118,9 +183,35 @@ def locate_quote(source, node_ids, quote):
 
 
 def build_claim_tools(context, operations=None):
+    """Business purpose: Bind typed preparation operations to one pinned inventory and its derived rule candidates.
+
+    Business rules:
+    - Source meaning remains agent-authored; deterministic code enforces identity, source bindings, phase and durable mutation contracts.
+    - Discovery-only mode omits authoring/conclusion tools; explicit tool descriptions and schema-owned versus body-owned rejections remain distinct.
+    Execution flow:
+    1. Bind discovery, reference, closure and authoring operations to the current ledger.
+    2. Select tools for the active mode and expose optional internal discovery operations.
+    3. Wrap schema validation, mutation locking, durable saves and observations around every tool invocation.
+    Failure cases:
+    - Malformed arguments return field-addressed rejection feedback; terminal runtime/callback failures propagate instead of becoming claim-shape errors.
+    Side effects:
+    - Constructs tools; invocations may mutate discovery/authoring state, call the API and emit durable observations under their documented guards.
+    """
     ledger: ClaimInventory = context.inventory
 
     def legal_state(node_id, at_date, offset=0, limit=20):
+        """Business purpose: Retrieve dated legal-effect context for an exact pinned provision.
+
+        Business rules:
+        - A document#locator is resolved structurally when possible; the legal-effect service retains unresolved targets and dated evidence.
+        Execution flow:
+        1. Resolve a supplied document/locator to a pinned node when available.
+        2. Delegate dated legal-state retrieval with requested pagination.
+        Failure cases:
+        - Unresolved addresses remain subject to legal-state validation; unknown dates or incomplete review never establish applicability.
+        Side effects:
+        - Reads pinned legal-effect context through the shared service; does not author legal effects here.
+        """
         from rule_set_preparation.legal_effect import applicable_legal_state
         if "#" in node_id:
             document, locator = node_id.rsplit("#", 1)
@@ -129,6 +220,18 @@ def build_claim_tools(context, operations=None):
 
     def source_refs(claim):
         # Canonical provenance is the claim/node binding; retain exact legacy citation aids when available.
+        """Business purpose: Retain canonical chunk citation aids supporting a claim's pinned source anchors.
+
+        Business rules:
+        - Claim/node binding remains provenance authority; use the nearest ancestor carrying chunk mappings and deduplicate exact document/locator/hash tuples.
+        Execution flow:
+        1. Walk each claim anchor toward a chunk-bearing owner with cycle protection.
+        2. Collect and deduplicate its mapped chunk source references.
+        Failure cases:
+        - An anchor without mapped chunks contributes no citation aid; malformed node/chunk identities propagate rather than fabricate references.
+        Side effects:
+        - Read-only source projection; no claim identity or source text changes.
+        """
         refs = {}
         for node_id in claim["sourceNodeIds"]:
             owner, visited = node_id, set()
@@ -142,6 +245,18 @@ def build_claim_tools(context, operations=None):
         return list(refs.values())
 
     def register(identity_key, claim_type, statement, source_node_ids=None, actor=None, action=None, relevant=True, non_operative_reason=None, source_support=None, semantic_authority=None, semantic_frame=None, assessability=None):
+        """Business purpose: Register an agent-authored semantic claim through the inventory's shared source/identity guards.
+
+        Business rules:
+        - Omitted source nodes default only to the active frontier unit; normalize empty optional actor/action/exclusion strings to absent values.
+        Execution flow:
+        1. Resolve the active source-node default and normalize optional text.
+        2. Delegate complete claim registration and support validation to the ledger.
+        Failure cases:
+        - Frozen phase, unsupported source or invalid claim/support returns the ledger's repairable rejection; missing active anchors are not invented.
+        Side effects:
+        - May mutate in-memory claim/ownership indexes and publish rejection feedback through put_claim.
+        """
         if source_node_ids is None:
             source_node_ids = [ledger.frontier.active["sourceNodeId"]] if ledger.frontier and ledger.frontier.active else []
         if actor == "": actor = None
@@ -151,6 +266,18 @@ def build_claim_tools(context, operations=None):
 
 
     def update(claim_id, claim_type, statement, actor=None, action=None, relevant=True, non_operative_reason=None, source_support=None, semantic_authority=None, semantic_frame=None, assessability=None, identity_key=None):
+        """Business purpose: Correct an existing active claim without changing its canonical key or source anchors.
+
+        Business rules:
+        - Use the ledger's existing identity and claim anchors, regardless of an optional supplied identity_key; foreign completed-unit claims require their owner to reopen.
+        Execution flow:
+        1. Normalize optional empty fields and locate the active claim.
+        2. Return ownership/schema feedback when absent or delegate an identity-preserving update.
+        Failure cases:
+        - An unknown/foreign claim or invalid replacement is rejected; no new canonical identity is silently substituted.
+        Side effects:
+        - May replace the current claim and invalidate derived validation through the shared ledger.
+        """
         if actor == "": actor = None
         if action == "": action = None
         if non_operative_reason == "": non_operative_reason = None
@@ -164,6 +291,20 @@ def build_claim_tools(context, operations=None):
                                 actor, action, relevant, non_operative_reason, update_id=claim_id, source_support=source_support, semantic_authority=semantic_authority, semantic_frame=semantic_frame, assessability=assessability)
 
     def link(from_claim_id, to_claim_id, kind, reference_id=None):
+        """Business purpose: Bind a directed semantic claim relation to verified source and target authority.
+
+        Business rules:
+        - Discovery must be open; endpoints must be distinct known claims and the relation kind supported.
+        - Active review ownership and structural-reference direction must validate; cross-review endpoints require matching durable fingerprints.
+        Execution flow:
+        1. Validate phase, endpoints, reference binding and active ownership.
+        2. Resolve foreign endpoint authority and collect dependency fingerprints.
+        3. Store the canonical relation, ownership/dependencies and projected reference accounting.
+        Failure cases:
+        - Detached bindings, unavailable/changed targets, unsupported kinds or foreign reference ownership return typed rejection without accepting the relation.
+        Side effects:
+        - May read frontier authority through the API, mutate relation/dependency/accounting state and record rejection observations.
+        """
         if not ledger.discovery_allowed():
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", "claimRelations", "Reopen before changing semantic relations")
         row = {"fromClaimId": from_claim_id, "toClaimId": to_claim_id, "kind": kind, "referenceId": reference_id}
@@ -207,6 +348,18 @@ def build_claim_tools(context, operations=None):
                 **({"referenceAccounting": accounting[reference_id]} if reference_id else {})}
 
     def binding_failure(reference_id, from_claim_id, to_claim_id):
+        """Business purpose: Explain a detached semantic reference using actual structural endpoints and candidate claims.
+
+        Business rules:
+        - Keep the original reference direction and provide bounded source/target claim candidates; do not choose a semantic relation for the agent.
+        Execution flow:
+        1. Read the pinned reference and current endpoint-side claims.
+        2. Record SEMANTIC_DEPENDENCY_DETACHED and return endpoint IDs with a commit_claims repair path.
+        Failure cases:
+        - Missing reference metadata stays absent in feedback; no replacement endpoint or binding is accepted.
+        Side effects:
+        - Records/publishes rejection feedback; does not mutate semantic relations.
+        """
         ref = context.source_graph.references.get(reference_id, {})
         claims = context.draft["semanticClaims"]
         return {**ledger.rejected("SEMANTIC_DEPENDENCY_DETACHED", reference_id,
@@ -220,6 +373,19 @@ def build_claim_tools(context, operations=None):
 
 
     def remove(claim_id, reason):
+        """Business purpose: Remove a mistaken discovery claim and invalidate its directly owned supporting state.
+
+        Business rules:
+        - Require open discovery, a nonblank reason and active frontier ownership when present; frozen claims cannot be removed implicitly.
+        Execution flow:
+        1. Validate mutation eligibility and remove the claim/identity.
+        2. Invalidate source review indexes and remove incident relations owned by this unit.
+        3. Reproject reference accounting and return the affected identities.
+        Failure cases:
+        - Ineligible phase/ownership returns rejection; a nonexistent active claim propagates lookup failure to the tool's schema-error boundary.
+        Side effects:
+        - Mutates claim identities, review indexes, owned relations and reference accounting; records rejection observations when refused.
+        """
         if not ledger.discovery_allowed() or not reason.strip():
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", claim_id, "Remove a mistaken discovery claim only before freeze, with a reason")
         if ledger.frontier and not ledger.frontier.allowed(claim_id=claim_id):
@@ -243,6 +409,19 @@ def build_claim_tools(context, operations=None):
                 "invalidatedSourceReviews": old["sourceNodeIds"], "removedRelationIds": detached}
 
     def unlink(relation_id, reason):
+        """Business purpose: Remove a mistaken owned semantic relation before inventory freeze.
+
+        Business rules:
+        - Require open discovery, a nonblank reason and the active source unit's relation ownership; invalidated owned relations may also be removed.
+        Execution flow:
+        1. Validate phase/reason/ownership.
+        2. Remove the current or invalidated relation and its owner.
+        3. Invalidate validation and refresh reference accounting.
+        Failure cases:
+        - Missing relations return CLAIM_SCHEMA_INVALID; frozen/foreign relations return typed repair feedback without removal.
+        Side effects:
+        - Mutates relation/ownership/accounting state and may publish rejection observations.
+        """
         if not ledger.discovery_allowed() or not reason.strip():
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", relation_id, "Correct relations only before freeze, with a reason")
         if ledger.frontier and (not ledger.frontier.active or ledger.frontier.relation_owners.get(relation_id)!=ledger.frontier.active["sourceNodeId"]):
@@ -258,6 +437,19 @@ def build_claim_tools(context, operations=None):
 
 
     def review_reference(reference_id, material, relation_ids=None, non_material_reason=None):
+        """Business purpose: Account for an explicit source reference without losing its bound semantic relations.
+
+        Business rules:
+        - Require open discovery and active-unit reference ownership.
+        - Material references derive relation IDs from existing valid bindings; nonmaterial references require a reason and no remaining bindings.
+        Execution flow:
+        1. Validate source reference, materiality consistency and every existing binding.
+        2. Store canonical reference accounting and invalidate prior validation when changed.
+        Failure cases:
+        - Frozen/foreign references, missing reasons or conflicting/detached bindings return typed rejection rather than mark the reference complete.
+        Side effects:
+        - Mutates in-memory referenceAccounting and validation/progress state; may record rejection evidence.
+        """
         if ledger.frontier and (not ledger.frontier.active or reference_id not in ledger.frontier.active["referenceIds"]):
             return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",reference_id,"Review references attached to the active review unit")
         if not ledger.discovery_allowed():
@@ -273,9 +465,33 @@ def build_claim_tools(context, operations=None):
         return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "review": context.draft["referenceAccounting"][reference_id]}
 
     def non_material(reference_id, reason):
+        """Business purpose: Record the agent's reason that an active source reference is nonmaterial.
+
+        Business rules:
+        - Use the same ownership, phase and no-existing-bindings checks as full reference accounting.
+        Execution flow:
+        1. Delegate reference review with material:false and the supplied reason.
+        Failure cases:
+        - Missing reason, bound relations or invalid review ownership returns the shared rejection; no reference is silently discarded.
+        Side effects:
+        - May update reference accounting and publish rejection feedback through review_reference.
+        """
         return review_reference(reference_id, False, non_material_reason=reason)
 
     def inspect(kind="STATUS", source_node_id=None, claim_id=None, offset=0, limit=None):
+        """Business purpose: Page through current preparation inventory without treating navigation as semantic authority.
+
+        Business rules:
+        - Respect frontier recovery/progress and normalized page limits; retain explicit continuation and a bounded response body.
+        Execution flow:
+        1. Restore frontier state when needed and select the requested claims, relations, requirements or review gaps.
+        2. Apply count/character bounds and compute current review counts.
+        3. Return copied rows with truthful pagination and inventory binding.
+        Failure cases:
+        - Frontier restore failures return its repair feedback; an empty or truncated page never proves semantic absence or completed review.
+        Side effects:
+        - May refresh local frontier state through its API read; returns inventory/navigation metadata without authoring claims.
+        """
         if ledger.frontier and kind in {"STATUS","UNREVIEWED_SOURCE_NODES"}:
             return ledger.frontier.progress()
         if ledger.frontier:
@@ -319,6 +535,18 @@ def build_claim_tools(context, operations=None):
                 "returnedCount": len(selected), "hasMore": more, "nextOffset": offset + len(selected) if more else None, "endReached": not more}
 
     def authoring_context(offset=0, limit=None, operative_claim_ids=None):
+        """Business purpose: Guide rule authoring from verified operative anchors instead of an unrelated global claim-role pool.
+
+        Business rules:
+        - Require active frozen authoring context; explicit operative selections retrieve their semantic closure, otherwise page operative anchors only.
+        Execution flow:
+        1. Check authoring eligibility.
+        2. Return selected closure reads or the operative-anchor page with the next closure action.
+        Failure cases:
+        - Unfinalized/inactive authoring returns CLAIM_PHASE_INVALID; invalid selected anchors retain closure rejection feedback.
+        Side effects:
+        - Reads frozen authoring context and may record a rejection; does not create a requirement.
+        """
         if context.authoring is None or not context.authoring.active():
             return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize the claim inventory first; this view reads the frozen revision")
         if operative_claim_ids:
@@ -329,6 +557,20 @@ def build_claim_tools(context, operations=None):
         return result
 
     def closure_view(operative_claim_ids):
+        """Business purpose: Expose the verified typed closure that may legally support selected operative anchors.
+
+        Business rules:
+        - Require frozen relevant operative claims and compatible aggregation; only reachable bindings can support the resulting requirement.
+        - Preserve other operative reference targets as context/navigation without transferring their modifiers implicitly.
+        Execution flow:
+        1. Validate each supplied anchor and provide real candidates for an invalid one.
+        2. Compute the verified aggregate closure.
+        3. Return its claims, dependencies and role-specific authoring arguments.
+        Failure cases:
+        - Missing/nonoperative anchors or incompatible/invalid closure return typed repairable rejection; no global role-compatible claim substitutes for a supported target.
+        Side effects:
+        - Read-only closure projection apart from rejection observations; no claim or candidate mutation.
+        """
         if not ledger.frozen:
             return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Freeze the verified inventory first")
         known = {c["claimId"]: c for c in ledger.frozen["claims"]}
@@ -353,7 +595,21 @@ def build_claim_tools(context, operations=None):
                 "guidance": "Author from these operative anchors. All reachable semantic bindings are retained automatically; unrelated global role-compatible claims are refused. referenceDependencies retain other operative assertions as navigation/context; their modifiers cannot bind this anchor without an explicit compatible target relation."}
 
     def closure_reads(operative_claim_ids):
-        """The read tools: anchors that cannot share one Requirement are answered anchor by anchor instead of with a rejection."""
+        """The read tools: anchors that cannot share one Requirement are answered anchor by anchor instead of with a rejection.
+
+        Business purpose: Keep closure inspection usable when several operative anchors cannot share one requirement.
+
+        Business rules:
+        - Only incompatible aggregation may fall back to separate successful anchor closures; authoring compatibility is never silently approved.
+        Execution flow:
+        1. Try the aggregate closure when multiple frozen anchors are supplied.
+        2. For the specific incompatibility case, return separate valid authoring arguments.
+        3. Otherwise use the normal closure view.
+        Failure cases:
+        - Individual invalid anchors retain rejection feedback; a fallback succeeds only if every separate closure is valid.
+        Side effects:
+        - Read-only closure retrieval with possible rejection observations; no authoring mutation.
+        """
         if len(operative_claim_ids) > 1 and ledger.frozen:
             try:
                 aggregate_closure(ledger.frozen, operative_claim_ids)
@@ -366,7 +622,21 @@ def build_claim_tools(context, operations=None):
         return closure_view(operative_claim_ids)
 
     def role_candidates(role, allowed=None):
-        """Real, relevant claims of one accounting role, unbound first: navigation help from the frozen inventory, never legal meaning."""
+        """Real, relevant claims of one accounting role, unbound first: navigation help from the frozen inventory, never legal meaning.
+
+        Business purpose: Offer real relevant claim candidates for correcting an authoring role mismatch.
+
+        Business rules:
+        - Use frozen/draft claim identity and verified accounting roles; nonoperative roles require an allowed closure set.
+        - Prefer unbound claims and return at most the configured candidate limit while retaining the full candidate count.
+        Execution flow:
+        1. Collect eligible relevant claims by role and closure allowance.
+        2. Sort unbound-first and return bounded identity/type/summary hints plus total.
+        Failure cases:
+        - An empty eligible pool remains empty; candidate suggestions do not determine legal meaning or authorize binding.
+        Side effects:
+        - Read-only candidate projection; no claims or requirements are created.
+        """
         bound = context.authoring.bound() if context.authoring is not None else {}
         pool = sorted((c for c in context.draft["semanticClaims"].values() if c["state"] == "RELEVANT" and claim_role(c) == role and (operative(c) if role == "OPERATIVE_PROPOSITION" else allowed is not None and c["claimId"] in allowed)),
                       key=lambda c: (c["claimId"] in bound, c["claimId"]))
@@ -374,6 +644,21 @@ def build_claim_tools(context, operations=None):
 
     def requirement(requirement_key, title, operative_claim_ids, applicability_claim_ids=None, qualifier_claim_ids=None,
                     exception_claim_ids=None, context_claim_ids=None, non_repository_duty=False, non_assessable_reason=None):
+        """Business purpose: Assemble a LegalRequirement from exact frozen operative claims and their verified semantic closure.
+
+        Business rules:
+        - Require authoring eligibility, real relevant role-correct claims and no duplicate ownership of an operative anchor across requirements.
+        - Retain every reachable modifier and source reference; repository-assessable requirements need source-grounded applicability while external/nonassessable duties stay explicitly external.
+        Execution flow:
+        1. Enter/recover authoring and derive omitted binding selections from the verified closure.
+        2. Validate selected anchors, roles, closure membership and applicability requirements.
+        3. Assemble canonical operative/context fields and source provenance, then validate the row schema.
+        4. Store the candidate, derive requirement relations, invalidate stale validation and advance draft/phase state.
+        Failure cases:
+        - Unrecognized, duplicate, nonrelevant, wrong-role or out-of-closure claims and missing operative/applicability anchors return field-addressed repairs; invalid assembled rows are rejected before acceptance.
+        Side effects:
+        - Mutates the in-memory requirement/context-relation draft and observations; the invocation wrapper durably saves accepted authoring mutations.
+        """
         started = ledger.begin_authoring()
         if started.get("outcome") != "PASSED":
             return started
@@ -509,9 +794,34 @@ def build_claim_tools(context, operations=None):
         return {"outcome": "PASSED", "phase": ledger.phase, "inventoryRevision": ledger.revision, "draftRevision": context.draft_revision, "requirement": deepcopy(row)}
 
     def assessable_requirements():
+        """Business purpose: Select requirement candidates eligible to parent an AssessmentRule.
+
+        Business rules:
+        - Only COVERED_BY_ASSESSMENT_RULES coverage qualifies; nonassessable duties remain excluded from repository assessment parents.
+        Execution flow:
+        1. Filter the current requirement draft by its canonical coverage state.
+        Failure cases:
+        - An empty eligible set stays empty; missing required coverage metadata propagates instead of assuming assessability.
+        Side effects:
+        - Pure in-memory selection; no coverage or candidate mutation.
+        """
         return {rid: r for rid, r in context.draft["legalRequirements"].items() if r["coverage"]["state"] == "COVERED_BY_ASSESSMENT_RULES"}
 
     def assessment(assessment_rule_id, concept, legal_requirement_ids, investigation_focus=None):
+        """Business purpose: Author an AssessmentRule whose normative authority remains its exact assessable requirement parents.
+
+        Business rules:
+        - Require active authoring and at least one existing assessable parent.
+        - Criterion identity is deterministic; investigation focus is optional nonnormative guidance and cannot create a legal duty.
+        Execution flow:
+        1. Validate authoring eligibility and every parent requirement.
+        2. Assemble a claim-derived rule with canonical parent source references, criterion identity and required evidence binding.
+        3. Validate/store the row, invalidate stale validation and advance draft state.
+        Failure cases:
+        - Absent, unknown or nonassessable parents return ORPHAN_ASSESSMENT_RULE with actual candidates; malformed assembled rows receive schema rejection.
+        Side effects:
+        - Mutates the in-memory AssessmentRule draft and observations; the tool wrapper durably saves successful authoring mutations.
+        """
         started = ledger.begin_authoring()
         if started.get("outcome") != "PASSED":
             return started
@@ -546,6 +856,20 @@ def build_claim_tools(context, operations=None):
                 "authority": "Normative criteria/applicability/evidence are derived by the API from these exact parents. Investigation focus is a non-normative suggestion."}
 
     def remove_candidate(kind, candidate_id, reason):
+        """Business purpose: Remove a mistaken authored candidate without changing its frozen source claims.
+
+        Business rules:
+        - Require valid authoring phase; match the visible trimmed candidate identity.
+        - Removing a requirement also removes dependent AssessmentRule candidates and reprojects context relations.
+        Execution flow:
+        1. Enter/recover authoring and resolve the requested candidate.
+        2. Remove it and any dependent assessment candidates.
+        3. Advance draft/phase state and return the affected identifiers with the reason.
+        Failure cases:
+        - Missing candidates return CLAIM_SCHEMA_INVALID with bounded real candidates; authoring phase failures remain rejected.
+        Side effects:
+        - Mutates downstream candidate/relation state; the invocation wrapper persists successful draft removal.
+        """
         started = ledger.begin_authoring()
         if started.get("outcome") != "PASSED":
             return started
@@ -574,11 +898,35 @@ def build_claim_tools(context, operations=None):
                 "reason": reason, "invalidatedAssessmentRules": invalidated}
 
     def authoring_status(offset=0, limit=None):
+        """Business purpose: Expose current rule-authoring progress from the frozen revision without granting new authority.
+
+        Business rules:
+        - Require an active authoring context and use its bounded status projection.
+        Execution flow:
+        1. Check authoring eligibility and return the requested status page.
+        Failure cases:
+        - Unfinalized/inactive inventory returns CLAIM_PHASE_INVALID; status reads never create a successful authoring result.
+        Side effects:
+        - Read-only status projection apart from rejection observations.
+        """
         if context.authoring is None or not context.authoring.active():
             return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize the claim inventory first; this view reads the frozen revision")
         return context.authoring.status_view(offset, limit)
 
     def finalize():
+        """Business purpose: Freeze discovery only after inventory validation accepts complete source and semantic accounting.
+
+        Business rules:
+        - A failed validator may release only the shared gate-permitted unreachable context/definition claims; any release must be recommitted and revalidated.
+        Execution flow:
+        1. Attempt inventory finalization.
+        2. On failure ask the existing release helper for permitted cleanup.
+        3. Revalidate only when cleanup changed committed state and report released identities explicitly.
+        Failure cases:
+        - Failed validation/recommit remains failed; cleanup is not a substitute for accepted finalization and never invents an operative obligation.
+        Side effects:
+        - May call validation APIs and update allowed claim files/committed reviews through release_unconnected; successful finalization freezes the inventory.
+        """
         from rule_set_preparation.claim_files import release_unconnected
         result, released = ledger.validate_inventory(True), []
         if result.get("outcome") != "PASSED":
@@ -609,6 +957,21 @@ def build_claim_tools(context, operations=None):
     tools = []
     for name, description, function, schema in specs:
         def invoke(_function=function, _schema=schema, _name=name, **kwargs):
+            """Business purpose: Execute one governed preparation tool with ordered rejection, mutation and durability observations.
+
+            Business rules:
+            - Serialize operations under the mutation lock and bind current call/tool identity before validating.
+            - Argument-contract errors are distinct from body preconditions; accepted authoring mutations are saved before acknowledgment.
+            Execution flow:
+            1. Capture draft/call context and validate schema-owned constraints.
+            2. Invoke the operation or return field-addressed schema feedback.
+            3. Save accepted mutations, publish progress and observe authoring correction state.
+            4. Serialize the result and clear current call context on every exit.
+            Failure cases:
+            - Only KeyError, TypeError and ValueError become the body safety-net rejection; terminal runtime/callback/no-progress errors propagate through their existing policies.
+            Side effects:
+            - May perform the bound operation's state/API/file effects, persist accepted drafts and publish observations; always restores call-local ledger metadata.
+            """
             with context.mutation_lock:
                 ledger.current_tool, ledger.current_args, ledger.current_call_id = _name, kwargs, CURRENT_TOOL_CALL_ID.get()
                 ledger.current_layer = ledger.current_source = ledger.last_envelope = None

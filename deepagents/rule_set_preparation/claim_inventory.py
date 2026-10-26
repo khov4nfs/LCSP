@@ -56,16 +56,53 @@ FRAME_FIELDS = ['object', 'beneficiary', 'trigger', 'scope', 'qualifier', 'excep
 
 
 def text_sha(value):
+    """Business purpose: Identify the exact legal support text without interpreting its meaning.
+
+    Business rules:
+    - Hash the supplied text as UTF-8; different source bytes must not share an assumed identity.
+    Execution flow:
+    1. Compute and return the text's SHA-256 digest.
+    Failure cases:
+    - Non-text inputs or encoding failures propagate; no replacement text is invented.
+    Side effects:
+    - Pure calculation; no source or claim is changed.
+    """
     return hashlib.sha256(value.encode()).hexdigest()
 
 def utf16_slice(content: str, start: int, end: int) -> str:
-    """AST offsets use JavaScript's UTF-16 coordinates; reject half-surrogate boundaries."""
+    """AST offsets use JavaScript's UTF-16 coordinates; reject half-surrogate boundaries.
+
+    Business purpose: Recover the legal text covered by JavaScript AST source offsets.
+
+    Business rules:
+    - Offsets must be ordered nonnegative integers, exclude booleans and remain within the UTF-16 source.
+    Execution flow:
+    1. Validate the offset range.
+    2. Decode the corresponding UTF-16 span, preserving exact text.
+    Failure cases:
+    - Invalid ranges raise ValueError; half-surrogate boundaries fail decoding rather than alter evidence.
+    Side effects:
+    - Read-only source projection; no claim is registered.
+    """
     encoded = content.encode("utf-16-le")
     if isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start or end * 2 > len(encoded):
         raise ValueError("Invalid source support offsets")
     return encoded[start * 2:end * 2].decode("utf-16-le")
 
 def canonical_support(source, anchors, supports):
+    """Business purpose: Bind a semantic claim to distinct exact spans of its pinned legal source.
+
+    Business rules:
+    - Every anchor needs support on its own known source node; caller-supplied hashes must match exact nonempty text.
+    Execution flow:
+    1. Validate each support's fields, anchor and source range.
+    2. Compute source hashes and reject missing or duplicate spans.
+    3. Return supports in deterministic node/offset order.
+    Failure cases:
+    - Unrecognized nodes, foreign anchors, invalid offsets, blank text or hash mismatch reject the support.
+    Side effects:
+    - Read-only validation and projection; does not modify source or persist claims.
+    """
     if not isinstance(supports, list) or not supports:
         raise ValueError("Minimal exact source_support spans are required")
     result = []
@@ -88,18 +125,64 @@ def canonical_support(source, anchors, supports):
 
 
 def fingerprint(value: Any) -> str:
+    """Business purpose: Give preparation state a deterministic content identity for integrity comparisons.
+
+    Business rules:
+    - Canonical JSON sorts object keys and preserves Unicode text before hashing.
+    Execution flow:
+    1. Serialize the supplied state canonically and return its SHA-256 digest.
+    Failure cases:
+    - Non-serializable state fails instead of producing an unstable identity.
+    Side effects:
+    - Pure calculation; no preparation state changes.
+    """
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
 
 
 def identity_key(value: str) -> str:
+    """Business purpose: Normalize an agent's claim identity key for stable duplicate detection.
+
+    Business rules:
+    - Compatibility Unicode, case and whitespace differences do not create distinct claim keys.
+    Execution flow:
+    1. Normalize the key with NFKC, lowercase it and collapse whitespace.
+    Failure cases:
+    - Invalid non-text input propagates; eligibility and key length are checked by claim registration.
+    Side effects:
+    - Pure text normalization; does not allocate a claim.
+    """
     return " ".join(unicodedata.normalize("NFKC", value).lower().split())
 
 
 def claim_id(run_id: str, revision: int, nodes: list[str], key: str) -> str:
+    """Business purpose: Scope a canonical semantic claim identity to its preparation run and inventory revision.
+
+    Business rules:
+    - The same normalized key and sorted source anchors within one run/revision yield the same identifier.
+    Execution flow:
+    1. Build the run, revision, anchors and normalized key payload.
+    2. Return its deterministic fingerprint.
+    Failure cases:
+    - Invalid identity payloads propagate normalization or serialization failures; no fallback ID is generated.
+    Side effects:
+    - Pure identity calculation; does not register or update a claim.
+    """
     return fingerprint({"preparationRunId": run_id, "revision": revision, "sourceNodeIds": sorted(nodes), "identityKey": identity_key(key)})
 
 
 def normalized_graph(graph: dict) -> dict:
+    """Business purpose: Make claim inventory graphs comparable independently of list insertion order.
+
+    Business rules:
+    - Preserve semantic content while sorting claims, relations and accounting records by stable identifiers.
+    Execution flow:
+    1. Deep-copy the graph and sort source anchors and accounting identifiers.
+    2. Return the normalized graph with all original graph-level fields retained.
+    Failure cases:
+    - Missing required graph sections or identities reject malformed input through normal lookup failures.
+    Side effects:
+    - Pure projection on a deep copy; the caller's graph is preserved.
+    """
     return {**deepcopy(graph),
             "claims": sorted([{**c, "sourceNodeIds": sorted(c["sourceNodeIds"])} for c in graph["claims"]], key=lambda c: c["claimId"]),
             "relations": sorted(graph["relations"], key=lambda r: r["relationId"]),
@@ -108,12 +191,38 @@ def normalized_graph(graph: dict) -> dict:
 
 
 def readable_names(identities: dict, relations: dict) -> dict:
-    """Claim ids and relation ids as the agent wrote them: file#key, and 'KIND from -> to'."""
+    """Claim ids and relation ids as the agent wrote them: file#key, and 'KIND from -> to'.
+
+    Business purpose: Expose repairable claim and relation names instead of opaque identifiers in feedback.
+
+    Business rules:
+    - Claim aliases retain the agent's identity keys; relations show their kind and endpoint aliases.
+    Execution flow:
+    1. Combine claim identity aliases with readable names for each relation.
+    Failure cases:
+    - Missing endpoint aliases render as question marks; this display does not validate a relation.
+    Side effects:
+    - Read-only feedback projection; does not alter inventory identities.
+    """
     return {**identities, **{rid: f"{r['kind']} {identities.get(r['fromClaimId'], '?')} -> {identities.get(r['toClaimId'], '?')}" for rid, r in relations.items()}}
 
 
 def grouped_gaps(result: dict, claims: dict | None = None, names: dict | None = None) -> dict:
-    """Group failures by code. `names` maps claim ids to their file#key so the agent can edit the claim instead of searching for a hash."""
+    """Group failures by code. `names` maps claim ids to their file#key so the agent can edit the claim instead of searching for a hash.
+
+    Business purpose: Summarize validation failures into actionable code groups without losing reported progress.
+
+    Business rules:
+    - Count every failure but retain at most twenty examples per code; aliases improve readability without changing authority.
+    Execution flow:
+    1. Group failures and select their repair fields.
+    2. Add known claim context and replace recognized hashed names in references.
+    3. Return grouped gaps with supplied phase, coverage and progress metadata.
+    Failure cases:
+    - Missing failure lists become empty groups; missing outcome remains FAILED rather than an invented pass.
+    Side effects:
+    - Read-only projection; no validator runs or draft mutations occur.
+    """
     readable = lambda text: re.sub(r"[a-f0-9]{64}", lambda m: (names or {}).get(m.group(0), m.group(0)), text) if names and isinstance(text, str) else text
     groups: dict[str, dict] = {}
     for failure in result.get("failures", []):
@@ -167,6 +276,18 @@ class ClaimInventory:
         self.required_nodes = set() if self.frontier else {nid for nid, node in self.context.source_graph.nodes.items() if node["content"].strip()}
 
     def progress(self, tool_name: str):
+        """Business purpose: Publish the current discovery and authoring progress of this inventory.
+
+        Business rules:
+        - Frontier counts take precedence when bounded source review is active; the event reflects observed draft counts.
+        Execution flow:
+        1. Collect phase, review coverage and draft counts.
+        2. Add a monotonic observation stamp and publish the progress event.
+        Failure cases:
+        - Publication failures propagate; this helper does not retry or mark preparation complete.
+        Side effects:
+        - Advances observation sequence and publishes an agent stream event.
+        """
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
             "activity_kind": "CLAIM_INVENTORY_PROGRESS", "tool_name": tool_name, "phase": self.phase,
             "inventory_revision": self.revision, "inventory_fingerprint": self.frozen_fingerprint,
@@ -178,6 +299,18 @@ class ClaimInventory:
             **{k: v for k, v in self.stamp().items() if k not in ("requirement_count", "assessment_rule_count")}})
 
     def rebuild_node_index(self):
+        """Business purpose: Restore source-to-claim lookup state after inventory recovery or revision changes.
+
+        Business rules:
+        - Reviewed nodes are the required nodes with source accounting; claim anchors come from the current draft.
+        Execution flow:
+        1. Recompute reviewed source nodes.
+        2. Rebuild each source node's set of current claim identifiers.
+        Failure cases:
+        - Malformed required claim fields propagate; no source coverage is inferred from unrelated state.
+        Side effects:
+        - Replaces in-memory reviewed-node and claim lookup caches only.
+        """
         self.reviewed_nodes = self.required_nodes.intersection(self.context.draft["sourceAccounting"])
         self.claims_by_node = {}
         for claim in self.context.draft["semanticClaims"].values():
@@ -185,21 +318,69 @@ class ClaimInventory:
                 self.claims_by_node.setdefault(node, set()).add(claim["claimId"])
 
     def changed(self, previous, current):
+        """Business purpose: Invalidate prior validation when effective claim content changes.
+
+        Business rules:
+        - Equal previous and current values preserve validation and the progress revision.
+        Execution flow:
+        1. Compare the values.
+        2. On change, advance progress and clear the validated packet and last validation.
+        Failure cases:
+        - No business rejection is introduced; the caller validates the proposed content before accepting it.
+        Side effects:
+        - Mutates the context's progress revision and validation caches when needed.
+        """
         if previous != current:
             self.context.progress_revision += 1
             self.context.validated_packet = self.context.last_validation = None
 
     def graph(self) -> dict:
+        """Business purpose: Assemble the current legal semantic graph for validation and durable operations.
+
+        Business rules:
+        - Use the pinned source graph and target date; include frontier authority only when its binding exists.
+        Execution flow:
+        1. Project reference accounting from current claims and relations.
+        2. Combine source identity, optional frontier binding and current draft graph sections.
+        Failure cases:
+        - Invalid reference projection or missing required draft sections propagates; no semantic relationship is fabricated.
+        Side effects:
+        - Refreshes reference accounting in context and returns an in-memory graph projection.
+        """
         from rule_set_preparation.reference_binding import project_reference_accounting
         project_reference_accounting(self.context)
         return {"contractVersion": "LEGAL_GRAPH_V3", **({"targetDate": self.context.target_date} if self.context.target_date else {}), **({"reviewFrontier": self.frontier.binding()} if self.frontier and self.frontier.binding() else {}), **self.context.source_graph.base(),
                 **{v: list(self.context.draft[k].values()) for k, v in GRAPH_SECTIONS.items()}}
 
     def binding(self) -> dict:
+        """Business purpose: Expose the inventory revision and frozen fingerprint used to bind authoring operations.
+
+        Business rules:
+        - An unfrozen inventory retains a null fingerprint; the helper cannot imply readiness.
+        Execution flow:
+        1. Return the current revision and stored frozen fingerprint.
+        Failure cases:
+        - No external dependency or business rejection exists; it exposes current state only.
+        Side effects:
+        - Pure read of in-memory inventory identity.
+        """
         return {"revision": self.revision, "fingerprint": self.frozen_fingerprint}
 
     def stamp(self) -> dict:
-        """Ordering fields for every authoring observation, so two snapshots are comparable without wall-clock time."""
+        """Ordering fields for every authoring observation, so two snapshots are comparable without wall-clock time.
+
+        Business purpose: Order preparation observations without relying on wall-clock timestamps.
+
+        Business rules:
+        - Every stamp advances the event sequence and uses the current draft fingerprint, revision and model turn.
+        Execution flow:
+        1. Advance the observation sequence.
+        2. Initialize a missing draft fingerprint and return ordering fields with candidate counts.
+        Failure cases:
+        - Invalid draft state can fail fingerprinting; no synthetic ordering timestamp is substituted.
+        Side effects:
+        - Updates the event sequence and lazily caches the draft fingerprint.
+        """
         context = self.context
         context.event_sequence += 1
         if context.draft_fp is None:
@@ -209,7 +390,20 @@ class ClaimInventory:
                 "assessment_rule_count": len(context.draft["assessmentRules"])}
 
     def draft_changed(self) -> bool:
-        """Call after a Requirement/AssessmentRule candidate was added, replaced or removed."""
+        """Call after a Requirement/AssessmentRule candidate was added, replaced or removed.
+
+        Business purpose: Recognize an effective requirement or assessment-rule draft mutation.
+
+        Business rules:
+        - Only a changed draft fingerprint advances the draft revision; identical content is idempotent.
+        Execution flow:
+        1. Fingerprint the current authoring draft.
+        2. Compare it with the cached fingerprint and update fingerprint/revision when changed.
+        Failure cases:
+        - Invalid draft serialization propagates; no revision is advanced for unchanged content.
+        Side effects:
+        - Mutates the context's cached draft fingerprint and revision; does not persist the draft.
+        """
         context = self.context
         current = draft_fingerprint(context.draft)
         if current == context.draft_fp:
@@ -219,6 +413,18 @@ class ClaimInventory:
         return True
 
     def transition(self, phase: str):
+        """Business purpose: Expose a preparation phase change and invalidate authoring cursors when discovery reopens.
+
+        Business rules:
+        - Returning to discovery or inventory validation resets existing authoring correction state.
+        Execution flow:
+        1. Set the requested phase and reset stale authoring state when required.
+        2. Publish a durable phase-transition observation with inventory identity and ordering stamp.
+        Failure cases:
+        - Publication errors propagate; this local transition does not grant API lifecycle authorization.
+        Side effects:
+        - Mutates the phase and possibly authoring cursors; advances observation sequence and publishes an event.
+        """
         previous = self.phase
         self.phase = phase
         if phase in (DISCOVERY, INVENTORY_VALIDATION) and getattr(self.context, "authoring", None) is not None:
@@ -228,6 +434,18 @@ class ClaimInventory:
             "inventory_revision": self.revision, "inventory_fingerprint": self.frozen_fingerprint, **self.stamp()})
 
     def state_fingerprints(self, packet: dict | None = None) -> dict:
+        """Business purpose: Identify the distinct source-review, candidate and accounting states behind an observation.
+
+        Business rules:
+        - Use canonical graph ordering and requirement identities; preserve frontier identity separately from candidate content.
+        Execution flow:
+        1. Assemble the current graph and supplied or current draft packet.
+        2. Derive requirement/accounting projections and fingerprint each state dimension.
+        Failure cases:
+        - Malformed packets or graph projections propagate; missing optional frontier identity remains null.
+        Side effects:
+        - Refreshes reference accounting through graph projection; returns hashes without persisting validation.
+        """
         graph = normalized_graph(self.graph())
         packet = packet if packet is not None else self.context.draft_packet()
         requirements = sorted(packet.get("legalRequirements", []), key=lambda r: r.get("legalRequirementId", ""))
@@ -237,7 +455,22 @@ class ClaimInventory:
                 "requirement_fingerprint": fingerprint(requirements), "accounting_fingerprint": fingerprint(accounting)}
 
     def observe_validation(self, result: dict, phase: str, packet: dict | None = None, *, kind: str = "CLAIM_PHASE_VALIDATION", envelope: dict | None = None) -> dict:
-        """Record one outcome. Only kind CLAIM_PHASE_VALIDATION is a validator run; tool rejections use their own kind."""
+        """Record one outcome. Only kind CLAIM_PHASE_VALIDATION is a validator run; tool rejections use their own kind.
+
+        Business purpose: Record validation or rejection evidence and stop repeated ineffective preparation states.
+
+        Business rules:
+        - Only CLAIM_PHASE_VALIDATION represents a validator run; rejection events remain distinct.
+        - Ignore display-only wording in convergence identity while preserving substantive state, gap fields and source revision.
+        Execution flow:
+        1. Build effective-state and gap fingerprints and compare prior observations.
+        2. Publish and retain the stamped outcome.
+        3. Warn on a repeated failed state and raise NoProgressDetected when it repeats after feedback on a later eligible turn.
+        Failure cases:
+        - Repeated ineffective failed state terminates with NO_PROGRESS_DETECTED; missing verdicts remain failed.
+        Side effects:
+        - Updates convergence observations, event sequence and context trace, and publishes durable progress/failure events.
+        """
         identities = self.state_fingerprints(packet)
         # Identity of a gap is its code, its reference AND the specific fields at fault: two different missing arguments are two
         # gaps, while one repeated mistake stays one. (A jsonschema "required" error has an empty path, so code+ref alone would
@@ -293,12 +526,37 @@ class ClaimInventory:
         return result
 
     def rejection_kind(self) -> str:
+        """Business purpose: Label a rejected tool call without misrepresenting it as inventory validation.
+
+        Business rules:
+        - Read tools retain a read-rejected kind; mutation rejections distinguish discovery from authoring phases.
+        Execution flow:
+        1. Select the rejection event kind from the current tool and phase.
+        Failure cases:
+        - Unrecognized mutation tools use the phase's rejection category; no validation outcome is manufactured.
+        Side effects:
+        - Pure classification of current in-memory call context.
+        """
         if self.current_tool in READ_TOOLS:
             return "CLAIM_INVENTORY_READ_REJECTED"
         return "CLAIM_DISCOVERY_TOOL_REJECTED" if self.phase in {DISCOVERY, INVENTORY_VALIDATION} else "RULE_AUTHORING_TOOL_REJECTED"
 
     def rejected(self, code: str, ref: str, detail: str, **extra) -> dict:
-        """A tool refused its input before any validator ran; the state hash still detects ineffective repetition."""
+        """A tool refused its input before any validator ran; the state hash still detects ineffective repetition.
+
+        Business purpose: Return observable, repairable feedback for a tool refusal before validation.
+
+        Business rules:
+        - Preserve failure code, reference, layer, field paths and draft/inventory binding; retain only the latest two hundred envelopes.
+        Execution flow:
+        1. Choose stable repair guidance and construct a rejection envelope.
+        2. Append it to the rejection log and observe the failed effective state.
+        3. Return grouped feedback with readable claim aliases.
+        Failure cases:
+        - Repeated ineffective rejections can raise NoProgressDetected; rejection never becomes accepted authoring state.
+        Side effects:
+        - Caches draft identity, updates rejection history/convergence observations and publishes rejection evidence.
+        """
         guidance = extra.pop("guidance", None)
         action = extra.pop("requiredAction", None) or (
             "commit_claims" if code == "CLAIM_IDENTITY_CONFLICT"
@@ -327,10 +585,34 @@ class ClaimInventory:
         return grouped_gaps(self.observe_validation(result, self.phase, kind=self.rejection_kind(), envelope=envelope), self.context.draft["semanticClaims"], readable_names(self.identities, self.context.draft["claimRelations"]))
 
     def discovery_allowed(self) -> bool:
+        """Business purpose: Guard claim mutation until discovery is explicitly open.
+
+        Business rules:
+        - Claim discovery requires phase CLAIM_DISCOVERY and no frozen inventory.
+        Execution flow:
+        1. Return whether both discovery preconditions hold.
+        Failure cases:
+        - A false result leaves the caller responsible for returning the frozen-inventory rejection.
+        Side effects:
+        - Pure state predicate; no inventory transition occurs.
+        """
         return self.phase == DISCOVERY and self.frozen is None
 
     def foreign_claim(self, claim_id: str | None) -> dict | None:
-        """Refusal for a claim another review unit owns: names the owner so the Producer can reopen it."""
+        """Refusal for a claim another review unit owns: names the owner so the Producer can reopen it.
+
+        Business purpose: Direct a claim correction back to its owning source review unit.
+
+        Business rules:
+        - A frontier-owned claim may only be updated through its owning claim file; absent ownership creates no refusal.
+        Execution flow:
+        1. Find the claim's frontier owner.
+        2. Return SOURCE_REVIEW_INCOMPLETE with a concrete reopen/commit path when an owner exists.
+        Failure cases:
+        - The structured rejection may trigger existing no-progress detection; no foreign claim is modified.
+        Side effects:
+        - May record and publish rejection feedback; does not change claims or frontier scheduling.
+        """
         owner = self.frontier.claim_owners.get(claim_id) if self.frontier else None
         if not owner:
             return None
@@ -343,6 +625,20 @@ class ClaimInventory:
     def put_claim(self, key: str, nodes: list[str], claim_type: str, statement: str,
                   actor: str | None, action: str | None, relevant: bool, reason: str | None, *, update_id: str | None = None,
                   source_support=None, semantic_authority=None, semantic_frame=None, assessability=None) -> dict:
+        """Business purpose: Register or intentionally correct an agent-authored, source-supported semantic claim.
+
+        Business rules:
+        - Discovery must be open and source anchors must belong to the active allowed review unit.
+        - Updates preserve canonical key and anchors; exact source support, schema and legal-effect integrity must validate before acceptance.
+        Execution flow:
+        1. Check phase, frontier ownership and canonical source support.
+        2. Derive identity and validate the claim's complete semantic structure.
+        3. Reject identity conflicts or accept the claim, refresh indexes and record ownership.
+        Failure cases:
+        - Frozen inventory, foreign units, invalid support/schema/effect or identity conflicts return repairable rejection feedback; no semantic verdict is inferred.
+        Side effects:
+        - Mutates accepted in-memory claims, identities, review indexes and ownership; invalidates stale validation and may publish rejections.
+        """
         if not self.discovery_allowed():
             return self.rejected("CLAIM_INVENTORY_FROZEN", "claimInventory", "Reopen explicitly before changing claims")
         if self.frontier and not self.frontier.allowed(nodes, update_id):
@@ -405,12 +701,38 @@ class ClaimInventory:
 
 
     def review_complete(self) -> bool:
-        """Every review unit is complete (the API verifies committed coverage before any conclusion)."""
+        """Every review unit is complete (the API verifies committed coverage before any conclusion).
+
+        Business purpose: Determine whether all required legal source review units are complete.
+
+        Business rules:
+        - Use frontier discoveryCompleteEligible when present; otherwise every required source node must be reviewed.
+        Execution flow:
+        1. Read authoritative frontier progress or compare required and reviewed node sets.
+        Failure cases:
+        - Missing frontier eligibility is false; completion of review alone does not conclude legal readiness.
+        Side effects:
+        - Read-only predicate; no accounting records or API lifecycle are changed.
+        """
         if self.frontier:
             return bool(self.frontier.snapshot.get("progress", {}).get("discoveryCompleteEligible"))
         return self.required_nodes <= self.reviewed_nodes
 
     def validate_inventory(self, finalize: bool, conclude: str | None = None) -> dict:
+        """Business purpose: Validate, freeze or explicitly conclude a fully reviewed legal claim inventory.
+
+        Business rules:
+        - Frozen inventories return their accepted binding; unfinished frontier units block validation.
+        - The API decides readiness and conclusion, and its fingerprint must match the canonical revisioned graph.
+        Execution flow:
+        1. Verify frontier readiness and validate graph structure or invoke the API operation.
+        2. Record feedback and direct closure/readiness gaps to their repair path.
+        3. On accepted finalization freeze the exact graph, on accepted conclusion end without a Rule Set, otherwise reopen discovery.
+        Failure cases:
+        - Schema or API failures retain gaps; mismatched returned fingerprints raise ValueError; repeated ineffective state can terminate through observation policy.
+        Side effects:
+        - Calls the inventory API, changes phase/frozen or concluded state, and records validation/progress evidence.
+        """
         self.last_failures = []
         if self.frozen is not None:
             return {"outcome": "PASSED", "phase": self.phase, **self.binding(), "alreadyFinalized": True}
@@ -474,7 +796,21 @@ class ClaimInventory:
         """INV-C2: end explicitly when the durably complete review found no duty, prohibition or permission.
 
         Only the API decides: it requires every unit committed, no coverage/reference/integrity gap, and no
-        operative-typed claim. Nothing here infers the outcome; a rejection returns the existing gap codes."""
+        operative-typed claim. Nothing here infers the outcome; a rejection returns the existing gap codes.
+
+        Business purpose: Request an explicit terminal conclusion when complete source review found no operative obligation.
+
+        Business rules:
+        - Discovery-only sessions cannot conclude; a frozen inventory must proceed to authoring.
+        - A factual reason and complete source frontier are required; only the API may accept the conclusion.
+        Execution flow:
+        1. Return an existing accepted conclusion idempotently or validate conclusion preconditions.
+        2. Delegate to inventory validation with the stated factual reason.
+        Failure cases:
+        - Diagnostic mode, frozen inventory, blank reason or unfinished source review returns typed rejection; no missing obligation is invented.
+        Side effects:
+        - May record rejections or invoke the conclusion API through validation; accepted conclusion creates no Rule Set.
+        """
         if self.context.discovery_only:
             return self.rejected("CLAIM_PHASE_INVALID", "diagnostic", "Discovery-only sessions stop at CLAIM_INVENTORY_READY")
         if self.concluded is not None:
@@ -493,7 +829,21 @@ class ClaimInventory:
         return self.validate_inventory(False, conclude=reason.strip())
 
     def restore_frozen_inventory(self, stored: dict | None) -> None:
-        """Recover the API's exact frozen authority, never infer it from completed review counts."""
+        """Recover the API's exact frozen authority, never infer it from completed review counts.
+
+        Business purpose: Recover the exact API-frozen semantic authority for this inventory revision.
+
+        Business rules:
+        - Stored revision, canonical graph, fingerprint and identity aliases must all match recovered committed reviews.
+        Execution flow:
+        1. Return when no frozen state exists.
+        2. Canonicalize and compare the stored authority with current state.
+        3. Adopt only the verified frozen graph and fingerprint.
+        Failure cases:
+        - Revision/fingerprint mismatch or differing committed reviews raises ValueError rather than inferring readiness.
+        Side effects:
+        - Updates in-memory frozen authority; never changes source or durable API records.
+        """
         if stored is None:
             return
         graph = normalized_graph(stored["graph"])
@@ -505,7 +855,22 @@ class ClaimInventory:
         self.frozen, self.frozen_fingerprint = deepcopy(graph), expected
 
     def save_authoring_draft(self) -> None:
-        """A mutation is acknowledged only after its complete snapshot is durable."""
+        """A mutation is acknowledged only after its complete snapshot is durable.
+
+        Business purpose: Acknowledge an authoring mutation only after its full draft snapshot is durable.
+
+        Business rules:
+        - Save under the mutation lock only for a frozen inventory; identical draft content avoids duplicate saves.
+        - The API's draft version governs concurrent writes.
+        Execution flow:
+        1. Copy and fingerprint the authoring sections under lock.
+        2. Mark the draft unsaved and request SAVE_AUTHORING_DRAFT.
+        3. Adopt the accepted version and clear the unsaved flag.
+        Failure cases:
+        - Rejected saves raise RuntimeError and retain the unsaved indication; API failures propagate without acknowledging durability.
+        Side effects:
+        - Persists an authoring draft through the API and updates local draft version and durability markers.
+        """
         with self.context.mutation_lock:
             if not self.frozen:
                 return
@@ -522,11 +887,37 @@ class ClaimInventory:
             self.saved_draft_fingerprint, self.draft_unsaved = digest, False
 
     def flush_authoring_draft(self) -> None:
+        """Business purpose: Flush a previously unacknowledged authoring draft before the caller proceeds.
+
+        Business rules:
+        - A draft already marked durable requires no additional save.
+        Execution flow:
+        1. When the unsaved flag is set, invoke the locked authoring-draft save.
+        Failure cases:
+        - Save rejection or transport failure propagates and leaves durability unacknowledged.
+        Side effects:
+        - May persist the draft through the API and update its local version/unsaved marker.
+        """
         if self.draft_unsaved:
             self.save_authoring_draft()
 
     def restore_authoring_draft(self, force: bool = False) -> None:
-        """Load this run/revision once, before any authoring mutation, or resync on force=True."""
+        """Load this run/revision once, before any authoring mutation, or resync on force=True.
+
+        Business purpose: Load durable authoring state before local edits or an explicitly forced resynchronization.
+
+        Business rules:
+        - Load once unless forced; non-forced recovery must not overwrite conflicting local candidates.
+        - The API's saved draft and version, not local completion counts, establish recovered state.
+        Execution flow:
+        1. Load this run and revision from the API.
+        2. Reject conflicting local edits or copy the accepted saved sections.
+        3. Restore version, validation gaps where applicable, fingerprint and loaded marker.
+        Failure cases:
+        - API rejection or conflicting local content raises RuntimeError without silently discarding local candidates.
+        Side effects:
+        - Reads the API and replaces in-memory authoring sections on accepted recovery; does not persist new candidates.
+        """
         if self.draft_restored and not force:
             return
         result = self.context.api.claim_inventory_operation(self.context.run_id, "LOAD_AUTHORING_DRAFT", self.revision)
@@ -548,6 +939,20 @@ class ClaimInventory:
         self.draft_restored = True
 
     def begin_authoring(self) -> dict:
+        """Business purpose: Enter rule authoring only with a current, frozen source-supported inventory.
+
+        Business rules:
+        - Discovery-only mode and historical non-V3 authority cannot authorize authoring.
+        - Ready inventories require API AUTHOR_RULES acceptance; only authoring/validation/submission phases may continue.
+        Execution flow:
+        1. Check mode, graph version and phase.
+        2. Obtain API phase authorization when ready and restore the durable draft.
+        3. Return the frozen binding and relevant claim-role counts.
+        Failure cases:
+        - Invalid phase, diagnostic mode or historical authority returns rejection; draft restore failures propagate.
+        Side effects:
+        - May call the API, transition phase, recover local draft state and publish phase or rejection events.
+        """
         if self.context.discovery_only: return self.rejected("CLAIM_PHASE_INVALID", "diagnostic", "Discovery-only sessions stop at CLAIM_INVENTORY_READY")
         if self.frozen and self.frozen.get("contractVersion") != "LEGAL_GRAPH_V3":
             return self.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Historical inventories remain read-only; reopen for source support", requiredAction="reopen_semantic_claim_inventory")
@@ -568,6 +973,20 @@ class ClaimInventory:
         return {"outcome": "PASSED", "phase": self.phase, **self.binding(), "relevantClaimsByAccountingRole": roles}
 
     def reopen(self, reason: str) -> dict:
+        """Business purpose: Reopen frozen legal discovery while preserving claims under a new revisioned identity.
+
+        Business rules:
+        - A frozen graph and nonblank factual reason are mandatory; the API owns the new revision.
+        - Old authoring candidates/cursors cannot remain authoritative after discovery reopens.
+        Execution flow:
+        1. Request REOPEN from the API.
+        2. Remap claims, relations, ownership and accounting to the accepted revision and clear authoring sections.
+        3. Rebuild source indexes, invalidate frozen/validated state and enter discovery.
+        Failure cases:
+        - Precondition or API rejection leaves the frozen inventory in place; malformed remapping fails rather than reusing stale IDs.
+        Side effects:
+        - Changes durable inventory revision through the API and rebuilds local discovery state while publishing its phase transition.
+        """
         if not self.frozen or not reason.strip():
             return self.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Frozen inventory and a reason are required")
         result = self.context.api.claim_inventory_operation(self.context.run_id, "REOPEN", self.revision, reason=reason)

@@ -142,6 +142,22 @@ export const legalEvidenceBindingSchema = z.strictObject({
 export type LegalEvidenceBinding = z.infer<typeof legalEvidenceBindingSchema>;
 
 /** A request proves a legal criterion; it cannot author an independent technical obligation. */
+/**
+ * Business purpose: Project evidence requests directly from bound canonical criterion statements.
+ *
+ * Business rules:
+ * - Include only bindings of the requested evidence kind and criteria present in the supplied list; a request cannot create a new technical duty.
+ *
+ * Execution flow:
+ * 1. Index criteria by identity.
+ * 2. Select matching evidence bindings and render their canonical criterion statement.
+ *
+ * Failure cases:
+ * - Missing/empty criterion statements produce no request for that binding; graph integrity is validated separately.
+ *
+ * Side effects:
+ * - Pure contract projection; does not collect evidence or decide criteria.
+ */
 export function deriveEvidenceRequests(
   criteria: readonly { criterionId: string; statement: string }[],
   bindings: readonly LegalEvidenceBinding[],

@@ -66,13 +66,38 @@ class ExtractedDocument:
 
 
 def clean_text(value: str) -> str:
-    """NFC, no control characters, line endings unified; Vietnamese diacritics are preserved."""
+    """NFC, no control characters, line endings unified; Vietnamese diacritics are preserved.
+
+    Business purpose: Normalize extracted legal text while retaining Vietnamese diacritics and visible wording.
+
+    Business rules:
+    - Use NFC and unified line endings; remove defined control/zero-width markers and normalize nonbreaking spaces.
+    Execution flow:
+    1. Normalize Unicode and line endings.
+    2. Remove the defined invisible characters and return cleaned text.
+    Failure cases:
+    - Invalid non-text input propagates; cleaning does not infer missing legal text.
+    Side effects:
+    - Pure text transformation; original document bytes are unchanged.
+    """
     value = unicodedata.normalize("NFC", value).replace("\r\n", "\n").replace("\r", "\n")
     value = value.replace(" ", " ").replace("​", "").replace("﻿", "")
     return _CONTROL.sub("", value)
 
 
 def _decode(data: bytes) -> str:
+    """Business purpose: Decode stored textual legal documents with a visible fallback for invalid UTF-8 bytes.
+
+    Business rules:
+    - Honor the UTF-8 BOM; undecodable bytes use replacement characters rather than a guessed alternative encoding.
+    Execution flow:
+    1. Attempt UTF-8-sig decoding.
+    2. On invalid UTF-8, return UTF-8 text with replacement markers.
+    Failure cases:
+    - UnicodeDecodeError selects the replacement fallback; this helper cannot certify source extraction completeness.
+    Side effects:
+    - Pure byte-to-text conversion; no storage changes.
+    """
     try:
         return data.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -94,19 +119,67 @@ class _HtmlText(HTMLParser):
         self._skip_depth = 0
 
     def _write(self, text: str) -> None:
+        """Business purpose: Accumulate visible legal HTML text within its current table-cell context.
+
+        Business rules:
+        - Text belongs to the innermost open cell when present, otherwise the document output.
+        Execution flow:
+        1. Append the text to the active cell or top-level document buffer.
+        Failure cases:
+        - No parsing decision or external failure is introduced; the parser owns valid buffer state.
+        Side effects:
+        - Mutates the parser's in-memory text buffers only.
+        """
         (self._cells[-1] if self._cells else self._parts).append(text)
 
     def _close_cells(self, table_depth: int) -> None:
-        """End every open cell of the current table (HTML may omit </td>, </th> and </tr>)."""
+        """End every open cell of the current table (HTML may omit </td>, </th> and </tr>).
+
+        Business purpose: Preserve visible cell text even when legal HTML omits closing cell tags.
+
+        Business rules:
+        - Close only cells at the current or deeper table depth; collapse internal whitespace without merging neighboring cells.
+        Execution flow:
+        1. Pop each affected cell and its depth.
+        2. Write normalized cell text into the enclosing cell or document buffer.
+        Failure cases:
+        - No missing closing tag raises a business error; the parser closes known open cells without inventing content.
+        Side effects:
+        - Mutates cell stacks and accumulated text; no document storage is changed.
+        """
         while self._cells and self._cell_tables[-1] >= table_depth:
             self._cell_tables.pop()
             self._write(" ".join("".join(self._cells.pop()).split()))
 
     def _break(self) -> None:
         # Inside a cell a break is a space, so the whole row stays on one line.
+        """Business purpose: Retain textual boundaries when converting legal HTML blocks and table cells.
+
+        Business rules:
+        - A break inside a cell is a space; outside cells it is a newline so rows and blocks remain separate.
+        Execution flow:
+        1. Choose the separator for the current cell context and append it to visible output.
+        Failure cases:
+        - No external dependency or rejection exists; separator choice depends only on parser state.
+        Side effects:
+        - Appends a separator to the in-memory output buffer.
+        """
         self._write(" " if self._cells else "\n")
 
     def handle_starttag(self, tag: str, attrs) -> None:  # noqa: ANN001 - html.parser signature
+        """Business purpose: Preserve legal HTML block/table structure while excluding non-visible markup.
+
+        Business rules:
+        - Scripts, styles, head and other skipped regions never contribute visible text.
+        - Table rows reset cell separation and omitted cell endings are closed before new cells.
+        Execution flow:
+        1. Track skipped-region depth.
+        2. For visible markup, maintain table/row/cell context and insert required separators.
+        Failure cases:
+        - Unrecognized tags add no structural separator; malformed HTML is handled through parser state without executing its content.
+        Side effects:
+        - Mutates skip depth, table/cell stacks and visible text buffers only.
+        """
         if tag in _SKIPPED_TAGS:
             self._skip_depth += 1
         elif self._skip_depth:
@@ -131,6 +204,18 @@ class _HtmlText(HTMLParser):
             self._break()
 
     def handle_endtag(self, tag: str) -> None:
+        """Business purpose: Complete visible legal HTML boundaries and recover omitted cell endings.
+
+        Business rules:
+        - Skipped-region endings reduce skip depth without exposing hidden text; table/row endings close active cells first.
+        Execution flow:
+        1. Update skipped-region state.
+        2. Close relevant cells and table context or insert visible block breaks.
+        Failure cases:
+        - Unmatched skipped-region endings cannot make depth negative; unknown end tags leave output unchanged.
+        Side effects:
+        - Mutates parser stacks and appends text boundaries; no external action occurs.
+        """
         if tag in _SKIPPED_TAGS:
             self._skip_depth = max(0, self._skip_depth - 1)
         elif self._skip_depth:
@@ -149,15 +234,50 @@ class _HtmlText(HTMLParser):
             self._break()
 
     def handle_data(self, data: str) -> None:
+        """Business purpose: Include only visible HTML text in legal document extraction.
+
+        Business rules:
+        - Data inside an active skipped region is discarded from the visible source view.
+        Execution flow:
+        1. Append received text only when skipped-region depth is zero.
+        Failure cases:
+        - Hidden text produces no output; this handler does not attempt to execute or interpret markup data.
+        Side effects:
+        - Mutates visible in-memory buffers when eligible.
+        """
         if self._skip_depth == 0:
             self._write(data)
 
     def text(self) -> str:
+        """Business purpose: Return complete accumulated visible HTML text, including malformed final cells.
+
+        Business rules:
+        - Open cells are closed at end of input so their existing text is retained once.
+        Execution flow:
+        1. Close all remaining cells.
+        2. Join top-level text fragments into the extracted body.
+        Failure cases:
+        - Missing cell end tags do not discard buffered content; no new text is fabricated.
+        Side effects:
+        - Finishes cell buffers in memory and returns text; no storage write occurs.
+        """
         self._close_cells(0)  # unclosed cells at the end of a malformed document
         return "".join(self._parts)
 
 
 def _html_to_text(data: bytes) -> str:
+    """Business purpose: Convert stored HTML bytes into visible legal text with structural separators.
+
+    Business rules:
+    - Use the non-executing HTML parser and the defined UTF-8 decoding fallback.
+    Execution flow:
+    1. Decode and feed the document to the visible-text parser.
+    2. Close parsing and return all retained visible text.
+    Failure cases:
+    - Parser failures propagate to extraction; hidden markup is intentionally omitted rather than executed.
+    Side effects:
+    - Creates temporary parser state only; no network requests or document writes.
+    """
     parser = _HtmlText()
     parser.feed(_decode(data))
     parser.close()
@@ -168,19 +288,65 @@ def _html_to_text(data: bytes) -> str:
 
 
 def _local(element) -> str:  # noqa: ANN001 - ElementTree element
+    """Business purpose: Compare WordprocessingML elements by local tag name across wrapper namespaces.
+
+    Business rules:
+    - Strip only the namespace prefix encoded in the XML element tag.
+    Execution flow:
+    1. Return the tag suffix following the final namespace delimiter.
+    Failure cases:
+    - Malformed non-string tags propagate normal string-operation errors; XML parsing is validated upstream.
+    Side effects:
+    - Pure XML metadata projection.
+    """
     return element.tag.rsplit("}", 1)[-1]
 
 
 def _attr(element, name: str):  # noqa: ANN001, ANN202
+    """Business purpose: Read a WordprocessingML attribute without mixing it with an unqualified XML field.
+
+    Business rules:
+    - Attribute lookup always uses the canonical WordprocessingML namespace.
+    Execution flow:
+    1. Return the namespaced attribute value or None when absent.
+    Failure cases:
+    - A missing optional attribute is None; invalid element objects propagate lookup failure.
+    Side effects:
+    - Read-only XML attribute access.
+    """
     return element.get(_W + name)
 
 
 def _child_val(parent, name: str):  # noqa: ANN001, ANN202
+    """Business purpose: Read an optional Word property value without requiring absent layout metadata.
+
+    Business rules:
+    - Only the named direct Word child and its namespaced val attribute are considered.
+    Execution flow:
+    1. Find the optional property child.
+    2. Return its value when present, otherwise None.
+    Failure cases:
+    - Absent parent or child returns None; malformed element access propagates.
+    Side effects:
+    - Read-only XML metadata retrieval.
+    """
     child = parent.find(_W + name) if parent is not None else None
     return _attr(child, "val") if child is not None else None
 
 
 def _roman(number: int, upper: bool) -> str:
+    """Business purpose: Render supported Word list numbers as Roman labels so legal numbering survives extraction.
+
+    Business rules:
+    - Use the fixed subtractive Roman symbol table and requested letter case.
+    Execution flow:
+    1. Consume the number through ordered Roman values.
+    2. Return the assembled label in the requested case.
+    Failure cases:
+    - Nonpositive numbers yield an empty label under the existing renderer; eligibility is determined by numbering metadata.
+    Side effects:
+    - Pure label formatting; list counters are not changed here.
+    """
     pairs = [(1000, "m"), (900, "cm"), (500, "d"), (400, "cd"), (100, "c"), (90, "xc"), (50, "l"), (40, "xl"), (10, "x"), (9, "ix"), (5, "v"), (4, "iv"), (1, "i")]
     out = ""
     for value, symbol in pairs:
@@ -192,6 +358,18 @@ def _roman(number: int, upper: bool) -> str:
 
 def _letters(number: int, upper: bool) -> str:
     # Word counts a, b, ... z, aa, bb, ... zz, aaa, ...
+    """Business purpose: Render Word's repeating alphabetic numbering for extracted legal list labels.
+
+    Business rules:
+    - Follow Word's a through z, aa through zz, aaa progression rather than spreadsheet column numbering.
+    Execution flow:
+    1. Select the repeated letter and repetition count.
+    2. Return the label in the requested case.
+    Failure cases:
+    - Invalid numeric input propagates arithmetic/type errors; this renderer does not validate a numbering scheme.
+    Side effects:
+    - Pure label formatting; no document or counter mutation.
+    """
     letter = chr(ord("a") + (number - 1) % 26) * ((number - 1) // 26 + 1)
     return letter.upper() if upper else letter
 
@@ -256,6 +434,18 @@ class _Numbering:
                     self.style_lists[style_id] = (_child_val(num_pr, "numId"), int(level) if level is not None else None)
 
     def _style_list(self, style_id: str | None) -> tuple[str | None, int | None, str | None]:
+        """Business purpose: Recover list numbering inherited through a Word paragraph style chain.
+
+        Business rules:
+        - Use the first style with list metadata and stop when a style repeats to avoid cyclic inheritance.
+        Execution flow:
+        1. Walk the style and its parents while recording visited identities.
+        2. Return list ID, level and defining style, or an empty binding.
+        Failure cases:
+        - Unrecognized or cyclic style chains without a list return three None values; no numbering is invented.
+        Side effects:
+        - Read-only style metadata traversal.
+        """
         seen = set()
         while style_id and style_id not in seen:
             seen.add(style_id)
@@ -266,6 +456,20 @@ class _Numbering:
         return None, None, None
 
     def label(self, paragraph) -> str:  # noqa: ANN001
+        """Business purpose: Preserve supported automatic Word numbering as visible legal paragraph labels.
+
+        Business rules:
+        - Paragraph numbering overrides style inheritance; disabled, bullet and none formats emit no numeric label.
+        - Only supported decimal, letter and Roman formats are rendered; unsupported levels/formats remain extraction gaps.
+        Execution flow:
+        1. Resolve paragraph or inherited list and level metadata.
+        2. Apply initial overrides, advance the current counter and reset deeper levels.
+        3. Substitute supported referenced levels into the printed label template.
+        Failure cases:
+        - Undefined levels or unsupported formats record an unsupported-numbering gap and return an empty label; invalid numeric metadata propagates.
+        Side effects:
+        - Updates list counters, started-list identities and unsupported-format diagnostics in memory.
+        """
         properties = paragraph.find(_W + "pPr")
         num_pr = properties.find(_W + "numPr") if properties is not None else None
         num_id = _child_val(num_pr, "numId") if num_pr is not None else None
@@ -303,6 +507,18 @@ class _Numbering:
             return ""
 
         def render(match: re.Match[str]) -> str:
+            """Business purpose: Render one referenced numbering level inside a Word legal label template.
+
+            Business rules:
+            - Legal numbering forces decimal rendering; otherwise use the referenced level's supported format and current/start counter.
+            Execution flow:
+            1. Resolve the template's referenced level.
+            2. Record unsupported metadata or format the existing counter value.
+            Failure cases:
+            - Undefined levels and unsupported formats add a diagnostic and substitute an empty label fragment.
+            Side effects:
+            - May update unsupported-numbering diagnostics; does not advance list counters.
+            """
             ref = int(match.group(1)) - 1
             ref_spec = levels.get(ref)
             if ref_spec is None:
@@ -327,6 +543,19 @@ class _DocxReader:
         self.emitted: set[tuple[str, str]] = set()
 
     def blocks(self, container) -> list[str]:  # noqa: ANN001
+        """Business purpose: Extract visible Word document blocks in source order without duplicating fallback content.
+
+        Business rules:
+        - Read paragraphs, tables and supported content wrappers; AlternateContent uses its Choice branch only.
+        Execution flow:
+        1. Visit ordered child blocks.
+        2. Delegate supported paragraphs/tables or recurse through recognized wrappers.
+        3. Return the accumulated visible lines.
+        Failure cases:
+        - Unrecognized block types are omitted by the defined extractor; malformed XML traversal propagates rather than inventing text.
+        Side effects:
+        - May advance numbering and note state through delegated reads; no stored document mutation.
+        """
         lines: list[str] = []
         for child in container:
             name = _local(child)
@@ -347,6 +576,18 @@ class _DocxReader:
         return lines
 
     def table(self, table) -> list[str]:  # noqa: ANN001
+        """Business purpose: Keep legal table rows and cell boundaries visible in extracted Word text.
+
+        Business rules:
+        - Collapse whitespace within each cell, separate cells with CELL_SEPARATOR and omit wholly empty rows.
+        Execution flow:
+        1. Visit supported table rows and extract each cell's visible blocks.
+        2. Return nonempty rows with explicit cell separators.
+        Failure cases:
+        - Empty tables return no lines; malformed cell content propagates delegated extraction errors.
+        Side effects:
+        - Advances delegated numbering/note state in memory; no source XML changes.
+        """
         rows: list[str] = []
         for row in self._rows(table):
             cells = []
@@ -359,6 +600,17 @@ class _DocxReader:
 
     @staticmethod
     def _rows(table):  # noqa: ANN001, ANN205
+        """Business purpose: Include Word table rows nested inside supported content controls.
+
+        Business rules:
+        - Yield direct rows and rows directly inside an sdtContent wrapper in document order.
+        Execution flow:
+        1. Visit table children and yield recognized row elements from direct or supported wrapped positions.
+        Failure cases:
+        - Missing wrapper content yields no rows; unsupported wrappers are not guessed into table structure.
+        Side effects:
+        - Read-only XML iteration; no extraction state is changed.
+        """
         for child in table:
             if child.tag == _W + "tr":
                 yield child
@@ -369,11 +621,37 @@ class _DocxReader:
                         yield inner
 
     def paragraph(self, paragraph) -> list[str]:  # noqa: ANN001
+        """Business purpose: Extract a legal Word paragraph with its numbering, text boxes and referenced notes.
+
+        Business rules:
+        - Avoid deleted/moved-from text and fallback branches; text boxes and notes are emitted once through their own readers.
+        Execution flow:
+        1. Collect visible paragraph text, nested boxes and note references.
+        2. Prefix supported automatic numbering.
+        3. Append text-box blocks and referenced notes in their collected order.
+        Failure cases:
+        - Missing visible text remains empty; unsupported numbering is retained as diagnostics by the numbering reader.
+        Side effects:
+        - Updates numbering counters and emitted-note state through delegated readers; source XML remains unchanged.
+        """
         text: list[str] = []
         boxes: list = []
         references: list[tuple[str, str]] = []
 
         def walk(node) -> None:  # noqa: ANN001
+            """Business purpose: Collect visible inline Word text without repeating alternative or removed content.
+
+            Business rules:
+            - Tabs and breaks retain token boundaries; text boxes and notes are deferred to separate output.
+            - Ignore fallback, paragraph/run properties, deletions and moved-from branches.
+            Execution flow:
+            1. Visit inline descendants in order.
+            2. Accumulate visible characters or record deferred text boxes/note references while skipping excluded branches.
+            Failure cases:
+            - Unrecognized inline wrappers recurse into their children; absent text contributes an empty string rather than a fabricated value.
+            Side effects:
+            - Mutates the paragraph's local text, box and reference buffers only.
+            """
             for child in node:
                 tag = child.tag
                 if tag == _W + "t":
@@ -406,6 +684,19 @@ class _DocxReader:
         return lines
 
     def note(self, kind: str, note_id: str) -> list[str]:
+        """Business purpose: Emit a real Word footnote or endnote once with a visible sequential label.
+
+        Business rules:
+        - Duplicate or unknown note references produce no text; empty note paragraphs are removed after whitespace normalization.
+        Execution flow:
+        1. Verify the note is known and not already emitted.
+        2. Mark it emitted, advance its note-kind counter and normalize its paragraphs.
+        3. Return labeled first text and remaining paragraphs when nonempty.
+        Failure cases:
+        - Unrecognized/duplicate notes return no lines; a known empty note still remains marked emitted without invented text.
+        Side effects:
+        - Updates emitted-note identities and note-kind counters in memory.
+        """
         if (kind, note_id) in self.emitted or note_id not in self.notes[kind]:
             return []
         self.emitted.add((kind, note_id))
@@ -418,6 +709,18 @@ class _DocxReader:
         return [f"{label} {paragraphs[0]}", *paragraphs[1:]]
 
     def unreferenced_notes(self) -> list[str]:
+        """Business purpose: Retain real Word note text that has no visible in-document reference.
+
+        Business rules:
+        - Use the same one-time emission policy as referenced notes, in stored footnote then endnote order.
+        Execution flow:
+        1. Visit all stored note identities.
+        2. Collect text only for notes not already emitted.
+        Failure cases:
+        - Previously emitted or empty notes add no lines; no synthetic reference is inserted into the source.
+        Side effects:
+        - Advances note emission state and counters through the shared note reader.
+        """
         lines: list[str] = []
         for kind in ("footnote", "endnote"):
             for note_id in self.notes[kind]:
@@ -427,6 +730,18 @@ class _DocxReader:
 
 def _read_part(archive: zipfile.ZipFile, name: str, *, required: bool):  # noqa: ANN202
     # Some Word exporters use Windows separators inside the ZIP; aliases must stay unambiguous.
+    """Business purpose: Read one unambiguous, bounded Word XML part from a stored document archive.
+
+    Business rules:
+    - Normalize ZIP path separators but reject duplicate aliases; each part must stay within the XML byte limit.
+    Execution flow:
+    1. Find the requested canonical part and enforce required/unique/size constraints.
+    2. Read and parse the XML element tree.
+    Failure cases:
+    - Missing required parts, duplicate aliases, oversized XML or XML syntax failures raise EXTRACTION_FAILED; missing optional parts return None.
+    Side effects:
+    - Reads ZIP content in memory; does not extract paths onto the host filesystem.
+    """
     parts = [info for info in archive.infolist() if info.filename.replace("\\", "/") == name]
     if not parts:
         if required:
@@ -444,7 +759,20 @@ def _read_part(archive: zipfile.ZipFile, name: str, *, required: bool):  # noqa:
 
 
 def _docx_notes(root, tag: str) -> dict[str, list[str]]:  # noqa: ANN001
-    """Paragraph texts of each real note (separators and continuation notes are layout, not content)."""
+    """Paragraph texts of each real note (separators and continuation notes are layout, not content).
+
+    Business purpose: Recover visible paragraphs of real Word footnotes/endnotes for later one-time emission.
+
+    Business rules:
+    - Exclude separators, continuation separators and continuation notices because they are layout, not legal text.
+    Execution flow:
+    1. Visit real notes and collect their text/tab-separated paragraph fragments.
+    2. Return paragraphs keyed by pinned note identity.
+    Failure cases:
+    - Absent optional note XML returns an empty map; malformed element metadata propagates extraction failure.
+    Side effects:
+    - Read-only note projection; no numbering or emitted-note state changes.
+    """
     out: dict[str, list[str]] = {}
     if root is None:
         return out
@@ -465,6 +793,20 @@ def _docx_notes(root, tag: str) -> dict[str, list[str]]:  # noqa: ANN001
 
 
 def _docx_to_text(data: bytes) -> tuple[str, list[dict]]:
+    """Business purpose: Extract legal Word body, numbering, tables and notes with explicit unsupported-numbering gaps.
+
+    Business rules:
+    - Require document.xml; optional numbering, styles and note parts follow the same bounded XML-part guards.
+    - Unsupported automatic numbering must be reported instead of silently implying complete text.
+    Execution flow:
+    1. Read required and optional XML parts from the ZIP.
+    2. Extract body blocks and then any unreferenced real notes.
+    3. Return joined visible text and an explicit numbering gap when recorded.
+    Failure cases:
+    - Invalid ZIPs become EXTRACTION_FAILED; part/XML failures propagate; unsupported numbering returns a gap rather than an invented label.
+    Side effects:
+    - Uses in-memory document/read state only; no source or persistent extraction record is changed.
+    """
     try:
         with zipfile.ZipFile(BytesIO(data)) as archive:
             document = _read_part(archive, "word/document.xml", required=True)
@@ -487,6 +829,18 @@ def _docx_to_text(data: bytes) -> tuple[str, list[dict]]:
 
 
 def _ocr_pdf_pages(data: bytes, page_numbers: list[int]) -> dict[int, str]:
+    """Business purpose: Recover text from image-bearing PDF pages through the existing legal PDF OCR pipeline.
+
+    Business rules:
+    - OCR only the selected page numbers and retain the returned page-number mapping.
+    Execution flow:
+    1. Write the supplied PDF into an isolated temporary directory.
+    2. Run LegalPdfOcr for the requested pages and collect their text.
+    Failure cases:
+    - Filesystem, OCR runtime or subprocess failures become EXTRACTION_FAILED rather than an empty successful extraction.
+    Side effects:
+    - Creates and removes a temporary PDF and invokes local OCR tooling; no provider inference or source storage mutation.
+    """
     from tools.legal.sources.scripts.ocr_legal_pdf import LegalPdfOcr
 
     try:
@@ -501,6 +855,20 @@ def _ocr_pdf_pages(data: bytes, page_numbers: list[int]) -> dict[int, str]:
 
 
 def _pdf_pages(data: bytes) -> tuple[list[str], bool]:
+    """Business purpose: Read legal PDF text with bounded pagination and OCR for image-bearing pages lacking text.
+
+    Business rules:
+    - Accept encrypted documents only when the empty password decrypts them; enforce MAX_PDF_PAGES.
+    - OCR applies only to text-empty pages with images; genuinely blank pages remain empty for gap reporting.
+    Execution flow:
+    1. Load the PDF and validate encryption/page limits.
+    2. Extract native text from every page.
+    3. OCR selected scanned pages and return the page texts with an OCR-used flag.
+    Failure cases:
+    - Missing parser, invalid/encrypted/oversized PDF or supported parser/OCR failures raise EXTRACTION_FAILED; empty pages are not fabricated.
+    Side effects:
+    - Reads PDF bytes and may invoke local OCR with temporary files; does not persist extraction state.
+    """
     try:
         from pypdf import PdfReader
         from pypdf.errors import PyPdfError
@@ -527,7 +895,22 @@ def _pdf_pages(data: bytes) -> tuple[list[str], bool]:
 
 
 def extract_document(media_type: str, data: bytes) -> ExtractedDocument:
-    """Text of the document, page by page where the format has pages."""
+    """Text of the document, page by page where the format has pages.
+
+    Business purpose: Produce format-aware legal text and explicit extraction gaps for a stored supported document.
+
+    Business rules:
+    - Support PDF, DOCX, HTML, plain text and Markdown only; retain page identity for PDFs.
+    - Total stripped text must meet MIN_TEXT_CHARACTERS; empty PDF pages and unsupported Word numbering remain explicit gaps.
+    Execution flow:
+    1. Select the format-specific extractor and normalize visible text.
+    2. Record the extraction tool, page count and detected gaps.
+    3. Reject insufficient text or return the extracted document.
+    Failure cases:
+    - Unsupported format raises UNSUPPORTED_MEDIA_TYPE; insufficient text raises NO_EXTRACTABLE_TEXT; extractor failures remain EXTRACTION_FAILED.
+    Side effects:
+    - May use local PDF/OCR temporary files; returns extraction data for API persistence without modifying stored source bytes.
+    """
     if media_type == MEDIA_PDF:
         raw_pages, ocr_used = _pdf_pages(data)
         pages = [clean_text(page) for page in raw_pages]

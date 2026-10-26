@@ -13,6 +13,23 @@ import type { LegalSemanticGraph } from "./semantic-graph.ts";
 import { LEGAL_ASSESSABILITIES } from "./semantic-support.ts";
 
 /** Directed inherited context, including transitive incorporation; cycles terminate by identity. */
+/**
+ * Business purpose: Collect the linked requirement context needed to investigate an AssessmentRule's inherited legal scope.
+ *
+ * Business rules:
+ * - Follow directed outgoing context relations transitively, deduplicate by relation identity and retain only known supplied requirements; do not decide legal applicability.
+ *
+ * Execution flow:
+ * 1. Seed the requirement identity set.
+ * 2. Expand through outgoing target requirements and collect relation records.
+ * 3. Return selected requirements and deterministically sorted relations.
+ *
+ * Failure cases:
+ * - An unknown relation target has no fabricated requirement body; malformed graph fields propagate to upstream integrity handling.
+ *
+ * Side effects:
+ * - Pure in-memory context projection; no source, rule or decision mutation.
+ */
 export function assessmentSemanticContext(
   requirements: readonly LegalRequirementInput[],
   relations: readonly LegalContextRelationInput[] = [],
@@ -37,6 +54,21 @@ export function assessmentSemanticContext(
   };
 }
 
+/**
+ * Business purpose: Present the source-authored propositions behind an AssessmentRule in deterministic order.
+ *
+ * Business rules:
+ * - Use each supplied requirement's exact proposition and identity; the projection creates no new duty.
+ *
+ * Execution flow:
+ * 1. Sort a copy by legalRequirementId and join each identity/proposition pair.
+ *
+ * Failure cases:
+ * - Empty input produces empty intent text; invalid required fields propagate rather than supplying inferred legal content.
+ *
+ * Side effects:
+ * - Pure text projection; the original requirement order and content remain unchanged.
+ */
 export function deriveAssessmentLegalIntent(
   requirements: readonly LegalRequirementInput[],
 ) {
@@ -53,6 +85,22 @@ export function deriveAssessmentLegalIntent(
 }
 
 /** Select a parent-authored context fact; never regenerate a customer applicability predicate. */
+/**
+ * Business purpose: Resolve a typed unresolved-condition binding to the exact requirement element an investigator must establish.
+ *
+ * Business rules:
+ * - Use the supplied requirement ID, canonical context field and zero-based index; display the element's position as one-based.
+ *
+ * Execution flow:
+ * 1. Find the referenced requirement and select its bound condition, qualifier or exception.
+ * 2. Return its addressed text or null when absent.
+ *
+ * Failure cases:
+ * - Unrecognized requirement or out-of-range element returns null; no replacement applicability condition is guessed.
+ *
+ * Side effects:
+ * - Pure binding lookup; no finding, evidence or human request is persisted.
+ */
 export function resolveAssessmentContextBinding(
   binding: NonNullable<
     AssessmentRuleInput["unresolvedConditionBindings"]
@@ -75,6 +123,24 @@ export function resolveAssessmentContextBinding(
 }
 
 /** Copy parent bindings, never re-author actor roles or conditions in downstream prose. */
+/**
+ * Business purpose: Expose source-stated applicability context and repository/external proof boundaries to the investigator.
+ *
+ * Business rules:
+ * - Preserve propositions, operative actors/actions, conditions, qualifiers, exceptions and source bindings without interpreting them.
+ * - MIXED claims explicitly separate repository-observable evidence from external fulfillment; neither guidance nor source metadata establishes Customer facts.
+ *
+ * Execution flow:
+ * 1. Collect inherited semantic context.
+ * 2. Render deterministic requirements, claim proof boundaries and exact source reference tuples.
+ * 3. Append directed context relations with their target provenance.
+ *
+ * Failure cases:
+ * - Missing optional claim metadata emits no invented boundary; absent target text remains an empty reference target and is not treated as established scope.
+ *
+ * Side effects:
+ * - Pure investigation-guidance projection; no legal verdict, customer fact or decision write.
+ */
 export function deriveAssessmentApplicabilityGuidance(
   requirements: readonly LegalRequirementInput[],
   relations: readonly LegalContextRelationInput[] = [],
@@ -86,6 +152,21 @@ export function deriveAssessmentApplicabilityGuidance(
     relations,
     allRequirements,
   );
+  /**
+   * Business purpose: Keep legal source identity, locator and content hash together in applicability guidance.
+   *
+   * Business rules:
+   * - Serialize the supplied reference tuple exactly; formatting does not validate its underlying source authority.
+   *
+   * Execution flow:
+   * 1. Return the JSON document/locator/hash tuple.
+   *
+   * Failure cases:
+   * - Malformed reference access propagates; no fallback document or source hash is fabricated.
+   *
+   * Side effects:
+   * - Pure source-reference formatting.
+   */
   const source = (ref: LegalRequirementInput["sourceRefs"][number]) =>
     JSON.stringify([ref.documentId, ref.locator, ref.contentSha256]);
   const text = [...context.requirements]
@@ -100,7 +181,9 @@ export function deriveAssessmentApplicabilityGuidance(
       [
         `LegalRequirement: ${rule.legalRequirementId}`,
         `Proposition: ${rule.proposition}`,
-        ...(rule.applicabilityMode ? [`Applicability mode: ${rule.applicabilityMode}`] : []),
+        ...(rule.applicabilityMode
+          ? [`Applicability mode: ${rule.applicabilityMode}`]
+          : []),
         ...(rule.claimBindings ?? []).flatMap((binding) => {
           const claim = semanticGraph?.claims.find(
             (c) => c.claimId === binding.claimId,
@@ -155,6 +238,23 @@ export function deriveAssessmentApplicabilityGuidance(
  * leaves it nothing source-derived to test. This checks that the scope was declared; it never
  * judges what the scope means, which legal roles or categories exist, or whether any system is in
  * them. Those come from the pinned legal source, authored by Rule Set Preparation.
+ */
+/**
+ * Business purpose: Check whether a requirement declares the structural applicability scope needed for its coverage mode.
+ *
+ * Business rules:
+ * - UNCONDITIONAL requires no conditions; covered conditional requirements need a nonblank condition.
+ * - Other coverage states pass this declaration check without establishing real-world applicability.
+ *
+ * Execution flow:
+ * 1. Handle unconditional declaration first.
+ * 2. For covered requirements, require at least one nonblank applicability condition; otherwise accept the non-covered declaration shape.
+ *
+ * Failure cases:
+ * - A false result signals an incomplete/conflicting scope declaration; this predicate does not classify the Customer as applicable or exempt.
+ *
+ * Side effects:
+ * - Pure contract predicate; no rule, evidence or decision mutation.
  */
 export function declaresApplicabilityScope(
   coverageState: LegalRequirementCoverageState | string,
