@@ -1,0 +1,413 @@
+{
+  "observedAtDate": "2026-10-26",
+  "disposition": "BLOCKED",
+  "scope": "Recovery of the existing isolated customer API and native runtime, genuine paid-model continuation on the same Assessment/thread/transport run, followed by read-only durable evidence and independent semantic review. No Preparation rerun or new Assessment.",
+  "implementation": {
+    "originalHead": "eb06d84be2b736f81215e9da94f222a9389dd20e",
+    "preservedDocumentationCommit": "bb907a2626226ece3b64e4a7a985445ae1d229d4",
+    "pushStatus": "VERIFIED_REMOTE_6ee4ecc5fa26dca7cca2b6280ebb7e0459339e89",
+    "baselineSha256": "3d0522327577dc5f07971e90e86d6e7cc440b9554ee67fe285ab05b17a43b8d0",
+    "factAuthorityFixCommit": "3cd0cd7108d5d5aefc3ba537f1141d8aaaeb2ded",
+    "verifiedSourceCommit": "6ee4ecc5fa26dca7cca2b6280ebb7e0459339e89",
+    "documentationActiveFailures": 0
+  },
+  "runtime": {
+    "database": {
+      "host": "127.0.0.1",
+      "publishedPort": 55496,
+      "name": "lcsp360_cheatshield_acceptance_20261026",
+      "container": "lcsp360-direct-20261025",
+      "isolationProof": "Exact existing container/volume and expected current_database verified with transaction_read_only=on; Fogewise on host port 5432 was not used."
+    },
+    "assessmentId": "14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+    "rootThreadId": "0dc89d04-eeef-40c4-bee3-9335df18b182",
+    "executionId": "144cc556-1a8b-4785-bad6-c41aeb3c5904",
+    "transportThreadId": "67bd976d-ec35-5eac-8de5-9ae533e28fbf",
+    "transportRunId": "241445e3-1d46-49e7-96af-8d310254384b",
+    "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+    "legalSourceVersionId": "ea43540c-513e-4b76-969a-8415f06696f2",
+    "snapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+    "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+    "caseRevision": 1,
+    "ruleSetState": "ACTIVE",
+    "ruleSetValidation": "PASSED",
+    "requirements": 633,
+    "rules": 243,
+    "lifecycle": "ACTIVE",
+    "executionState": "FAILED",
+    "leaseExpiresAt": null,
+    "leaseAssessment": "RELEASED_BY_FAILED_SETTLEMENT",
+    "nativeCheckpointCount": 1268,
+    "latestNativeCheckpointId": "1f1d15af-4152-6268-84f2-0d0288b95caa",
+    "acceptedDecisionRows": 25,
+    "decisionAcceptedEvents": 25,
+    "rejectedDecisionRows": 0,
+    "rejectionCountQualification": "No rejected decision rows or DECISION_REJECTED domain events were observed; this does not assert every transport/tool rejection was retained as a decision row.",
+    "pendingCoverage": 218,
+    "resolvedCoverage": 25,
+    "humanRequestsOpen": 0,
+    "reportArtifacts": 0,
+    "apiHealth": "PASS_127.0.0.1:34471/health",
+    "agentRuntimeHealth": "PASS_127.0.0.1:34473/ok",
+    "nativeRecovery": "LocalAgentRuntime._restore_runs restored the existing running transport request and pending checkpoint with input=None. API claim reused execution144cc556-1a8b-4785-bad6-c41aeb3c5904. No new dispatch command was posted.",
+    "rejectedNativeSubmissionsObserved": 10,
+    "recoveryStartedAt": "2026-10-26T16:24:42.593000+00:00",
+    "failedAt": "2026-10-26T16:33:46.441000+00:00",
+    "failureType": "TerminalCredentialError",
+    "transportOutcome": "success",
+    "transportOutcomeQualification": "Native transport success means the boundary returned its FAILED domain result. AssessmentRuntime.executionState=FAILED is authoritative; no Customer success is inferred.",
+    "sourceHeadAtRecovery": "3cd0cd7108d5d5aefc3ba537f1141d8aaaeb2ded",
+    "sourceWorktreeQualification": "The completed documentation migration was present locally at recovery and later committed at6ee4ecc5f. Production behavior differed from bb907a2 only by the tested fact-authority projection."
+  },
+  "genuineUsage": {
+    "apiInvocationReceipts": 122,
+    "completed": 64,
+    "failed": 12,
+    "outcomeUnknown": 45,
+    "startedWithoutTerminalReceipt": 1,
+    "uniqueRetainedProviderResponseIds": 64,
+    "journalUsageRows": 243,
+    "journalUniqueInvocations": 122,
+    "journalAttemptRows": {
+      "STARTED": 122,
+      "FAILED": 12,
+      "COMPLETED": 64,
+      "OUTCOME_UNKNOWN": 45
+    },
+    "providers": [
+      {
+        "provider": "MIRAIAPI",
+        "model": "claude-sonnet-5",
+        "attemptStatus": "FAILED",
+        "count": 2
+      },
+      {
+        "provider": "INCEPTION",
+        "model": "mercury-2.5",
+        "attemptStatus": "COMPLETED",
+        "count": 53
+      },
+      {
+        "provider": "INCEPTION",
+        "model": "mercury-2.5",
+        "attemptStatus": "FAILED",
+        "count": 1
+      },
+      {
+        "provider": "INCEPTION",
+        "model": "mercury-2.5",
+        "attemptStatus": "OUTCOME_UNKNOWN",
+        "count": 30
+      },
+      {
+        "provider": "GOOGLE_GENAI",
+        "model": "gemini-3.5-flash-lite",
+        "attemptStatus": "COMPLETED",
+        "count": 11
+      },
+      {
+        "provider": "GOOGLE_GENAI",
+        "model": "gemini-3.5-flash-lite",
+        "attemptStatus": "OUTCOME_UNKNOWN",
+        "count": 15
+      },
+      {
+        "provider": "GOOGLE_GENAI",
+        "model": "gemini-3.5-flash-lite",
+        "attemptStatus": "STARTED",
+        "count": 1
+      },
+      {
+        "provider": "APX",
+        "model": "claude-sonnet-4-6-free",
+        "attemptStatus": "FAILED",
+        "count": 9
+      }
+    ],
+    "knownTokenTotals": {
+      "noncachedInput": 3219634,
+      "cachedInput": 8036899,
+      "inputIncludingCache": 11256533,
+      "output": 19063,
+      "total": 11275596,
+      "knownReasoningWithinOutput": 3089
+    },
+    "qualifications": [
+      "These totals belong to the genuine Customer Assessment and are separate from the historical Preparation totals.",
+      "Unknown/STARTED attempts have no established token usage; Google reasoning breakdown is unavailable.",
+      "Invocation receipts and response IDs establish retained model provenance, not complete physical network accounting or a provider invoice.",
+      "58 failed/unknown/started invocation receipts have no established usage. Retained 243 journal callbacks include122 STARTED lifecycle receipts; they are not243 provider invocations."
+    ],
+    "nativeDecisionProvenance": {
+      "checkpointId": "1f1d15af-4152-6268-84f2-0d0288b95caa",
+      "model": "mercury-2.5 and gemini-3.5-flash-lite",
+      "reconstructedMessages": 141,
+      "submissionCalls": 35,
+      "acceptedToolResults": 25,
+      "rejectedToolResults": 10,
+      "matchedPersistedDecisionIds": 25,
+      "physicalProviderReceiptPerDecision": "Not reconstructed from AIMessage metadata; separate API usage receipts retain provider response IDs.",
+      "decisionAuditArtifact": "genuine-decision-audit.json"
+    },
+    "journalRowsByKindState": {
+      "EVIDENCE/RECORDED": 243,
+      "USAGE/DELIVERED": 243
+    }
+  },
+  "sourceEvidence": {
+    "all13RegularFileHashesMatchPinnedArchive": true,
+    "acceptedEvidence": [
+      {
+        "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728",
+        "path": "README.md",
+        "startLine": 1,
+        "endLine": 30,
+        "sha256": "2a986a75ad03f58b8b8b299b7a9baeb46b6dfba3b505766f92cba27f9c21fee4"
+      },
+      {
+        "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1",
+        "path": "main.py",
+        "startLine": 1,
+        "endLine": 30,
+        "sha256": "d1734536c9a432c52355717fda1e585957b0bc7cd010d24eedc72002daa6be3c"
+      }
+    ],
+    "acceptedUseCaseFactId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+    "acceptedFactAuthority": "EVIDENCE_CITED",
+    "searchCoverageRecords": 0,
+    "omittedAsset": {
+      "path": "models/best.pt",
+      "sizeBytes": 14357999,
+      "limitBytes": 10485760,
+      "sha256": "833f6647667167064e7062e93cdd604798dea4e366f2aee8112df9c9d1b87474",
+      "runtimeBehavior": "NOT_VERIFIED"
+    },
+    "staticLoggingReview": {
+      "pythonFilesParsed": 6,
+      "logViolationCallSites": 0,
+      "helper": "modules/utils.py:1-5",
+      "helperOutput": "violations.log",
+      "qualification": "A static caller review of pinned Python source; it does not establish all deployment behavior or legal compliance."
+    }
+  },
+  "independentSemanticReview": {
+    "verdict": "FAIL",
+    "reviewedDecisions": 25,
+    "currentRevision": 1,
+    "nonCompliant": 24,
+    "notApplicable": 1,
+    "compliant": 0,
+    "findings": [
+      {
+        "id": "UNSUPPORTED_OPERATOR_EXCEPTION",
+        "decisionId": "c65553c7-1c28-4097-a4de-51b2592c3c5b",
+        "ruleId": "art21-cl1-dpia-record-establish-storage-submission",
+        "basis": "EXCEPTION[0]=REFUTED",
+        "problem": "The Root infers a non-government operator from an academic proctoring use case. The sole accepted evidence-derived fact does not establish operator identity or negate the state-authority exception.",
+        "legalSource": {
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21::cl-6",
+          "sha256": "5d15e53f218503537cfa94fa65cc975efc375f8ef09c43ee55af29328cabf3f5"
+        },
+        "humanRequest": "NONE"
+      },
+      {
+        "id": "UNSUPPORTED_REPOSITORY_ABSENCE",
+        "decisionId": "46e126ca-25e3-48dd-a1e0-42658dc22bbf",
+        "ruleId": "ar-c12-dpia",
+        "problem": "The NOT_MET assertion that no DPIA record exists cites README.md:1-30. It contains no bounded repository search or operational record evidence. None of the 23 absence-based NON_COMPLIANT decisions cites accepted SEARCH_COVERAGE."
+      },
+      {
+        "id": "BIOMETRIC_CLASSIFICATION_NOT_ESTABLISHED",
+        "decisionId": "21af8f86-c4e6-4dbc-8b50-94039eb08063",
+        "ruleId": "art31-cl4pta-biometric-access-monitoring-assessment",
+        "problem": "The Root equates facial detection/images with source-defined biometric identification. The pinned definition requires characteristics used to identify a person; MTCNN face boxes/counts alone do not establish that factual condition.",
+        "legalSource": {
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-31::cl-2",
+          "sha256": "2456d0f939b8710f42843cd0bfb1d9165428b1b9a81bbeaf2c2ac3615c12e514"
+        },
+        "source": "modules/face_detection.py:10-27"
+      },
+      {
+        "id": "UNSUPPORTED_ADVERTISING_REFUTATION",
+        "decisionId": "0f9b2ca5-3690-48dd-a945-68bb7f05497b",
+        "ruleId": "art28-cl8-pt-b-refusestorage-rule",
+        "basis": "APPLICABILITY_CONDITION[0]=REFUTED",
+        "problem": "The Root treats the declared proctoring purpose as proof that personal data is not used for targeted/behavioral/personalized advertising. The evidence does not settle actual operator practice; that absence cannot be manufactured from the declared purpose."
+      },
+      {
+        "id": "README_LOGGING_CLAIM_PROMOTED",
+        "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+        "problem": "The accepted use-case fact states that violations are logged to logs/ for review. The README claim is not implementation verification; the only inspected helper writes violations.log and has no static caller in the six pinned Python files."
+      },
+      {
+        "id": "RESUMED_UNSUPPORTED_RISK_AND_ABSENCE",
+        "decisionId": "7a354e73-68b3-4eed-a1e3-6b4eb0da5a69",
+        "ruleId": "ar-c12-rec",
+        "criterionId": "criterion_82be1370748059a876b640a9",
+        "decisionRevision": 1,
+        "caseRevision": 1,
+        "model": "gemini-3.5-flash-lite",
+        "toolCallId": "call_2484683",
+        "modelMessageId": "lc_run--01a1790a-5ec1-7b00-acc0-0bc506d5fe3b",
+        "problem": "The evidence-derived product description does not establish provider identity, actual use/deployment or medium/high risk classification. The qualifier marked established is a cross-reference to Law134Art10(1), not proof of those facts. The NOT_MET absence claim cites onlyREADME1-30 without search coverage or provider records.",
+        "references": [
+          "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+          "cfe2423c-4c50-512b-9df1-dd83327a2728"
+        ],
+        "legalSources": [
+          {
+            "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+            "locator": "art-10::cl-1",
+            "contentSha256": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85"
+          },
+          {
+            "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+            "locator": "art-12::cl-1",
+            "contentSha256": "sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c"
+          }
+        ],
+        "expectedHandling": "Unresolved investigation and actual human request for missing material facts; neither NOT_APPLICABLE nor COMPLIANT is established."
+      }
+    ],
+    "adversarialScenarios": [
+      {
+        "number": 1,
+        "result": "NOT_EXERCISED",
+        "reason": "No positive secure-authentication decision among the retained 25; the password dialog was described as test termination, not verified identity authentication."
+      },
+      {
+        "number": 2,
+        "result": "NOT_EXERCISED",
+        "reason": "No genuine positive retention-enforcement finding or returned-retention-object scenario was observed; the earlier fixture cannot establish this case."
+      },
+      {
+        "number": 3,
+        "result": "FAIL_FACT_PROVENANCE",
+        "finding": "README_LOGGING_CLAIM_PROMOTED"
+      },
+      {
+        "number": 4,
+        "result": "NOT_EXERCISED",
+        "reason": "No positive key-separation finding or genuine encryption-to-key-separation investigation was observed."
+      },
+      {
+        "number": 5,
+        "result": "FAIL",
+        "finding": "UNSUPPORTED_OPERATOR_EXCEPTION"
+      },
+      {
+        "number": 6,
+        "result": "FAIL",
+        "finding": "UNSUPPORTED_REPOSITORY_ABSENCE"
+      },
+      {
+        "number": 7,
+        "result": "NOT_EXERCISED",
+        "reason": "The retained evidence does not independently establish a refuting material condition that the Root nevertheless left applicable."
+      },
+      {
+        "number": 8,
+        "result": "FAIL_BASIS_SUFFICIENCY",
+        "finding": "UNSUPPORTED_ADVERTISING_REFUTATION"
+      }
+    ],
+    "boundary": "Server ACCEPTED proves structural/provenance gate acceptance, not semantic acceptance. No persisted verdict was edited or replaced by this review.",
+    "independentReviewer": "docs_rule_set_api",
+    "explicitReferenceCount": 59,
+    "factReferenceUses": 31,
+    "repositoryEvidenceReferenceUses": 28,
+    "readmeRangeUses": 13,
+    "mainRangeUses": 15,
+    "reviewDisposition": "FAIL. Cited evidence does not establish actor/deployment/risk/applicability or absence of operational records. Do not infer the opposite verdict or alter historical decisions."
+  },
+  "historicalFinancialRefresh": {
+    "preparationRunId": "630eed1a-1577-4ca7-84bc-4ba17df911f1",
+    "verified": {
+      "sourceReceiptSha256": "e79b28bcdd0a416c3c3c24e6b133a636ca7a01e75dfee3689f92885172459a79",
+      "matchesRetainedReceipt": true,
+      "invocations": 2281,
+      "completed": 2265,
+      "failed": 15,
+      "outcomeUnknown": 1,
+      "requestResumeMarkers": 14,
+      "reservationsLinked": 0,
+      "routingPolicySnapshot": {
+        "id": "64f3dbdb-c497-44cf-8cd0-b9d14b97d196",
+        "role": "rule-set-preparation",
+        "provider": "INCEPTION",
+        "model": "mercury-3",
+        "policyVersion": "cfg-786c5a3ae0fe2e9c"
+      },
+      "activeJournalMatchingRunRows": 0
+    },
+    "derived": {
+      "knownInput": 146411850,
+      "knownOutput": 9056266,
+      "knownTotal": 155468116,
+      "knownInputOverReviewerReported100Million": 46411850,
+      "requestAssociation": "TIMESTAMP_WINDOWS_ONLY"
+    },
+    "unresolved": [
+      "Original approved execution envelope",
+      "Complete provider-side physical requests/retries",
+      "Provider billing, invoices and credits matched to retained attempts",
+      "Historical cumulative budget enforcement across resumes"
+    ],
+    "notProvableFromRetainedEvidence": [
+      "Exact request/resume-to-invocation mapping without retained per-attempt execution identities",
+      "A routing-policy snapshot is not an approval, admission envelope or charged-credit identity",
+      "Unknown attempt usage and charge amounts"
+    ],
+    "financialGate": "BLOCKED"
+  },
+  "historicalCiAndCodecov": {
+    "sha": "cef626d97f99bc8feef3139c426ae6b2b4475e1e",
+    "checkCount": 36,
+    "observedChecks": "SUCCESS",
+    "qualifier": "Historical remote SHA only; not evidence for bb907a2 or later edits.",
+    "securityRun": "https://github.com/khov4nfs/LCSP/actions/runs/40270366691",
+    "apiCoverageJob": "https://github.com/khov4nfs/LCSP/actions/runs/40270366691/job/121401755378",
+    "codecovActionConclusion": "SUCCESS",
+    "actualProcessingLog": "2026-10-26T04:48:34.8867384Z Upload queued for processing failed: Repository not found",
+    "coverageArtifactsInInspectedSecurityAndTestsRuns": 0,
+    "codecovCommitApiHttp": 404,
+    "codecovCommitApiDetail": "No Commit matches the given query.",
+    "publication": "NOT_VERIFIED",
+    "financialOrReleasePassInferred": false
+  },
+  "observedAt": "2026-10-26T16:40:46.059372+00:00",
+  "providerBlocker": {
+    "terminalException": "TerminalCredentialError",
+    "miraiAuthenticationHttp": 401,
+    "googleAuthenticationHttp": 401,
+    "apxCredentialSlotsFailedHttp": 429,
+    "apxFailedReceipts": 9,
+    "inceptionObservedFailures": "API/connection/status failures and OUTCOME_UNKNOWN receipts; retained data does not prove physical billing.",
+    "nextAction": "Restore credentials/provider account capacity through secure configuration, then use the supported continuation lifecycle on the same Assessment. Do not blindly replay the terminal transport or create another Assessment."
+  },
+  "reportFinalizationBlockers": [
+    "218 pending rules",
+    "Independent semantic audit FAIL for accepted decisions",
+    "Missing material human facts with zero human requests opened",
+    "Provider fallback exhaustion; domain execution FAILED",
+    "Omitted model asset behavior unverified"
+  ],
+  "financialGovernanceUnchanged": "Historical Preparation financial gate remains BLOCKED. Do not combine its155468116 retained tokens with the genuine Assessment's11275596 retained tokens or treat receipt settlement as billed/provider financial settlement.",
+  "reproduction": {
+    "privateStatePolicy": "Existing secure state outside Git; never print credentials. DB reads require exact127.0.0.1:55496/lcsp360_cheatshield_acceptance_20261026 and default_transaction_read_only=on.",
+    "queries": [
+      "SELECT decisionId,assessmentRuleId,decisionRevision,caseRevision,state,decision FROM AssessmentRuleDecision WHERE assessmentId=<existing-assessment>",
+      "SELECT resolutionState,count(*) FROM AssessmentDecisionCoverage WHERE assessmentId=<existing-assessment> GROUP BY1",
+      "SELECT provider,model,attemptStatus,count(*) FROM LlmUsageEvent WHERE runId=<existing-execution> GROUP BY1,2,3"
+    ],
+    "nativeCheckpoint": "PostgresSaver.get_delta_channel_history(config=<root/latest checkpoint>,channels=['messages']); fold seed.value and delta writes with add_messages; match submit_rule_decision tool_call_id to ToolMessage result and persisted decisionId.",
+    "artifactHashes": {
+      "genuine-assessment-final-readonly.json": "e3a094fcf6ba7916d249465045987f363323f1349399624eef897f1c23f780af",
+      "native-decision-provenance-final.json": "475cf0de182e21b37ab0d135955fa4e4a75a7357de846086e2b722d3e05d3f62",
+      "latest-decision-legal-basis.json": "fe98a24e2929094775bbe8067db2a5dbc3a6872569e3fffcc92b91cd61c011f6",
+      "latest-decision-legal-source.json": "47336de445e8411f55396340d00f7efc1488a6fe2872dd0c6a0639ff81e5ea4b"
+    }
+  }
+}

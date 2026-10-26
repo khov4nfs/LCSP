@@ -62,5 +62,820 @@
     }
   ],
   "implementationAstEquality": "PASS",
-  "scope": "Documentation wave only; Root fixes are in the parent commit. Structured AST comparison ignores comments and formatting, preserving syntax kinds, literal values, semantic flags and child structure. Python tool docstrings gain required documentation while original invocation guidance is retained. Live semantic correctness remains a separate gate."
+  "scope": "Documentation wave only; Root fixes are in the parent commit. Structured AST comparison ignores comments and formatting, preserving syntax kinds, literal values, semantic flags and child structure. Python tool docstrings gain required documentation while original invocation guidance is retained. Live semantic correctness remains a separate gate.",
+  "continuation20261026": {
+    "referenceCommit": "bb907a2626226ece3b64e4a7a985445ae1d229d4",
+    "verifiedSourceCommit": "6f3d9f7609b773fcaacfdf3f184a9f662fd7f5c1",
+    "initialHead": "eb06d84be2b736f81215e9da94f222a9389dd20e",
+    "commits": {
+      "preservedSevenFunctionWave": "bb907a2626226ece3b64e4a7a985445ae1d229d4",
+      "factAuthorityFix": "3cd0cd7108d5d5aefc3ba537f1141d8aaaeb2ded",
+      "api": "399972f37",
+      "web": "48f843b6a",
+      "python": "6ee4ecc5f",
+      "reviewClarification": "6f3d9f7609b773fcaacfdf3f184a9f662fd7f5c1"
+    },
+    "initialActiveViolations": 499,
+    "finalActiveViolations": 0,
+    "productionFunctions": 2947,
+    "productionFiles": 760,
+    "conformant": 790,
+    "unchangedLegacy": 2157,
+    "documentedFunctions": {
+      "api": 179,
+      "web": 58,
+      "python": 262,
+      "total": 499
+    },
+    "baselineSha256": "3d0522327577dc5f07971e90e86d6e7cc440b9554ee67fe285ab05b17a43b8d0",
+    "baselineAndCheckerPolicyUnchanged": true,
+    "astEquivalence": {
+      "typescriptFiles": 78,
+      "pythonFiles": 40,
+      "result": "PASS",
+      "reference": "bb907a2626226ece3b64e4a7a985445ae1d229d4",
+      "comparison": "TS syntax kinds, flags, identifiers, literals and every child preserved. Python first function docstrings excluded; all remaining nodes preserved. Comments/layout excluded; TS parentheses retained."
+    },
+    "semanticReview": {
+      "result": "PASS_AFTER_CORRECTIONS",
+      "reviewers": [
+        "docs_rule_set_api",
+        "docs_legal_api",
+        "docs_preparation_python"
+      ],
+      "scope": "All 499 new function documents independently compared with bodies; original model-facing Preparation invocation guidance preserved. Comments corrected for actual lease expiry, conditional state writes, diagnostic replay, nullable ownership, evidence scope, retry behavior and telemetry defaults. This certifies documentation accuracy, not legal or runtime acceptance."
+    },
+    "checks": [
+      {
+        "command": "pnpm run check:business-logic-docs",
+        "result": "PASS",
+        "activeViolations": 0
+      },
+      {
+        "command": "pnpm run test:business-logic-docs",
+        "result": "PASS",
+        "tests": 5
+      },
+      {
+        "command": "cd deepagents && .venv/bin/python -m pytest -q",
+        "result": "PASS",
+        "passed": 1903,
+        "skipped": 22,
+        "seconds": 362.73
+      },
+      {
+        "command": "pnpm run test:web",
+        "result": "PASS",
+        "passed": 341
+      },
+      {
+        "command": "pnpm --filter @lcsp/api build",
+        "result": "PASS"
+      },
+      {
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm --filter @lcsp/api exec jest --config ./jest.config.ts --runInBand src/modules/assessment/domain/decision-validator.spec.ts",
+        "result": "PASS",
+        "passed": 37
+      },
+      {
+        "command": "pnpm --filter @lcsp/api exec eslint src/**/*.ts",
+        "result": "PASS"
+      },
+      {
+        "command": "pnpm --filter @lcsp/web lint",
+        "result": "PASS",
+        "warnings": 35
+      },
+      {
+        "command": "pnpm run check:imports",
+        "result": "PASS"
+      },
+      {
+        "command": "pnpm run check:contracts",
+        "result": "PASS"
+      },
+      {
+        "command": "pnpm run check:legal-v1-retired",
+        "result": "PASS"
+      },
+      {
+        "command": "pnpm run check:billing-release-gate",
+        "result": "PASS"
+      },
+      {
+        "command": "git diff --check",
+        "result": "PASS"
+      }
+    ],
+    "files": [
+      {
+        "path": "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.ts",
+        "sha256": "5820309d91977f17768055afdaf72baf75a34f45d31646a1b10dd6bf2fe742ba",
+        "implementationAstSha256": "cdbd15be0f3036713aa818acaa7c7c8ada598abf36497f955f17ddc1e4c1cfc9",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.ts",
+        "sha256": "9febda5efde411e3110d36f0cdde11df16b79b1eae918043b72473dab06359f0",
+        "implementationAstSha256": "a6b49566c4b0013c54bf881e2eb58ddc6e09f90e97c9ab59f045c30cb77d358e",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/assessment/application/queries/get-pinned-legal-source-text/get-pinned-legal-source-text.handler.ts",
+        "sha256": "2eeae77b85035e609b92ce9e9e70daadb0e57c852c9fcb3a721fbcd5cfde4a5f",
+        "implementationAstSha256": "d9e17f7dea69b24920b83af05dd30ff4a931a98266acd7c9807ef54f11c1166b",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/assessment/domain/rule-criteria.ts",
+        "sha256": "b66b8bd6dcd6d2f011e991a97ae92c07bba4af6b73968489ef7483020d7b049c",
+        "implementationAstSha256": "fda74704ae5ca3d8a1c6152e52715a6111d0fbaa43958c6a4bf4adbddefd5a45",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts",
+        "sha256": "b237968d12a04a5a3435d34e984fe80f1acdaf28b42e0f5e474998368ac0c618",
+        "implementationAstSha256": "67f1a5d2b998c311fc815bc7adf5e34551e2ccef1ea321a7eaa668df1df2d3fb",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/billing/application/queries/get-admin-usage/get-admin-usage.handler.ts",
+        "sha256": "04c01fe76650d35ee07be2f80695769d53290945dd5ce46cc502edd28bdcd298",
+        "implementationAstSha256": "3dd636097d9fb5903a746ae26bca704272f952e50158c2fb33ce9eb69424e6e2",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/billing/application/queries/resolve-billing-assessment-owner/resolve-billing-assessment-owner.handler.ts",
+        "sha256": "23c3290d8d94cf9d102a1683b737a0761f3a68b0feb9a73dc09595a8bd9f6bbb",
+        "implementationAstSha256": "79defd9b5c9de9abbfb60b5d44ae75cf19f015b36f446a847d8fcd6fecf1066b",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/billing/application/shared/billing-usage.kernel.ts",
+        "sha256": "b58debad11f81705d70100119d280ffcfb56a8453fcbb59de0107a0e4f77e77c",
+        "implementationAstSha256": "4f6f225c56b46f0229bb77e724951d066539253ae0fb075a03e92ab7bc104cd7",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.handler.ts",
+        "sha256": "337931bb598c6071671147a30564705b38a5876c4ff5a1b75c6b33105c31cad8",
+        "implementationAstSha256": "caf45bd4d655e86714f1bd9ace1a02a7e32a18dd16d7bdab7541426fdba17e63",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.handler.ts",
+        "sha256": "e0b95f04041fa3bbed4251610b13ad1e450fdc5f615c634e74a83bb7acca3e54",
+        "implementationAstSha256": "c6d89d5b23226130ec5519830b808309844f1c9d44f6e183ef0a2fa7f99f3219",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/claim-rule-set-preparation/claim-rule-set-preparation.handler.ts",
+        "sha256": "f428ec0d517530d2c31ba46a6893b47326f72c4cc6d880481b06bcc54c4c23a2",
+        "implementationAstSha256": "c2d6161aaf7309552196a5288b3c59527fb49f9a1eabc173f044e7c9d77917d0",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/fail-rule-set-preparation/fail-rule-set-preparation.handler.ts",
+        "sha256": "537941b7690058f1d2363e9e447fa4a15d181942b9429dd5eeaebc428ac0c52c",
+        "implementationAstSha256": "05894020ba058470262474b878bbb1c463a54472ef2d8a53ce38b0bbc5f20c18",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/prepare-current-rule-set/prepare-current-rule-set.handler.ts",
+        "sha256": "ce0c28480d3836c45a818547fadfbb8f1eeeedb951d727359bb8a45e39954d4d",
+        "implementationAstSha256": "18285fbf95866200646071cf32ed99db89dba522d880e9f90d2987044c0c32cf",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.handler.ts",
+        "sha256": "b6cfe580f07a26ea982459ab96db9c37cd14f3bb1186ea610fd439d0833f9b82",
+        "implementationAstSha256": "c23829c4bac421f1e8374f4ccccf189abb5f78d08544f52e2037252d0e4f44be",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/resume-rule-set-preparation/resume-rule-set-preparation.handler.ts",
+        "sha256": "454d6625e56c66c9425ec68111584bc33978d936c2d1384d53abc311f7cc3e4a",
+        "implementationAstSha256": "4789c16506c4ddb292f251a6d227859fd4c98db1451ae0c81a1a4a920f675085",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/retry-rule-set-preparation/retry-rule-set-preparation.handler.ts",
+        "sha256": "bc0dc6989b8afdc42d3971d77479ce8482edff3cbb97a0e5529ced6845c87cd4",
+        "implementationAstSha256": "269da0b7d385510705b4430785a761f1103b646ccbdaa309a7f2c005e0ba9f28",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.ts",
+        "sha256": "6b0f6b358d9c585a052b05684f3d5ecee9507b9483ad5b28577f3ad2b5d31005",
+        "implementationAstSha256": "3423bb42e3799a5fd924b702ca5b8cc1a2ba3619d7a27c8f968dbff6c284ea2c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/start-rule-set-preparation/start-rule-set-preparation.handler.ts",
+        "sha256": "7d2efad4206b7c612227f553108f7c80acd04f229ead5d019e2256a8d9a80cfa",
+        "implementationAstSha256": "361273e06f4662627de258349a4527b932de9ff0e2c6ab4e1f76e69501bddbc8",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.ts",
+        "sha256": "ea239e3242a9785891a815ea01ab6b8ac59efa345fd1554eba61addbd5ad9a99",
+        "implementationAstSha256": "3e9254f7e12cbe58067224a0c1dabd23a5bde2737e90fb757c70376bab652194",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/commands/validate-compliance-rule-set/validate-compliance-rule-set.handler.ts",
+        "sha256": "80fc01d91bfc61c9bc2474efeb285603b3ca5f31847020076ef027f412b176a7",
+        "implementationAstSha256": "e55fbf9691158772328869a003b728b2c60191857dbb2a7bd2070db85cdbf1c0",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.handler.ts",
+        "sha256": "8f616aa274b58f2a8596bd71725253e47cb510a3f55e0bae71504b777bc5046c",
+        "implementationAstSha256": "d34467dfb3474b28fdf467b4c975f87219bafd69a02c51a858a9ab0248dd295e",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/domain/claim-inventory.ts",
+        "sha256": "980bdf71688b7cbf0a070fa89e8c8bbac71c276d47dfd02ccae03f494895d59e",
+        "implementationAstSha256": "b5deec4309d69e25cd815286de52ba47c42e57878dd317cab0aece2dee3b1174",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/domain/compliance-rule-set-integrity.validator.ts",
+        "sha256": "20d1cdf070656a22e19bd55aed5d0a689098dd58ea0a9e134ef6171edbc2870e",
+        "implementationAstSha256": "38852bc93e28a9c98892c4581afd208711362edee6bf3f999415b69fcb10f209",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/domain/reference-dependencies.ts",
+        "sha256": "985981f53816f5876bfdd729c2a5d9b4f9e9dd44d833f549d732151cbd2bcf9e",
+        "implementationAstSha256": "c31c8d9baea763ef1a66a03d2c1382237602c535b8956fa84102229c8ec7d651",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/domain/semantic-claim-integrity.validator.ts",
+        "sha256": "290d41941af0c3da9b793973d5faf6ab15cf5f5b60d807fc4d4ff4a8442cc57d",
+        "implementationAstSha256": "7475327099fc7edab671fc934d05746d31556e928c2cde315fc91ac49eac3602",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/domain/semantic-reference-binding.ts",
+        "sha256": "2f73b5df7e4382c1ef9c1ef08217585efefc65615e0399b88953f15f0c76570e",
+        "implementationAstSha256": "71e8801d7617aa40cbe079f62ed838fb2e1ac001e9c2d96adf9c2ac15da9d437",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/domain/source-completeness.ts",
+        "sha256": "413292d535f940dfb8e43dffd058bee3e3f188af91f1463c399b763a95d96783",
+        "implementationAstSha256": "fa4c5fd3d1d9ebdfa555ebd657c33adb2fcddc1029fa4a8cc6b164558a64bd1c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/domain/source-review-frontier.ts",
+        "sha256": "1fe0ed552a6ac59e01ca69d19be896cf06cb2d805cbad2aa7cd1f74fb4f3251c",
+        "implementationAstSha256": "3ab8152085d78e7119fdab2d053096eb0e13626d64d322280700a301b7e514c8",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.ts",
+        "sha256": "45a41177c17864993c231519a630b48b727d44201669d2272b9311f90aa2326b",
+        "implementationAstSha256": "c6207848ea7b80ae15d081db9d93f14c2d2716bb0d03f401e5edd0172239bd9d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/infrastructure/persistence/compliance-rule-set-read-model.service.ts",
+        "sha256": "964b898581ff2b10ccfd798816aedc68a852ce480282cdbfe1f1de03d1458916",
+        "implementationAstSha256": "2605087520098d6dc4acba9c33c911b6bf7f227dea15bba241ab58917ab5ffb8",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.ts",
+        "sha256": "eea911d7fc0fec5db8177f2d7cb48787107697234a6e9601d4acb273a48f3174",
+        "implementationAstSha256": "b87bc5e7b4e64e0d1f1294f4df526fa29a28a4b97a8b9244a4046f2bb8be408c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/github-integration/application/commands/finalize-runtime-hydration-ticket/finalize-runtime-hydration-ticket.handler.ts",
+        "sha256": "5601e4652300f1e8cd0ad682da0aa02992c59079afd5ec4b04217597635a98f5",
+        "implementationAstSha256": "5752954da38d89e9ba20a65874155f20ff72f9f6700772cb4c685382b5fa75be",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/github-integration/application/commands/reconcile-runtime-hydration-ticket/reconcile-runtime-hydration-ticket.handler.ts",
+        "sha256": "4ac9d497ed848f46a285dbc72e7b916cd8edd711d516c4821d0e831234989b7c",
+        "implementationAstSha256": "42174bfe0fc1b48fa731795478bf8a36414c51d4f754069639cf29e9bd6f3c54",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/github-integration/application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.ts",
+        "sha256": "6bcfd2d6d243c1f79cf39962ca07737859bd787be6f25cacfbb37cdf382ff970",
+        "implementationAstSha256": "018f7071778fa196da56a1c8eaf67e3a59e5df68fb0aeecb977c493ea6a7ad94",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/github-integration/application/services/runtime-hydration-ticket-lifecycle.service.ts",
+        "sha256": "18cad582ba8f815181ee7d64c34b7b62e5d3b2ac371383fc604ffb7e458d75e2",
+        "implementationAstSha256": "56af5fc97b6a4add8fb6067b3ba69bc881925734164084eb80499142287ce036",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/citation-locator-validator.service.ts",
+        "sha256": "14825684b906d94e9a20531fd6e16520a74888a2ae16664b6616d951df4c6e4b",
+        "implementationAstSha256": "f5d48fcfaaf96eb90bb9006035014f153852fc2a24ed98872304eef87cbf5e77",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/discard-draft-document-graph.ts",
+        "sha256": "dcb41cb70fa448a859003f55c7d2f2b50c5f6d6e6def45654fb5e9cd47e485a8",
+        "implementationAstSha256": "f6c79ac972f1cd8fd4a0f2c0b9b2aebce3eca52ad0fdc7f820cef50a0466000a",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/document-media-type.ts",
+        "sha256": "3da7ee1c630ebd64840d55944f04e70b8efd6c9ea8a07bb7a6dc07d3c11d81cb",
+        "implementationAstSha256": "dc9b1404c99f65da187801a8a856eb05471efd1f6c5a6e3b1fa5a923153b95c9",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/legal-document-graph.service.ts",
+        "sha256": "c08c3fb16eb90d6fea56a9fc0513601a2650666ca7802856128d9cba57d8b6ed",
+        "implementationAstSha256": "fbbae15f6b5fc94146ceca48b02ad50c0fc852407599e0c146412b0481daf6c1",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/legal-source-management.service.ts",
+        "sha256": "de8d35458a7749c8604c2f1c2aff96e474c3db6d688e7ba69c3ff2efdbe19cb2",
+        "implementationAstSha256": "087109fc18a2549222b42ff58a06a8a4c03dc899bdb966bc69c413e951d46fe2",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/legal-source-structure.ts",
+        "sha256": "71166f6ff6215a0fbc1e4cd3b993129abf43b1ff4d07d81fd9d74144cb2b6f2b",
+        "implementationAstSha256": "5d3bc63f287d51fab63f7f8283d15d7aac8e2a6f4b0e165c56c816a48c86c602",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/legal-source-views.ts",
+        "sha256": "26cc926e94e49019658b86e673abd1a296f76d56c19f9d39221bc42cabeb425c",
+        "implementationAstSha256": "9a1934ccd856ea9240dfe5d18351677303fd6e57b11ae85330901f016925e2db",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/legal-source.service.ts",
+        "sha256": "cea0bb2c1b1a6c4ae101a0bfd23a68bb4667d90722f693d2d7016ead8559c3e7",
+        "implementationAstSha256": "878ad96a7fe6ae0796deba02cc35140a7658bdf02affc2a07bc42ade7ae44476",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/application/services/safe-url-fetcher.service.ts",
+        "sha256": "ddd9102763af1a05ce7594d7ab981b03cc627b28ef78440a21d8e84fe9a1b739",
+        "implementationAstSha256": "197ecd5b8ff2b248d0bf6bcff405b163a13674bb699fb429a24871ccaa533238",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/domain/document-graph.ts",
+        "sha256": "2b82cfb42d21e1634367e69ca48a70674204943a940506b49dcbbe3e79fb34e8",
+        "implementationAstSha256": "b97841ac983edf446c2de9697dddbf10770e2ff55defecca86813717ced1541f",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/modules/legal-source/domain/document-structure.config.ts",
+        "sha256": "6c1e32325bb54642651b2cc9b967f73e72cffa25bc2f4e97dd01ba43080a2c4d",
+        "implementationAstSha256": "ed0d06bcefb8703ed34817e5a85e4152fafc04916a659e17a5607b38bf65a91d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/api/src/platform/runtime-events/assessment-runtime-event.service.ts",
+        "sha256": "b545eb20a9cc2bd5d6613d949e4cd68311c3ca78c48a75f115875bf98bb08b3e",
+        "implementationAstSha256": "cd626878e4809c4ccdd6ba5a6c3739afac6b72e2590a819d48d65228ba4cf782",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/compliance-rule-sets/[ruleSetVersionId]/route.ts",
+        "sha256": "5469337addca61dbc96cb9b6958cdd832266188eb6e9af9f64e48f6bc06ee60e",
+        "implementationAstSha256": "5483e2fac6a3424254480ffbcc74950458d46207286f6a51c68ec3a6122d3f94",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/compliance-rule-sets/preparations/[preparationRunId]/resume/route.ts",
+        "sha256": "659433f49d43e1a4d2c925fe7433480c4fea90f4058d6cda6940f72ae263f83d",
+        "implementationAstSha256": "153f028cbcc1720cd69dbb63316a311b5f34317f696c37e40700034e84d7295c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/compliance-rule-sets/prepare/route.ts",
+        "sha256": "877d05c1a8050bc051101076d6b8805bc3b4d18e9085bde5f50376db6687cc4b",
+        "implementationAstSha256": "ad999f7e068f60747a4d9b750c38759c941e090542fe8a0e8e3dc1c3c979ea67",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/activate/route.ts",
+        "sha256": "667e3a973627b2a3c522bdb0ed810bee6311afe529d29cbcd9f308377c0e89de",
+        "implementationAstSha256": "c06011e7b2891debde988992356dc86daf04d0d1806102f59f0650cfbeced9ca",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/documents/[documentRowId]/chunks/route.ts",
+        "sha256": "de9bc39e662a1bc091d773a19c53347e0909305f7016b2e5b48cda2ba6bcdd2a",
+        "implementationAstSha256": "aca0da8738a90263e19ea8173d43e4246133e9ccd9757178e5d3ea51fe53a18d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/documents/[documentRowId]/effect/route.ts",
+        "sha256": "b62a939edbc4be290ee3f3dd9932b7bc8a60b9c027a6541cad490f6ed8a85603",
+        "implementationAstSha256": "322b3e1975018ef2b2ca00bb6293b7569fe6cf4a2f2355409d09e69079e730a3",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/documents/[documentRowId]/original/route.ts",
+        "sha256": "1d86ba452fea3a828231be309ad79907b9324fc4b2b058edb4efbb987df21cf0",
+        "implementationAstSha256": "0d08243ec5a1244ea947b60bca01525623619b8f2dd8ed54f5576b46dc5b584c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/documents/[documentRowId]/retry/route.ts",
+        "sha256": "9e081e763f574c445ebda0bcf63b21dc774d7d80f6b646a520354e41437b3ce3",
+        "implementationAstSha256": "431ac78b792ad9140befdb60326a8cd08859bae039afbe879ea2782bfce5ecd5",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/documents/[documentRowId]/route.ts",
+        "sha256": "08afc6111cd3490591e71d33334a9545ae0ea77ea95a1425cb70996d403663d9",
+        "implementationAstSha256": "7deea2c56d3cd3c1cee76cb0c7d6b980f639122125505e19c0446cbc6ea9157f",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/documents/import/route.ts",
+        "sha256": "6c44301b0ea7d998701d44a77d0315afc54212db1370a6e582fd643e1e027dc3",
+        "implementationAstSha256": "237eb5805cf37face0cda4ed099a59420bb3926e4bc09f5ef2018190fc931f5a",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/documents/upload/route.ts",
+        "sha256": "d2c5e85a4fac2e608f567ea11581267bdae409833d438bff8a9e933566c5612f",
+        "implementationAstSha256": "67549f2168c0a923ca377dc02c4e0519a312a42c367c4dfc9ca2743bb2f65060",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-source-versions/[versionId]/route.ts",
+        "sha256": "7d6145267695f3f9fe256fca5179d88e35b2ba399c78296430b85340cd31ccaa",
+        "implementationAstSha256": "00e5fee31614f8a593cee31322cf8768d06ede14e06ac3fa36a2b939b6e3fa4d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-sources/[sourceId]/route.ts",
+        "sha256": "36ba46a610677425fa84cabf12d81c466ca4c1726ce463f104f0b0849afca294",
+        "implementationAstSha256": "f8b4282cf2ba3271ebdcfd89d89be042d8215601fe50792570c0974e11841442",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-sources/[sourceId]/versions/route.ts",
+        "sha256": "38325c8643cf065c19de52b96798a3b1b45459fbf4219d5f7dbf44402486f492",
+        "implementationAstSha256": "33e00f197f59d1fd1cd466fd5555b7378941a78f9974a7c810fa8f88c27c6ded",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/legal-sources/route.ts",
+        "sha256": "df89374c1577382f7197d9fbb841de1303be3601a865960ced868366c1e1508c",
+        "implementationAstSha256": "420e67ca1830ea3769d76d1d90e249f3ffa9dc01ae9acd0eb7aa4f0fdedcaa4e",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/admin/usage/route.ts",
+        "sha256": "ffe3fdab08494cd26f662d6ff2ff104eb065fa228337621afc1ac75ef93126b6",
+        "implementationAstSha256": "970f6f11a9953865b7b32a5a3b619b4d8142676e14f42f0520d7780b3a018dc0",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/assessments/[id]/reconcile-orphaned/route.ts",
+        "sha256": "a67c785bd72ae439cf2e0da0ba424dd563e7b796be18b36fb0743038f32c0120",
+        "implementationAstSha256": "9993f8bac8ac05c1bd870d576d90ce001b394ca6e58ca97dcd5e7900c47d1d54",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/legal-library/documents/[documentRowId]/chunks/route.ts",
+        "sha256": "d91019f7cca6c481f57cbd8364181bf65c526ece1db33bf0f6b7847d94401bb6",
+        "implementationAstSha256": "59c03c46d9fafa9f5f5de31304bb57671c996946062d17b5e2ec148160604a36",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/legal-library/documents/[documentRowId]/original/route.ts",
+        "sha256": "ddc5e8adf16839026ace320b40c7f4c8574fe438787b72520dab93089767baff",
+        "implementationAstSha256": "613f35d79c68470fdba175e8be41523491a6d519656a0615f0091557efabbc5c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/app/api/legal-library/route.ts",
+        "sha256": "10fa05bc86bf1ccf0002b9461af01bdaf02b42efaee845c2a7e6b0ddc6e88a3e",
+        "implementationAstSha256": "d4bd710212162fa28cfd8e0bd4810c63b73dfa2a0b705f29d7c6b54083263265",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/features/admin/hooks/use-rule-set-preparation-activity.ts",
+        "sha256": "5b6f9b1578a11764e5f6aa2dcb70d042b9a2e0f8d931bedf033e1843129623f9",
+        "implementationAstSha256": "e445779cda586e01eff85534cf70dba19742a9e8bf53895ff4505640450fb4cb",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/features/admin/schemas/admin-usage.schema.ts",
+        "sha256": "8b2c5b4bbffb75643d769b4709c402000c52bab79e235c2512cde0d4d70d6093",
+        "implementationAstSha256": "8373ab5d6b3f1179efad38376dc04ffbcfb6c3f553a2c732c672ae0b3429dd48",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/features/admin/utils/rule-set-preparation-activity.ts",
+        "sha256": "11261005a81808af5e8cb2d6923bf9ac14dbe6031d165a3b676c47eb6555543a",
+        "implementationAstSha256": "070fda151b824ac3175ffa96a15d34e65ab588be8357a4df49d53da34d8e0ab0",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/api/admin-usage-queries.ts",
+        "sha256": "98c0e6a20928857ee79fec007651ce175bdb4ab24532b1ccf35edc841aa8fbe7",
+        "implementationAstSha256": "8f9f2c115fb9103853e57912d30227700e32033c3ccdb79f71d96f162bac8967",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/api/api-request.ts",
+        "sha256": "78173ca48dceb113ee2025d2e748e557f1f03493fe1080b35a788ff1dd54caa7",
+        "implementationAstSha256": "bcf1cb1bb69a070dcc54c07d9b95957d332624b17dff6bcb69c24a2b0d4e4c46",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/api/assessment-domain-queries.ts",
+        "sha256": "1ef4fe1deea400c25e9c1c5cca7339664732b87d464764f193aa0cf69cf83240",
+        "implementationAstSha256": "9b6dcaa971d03494c22ececa3f728270c976d651bf91f1bcd357b6fcd67177d3",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/api/compliance-rule-set-queries.ts",
+        "sha256": "9ccfcee3bd762b371b5bf22cb0d285e62b397dd6bc1b733e0c2dd3edb575f653",
+        "implementationAstSha256": "4d457769a9b721b6e37b1c9c457489af2ea66f1a66baa8e4e5015f2dda282201",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/api/query-keys.ts",
+        "sha256": "4d5655e545b2e083c37dcc140499d2307fe80cf7e0ceec34cf790829b4053cef",
+        "implementationAstSha256": "ed7351313a5d156cd184ca509f6997bfe0ce0f5bc9df7795b4f6636fdcf02355",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/i18n.ts",
+        "sha256": "4d043dda2a56985e72d6960d49403d5948856fc69f5302d22e8ce0b37ae8e4c8",
+        "implementationAstSha256": "074934e849e7b251afd73be0be6b087e7c3d5c1e5d69eafa47ac22a391e6e3d1",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/server/legal-source-proxy.ts",
+        "sha256": "8efea892b6574053ce34de2b6e11d7024205180898ebc185f550e6c2073b7fac",
+        "implementationAstSha256": "9b7f822f3d81500314cc842b29c52a7e751c6679aa0716e0ee08637bbc9dcdb0",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "apps/web/src/lib/server/upstream-request.ts",
+        "sha256": "7da4d277d5e82985dd41a6d9bc257b3999201834b30d7dabb892eb5ff239bb13",
+        "implementationAstSha256": "aef8c5741b0340840af564089c1f3a6298d184199b46cf0d3c54cc91cb927c2f",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/anthropic_stream_usage.py",
+        "sha256": "32f7f2f04ba23750eb1ad3b20d95e908997fefe6c1425d22df3d5c4dbfce72c4",
+        "implementationAstSha256": "17fafc8a63e8752a64c66c2692adb461fda81723118614d3faf610b4d275c540",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/assessment_root/client.py",
+        "sha256": "e4b4ce2d20c99eb384950e7c11a1a3aecff07eedba26bda36afc19cc79f0a96c",
+        "implementationAstSha256": "56b886204d50e5552c3aace87a886957034f6e0a167c540921223f8fa1f5670d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/assessment_root/learning.py",
+        "sha256": "6982b94a4b5eb216604434c876909c9a1bc8edb4f5d9d2fde7bbe1373562620e",
+        "implementationAstSha256": "6ebd02705b52215f2df1dffcd5835d33863c2bfac3c0d4c49a7ddd2cd9b1247c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/assessment_root/runtime_control.py",
+        "sha256": "6318e71b550ddd49871000f0d024405b991f77887b77610c79401a8cc002dc23",
+        "implementationAstSha256": "0474dbe257f7287fa82dc35bfaa2f2b5d1cc3e5b7a10b95c7ba9faaedb0c558d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/agent_run_budget.py",
+        "sha256": "b619e26103d5baf8842d98f976f55137997bc3c6746253e58fa0e5117791058b",
+        "implementationAstSha256": "bef2a6f90eb010706fd1337fb11180193206cd32aea80f1ceea4671e85c41cb3",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/failure_policy.py",
+        "sha256": "86038ba570c6a4d36f7bf5367bdd81f5fd60a5970c241351dc1d72990332bf50",
+        "implementationAstSha256": "968f81246b5a071fb01e665ac00a722aa00ce708304004d4004cb27cb453dee3",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/model_governance.py",
+        "sha256": "46ea5b1f25c8f7d0ce578cc4cc7fe249f3babaffaf5c259abbee4e9e0e0bada3",
+        "implementationAstSha256": "163f58122ca0aca4cecd245c99a371815bff951d67007b115e4f73af3175e3c0",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/provider_fallback.py",
+        "sha256": "7a86e966599797b9cb4065d66ca410f90af8419b5d0a04e4e46facf70106b7a2",
+        "implementationAstSha256": "3250aa0da13544027762c159e5a1d4db00126dc0933ac2f706848b64aea7961d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/provider_schema.py",
+        "sha256": "3821715e0bc21b3de398ad8786ceab8e09693456f3cf3f1370975a1772e44f79",
+        "implementationAstSha256": "6c428d0d2d0ac87444a511f2ee8dee7fae7a6081b660b2916387d3ef2971fa99",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/redaction.py",
+        "sha256": "37f99a47cc01dac5a8ddb19dfe8bdba61df0ac96fcf7d0bd264efa073274aeb5",
+        "implementationAstSha256": "6eeb7d8d1137b682c0f219cb3c8f36ad5df70a7b788656cba95b63b26d63adb1",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/token_fallback.py",
+        "sha256": "89d1db5903fbdcf2b155068d9b3cf795863cfebaab0e6191da5db22a74e6162c",
+        "implementationAstSha256": "588bc148d63aff6508d910a40bd9bb56e4aa1ce4d35ce6e13a2b0689c0ac28a9",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/tool_contracts.py",
+        "sha256": "4a7c212e577f3b315d0b2ce90fa6b41cbe80e0eca030f71694571139cf60e732",
+        "implementationAstSha256": "3e0fcac7aca24afe21820c022390928fbfdb2e738c000521be03782b6ad72e2b",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/middleware/usage_recovery.py",
+        "sha256": "301411aa77482d9dfbbf1258b90e1c45d5e6f613d81137e7e9fa6110f1c584d1",
+        "implementationAstSha256": "f3dc2b788feeba58908878c4ca40903a063a2a191c5abcb344db300fd1226336",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/model_policy.py",
+        "sha256": "94b38def7ee6fc068b545d64df45a86e21bba55c6f5d4214f00f4b48bba48b36",
+        "implementationAstSha256": "c5e5663342f2a4eceba085ea730c8391c39136de9a1b5d5e8c8eb0e467965586",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/model_routes_config.py",
+        "sha256": "3818d7fcfc2a5507f40e34b3872e8cae89271b6b76c3b74eac24f3ddfc68ed7f",
+        "implementationAstSha256": "33313c795ba35862edee0910e7639973ee36ef5298d30d7fe1965ba8f51b7525",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/orchestration/agent_stream.py",
+        "sha256": "51a0a422c840f5388ee9a99e58839949e621ea35c81c3f1348956b5c121f1f7f",
+        "implementationAstSha256": "7a30736cfdd79ffc57ca558a2bd2c5da8cf07dbc0bfcd4f683a6c9f071913553",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/orchestration/graph_execution.py",
+        "sha256": "10366fe6dd3a1ce9e98ffdeb4b0178e7d155c6b19088666ec91b57eddda3592e",
+        "implementationAstSha256": "d0a02e0277da17b487bd08d5094ab9d9a090acdd7dbd63489f13fd944480e045",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/provider_credentials.py",
+        "sha256": "8cad7a96811a73e9fb031374a4b928cdaf3ef5cdc78fed8f00489e16fca2a32f",
+        "implementationAstSha256": "8daf7256f96d52b123736e5620fff8167dd7828174bc585496c5724cd607c447",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/agent.py",
+        "sha256": "ff0f21a30f5cb35432a8dd7a48b04029e545bf4e91017d159f89b20321364c2a",
+        "implementationAstSha256": "2708a6e04d60acbb86bf9be88e841c35bc739dedc1769d14595c57f5e9c19339",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/authoring_recorder.py",
+        "sha256": "4047e502dddd6c73033829350c3a3833232e9be54946683c759255dcf7f18dae",
+        "implementationAstSha256": "6258a5f4df134707fa129e984b0672e1d52268f3cca51d1d82d4ba5d904491e5",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/authoring_rejections.py",
+        "sha256": "e86168654b8fee6825d86d309d6ba66b6908b1e7035fcffe050fa678754a13e1",
+        "implementationAstSha256": "89de335c880824a2d29fae79ddabc3f3ca49b58c1d840846618ff51c80510c9e",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/authoring_state.py",
+        "sha256": "092191fbe7fa3e456043afbdf63c869f44293cf24601b920586b163e5a9514fb",
+        "implementationAstSha256": "cc3b7acdc81e336d47c8a81109be5078a76f2f65a3487d3de5f3e0254fc07b28",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/claim_files.py",
+        "sha256": "5c2b5632cfaf8ff66becd3f421df7b2c75eef7b4871a67531075125fa57bae9c",
+        "implementationAstSha256": "695c6eafe944148193b664ddb9a560311786fb8f3cef95ab2863117e465fbe30",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/direct_draft.py",
+        "sha256": "370fc68cd2f2eaab5b0f9d2cc55c0f81b1767a4508206a5a5f93d60a006a7fc8",
+        "implementationAstSha256": "9e5af2411b7f7c8c2a2e7cc36832a5b4da608d64ef47b921c310bd2a1bdeaad9",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/draft_history.py",
+        "sha256": "d8acab3e19bdf155577ca4f6e153d3b81b30124e63e727259dd92511491a639d",
+        "implementationAstSha256": "56554f2d3b9540e2f23207e617071218fe34368f0fc274695852b6a9768af2bb",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/legal_effect.py",
+        "sha256": "16b6e97571bc2af2ef27ca1b20265497f805a765e24835c2b982fffb855559dd",
+        "implementationAstSha256": "55d8bc2139d6c4e8ab19a6f53532666e4c3a1fe6206f7772edcb3aa29711f375",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/legal_source_files.py",
+        "sha256": "d18a54e096964d9750d643fd6d1a1c8fd4f07696c1cffd509c74e52b029ab726",
+        "implementationAstSha256": "59f67b9d8e2f5d16e34a502117c5f26ac68bf791b71bac38d8c4ed8f12b14e0d",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/reference_binding.py",
+        "sha256": "af9319d604aa797523c30d70da4da281fe15adf76eb1cf5ec67d67877e01431b",
+        "implementationAstSha256": "42dc634d0a492e595a34aaea15784069dd8bb45d799cbd9e4490ac035b0a2976",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/review_frontier.py",
+        "sha256": "79644647666f6ebec0c71825a9a25c108ee4c421625c27f2ef849c8ef9c83d5c",
+        "implementationAstSha256": "e95b0cb25da1a658a87cffec476fd6f9ac8c3691cf15664455176f840a9beaed",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/runner.py",
+        "sha256": "7e3b2ca14deea313542b697dfee02278117e3ac945b7667aabab091c52a8c948",
+        "implementationAstSha256": "6c75a13b0e20b7177cc790b48f550b744c6e4bf7a195032a08b1408461e5f8ce",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/semantic_closure.py",
+        "sha256": "af7bec85c007571e5373da9faa6c2cc14a52ac3c93cdff592e3dc5283755e02b",
+        "implementationAstSha256": "eb55de856fd31bf9e6db6a51918229ea60a9334d438ea0d7d203d7b047051326",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/rule_set_preparation/tools.py",
+        "sha256": "5f77f58e26ffae189e24c4368a5431f2013f950d159ff8d00c8d16132019d2f3",
+        "implementationAstSha256": "fdd76c694c2f8f9c1cb3629d432c2e4ead0da7f1dd73e5076e783b7174dd31ef",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/common/capabilities/agent_runtime/agent_server_client.py",
+        "sha256": "8e9a1f740f05c3ebc723a654aec3e74867081449c5c2e40061aa0199912ab85d",
+        "implementationAstSha256": "51ccaa9b864af2c1f49d211856f4fd50be1cb6a09ccf842778c6159c874bc4da",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/common/capabilities/agent_runtime/rabbitmq_consumer.py",
+        "sha256": "74f3a1e955441df0e73bc4db0963fb87ac6a20ded8ff261f63359b44f23150dc",
+        "implementationAstSha256": "cc24163d96855b44057d2a001deb85abf8f4b6be6297362d25b8a50f6eec73da",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/common/capabilities/platform/api_client.py",
+        "sha256": "0f977b534754675612bb1ab935cb983f3a56c9f0f7b78f27e943e222ec38d55d",
+        "implementationAstSha256": "d7cdd479d4ea4d38e144015506e50099ef3b88e7c4a2f30b1f038b68e74cbe3c",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/legal/managed_documents/boundary.py",
+        "sha256": "94f6ba99a1508fe6424afc0f8e1fc7767948fc922aca8350e4b518338e880c3d",
+        "implementationAstSha256": "367cb81ed799129e184a26dec727eced8d6dd82c029bcca5c77ced116d52da2e",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/legal/managed_documents/chunker.py",
+        "sha256": "b65f0613f9b0f6cf910198a809087c3a151b6154ee3d5ea589507ce1c6d59dcc",
+        "implementationAstSha256": "a1f8fd9a70ce28f804e7ae7c9de018201edf2d7db1df7ce557dd5d7e8ca093c3",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/legal/managed_documents/client.py",
+        "sha256": "54cd21e5c5e4164e19845cc76676453cb0e656de3ed44f9177f511c2652564dc",
+        "implementationAstSha256": "ecf9d0dc18f82e76ad9b148bd6bcfb0c8a9ba2b75acde1096339777e80b11e56",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/legal/managed_documents/ingest.py",
+        "sha256": "52ba4885187d2f6ea80b41d54b5c9d75ea6275039377e5eb7b0981ca7e4c5c3a",
+        "implementationAstSha256": "01efa5704905a8410149bbd05b7bd525d53fcf88c1f47099308193d239d17836",
+        "implementationEquivalent": true
+      },
+      {
+        "path": "deepagents/tools/legal/sources/scripts/ocr_legal_pdf.py",
+        "sha256": "5e4daf089f4da49648946c5227d812e731a45e593c8fdf671cf30edd9d54ac42",
+        "implementationAstSha256": "ba52808f9557b73608c41d02794037f76de50f508884b97a2c567f00e2f7ddfb",
+        "implementationEquivalent": true
+      }
+    ]
+  }
 }

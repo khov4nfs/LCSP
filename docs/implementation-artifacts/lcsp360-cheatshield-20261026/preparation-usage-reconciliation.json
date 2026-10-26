@@ -272,7 +272,10 @@
       "path": "tmp/lcsp-storage/usage-recovery.sqlite3",
       "exists": true,
       "matchingRunRows": 0,
-      "tables": ["sqlite_sequence", "usage_recovery"],
+      "tables": [
+        "sqlite_sequence",
+        "usage_recovery"
+      ],
       "groups": []
     }
   ],
@@ -288,5 +291,45 @@
     "matchingRunRows": 0,
     "matchingEnvelopeFingerprints": 0,
     "scope": "Existing usage journal plus retained lcsp360-final cache SQLite journals; no provider account statement was available"
+  },
+  "continuation20261026": {
+    "preparationRunId": "630eed1a-1577-4ca7-84bc-4ba17df911f1",
+    "verified": {
+      "sourceReceiptSha256": "e79b28bcdd0a416c3c3c24e6b133a636ca7a01e75dfee3689f92885172459a79",
+      "matchesRetainedReceipt": true,
+      "invocations": 2281,
+      "completed": 2265,
+      "failed": 15,
+      "outcomeUnknown": 1,
+      "requestResumeMarkers": 14,
+      "reservationsLinked": 0,
+      "routingPolicySnapshot": {
+        "id": "64f3dbdb-c497-44cf-8cd0-b9d14b97d196",
+        "role": "rule-set-preparation",
+        "provider": "INCEPTION",
+        "model": "mercury-3",
+        "policyVersion": "cfg-786c5a3ae0fe2e9c"
+      },
+      "activeJournalMatchingRunRows": 0
+    },
+    "derived": {
+      "knownInput": 146411850,
+      "knownOutput": 9056266,
+      "knownTotal": 155468116,
+      "knownInputOverReviewerReported100Million": 46411850,
+      "requestAssociation": "TIMESTAMP_WINDOWS_ONLY"
+    },
+    "unresolved": [
+      "Original approved execution envelope",
+      "Complete provider-side physical requests/retries",
+      "Provider billing, invoices and credits matched to retained attempts",
+      "Historical cumulative budget enforcement across resumes"
+    ],
+    "notProvableFromRetainedEvidence": [
+      "Exact request/resume-to-invocation mapping without retained per-attempt execution identities",
+      "A routing-policy snapshot is not an approval, admission envelope or charged-credit identity",
+      "Unknown attempt usage and charge amounts"
+    ],
+    "financialGate": "BLOCKED"
   }
 }
