@@ -11,12 +11,13 @@ modes: full | complete | resume
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any, Callable
 
 from deepagents.backends import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
 
 from assessment_root.client import AssessmentRuntimeClient
 from assessment_root.researcher import RESEARCHER_NAME
@@ -178,15 +179,16 @@ def main() -> int:
         ]
     model = DynamicScriptedModel(responses=[], steps=steps)
     client = AssessmentRuntimeClient(base, key)
-    result = run_assessment_root(
-        client,
-        assessment_id,
-        backend_factory=lambda claim, context: (FilesystemBackend(root_dir=repo_dir, virtual_mode=True), None),
-        model=model,
-        # A fresh in-memory checkpointer per process models a restart: only server state survives.
-        checkpointer=InMemorySaver(),
-        governance=(),
-    )
+    with PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
+        saver.setup()
+        result = run_assessment_root(
+            client,
+            assessment_id,
+            backend_factory=lambda claim, context: (FilesystemBackend(root_dir=repo_dir, virtual_mode=True), None),
+            model=model,
+            checkpointer=saver,
+            governance=(),
+        )
     print(json.dumps({"result": result, "captured": captured, "remainingSteps": len(model.steps)}))
     return 0
 

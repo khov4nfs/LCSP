@@ -302,17 +302,21 @@ try {
 
   // ---- the REAL Root on assessment A -------------------------------------------------------------
   const script = path.join(root, "deepagents/tests/vertical/scripted_root.py");
+  const rootOptions = {
+    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0] },
+  };
   const first = await runPython(script, [
     base,
     workerKey,
     A.id,
     repoDir,
     "full",
-  ]);
+  ], rootOptions);
   // This partial-work fixture deliberately exhausts its offline model before finalization.
   // A normal response cannot falsely settle unfinished domain work as SUCCEEDED.
   eq(first.result.state, AGENT_EXECUTION_STATES.FAILED, JSON.stringify(first));
   eq(first.result.errorType, "AssertionError");
+  ok(first.result.checkpointId, "failed native work retains its checkpoint");
   eq(first.remainingSteps, 0);
   eq(first.result.threadId, threadA);
   // the validator rejected the bad attempt with mechanical codes and the Root corrected itself
@@ -424,20 +428,26 @@ try {
     { s: AGENT_EXECUTION_STATES.FAILED, lease: null },
   );
 
-  // ---- restart: a NEW execution on the SAME thread reloads everything from the server -----------
+  // ---- restart: retain native state on the SAME thread and reload server authority -----------
+  const failedCheckpoint = (await q(
+    `SELECT "checkpointId" AS checkpoint FROM "AssessmentRuntime" WHERE "assessmentId"=$1`,
+    [A.id],
+  )).rows[0].checkpoint;
+  eq(failedCheckpoint, first.result.checkpointId, "API binds the failed native checkpoint");
   const second = await runPython(script, [
     base,
     workerKey,
     A.id,
     repoDir,
     "resume",
-  ]);
+  ], rootOptions);
   eq(
     second.result.state,
     AGENT_EXECUTION_STATES.FAILED,
     JSON.stringify(second),
   );
   eq(second.result.errorType, "AssertionError");
+  ok(second.result.checkpointId !== failedCheckpoint, "same-thread retry advances the native checkpoint");
   eq(second.result.threadId, threadA);
   ok(
     second.result.executionId !== rootExecution,
@@ -788,7 +798,7 @@ try {
     completedByRoot.id,
     repoDir,
     "complete",
-  ]);
+  ], rootOptions);
   eq(
     completed.result.state,
     AGENT_EXECUTION_STATES.SUCCEEDED,

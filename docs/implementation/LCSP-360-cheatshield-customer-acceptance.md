@@ -1,6 +1,6 @@
 # LCSP-360 — CheatShield Customer acceptance checkpoint
 
-Release is **BLOCKED** and PR [#427](https://github.com/khov4nfs/LCSP/pull/427) remains Draft. This report now includes the 2026-10-27 local-time continuation (runtime evidence observed on 2026-10-26 UTC). It supersedes the earlier zero-decision/queued checkpoint below. The existing genuine Assessment was recovered and resumed; it now has **25 structurally accepted decisions, 218 pending rules, no human requests and no report artifacts**. Independent semantic review **FAILS**. Provider fallback exhaustion settled its execution **FAILED**. No merge, production deployment, duplicate Assessment or Full-Corpus Preparation rerun occurred.
+Release is **BLOCKED** and PR [#427](https://github.com/khov4nfs/LCSP/pull/427) remains Draft. The latest genuine continuation settled **FAILED on 2026-10-27 at 04:46:00 UTC** after provider exhaustion. It recovered the original native checkpoint and preserved the new checkpoint, but produced no new investigation, decisions or human requests. The existing Assessment still has **25 structurally accepted decisions, 218 pending rules, no human requests and no report artifacts**. The original decisions still **FAIL** independent semantic review; corrected live semantic behavior is **NOT PROVEN**. No merge, production deployment, duplicate Assessment or Full-Corpus Preparation rerun occurred.
 
 ## Native reliability continuation — 2026-10-27 UTC
 
@@ -16,7 +16,53 @@ Failed executions now retain their last proven native checkpoint. A retry binds 
 
 The [native investigation trace](../implementation-artifacts/lcsp360-cheatshield-20261026/native-root-investigation-trace-20261027.json) retains each decision's observed tool window and references. Its fact-to-evidence links were read from `AssessmentCaseFactEvidence`, rather than inferred from the mere presence of two citations. Provider-free replay loads the original risk-record packet and pinned legal text, then demonstrates an unresolved plan and the existing human interrupt without submitting a decision. Scripted replay is plumbing evidence, **not live semantic acceptance**.
 
-Focused verification at this checkpoint: 65 API tests (including 37 decision-validator cases), 17 recovery cases within that total, 57 sandbox tests, seven native reliability tests, API build/lint, source-policy checks, and the documentation checker/tests pass. The frozen baseline remains `3d0522327577dc5f07971e90e86d6e7cc440b9554ee67fe285ab05b17a43b8d0`. Full-suite, genuine continuation and final-SHA results are recorded below when observed. The prior AST-only documentation proof remains historical; this is an explicitly functional change verified with regressions.
+Verification now passes **1,955 Python tests / 22 skipped**, 137 focused Python cases (including 57 sandbox and seven native reliability cases), and 65 focused API tests (including 37 decision-validator and 17 recovery cases). Workspace typecheck, API build/lint, source-policy checks, documentation checker and its five unit tests pass. The current documentation inventory is **2,952 functions / 762 production files: 807 conformant, 2,145 unchanged legacy, zero active violations**. The frozen baseline remains `3d0522327577dc5f07971e90e86d6e7cc440b9554ee67fe285ab05b17a43b8d0`. The prior 118-file AST-only documentation proof remains historical; this is an explicitly functional change verified with regressions.
+
+Two remote failures were reproduced and corrected without weakening their gates. The workspace typecheck exposed incorrectly inferred zero-argument Jest mocks and a missing nullable checkpoint field in a fixture; corrected typed fixtures pass both typecheck and the 21 affected API tests. The API coverage suite then rejected the newly added governed GET route because the explicit route allowlist omitted it; the one-route addition passes all four route tests. Neither fix changes production decision behavior.
+
+**Root cause:** the subsequent real-stack Assessment vertical created a fresh `InMemorySaver` in each Python process. The first failed execution now correctly persists a checkpoint, so the second process could not find its API-pinned checkpoint and failed closed before the fixture's expected model-exhaustion assertion. The failure was reproduced locally. **Fix:** use the existing native `PostgresSaver` on the disposable vertical database, as the human-resolution vertical already does. Added assertions verify checkpoint retention, API binding and advancement by the new execution on the same thread. All **148 Assessment vertical checks pass** with real API/PostgreSQL/native graph and a scripted model. This proves restart mechanics, not genuine semantic acceptance.
+
+**Root cause:** both human-resolution vertical variants then reproduced the crash window after a human-request side effect commits but before its native interrupt is saved. The checkpoint guard recognized a saved interrupt but missed unfinished native work, rejecting the existing idempotent replay. **Fix:** the same leased human-wait recovery now recognizes pending native work when the API confirms a human-wait lifecycle and an open request. Missing requests and ordinary unbound/mismatched checkpoints still fail closed. Two authorized-state cases failed before the fix; all four new cases now pass, alongside all **63 Root unit tests**, **79 HITL vertical checks** and **72 unresolvable-human-fact checks**. These real-stack scripted checks do not prove that the paid Root independently initiates appropriate HITL. This later recovery fix was not exercised by the earlier genuine run, which made no human request.
+
+| Published continuation commit | Change |
+| --- | --- |
+| `fe33ced6ef36a9a0c9dd8702dfa89eea107524c7` | Native investigation capabilities, source-write boundary, checkpoint recovery, governed historical-decision read, regressions and trace evidence. |
+| `9b3977538751a276ad277a3927d964a06277752c` | Correct typed recovery/query test fixtures discovered by CI. |
+| `fc0a2d6a91fb5bc6a2c6d44a82a3e0f225494886` | Include the new lease-governed GET decision-history route in the explicit route allowlist. |
+
+### Observed genuine continuation after the native changes
+
+The existing isolated database, Customer, snapshot, Rule Set and native thread were verified before dispatch. Authenticated model-list reads established catalog visibility for Inception and Google; Mirai returned 401 and APX did not list its configured model. Catalog visibility did not prove generation availability. The user-authorized native dispatch used the unchanged platform routing, fallback, admission and accounting controls, without a task-specific cap.
+
+| Identity / result | Observed value |
+| --- | --- |
+| Runtime source | `fe33ced6ef36a9a0c9dd8702dfa89eea107524c7`; the two subsequent test/config commits do not alter native runtime logic. |
+| Assessment / Root thread | `14a6d06e-e021-442e-a29e-0b5406e2b8fa` / `0dc89d04-eeef-40c4-bee3-9335df18b182` |
+| New execution / transport run | `779de8ac-42f7-4ce1-ab34-a22024a6ae3a` / `7d9dabb1-287f-465b-987b-be9812d22e68` |
+| Original recovered checkpoint | `1f1d15af-4152-6268-84f2-0d0288b95caa` |
+| Final native and API-bound checkpoint | `1f1d1bfe-c5aa-64bb-8549-95910b45f9e0` |
+| Start / failed settlement | `2026-10-27T04:33:38.395Z` / `2026-10-27T04:46:00.467Z` |
+| Lease | Cleared after FAILED; no concurrent or duplicate continuation was dispatched. |
+| Decision history / revisions | All 25 original packets remain unchanged at revision 1; zero superseding or new decisions. |
+| Current coverage / HITL / reports | 218 PENDING, 25 RESOLVED, zero human requests, zero report artifacts. |
+
+The new turn records `NATIVE_CHECKPOINT_METADATA` recovery from the original failed execution. The original turn's null checkpoint and original context remain unchanged. The new failed turn and current runtime both retain the final proven checkpoint. This is live checkpoint-recovery evidence, not a manually backfilled historical record.
+
+The Root generated five completed `AGENT_MODEL` responses, all Google `gemini-3.5-flash-lite`; two were visible progress narratives without tool calls. Its three actual calls were `request_finalization` (`call_2846792`), rejected for 218 unresolved rules, and two identical `get_assessment_context` reloads (`call_9053`, `call_2937740`). There were **no new source/legal reads, research delegations, native todos, human requests, decision submissions or completed summarization calls**. The progress narratives do not establish investigation. The completion middleware correctly continued the same native graph after those narratives; provider exhaustion then prevented further work. The capabilities exercised by provider-free regressions were not demonstrated semantically by this short live continuation.
+
+**Live semantic result: NOT PROVEN after the native changes.** The original audit failures below remain unresolved. No old decision was silently invalidated or relabeled, and no opposite verdict was authored outside Native DeepAgents. The [continuation receipt](../implementation-artifacts/lcsp360-cheatshield-20261026/native-reliability-continuation-20261027.json) retains exact model-response, invocation, tool-call, checkpoint, decision and accounting identities, plus read-only reproduction instructions. The 12-file source view and omitted `models/best.pt` limitation remain unchanged.
+
+The latest execution has **56 unique invocation receipts: five COMPLETED, two FAILED, 49 OUTCOME_UNKNOWN**, five retained response IDs and six logical model-step identities. Failures include Mirai 401, 14 Inception API errors with unavailable outcomes, 32 Google rate-limit errors, three Google authentication errors and APX model-not-found 404. Unknown attempt usage remains unknown. The 224 matching journal rows are 112 delivered usage lifecycle rows and 112 recorded evidence lifecycle rows for those 56 identities, not 224 physical requests.
+
+| Accounting scope | Unique receipts | Known retained tokens | Financial qualification |
+| --- | ---: | ---: | --- |
+| Historical Preparation `630eed1a-1577-4ca7-84bc-4ba17df911f1` | 2,281 | 155,468,116 | Original approved envelope, complete physical attempts and provider billing remain unproven. |
+| Original genuine Assessment execution `144cc556-1a8b-4785-bad6-c41aeb3c5904` | 122 | 11,275,596 | 64 completed, 12 failed, 45 unknown, one started without terminal receipt. |
+| Latest genuine continuation `779de8ac-42f7-4ce1-ab34-a22024a6ae3a` | 56 | 1,465,117 | 328,941 noncached + 1,136,011 cached = 1,464,952 inclusive input; 165 output. |
+
+These scopes remain separate. Reasoning is included once within output. The new receipts carry route-policy snapshot identities, but no reservation, pricing snapshot, provider-cost, charged-credit or customer-charge linkage. Verified receipts and derived token sums do not establish original authorization, provider invoices or cumulative budget enforcement. **Financial governance remains BLOCKED.**
+
+Python CodeQL now succeeds through the supported push-triggered workflow, including [the exact `fc0a2d6a9` Python job](https://github.com/khov4nfs/LCSP/actions/runs/40452689914/job/122018841003). The earlier `8203c3db3` failure occurred during SARIF upload/finalization after analysis, without an established source vulnerability; no scan or finding was suppressed. Tests/security/coverage for the final evidence commit must still be observed. Exact final-SHA checks, retained LCOV/provenance hashes and independent Codecov publication will be recorded in the [existing PR execution comment](https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6406994481), so an evidence commit is never certified using an older green run.
 
 ## Gate inventory
 
@@ -26,16 +72,16 @@ Focused verification at this checkpoint: 65 API tests (including 37 decision-val
 | API contract fixture                                | Historical VERIFIED           | Prior 239 synthetic decisions establish contract plumbing only.                                                                           |
 | Prior representative investigation                  | Historical execution VERIFIED | Four model-authored decisions; three positive verdicts were independently refuted. Not semantic acceptance.                               |
 | CheatShield Customer setup and immutable provenance | VERIFIED locally              | Actual Customer API/auth/credential/connection/snapshot/setup lifecycle; all 13 pinned source files accounted for.                        |
-| CheatShield genuine AI investigation                | PARTIAL / BLOCKED             | Existing native run resumed; 25 accepted real-model decisions, 218 pending; provider exhaustion settled FAILED.                           |
-| Genuine semantic correctness                        | FAIL                          | Actual model output infers operator/risk/applicability and absence from insufficient evidence; independent review retained.               |
+| CheatShield genuine AI investigation                | PARTIAL / BLOCKED             | Latest native continuation recovered its checkpoint but produced no new investigation; 25 old decisions and 218 pending remain.          |
+| Genuine semantic correctness                        | FAIL before / NOT PROVEN after | Original unsupported findings retained; latest continuation did not re-evaluate them or open required human dependencies.                 |
 | Full Customer E2E through report                    | BLOCKED                       | No human requests or report artifacts; missing material facts and unresolved coverage prevent valid finalization.                         |
 | Budget governance / Financial Gate                  | NOT PROVEN / BLOCKED          | Retained token receipts reconcile; approved envelopes, complete physical attempts and provider charges do not.                            |
 | Business documentation                              | PASS locally                  | 499 → 0 active violations; 118 documentation-only files have equivalent implementation ASTs; frozen baseline unchanged.                   |
 | Staging / production release                        | NOT PROVEN / BLOCKED          | Disposable local services are not staging/production acceptance.                                                                          |
-| Implementation-head CI / security                   | PASS, 36/36 checks            | `6ee4ecc5fa26dca7cca2b6280ebb7e0459339e89`; later evidence/report commits require their own exact-SHA checks in the PR execution comment. |
-| Implementation-head Codecov publishing              | PASS                          | Exact `6ee4ecc5f` commit state complete, 56.96%; LCOV artifact and matching checkout/hash independently verified.                         |
+| Final-head CI / security                            | OBSERVATION REQUIRED          | Python CodeQL passes on `fc0a2d6a9`; final evidence-commit checks are retained in the PR execution comment.                               |
+| Final-head Codecov publishing                       | OBSERVATION REQUIRED          | Historical 56.96% publication is not evidence for the new source; verify final-SHA LCOV, provenance and publication independently.        |
 
-## Current implementation and verification
+## Earlier implementation and verification
 
 Initial local HEAD was `eb06d84be2b736f81215e9da94f222a9389dd20e`. The four preserved files were committed and pushed as `bb907a2626226ece3b64e4a7a985445ae1d229d4`. Published implementation HEAD `6ee4ecc5fa26dca7cca2b6280ebb7e0459339e89` was confirmed through GitHub PR retrieval after a non-force push. The final source review includes the narrow documentation clarification at `6f3d9f7609b773fcaacfdf3f184a9f662fd7f5c1`; final evidence/report publication and its exact-SHA checks are recorded in the PR execution comment. The branch remains `fix/LCSP-360-corpus-driven-applicability`, based on `develop`.
 
@@ -69,7 +115,7 @@ The [documentation receipt](../implementation-artifacts/lcsp360-cheatshield-2026
 
 Skipped external integrations remain unverified. No new browser behavior is claimed from documentation-only Web changes. A first focused pytest command used a nonexistent workspace-test filename and ran zero tests; the corrected four-suite command produced the 67 passing cases above.
 
-## Genuine runtime recovery and independent semantic audit
+## Earlier genuine runtime recovery and independent semantic audit
 
 The existing `lcsp360-direct-20261025` container and retained volume were started without recreation. Read-only transactions verified database **`lcsp360_cheatshield_acceptance_20261026` at `127.0.0.1:55496`** before runtime launch. Unrelated Fogewise infrastructure was not used. The API was restored at `127.0.0.1:34471` with its saved worker key, and native runtime at `127.0.0.1:34473` with the existing PostgreSQL checkpoint/store and usage journal. Both health endpoints returned success. The saved Customer session had expired; normal sign-in restored access, and authenticated Assessment retrieval returned HTTP 200. Credentials remain outside Git and were not printed.
 

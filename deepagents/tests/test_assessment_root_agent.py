@@ -997,6 +997,61 @@ def test_failed_claim_does_not_resume_a_checkpoint_the_server_did_not_bind(
     assert client.finishes[-1] == ("FAILED", {})
 
 
+@pytest.mark.parametrize("lifecycle", ["WAITING_FOR_HUMAN", "BLOCKED"])
+@pytest.mark.parametrize("has_open_request", [True, False])
+def test_human_request_crash_before_interrupt_replays_only_with_server_human_wait(
+    monkeypatch, tmp_path, lifecycle, has_open_request
+):
+    from types import SimpleNamespace
+
+    request_id = "77777777-7777-4777-8777-777777777777"
+    checkpoint_id = "88888888-8888-4888-8888-888888888888"
+
+    class HumanWaitClient(FakeClient):
+        def __init__(self):
+            super().__init__(open_requests=[request_id] if has_open_request else [])
+            self.lifecycle_state = lifecycle
+            self.finishes = []
+
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "lifecycleState": lifecycle}
+
+        def finish(self, state, **metadata):
+            self.finishes.append((state, metadata))
+            return super().finish(state, **metadata)
+
+    class PendingHumanTool:
+        def __init__(self):
+            self.invocations = []
+
+        def get_state(self, _config):
+            return SimpleNamespace(
+                config={"configurable": {"thread_id": THREAD, "checkpoint_id": checkpoint_id}},
+                tasks=[], next=("tools",),
+            )
+
+        def invoke(self, packet, *, config, context):
+            self.invocations.append(packet)
+            return {"__interrupt__": [SimpleNamespace(value={"requestIds": [request_id]})]}
+
+    client = HumanWaitClient()
+    agent = PendingHumanTool()
+    monkeypatch.setattr("assessment_root.runner.create_assessment_root_agent", lambda **_kwargs: agent)
+    result = run_assessment_root(
+        client, ASSESSMENT, backend_factory=lambda *_: (object(), None),
+        checkpointer=object(), governance=(),
+    )
+
+    if has_open_request:
+        assert result["state"] == "INTERRUPTED"
+        assert agent.invocations == [None]
+        assert client.finishes == [("INTERRUPTED", {"checkpoint_id": checkpoint_id, "request_ids": [request_id]})]
+    else:
+        assert result["state"] == "FAILED"
+        assert result["checkpointId"] is None
+        assert agent.invocations == []
+
+
 def test_stop_arriving_during_model_response_pauses_before_tool_effects(tmp_path):
     class ControlledClient(FakeClient):
         control = "RUNNING"

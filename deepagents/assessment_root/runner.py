@@ -132,6 +132,8 @@ def run_assessment_root(
     - Claim authority owns execution identity; a concurrent held lease cannot start duplicate work.
     - Resume native pending work only when the claim binds its exact checkpoint, or when an existing
       server-authorized transport or human-wait recovery applies; an unbound checkpoint is rejected.
+    - A leased human-wait recovery with an open server request may replay unfinished native work
+      to persist its interrupt after the human-request side effect committed before a crash.
     - A failed execution resumes under a new execution identity on the same thread, and success
       requires authoritative COMPLETE.
     Execution flow:
@@ -243,7 +245,7 @@ def run_assessment_root(
                     claim.get("lifecycleState", context.get("lifecycleState"))
                     in {"WAITING_FOR_HUMAN", "BLOCKED"}
                     and bool(context["openHumanRequestIds"])
-                    and bool(pending)
+                    and bool(pending or saved.next)
                 )
                 if expected and actual != expected and (not recovered or (pending and not control_wait)):
                     raise RuntimeError("server checkpoint binding does not match native Root checkpoint")
