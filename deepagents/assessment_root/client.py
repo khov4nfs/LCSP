@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -133,6 +134,26 @@ class AssessmentRuntimeClient:
 
     def rule_set(self) -> dict[str, Any]:
         return self._call("GET", "/rule-set")
+
+    def rule_decisions(self, rule_id: str, revision: int | None = None) -> dict[str, Any]:
+        """Business purpose: Reload one model-authored decision packet for investigation or revision review.
+
+        Business rules:
+        - The worker lease scopes the read to this Assessment and pinned Rule Set; omitted revision selects the newest record.
+        - Historical states and packet content remain server-owned and are never changed by this read.
+
+        Execution flow:
+        1. Encode the rule identifier and, when provided, request its exact decision revision.
+        2. Return the bounded server result through the shared authenticated request path.
+
+        Failure cases:
+        - Invalid queries, stale leases, API failures and transport errors use the existing request failure behavior.
+
+        Side effects:
+        - Read-only HTTP retrieval; no decisions, evidence, facts or revision caches are changed.
+        """
+        return self._call("GET", f"/decisions/{quote(rule_id, safe='')}",
+                          params={"revision": str(revision)} if revision is not None else None)
 
     def legal_source_text(self, document_id: str, locator: str) -> dict[str, Any]:
         """One provision of the Legal Source Version the pinned rule set was prepared from.

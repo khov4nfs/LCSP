@@ -61,6 +61,7 @@ import { GetPinnedRuleSetHandler } from "./application/queries/get-pinned-rule-s
 import { GetPinnedLegalSourceTextHandler } from "./application/queries/get-pinned-legal-source-text/get-pinned-legal-source-text.handler.js";
 import { SearchPinnedLegalSourceHandler } from "./application/queries/search-pinned-legal-source/search-pinned-legal-source.handler.js";
 import { GetRootContextHandler } from "./application/queries/get-root-context/get-root-context.handler.js";
+import { GetRuleDecisionHandler } from "./application/queries/get-rule-decision/get-rule-decision.handler.js";
 import { ListAssessmentsHandler } from "./application/queries/list-assessments/list-assessments.handler.js";
 import { AssessmentCompletionGate } from "./application/services/assessment-completion-gate.service.js";
 import { AssessmentEventAppender } from "./application/services/assessment-event-appender.service.js";
@@ -135,6 +136,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     GetPinnedLegalSourceTextHandler,
     SearchPinnedLegalSourceHandler,
     GetRootContextHandler,
+    GetRuleDecisionHandler,
     AssessmentRuntimeEventService,
     WorkerApiKeyGuard,
     CreateAssessmentHandler,

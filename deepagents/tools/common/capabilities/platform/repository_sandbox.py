@@ -193,6 +193,24 @@ def resolve_repository_thread_backend(config: object | None) -> object:
 class RuntimeRepositoryFilesystemBackend(BackendProtocol):
     """Late-bind permission-governed file tools without exposing shell execution."""
 
+    def __init__(self, *, read_only_repository: bool = False) -> None:
+        """Business purpose: Configure the runtime file backend's repository mutation boundary.
+
+        Business rules:
+        - Existing callers remain writable by default for compatibility.
+        - Read-only callers may mutate only canonical paths inside agent state.
+
+        Execution flow:
+        1. Store whether this backend enforces the pinned-source write boundary.
+
+        Failure cases:
+        - This configuration step performs no path access and cannot authorize a path by itself.
+
+        Side effects:
+        - Stores one in-memory policy flag; it does not access the repository or change files.
+        """
+        self._read_only_repository = read_only_repository
+
     @property
     def id(self) -> str:
         return "lcsp-runtime-repository"
@@ -223,7 +241,62 @@ class RuntimeRepositoryFilesystemBackend(BackendProtocol):
     def glob(self, pattern: str, path: str | None = None) -> GlobResult:
         return self._backend().glob(pattern, path)
 
+    def _write_path_error(self, path: str) -> str | None:
+        """Business purpose: Enforce the opt-in repository mutation boundary for filesystem
+        operations.
+
+        Business rules:
+        - Legacy backends accept their existing paths.
+        - Read-only backends allow only canonical paths under `REPOSITORY_AGENT_STATE`.
+        - Path traversal and malformed values are rejected without reaching the sandbox backend.
+
+        Execution flow:
+        1. Return immediately when the caller retains legacy writable behavior.
+        2. Canonicalize the requested path through `_real_path` and compare it with the agent-state
+           root.
+        3. Return a typed-result error message for malformed or out-of-scope paths.
+
+        Failure cases:
+        - Invalid, traversing, or repository-source paths return a stable error string instead of
+          raising or mutating data.
+
+        Side effects:
+        - Pure path authorization check; it does not resolve the backend or perform filesystem I/O.
+        """
+        if not self._read_only_repository:
+            return None
+        if not isinstance(path, str):
+            return "Invalid repository path; use a path inside the agent-state directory."
+        try:
+            real_path = _real_path(path)
+        except (AttributeError, TypeError, ValueError):
+            return "Invalid repository path; use a path inside the agent-state directory."
+        if real_path == REPOSITORY_AGENT_STATE or real_path.startswith(
+            REPOSITORY_AGENT_STATE + "/"
+        ):
+            return None
+        return "Pinned repository is read-only; only agent-state paths may be changed."
+
     def write(self, file_path: str, content: str) -> WriteResult:
+        """Business purpose: Write an agent file while protecting a pinned repository snapshot.
+
+        Business rules:
+        - Read-only mode permits writes only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+
+        Execution flow:
+        1. Validate the path when the read-only boundary is enabled.
+        2. Return an error result for invalid or protected paths, otherwise delegate the write.
+
+        Failure cases:
+        - Rejected paths return `WriteResult.error`; sandbox failures retain the backend's error.
+
+        Side effects:
+        - Persists content only at an authorized path in read-only mode.
+        """
+        error = self._write_path_error(file_path)
+        if error:
+            return WriteResult(error=error)
         return self._backend().write(file_path, content)
 
     def edit(
@@ -233,15 +306,88 @@ class RuntimeRepositoryFilesystemBackend(BackendProtocol):
         new_string: str,
         replace_all: bool = False,
     ) -> EditResult:
+        """Business purpose: Edit an agent file while protecting a pinned repository snapshot.
+
+        Business rules:
+        - Read-only mode permits edits only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+
+        Execution flow:
+        1. Validate the path when the read-only boundary is enabled.
+        2. Return an error result for invalid or protected paths, otherwise delegate the edit.
+
+        Failure cases:
+        - Rejected paths return `EditResult.error`; sandbox failures retain the backend's error.
+
+        Side effects:
+        - Changes content only at an authorized path in read-only mode.
+        """
+        error = self._write_path_error(file_path)
+        if error:
+            return EditResult(error=error)
         return self._backend().edit(file_path, old_string, new_string, replace_all)
 
     def delete(self, file_path: str) -> DeleteResult:
+        """Business purpose: Delete an agent file without allowing removal from a pinned repository.
+
+        Business rules:
+        - Read-only mode permits deletion only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+
+        Execution flow:
+        1. Validate the path when the read-only boundary is enabled.
+        2. Return an error result for invalid or protected paths, otherwise delegate deletion.
+
+        Failure cases:
+        - Rejected paths return `DeleteResult.error`; sandbox failures retain the backend's error.
+
+        Side effects:
+        - Removes a file only at an authorized path in read-only mode.
+        """
+        error = self._write_path_error(file_path)
+        if error:
+            return DeleteResult(error=error)
         return self._backend().delete(file_path)
 
     def upload_files(
         self,
         files: list[tuple[str, bytes]],
     ) -> list[FileUploadResponse]:
+        """Business purpose: Upload files without allowing customer-source mutation in read-only
+        mode.
+
+        Business rules:
+        - Read-only mode allows each upload only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+        - Rejected entries receive individual errors while authorized entries retain normal handling.
+
+        Execution flow:
+        1. Validate every requested path before uploading any authorized entries.
+        2. Return per-file errors for invalid or protected paths and delegate authorized files together.
+        3. Restore the backend results to their original request order.
+
+        Failure cases:
+        - Rejected paths return `FileUploadResponse.error`; backend failures stay with their results.
+
+        Side effects:
+        - Persists uploaded bytes only at authorized paths in read-only mode.
+        """
+        if self._read_only_repository:
+            results: list[FileUploadResponse | None] = [None] * len(files)
+            allowed: list[tuple[int, str, bytes]] = []
+            for index, (path, content) in enumerate(files):
+                error = self._write_path_error(path)
+                if error:
+                    results[index] = FileUploadResponse(path=path, error=error)
+                else:
+                    allowed.append((index, path, content))
+            if allowed:
+                uploaded = self._backend().upload_files(
+                    [(path, content) for _, path, content in allowed]
+                )
+                for (index, _, _), result in zip(allowed, uploaded):
+                    results[index] = result
+            return [result for result in results if result is not None]
         return self._backend().upload_files(files)
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:

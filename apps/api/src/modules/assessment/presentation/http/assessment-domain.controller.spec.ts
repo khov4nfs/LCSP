@@ -14,6 +14,7 @@ import supertest from "supertest";
 import { isProblemResult } from "../../../../platform/http/filters/error.factory.js";
 import { AssessmentDomainController } from "./assessment-domain.controller.js";
 import { ReportUnresolvableHumanFactCommand } from "../../application/commands/report-unresolvable-human-fact/report-unresolvable-human-fact.command.js";
+import { GetRuleDecisionQuery } from "../../application/queries/get-rule-decision/get-rule-decision.query.js";
 
 describe("AssessmentDomainController transport validation", () => {
   let app: INestApplication<Server>;
@@ -126,5 +127,42 @@ describe("AssessmentDomainController transport validation", () => {
     expect(execute).toHaveBeenCalledWith(
       expect.any(ReportUnresolvableHumanFactCommand),
     );
+  });
+
+  it("dispatches a lease-scoped decision packet lookup with an optional revision", async () => {
+    execute.mockClear();
+    execute.mockResolvedValue({ records: [] });
+    const assessmentId = randomUUID();
+    const lease = randomUUID();
+    const response = await supertest(app.getHttpServer())
+      .get(
+        `/internal/assessment-runtime/${assessmentId}/decisions/RULE-1?revision=2`,
+      )
+      .set("x-worker-api-key", workerKey)
+      .set("x-assessment-lease", lease);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ok: true, data: { records: [] } });
+    const dispatched = execute.mock.calls[0]?.[0];
+    expect(dispatched).toBeInstanceOf(GetRuleDecisionQuery);
+    expect(dispatched).toMatchObject({
+      assessmentId,
+      leaseToken: lease,
+      assessmentRuleId: "RULE-1",
+      revision: 2,
+    });
+  });
+
+  it("rejects an invalid decision revision before query dispatch", async () => {
+    execute.mockClear();
+    const response = await supertest(app.getHttpServer())
+      .get(
+        `/internal/assessment-runtime/${randomUUID()}/decisions/RULE-1?revision=latest`,
+      )
+      .set("x-worker-api-key", workerKey)
+      .set("x-assessment-lease", randomUUID());
+
+    expect(response.status).toBe(422);
+    expect(execute).not.toHaveBeenCalled();
   });
 });

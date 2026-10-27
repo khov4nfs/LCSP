@@ -46,10 +46,7 @@ import {
   ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_NAME_MAX_LENGTH,
 } from "../assessment/constants.ts";
-import {
-  DEFAULT_RESPONSE_LANGUAGE,
-  LOCALES,
-} from "../shared/locale.ts";
+import { DEFAULT_RESPONSE_LANGUAGE, LOCALES } from "../shared/locale.ts";
 import {
   CREDENTIAL_PROVIDERS,
   REPOSITORY_CONNECTION_STATUSES,
@@ -202,6 +199,23 @@ export const ruleDecisionRecordSchema = z.strictObject({
   createdAt: z.iso.datetime(),
 });
 export type RuleDecisionRecord = z.infer<typeof ruleDecisionRecordSchema>;
+
+export const getRuleDecisionQuerySchema = z.strictObject({
+  revision: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .max(Number.MAX_SAFE_INTEGER)
+    .optional(),
+});
+export type GetRuleDecisionQueryParameters = z.infer<
+  typeof getRuleDecisionQuerySchema
+>;
+
+export const getRuleDecisionResultSchema = z.strictObject({
+  records: z.array(ruleDecisionRecordSchema).max(1),
+});
+export type GetRuleDecisionResult = z.infer<typeof getRuleDecisionResultSchema>;
 
 export const decisionCoverageSchema = z.strictObject({
   assessmentRuleId: identifierSchema,
@@ -870,7 +884,9 @@ export type AssessmentProvenanceExport = z.infer<
 /** Tracking enum schemas derived from canonical constants. */
 export const trackingChangeTypeSchema = z.enum(TRACKING_CHANGE_TYPES);
 export const trackingTrustStatusSchema = z.enum(TRACKING_TRUST_STATUSES);
-export const trackingFreshnessStatusSchema = z.enum(TRACKING_FRESHNESS_STATUSES);
+export const trackingFreshnessStatusSchema = z.enum(
+  TRACKING_FRESHNESS_STATUSES,
+);
 export const trackingActionReasonSchema = z.enum(TRACKING_ACTION_REASONS);
 export const trackingAnomalyTypeSchema = z.enum(TRACKING_ANOMALY_TYPES);
 export const trackingUntrustedReasonSchema = z.enum(TRACKING_UNTRUSTED_REASONS);

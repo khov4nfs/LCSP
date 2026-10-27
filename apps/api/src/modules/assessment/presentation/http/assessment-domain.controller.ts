@@ -27,6 +27,9 @@ import {
   type ReportUnresolvableHumanFactRequest,
   pinnedLegalSourceSearchRequestSchema,
   pinnedLegalSourceTextRequestSchema,
+  getRuleDecisionQuerySchema,
+  ruleDecisionRecordSchema,
+  type GetRuleDecisionQueryParameters,
   type PinnedLegalSourceSearchRequest,
   type PinnedLegalSourceTextRequest,
 } from "@lcsp/contracts/assessment-domain";
@@ -67,6 +70,7 @@ import { GetPinnedRuleSetQuery } from "../../application/queries/get-pinned-rule
 import { SearchPinnedLegalSourceQuery } from "../../application/queries/search-pinned-legal-source/search-pinned-legal-source.query.js";
 import { GetRootContextQuery } from "../../application/queries/get-root-context/get-root-context.query.js";
 import { GetRootControlQuery } from "../../application/queries/get-root-control/get-root-control.query.js";
+import { GetRuleDecisionQuery } from "../../application/queries/get-rule-decision/get-rule-decision.query.js";
 import {
   ASSESSMENT_LEASE_HEADER,
   AssessmentLeaseGuard,
@@ -381,6 +385,42 @@ export class AssessmentDomainController {
           lease,
           body,
           this.correlation(req),
+        ),
+      ),
+    );
+  }
+
+  @Get("decisions/:assessmentRuleId")
+  @UseGuards(AssessmentLeaseGuard)
+  async getRuleDecision(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Param(
+      "assessmentRuleId",
+      bodyPipe(ruleDecisionRecordSchema.shape.assessmentRuleId),
+    )
+    assessmentRuleId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Query(
+      requestPipe(
+        getRuleDecisionQuerySchema,
+        ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+      ),
+    )
+    lookup: GetRuleDecisionQueryParameters,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetRuleDecisionQuery(
+          assessmentId,
+          lease,
+          assessmentRuleId,
+          this.correlation(req),
+          lookup.revision,
         ),
       ),
     );

@@ -482,6 +482,7 @@ def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_
     repo = _repo(tmp_path)
     sandbox = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
     monkeypatch.setattr(repository_sandbox, "REPOSITORY_ROOT", "/repo")
+    monkeypatch.setattr(repository_sandbox, "REPOSITORY_AGENT_STATE", "/repo/.lcsp/agent")
     monkeypatch.setattr(repository_sandbox, "resolve_repository_thread_backend", lambda _config: sandbox)
     monkeypatch.setattr(repository_sandbox, "hydrate_repository", lambda _backend, **_pins: None)
     client = FakeClient()
@@ -494,7 +495,7 @@ def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_
     model = RootScriptedModel(responses=[
         _call("read_file", {"file_path": "/src/retention.py"}, "read"),
         _call("write_file", {"file_path": "/src/new.py", "content": "forbidden"}, "deny"),
-        _call("write_file", {"file_path": "/.lcsp/scratch.txt", "content": "scratch"}, "scratch"),
+        _call("write_file", {"file_path": "/.lcsp/agent/scratch.txt", "content": "scratch"}, "scratch"),
         *complete_root_messages(),
     ])
     agent = create_assessment_root_agent(run=run, model=model, governance=(), graph_tools=[])
@@ -505,7 +506,7 @@ def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_
     assert "keep_days = 7" in replies["read"]
     assert "denied" in replies["deny"].lower()
     assert not (repo / "src" / "new.py").exists()
-    assert (repo / ".lcsp" / "scratch.txt").read_text() == "scratch"
+    assert (repo / ".lcsp" / "agent" / "scratch.txt").read_text() == "scratch"
     assert "execute" not in model.bound_tool_names[0]
     assert repository_sandbox.current_repository_backend() is None
 
@@ -558,7 +559,7 @@ def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_t
     assert listed == [RESEARCHER_NAME]  # no general-purpose delegate
     # The pinned repository is read-only for Root and researcher alike; only scratch is writable.
     rules = [(p.operations, p.paths, p.mode) for p in root_permissions()]
-    assert rules[-1] == (["write"], ["/**"], "deny")
+    assert rules[-1] == (["write"], ["/.lcsp/**", "/**"], "deny")
 
 
 def test_runner_acknowledges_already_complete_recovery_without_model_or_repository_work() -> None:
@@ -863,6 +864,137 @@ def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
     assert resumed["state"] == "SUCCEEDED"
     assert resumed["threadId"] == first["threadId"]
     assert resumed["executionId"] == first["executionId"]
+
+
+def test_failed_root_attempt_persists_checkpoint_created_by_that_attempt(monkeypatch, tmp_path):
+    checkpoint_id = "44444444-4444-4444-8444-444444444444"
+
+    class RetryClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.finishes = []
+
+        def finish(self, state, **metadata):
+            self.finishes.append((state, metadata))
+            return super().finish(state, **metadata)
+
+    class SavedState:
+        def __init__(self, checkpoint, next_nodes=()):
+            configurable = {"thread_id": THREAD}
+            if checkpoint:
+                configurable["checkpoint_id"] = checkpoint
+            self.config = {"configurable": configurable}
+            self.tasks = []
+            self.next = next_nodes
+
+    class FailingAgent:
+        current_checkpoint = None
+
+        def get_state(self, _config):
+            return SavedState(self.current_checkpoint)
+
+        def invoke(self, _packet, *, config, context):
+            self.current_checkpoint = checkpoint_id
+            raise RuntimeError("model step failed after graph checkpoint")
+
+    client = RetryClient()
+    agent = FailingAgent()
+    monkeypatch.setattr(
+        "assessment_root.runner.create_assessment_root_agent",
+        lambda **_kwargs: agent,
+    )
+
+    result = run_assessment_root(
+        client,
+        ASSESSMENT,
+        backend_factory=lambda *_: (object(), None),
+        checkpointer=object(),
+        governance=(),
+    )
+
+    assert result["state"] == "FAILED"
+    assert result["checkpointId"] == checkpoint_id
+    assert client.finishes[-1] == ("FAILED", {"checkpoint_id": checkpoint_id})
+
+
+@pytest.mark.parametrize(
+    ("server_checkpoint", "pending_nodes"),
+    [
+        (None, ("agent",)),
+        ("66666666-6666-4666-8666-666666666666", ("agent",)),
+        (None, ()),
+    ],
+    ids=[
+        "missing-server-checkpoint",
+        "mismatched-server-checkpoint",
+        "unbound-checkpoint-without-pending-work",
+    ],
+)
+def test_failed_claim_does_not_resume_a_checkpoint_the_server_did_not_bind(
+    monkeypatch, tmp_path, server_checkpoint, pending_nodes
+):
+    checkpoint_id = "55555555-5555-4555-8555-555555555555"
+
+    class RetryClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.context_calls = 0
+            self.finishes = []
+
+        def claim(self, assessment_id):
+            return {
+                **super().claim(assessment_id),
+                "resumeCheckpointId": server_checkpoint,
+                "recoveredExecution": False,
+            }
+
+        def context(self):
+            self.context_calls += 1
+            value = super().context()
+            value["lifecycleState"] = (
+                "ACTIVE" if self.context_calls == 1 else "COMPLETE"
+            )
+            return value
+
+        def finish(self, state, **metadata):
+            self.finishes.append((state, metadata))
+            return super().finish(state, **metadata)
+
+    class SavedState:
+        config = {"configurable": {"thread_id": THREAD, "checkpoint_id": checkpoint_id}}
+        tasks = []
+        next = pending_nodes
+
+    class PendingAgent:
+        def __init__(self):
+            self.invocations = []
+
+        def get_state(self, _config):
+            return SavedState()
+
+        def invoke(self, packet, *, config, context):
+            self.invocations.append(packet)
+            return {"__interrupt__": ()}
+
+    client = RetryClient()
+    agent = PendingAgent()
+    monkeypatch.setattr(
+        "assessment_root.runner.create_assessment_root_agent",
+        lambda **_kwargs: agent,
+    )
+
+    result = run_assessment_root(
+        client,
+        ASSESSMENT,
+        backend_factory=lambda *_: (object(), None),
+        checkpointer=object(),
+        governance=(),
+    )
+
+    assert result["state"] == "FAILED"
+    assert result["checkpointId"] is None
+    assert agent.invocations == []
+    assert client.finishes[-1] == ("FAILED", {})
 
 
 def test_stop_arriving_during_model_response_pauses_before_tool_effects(tmp_path):

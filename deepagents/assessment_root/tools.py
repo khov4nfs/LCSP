@@ -251,6 +251,15 @@ class GetRuleArgs(_Args):
     assessment_rule_id: str
 
 
+class GetPinnedRuleSetArgs(_Args):
+    offset: int = Field(default=0, ge=0, description="Catalog offset; follow nextOffset until null to discover every rule.")
+    limit: int = Field(default=25, ge=1, le=50, description="Maximum rule summaries in this page; use get_assessment_rule for full details.")
+
+
+class GetRuleDecisionArgs(GetRuleArgs):
+    revision: int | None = Field(default=None, ge=0, description="Exact historical decision revision; omit for the newest packet.")
+
+
 class DecisionReference(_Args):
     type: Literal["ASSESSMENT_EVIDENCE", "CONFIRMED_FACT"]
     id: str = Field(description="evidenceId or factId returned by the governed tools.")
@@ -526,6 +535,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                     "assessmentRuleId": row["assessmentRuleId"],
                     "assessmentRuleVersion": row["assessmentRuleVersion"],
                     "resolutionState": row["resolutionState"],
+                    "currentDecisionId": row["currentDecisionId"],
                     "decisionRevision": row["decisionRevision"],
                 }
                 for row in context["coverage"]
@@ -554,8 +564,43 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "openHumanRequestIds": context["openHumanRequestIds"],
         }
 
-    def get_pinned_rule_set() -> dict[str, Any]:
-        """List every AssessmentRule of the immutable rule set pinned to this assessment."""
+    def get_rule_decision(assessment_rule_id: str, revision: int | None = None) -> dict[str, Any]:
+        """Business purpose: Recover a prior model decision's reasoning and references before re-investigating one rule.
+
+        Business rules:
+        - Retrieve only the requested rule's newest or exact historical revision through the leased API.
+        - Structural acceptance is not proof of semantic correctness; the Root evaluates support using current sources and facts.
+        - Reading an older packet must not roll back the current revision used for a later submission.
+
+        Execution flow:
+        1. Ask the API for the bounded rule decision record, preserving its identity, state, packet and revision.
+        2. Return that immutable record without accepting or revising a decision.
+
+        Failure cases:
+        - Missing records return an empty collection; API authorization or query failures remain structured rejection feedback.
+
+        Side effects:
+        - Read-only API access; no domain mutations or local revision-cache changes.
+        """
+        return {"ok": True, **client.rule_decisions(assessment_rule_id, revision)}
+
+    def get_pinned_rule_set(offset: int = 0, limit: int = 25) -> dict[str, Any]:
+        """Business purpose: Discover every pinned AssessmentRule through complete, bounded catalog pages.
+
+        Business rules:
+        - The API owns the immutable Rule Set; pagination changes visibility only, never coverage or rule membership.
+        - Follow nextOffset until null; a single page does not describe the whole Assessment scope.
+
+        Execution flow:
+        1. Load the pinned Rule Set and cache its server-provided rule versions and criterion identities.
+        2. Return the requested page of rule summaries with total counts and the next offset.
+
+        Failure cases:
+        - API failures remain structured feedback; an offset past the catalog returns an empty final page.
+
+        Side effects:
+        - Read-only API access and in-memory identity caches; no domain state or legal judgments are changed.
+        """
         rule_set = client.rule_set()
         for rule in rule_set["assessmentRules"]:
             run.rule_versions[rule["assessmentRuleId"]] = rule["assessmentRuleVersion"]
@@ -566,6 +611,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "ok": True,
             "ruleSetVersionId": rule_set["ruleSetVersionId"],
             "legalRequirementCount": len(rule_set["legalRequirements"]),
+            "assessmentRuleCount": len(rule_set["assessmentRules"]),
+            "nextOffset": offset + limit if offset + limit < len(rule_set["assessmentRules"]) else None,
             "assessmentRules": [
                 {
                     "assessmentRuleId": rule["assessmentRuleId"],
@@ -574,7 +621,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                     "legalRequirementIds": rule["legalRequirementIds"],
                     "criterionIds": [c["criterionId"] for c in rule.get("criteria", [])],
                 }
-                for rule in rule_set["assessmentRules"]
+                for rule in rule_set["assessmentRules"][offset:offset + limit]
             ],
         }
 
@@ -753,7 +800,23 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return {"ok": True, **client.post_evidence(body)}
 
     def accept_case_fact(kind: str, statement: str, evidence_ids: list[str]) -> dict[str, Any]:
-        """Record an evidence-backed fact or the system's use-case description in the assessment case."""
+        """Business purpose: Preserve the Root's evidence-backed observation or use-case description in the assessment case.
+
+        Business rules:
+        - Cite accepted source evidence and state only what it supports, including any uncertainty or scope limitation.
+        - A documentation claim, implementation capability or hypothesis does not establish actual operator practice.
+        - The API checks authority, source references and the current case revision; acceptance does not certify semantic truth.
+
+        Execution flow:
+        1. Submit the Root-authored statement and evidence links at the current case revision.
+        2. Adopt the new case revision returned by the server.
+
+        Failure cases:
+        - Stale revisions or invalid evidence remain API rejections; no local revision is advanced on failure.
+
+        Side effects:
+        - Appends the fact and advances the case revision; the API invalidates decisions made against an older case revision.
+        """
         result = client.post_fact(
             {
                 "expectedCaseRevision": run.case_revision,
@@ -1080,8 +1143,9 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     return [
         retrieve_shared_heuristics,
         tool(get_assessment_context, _NoArgs, "get_assessment_context"),
-        tool(get_pinned_rule_set, _NoArgs, "get_pinned_rule_set"),
+        tool(get_pinned_rule_set, GetPinnedRuleSetArgs, "get_pinned_rule_set"),
         tool(get_assessment_rule, GetRuleArgs, "get_assessment_rule"),
+        tool(get_rule_decision, GetRuleDecisionArgs, "get_rule_decision"),
         tool(read_legal_source, ReadLegalSourceArgs, "read_legal_source"),
         tool(search_legal_source, SearchLegalSourceArgs, "search_legal_source"),
         tool(start_rule_investigation, StartInvestigationArgs, "start_rule_investigation"),
@@ -1101,6 +1165,7 @@ ROOT_TOOL_NAMES = (
     "get_assessment_context",
     "get_pinned_rule_set",
     "get_assessment_rule",
+    "get_rule_decision",
     "read_legal_source",
     "search_legal_source",
     "start_rule_investigation",

@@ -376,3 +376,142 @@ def test_repository_hydration_clears_mount_contents_not_mountpoint() -> None:
         "tar -xzf /tmp/lcsp-assessment-repository.tar.gz "
         f"-C {repository_sandbox.REPOSITORY_ROOT}"
     ) in bootstrap
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/.lcsp/repository.json",
+        "/.lcsp/.hidden/marker.json",
+        "/workspace/repository/.lcsp/repository.json",
+        "/workspace/repository/.lcsp/agent/../repository.json",
+        "/.lcsp/agent/../../.lcsp/repository.json",
+        "//workspace/repository/.lcsp/repository.json",
+        "/../workspace/repository/.lcsp/agent/note.md",
+    ],
+)
+@pytest.mark.parametrize("operation", ["write", "edit", "delete", "upload"])
+def test_read_only_runtime_repository_rejects_writes_outside_agent_state(path, operation):
+    from deepagents.backends.protocol import DeleteResult, EditResult, FileUploadResponse
+
+    raw = MagicMock()
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryFilesystemBackend(
+            read_only_repository=True
+        )
+        if operation == "write":
+            result = backend.write(path, "content")
+            assert isinstance(result, WriteResult)
+            assert result.error
+        elif operation == "edit":
+            result = backend.edit(path, "old", "new")
+            assert isinstance(result, EditResult)
+            assert result.error
+        elif operation == "delete":
+            result = backend.delete(path)
+            assert isinstance(result, DeleteResult)
+            assert result.error
+        else:
+            result = backend.upload_files([(path, b"content")])
+            assert len(result) == 1
+            assert isinstance(result[0], FileUploadResponse)
+            assert result[0].error
+
+    raw.write.assert_not_called()
+    raw.edit.assert_not_called()
+    raw.delete.assert_not_called()
+    raw.upload_files.assert_not_called()
+
+
+@pytest.mark.parametrize("operation", ["write", "edit", "delete", "upload"])
+def test_read_only_runtime_repository_allows_agent_state_files(operation):
+    from deepagents.backends.protocol import DeleteResult, EditResult, FileUploadResponse
+
+    virtual_path = "/.lcsp/agent/.private/investigation.md"
+    physical_path = f"{repository_sandbox.REPOSITORY_AGENT_STATE}/.private/investigation.md"
+    raw = MagicMock()
+    raw.write.return_value = WriteResult(path=physical_path)
+    raw.edit.return_value = EditResult(path=physical_path, occurrences=1)
+    raw.delete.return_value = DeleteResult(path=physical_path)
+    raw.upload_files.return_value = [FileUploadResponse(path=physical_path)]
+
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryFilesystemBackend(
+            read_only_repository=True
+        )
+        if operation == "write":
+            result = backend.write(virtual_path, "content")
+            assert result.path == virtual_path
+            raw.write.assert_called_once_with(physical_path, "content")
+        elif operation == "edit":
+            result = backend.edit(virtual_path, "old", "new")
+            assert result.path == virtual_path
+            raw.edit.assert_called_once_with(
+                physical_path, "old", "new", replace_all=False
+            )
+        elif operation == "delete":
+            result = backend.delete(virtual_path)
+            assert result.path == virtual_path
+            raw.delete.assert_called_once_with(physical_path)
+        else:
+            result = backend.upload_files([(virtual_path, b"content")])
+            assert result[0].path == virtual_path
+            raw.upload_files.assert_called_once_with([(physical_path, b"content")])
+
+
+def test_read_only_runtime_repository_upload_rejects_outside_paths_individually():
+    from deepagents.backends.protocol import FileUploadResponse
+
+    safe_path = "/.lcsp/agent/investigation.md"
+    physical_safe_path = f"{repository_sandbox.REPOSITORY_AGENT_STATE}/investigation.md"
+    raw = MagicMock()
+    raw.upload_files.return_value = [FileUploadResponse(path=physical_safe_path)]
+
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryFilesystemBackend(
+            read_only_repository=True
+        )
+        results = backend.upload_files(
+            [(safe_path, b"safe"), ("/.lcsp/repository.json", b"blocked")]
+        )
+
+    assert results[0].path == safe_path and results[0].error is None
+    assert results[1].path == "/.lcsp/repository.json" and results[1].error
+    raw.upload_files.assert_called_once_with(
+        [(physical_safe_path, b"safe")]
+    )
+
+
+@pytest.mark.parametrize("operation", ["write", "edit", "delete", "upload"])
+def test_runtime_repository_backend_keeps_legacy_mutation_default(operation):
+    from deepagents.backends.protocol import DeleteResult, EditResult, FileUploadResponse
+
+    raw = MagicMock()
+    physical_path = f"{repository_sandbox.REPOSITORY_ROOT}/src/app.py"
+    raw.write.return_value = WriteResult(path=physical_path)
+    raw.edit.return_value = EditResult(path=physical_path, occurrences=1)
+    raw.delete.return_value = DeleteResult(path=physical_path)
+    raw.upload_files.return_value = [FileUploadResponse(path=physical_path)]
+
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryBackend()
+        if operation == "write":
+            result = backend.write("/src/app.py", "content")
+            assert result.path == "/src/app.py"
+            raw.write.assert_called_once_with(physical_path, "content")
+        elif operation == "edit":
+            result = backend.edit("/src/app.py", "old", "new")
+            assert result.path == "/src/app.py"
+            raw.edit.assert_called_once_with(
+                physical_path, "old", "new", replace_all=False
+            )
+        elif operation == "delete":
+            result = backend.delete("/src/app.py")
+            assert result.path == "/src/app.py"
+            raw.delete.assert_called_once_with(physical_path)
+        else:
+            result = backend.upload_files([("/src/app.py", b"content")])
+            assert result[0].path == "/src/app.py"
+            raw.upload_files.assert_called_once_with(
+                [(physical_path, b"content")]
+            )

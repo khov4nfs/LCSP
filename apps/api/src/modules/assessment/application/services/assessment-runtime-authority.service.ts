@@ -63,6 +63,10 @@ const ROOT_ACTOR = {
   type: AUDIT_ACTOR_TYPES.service,
 } as const;
 
+const NATIVE_ROOT_CHECKPOINT_NAMESPACE = "";
+const NATIVE_ROOT_BOUNDARY_NAME = "assessment_root_requested";
+const NATIVE_ROOT_AGENT_NAME = "lcsp-assessment-root";
+
 /**
  * Server-owned Root run authority. An agent can never name its own assessment, thread,
  * execution or lease: the API issues them at claim time and every governed tool call must
@@ -76,7 +80,30 @@ export class AssessmentRuntimeAuthority {
     private readonly coordinator: AssessmentLifecycleCoordinator,
   ) {}
 
-  /** Starts (or restarts after expiry/failure) the one Root execution of an ACTIVE assessment. */
+  /**
+   * Business purpose: Claim the one authorized Root execution for an assessment retry or continuation.
+   *
+   * Business rules:
+   * - A live lease excludes a competing execution; a retry after failure uses a new execution ID on the same thread.
+   * - A failed checkpoint is resumable only when the runtime row and failed Root turn bind the same checkpoint,
+   *   or a missing API checkpoint is recovered from the latest native Root checkpoint with matching persisted
+   *   assessment, runtime, boundary, agent, and timestamp provenance.
+   * - Missing or inconsistent checkpoint IDs and metadata grant no checkpoint authority.
+   * - Human interrupts, safe pauses, and authenticated transport recovery retain their existing lifecycle guards.
+   *
+   * Execution flow:
+   * 1. Lock the assessment/runtime and load the current Root turn.
+   * 2. Validate lifecycle, lease, and any failed-turn checkpoint binding; recover a missing checkpoint only
+   *    from the canonical native checkpoint store under the same assessment transaction.
+   * 3. Issue a lease and execution identity, returning only the authorized resume checkpoint.
+   *
+   * Failure cases:
+   * - Missing runtime, inactive lifecycle, held lease, or invalid guarded recovery returns the corresponding domain problem.
+   * - A failed turn with no matching checkpoint record remains claimable as a fresh attempt without checkpoint authority.
+   *
+   * Side effects:
+   * - Updates runtime and turn execution state, issues a lease, and appends an execution-state event when needed.
+   */
   async claimRoot(input: {
     assessmentId: string;
     correlationId: string;
@@ -96,6 +123,58 @@ export class AssessmentRuntimeAuthority {
             where: { id: row.currentExecutionId },
           })
         : null;
+      const failedCheckpointJson =
+        previousTurn?.checkpointJson &&
+        typeof previousTurn.checkpointJson === "object" &&
+        !Array.isArray(previousTurn.checkpointJson)
+          ? previousTurn.checkpointJson
+          : null;
+      const failedCheckpointId =
+        row.executionState === AGENT_EXECUTION_STATES.FAILED &&
+        row.checkpointId &&
+        previousTurn?.assessmentId === input.assessmentId &&
+        previousTurn.threadId === row.threadId &&
+        previousTurn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
+        previousTurn.state === Controls.completed &&
+        failedCheckpointJson?.checkpointId === row.checkpointId
+          ? row.checkpointId
+          : null;
+      const previousContextJson =
+        previousTurn?.contextJson &&
+        typeof previousTurn.contextJson === "object" &&
+        !Array.isArray(previousTurn.contextJson)
+          ? previousTurn.contextJson
+          : null;
+      const previousRuntimeRunId = previousContextJson?.runtimeRunId;
+      const nativeCheckpointRecovery =
+        row.executionState === AGENT_EXECUTION_STATES.FAILED &&
+        row.checkpointId === null &&
+        previousTurn?.id === row.currentExecutionId &&
+        previousTurn.assessmentId === input.assessmentId &&
+        previousTurn.threadId === row.threadId &&
+        previousTurn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
+        previousTurn.state === Controls.completed &&
+        previousTurn.checkpointJson === null &&
+        typeof previousRuntimeRunId === "string" &&
+        previousRuntimeRunId.length > 0
+          ? await findFailedNativeCheckpoint(tx, {
+              assessmentId: input.assessmentId,
+              threadId: row.threadId,
+              runtimeRunId: previousRuntimeRunId,
+              turnCreatedAt: previousTurn.createdAt,
+              turnUpdatedAt: previousTurn.updatedAt,
+            })
+          : null;
+      const resumedCheckpointId =
+        failedCheckpointId ?? nativeCheckpointRecovery?.checkpointId ?? null;
+      const nativeCheckpointRecoveryContext = nativeCheckpointRecovery && {
+        nativeCheckpointRecovery: {
+          checkpointId: nativeCheckpointRecovery.checkpointId,
+          checkpointTimestamp: nativeCheckpointRecovery.checkpointTimestamp,
+          resumedFromExecutionId: previousTurn?.id ?? null,
+          recoverySource: "NATIVE_CHECKPOINT_METADATA",
+        },
+      };
       const recoveredExecution = Boolean(
         input.runtimeRunId &&
         row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
@@ -208,6 +287,9 @@ export class AssessmentRuntimeAuthority {
         data: {
           currentExecutionId: executionId,
           executionState: AGENT_EXECUTION_STATES.RUNNING,
+          ...(nativeCheckpointRecovery
+            ? { checkpointId: nativeCheckpointRecovery.checkpointId }
+            : {}),
           leaseToken,
           leaseExpiresAt,
           startedAt: now,
@@ -245,7 +327,17 @@ export class AssessmentRuntimeAuthority {
               ? { responseLanguage: persistedLanguage }
               : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
+            ...(nativeCheckpointRecoveryContext ?? {}),
           },
+          ...(nativeCheckpointRecovery
+            ? {
+                checkpointJson: {
+                  checkpointId: nativeCheckpointRecovery.checkpointId,
+                  resumedFromExecutionId: previousTurn?.id ?? null,
+                  recoverySource: "NATIVE_CHECKPOINT_METADATA",
+                },
+              }
+            : {}),
         },
         update: {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
@@ -255,6 +347,7 @@ export class AssessmentRuntimeAuthority {
               ? { responseLanguage: persistedLanguage }
               : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
+            ...(nativeCheckpointRecoveryContext ?? {}),
           },
         },
       });
@@ -312,7 +405,9 @@ export class AssessmentRuntimeAuthority {
         leaseExpiresAt: leaseExpiresAt.toISOString(),
         checkpointNamespace: row.checkpointNamespace,
         executionState: AGENT_EXECUTION_STATES.RUNNING,
-        resumeCheckpointId: resumesSameExecution ? row.checkpointId : null,
+        resumeCheckpointId: resumesSameExecution
+          ? row.checkpointId
+          : resumedCheckpointId,
         lifecycleState: safePauseResume
           ? ASSESSMENT_LIFECYCLE_STATES.ACTIVE
           : row.lifecycleState!,
@@ -562,6 +657,105 @@ interface LockedRuntimeRow {
   executionState: AgentExecutionState;
   leaseToken: string | null;
   leaseExpiresAt: Date | null;
+}
+
+interface FailedNativeCheckpoint {
+  checkpointId: string;
+  checkpointTimestamp: string;
+}
+
+/**
+ * Business purpose: Recover a native checkpoint omitted from the API runtime row after a failed Root turn.
+ *
+ * Business rules:
+ * - The newest checkpoint for the exact Root thread and native Root namespace must carry the same persisted
+ *   assessment, transport run, Root boundary, and agent identity as the failed server-owned turn.
+ * - The checkpoint row ID must match its serialized checkpoint ID, and its timestamp must fall within that turn.
+ * - An unavailable table, missing row, malformed checkpoint, or mismatched provenance grants no resume authority.
+ *
+ * Execution flow:
+ * 1. Check for the co-located native checkpoint table without assuming it exists in every API database.
+ * 2. Read only the newest checkpoint for this thread and the native Root namespace.
+ * 3. Validate checkpoint identity, metadata, and timestamp against the failed turn before returning its ID.
+ *
+ * Failure cases:
+ * - Missing table or row and any invalid identity metadata return `null`; database permission/query failures abort
+ *   the surrounding transaction and therefore cannot authorize a retry.
+ *
+ * Side effects:
+ * - Performs read-only queries against the native checkpoint store.
+ */
+async function findFailedNativeCheckpoint(
+  tx: Prisma.TransactionClient,
+  input: {
+    assessmentId: string;
+    threadId: string;
+    runtimeRunId: string;
+    turnCreatedAt: Date;
+    turnUpdatedAt: Date;
+  },
+): Promise<FailedNativeCheckpoint | null> {
+  const [table] = await tx.$queryRaw<Array<{ tableName: string | null }>>(
+    Prisma.sql`SELECT to_regclass('public.checkpoints')::text AS "tableName"`,
+  );
+  if (!table?.tableName) return null;
+
+  const [checkpoint] = await tx.$queryRaw<
+    Array<{
+      checkpointId: string;
+      serializedCheckpointId: string | null;
+      checkpointTimestamp: string | null;
+      metadata: unknown;
+    }>
+  >(
+    Prisma.sql`SELECT "checkpoint_id" AS "checkpointId",
+        "checkpoint"->>'id' AS "serializedCheckpointId",
+        "checkpoint"->>'ts' AS "checkpointTimestamp",
+        "metadata"
+      FROM "public"."checkpoints"
+      WHERE "thread_id" = ${input.threadId}
+        AND "checkpoint_ns" = ${NATIVE_ROOT_CHECKPOINT_NAMESPACE}
+      -- Checkpoint IDs are time-ordered; validate the newest row rather than falling back to older metadata.
+      ORDER BY "checkpoint_id" DESC
+      LIMIT 1`,
+  );
+  if (
+    !checkpoint?.checkpointId ||
+    checkpoint.serializedCheckpointId !== checkpoint.checkpointId ||
+    !checkpoint.checkpointTimestamp
+  ) {
+    return null;
+  }
+
+  const metadata =
+    checkpoint.metadata &&
+    typeof checkpoint.metadata === "object" &&
+    !Array.isArray(checkpoint.metadata)
+      ? (checkpoint.metadata as Record<string, unknown>)
+      : null;
+  if (
+    !metadata ||
+    metadata.assessment_id !== input.assessmentId ||
+    metadata.lcsp_runtime_run_id !== input.runtimeRunId ||
+    metadata.lcsp_boundary_name !== NATIVE_ROOT_BOUNDARY_NAME ||
+    metadata.lc_agent_name !== NATIVE_ROOT_AGENT_NAME
+  ) {
+    return null;
+  }
+
+  const timestamp = new Date(checkpoint.checkpointTimestamp);
+  if (
+    Number.isNaN(timestamp.getTime()) ||
+    timestamp < input.turnCreatedAt ||
+    timestamp > input.turnUpdatedAt
+  ) {
+    return null;
+  }
+
+  return {
+    checkpointId: checkpoint.checkpointId,
+    checkpointTimestamp: checkpoint.checkpointTimestamp,
+  };
 }
 
 /** Same lock order as the lifecycle coordinator: assessment row, then runtime row. */

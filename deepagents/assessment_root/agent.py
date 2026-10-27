@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from deepagents import create_deep_agent
+from deepagents.backends import CompositeBackend
 from deepagents.middleware.filesystem import FilesystemPermission
-from langchain.agents.middleware import AgentMiddleware, AgentState, TracePolicy, hook_config, omit_payload
+from langchain.agents.middleware import AgentMiddleware, AgentState, TodoListMiddleware, TracePolicy, hook_config, omit_payload
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
@@ -71,11 +72,25 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
 
 
 def root_permissions() -> list[FilesystemPermission]:
-    """The pinned repository is read-only; only the scratch area is writable."""
+    """Business purpose: Give the Root investigation notes without granting changes to pinned source or runtime identity metadata.
+
+    Business rules:
+    - Only the dedicated /.lcsp/agent/ subtree is writable; the repository marker and source remain read-only.
+    - Native first-match rules deny reserved metadata and visible source writes; the production backend enforces the complete source-write boundary.
+
+    Execution flow:
+    1. Allow scratch writes and repository reads, then deny all remaining writes.
+
+    Failure cases:
+    - Native filesystem tools reject writes outside the dedicated agent subtree.
+
+    Side effects:
+    - Pure permission configuration; does not read or modify files.
+    """
     return [
-        FilesystemPermission(["write"], ["/.lcsp/**"], mode="allow"),
+        FilesystemPermission(["write"], ["/.lcsp/agent/**"], mode="allow"),
         FilesystemPermission(["read"], ["/**"], mode="allow"),
-        FilesystemPermission(["write"], ["/**"], mode="deny"),
+        FilesystemPermission(["write"], ["/.lcsp/**", "/**"], mode="deny"),
     ]
 
 
@@ -95,10 +110,23 @@ def create_assessment_root_agent(
     graph_tools: list[Any] | None = None,
     middleware: Sequence[Any] = (),
 ):
-    """Build the Root for one execution of one assessment.
+    """Business purpose: Build the native investigator for one execution on the Assessment's server-owned thread.
 
-    ``run.backend`` is the pinned repository database (read-only view); ``checkpointer`` must be
-    keyed by the server thread (``run.thread_id``) at invoke time.
+    Business rules:
+    - Only the Root has governed fact, decision and human-resolution tools; its researcher returns read-only candidate findings.
+    - Native planning state is checkpointed with the same graph; Root and delegated calls share governance, including the existing governed compaction path.
+    - The backend exposes the pinned repository read-only with a separate writable scratch area; invoke using run.thread_id.
+
+    Execution flow:
+    1. Resolve the configured model and default governance when callers do not supply them.
+    2. Bind governed tools, native planning and the single read-only researcher to this Root run.
+    3. Compile the native graph with the supplied checkpointer, Store and existing execution middleware.
+
+    Failure cases:
+    - Model, middleware or graph configuration failures propagate; construction does not fabricate an Assessment outcome.
+
+    Side effects:
+    - Constructs a native graph; later invocations persist its planning/checkpoint state and perform only the authorized tool effects.
     """
     if model is None:
         from model_policy import resolve_agent_model
@@ -110,9 +138,14 @@ def create_assessment_root_agent(
 
         governance = [AgentRoleMiddleware(ASSESSMENT_ROOT_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE]
     from middleware.localization import ResponseLocalizationMiddleware
+    from middleware.model_governance import governed_summarization_middleware
     from orchestration.context import LCSPRunContext
 
     tools = graph_tools if graph_tools is not None else _graph_tools()
+    summary_backend = CompositeBackend(default=run.backend, routes={}, artifacts_root="/.lcsp/agent")
+    researcher_middleware = [*governance, governed_summarization_middleware(
+        model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
+    )]
     # The default general-purpose subagent would inherit the governed tools; disable it so the
     # researcher is the only delegate and it holds none of them.
     with _without_general_purpose_subagent(_lookup_profile_key(model)):
@@ -122,9 +155,11 @@ def create_assessment_root_agent(
             backend=run.backend,
             system_prompt=ROOT_INSTRUCTIONS,
             tools=[*build_root_tools(run), *tools],
-            subagents=[researcher_subagent(tools)],
+            subagents=[researcher_subagent(tools, middleware=researcher_middleware)],
             permissions=root_permissions(),
-            middleware=[ResponseLocalizationMiddleware(), *governance, AssessmentCompletionMiddleware(run), *middleware],
+            middleware=[TodoListMiddleware(), ResponseLocalizationMiddleware(), *governance,
+                        governed_summarization_middleware(model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance),
+                        AssessmentCompletionMiddleware(run), *middleware],
             context_schema=LCSPRunContext,
             checkpointer=checkpointer,
             store=store,
