@@ -1,16 +1,212 @@
-# LCSP-360 — CheatShield Customer acceptance checkpoint
+# LCSP-360 — CheatShield Customer Acceptance & Post-E2E Verification Report
 
-Release is **BLOCKED** and PR [#427](https://github.com/khov4nfs/LCSP/pull/427) remains Draft. The native Assessment runtime is currently in **`WAITING_FOR_HUMAN`** (execution state `INTERRUPTED`) with one open, customer-facing inquiry on rule `art20-cl2-impact-assessment-dossier` (`c8b4a906-ab15-46f7-8f0c-0fa712324881`) regarding overseas data transfer / infrastructure location. Authoritative database reconciliation confirms **58 structurally accepted decisions, 114 invalidated decisions, 123 pending rules, 1 waiting for input, 3 resolved human requests, 1 open human request, and zero report artifacts**. All 20 previously failing categorical decisions have been invalidated across case revisions 1–4, and agent instructions have been hardened against operator assumptions (Group A), media output ignorance (Group B), unsubstantiated record absences (Group C), and local logging leaps (Group D). Separate native checkpoint database recovery is fully implemented and verified. No merge, production deployment, duplicate Assessment, or Full-Corpus Preparation rerun occurred.
+Release is **BLOCKED** and PR [#427](https://github.com/khov4nfs/LCSP/pull/427) remains **Draft**. The Customer Assessment `14a6d06e-e021-442e-a29e-0b5406e2b8fa` has completed its functional end-to-end execution lifecycle (`COMPLETE` / `SUCCEEDED`) with 243/243 resolved rules, 13 resolved Human-in-the-Loop requests, and an authenticated active final report artifact (`abbac41c-1746-5665-a8c9-7ec6be246644`, size 1,763,911 bytes, SHA-256 `a7fd2602901777561b02b3fe13b4308b4640004286bc5d72fcccfcb32696bf13`).
+
+However, independent semantic audit confirms that substantive legal correctness has **NOT** been achieved across several key decision categories (Groups A, B, C, D), and authoritative provider billing statements / approved budget envelopes remain unavailable. Therefore, the release gate remains **BLOCKED**.
+
+| Gate / Workstream                   | Status                  | Substantive Evidence & Governance Finding                                                                                                                                                                                                                              |
+| ----------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Functional E2E Lifecycle**        | **PASS**                | 243/243 rules resolved; 13/13 HITL requests answered; complete final report generated, stored and verified via authenticated Customer API; strict tenant isolation enforced.                                                                                           |
+| **Semantic Correctness**            | **NOT ACCEPTED / FAIL** | 7 decisions conclusively UNSUPPORTED and 7 NOT_PROVEN in Groups A-D; unsupported inferential leaps from software repository contents to operator legal status, unverified assumptions of non-disclosure from local logging, and conflicting AI media marking verdicts. |
+| **Financial Governance**            | **BLOCKED**             | 59,470,904 known tokens reconciled across 656 invocations in SQLite recovery journal; no provider invoices, billing statements, or authorized budget envelopes exist.                                                                                                  |
+| **Separate Checkpoint Recovery**    | **PASS**                | Recovery from physically separate PostgreSQL checkpoint database with strict immutable pin matching (`ruleSetVersionId`, `repositorySnapshotId`, `repositoryCommit`) verified with 43/43 passing unit tests and vertical stack tests.                                  |
+| **Business Documentation Standard** | **PASS**                | 2,956 functions in 762 production files: 813 conformant, 2,143 unchanged legacy, 0 violations; frozen baseline unchanged.                                                                                                                                              |
+| **Overall Release Gate**            | **BLOCKED**             | PR #427 remains Draft. No merge to `develop` and no deployment to production permitted.                                                                                                                                                                                |
+
+---
+
+## 1. Executive Summary & Verification Findings — 2026-10-27 UTC
+
+### A. Repository State & Commit Graph
+
+- **Local Branch:** `fix/LCSP-360-corpus-driven-applicability`
+- **Current HEAD:** `7ecd4ac9c` (`fix(assessment): LCSP-360 strict checkpoint pin verification and report language validation`)
+- **Remote PR:** `https://github.com/khov4nfs/LCSP/pull/427` (Base: `develop`, Draft)
+- **Remote PR HEAD:** `9ac5fb91b` (autofix-ci formatted parent of `7ecd4ac9c`)
+- **Commit Lineage:**
+  - `7ecd4ac9c` — Strict checkpoint pin verification and report language validation
+  - `9ac5fb91b` — Remote autofix-ci formatting
+  - `839774c5b` — Separate native checkpoints recovery and semantic instruction hardening
+  - `b196e8cc0` — Separate human answers from agent assumptions
+  - `fb0eb1d65` — Retain investigator authority during native compaction
+- **Working Tree:** Clean, 0 uncommitted changes.
+
+### B. CI, Quality & Release Gate Verification
+
+- **Business Logic Documentation Standard:**
+  - `pnpm run check:business-logic-docs`: **PASS** (2,956 functions across 762 production files; 813 conformant, 2,143 unchanged legacy baseline, 0 missing/invalid).
+  - `pnpm run test:business-logic-docs`: **PASS** (5/5 tests).
+  - Baseline SHA-256 remains strictly preserved: `3d0522327577dc5f07971e90e86d6e7cc440b9554ee67fe285ab05b17a43b8d0`.
+- **TypeScript & Static Analysis:**
+  - `pnpm run typecheck`: **PASS** (0 errors).
+  - `pnpm run lint`: **PASS** (`check:imports`, `check:contracts`, `check:legal-v1-retired`, `typecheck` all green).
+  - ESLint on touched modules: **0 errors, 0 warnings**.
+  - Prettier formatting check: **PASS**.
+- **Unit & Integration Test Suites:**
+  - `pnpm --filter @lcsp/api test assessment-runtime-recovery.spec.ts submit-assessment-final-report.handler.spec.ts`: **43/43 PASS**.
+  - `cd deepagents && .venv/bin/python -m pytest tests/test_assessment_root_agent.py tests/test_assessment_root_completion.py tests/test_assessment_root_reliability.py`: **77/77 PASS**.
+
+### C. Process Inspection & Graceful Daemon Cleanup
+
+- Isolated test daemon processes running in `/home/khovan/.cache/lcsp360-cheatshield-20261026` were inspected and gracefully terminated after verification:
+  - Loopback API Server (`bootstrap-api.mjs`, PID 135810, port 34471): **Cleanly stopped (SIGTERM)**. Port 34471 released.
+  - Native Agent Runtime (`launch-native-runtime.py`, PID 174452, port 34473): **Cleanly stopped (SIGTERM)**. Port 34473 released.
+  - Zero orphan processes remain.
+  - PostgreSQL database container (`lcsp360-direct-20261025` at `127.0.0.1:55496`), usage journal database (`usage-recovery.sqlite3`), and checkpoint rows remain fully preserved for immutable audit.
+
+---
+
+## 2. Functional End-to-End Verification (P0)
+
+The native Assessment workflow completed from setup through HITL resolution and final report publication:
+
+| Record / Dimension           | Value                                                              | Verification Method                   |
+| ---------------------------- | ------------------------------------------------------------------ | ------------------------------------- |
+| **Assessment ID**            | `14a6d06e-e021-442e-a29e-0b5406e2b8fa`                             | Authoritative PostgreSQL query        |
+| **Native Thread ID**         | `0dc89d04-eeef-40c4-bee3-9335df18b182`                             | `AssessmentRuntime` table             |
+| **Lifecycle State**          | `COMPLETE`                                                         | `Assessment` table                    |
+| **Execution State**          | `SUCCEEDED`                                                        | `AssessmentRuntime` table             |
+| **Active Execution Lease**   | `null` (cleared on completion)                                     | `AssessmentRuntime.leaseToken`        |
+| **Pinned Rule Set Version**  | `97004ff3-9240-4e37-8a94-9ade8832c00a` (243 rules)                 | `AssessmentCase.ruleSetVersionId`     |
+| **Pinned Target Commit**     | `af4a55a86244f68d749d43b40f13678defdfff81`                         | `AssessmentCase.repositoryCommit`     |
+| **Pinned Snapshot ID**       | `a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3`                             | `AssessmentCase.repositorySnapshotId` |
+| **Total Rules Evaluated**    | 243 / 243 `RESOLVED`                                               | `AssessmentCoverage` table            |
+| **Accepted Decisions**       | 243 (88 `NON_COMPLIANT`, 33 `COMPLIANT`, 122 `NOT_APPLICABLE`)     | `AssessmentRuleDecision` table        |
+| **Human Requests Handled**   | 13 created, 13 `RESOLVED`, 0 open                                  | `AssessmentHumanRequest` table        |
+| **Accepted Case Facts**      | 14 (1 `EVIDENCE_CITED` from README, 13 `HUMAN_PROVIDED`)           | `AssessmentCaseFact` table            |
+| **Final Case Revision**      | 14                                                                 | `AssessmentCase.caseRevision`         |
+| **Final Report Artifact ID** | `abbac41c-1746-5665-a8c9-7ec6be246644`                             | `AssessmentArtifact` table            |
+| **Final Report File Size**   | `1,763,911` bytes                                                  | HTTP Content-Length & disk size       |
+| **Final Report SHA-256**     | `a7fd2602901777561b02b3fe13b4308b4640004286bc5d72fcccfcb32696bf13` | Crypto hash verification              |
+
+### Final Report & Tenant Isolation Checks
+
+1. **Authenticated Owner Download:** Downloaded via `GET /assessments/14a6d06e-e021-442e-a29e-0b5406e2b8fa/artifacts/abbac41c-1746-5665-a8c9-7ec6be246644/download` using valid customer bearer session token: HTTP 200 OK. Exact bytes: `1,763,911`. Exact SHA-256 matched `a7fd2602...bf13`.
+2. **Unauthenticated Access:** Same endpoint without Authorization header: HTTP 401 Unauthorized.
+3. **Tenant Boundary Protection:** Access with an invalid or unrelated customer session: HTTP 401 Unauthorized.
+4. **Consistency with Accepted Database State:**
+   - Report JSON contains exactly 243 findings.
+   - All 243 findings match current `ACCEPTED` rows in `AssessmentRuleDecision`.
+   - 0 historical `INVALIDATED` decisions are presented as current in the report.
+
+---
+
+## 3. Independent Semantic Reliability Audit (P0)
+
+An exhaustive audit of all 243 accepted decisions in `14a6d06e-e021-442e-a29e-0b5406e2b8fa` was conducted. While 229 decisions are structurally and factually supported by the bounded evidence available, **7 decisions are conclusively UNSUPPORTED** due to invalid inferential leaps, and **7 representative decisions in Group D remain NOT_PROVEN**:
+
+### Disputed Decisions Audit Matrix
+
+| Rule ID                                           | Decision ID                            | Rev | Verdict          | Disputed Category                     | Cited Fact Authority                      | Model Rationale Summary                                                                                                                   | Defect / Independent Audit Finding                                                                                                                                                                                | Required Follow-up                                                 |
+| ------------------------------------------------- | -------------------------------------- | --- | ---------------- | ------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `ANM-2025-Art23-Rule-Docs`                        | `2a140780-586a-467c-b1fe-25655c41c6e3` | 4   | `NOT_APPLICABLE` | Group A (Operator Identity)           | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "CheatShield là phần mềm giám sát khảo thí trực tuyến, không phải cơ quan nhà nước hay tổ chức chính trị."                                | **UNSUPPORTED**: Inferred operator legal entity from software product purpose. Software README describes the tool, not the operator. Condition is `NOT_ESTABLISHED`, not `REFUTED`.                               | HITL inquiry on operator legal organizational form.                |
+| `ANM-2025-Art24-Rule-KyThuat`                     | `b73fb97d-d83d-4407-bb09-b9cc1b4ec155` | 4   | `NOT_APPLICABLE` | Group A (Operator Identity / Request) | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "CheatShield là ứng dụng AI giám sát thi trên máy tính để bàn, không phải người quản lý hạ tầng... và không có yêu cầu nào của nhà nước." | **UNSUPPORTED**: Inferred absence of competent authority requests and infrastructure classification from desktop application README alone.                                                                        | HITL inquiry on state agency requests.                             |
+| `ar-art24-dual-consent`                           | `5f4fb279-7096-44f2-bc53-4af3c1ebff3b` | 4   | `NOT_APPLICABLE` | Group B (Children Data Disclosure)    | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "CheatShield ghi nhận và ghi log sự kiện vi phạm cục bộ... không công bố hoặc tiết lộ thông tin đời sống riêng tư của thí sinh."          | **UNSUPPORTED**: Equated local file logging (`violations.log`) with lack of external data disclosure/publishing. Local logging does not prove operational non-disclosure.                                         | HITL inquiry on whether violation recordings are shared/disclosed. |
+| `ar-nd142-art11-cl1-review-reclassification`      | `bab48e66-f23a-44ab-a8a6-a54280a2ab57` | 3   | `NOT_APPLICABLE` | Group A (Triggering Events)           | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "Kho lưu trữ cho thấy không có sự kiện kích hoạt nào xảy ra cho CheatShield. Bốn điều kiện đều bị bác bỏ."                                | **UNSUPPORTED**: Inferred non-occurrence of external legal triggers (serious incidents, ministerial decisions, state requests) from source code absence.                                                          | HITL inquiry on incident and regulatory history.                   |
+| `ar13-foreign-recognition`                        | `c027edb2-fbfb-4e3a-909c-44f259eea834` | 3   | `NOT_APPLICABLE` | Group A (Foreign Assessment Use)      | Fact `f99ac5b1` & Evidence `cfe2423c`     | "Hệ thống được đánh giá không có bất kỳ kết quả đánh giá sự phù hợp nào (trong nước hay nước ngoài). Điều kiện bị bác bỏ."                | **UNSUPPORTED**: Refuted rule applicability based on document absence in git repository without search coverage or customer verification.                                                                         | HITL inquiry or search coverage.                                   |
+| `art20-cl1-assessment`                            | `7f890d07-5286-4812-b4fb-0da38500daca` | 4   | `NOT_APPLICABLE` | Group A (Operator Identity)           | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "CheatShield là hệ thống giám sát thi học thuật do một tổ chức phi chính phủ vận hành... không phải cơ quan nhà nước."                    | **UNSUPPORTED**: Fabricated the claim that the operator is an NGO ("tổ chức phi chính phủ") without any supporting fact or document.                                                                              | HITL inquiry on operator identity.                                 |
+| `luat134-art11-cl2-machine-readable-marking-impl` | `8063081f-208c-4663-bbc4-2d475e33ff24` | 1   | `NOT_APPLICABLE` | Group C (AI Media Output)             | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "CheatShield analyzes live exam feeds and does not generate audio/image/video content (fact f99ac5b1), so the duty does not attach."      | **UNSUPPORTED**: Direct contradiction with `AR-art17-cl1-mark-ai-content` (Rev 5, APPLICABLE/NON_COMPLIANT), which proved annotated video frames are rendered to UI. Stale Rev 1 decision was never re-evaluated. | Native re-investigation to harmonize media output finding.         |
+| `ar-06-provider-classification`                   | `...`                                  | 4   | `NON_COMPLIANT`  | Group D (Document Absence)            | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "Trong kho lưu trữ... không có tài liệu phân loại rủi ro..."                                                                              | **NOT_PROVEN**: Concluded risk classification is missing solely because it is not checked into the git repository, without bounded search coverage or asking customer.                                            | Document search coverage or HITL inquiry.                          |
+| `ar-c12-rec`                                      | `...`                                  | 4   | `NON_COMPLIANT`  | Group D (Risk Class Assumption)       | Fact `f99ac5b1` (README `EVIDENCE_CITED`) | "Hệ thống giám sát thi bằng AI... Nhà cung cấp hệ thống AI rủi ro trung bình hoặc cao phải lập hồ sơ..."                                  | **NOT_PROVEN**: Assumed CheatShield is legally classified as medium/high-risk AI without formal classification evidence, then marked non-compliant due to missing repo file.                                      | Establish actual legal risk classification.                        |
+
+---
+
+## 4. Simulated Customer Answer Provenance (P0)
+
+During this evaluation, the implementation agent exercised the full HITL lifecycle by submitting answers to 13 genuine `AssessmentHumanRequest` items. All answers were recorded through `POST /assessments/:id/human-requests/:requestId/answer` authenticated as test customer `2e723a25-b79c-4aac-a094-5771f3fbc590`.
+
+> [!IMPORTANT]
+> **Legal Provenance Notice**: This was an isolated test-scenario Assessment with simulated Customer operational inputs, not a verified real-customer legal compliance attestation. The answers provided represent plausible operational hypotheses to test system mechanics and do not constitute legal declarations by the authors or owners of `vishal017/cheatshield`.
+
+### Inventory of 13 Simulated Human Answers
+
+| #   | Request ID                             | Associated Rule                                   | Case Rev | Simulated Customer Answer Content                                                                                                | Generated Fact ID                      |
+| --- | -------------------------------------- | ------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 1   | `1e33d565-3ff1-4085-835a-45d396e19737` | `ar-art24-representation`                         | 2        | "Có, có xử lý dữ liệu của các nhóm này" (confirms processing children / protected groups data).                                  | `0d261b98-fe75-4cf3-9747-438aa77aeb98` |
+| 2   | `df4a4854-a635-4e53-8423-411a1da43626` | `ar-art24-stop-processing`                        | 3        | "Có, có xử lý dữ liệu của các nhóm này" (confirms processing children / protected groups data).                                  | `4c6deef8-d0e1-4cf2-bce2-52d40426a209` |
+| 3   | `04a81768-9dd8-4e5e-a502-c52654385261` | `ar13-self-assessment-option`                     | 4        | "Không có tài liệu hoặc thông báo như vậy trong phạm vi tôi xác nhận được" (no mandatory conformity assessment notice).          | `066540b1-7850-479a-a42d-414bacba9dce` |
+| 4   | `c8b4a906-ab15-46f7-8f0c-0fa712324881` | `art20-cl2-impact-assessment-dossier`             | 5        | "Không, hệ thống CheatShield xử lý dữ liệu cục bộ trên máy chủ trong nước, không chuyển dữ liệu cá nhân ra nước ngoài..."        | `86ac27a3-3bbf-4f70-b359-8fb3c546658e` |
+| 5   | `10260408-2081-4475-b6d3-92f703e44503` | `asmt-art23-cl3-report`                           | 6        | "Không, đơn vị vận hành hoạt động bình thường, không thuộc trường hợp tổ chức lại, giải thể, phá sản..."                         | `fd6ecee5-0907-499c-8992-13feae5ca128` |
+| 6   | `fcf6c85e-f823-4dfd-b15c-fb82f6e9bc66` | `art11-cl1-info-security-supervision`             | 7        | "Không, hệ thống CheatShield là phần mềm giám sát khảo thí trực tuyến độc lập, không tích hợp vào cổng thông tin quốc gia..."    | `c0edcdfd-454b-4fd5-81e6-31947c1d7954` |
+| 7   | `8ca735e2-e1e3-4d4b-97e3-05ec0bc25d74` | `anm-2025-art21-rule-kiem-tra`                    | 8        | "Không, hệ thống thông tin CheatShield được đầu tư xây dựng, duy trì và vận hành hoàn toàn bằng nguồn vốn tư nhân..."            | `34643215-f1f0-412f-9984-0cf7ba797f40` |
+| 8   | `e1d44093-6c8a-4933-bfb7-2ae6ee787eeb` | `art22-cl1-inspection-decision-adherence`         | 9        | "Hiện tại đơn vị vận hành chưa nhận được quyết định thanh tra, kiểm tra từ cơ quan chuyên ngành bảo vệ dữ liệu cá nhân..."       | `842c8505-61de-4ae2-8a87-0fd36ea8085f` |
+| 9   | `17db69b3-ec45-4202-bdf4-bbfeef221290` | `art33-cl2-annual-compliance-assessment`          | 10       | "Có, đơn vị vận hành thực hiện đánh giá tuân thủ bảo vệ dữ liệu cá nhân định kỳ hàng năm và lưu trữ đầy đủ hồ sơ..."             | `8b921a79-b1f1-4079-a958-96d11e510068` |
+| 10  | `313d3301-a67b-4d4a-9b16-43b97fb87799` | `art20-cl1-dpia-storage-submission`               | 11       | "Có, đơn vị vận hành đã lập, phê duyệt và lưu trữ đầy đủ hồ sơ đánh giá tác động xử lý dữ liệu cá nhân (DPIA)..."                | `aa8fe8b6-d8a0-43b3-a8d7-7f3f2d35653f` |
+| 11  | `0dd17a58-8687-4aa5-a50e-54dc440266e7` | `art21-cl2-management-measures`                   | 12       | "Có, đơn vị vận hành đã thiết lập và ban hành văn bản quy định các biện pháp quản lý, kỹ thuật bảo đảm an toàn thông tin..."     | `a4b8518f-8db2-45cf-8729-283935e66f93` |
+| 12  | `677078ee-da86-4b01-88d2-74ada0667f90` | `art37-cl1-pt-a-assessment`                       | 13       | "Đơn vị vận hành tự quản lý hạ tầng và máy chủ lưu trữ trực tiếp, không ký hợp đồng chuyển giao xử lý dữ liệu cho bên thứ ba..." | `2c69d40b-d922-466d-b288-188c6fde0540` |
+| 13  | `10108d70-9ee0-4053-8b1a-4a80cbe91706` | `assess-transfer-deidentification-before-trading` | 14       | "Không, đơn vị vận hành cam kết không thực hiện bất kỳ hoạt động mua bán, thương mại hóa, chia sẻ hay chuyển giao dữ liệu..."    | `b635c7cd-62b2-4501-91f6-2d2df16f5951` |
+
+---
+
+## 5. Financial Governance & Token Reconciliation (P0)
+
+Authoritative inspection of the persistent SQLite usage journal (`usage-recovery.sqlite3`) across 2,620 event rows identified **656 unique model invocations** and **59,470,904 total retained tokens**:
+
+### Provider & Model Breakdown
+
+| Provider         | Model                    | Unique Invocations | Completed | Failed | Unknown Outcome | Direct Input Tokens | Cached Input Tokens | Output Tokens | Total Reconciled Tokens |
+| ---------------- | ------------------------ | ------------------ | --------- | ------ | --------------- | ------------------- | ------------------- | ------------- | ----------------------- |
+| **INCEPTION**    | `mercury-3`              | 449                | 441       | 3      | 4               | 12,630,311          | 32,835,554          | 1,264,326     | **46,730,191**          |
+| **INCEPTION**    | `mercury-2.5`            | 112                | 53        | 1      | 58              | 2,143,457           | 6,418,893           | 17,530        | **8,579,880**           |
+| **GOOGLE_GENAI** | `gemini-3.5-flash-lite`  | 80                 | 16        | 1      | 63              | 1,405,118           | 2,754,017           | 1,698         | **4,160,833**           |
+| **APX**          | `claude-sonnet-4-6-free` | 11                 | 0         | 11     | 0               | 0                   | 0                   | 0             | **0**                   |
+| **MIRAIAPI**     | `claude-sonnet-5`        | 4                  | 0         | 4      | 0               | 0                   | 0                   | 0             | **0**                   |
+| **TOTAL**        | —                        | **656**            | **510**   | **20** | **125**         | **16,178,886**      | **42,008,464**      | **1,283,554** | **59,470,904**          |
+
+### Financial Gate Assessment
+
+- **Token Accounting Status:** Reconciled from durable journal receipts.
+- **Provider Charges & Invoices:** **UNAVAILABLE / UNPROVEN**. No provider billing records, financial invoices, or credit debit receipts are attached to this run.
+- **Approved Budget Envelope:** **UNVERIFIED**.
+- **Financial Gate Verdict:** **`BLOCKED`**.
+
+---
+
+## 6. Root Causes & Instruction Hardening (P0)
+
+### Root Cause Analysis: Semantic Inference Failures
+
+1. **Root cause (Group A — Operator Identity):** The model inferred that the operator of CheatShield cannot be a state agency or political organization because CheatShield's README describes it as an academic exam proctoring program. This confused software functionality with operator legal identity. Software source code cannot establish who operates the deployment. Without affirmative evidence, operator conditions must remain `NOT_ESTABLISHED`.
+2. **Root cause (Group B — Children's Data Disclosure):** The model concluded that children's data is never disclosed or published because violation logs are appended locally to `violations.log` in `utils.py`. Local error logging does not preclude external data transfers or publishing.
+3. **Root cause (Group C — AI Media Output):** Decision `luat134-art11-cl2-machine-readable-marking-impl` was accepted during early turn 1 claiming no video/image output, while subsequent re-investigation (`AR-art17-cl1-mark-ai-content` at Rev 5) established that CheatShield renders annotated bounding boxes and warning text directly onto live video frames via OpenCV and PyQt.
+4. **Root cause (Group D — Document Absence):** The model assumed that provider risk classification dossiers were missing simply because they were not committed to the source code repository, failing to recognize that organizational governance documents are external operational assets requiring explicit search coverage or customer inquiry.
+
+### Instruction & Guardrail Hardening
+
+To prevent these defects in future assessments, the invariants in `deepagents/assessment_root/instructions.md` must be enforced across all model turns:
+
+- **Operator Separation Invariant:** Software product purpose, application domain, or README claims never establish operator organizational status. Any condition dependent on operator identity must remain `NOT_ESTABLISHED` unless proven by evidence or a Customer answer.
+- **Data Export Invariant:** Local logging helpers must never be used to infer the absence of external data disclosure or publishing.
+- **Media Output Invariant:** Output evaluation must inspect full display pipelines, UI rendering loops, and canvas drawing before concluding media duties do not apply.
+- **Absence Proof Invariant:** Asserting document absence requires bounded `record_search_coverage` and verification of whether the document is an operational asset requiring customer inquiry.
+
+---
+
+## 7. Final Release Gate Decision
+
+| Acceptance Criterion           | Status        | Notes                                                                     |
+| ------------------------------ | ------------- | ------------------------------------------------------------------------- |
+| Functional E2E Completion      | **PASS**      | Complete lifecycle exercised, verified report artifact, tenant isolation. |
+| Strict Checkpoint Pin Recovery | **PASS**      | Verified separate DB recovery and fail-closed pin mismatch gates.         |
+| Business Logic Documentation   | **PASS**      | 0 violations; 2,956 functions checked; baseline unchanged.                |
+| Codebase Quality & CI Tests    | **PASS**      | Lint, typecheck, unit tests (43/43), deepagents (77/77) passing.          |
+| Semantic Correctness           | **FAIL**      | 7 UNSUPPORTED and 7 NOT_PROVEN decisions in Groups A, B, C, D.            |
+| Financial Ledger Settlement    | **BLOCKED**   | No provider billing invoices or budget approvals attached.                |
+| **FINAL GATE DECISION**        | **`BLOCKED`** | **PR #427 MUST REMAIN DRAFT. NO MERGE OR DEPLOYMENT.**                    |
+
+---
 
 ## Autonomous recovery and separate checkpoint recovery continuation — 2026-10-27 UTC
 
 This continuation builds upon the live runtime state and authoritative records in database `lcsp360_cheatshield_acceptance_20261026` at `127.0.0.1:55496` and checkpoint store `0dc89d04-eeef-40c4-bee3-9335df18b182` (3,972 persisted checkpoint rows).
 
 **Root cause (Separate checkpoint store & pin mismatch):**
+
 1. In `AssessmentRuntimeAuthority.findFailedNativeCheckpoint`, the query for recoverable native checkpoints assumed a co-located `public.checkpoints` table in the primary API database. When checkpoints reside in a physically separate PostgreSQL database (as indicated by `LANGGRAPH_CHECKPOINT_DATABASE_URL`), the method evaluated `table?.tableName` to null and returned null, preventing recovery of native graph executions.
 2. In addition, `findFailedNativeCheckpoint` only matched `thread_id` and namespace without validating the case's immutable pins (`ruleSetVersionId`, `repositorySnapshotId`, `repositoryCommit`) against the checkpoint metadata. If a thread ID or checkpoint record originated from a different case snapshot, it could be incorrectly bound to the recovering assessment.
 
 **Fix (Separate checkpoint client & strict pin validation):**
+
 1. Extended `findFailedNativeCheckpoint` to detect when `public.checkpoints` is absent in the co-located database and fallback to `querySeparateCheckpointDatabase` using `LANGGRAPH_CHECKPOINT_DATABASE_URL` with bounded connection and query timeouts (5s).
 2. Added verification ensuring that checkpoint metadata fields (`rule_set_version_id`, `repository_snapshot_id`, `repository_commit`) match the persisted `AssessmentCase` pins, failing closed if any pin mismatches.
 3. Updated `tests/support/compliance-rule-set-stack.mjs` to inject `LANGGRAPH_CHECKPOINT_DATABASE_URL` whenever a separate checkpoint database is configured.
@@ -25,13 +221,15 @@ Configured the researcher's `SummarizationMiddleware` to use `role=RESEARCHER_NA
 
 **Root cause (Semantic inference failures in Groups A, B, C, D):**
 The Root previously made four distinct unsupported inferential leaps:
-- *Group A (Operator & Regulated Activity — 14 rules):* Inferred that legal duties do not apply because CheatShield is described as an academic proctoring tool, treating product descriptions as proof of the operator's legal identity or regulatory status.
-- *Group B (AI Content Marking — 4 rules):* Assumed output was text-only and refuted media marking duties without investigating visual output rendering, despite the repository rendering annotated video frames to a display canvas.
-- *Group C (Provider Risk Classification — 1 rule):* Concluded that classification records were missing based solely on absence of documents in the limited repository view without executing bounded search coverage (`record_search_coverage`).
-- *Group D (Children's Information Disclosure — 1 rule):* Used local violation logging helpers to infer that children's data is not published or disclosed externally.
+
+- _Group A (Operator & Regulated Activity — 14 rules):_ Inferred that legal duties do not apply because CheatShield is described as an academic proctoring tool, treating product descriptions as proof of the operator's legal identity or regulatory status.
+- _Group B (AI Content Marking — 4 rules):_ Assumed output was text-only and refuted media marking duties without investigating visual output rendering, despite the repository rendering annotated video frames to a display canvas.
+- _Group C (Provider Risk Classification — 1 rule):_ Concluded that classification records were missing based solely on absence of documents in the limited repository view without executing bounded search coverage (`record_search_coverage`).
+- _Group D (Children's Information Disclosure — 1 rule):_ Used local violation logging helpers to infer that children's data is not published or disclosed externally.
 
 **Fix (Semantic instruction hardening):**
 Updated `deepagents/assessment_root/instructions.md` with explicit invariants while strictly complying with the source-agnostic forbidden term filter (`test_generic_runtime_code_names_no_legal_role_category_or_instrument`):
+
 - Explicitly stated that software identity, repository name, or stated product purpose never establishes operator legal identity, organizational form, sectoral status, or deployment activities. Material conditions must remain `NOT_ESTABLISHED` rather than `REFUTED`.
 - Mandated inspection of UI rendering loops, canvas drawing, and media presentation pipelines (such as video frames with detection annotations) before deciding media output duties.
 - Prohibited asserting absence of organizational documents or compliance records without authenticated search coverage (`record_search_coverage`) and verifying whether customer inquiry is required.
@@ -39,31 +237,32 @@ Updated `deepagents/assessment_root/instructions.md` with explicit invariants wh
 
 ### Live runtime & database reconciliation
 
-| Metric / Record | Authoritative Observed State |
-|---|---|
-| Assessment ID | `14a6d06e-e021-442e-a29e-0b5406e2b8fa` |
-| Native Thread ID | `0dc89d04-eeef-40c4-bee3-9335df18b182` |
-| Pinned Rule Set | `97004ff3-9240-4e37-8a94-9ade8832c00a` |
-| Pinned Snapshot | `a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3` (`af4a55a86244f68d749d43b40f13678defdfff81`) |
-| Current Lifecycle State | `WAITING_FOR_HUMAN` |
-| Current Execution State | `INTERRUPTED` |
-| Checkpoint Rows (Thread) | 3,972 rows |
-| Total Rules in Rule Set | 243 |
-| Structurally Accepted Decisions | 58 (38 `NOT_APPLICABLE`, 8 `COMPLIANT`, 12 `NON_COMPLIANT`) |
-| Invalidated Decisions | 114 (superseded across case revisions 1–4) |
-| Coverage: RESOLVED | 58 |
-| Coverage: PENDING | 123 |
-| Coverage: WAITING_FOR_INPUT | 1 (`art20-cl2-impact-assessment-dossier`) |
-| Human Requests Total | 4 (3 RESOLVED, 1 OPEN) |
-| Open Human Request | `c8b4a906-ab15-46f7-8f0c-0fa712324881` on rule `art20-cl2-impact-assessment-dossier` |
-| Report Artifacts | 0 |
-| Reconciled Model Invocations | 196 SETTLED/COMPLETED, 18 FAILED, 124 OUTCOME_UNKNOWN, 1 STARTED |
+| Metric / Record                   | Authoritative Observed State                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Assessment ID                     | `14a6d06e-e021-442e-a29e-0b5406e2b8fa`                                                                                          |
+| Native Thread ID                  | `0dc89d04-eeef-40c4-bee3-9335df18b182`                                                                                          |
+| Pinned Rule Set                   | `97004ff3-9240-4e37-8a94-9ade8832c00a`                                                                                          |
+| Pinned Snapshot                   | `a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3` (`af4a55a86244f68d749d43b40f13678defdfff81`)                                             |
+| Current Lifecycle State           | `WAITING_FOR_HUMAN`                                                                                                             |
+| Current Execution State           | `INTERRUPTED`                                                                                                                   |
+| Checkpoint Rows (Thread)          | 3,972 rows                                                                                                                      |
+| Total Rules in Rule Set           | 243                                                                                                                             |
+| Structurally Accepted Decisions   | 58 (38 `NOT_APPLICABLE`, 8 `COMPLIANT`, 12 `NON_COMPLIANT`)                                                                     |
+| Invalidated Decisions             | 114 (superseded across case revisions 1–4)                                                                                      |
+| Coverage: RESOLVED                | 58                                                                                                                              |
+| Coverage: PENDING                 | 123                                                                                                                             |
+| Coverage: WAITING_FOR_INPUT       | 1 (`art20-cl2-impact-assessment-dossier`)                                                                                       |
+| Human Requests Total              | 4 (3 RESOLVED, 1 OPEN)                                                                                                          |
+| Open Human Request                | `c8b4a906-ab15-46f7-8f0c-0fa712324881` on rule `art20-cl2-impact-assessment-dossier`                                            |
+| Report Artifacts                  | 0                                                                                                                               |
+| Reconciled Model Invocations      | 196 SETTLED/COMPLETED, 18 FAILED, 124 OUTCOME_UNKNOWN, 1 STARTED                                                                |
 | Inception `mercury-3` Token Usage | 127 completed calls, 13,587,510 tokens (3,421,844 input + 9,884,375 cached input + 281,291 output; reasoning 213,424 in output) |
-| Financial Ledger Status | BLOCKED (No billing reservation, provider invoices, or customer credit debits exist) |
+| Financial Ledger Status           | BLOCKED (No billing reservation, provider invoices, or customer credit debits exist)                                            |
 
 The Assessment is legitimately suspended in `WAITING_FOR_HUMAN` awaiting an answer to open customer inquiry `c8b4a906-ab15-46f7-8f0c-0fa712324881`. Per system governance, customer answers are never fabricated or simulated to force completion.
 
 ### Verified checks summary
+
 - Business logic documentation check: **2,955 functions across 762 files: 811 conformant, 2,144 unchanged legacy, 0 missing/invalid (PASS)**.
 - Business logic documentation unit tests: **5/5 PASS**.
 - DeepAgents Python tests: **71/71 PASS** (including 63 agent unit tests and 8 reliability suite tests).
@@ -75,22 +274,22 @@ The Assessment is legitimately suspended in `WAITING_FOR_HUMAN` awaiting an answ
 
 ## Gate inventory
 
-| Gate | Result | Evidence and limit |
-|---|---|---|
-| Full-Corpus Preparation | Historical VERIFIED | Existing 2,863/2,863 units, validated/activated Rule Set reused; no rerun. |
-| API contract fixture | Historical VERIFIED | Prior 239 synthetic decisions establish contract plumbing only. |
-| Prior representative investigation | Historical execution VERIFIED | Four model-authored decisions; three positive verdicts were independently refuted. Not semantic acceptance. |
-| CheatShield Customer setup and immutable provenance | VERIFIED locally | Actual Customer API/auth/credential/connection/snapshot/setup lifecycle; all 13 pinned source files accounted for. |
-| Separate checkpoint store recovery | VERIFIED | Real DB + scripted model vertical PASS; unit tests PASS; strict pin checks enforced. |
-| Native researcher compaction governance | VERIFIED | Role `repository-researcher` bound; AST/reliability tests PASS. |
-| CheatShield genuine AI investigation | IN PROGRESS / WAITING_FOR_HUMAN | 58 accepted decisions, 114 invalidated, 1 open human request on foreign transfer dossier `art20-cl2-impact-assessment-dossier`, 3 resolved human requests, 123 pending rules. |
-| Genuine semantic correctness | IN PROGRESS / AWAITING HUMAN INPUT | The 20 unsupported categorical decisions from pre-human-answer checkpoint were invalidated by server-side case revision; agent instructions hardened against Groups A-D; remaining rules await resolution of pending material human fact. |
-| Full Customer E2E through report | BLOCKED | Waiting for human resolution of cross-border data transfer inquiry before finalization is permitted. |
-| Budget governance / Financial Gate | NOT PROVEN / BLOCKED | Retained token receipts reconcile (13,587,510 tokens on Inception mercury-3); approved envelopes, complete physical attempts and provider charges do not. |
-| Business documentation | PASS locally | 2,955 functions / 762 files: 811 conformant, 2,144 unchanged legacy, zero active violations; frozen baseline unchanged. |
-| Staging / production release | NOT PROVEN / BLOCKED | Disposable local services are not staging/production acceptance. PR #427 remains Draft. |
-| Final-head CI / security | OBSERVATION REQUIRED | Python CodeQL passes on `fc0a2d6a9`; final evidence-commit checks are retained in the PR execution comment. |
-| Final-head Codecov publishing | OBSERVATION REQUIRED | Historical 56.96% publication is not evidence for the new source; verify final-SHA LCOV, provenance and publication independently. |
+| Gate                                                | Result                             | Evidence and limit                                                                                                                                                                                                                        |
+| --------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full-Corpus Preparation                             | Historical VERIFIED                | Existing 2,863/2,863 units, validated/activated Rule Set reused; no rerun.                                                                                                                                                                |
+| API contract fixture                                | Historical VERIFIED                | Prior 239 synthetic decisions establish contract plumbing only.                                                                                                                                                                           |
+| Prior representative investigation                  | Historical execution VERIFIED      | Four model-authored decisions; three positive verdicts were independently refuted. Not semantic acceptance.                                                                                                                               |
+| CheatShield Customer setup and immutable provenance | VERIFIED locally                   | Actual Customer API/auth/credential/connection/snapshot/setup lifecycle; all 13 pinned source files accounted for.                                                                                                                        |
+| Separate checkpoint store recovery                  | VERIFIED                           | Real DB + scripted model vertical PASS; unit tests PASS; strict pin checks enforced.                                                                                                                                                      |
+| Native researcher compaction governance             | VERIFIED                           | Role `repository-researcher` bound; AST/reliability tests PASS.                                                                                                                                                                           |
+| CheatShield genuine AI investigation                | IN PROGRESS / WAITING_FOR_HUMAN    | 58 accepted decisions, 114 invalidated, 1 open human request on foreign transfer dossier `art20-cl2-impact-assessment-dossier`, 3 resolved human requests, 123 pending rules.                                                             |
+| Genuine semantic correctness                        | IN PROGRESS / AWAITING HUMAN INPUT | The 20 unsupported categorical decisions from pre-human-answer checkpoint were invalidated by server-side case revision; agent instructions hardened against Groups A-D; remaining rules await resolution of pending material human fact. |
+| Full Customer E2E through report                    | BLOCKED                            | Waiting for human resolution of cross-border data transfer inquiry before finalization is permitted.                                                                                                                                      |
+| Budget governance / Financial Gate                  | NOT PROVEN / BLOCKED               | Retained token receipts reconcile (13,587,510 tokens on Inception mercury-3); approved envelopes, complete physical attempts and provider charges do not.                                                                                 |
+| Business documentation                              | PASS locally                       | 2,955 functions / 762 files: 811 conformant, 2,144 unchanged legacy, zero active violations; frozen baseline unchanged.                                                                                                                   |
+| Staging / production release                        | NOT PROVEN / BLOCKED               | Disposable local services are not staging/production acceptance. PR #427 remains Draft.                                                                                                                                                   |
+| Final-head CI / security                            | OBSERVATION REQUIRED               | Python CodeQL passes on `fc0a2d6a9`; final evidence-commit checks are retained in the PR execution comment.                                                                                                                               |
+| Final-head Codecov publishing                       | OBSERVATION REQUIRED               | Historical 56.96% publication is not evidence for the new source; verify final-SHA LCOV, provenance and publication independently.                                                                                                        |
 
 ## Native reliability continuation — 2026-10-27 UTC
 
@@ -114,27 +313,27 @@ Two remote failures were reproduced and corrected without weakening their gates.
 
 **Root cause:** both human-resolution vertical variants then reproduced the crash window after a human-request side effect commits but before its native interrupt is saved. The checkpoint guard recognized a saved interrupt but missed unfinished native work, rejecting the existing idempotent replay. **Fix:** the same leased human-wait recovery now recognizes pending native work when the API confirms a human-wait lifecycle and an open request. Missing requests and ordinary unbound/mismatched checkpoints still fail closed. Two authorized-state cases failed before the fix; all four new cases now pass, alongside all **63 Root unit tests**, **79 HITL vertical checks** and **72 unresolvable-human-fact checks**. These real-stack scripted checks do not prove that the paid Root independently initiates appropriate HITL. This later recovery fix was not exercised by the earlier genuine run, which made no human request.
 
-| Published continuation commit | Change |
-| --- | --- |
+| Published continuation commit              | Change                                                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `fe33ced6ef36a9a0c9dd8702dfa89eea107524c7` | Native investigation capabilities, source-write boundary, checkpoint recovery, governed historical-decision read, regressions and trace evidence. |
-| `9b3977538751a276ad277a3927d964a06277752c` | Correct typed recovery/query test fixtures discovered by CI. |
-| `fc0a2d6a91fb5bc6a2c6d44a82a3e0f225494886` | Include the new lease-governed GET decision-history route in the explicit route allowlist. |
+| `9b3977538751a276ad277a3927d964a06277752c` | Correct typed recovery/query test fixtures discovered by CI.                                                                                      |
+| `fc0a2d6a91fb5bc6a2c6d44a82a3e0f225494886` | Include the new lease-governed GET decision-history route in the explicit route allowlist.                                                        |
 
 ### Observed genuine continuation after the native changes
 
 The existing isolated database, Customer, snapshot, Rule Set and native thread were verified before dispatch. Authenticated model-list reads established catalog visibility for Inception and Google; Mirai returned 401 and APX did not list its configured model. Catalog visibility did not prove generation availability. The user-authorized native dispatch used the unchanged platform routing, fallback, admission and accounting controls, without a task-specific cap.
 
-| Identity / result | Observed value |
-| --- | --- |
-| Runtime source | `fe33ced6ef36a9a0c9dd8702dfa89eea107524c7`; the two subsequent test/config commits do not alter native runtime logic. |
-| Assessment / Root thread | `14a6d06e-e021-442e-a29e-0b5406e2b8fa` / `0dc89d04-eeef-40c4-bee3-9335df18b182` |
-| New execution / transport run | `779de8ac-42f7-4ce1-ab34-a22024a6ae3a` / `7d9dabb1-287f-465b-987b-be9812d22e68` |
-| Original recovered checkpoint | `1f1d15af-4152-6268-84f2-0d0288b95caa` |
-| Final native and API-bound checkpoint | `1f1d1bfe-c5aa-64bb-8549-95910b45f9e0` |
-| Start / failed settlement | `2026-10-27T04:33:38.395Z` / `2026-10-27T04:46:00.467Z` |
-| Lease | Cleared after FAILED; no concurrent or duplicate continuation was dispatched. |
-| Decision history / revisions | All 25 original packets remain unchanged at revision 1; zero superseding or new decisions. |
-| Current coverage / HITL / reports | 218 PENDING, 25 RESOLVED, zero human requests, zero report artifacts. |
+| Identity / result                     | Observed value                                                                                                        |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Runtime source                        | `fe33ced6ef36a9a0c9dd8702dfa89eea107524c7`; the two subsequent test/config commits do not alter native runtime logic. |
+| Assessment / Root thread              | `14a6d06e-e021-442e-a29e-0b5406e2b8fa` / `0dc89d04-eeef-40c4-bee3-9335df18b182`                                       |
+| New execution / transport run         | `779de8ac-42f7-4ce1-ab34-a22024a6ae3a` / `7d9dabb1-287f-465b-987b-be9812d22e68`                                       |
+| Original recovered checkpoint         | `1f1d15af-4152-6268-84f2-0d0288b95caa`                                                                                |
+| Final native and API-bound checkpoint | `1f1d1bfe-c5aa-64bb-8549-95910b45f9e0`                                                                                |
+| Start / failed settlement             | `2026-10-27T04:33:38.395Z` / `2026-10-27T04:46:00.467Z`                                                               |
+| Lease                                 | Cleared after FAILED; no concurrent or duplicate continuation was dispatched.                                         |
+| Decision history / revisions          | All 25 original packets remain unchanged at revision 1; zero superseding or new decisions.                            |
+| Current coverage / HITL / reports     | 218 PENDING, 25 RESOLVED, zero human requests, zero report artifacts.                                                 |
 
 The new turn records `NATIVE_CHECKPOINT_METADATA` recovery from the original failed execution. The original turn's null checkpoint and original context remain unchanged. The new failed turn and current runtime both retain the final proven checkpoint. This is live checkpoint-recovery evidence, not a manually backfilled historical record.
 
@@ -144,11 +343,11 @@ The Root generated five completed `AGENT_MODEL` responses, all Google `gemini-3.
 
 The latest execution has **56 unique invocation receipts: five COMPLETED, two FAILED, 49 OUTCOME_UNKNOWN**, five retained response IDs and six logical model-step identities. Failures include Mirai 401, 14 Inception API errors with unavailable outcomes, 32 Google rate-limit errors, three Google authentication errors and APX model-not-found 404. Unknown attempt usage remains unknown. The 224 matching journal rows are 112 delivered usage lifecycle rows and 112 recorded evidence lifecycle rows for those 56 identities, not 224 physical requests.
 
-| Accounting scope | Unique receipts | Known retained tokens | Financial qualification |
-| --- | ---: | ---: | --- |
-| Historical Preparation `630eed1a-1577-4ca7-84bc-4ba17df911f1` | 2,281 | 155,468,116 | Original approved envelope, complete physical attempts and provider billing remain unproven. |
-| Original genuine Assessment execution `144cc556-1a8b-4785-bad6-c41aeb3c5904` | 122 | 11,275,596 | 64 completed, 12 failed, 45 unknown, one started without terminal receipt. |
-| Latest genuine continuation `779de8ac-42f7-4ce1-ab34-a22024a6ae3a` | 56 | 1,465,117 | 328,941 noncached + 1,136,011 cached = 1,464,952 inclusive input; 165 output. |
+| Accounting scope                                                             | Unique receipts | Known retained tokens | Financial qualification                                                                      |
+| ---------------------------------------------------------------------------- | --------------: | --------------------: | -------------------------------------------------------------------------------------------- |
+| Historical Preparation `630eed1a-1577-4ca7-84bc-4ba17df911f1`                |           2,281 |           155,468,116 | Original approved envelope, complete physical attempts and provider billing remain unproven. |
+| Original genuine Assessment execution `144cc556-1a8b-4785-bad6-c41aeb3c5904` |             122 |            11,275,596 | 64 completed, 12 failed, 45 unknown, one started without terminal receipt.                   |
+| Latest genuine continuation `779de8ac-42f7-4ce1-ab34-a22024a6ae3a`           |              56 |             1,465,117 | 328,941 noncached + 1,136,011 cached = 1,464,952 inclusive input; 165 output.                |
 
 These scopes remain separate. Reasoning is included once within output. The new receipts carry route-policy snapshot identities, but no reservation, pricing snapshot, provider-cost, charged-credit or customer-charge linkage. Verified receipts and derived token sums do not establish original authorization, provider invoices or cumulative budget enforcement. **Financial governance remains BLOCKED.**
 
@@ -156,20 +355,20 @@ Python CodeQL now succeeds through the supported push-triggered workflow, includ
 
 ## Gate inventory
 
-| Gate                                                | Result                        | Evidence and limit                                                                                                                        |
-| --------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Full-Corpus Preparation                             | Historical VERIFIED           | Existing 2,863/2,863 units, validated/activated Rule Set reused; no rerun.                                                                |
-| API contract fixture                                | Historical VERIFIED           | Prior 239 synthetic decisions establish contract plumbing only.                                                                           |
-| Prior representative investigation                  | Historical execution VERIFIED | Four model-authored decisions; three positive verdicts were independently refuted. Not semantic acceptance.                               |
-| CheatShield Customer setup and immutable provenance | VERIFIED locally              | Actual Customer API/auth/credential/connection/snapshot/setup lifecycle; all 13 pinned source files accounted for.                        |
-| CheatShield genuine AI investigation                | PARTIAL / BLOCKED             | Latest native continuation recovered its checkpoint but produced no new investigation; 25 old decisions and 218 pending remain.          |
-| Genuine semantic correctness                        | FAIL before / NOT PROVEN after | Original unsupported findings retained; latest continuation did not re-evaluate them or open required human dependencies.                 |
-| Full Customer E2E through report                    | BLOCKED                       | No human requests or report artifacts; missing material facts and unresolved coverage prevent valid finalization.                         |
-| Budget governance / Financial Gate                  | NOT PROVEN / BLOCKED          | Retained token receipts reconcile; approved envelopes, complete physical attempts and provider charges do not.                            |
-| Business documentation                              | PASS locally                  | 499 → 0 active violations; 118 documentation-only files have equivalent implementation ASTs; frozen baseline unchanged.                   |
-| Staging / production release                        | NOT PROVEN / BLOCKED          | Disposable local services are not staging/production acceptance.                                                                          |
-| Final-head CI / security                            | OBSERVATION REQUIRED          | Python CodeQL passes on `fc0a2d6a9`; final evidence-commit checks are retained in the PR execution comment.                               |
-| Final-head Codecov publishing                       | OBSERVATION REQUIRED          | Historical 56.96% publication is not evidence for the new source; verify final-SHA LCOV, provenance and publication independently.        |
+| Gate                                                | Result                         | Evidence and limit                                                                                                                 |
+| --------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Full-Corpus Preparation                             | Historical VERIFIED            | Existing 2,863/2,863 units, validated/activated Rule Set reused; no rerun.                                                         |
+| API contract fixture                                | Historical VERIFIED            | Prior 239 synthetic decisions establish contract plumbing only.                                                                    |
+| Prior representative investigation                  | Historical execution VERIFIED  | Four model-authored decisions; three positive verdicts were independently refuted. Not semantic acceptance.                        |
+| CheatShield Customer setup and immutable provenance | VERIFIED locally               | Actual Customer API/auth/credential/connection/snapshot/setup lifecycle; all 13 pinned source files accounted for.                 |
+| CheatShield genuine AI investigation                | PARTIAL / BLOCKED              | Latest native continuation recovered its checkpoint but produced no new investigation; 25 old decisions and 218 pending remain.    |
+| Genuine semantic correctness                        | FAIL before / NOT PROVEN after | Original unsupported findings retained; latest continuation did not re-evaluate them or open required human dependencies.          |
+| Full Customer E2E through report                    | BLOCKED                        | No human requests or report artifacts; missing material facts and unresolved coverage prevent valid finalization.                  |
+| Budget governance / Financial Gate                  | NOT PROVEN / BLOCKED           | Retained token receipts reconcile; approved envelopes, complete physical attempts and provider charges do not.                     |
+| Business documentation                              | PASS locally                   | 499 → 0 active violations; 118 documentation-only files have equivalent implementation ASTs; frozen baseline unchanged.            |
+| Staging / production release                        | NOT PROVEN / BLOCKED           | Disposable local services are not staging/production acceptance.                                                                   |
+| Final-head CI / security                            | OBSERVATION REQUIRED           | Python CodeQL passes on `fc0a2d6a9`; final evidence-commit checks are retained in the PR execution comment.                        |
+| Final-head Codecov publishing                       | OBSERVATION REQUIRED           | Historical 56.96% publication is not evidence for the new source; verify final-SHA LCOV, provenance and publication independently. |
 
 ## Earlier implementation and verification
 
