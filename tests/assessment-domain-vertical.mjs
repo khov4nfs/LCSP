@@ -88,9 +88,10 @@ const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = await startStack({
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl } = await startStack({
   database,
   apiPort,
+  checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
 });
 const { hashSecret } = await import(
   path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
@@ -303,7 +304,7 @@ try {
   // ---- the REAL Root on assessment A -------------------------------------------------------------
   const script = path.join(root, "deepagents/tests/vertical/scripted_root.py");
   const rootOptions = {
-    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0] },
+    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl },
   };
   const first = await runPython(script, [
     base,
@@ -1042,7 +1043,7 @@ try {
   )).rows[0].thread;
   const humanScript = path.join(root, "deepagents/tests/vertical/hitl_root.py");
   const humanRun = (mode) => runPython(humanScript, [base, workerKey, B.id, repoDir, mode], {
-    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0] },
+    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl },
   });
   const interruptedForDelete = await humanRun("ask");
   eq(interruptedForDelete.result.state, AGENT_EXECUTION_STATES.INTERRUPTED);
@@ -1107,7 +1108,8 @@ try {
     path.join(root, "deepagents/tests/vertical/assessment_deletion.py"),
     [deletionInput],
     { env: {
-      LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0],
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl,
+      ASSESSMENT_DELETE_DATABASE_URL: databaseUrl.split("?")[0],
       ASSESSMENT_DELETE_OWNER_TOKEN: owner.token,
       ASSESSMENT_DELETE_OTHER_TOKEN: otherOwner.token,
       WORKER_API_KEY: workerKey,
@@ -1116,6 +1118,10 @@ try {
   eq(deletion.status, "PASS", JSON.stringify(deletion));
   console.log(`RELEASE deletion evidence: ${deletion.evidenceDirectory}`);
 
+  if (process.env.LCSP_TEST_CHECKPOINT_DATABASE) {
+    eq((await q(`SELECT to_regclass('public.checkpoints')::text AS name`)).rows[0].name, null,
+      "Root retry, HITL and erasure completed without a checkpoint table in the API database");
+  }
   console.log(
     `PASS: ${checks} ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
   );

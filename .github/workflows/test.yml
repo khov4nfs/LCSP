@@ -474,6 +474,8 @@ jobs:
           node tests/compliance-rule-set-vertical.mjs
 
       - name: Assessment Root and same-thread Human Resolution verticals
+        env:
+          LCSP_TEST_CHECKPOINT_DATABASE: lcsp_assessment_checkpoint_vertical
         run: |
           node tests/assessment-domain-vertical.mjs
           node tests/assessment-hitl-vertical.mjs

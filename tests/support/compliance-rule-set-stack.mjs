@@ -40,6 +40,7 @@ export function hashSecret(...args) {
 export async function startStack({
   database,
   apiPort,
+  checkpointDatabase = database,
   dbPort = Number(process.env.LCSP_TEST_PG_PORT ?? 55441),
   resetDatabase = true,
   createOnlyDatabase = false,
@@ -48,6 +49,10 @@ export async function startStack({
 }) {
   const host = "127.0.0.1";
   const databaseUrl = `postgresql://postgres:postgres@${host}:${dbPort}/${database}?schema=public`;
+  const checkpointDatabaseUrl = `postgresql://postgres:postgres@${host}:${dbPort}/${checkpointDatabase}`;
+  if (checkpointDatabase !== database) {
+    assert.match(checkpointDatabase, /^lcsp_assessment_[a-z0-9_]+$/);
+  }
   const base = `http://${host}:${apiPort}`;
 
   const adminClient = new Client({
@@ -83,6 +88,15 @@ export async function startStack({
         1,
         "Resume requires the existing disposable database",
       );
+    }
+    if (checkpointDatabase !== database) {
+      const existing = await adminClient.query(
+        "SELECT 1 FROM pg_database WHERE datname=$1",
+        [checkpointDatabase],
+      );
+      if (!existing.rowCount) {
+        await adminClient.query(`CREATE DATABASE "${checkpointDatabase}"`);
+      }
     }
   } finally {
     await adminClient.end();
@@ -412,6 +426,7 @@ export async function startStack({
     activateLegalSource,
     materializeLegalSource,
     databaseUrl,
+    checkpointDatabaseUrl,
     logs: log,
   };
 }

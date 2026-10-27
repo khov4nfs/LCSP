@@ -29,8 +29,9 @@ const stack = await startStack({
     ? "lcsp_assessment_unresolvable_vertical"
     : "lcsp_assessment_vertical",
   apiPort: Number(process.env.LCSP_HITL_TEST_API_PORT ?? 3414),
+  checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
 });
-const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = stack;
+const { q, base, post, stop, seedLegalSource, activateLegalSource, checkpointDatabaseUrl } = stack;
 let checks = 0;
 const eq = (actual, expected, message) => {
   assert.deepEqual(actual, expected, message);
@@ -61,7 +62,7 @@ writeFileSync(
 const script = path.join(root, "deepagents/tests/vertical/hitl_root.py");
 const run = (id, mode) =>
   runPython(script, [base, workerKey, id, dir, mode], {
-    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0] },
+    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl },
   });
 const state = async (id) =>
   (
@@ -167,7 +168,7 @@ try {
   // BROWSER customer Stop/Continue uses native checkpoints of the Root, separate from human waits.
   const pausedAssessment = await create("BROWSER native Root Stop and Continue");
   const controlScript = path.join(root, "deepagents/tests/vertical/root_control.py");
-  const controlRun = (mode) => runPython(controlScript, [base, workerKey, pausedAssessment, dir, mode], { env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0], ASSESSMENT_CUSTOMER_TOKEN: owner.token } });
+  const controlRun = (mode) => runPython(controlScript, [base, workerKey, pausedAssessment, dir, mode], { env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl, ASSESSMENT_CUSTOMER_TOKEN: owner.token } });
   const paused = await controlRun("pause");
   eq(paused.result.state, AGENT_EXECUTION_STATES.PAUSED, JSON.stringify(paused));
   const pausedState = await state(pausedAssessment);
@@ -695,6 +696,12 @@ try {
           "real migrated DB/API/PostgresSaver; scripted model; separate processes",
       }),
     );
+  }
+  if (process.env.LCSP_TEST_CHECKPOINT_DATABASE) {
+    eq((await q(`SELECT to_regclass('public.checkpoints')::text AS name`)).rows[0].name, null,
+      "Stop/Continue and human-interrupt crash recovery used the separate native checkpoint database");
+    console.log(JSON.stringify({ gate: "SEPARATE_CHECKPOINT_DATABASE", apiCheckpointTable: null,
+      nativeDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE, result: "PASS", model: "SCRIPTED" }));
   }
 } finally {
   await stop();
