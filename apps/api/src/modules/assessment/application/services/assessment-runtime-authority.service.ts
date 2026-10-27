@@ -761,12 +761,15 @@ export function setSeparateCheckpointClientFactoryForTesting(
 async function querySeparateCheckpointDatabase(
   databaseUrl: string,
   threadId: string,
-): Promise<{
-  checkpointId: string;
-  serializedCheckpointId: string | null;
-  checkpointTimestamp: string | null;
-  metadata: unknown;
-} | undefined> {
+): Promise<
+  | {
+      checkpointId: string;
+      serializedCheckpointId: string | null;
+      checkpointTimestamp: string | null;
+      metadata: unknown;
+    }
+  | undefined
+> {
   const client = separateCheckpointClientFactory(databaseUrl);
   try {
     await client.connect();
@@ -907,7 +910,8 @@ async function findFailedNativeCheckpoint(
       metadata.rule_set_version_id !== input.casePins.ruleSetVersionId) ||
     (input.casePins?.repositorySnapshotId &&
       typeof metadata.repository_snapshot_id === "string" &&
-      metadata.repository_snapshot_id !== input.casePins.repositorySnapshotId) ||
+      metadata.repository_snapshot_id !==
+        input.casePins.repositorySnapshotId) ||
     (input.casePins?.repositoryCommit &&
       typeof metadata.repository_commit === "string" &&
       metadata.repository_commit !== input.casePins.repositoryCommit)

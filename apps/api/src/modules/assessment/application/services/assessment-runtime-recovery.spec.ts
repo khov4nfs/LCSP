@@ -495,17 +495,19 @@ describe("persisted Agent Server run recovery", () => {
       },
     };
     (f.tx as Record<string, unknown>).assessmentCase = {
-      findUnique: jest.fn<
-        () => Promise<{
-          ruleSetVersionId: string;
-          repositorySnapshotId: string;
-          repositoryCommit: string;
-        }>
-      >().mockResolvedValue({
-        ruleSetVersionId,
-        repositorySnapshotId,
-        repositoryCommit,
-      }),
+      findUnique: jest
+        .fn<
+          () => Promise<{
+            ruleSetVersionId: string;
+            repositorySnapshotId: string;
+            repositoryCommit: string;
+          }>
+        >()
+        .mockResolvedValue({
+          ruleSetVersionId,
+          repositorySnapshotId,
+          repositoryCommit,
+        }),
     };
     f.tx.$queryRaw
       .mockResolvedValueOnce([f.row])
@@ -516,11 +518,14 @@ describe("persisted Agent Server run recovery", () => {
     process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL =
       "postgresql://postgres:postgres@127.0.0.1:55441/separate_checkpoints";
 
-    const mockConnect = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const mockConnect = jest
+      .fn<() => Promise<void>>()
+      .mockResolvedValue(undefined);
     const mockEnd = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    const mockQuery = jest.fn<SeparateCheckpointClient["query"]>()
-      .mockResolvedValueOnce({ rows: [{ tableName: "checkpoints" }] } as never)
-      .mockResolvedValueOnce({ rows: [nativeCheckpoint] } as never);
+    const mockQuery = jest
+      .fn<SeparateCheckpointClient["query"]>()
+      .mockResolvedValueOnce({ rows: [{ tableName: "checkpoints" }] })
+      .mockResolvedValueOnce({ rows: [nativeCheckpoint] });
 
     setSeparateCheckpointClientFactoryForTesting(() => ({
       connect: mockConnect,
@@ -546,7 +551,9 @@ describe("persisted Agent Server run recovery", () => {
       }
       setSeparateCheckpointClientFactoryForTesting((url: string) => ({
         connect: async () => {},
-        query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+        query: async <
+          R extends Record<string, unknown> = Record<string, unknown>,
+        >() => ({ rows: [] as R[] }),
         end: async () => {},
       }));
     }
@@ -581,17 +588,19 @@ describe("persisted Agent Server run recovery", () => {
       },
     };
     (f.tx as Record<string, unknown>).assessmentCase = {
-      findUnique: jest.fn<
-        () => Promise<{
-          ruleSetVersionId: string;
-          repositorySnapshotId: string;
-          repositoryCommit: string;
-        }>
-      >().mockResolvedValue({
-        ruleSetVersionId: randomUUID(),
-        repositorySnapshotId: randomUUID(),
-        repositoryCommit: "a".repeat(40),
-      }),
+      findUnique: jest
+        .fn<
+          () => Promise<{
+            ruleSetVersionId: string;
+            repositorySnapshotId: string;
+            repositoryCommit: string;
+          }>
+        >()
+        .mockResolvedValue({
+          ruleSetVersionId: randomUUID(),
+          repositorySnapshotId: randomUUID(),
+          repositoryCommit: "a".repeat(40),
+        }),
     };
     f.tx.$queryRaw
       .mockResolvedValueOnce([f.row])
@@ -604,7 +613,9 @@ describe("persisted Agent Server run recovery", () => {
 
     setSeparateCheckpointClientFactoryForTesting(() => ({
       connect: async () => {},
-      query: async <R extends Record<string, unknown> = Record<string, unknown>>(
+      query: async <
+        R extends Record<string, unknown> = Record<string, unknown>,
+      >(
         text: string,
       ): Promise<{ rows: R[] }> => {
         if (text.includes("to_regclass")) {
@@ -631,7 +642,9 @@ describe("persisted Agent Server run recovery", () => {
       }
       setSeparateCheckpointClientFactoryForTesting((url: string) => ({
         connect: async () => {},
-        query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+        query: async <
+          R extends Record<string, unknown> = Record<string, unknown>,
+        >() => ({ rows: [] as R[] }),
         end: async () => {},
       }));
     }
@@ -662,7 +675,9 @@ describe("persisted Agent Server run recovery", () => {
       connect: async () => {
         throw new Error("Connection refused");
       },
-      query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+      query: async <
+        R extends Record<string, unknown> = Record<string, unknown>,
+      >() => ({ rows: [] as R[] }),
       end: async () => {},
     }));
 
@@ -682,7 +697,9 @@ describe("persisted Agent Server run recovery", () => {
       }
       setSeparateCheckpointClientFactoryForTesting((url: string) => ({
         connect: async () => {},
-        query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+        query: async <
+          R extends Record<string, unknown> = Record<string, unknown>,
+        >() => ({ rows: [] as R[] }),
         end: async () => {},
       }));
     }
