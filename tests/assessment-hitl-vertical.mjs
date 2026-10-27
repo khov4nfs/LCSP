@@ -14,6 +14,7 @@ import {
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES,
+  ASSESSMENT_FACT_AUTHORITIES,
 } from "@lcsp/contracts/assessment-domain";
 import {
   contentHash,
@@ -566,6 +567,19 @@ try {
         knownResult.body.data.resumed,
       ],
       ["RESOLVED", 1, true],
+    );
+    eq(
+      (
+        await q(
+          `SELECT authority, statement FROM "AssessmentCaseFact" WHERE "assessmentId"=$1 AND "factId"=$2`,
+          [A, knownResult.body.data.factId],
+        )
+      ).rows[0],
+      {
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        statement: `Customer answer: ${known.answer}\nAgent-authored question (context only): ${request.question}`,
+      },
+      "The customer's answer must remain distinguishable from the agent's question and its assumptions",
     );
     eq(
       (
