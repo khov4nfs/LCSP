@@ -331,13 +331,15 @@ class _GovernedInternalModelRunnable:
     """Runnable for framework-owned LLM work through the exact LCSP agent stack."""
 
     def __init__(self, model, *, role: str, operation_type: str,
-                 governance: Sequence[AgentMiddleware] | None = None) -> None:
+                 governance: Sequence[AgentMiddleware] | None = None,
+                 system_prompt: str | None = None) -> None:
         # Use LangChain's own agent middleware composer rather than reimplementing
         # wrap/before/after hook semantics. This graph has no tools and therefore
         # performs exactly one governed model operation per summary request.
         self._agent = create_agent(
             model,
             tools=[],
+            system_prompt=system_prompt,
             middleware=[
                 AgentRoleMiddleware(role, operation_type=operation_type),
                 *[item for item in (MODEL_GOVERNANCE_MIDDLEWARE if governance is None else governance)
@@ -424,19 +426,22 @@ class _GovernedInternalModelRunnable:
 
 
 def governed_summarization_middleware(model, *, backend, role: str,
-                                     governance: Sequence[AgentMiddleware] | None = None):
+                                     governance: Sequence[AgentMiddleware] | None = None,
+                                     system_prompt: str | None = None):
     """Business purpose: Route Deep Agents' framework-owned summarization inference through LCSP model governance.
 
     Business rules:
     - Preserve Deep Agents' summarization middleware behavior while replacing its direct summary model with the governed internal runnable.
     - Use the supplied inference policy, including an explicitly empty offline policy; otherwise use the platform default.
+    - Supply the caller's system instructions to the summary model; historical claims alone do not define its fact-authority or uncertainty policy.
+    - Summaries remain model-authored working context; no accepted fact or decision is revised by this helper.
     - Record the internal operation as SUMMARIZATION rather than inheriting the outer operation label.
     - Fail closed if the installed Deep Agents helper no longer exposes the summary-model integration point.
 
     Execution flow:
     1. Construct the standard summarization middleware for the requested model and backend.
     2. Verify that its internal helper exposes _summary_model.
-    3. Replace that model with a governed runnable marked for the requested role and SUMMARIZATION operation.
+    3. Replace that model with a governed runnable carrying the caller's instructions, role and SUMMARIZATION operation.
     4. Return the configured middleware.
 
     Failure cases:
@@ -458,6 +463,7 @@ def governed_summarization_middleware(model, *, backend, role: str,
     # bounded retry together with credential/provider fallback and usage metering.
     helper._summary_model = _GovernedInternalModelRunnable(
         model, role=role, operation_type="SUMMARIZATION", governance=governance,
+        system_prompt=system_prompt,
     )
     return middleware
 

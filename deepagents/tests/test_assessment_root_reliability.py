@@ -1,13 +1,15 @@
 """Provider-free native capability regressions, not semantic model acceptance."""
 
+import asyncio
 import json
 from pathlib import Path
 
+import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, ToolMessage
 
-from assessment_root.agent import create_assessment_root_agent
+from assessment_root.agent import ROOT_INSTRUCTIONS, create_assessment_root_agent
 from test_assessment_root_agent import (
     THREAD,
     FakeClient,
@@ -91,7 +93,8 @@ def test_native_researcher_calls_use_the_roots_configured_governance(tmp_path):
     assert any("Trace the logging helper's actual callers" in str(r.messages) for r in calls)
 
 
-def test_native_context_compaction_uses_existing_governed_summary_path(tmp_path, monkeypatch):
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_native_context_compaction_uses_existing_governed_summary_path(tmp_path, monkeypatch, asynchronous):
     import deepagents.middleware.summarization as native_summary
 
     operations = []
@@ -101,11 +104,20 @@ def test_native_context_compaction_uses_existing_governed_summary_path(tmp_path,
             operations.append(request)
             return handler(request)
 
+        async def awrap_model_call(self, request, handler):
+            operations.append(request)
+            return await handler(request)
+
     monkeypatch.setattr(native_summary, "compute_summarization_defaults", lambda _: {
         "trigger": ("messages", 10), "keep": ("messages", 1), "truncate_args_settings": None,
     })
+
+    class CompactionModel(RootScriptedModel):
+        async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+            return self._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
     client = FakeClient()
-    model = RootScriptedModel(responses=[
+    model = CompactionModel(responses=[
         AIMessage(content="Source observation retained; deployment and operator facts remain unresolved."),
         *complete_root_messages(),
     ])
@@ -120,11 +132,24 @@ def test_native_context_compaction_uses_existing_governed_summary_path(tmp_path,
         {"type": "text", "text": "Earlier investigation observation with an inline image"},
         {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNuoAAAAASUVORK5CYII="}},
     ]
-    graph.invoke({"messages": history})
+    captured = json.loads((Path(__file__).parents[2] /
+        "docs/implementation-artifacts/lcsp360-cheatshield-20261026/genuine-decision-audit.json").read_text())
+    fact_context = json.dumps({"facts": captured["facts"], "evidence": captured["evidence"]})
+    history[1:1] = [
+        _call("get_assessment_context", {}, "captured-context"),
+        ToolMessage(content=fact_context, tool_call_id="captured-context"),
+    ]
+    if asynchronous:
+        asyncio.run(graph.ainvoke({"messages": history}))
+    else:
+        graph.invoke({"messages": history})
 
     summaries = [operation for operation in operations if "Context Extraction Assistant" in str(operation.messages)]
     assert summaries, "native compaction must pass through the Root's configured governance"
     assert "Earlier investigation observation" in str(summaries[0].messages)
+    assert summaries[0].system_message is not None, "compaction lost the investigator's authority instructions"
+    assert summaries[0].system_message.content == ROOT_INSTRUCTIONS
+    assert fact_context in str(summaries[0].messages), "retain the actual fact authority and evidence for model-authored compaction"
     saved_history = tmp_path / "repo/.lcsp/agent/conversation_history"
     assert list(saved_history.glob("*.md"))
     assert list((saved_history / "media").rglob("*.png"))

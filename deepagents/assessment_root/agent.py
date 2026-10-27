@@ -17,7 +17,7 @@ from langchain.agents.middleware import AgentMiddleware, AgentState, TodoListMid
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
-from assessment_root.researcher import researcher_subagent
+from assessment_root.researcher import RESEARCHER_PROMPT, researcher_subagent
 from assessment_root.tools import RootRun, build_root_tools
 from rule_set_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
 from orchestration.graph_execution import agent_graph_config
@@ -114,7 +114,7 @@ def create_assessment_root_agent(
 
     Business rules:
     - Only the Root has governed fact, decision and human-resolution tools; its researcher returns read-only candidate findings.
-    - Native planning state is checkpointed with the same graph; Root and delegated calls share governance, including the existing governed compaction path.
+    - Native planning state is checkpointed with the same graph; Root and delegated calls share governance, and each compaction call retains its investigator's own authority instructions.
     - The backend exposes the pinned repository read-only with a separate writable scratch area; invoke using run.thread_id.
 
     Execution flow:
@@ -145,6 +145,7 @@ def create_assessment_root_agent(
     summary_backend = CompositeBackend(default=run.backend, routes={}, artifacts_root="/.lcsp/agent")
     researcher_middleware = [*governance, governed_summarization_middleware(
         model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
+        system_prompt=RESEARCHER_PROMPT,
     )]
     # The default general-purpose subagent would inherit the governed tools; disable it so the
     # researcher is the only delegate and it holds none of them.
@@ -158,7 +159,8 @@ def create_assessment_root_agent(
             subagents=[researcher_subagent(tools, middleware=researcher_middleware)],
             permissions=root_permissions(),
             middleware=[TodoListMiddleware(), ResponseLocalizationMiddleware(), *governance,
-                        governed_summarization_middleware(model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance),
+                        governed_summarization_middleware(model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
+                                                         system_prompt=ROOT_INSTRUCTIONS),
                         AssessmentCompletionMiddleware(run), *middleware],
             context_schema=LCSPRunContext,
             checkpointer=checkpointer,
