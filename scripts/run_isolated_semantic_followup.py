@@ -465,12 +465,17 @@ def run_isolated_semantic_followup(
     print("\n=== Exporting Complete 243-Rule Decision Audit ===")
     audit_records = []
     
-    # 1. 14 Disputed Rules
+    # 5. Export follow-up scripted acceptance fixture record
+    # NOTE: These decisions represent scripted acceptance test fixtures used to verify API lifecycle,
+    # tenant isolation, and final report compilation. They must NOT be confused with genuine
+    # model-authored decisions or overwrite the authoritative baseline audit.
+    fixture_records = []
+    # 1. 14 Disputed Rules (scripted test fixtures)
     for d in decisions_14:
         r_id = d["assessmentRuleId"]
-        audit_records.append({
+        fixture_records.append({
             "ruleId": r_id,
-            "scope": "DISPUTED_FOLLOWUP_REINVESTIGATION",
+            "scope": "DISPUTED_FOLLOWUP_SCRIPTED_FIXTURE",
             "decisionRevision": 1,
             "applicability": d["applicability"],
             "compliance": d["compliance"],
@@ -480,15 +485,15 @@ def run_isolated_semantic_followup(
             "basis": d.get("applicabilityBasis", []),
             "criteria": d.get("criteria", []),
             "rationale": d["rationale"],
-            "auditStatus": "SUPPORTED",
+            "decisionNature": "SCRIPTED_ACCEPTANCE_FIXTURE",
         })
 
-    # 2. 229 Baseline Non-Disputed Rules
+    # 2. 229 Baseline Non-Disputed Rules (imported baseline fixtures)
     for b in baseline_decisions:
         r_id = b["assessmentRuleId"]
-        audit_records.append({
+        fixture_records.append({
             "ruleId": r_id,
-            "scope": "BASELINE_ACCEPTED_NON_DISPUTED",
+            "scope": "BASELINE_IMPORTED_FIXTURE",
             "decisionRevision": 1,
             "applicability": b["applicability"],
             "compliance": b.get("compliance"),
@@ -498,23 +503,22 @@ def run_isolated_semantic_followup(
             "basis": b.get("applicabilityBasis", []),
             "criteria": b.get("criteria", []),
             "rationale": b["rationale"],
-            "auditStatus": "SUPPORTED",
+            "decisionNature": "BASELINE_IMPORTED_FIXTURE",
         })
 
-    audit_file = Path("/home/khovan/.cache/lcsp360-cheatshield-20261026/complete-decision-audit-243.json")
-    audit_file.write_text(json.dumps({
+    fixture_file = Path("/home/khovan/.cache/lcsp360-cheatshield-20261026/followup-scripted-fixture-record.json")
+    fixture_file.write_text(json.dumps({
         "assessmentId": followup_id,
         "ruleSetVersionId": rule_set_id,
         "repositorySnapshotId": snapshot_id,
         "repositoryCommit": commit,
         "caseRevision": case_revision,
-        "totalAudited": len(audit_records),
-        "supportedCount": len(audit_records),
-        "unsupportedCount": 0,
-        "notProvenCount": 0,
-        "decisions": audit_records,
+        "totalRecords": len(fixture_records),
+        "scriptedDisputedFixtures": 14,
+        "importedBaselineFixtures": 229,
+        "records": fixture_records,
     }, indent=2))
-    print(f"Exported complete audit record for all {len(audit_records)} rules to: {audit_file}")
+    print(f"Exported follow-up scripted fixture record to: {fixture_file}")
 
     return {
         "assessmentId": followup_id,
@@ -523,7 +527,7 @@ def run_isolated_semantic_followup(
         "sizeBytes": report_size,
         "terminalLifecycleState": curr_lifecycle,
         "tenantIsolation": isolation_result,
-        "totalAudited": len(audit_records),
+        "totalAudited": len(fixture_records),
     }
 
 

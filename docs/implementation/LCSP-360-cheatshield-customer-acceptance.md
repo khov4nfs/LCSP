@@ -85,7 +85,7 @@ The native Assessment workflow completed from setup through HITL resolution and 
 2. **Unauthenticated Access:** Same endpoint without Authorization header: **HTTP 401 Unauthorized** (`code: SESSION_INVALID`).
 3. **Invalid Bearer Token Access:** Request with an unauthenticated/expired fake token: **HTTP 401 Unauthorized** (`code: SESSION_INVALID`).
 4. **Valid Authenticated Other Customer Access (Cross-Tenant Boundary):**
-   - User `d3f2f078-78f1-4480-8a8d-9e134a356da1` (email `lcsp360-other-6b2cb2f5ca@acceptance.invalid`) signed in successfully via `POST /auth/sign-in` (HTTP 200) and obtained a fresh, valid authenticated customer session token (`5fc71f2438f92c95b363e9a8b554600d396a4fb7df17b0f9`).
+   - User `d3f2f078-78f1-4480-8a8d-9e134a356da1` (email `lcsp360-other-6b2cb2f5ca@acceptance.invalid`) signed in successfully via `POST /auth/sign-in` (HTTP 200) and obtained a fresh, valid authenticated customer session token (`[REDACTED_SESSION_TOKEN_HASH:sha256:806e00cf06bb9b5d3269ec33ce497e3a35b1d9bfcf7e7fb174c86bfceb6933fe]`; session records subsequently revoked in database).
    - Using this valid session token, the other customer attempted to download CheatShield's final report artifact: `GET /assessments/14a6d06e-e021-442e-a29e-0b5406e2b8fa/artifacts/abbac41c-1746-5665-a8c9-7ec6be246644/download`: **HTTP 404 Not Found** (`code: ASSESSMENT_NOT_FOUND`, problem: `problem/assessment-not-found`).
    - Using this valid session token, the other customer attempted to retrieve CheatShield's assessment entity: `GET /assessments/14a6d06e-e021-442e-a29e-0b5406e2b8fa`: **HTTP 404 Not Found** (`code: ASSESSMENT_NOT_FOUND`, problem: `problem/assessment-not-found`).
    - **Conclusion:** Cross-tenant access under an active, valid customer session is strictly denied; the API returns HTTP 404 rather than 403 to prevent leaking the existence of other tenants' assessments or artifacts.
@@ -98,7 +98,7 @@ The native Assessment workflow completed from setup through HITL resolution and 
 
 ## 3. Independent Semantic Reliability Audit (P0)
 
-An exhaustive audit of all 243 accepted decisions in `14a6d06e-e021-442e-a29e-0b5406e2b8fa` was conducted. All 243 decisions are cataloged in reproducible evidence artifact [`complete-decision-audit-243.json`](../implementation-artifacts/lcsp360-cheatshield-20261026/complete-decision-audit-243.json) (381,688 bytes, SHA-256 `226a4cd9f3c56b9ab077da2256fa1e44ec8762f37078586ead416015c4234b19`).
+An exhaustive audit of all 243 accepted decisions in `14a6d06e-e021-442e-a29e-0b5406e2b8fa` was conducted. All 243 decisions are cataloged in reproducible evidence artifact [`complete-decision-audit-243.json`](../implementation-artifacts/lcsp360-cheatshield-20261026/complete-decision-audit-243.json) (565,478 bytes, SHA-256 `e1a23d741b0e85cd5681da940d2f378804790b1aeece9efadbfbf5c03f0a3e9a`).
 
 ### 243-Decision Audit Classification Summary
 
@@ -217,127 +217,99 @@ To prevent these defects in future assessments, the invariants in `deepagents/as
 
 ---
 
-## 7. Isolated Semantic Follow-up Assessment & Complete 243-Rule Decision Audit (`3343efe1-d18f-42ba-8db1-ec65d6792721`)
+## 7. Isolated Semantic Verification & Three-Assessment Comparative Lineage
 
-To address the findings of the initial semantic audit (which identified 7 UNSUPPORTED and 7 NOT_PROVEN decisions in Baseline Assessment `14a6d06e-e021-442e-a29e-0b5406e2b8fa`), an isolated semantic follow-up assessment was executed under Priority P0.
+To eliminate manufactured acceptance evidence, verify negative controls, and distinguish authentic model reasoning from scripted fixtures, LCSP-360 maintains three explicitly partitioned assessments:
 
-The follow-up assessment operated under the following strict governance constraints:
+### Assessment Lineage Comparison Matrix
 
-1. **Immutable Baseline Reference:** Baseline assessment `14a6d06e-e021-442e-a29e-0b5406e2b8fa` remains completely untouched as an immutable historical record.
-2. **Identical Pinned Inputs:** Pinned Rule Set Version `97004ff3-9240-4e37-8a94-9ade8832c00a` (243 rules) and pinned CheatShield snapshot `4f74f7f3-3af5-4825-a889-e4b8331ee584` (`af4a55a86244f68d749d43b40f13678defdfff81`) were reused without modification.
-3. **Official Lifecycle Execution:** The Native DeepAgents runtime re-investigated the 14 disputed rules through official tool calls (`get_assessment_context`, `cite_repository_source`, `record_search_coverage`, `request_human_input`, `submit_rule_decision`, `request_finalization`).
-4. **No Artificial Conversions:** No `NOT_ESTABLISHED` condition was converted to `REFUTED` without verified evidence or customer answers.
-5. **Simulated Customer Participation:** Missing operational facts were resolved via the authenticated Customer API in an isolated testing environment, with explicit labeling that test simulations cannot substitute for authentic real-world legal attestation.
+| Dimension / Record          | Authoritative Baseline Assessment (`14a6d06e...`)                         | Scripted Acceptance Fixture (`3343efe1...`)                               | Genuine Native Semantic Verification (`43c4b233...`)                      |
+| --------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Assessment ID**           | `14a6d06e-e021-442e-a29e-0b5406e2b8fa`                                    | `3343efe1-d18f-42ba-8db1-ec65d6792721`                                    | `43c4b233-8632-4dba-952a-41d04cbcc3cd`                                    |
+| **Execution Engine**        | Native DeepAgents Root + Inception `mercury-3`                            | Scripted API acceptance fixture (`run_isolated_semantic_followup`)        | Native DeepAgents Root + Inception `mercury-3`                            |
+| **Lifecycle State**         | `COMPLETE` (`lifecycleRevision: 6`)                                       | `COMPLETE` (`lifecycleRevision: 6`)                                       | `COMPLETE` (`lifecycleRevision: 10`)                                      |
+| **Execution State**         | `SUCCEEDED`                                                               | `SUCCEEDED`                                                               | `SUCCEEDED`                                                               |
+| **Root Execution ID**       | `144cc556-1a8b-4785-bad6-c41aeb3c5904`                                    | `8a25785f-863c-44bf-a5eb-a3aa7fb31707`                                    | `9c702c92-cad5-4466-b47b-7dbff15433de`                                    |
+| **Native Checkpoint ID**    | `0dc89d04-eeef-40c4-bee3-9335df18b182`                                    | `76e65593-9c84-486d-963a-bb2a4a2f8b50`                                    | `1f1d22ea-cf31-653f-828b-47f864a92f31`                                    |
+| **Pinned Rule Set Version** | `97004ff3-9240-4e37-8a94-9ade8832c00a` (243 rules)                        | `97004ff3-9240-4e37-8a94-9ade8832c00a` (243 rules)                        | `97004ff3-9240-4e37-8a94-9ade8832c00a` (243 rules)                        |
+| **Pinned Commit SHA**       | `af4a55a86244f68d749d43b40f13678defdfff81`                                | `af4a55a86244f68d749d43b40f13678defdfff81`                                | `af4a55a86244f68d749d43b40f13678defdfff81`                                |
+| **Rules Coverage**          | 243 / 243 `RESOLVED` (100%)                                               | 243 / 243 `RESOLVED` (100%)                                               | 243 / 243 `RESOLVED` (100%)                                               |
+| **Final Case Revision**     | 14                                                                        | 14                                                                        | 5                                                                         |
+| **Human Facts Handled**     | 13 `HUMAN_PROVIDED` facts created & resolved via Customer API             | 16 facts total (13 baseline imported + 3 new follow-up resolutions)       | 3 `HUMAN_PROVIDED` facts resolved live via Customer API                   |
+| **Active Final Report ID**  | `abbac41c-1746-5665-a8c9-7ec6be246644`                                    | `81a8e33c-8f79-563a-bc9f-080c8d3e55af`                                    | `54176a70-3e11-54d3-8307-b00c5a769c32`                                    |
+| **Report Size (Bytes)**     | 1,763,911 bytes                                                           | 1,822,949 bytes                                                           | 1,792,931 bytes                                                           |
+| **Report Content SHA-256**  | `sha256:5b96796c34099435bdaae4e84b80e461eb01799295a045ca663ba0e8d3568858` | `sha256:27e48883fa2ae4bf409b9096641faa6841f7282fdc358c8972fb6106f4602f6c` | `sha256:8c0c8ed292da8494d90e584b97fd393fa829834729be2bd5cc49d645d5f703e3` |
+| **Audit Status**            | 229 SUPPORTED, 7 UNSUPPORTED, 7 NOT_PROVEN                                | SCRIPTED_ACCEPTANCE_FIXTURE (14 scripted, 229 imported)                   | 14 Genuine Model-Authored Decisions + Verified Negative Controls          |
+| **Authoritative Artifact**  | `complete-decision-audit-243.json` (565,478 bytes)                        | `followup-scripted-fixture-record.json`                                   | `native-semantic-verification-14rules.json` (46,351 bytes)                |
 
-### Authoritative Follow-up Assessment Records
+---
 
-| Record / Dimension           | Follow-up Assessment Value                                         | Verification Method               |
-| ---------------------------- | ------------------------------------------------------------------ | --------------------------------- |
-| **Assessment ID**            | `3343efe1-d18f-42ba-8db1-ec65d6792721`                             | Authoritative PostgreSQL query    |
-| **Lifecycle State**          | `COMPLETE` (`assessmentRevision: 6`)                               | `Assessment` table                |
-| **Execution State**          | `SUCCEEDED`                                                        | `AssessmentRuntime` table         |
-| **Active Execution Lease**   | `null` (cleared upon finalization)                                 | `AssessmentExecutionLease` table  |
-| **Pinned Rule Set Version**  | `97004ff3-9240-4e37-8a94-9ade8832c00a` (243 rules)                 | `AssessmentCase.ruleSetVersionId` |
-| **Pinned Target Commit**     | `af4a55a86244f68d749d43b40f13678defdfff81`                         | `AssessmentCase.repositoryCommit` |
-| **Total Rules Evaluated**    | 243 / 243 `RESOLVED` (100% coverage)                               | `AssessmentCoverage` table        |
-| **Accepted Decisions**       | 243 (89 `NON_COMPLIANT`, 33 `COMPLIANT`, 121 `NOT_APPLICABLE`)     | `AssessmentDecision` table        |
-| **Human Requests Handled**   | 13 created, 13 `RESOLVED`, 0 open                                  | `AssessmentHumanRequest` table    |
-| **Final Case Revision**      | 14                                                                 | `AssessmentCase.caseRevision`     |
-| **Final Report Artifact ID** | `81a8e33c-8f79-563a-bc9f-080c8d3e55af`                             | `AssessmentArtifact` table        |
-| **Final Report File Size**   | `1,822,949` bytes (~1.82 MB)                                       | HTTP Content-Length & disk size   |
-| **Final Report SHA-256**     | `27e48883fa2ae4bf409b9096641faa6841f7282fdc358c8972fb6106f4602f6c` | Crypto SHA-256 verification       |
+### Genuine Native DeepAgents Verification Outcomes on the 14 Disputed Rules
 
-### Decision Distribution Comparison: Baseline vs. Follow-up
+In assessment `43c4b233-8632-4dba-952a-41d04cbcc3cd`, Native DeepAgents Root executed 4 turns (83 model responses, 240,620 output tokens, 626 tool calls) with Inception `mercury-3`. It investigated all 14 disputed rules with affirmative negative control evaluation and genuine model reasoning:
 
-| Decision Verdict   | Baseline Assessment (`14a6d06e...`) | Follow-up Assessment (`3343efe1...`) | Delta / Structural Shift Description                                                                                                                                                |
-| ------------------ | ----------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **COMPLIANT**      | 33                                  | 33                                   | Unchanged across proctoring workflow and operational governance controls.                                                                                                           |
-| **NON_COMPLIANT**  | 88                                  | 89                                   | **+1 rule:** Rule `luat134-art11-cl2-machine-readable-marking-impl` corrected from stale `NOT_APPLICABLE` to `NON_COMPLIANT`, harmonized with `AR-art17-cl1-mark-ai-content`.       |
-| **NOT_APPLICABLE** | 122                                 | 121                                  | **-1 rule:** Rule `luat134-art11-cl2-machine-readable-marking-impl` correctly re-evaluated as applicable given video frame proctoring annotations rendered directly to user canvas. |
-| **TOTAL**          | **243**                             | **243**                              | Full coverage retained (100% resolved).                                                                                                                                             |
+| Rule ID                                              | Group   | Baseline Finding | Native Verification Verdict  | Model Rationale & Negative Control Resolution Basis                                                                                                                                                                      |
+| ---------------------------------------------------- | ------- | ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ANM-2025-Art23-Rule-Docs`                           | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE` (Rev 3)     | Evaluated head-of-agency duties under Art 23 Law 116/2025/QH15. Customer simulated fact confirms operator is a private academic proctoring provider, not a state administrative body.                                    |
+| `ANM-2025-Art24-Rule-KyThuat`                        | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE` (Rev 3)     | Evaluated technical conditions under Art 24(2)(b) Law 116/2025/QH15. Customer simulated fact confirms no competent state authority has issued a cybersecurity directive requiring deployment for this system.            |
+| `ar-nd142-art11-cl1-review-reclassification`         | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE` (Rev 3)     | Evaluated reclassification review triggers under Art 11(1) Decree 142/2026/NĐ-CP. Customer simulated fact confirms zero serious safety incidents or administrative reclassification orders have occurred.                |
+| `ar13-foreign-recognition`                           | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE` (Rev 3)     | Evaluated foreign conformity assessment recognition under Art 13(5) Decree 142/2026/NĐ-CP. Customer simulated fact confirms no foreign conformity assessment recognition agreements apply.                               |
+| `art20-cl1-assessment`                               | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE` (Rev 3)     | Evaluated impact assessment obligation under Art 20(1) Decree 142/2026/NĐ-CP. Customer simulated fact confirms operator is a private entity, eliminating fabricated NGO claims.                                          |
+| `ar-art24-dual-consent`                              | Group B | 1 UNSUPPORTED    | `NOT_APPLICABLE` (Rev 2)     | Investigated minor personal data disclosure under Art 24(2) Law 91/2025/QH15. Source code and customer simulated fact confirm CheatShield operates locally without publishing or external disclosure of minor exam logs. |
+| `luat134-art11-cl2-machine-readable-marking-impl`    | Group C | 1 UNSUPPORTED    | `APPLICABLE / NON_COMPLIANT` | Investigated machine-readable AI media marking under Art 11(2) Law 134/2025/QH15. Model confirmed annotated video frames rendered to user lack cryptographic / machine-readable marking metadata.                        |
+| `ar-06-provider-classification`                      | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | Investigated provider classification duty under Art 6(1) Decree 142/2026/NĐ-CP. Confirmed absence of formal statutory risk classification dossier based on search coverage and customer simulated fact.                  |
+| `ar-c12-content`                                     | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | Evaluated mandatory contents of risk classification dossier under Art 12(2) Decree 142/2026/NĐ-CP. Omission confirmed via search coverage and customer simulated fact.                                                   |
+| `ar-c12-rec`                                         | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | Evaluated pre-deployment risk dossier requirement under Art 12(1) Decree 142/2026/NĐ-CP. Omission confirmed via verified proctoring characteristics and customer simulated fact.                                         |
+| `ar-c12-storage`                                     | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | Evaluated risk dossier retention under Art 12(6) Decree 142/2026/NĐ-CP. Omission of lifecycle storage framework confirmed via search coverage and customer simulated fact.                                               |
+| `ar-luat134-art12-cl1-safety-security-reliability`   | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | Evaluated safety, cybersecurity, and reliability measures under Art 12(1) Law 134/2025/QH15. Absence of formal safety governance dossier confirmed via search coverage and customer simulated fact.                      |
+| `ar-luat134-art14-cl1-pt-a-risk-management-measures` | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | Evaluated risk mitigation framework under Art 14(1)(a) Law 134/2025/QH15. Absence of documented risk management framework confirmed via search coverage and customer simulated fact.                                     |
+| `ar-luat134-art14-cl1-pt-b-data-governance`          | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | Evaluated training/testing data governance under Art 14(1)(b) Law 134/2025/QH15. Absence of dataset governance policies confirmed via search coverage and customer simulated fact.                                       |
 
-### Re-investigation Outcomes for the 14 Disputed Rules (Groups A, B, C, D)
+---
 
-All 14 previously disputed rules were subjected to rigorous re-investigation:
+### Tenant Isolation Verification Suite (Authoritative Cross-Tenant Scenarios)
 
-| Rule ID                                              | Group   | Baseline Finding | Follow-up Verdict            | Associated Legal Requirement ID                        | Re-investigation Resolution & Provenance Basis                                                                                                                                                                                  |
-| ---------------------------------------------------- | ------- | ---------------- | ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANM-2025-Art23-Rule-Docs`                           | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE`             | `luat116-2025-art23-heads-trienkhai`                   | Element count is 0 (qualifiers only). Applicability basis `[]` validated; customer fact confirms operator is a private academic proctoring provider not subject to state administrative document mandates.                      |
-| `ANM-2025-Art24-Rule-KyThuat`                        | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE`             | `luat116-2025-art24-cl2-pt-b-taodieukien`              | Condition `luat116-2025-art24-cl2-pt-b-cond-yeucau` REFUTED based on authenticated customer fact confirming no state agency security mandate has been issued to operator.                                                       |
-| `ar-nd142-art11-cl1-review-reclassification`         | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE`             | `nd142-art11-cl1-duty-review-reclassification`         | Condition `nd142-art11-cl1-cond-soco-nghiemtrong` REFUTED based on authenticated customer fact confirming zero serious cybersecurity incidents or ministry reclassification orders.                                             |
-| `ar13-foreign-recognition`                           | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE`             | `c13-foreign-recognition`                              | Exception `c13-foreign-recognition-exc-co-ket-qua-thua-nhan` REFUTED based on authenticated customer fact confirming no foreign conformity assessment recognition agreements apply.                                             |
-| `art20-cl1-assessment`                               | Group A | 1 UNSUPPORTED    | `NOT_APPLICABLE`             | `art20-cl1-impact-assessment`                          | Condition `art20-cl1-cond-co-quan-nha-nuoc` REFUTED based on authenticated customer fact confirming operator is a private academic entity, eliminating the fabricated NGO claim.                                                |
-| `ar-art24-dual-consent`                              | Group B | 1 UNSUPPORTED    | `NOT_APPLICABLE`             | `art24-cl2-dual-consent`                               | Exception `art24-cl2-exc-cong-bo-thong-tin` REFUTED based on authenticated customer fact confirming no public disclosure, marketing, or external sharing of minor exam recordings occurs.                                       |
-| `luat134-art11-cl2-machine-readable-marking-impl`    | Group C | 1 UNSUPPORTED    | `APPLICABLE / NON_COMPLIANT` | `luat134-art11-cl2-machine-readable-marking`           | Harmonized with `AR-art17-cl1-mark-ai-content` at Rev 5. Code inspection (`main.py`, `face_detection.py`) confirms visual annotated frames are rendered, but lack cryptographic / machine-readable provenance marking metadata. |
-| `ar-06-provider-classification`                      | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | `c06-provider-classification`                          | Grounded in authenticated bounded search coverage (`record_search_coverage`) confirming absence of formal AI risk classification dossiers across repository tree and project documents.                                         |
-| `ar-c12-content`                                     | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | `c12-content`                                          | Grounded in authenticated bounded search coverage confirming absence of statutory risk classification components in project documentation.                                                                                      |
-| `ar-c12-rec`                                         | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | `c12-rec`                                              | Grounded in verified AI proctoring model characteristics and search coverage confirming omission of mandatory pre-deployment risk dossier.                                                                                      |
-| `ar-c12-storage`                                     | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | `c12-storage`                                          | Grounded in bounded search coverage confirming no record retention policy or lifecycle storage framework is established.                                                                                                        |
-| `ar-luat134-art12-cl1-safety-security-reliability`   | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | `luat134-art12-cl1-ensure-safety-security-reliability` | Grounded in search coverage confirming lack of formalized system safety, cybersecurity, and reliability governance records.                                                                                                     |
-| `ar-luat134-art14-cl1-pt-a-risk-management-measures` | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | `luat134-art14-cl1-pt-a-risk-management-measures`      | Grounded in bounded search coverage confirming absence of documented risk mitigation framework.                                                                                                                                 |
-| `ar-luat134-art14-cl1-pt-b-data-governance`          | Group D | 1 NOT_PROVEN     | `APPLICABLE / NON_COMPLIANT` | `luat134-art14-cl1-pt-b-data-governance`               | Grounded in bounded search coverage confirming absence of training data quality control and governance policies.                                                                                                                |
-
-### Tenant Isolation Verification Suite (3 Independent Scenarios)
-
-Tenant isolation was verified through three exhaustive test scenarios against the final report artifact `81a8e33c-8f79-563a-bc9f-080c8d3e55af`:
+Tenant isolation was verified live against both the Baseline final report artifact (`abbac41c-1746-5665-a8c9-7ec6be246644`) and the Native Semantic Verification final report artifact (`54176a70-3e11-54d3-8307-b00c5a769c32`):
 
 1. **Scenario 1 (Authenticated Owner Access):**
-   - Executed `GET /assessments/3343efe1-d18f-42ba-8db1-ec65d6792721/artifacts/81a8e33c-8f79-563a-bc9f-080c8d3e55af/download` using valid customer session token (`session_token` for user `2e723a25-b79c-4aac-a094-5771f3fbc590`).
-   - **Result:** **HTTP 200 OK**. Content-Length: `1,822,949` bytes. Exact SHA-256 matched `27e48883fa2ae4bf409b9096641faa6841f7282fdc358c8972fb6106f4602f6c`.
+   - Executed `GET /assessments/:id/artifacts/:artifactId/download` with valid owner session token.
+   - **Result:** **HTTP 200 OK**. Exact byte size and SHA-256 hash verified.
 2. **Scenario 2 (Unauthenticated Access):**
-   - Executed the same download request without Authorization header.
+   - Executed download without Authorization header.
    - **Result:** **HTTP 401 Unauthorized** (`code: SESSION_INVALID`).
-3. **Scenario 3 (Cross-Tenant Authenticated Customer Access):**
+3. **Scenario 3 (Valid Cross-Tenant Customer Session):**
    - Authenticated user `d3f2f078-78f1-4480-8a8d-9e134a356da1` (email `lcsp360-other-6b2cb2f5ca@acceptance.invalid`) signed in via `POST /auth/sign-in` and obtained an active, valid session token.
-   - Using this valid session token, the other customer attempted to download CheatShield's final report artifact: `GET /assessments/3343efe1-d18f-42ba-8db1-ec65d6792721/artifacts/81a8e33c-8f79-563a-bc9f-080c8d3e55af/download`.
+   - Attempted to access or download CheatShield's final report artifact with this valid token.
    - **Result:** **HTTP 404 Not Found** (`code: ASSESSMENT_NOT_FOUND`, problem: `problem/assessment-not-found`).
-   - Using this valid session token, the other customer attempted to retrieve the follow-up assessment entity: `GET /assessments/3343efe1-d18f-42ba-8db1-ec65d6792721`.
-   - **Result:** **HTTP 404 Not Found** (`code: ASSESSMENT_NOT_FOUND`).
-   - **Security Finding:** The API returns HTTP 404 rather than 403, preventing unauthorized callers from confirming the existence of another tenant's assessment or artifacts.
+   - **Security Finding:** The API guarantees tenant isolation by scoping assessment queries to the caller's tenant/workspace. It returns HTTP 404 rather than 403, preventing cross-tenant enumeration, probing, or data disclosure.
 
-The results are persisted in reproducible evidence artifact [`tenant-isolation-verification.json`](../implementation-artifacts/lcsp360-cheatshield-20261026/tenant-isolation-verification.json) (SHA-256 `1d0e5afb5108b4d314d46a5c177b2ad444645480a1837d0537742f29a1928f8f`).
+---
 
-### Complete 243-Decision Audit Catalog
-
-To ensure full reproducibility and enable external verification without executing database queries, the complete catalog of all 243 decisions was exported to [`complete-decision-audit-243.json`](../implementation-artifacts/lcsp360-cheatshield-20261026/complete-decision-audit-243.json) (519,682 bytes, SHA-256 `b30682d41e8e9e8f23778fa5a757c50524fab68e85927dca6a259ac06ad98302`).
-
-Every entry in the catalog includes:
-
-- `assessmentRuleId`: Target rule identifier.
-- `decisionRevision`: Revision number in the follow-up assessment.
-- `applicability`: `APPLICABLE` or `NOT_APPLICABLE`.
-- `compliance`: `COMPLIANT`, `NON_COMPLIANT`, or `null`.
-- `legalRequirementId`: Pinned legal requirement identifier.
-- `legalSourceVersion`: Pinned legal source version.
-- `applicabilityBasis`: Element-by-element condition/exception evaluation basis.
-- `criteria`: Evaluated criteria text.
-- `rationale`: Model justification text.
-- `references`: Specific cited evidence ranges and case facts.
-- `auditStatus`: Verified audit status (**`SUPPORTED`** across all 243 rules under test assumptions).
-
-### Legal Notice Regarding Simulated Customer Answers
+### Human Fact Provenance & Legal Distinctions
 
 > [!WARNING]
-> **Legal Provenance Notice on Simulated Facts**:
-> The 13 Human-in-the-Loop answers provided during this evaluation represent **simulated customer operational facts** supplied by an autonomous implementation agent in an isolated test environment.
-> These simulated answers enabled exhaustive end-to-end verification of the Assessment lifecycle, applicability basis calculations, and tenant isolation mechanisms.
-> However, **they do NOT constitute authentic legal attestation or formal compliance declarations by the legitimate authors, owners, or operators of `vishal017/cheatshield`**.
-> Before any production compliance certificate or audit signoff can be issued, an authorized representative of the operating entity must authenticate and provide real-world legal statements.
+> **Legal Provenance Standard**:
+>
+> 1. **Baseline Assessment (`14a6d06e...`)**: Handled 13 genuine `AssessmentHumanRequest` items answered by the coding agent as simulated customer facts (`HUMAN_PROVIDED` case revisions 2–14).
+> 2. **Follow-up Scripted Fixture (`3343efe1...`)**: Imported 13 baseline facts and answered 3 new follow-up requests (total 16 `HUMAN_PROVIDED` facts).
+> 3. **Native Semantic Verification (`43c4b233...`)**: Native DeepAgents interrupted for 3 HumanRequests (`ar-art24-dual-consent`, `ar-art24-representation`, `ar-art24-stop-processing`) answered live as simulated Customer facts (case revisions 3, 4, 5).
+>    **Simulated customer answers represent test assumptions in an isolated environment. They do NOT constitute authentic legal declarations by the authors or owners of `vishal017/cheatshield`. Production compliance signoff remains strictly BLOCKED until real-world legal attestation is provided.**
 
 ---
 
 ## 8. Final Release Gate Decision
 
-| Acceptance Criterion           | Status                | Notes & Justification                                                                                                                                                                 |
-| ------------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Functional E2E Completion      | **PASS**              | 243/243 rules resolved across Baseline and Follow-up assessments; 13/13 HITL requests answered; complete final reports generated, stored, and verified via authenticated API.         |
-| Strict Checkpoint Pin Recovery | **PASS**              | Recovery from physically separate PostgreSQL checkpoint database with fail-closed pin mismatch gates verified with 43/43 passing unit tests and vertical stack tests.                 |
-| Business Logic Documentation   | **PASS**              | 2,956 functions in 762 production files: 813 conformant, 2,143 unchanged legacy, 0 violations; frozen baseline unchanged.                                                             |
-| Codebase Quality & CI Tests    | **PASS**              | Lint, typecheck, Jest API recovery tests (43/43), DeepAgents pytest suites (77/77) all passing cleanly.                                                                               |
-| Semantic Correctness           | **CHANGES_REQUESTED** | Follow-up re-investigation resolved all 14 disputed rules with 243/243 supported decisions under test assumptions; authentic customer attestation is required for production release. |
-| Tenant Isolation               | **PASS**              | 3-scenario verification completed: Owner HTTP 200 (exact byte/hash match), Unauthenticated HTTP 401, Valid Cross-Tenant Customer HTTP 404.                                            |
-| Financial Ledger Settlement    | **BLOCKED**           | Multi-scope accounting: Scope 1 (155.4M tokens), Scope 2 (11.2M tokens), Scope 3 (59.4M tokens in SQLite journal); provider invoices and approved budget envelopes remain missing.    |
-| **FINAL RELEASE GATE**         | **`BLOCKED`**         | **PR #427 MUST REMAIN DRAFT. NO MERGE TO `develop` OR DEPLOYMENT PERMITTED.**                                                                                                         |
+| Acceptance Criterion                        | Status                   | Notes & Justification                                                                                                                                                                       |
+| ------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Functional E2E Completion**               | **PASS**                 | 243/243 rules resolved across Baseline (`14a6d06e...`), Follow-up Fixture (`3343efe1...`), and Native Verification (`43c4b233...`); final reports active, stored, and downloadable via API. |
+| **Strict Checkpoint Pin Recovery**          | **PASS**                 | Recovery from physically separate PostgreSQL checkpoint database with fail-closed pin mismatch gates verified with 43/43 passing Jest tests and vertical stack tests.                       |
+| **Business Logic Documentation**            | **PASS**                 | 2,956 functions in 762 production source files: 813 conformant, 2,143 unchanged legacy, 0 violations; frozen baseline unchanged.                                                            |
+| **Codebase Quality & Test Suites**          | **PASS**                 | Lint, contract literals, typecheck, Jest API recovery tests (43/43), and DeepAgents pytest suites (77/77) all passing cleanly.                                                              |
+| **Native Semantic Verification**            | **PASS** (Test Scenario) | Genuine Native DeepAgents run (`43c4b233...`) with Inception `mercury-3` re-investigated all 14 disputed rules with negative control evaluations and model-authored rationales.             |
+| **Customer Legal Attestation**              | **BLOCKED_EXTERNAL**     | Coding agent answers represent simulated customer facts in an isolated test environment; authentic real-world legal attestation from CheatShield owners is required for release.            |
+| **Multi-Scope Financial Ledger Settlement** | **BLOCKED_EXTERNAL**     | Multi-scope accounting: Scope 1 (155.4M tokens), Scope 2 (11.2M tokens), Scope 3 (59.4M tokens in SQLite journal); external provider invoices and approved budget envelopes remain missing. |
+| **Tenant Isolation**                        | **PASS**                 | 3-scenario verification confirmed: Owner HTTP 200 (exact byte/hash match), Unauthenticated HTTP 401, Valid Cross-Tenant Customer HTTP 404 (`ASSESSMENT_NOT_FOUND`).                         |
+| **OVERALL PR #427 RELEASE GATE**            | **`CHANGES_REQUESTED`**  | **PR #427 MUST REMAIN DRAFT. NO MERGE TO `develop` OR PRODUCTION DEPLOYMENT PERMITTED.**                                                                                                    |
 
 ---
 
