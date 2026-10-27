@@ -250,6 +250,35 @@ describe("SubmitAssessmentFinalReportHandler", () => {
     },
   );
 
+  it("permits descriptive natural language such as partial elements in findings or decision rationales", async () => {
+    const { handler, writeImmutableArtifact } = buildHandler();
+    writeImmutableArtifact.mockImplementation((id: string, content: string) =>
+      Promise.resolve({
+        manifest: {
+          artifact_id: id,
+          total_size: Buffer.byteLength(content, "utf8"),
+          hash: sha256Hex(content),
+          chunks: ["artifact.chunk"],
+        },
+        sizeBytes: Buffer.byteLength(content, "utf8"),
+      }),
+    );
+    const command = new SubmitAssessmentFinalReportCommand(
+      assessmentId,
+      randomUUID(),
+      requestFor({
+        summary: "The assessment is complete.",
+        findingSummary:
+          "Existing dossiers are partial elements but satisfy baseline requirements.",
+      }),
+      randomUUID(),
+    );
+
+    const result = await handler.execute(command);
+    expect(result.lifecycleState).toBe(ASSESSMENT_LIFECYCLE_STATES.COMPLETE);
+    expect(writeImmutableArtifact).toHaveBeenCalledTimes(1);
+  });
+
   it("binds the rule's source-derived basis and the cited evidence into every finding", async () => {
     const { handler, writeImmutableArtifact } = buildHandler();
     writeImmutableArtifact.mockImplementation((id: string, content: string) =>

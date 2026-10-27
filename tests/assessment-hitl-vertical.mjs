@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -24,6 +25,9 @@ import {
   workerKey,
 } from "./support/compliance-rule-set-stack.mjs";
 
+const requireApi = createRequire(path.join(root, "apps/api/package.json"));
+const { Client } = requireApi("pg");
+
 const unresolvableOnly = process.argv.includes("--unresolvable-only");
 const stack = await startStack({
   database: unresolvableOnly
@@ -32,7 +36,15 @@ const stack = await startStack({
   apiPort: Number(process.env.LCSP_HITL_TEST_API_PORT ?? 3414),
   checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
 });
-const { q, base, post, stop, seedLegalSource, activateLegalSource, checkpointDatabaseUrl } = stack;
+const {
+  q,
+  base,
+  post,
+  stop,
+  seedLegalSource,
+  activateLegalSource,
+  checkpointDatabaseUrl,
+} = stack;
 let checks = 0;
 const eq = (actual, expected, message) => {
   assert.deepEqual(actual, expected, message);
@@ -99,9 +111,14 @@ try {
     "art-6",
     "art-6::cl-1",
   ];
-  const sourceBytes = Buffer.from(locators.map((locator) => `content ${locator}`).join("\n") + "\n", "utf8");
+  const sourceBytes = Buffer.from(
+    locators.map((locator) => `content ${locator}`).join("\n") + "\n",
+    "utf8",
+  );
   const lines = sourceBytes.toString("utf8").split("\n");
-  const hashes = Object.fromEntries(locators.map((locator, index) => [locator, contentHash(lines[index])]));
+  const hashes = Object.fromEntries(
+    locators.map((locator, index) => [locator, contentHash(lines[index])]),
+  );
   const legalSource = await seedLegalSource({
     name: "assessment-hitl",
     status: "ACTIVE",
@@ -167,19 +184,67 @@ try {
     return id;
   };
   // BROWSER customer Stop/Continue uses native checkpoints of the Root, separate from human waits.
-  const pausedAssessment = await create("BROWSER native Root Stop and Continue");
-  const controlScript = path.join(root, "deepagents/tests/vertical/root_control.py");
-  const controlRun = (mode) => runPython(controlScript, [base, workerKey, pausedAssessment, dir, mode], { env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl, ASSESSMENT_CUSTOMER_TOKEN: owner.token } });
+  const pausedAssessment = await create(
+    "BROWSER native Root Stop and Continue",
+  );
+  const controlScript = path.join(
+    root,
+    "deepagents/tests/vertical/root_control.py",
+  );
+  const controlRun = (mode) =>
+    runPython(controlScript, [base, workerKey, pausedAssessment, dir, mode], {
+      env: {
+        LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl,
+        ASSESSMENT_CUSTOMER_TOKEN: owner.token,
+      },
+    });
   const paused = await controlRun("pause");
-  eq(paused.result.state, AGENT_EXECUTION_STATES.PAUSED, JSON.stringify(paused));
+  eq(
+    paused.result.state,
+    AGENT_EXECUTION_STATES.PAUSED,
+    JSON.stringify(paused),
+  );
   const pausedState = await state(pausedAssessment);
-  eq([pausedState.als, pausedState.aes], [ASSESSMENT_LIFECYCLE_STATES.PAUSED, AGENT_EXECUTION_STATES.PAUSED]);
+  eq(
+    [pausedState.als, pausedState.aes],
+    [ASSESSMENT_LIFECYCLE_STATES.PAUSED, AGENT_EXECUTION_STATES.PAUSED],
+  );
   eq(pausedState.checkpoint, paused.result.checkpointId);
-  const stopReplay = await http("POST", `/assessments/${pausedAssessment}/runtime/stop`, { targetRunId: paused.result.executionId }, owner.token);
+  const stopReplay = await http(
+    "POST",
+    `/assessments/${pausedAssessment}/runtime/stop`,
+    { targetRunId: paused.result.executionId },
+    owner.token,
+  );
   eq(stopReplay.body.data.state, "STOPPED");
-  eq((await http("POST", `/assessments/${pausedAssessment}/runtime/continue`, { targetRunId: randomUUID() }, owner.token)).status, 409);
-  eq((await http("POST", `/assessments/${pausedAssessment}/runtime/continue`, { targetRunId: paused.result.executionId }, other.token)).status, 404);
-  const continued = await http("POST", `/assessments/${pausedAssessment}/runtime/continue`, { targetRunId: paused.result.executionId }, owner.token);
+  eq(
+    (
+      await http(
+        "POST",
+        `/assessments/${pausedAssessment}/runtime/continue`,
+        { targetRunId: randomUUID() },
+        owner.token,
+      )
+    ).status,
+    409,
+  );
+  eq(
+    (
+      await http(
+        "POST",
+        `/assessments/${pausedAssessment}/runtime/continue`,
+        { targetRunId: paused.result.executionId },
+        other.token,
+      )
+    ).status,
+    404,
+  );
+  const continued = await http(
+    "POST",
+    `/assessments/${pausedAssessment}/runtime/continue`,
+    { targetRunId: paused.result.executionId },
+    owner.token,
+  );
   eq(continued.status, 201, JSON.stringify(continued.body));
   eq(continued.body.data.state, "RESUME_REQUESTED");
   eq((await state(pausedAssessment)).als, ASSESSMENT_LIFECYCLE_STATES.PAUSED); // request != acknowledgement
@@ -200,11 +265,39 @@ try {
     "replacement worker resumed the same checkpoint",
   );
   eq((await state(pausedAssessment)).als, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
-  const customerDetail = await http("GET", `/assessments/${pausedAssessment}`, undefined, owner.token);
+  const customerDetail = await http(
+    "GET",
+    `/assessments/${pausedAssessment}`,
+    undefined,
+    owner.token,
+  );
   eq(customerDetail.body.data.runtime.threadId, paused.result.threadId);
-  eq(customerDetail.body.data.lifecycle.state, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
-  eq((await http("GET", `/assessments/${pausedAssessment}/interview`, undefined, owner.token)).status, 404);
-  eq((await http("GET", `/assessments/${pausedAssessment}/readiness`, undefined, owner.token)).status, 404);
+  eq(
+    customerDetail.body.data.lifecycle.state,
+    ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+  );
+  eq(
+    (
+      await http(
+        "GET",
+        `/assessments/${pausedAssessment}/interview`,
+        undefined,
+        owner.token,
+      )
+    ).status,
+    404,
+  );
+  eq(
+    (
+      await http(
+        "GET",
+        `/assessments/${pausedAssessment}/readiness`,
+        undefined,
+        owner.token,
+      )
+    ).status,
+    404,
+  );
 
   if (unresolvableOnly) {
     writeFileSync(
@@ -453,7 +546,9 @@ try {
       2,
     );
 
-    const I = await create("ASSESSMENT rejected unavailable claim retains native wait");
+    const I = await create(
+      "ASSESSMENT rejected unavailable claim retains native wait",
+    );
     eq(
       (await run(I, "unresolvable-rejected")).result.state,
       AGENT_EXECUTION_STATES.INTERRUPTED,
@@ -712,10 +807,236 @@ try {
     );
   }
   if (process.env.LCSP_TEST_CHECKPOINT_DATABASE) {
-    eq((await q(`SELECT to_regclass('public.checkpoints')::text AS name`)).rows[0].name, null,
-      "Stop/Continue and human-interrupt crash recovery used the separate native checkpoint database");
-    console.log(JSON.stringify({ gate: "SEPARATE_CHECKPOINT_DATABASE", apiCheckpointTable: null,
-      nativeDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE, result: "PASS", model: "SCRIPTED" }));
+    eq(
+      (await q(`SELECT to_regclass('public.checkpoints')::text AS name`))
+        .rows[0].name,
+      null,
+      "Stop/Continue and human-interrupt crash recovery used the separate native checkpoint database",
+    );
+
+    // Real separate-database missing-pointer recovery regression:
+    const sep = await create(
+      "SEPARATE CHECKPOINT DATABASE missing pointer recovery",
+    );
+    const sepCase = (
+      await q(
+        `SELECT "ruleSetVersionId", "repositorySnapshotId", "repositoryCommit" FROM "AssessmentCase" WHERE "assessmentId"=$1`,
+        [sep],
+      )
+    ).rows[0];
+    const sepState = await state(sep);
+    const checkpointDbClient = new Client({
+      connectionString: checkpointDatabaseUrl,
+    });
+    await checkpointDbClient.connect();
+
+    try {
+      const failedExecutionId = randomUUID();
+      const failedRunId = randomUUID();
+      const checkpointId = randomUUID();
+      const now = new Date();
+      const checkpointTs = now.toISOString();
+      const turnCreatedAt = new Date(now.getTime() - 10000)
+        .toISOString()
+        .replace("T", " ")
+        .replace("Z", "");
+      const turnUpdatedAt = new Date(now.getTime() + 10000)
+        .toISOString()
+        .replace("T", " ")
+        .replace("Z", "");
+
+      await q(
+        `UPDATE "AssessmentRuntime" SET "executionState"='FAILED', "checkpointId"=NULL, "currentExecutionId"=$1, "leaseToken"=NULL, "leaseExpiresAt"=NULL WHERE "assessmentId"=$2`,
+        [failedExecutionId, sep],
+      );
+      await q(
+        `INSERT INTO "AssessmentRuntimeTurn"(id, "assessmentId", "threadId", boundary, "logicalRunId", "correlationId", "contextJson", "checkpointJson", state, "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, 'ASSESSMENT_ROOT', $4, $5, $6::jsonb, NULL, 'COMPLETED', $7, $8)`,
+        [
+          failedExecutionId,
+          sep,
+          sepState.thread,
+          failedRunId,
+          randomUUID(),
+          JSON.stringify({ runtimeRunId: failedRunId }),
+          turnCreatedAt,
+          turnUpdatedAt,
+        ],
+      );
+
+      const validMetadata = {
+        assessment_id: sep,
+        lcsp_runtime_run_id: failedRunId,
+        lcsp_boundary_name: "assessment_root_requested",
+        lc_agent_name: "lcsp-assessment-root",
+        rule_set_version_id: sepCase.ruleSetVersionId,
+        repository_snapshot_id: sepCase.repositorySnapshotId,
+        repository_commit: sepCase.repositoryCommit,
+      };
+
+      await checkpointDbClient.query(
+        `INSERT INTO "checkpoints"("thread_id", "checkpoint_ns", "checkpoint_id", "checkpoint", "metadata")
+         VALUES ($1, '', $2, $3::jsonb, $4::jsonb)`,
+        [
+          sepState.thread,
+          checkpointId,
+          JSON.stringify({ id: checkpointId, ts: checkpointTs }),
+          JSON.stringify(validMetadata),
+        ],
+      );
+
+      // 1. Valid recovery with matching pins:
+      const claimSuccess = await http(
+        "POST",
+        `/internal/assessment-runtime/${sep}/claim`,
+        undefined,
+        undefined,
+        true,
+      );
+      eq(claimSuccess.status, 200);
+      eq(
+        claimSuccess.body.data.resumeCheckpointId,
+        checkpointId,
+        "API successfully recovered null checkpoint pointer from separate database",
+      );
+      eq(claimSuccess.body.data.recoveredExecution, false);
+
+      // 2. Mismatched commit pin rejects recovery (fail closed):
+      await q(
+        `UPDATE "AssessmentRuntime" SET "executionState"='FAILED', "checkpointId"=NULL, "currentExecutionId"=$1, "leaseToken"=NULL, "leaseExpiresAt"=NULL WHERE "assessmentId"=$2`,
+        [failedExecutionId, sep],
+      );
+      await checkpointDbClient.query(
+        `UPDATE "checkpoints" SET metadata = metadata || '{"repository_commit": "0000000000000000000000000000000000000000"}'::jsonb WHERE "checkpoint_id"=$1`,
+        [checkpointId],
+      );
+      const claimMismatchedCommit = await http(
+        "POST",
+        `/internal/assessment-runtime/${sep}/claim`,
+        undefined,
+        undefined,
+        true,
+      );
+      eq(claimMismatchedCommit.status, 200);
+      eq(
+        claimMismatchedCommit.body.data.resumeCheckpointId,
+        null,
+        "API rejected separate checkpoint with mismatched commit pin",
+      );
+
+      // 3. Missing rule set pin in checkpoint rejects recovery:
+      await q(
+        `UPDATE "AssessmentRuntime" SET "executionState"='FAILED', "checkpointId"=NULL, "currentExecutionId"=$1, "leaseToken"=NULL, "leaseExpiresAt"=NULL WHERE "assessmentId"=$2`,
+        [failedExecutionId, sep],
+      );
+      await checkpointDbClient.query(
+        `UPDATE "checkpoints" SET metadata = (metadata - 'rule_set_version_id') || $1::jsonb WHERE "checkpoint_id"=$2`,
+        [
+          JSON.stringify({ repository_commit: sepCase.repositoryCommit }),
+          checkpointId,
+        ],
+      );
+      const claimMissingPin = await http(
+        "POST",
+        `/internal/assessment-runtime/${sep}/claim`,
+        undefined,
+        undefined,
+        true,
+      );
+      eq(claimMissingPin.status, 200);
+      eq(
+        claimMissingPin.body.data.resumeCheckpointId,
+        null,
+        "API rejected separate checkpoint with missing rule set pin",
+      );
+
+      // 4. Cross-assessment mismatch rejects recovery:
+      await q(
+        `UPDATE "AssessmentRuntime" SET "executionState"='FAILED', "checkpointId"=NULL, "currentExecutionId"=$1, "leaseToken"=NULL, "leaseExpiresAt"=NULL WHERE "assessmentId"=$2`,
+        [failedExecutionId, sep],
+      );
+      await checkpointDbClient.query(
+        `UPDATE "checkpoints" SET metadata = metadata || $1::jsonb WHERE "checkpoint_id"=$2`,
+        [
+          JSON.stringify({
+            assessment_id: randomUUID(),
+            rule_set_version_id: sepCase.ruleSetVersionId,
+          }),
+          checkpointId,
+        ],
+      );
+      const claimWrongAssessment = await http(
+        "POST",
+        `/internal/assessment-runtime/${sep}/claim`,
+        undefined,
+        undefined,
+        true,
+      );
+      eq(claimWrongAssessment.status, 200);
+      eq(
+        claimWrongAssessment.body.data.resumeCheckpointId,
+        null,
+        "API rejected separate checkpoint with wrong assessment_id",
+      );
+
+      // 5. Wrong thread rejects recovery:
+      await q(
+        `UPDATE "AssessmentRuntime" SET "executionState"='FAILED', "checkpointId"=NULL, "currentExecutionId"=$1, "leaseToken"=NULL, "leaseExpiresAt"=NULL WHERE "assessmentId"=$2`,
+        [failedExecutionId, sep],
+      );
+      await checkpointDbClient.query(
+        `UPDATE "checkpoints" SET "thread_id" = $1, metadata = $2::jsonb WHERE "checkpoint_id"=$3`,
+        [randomUUID(), JSON.stringify(validMetadata), checkpointId],
+      );
+      const claimWrongThread = await http(
+        "POST",
+        `/internal/assessment-runtime/${sep}/claim`,
+        undefined,
+        undefined,
+        true,
+      );
+      eq(claimWrongThread.status, 200);
+      eq(
+        claimWrongThread.body.data.resumeCheckpointId,
+        null,
+        "API rejected separate checkpoint with wrong thread",
+      );
+
+      // 6. Missing checkpoint row returns null:
+      await checkpointDbClient.query(
+        `DELETE FROM "checkpoints" WHERE "checkpoint_id"=$1`,
+        [checkpointId],
+      );
+      await q(
+        `UPDATE "AssessmentRuntime" SET "executionState"='FAILED', "checkpointId"=NULL, "currentExecutionId"=$1, "leaseToken"=NULL, "leaseExpiresAt"=NULL WHERE "assessmentId"=$2`,
+        [failedExecutionId, sep],
+      );
+      const claimDeleted = await http(
+        "POST",
+        `/internal/assessment-runtime/${sep}/claim`,
+        undefined,
+        undefined,
+        true,
+      );
+      eq(claimDeleted.status, 200);
+      eq(
+        claimDeleted.body.data.resumeCheckpointId,
+        null,
+        "API returned null when separate checkpoint is deleted",
+      );
+    } finally {
+      await checkpointDbClient.end();
+    }
+
+    console.log(
+      JSON.stringify({
+        gate: "SEPARATE_CHECKPOINT_DATABASE",
+        apiCheckpointTable: null,
+        nativeDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
+        result: "PASS",
+        model: "SCRIPTED",
+      }),
+    );
   }
 } finally {
   await stop();

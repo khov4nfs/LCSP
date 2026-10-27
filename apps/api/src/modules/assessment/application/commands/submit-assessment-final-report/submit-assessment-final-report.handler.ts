@@ -41,8 +41,10 @@ const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
   type: AUDIT_ACTOR_TYPES.service,
 } as const;
-const unresolvedReportText =
-  /\b(?:UNKNOWN|PARTIAL|NEEDS_CONTEXT|BLOCKED_UNKNOWN_FACT|TBD)\b|information\s+(?:is\s+)?still\s+required|open\s+questions?|unresolved\s+(?:question|decision|fact|input)|to\s+be\s+determined/i;
+const unresolvedSentinelTokens =
+  /\b(?:UNKNOWN|PARTIAL|NEEDS_CONTEXT|BLOCKED_UNKNOWN_FACT|TBD)\b/;
+const unresolvedPhrases =
+  /information\s+(?:is\s+)?still\s+required|open\s+questions?|unresolved\s+(?:question|decision|fact|input)|to\s+be\s+determined/i;
 
 function deterministicUuid(value: string): string {
   const bytes = Buffer.from(
@@ -233,6 +235,31 @@ function citedRecords(
   };
 }
 
+/**
+ * Business purpose: Enforce final-report completeness by rejecting unresolved placeholder
+ *   sentinel tokens or uncertainty expressions across authored summaries, findings,
+ *   decision rationales, criteria rationales, and recommendations.
+ *
+ * Business rules:
+ * - Placeholder sentinels (e.g. UNKNOWN, PARTIAL, NEEDS_CONTEXT, BLOCKED_UNKNOWN_FACT, TBD)
+ *   are evaluated case-sensitively so that valid natural-language prose (such as "partial elements")
+ *   is not erroneously flagged as an incomplete decision verdict.
+ * - Conversational indicators of incomplete resolution (such as "information still required",
+ *   "open questions", "unresolved fact", "to be determined") are evaluated case-insensitively.
+ *
+ * Execution flow:
+ * 1. Collect all narrative text from the report summary, finding summaries, decision rationales,
+ *    criterion rationales, and recommendations.
+ * 2. Scan every text string against both unresolved status sentinels and uncertainty phrases.
+ * 3. Throw a FINAL_REPORT_INVALID problem exception upon detecting any unresolved language.
+ *
+ * Failure cases:
+ * - Any occurrence of an unresolved status sentinel token or uncertainty phrase triggers an
+ *   UNPROCESSABLE_ENTITY (422) error with code FINAL_REPORT_INVALID.
+ *
+ * Side effects:
+ * - Pure validation function; no persistence or state mutations.
+ */
 function rejectUnresolvedLanguage(
   report: AssessmentFinalReportArtifact,
   correlationId: string,
@@ -246,7 +273,12 @@ function rejectUnresolvedLanguage(
       ...finding.recommendations,
     ]),
   ];
-  if (text.some((value) => unresolvedReportText.test(value))) {
+  if (
+    text.some(
+      (value) =>
+        unresolvedSentinelTokens.test(value) || unresolvedPhrases.test(value),
+    )
+  ) {
     throw problemException(
       ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
       correlationId,

@@ -732,9 +732,29 @@ let separateCheckpointClientFactory: (
  * - Modifies the client factory reference used by querySeparateCheckpointDatabase.
  */
 export function setSeparateCheckpointClientFactoryForTesting(
-  factory: (databaseUrl: string) => SeparateCheckpointClient,
+  factory?: (databaseUrl: string) => SeparateCheckpointClient,
 ): void {
-  separateCheckpointClientFactory = factory;
+  separateCheckpointClientFactory =
+    factory ?? defaultSeparateCheckpointClientFactory;
+}
+
+/**
+ * Business purpose: Reset the PostgreSQL client factory for separate checkpoint testing back to the default implementation.
+ *
+ * Business rules:
+ * - Restores defaultSeparateCheckpointClientFactory so test pollution cannot affect subsequent queries.
+ *
+ * Execution flow:
+ * 1. Assign defaultSeparateCheckpointClientFactory to separateCheckpointClientFactory.
+ *
+ * Failure cases:
+ * - None; assignment is synchronous and infallible.
+ *
+ * Side effects:
+ * - Restores module-level client factory state.
+ */
+export function resetSeparateCheckpointClientFactoryForTesting(): void {
+  separateCheckpointClientFactory = defaultSeparateCheckpointClientFactory;
 }
 
 /**
@@ -809,20 +829,23 @@ async function querySeparateCheckpointDatabase(
  *
  * Business rules:
  * - The newest checkpoint for the exact Root thread and native Root namespace must carry the same persisted
- *   assessment, transport run, Root boundary, and agent identity as the failed server-owned turn.
- * - When case pins are present, the checkpoint metadata must agree with the rule set, repository snapshot, and commit pins.
+ *   assessment, transport run, Root boundary, agent identity, and exact immutable case pins (rule set, repository snapshot, commit).
+ * - Authoritative case pins (rule set, repository snapshot, commit) are required; missing case pins fail closed.
+ * - Checkpoint metadata must explicitly contain string values for rule_set_version_id, repository_snapshot_id, and repository_commit matching case pins.
+ * - Missing checkpoint pins, malformed pins, or mismatching pins immediately fail closed and return null.
  * - The checkpoint row ID must match its serialized checkpoint ID, and its timestamp must fall within that turn.
  * - If the checkpoint table is absent from the API database, the authority checks the configured native checkpoint database URL.
  * - An unavailable table, missing row, malformed checkpoint, or mismatched provenance grants no resume authority.
  *
  * Execution flow:
- * 1. Check for the co-located native checkpoint table in the current database transaction.
- * 2. If absent and a separate native checkpoint database URL is configured, query that external database securely.
- * 3. Read only the newest checkpoint for this thread and the native Root namespace.
- * 4. Validate checkpoint identity, metadata, case pins, and timestamp against the failed turn before returning its ID.
+ * 1. Validate that the input case pins exist and contain non-empty string values for rule set, repository snapshot, and commit.
+ * 2. Check for the co-located native checkpoint table in the current database transaction.
+ * 3. If absent and a separate native checkpoint database URL is configured, query that external database securely.
+ * 4. Read only the newest checkpoint for this thread and the native Root namespace.
+ * 5. Validate checkpoint identity, metadata types, case pins, and timestamp against the failed turn before returning its ID.
  *
  * Failure cases:
- * - Missing table or row and any invalid identity or pin metadata return `null`; query errors abort or return `null`.
+ * - Missing table or row, missing/malformed/mismatched case pins or identity metadata return null; query errors abort or return null.
  *
  * Side effects:
  * - Performs read-only queries against the co-located or separate native checkpoint store.
@@ -839,9 +862,21 @@ async function findFailedNativeCheckpoint(
       ruleSetVersionId?: string | null;
       repositorySnapshotId?: string | null;
       repositoryCommit?: string | null;
-    };
+    } | null;
   },
 ): Promise<FailedNativeCheckpoint | null> {
+  if (
+    !input.casePins ||
+    typeof input.casePins.ruleSetVersionId !== "string" ||
+    input.casePins.ruleSetVersionId.length === 0 ||
+    typeof input.casePins.repositorySnapshotId !== "string" ||
+    input.casePins.repositorySnapshotId.length === 0 ||
+    typeof input.casePins.repositoryCommit !== "string" ||
+    input.casePins.repositoryCommit.length === 0
+  ) {
+    return null;
+  }
+
   const [table] = await tx.$queryRaw<Array<{ tableName: string | null }>>(
     Prisma.sql`SELECT to_regclass('public.checkpoints')::text AS "tableName"`,
   );
@@ -905,16 +940,14 @@ async function findFailedNativeCheckpoint(
     metadata.lcsp_runtime_run_id !== input.runtimeRunId ||
     metadata.lcsp_boundary_name !== NATIVE_ROOT_BOUNDARY_NAME ||
     metadata.lc_agent_name !== NATIVE_ROOT_AGENT_NAME ||
-    (input.casePins?.ruleSetVersionId &&
-      typeof metadata.rule_set_version_id === "string" &&
-      metadata.rule_set_version_id !== input.casePins.ruleSetVersionId) ||
-    (input.casePins?.repositorySnapshotId &&
-      typeof metadata.repository_snapshot_id === "string" &&
-      metadata.repository_snapshot_id !==
-        input.casePins.repositorySnapshotId) ||
-    (input.casePins?.repositoryCommit &&
-      typeof metadata.repository_commit === "string" &&
-      metadata.repository_commit !== input.casePins.repositoryCommit)
+    (typeof metadata.thread_id === "string" &&
+      metadata.thread_id !== input.threadId) ||
+    typeof metadata.rule_set_version_id !== "string" ||
+    metadata.rule_set_version_id !== input.casePins.ruleSetVersionId ||
+    typeof metadata.repository_snapshot_id !== "string" ||
+    metadata.repository_snapshot_id !== input.casePins.repositorySnapshotId ||
+    typeof metadata.repository_commit !== "string" ||
+    metadata.repository_commit !== input.casePins.repositoryCommit
   ) {
     return null;
   }
