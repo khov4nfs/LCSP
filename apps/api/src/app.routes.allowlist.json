@@ -51,6 +51,7 @@
   "GET /health",
   "GET /internal/assessment-runtime/:assessmentId/context",
   "GET /internal/assessment-runtime/:assessmentId/control",
+  "GET /internal/assessment-runtime/:assessmentId/decisions/:assessmentRuleId",
   "GET /internal/assessment-runtime/:assessmentId/legal-source/search",
   "GET /internal/assessment-runtime/:assessmentId/legal-source/text",
   "GET /internal/assessment-runtime/:assessmentId/rule-set",
