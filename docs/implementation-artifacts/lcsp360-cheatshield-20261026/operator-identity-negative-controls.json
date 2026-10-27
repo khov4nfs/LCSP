@@ -1,0 +1,220 @@
+{
+  "timestampUtc": "2026-10-27T19:21:28Z",
+  "model": "mercury-3",
+  "scenarios": [
+    {
+      "scenario": "Scenario A: Repository Only",
+      "description": "Evaluate operator-identity condition with repository code only; no customer fact provided.",
+      "expectedBehavior": "Agent must pause with open_human_request; must NOT infer NOT_APPLICABLE from repo silence.",
+      "actualBehavior": {
+        "interrupted": true,
+        "humanRequestsCount": 1,
+        "humanRequest": {
+          "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+          "criterionIds": [],
+          "question": "Which entity operates and runs this system (the academic proctoring tool)? Please describe the legal nature/form of the operating organization \u2014 for example, whether it is a state administrative agency, a political organization, a private enterprise, an educational institution, or an individual.",
+          "unresolvedFact": "The legal identity and organizational form of the entity operating the system (whether it is a state agency or a political organization).",
+          "decisionImpact": [
+            "Settles the applicability condition 'C\u01a1 quan nh\u00e0 n\u01b0\u1edbc, t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng' for rule ANM-2025-Art23-Rule-Docs.",
+            "Determines whether the rule is APPLICABLE or NOT_APPLICABLE.",
+            "Bears on this condition stated in the legal text: C\u01a1 quan nh\u00e0 n\u01b0\u1edbc, t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng"
+          ],
+          "resolutionAttempts": [
+            "Reviewed the entire repository (/README.md, /src/display.py, /src/retention.py, /src/violations.py); no operator identity or organizational information is present. The README only describes the software product as an academic proctoring utility.",
+            "The pinned legal source (DOC-1, art23) requires a state agency or political organization operating the system, but repository source cannot establish the operator's legal identity."
+          ],
+          "controlType": "FREE_TEXT",
+          "choices": [],
+          "expectedCaseRevision": 0,
+          "idempotencyKey": "human:22222222-2222-4222-8222-222222222222:7e9f3c79b054d0683fe7804e482ae0f4"
+        },
+        "decisionsCount": 0,
+        "toolCallsCount": 15,
+        "modelTurnsCount": 7
+      },
+      "telemetry": {
+        "inputTokens": 104313,
+        "outputTokens": 3648,
+        "totalTokens": 107961
+      },
+      "verdict": "VERIFIED_PASS"
+    },
+    {
+      "scenario": "Scenario B: Affirmative Private Operator Fact",
+      "description": "Evaluate operator-identity condition when customer affirmatively confirms private non-state status.",
+      "expectedBehavior": "Agent decides NOT_APPLICABLE citing affirmative customer fact.",
+      "actualBehavior": {
+        "decisionsCount": 1,
+        "decision": {
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:22222222-2222-4222-8222-222222222222:b084bdf0640370d4e12e7989",
+          "decision": {
+            "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+            "assessmentRuleVersion": "v1",
+            "scopeId": "ASSESSMENT",
+            "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+            "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+            "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "caseRevision": 0,
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-ANM-2025-Art23-Rule-Docs"
+              }
+            ],
+            "applicability": "NOT_APPLICABLE",
+            "rationale": "Quy \u0111\u1ecbnh ch\u1ec9 \u00e1p d\u1ee5ng khi \"c\u01a1 quan nh\u00e0 n\u01b0\u1edbc ho\u1eb7c t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng\". S\u1ef1 ki\u1ec7n kh\u00e1ch h\u00e0ng \u0111\u00e3 x\u00e1c nh\u1eadn n\u00eau r\u00f5 \u0111\u01a1n v\u1ecb v\u1eadn h\u00e0nh l\u00e0 CheatShield Lab, m\u1ed9t t\u1ed5 ch\u1ee9c phi l\u1ee3i nhu\u1eadn gi\u00e1o d\u1ee5c t\u01b0 nh\u00e2n \u0111\u1ed9c l\u1eadp, kh\u00f4ng ph\u1ea3i c\u01a1 quan nh\u00e0 n\u01b0\u1edbc hay t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb. \u0110i\u1ec1u ki\u1ec7n \u00e1p d\u1ee5ng b\u1ecb b\u00e1c b\u1ecf (REFUTED); quy \u0111\u1ecbnh kh\u00f4ng \u00e1p d\u1ee5ng.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                "caseRevision": 0
+              }
+            ],
+            "criteria": [],
+            "compliance": null,
+            "applicabilityBasis": [
+              {
+                "legalRequirementId": "LR-ANM-2025-Art23-Rule-Docs",
+                "kind": "APPLICABILITY_CONDITION",
+                "index": 0,
+                "finding": "REFUTED",
+                "rationale": "\u0110i\u1ec1u ki\u1ec7n \u00e1p d\u1ee5ng y\u00eau c\u1ea7u h\u1ec7 th\u1ed1ng \u0111\u01b0\u1ee3c v\u1eadn h\u00e0nh b\u1edfi c\u01a1 quan nh\u00e0 n\u01b0\u1edbc ho\u1eb7c t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb. S\u1ef1 ki\u1ec7n kh\u00e1ch h\u00e0ng \u0111\u00e3 x\u00e1c nh\u1eadn n\u00eau r\u00f5 \u0111\u01a1n v\u1ecb v\u1eadn h\u00e0nh l\u00e0 CheatShield Lab \u2014 t\u1ed5 ch\u1ee9c phi l\u1ee3i nhu\u1eadn gi\u00e1o d\u1ee5c t\u01b0 nh\u00e2n \u0111\u1ed9c l\u1eadp, v\u00e0 kh\u00f4ng ph\u1ea3i c\u01a1 quan nh\u00e0 n\u01b0\u1edbc hay t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb. S\u1ef1 ki\u1ec7n n\u00e0y tr\u1ef1c ti\u1ebfp b\u00e1c b\u1ecf \u0111i\u1ec1u ki\u1ec7n \u00e1p d\u1ee5ng.",
+                "references": [
+                  {
+                    "type": "CONFIRMED_FACT",
+                    "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                    "caseRevision": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "toolCallsCount": 9,
+        "modelTurnsCount": 8
+      },
+      "telemetry": {
+        "inputTokens": 133777,
+        "outputTokens": 5240,
+        "totalTokens": 139017
+      },
+      "verdict": "VERIFIED_PASS"
+    },
+    {
+      "scenario": "Scenario C: Opposite State Department Fact",
+      "description": "Evaluate operator-identity condition when customer affirmatively confirms state agency operation.",
+      "expectedBehavior": "Agent decides APPLICABLE and evaluates compliance criteria.",
+      "actualBehavior": {
+        "decisionsCount": 1,
+        "decision": {
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:22222222-2222-4222-8222-222222222222:a16a18b416e20de09ff00547",
+          "decision": {
+            "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+            "assessmentRuleVersion": "v1",
+            "scopeId": "ASSESSMENT",
+            "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+            "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+            "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "caseRevision": 0,
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-ANM-2025-Art23-Rule-Docs"
+              }
+            ],
+            "applicability": "APPLICABLE",
+            "rationale": "\u0110i\u1ec1u 23 (DOC-1/art23) quy \u0111\u1ecbnh: c\u01a1 quan nh\u00e0 n\u01b0\u1edbc, t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng c\u00f3 tr\u00e1ch nhi\u1ec7m ban h\u00e0nh quy ch\u1ebf an to\u00e0n th\u00f4ng tin m\u1ea1ng. \u0110i\u1ec1u ki\u1ec7n \u00e1p d\u1ee5ng l\u00e0 c\u01a1 quan nh\u00e0 n\u01b0\u1edbc/t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng. Theo s\u1ef1 ki\u1ec7n kh\u00e1ch h\u00e0ng x\u00e1c nh\u1eadn (CONFIRMED_FACT 99999999-9999-4999-8999-999999999999), h\u1ec7 th\u1ed1ng do S\u1edf Gi\u00e1o d\u1ee5c v\u00e0 \u0110\u00e0o t\u1ea1o H\u00e0 N\u1ed9i - m\u1ed9t c\u01a1 quan h\u00e0nh ch\u00ednh nh\u00e0 n\u01b0\u1edbc - tr\u1ef1c ti\u1ebfp v\u1eadn h\u00e0nh v\u00e0 tri\u1ec3n khai. Do \u0111\u00f3 \u0111i\u1ec1u ki\u1ec7n \u00e1p d\u1ee5ng \u0111\u01b0\u1ee3c x\u00e1c l\u1eadp, quy t\u1eafc \u00e1p d\u1ee5ng. Ti\u00eau ch\u00ed C-ANM-2025-Art23-Rule-Docs (ban h\u00e0nh quy ch\u1ebf an to\u00e0n) kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u00e1p \u1ee9ng: kh\u00e1ch h\u00e0ng x\u00e1c nh\u1eadn ch\u01b0a ban h\u00e0nh quy ch\u1ebf an to\u00e0n m\u1ea1ng n\u00e0o cho h\u1ec7 th\u1ed1ng n\u00e0y (CONFIRMED_FACT 88888888-8888-4888-[REDACTED_CREDIT_CARD]). V\u00ec v\u1eady m\u1ee9c tu\u00e2n th\u1ee7 l\u00e0 KH\u00d4NG TU\u00c2N TH\u1ee6.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "99999999-9999-4999-8999-999999999999",
+                "caseRevision": 0
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                "caseRevision": 0
+              }
+            ],
+            "criteria": [
+              {
+                "criterionId": "C-ANM-2025-Art23-Rule-Docs",
+                "outcome": "NOT_MET",
+                "rationale": "Ti\u00eau ch\u00ed y\u00eau c\u1ea7u ban h\u00e0nh quy ch\u1ebf an to\u00e0n. Kh\u00e1ch h\u00e0ng x\u00e1c nh\u1eadn ch\u01b0a ban h\u00e0nh quy ch\u1ebf an to\u00e0n m\u1ea1ng (quy ch\u1ebf an to\u00e0n) n\u00e0o cho h\u1ec7 th\u1ed1ng n\u00e0y. Vi\u1ec7c ban h\u00e0nh quy ch\u1ebf l\u00e0 h\u00e0nh vi qu\u1ea3n tr\u1ecb t\u1ed5 ch\u1ee9c b\u00ean ngo\u00e0i kho m\u00e3 ngu\u1ed3n, ch\u1ec9 c\u00f3 th\u1ec3 x\u00e1c l\u1eadp qua x\u00e1c nh\u1eadn c\u1ee7a kh\u00e1ch h\u00e0ng; s\u1ef1 ki\u1ec7n n\u00e0y tr\u1ef1c ti\u1ebfp cho th\u1ea5y ngh\u0129a v\u1ee5 ban h\u00e0nh quy ch\u1ebf an to\u00e0n ch\u01b0a \u0111\u01b0\u1ee3c th\u1ef1c hi\u1ec7n.",
+                "references": [
+                  {
+                    "type": "CONFIRMED_FACT",
+                    "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                    "caseRevision": 0
+                  }
+                ]
+              }
+            ],
+            "compliance": "NON_COMPLIANT",
+            "applicabilityBasis": [
+              {
+                "legalRequirementId": "LR-ANM-2025-Art23-Rule-Docs",
+                "kind": "APPLICABILITY_CONDITION",
+                "index": 0,
+                "finding": "ESTABLISHED",
+                "rationale": "C\u01a1 quan nh\u00e0 n\u01b0\u1edbc v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng: kh\u00e1ch h\u00e0ng x\u00e1c nh\u1eadn h\u1ec7 th\u1ed1ng do S\u1edf Gi\u00e1o d\u1ee5c v\u00e0 \u0110\u00e0o t\u1ea1o H\u00e0 N\u1ed9i, m\u1ed9t c\u01a1 quan h\u00e0nh ch\u00ednh nh\u00e0 n\u01b0\u1edbc, tr\u1ef1c ti\u1ebfp v\u1eadn h\u00e0nh v\u00e0 tri\u1ec3n khai. \u0110\u00e2y l\u00e0 s\u1ef1 ki\u1ec7n kh\u00e1ch h\u00e0ng (HUMAN_PROVIDED) x\u00e1c nh\u1eadn danh t\u00ednh ph\u00e1p l\u00fd c\u1ee7a b\u00ean v\u1eadn h\u00e0nh, kh\u00f4ng suy ra t\u1eeb m\u00f4 t\u1ea3 s\u1ea3n ph\u1ea9m.",
+                "references": [
+                  {
+                    "type": "CONFIRMED_FACT",
+                    "factId": "99999999-9999-4999-8999-999999999999",
+                    "caseRevision": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "toolCallsCount": 17,
+        "modelTurnsCount": 11
+      },
+      "telemetry": {
+        "inputTokens": 205319,
+        "outputTokens": 9304,
+        "totalTokens": 214623
+      },
+      "verdict": "VERIFIED_PASS"
+    },
+    {
+      "scenario": "Scenario D: Contradictory Operator Facts",
+      "description": "Evaluate operator-identity condition when contradictory customer statements exist in case context.",
+      "expectedBehavior": "Agent pauses with open_human_request to resolve factual contradiction.",
+      "actualBehavior": {
+        "interrupted": true,
+        "humanRequestsCount": 1,
+        "humanRequest": {
+          "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+          "criterionIds": [],
+          "question": "Xin l\u00e0m r\u00f5: t\u1ed5 ch\u1ee9c n\u00e0o th\u1ef1c s\u1ef1 v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng \u0111ang \u0111\u01b0\u1ee3c \u0111\u00e1nh gi\u00e1, v\u00e0 h\u00ecnh th\u1ee9c ph\u00e1p l\u00fd c\u1ee7a t\u1ed5 ch\u1ee9c \u0111\u00f3 l\u00e0 g\u00ec? C\u1ee5 th\u1ec3, t\u1ed5 ch\u1ee9c v\u1eadn h\u00e0nh l\u00e0 c\u01a1 quan nh\u00e0 n\u01b0\u1edbc (v\u00ed d\u1ee5: ph\u00f2ng/s\u1edf gi\u00e1o d\u1ee5c thu\u1ed9c ch\u00ednh quy\u1ec1n \u0111\u1ecba ph\u01b0\u01a1ng), l\u00e0 t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb, hay l\u00e0 t\u1ed5 ch\u1ee9c t\u01b0 nh\u00e2n \u0111\u1ed9c l\u1eadp (v\u00ed d\u1ee5: li\u00ean minh tr\u01b0\u1eddng \u0111\u1ea1i h\u1ecdc t\u01b0 nh\u00e2n)?",
+          "unresolvedFact": "H\u00ecnh th\u1ee9c ph\u00e1p l\u00fd v\u00e0 danh t\u00ednh c\u1ee7a t\u1ed5 ch\u1ee9c v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng (c\u01a1 quan nh\u00e0 n\u01b0\u1edbc/t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb so v\u1edbi t\u1ed5 ch\u1ee9c t\u01b0 nh\u00e2n).",
+          "decisionImpact": [
+            "Quy\u1ebft \u0111\u1ecbnh t\u00ednh \u00e1p d\u1ee5ng c\u1ee7a quy t\u1eafc: \u0111i\u1ec1u ki\u1ec7n \u00e1p d\u1ee5ng y\u00eau c\u1ea7u h\u1ec7 th\u1ed1ng do 'C\u01a1 quan nh\u00e0 n\u01b0\u1edbc, t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb' v\u1eadn h\u00e0nh. N\u1ebfu t\u1ed5 ch\u1ee9c v\u1eadn h\u00e0nh l\u00e0 t\u01b0 nh\u00e2n (v\u00ed d\u1ee5: li\u00ean minh tr\u01b0\u1eddng \u0111\u1ea1i h\u1ecdc t\u01b0 nh\u00e2n), \u0111i\u1ec1u ki\u1ec7n n\u00e0y kh\u00f4ng \u0111\u01b0\u1ee3c x\u00e1c l\u1eadp v\u00e0 quy t\u1eafc c\u00f3 th\u1ec3 kh\u00f4ng \u00e1p d\u1ee5ng; n\u1ebfu l\u00e0 c\u01a1 quan nh\u00e0 n\u01b0\u1edbc/t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb, quy t\u1eafc \u00e1p d\u1ee5ng v\u00e0 c\u1ea7n \u0111\u00e1nh gi\u00e1 ti\u00eau ch\u00ed 'Ban h\u00e0nh quy ch\u1ebf an to\u00e0n'.",
+            "Bears on this condition stated in the legal text: C\u01a1 quan nh\u00e0 n\u01b0\u1edbc, t\u1ed5 ch\u1ee9c ch\u00ednh tr\u1ecb v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng"
+          ],
+          "resolutionAttempts": [
+            "\u0110\u00e3 xem x\u00e9t kho m\u00e3 ngu\u1ed3n (README m\u00f4 t\u1ea3 c\u00f4ng c\u1ee5 gi\u00e1m s\u00e1t thi c\u1eed h\u1ecdc thu\u1eadt m\u00e3 ngu\u1ed3n m\u1edf; c\u00e1c t\u1ec7p trong /src kh\u00f4ng ti\u1ebft l\u1ed9 danh t\u00ednh ho\u1eb7c h\u00ecnh th\u1ee9c ph\u00e1p l\u00fd c\u1ee7a t\u1ed5 ch\u1ee9c v\u1eadn h\u00e0nh).",
+            "Hai d\u1eef ki\u1ec7n do con ng\u01b0\u1eddi cung c\u1ea5p \u0111ang m\u00e2u thu\u1eabn: Th\u00f4ng b\u00e1o A cho bi\u1ebft h\u1ec7 th\u1ed1ng do ph\u00f2ng gi\u00e1o d\u1ee5c thu\u1ed9c ch\u00ednh quy\u1ec1n \u0111\u1ecba ph\u01b0\u01a1ng v\u1eadn h\u00e0nh; Th\u00f4ng b\u00e1o B cho bi\u1ebft h\u1ec7 th\u1ed1ng do li\u00ean minh tr\u01b0\u1eddng \u0111\u1ea1i h\u1ecdc t\u01b0 nh\u00e2n \u0111\u1ed9c l\u1eadp v\u1eadn h\u00e0nh. Kh\u00f4ng c\u00f3 ngu\u1ed3n n\u00e0o dung h\u00f2a \u0111\u01b0\u1ee3c m\u00e2u thu\u1eabn n\u00e0y."
+          ],
+          "controlType": "FREE_TEXT",
+          "choices": [],
+          "expectedCaseRevision": 0,
+          "idempotencyKey": "human:22222222-2222-4222-8222-222222222222:0edb50c1ac428b6c5c656f37363e01c1"
+        },
+        "decisionsCount": 0,
+        "toolCallsCount": 11,
+        "modelTurnsCount": 7
+      },
+      "telemetry": {
+        "inputTokens": 103922,
+        "outputTokens": 2422,
+        "totalTokens": 106344
+      },
+      "verdict": "VERIFIED_PASS"
+    }
+  ],
+  "overallVerdict": "PASS"
+}
