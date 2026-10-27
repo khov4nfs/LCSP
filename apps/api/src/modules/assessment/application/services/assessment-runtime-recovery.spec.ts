@@ -40,6 +40,7 @@ function fixture(
     threadId: row.threadId,
     boundary: ASSESSMENT_ROOT_BOUNDARY,
     contextJson: { runtimeRunId },
+    checkpointJson: null,
     state: Controls.running,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2027-01-01T00:00:00.000Z"),

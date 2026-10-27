@@ -48,12 +48,22 @@ function record(state: string, decisionRevision = 3) {
 }
 
 function build(row: unknown) {
-  const findFirst = jest.fn(() => Promise.resolve(row));
+  const findFirst = jest
+    .fn<(args: unknown) => Promise<unknown>>()
+    .mockResolvedValue(row);
   const tx = { assessmentRuleDecision: { findFirst } };
-  const authorizeInTx = jest.fn(() => Promise.resolve({}));
-  const loadPins = jest.fn(() =>
-    Promise.resolve({ ruleSetVersionId: RULE_SET }),
-  );
+  const authorizeInTx = jest
+    .fn<(client: unknown, input: unknown) => Promise<unknown>>()
+    .mockResolvedValue({});
+  const loadPins = jest
+    .fn<
+      (
+        client: unknown,
+        assessmentId: string,
+        correlationId: string,
+      ) => Promise<{ ruleSetVersionId: string }>
+    >()
+    .mockResolvedValue({ ruleSetVersionId: RULE_SET });
   const handler = new GetRuleDecisionHandler(
     {
       $transaction: (work: (client: typeof tx) => Promise<unknown>) => work(tx),
