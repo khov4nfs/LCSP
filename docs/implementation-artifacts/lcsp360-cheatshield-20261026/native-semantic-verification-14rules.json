@@ -8,6 +8,24 @@
   "executionState": "SUCCEEDED",
   "rootExecutionId": "9c702c92-cad5-4466-b47b-7dbff15433de",
   "checkpointId": "1f1d22ea-cf31-653f-828b-47f864a92f31",
+  "semanticVerificationStatus": "CHANGES_REQUESTED",
+  "semanticAuditFindings": {
+    "status": "CHANGES_REQUESTED",
+    "defects": [
+      {
+        "code": "MISSING_DIRECT_MODEL_TOOL_RECEIPTS",
+        "description": "Artifact records summary telemetry counters (83 model calls, 626 tool calls) but lacks verbatim prompt/response turns and raw tool call receipts."
+      },
+      {
+        "code": "PREDETERMINED_NEGATIVE_CONTROL_STATUSES",
+        "description": "Negative-control evaluation structures were pre-configured in the test harness rather than dynamically synthesized and independently audited."
+      },
+      {
+        "code": "OPERATOR_IDENTITY_INFERENCE_PERSISTS_IN_GROUP_A",
+        "description": "Group A model rationales (e.g. ANM-2025-Art23-Rule-Docs, ANM-2025-Art24-Rule-KyThuat) continue to infer non-applicability from software proctoring purpose and repository omission ('kho lưu trữ không chứa bất kỳ dấu hiệu nào về cơ quan nhà nước') rather than purely affirmative customer legal facts."
+      }
+    ]
+  },
   "finalReportArtifact": {
     "artifactId": "54176a70-3e11-54d3-8307-b00c5a769c32",
     "kind": "FINAL_REPORT",
