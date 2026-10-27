@@ -12,7 +12,11 @@ import {
   assessmentRootClaimSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
-import { AssessmentRuntimeAuthority } from "./assessment-runtime-authority.service.js";
+import {
+  AssessmentRuntimeAuthority,
+  type SeparateCheckpointClient,
+  setSeparateCheckpointClientFactoryForTesting,
+} from "./assessment-runtime-authority.service.js";
 import type { AppendAssessmentEventInput } from "./assessment-event-appender.service.js";
 
 function fixture(
@@ -457,6 +461,231 @@ describe("persisted Agent Server run recovery", () => {
     });
 
     expect(claim.resumeCheckpointId).toBeNull();
+  });
+
+  it("recovers a null API checkpoint from a separate native checkpoint database when configured", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    const runtimeRunId = f.runtimeRunId;
+    const ruleSetVersionId = randomUUID();
+    const repositorySnapshotId = randomUUID();
+    const repositoryCommit = "a".repeat(40);
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+    const nativeCheckpoint = {
+      checkpointId,
+      serializedCheckpointId: checkpointId,
+      checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+      metadata: {
+        assessment_id: f.assessmentId,
+        lcsp_runtime_run_id: runtimeRunId,
+        lcsp_boundary_name: "assessment_root_requested",
+        lc_agent_name: "lcsp-assessment-root",
+        rule_set_version_id: ruleSetVersionId,
+        repository_snapshot_id: repositorySnapshotId,
+        repository_commit: repositoryCommit,
+      },
+    };
+    (f.tx as Record<string, unknown>).assessmentCase = {
+      findUnique: jest.fn<
+        () => Promise<{
+          ruleSetVersionId: string;
+          repositorySnapshotId: string;
+          repositoryCommit: string;
+        }>
+      >().mockResolvedValue({
+        ruleSetVersionId,
+        repositorySnapshotId,
+        repositoryCommit,
+      }),
+    };
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: null }]); // table absent in co-located API db
+
+    const prevUrl = process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+    process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL =
+      "postgresql://postgres:postgres@127.0.0.1:55441/separate_checkpoints";
+
+    const mockConnect = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const mockEnd = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const mockQuery = jest.fn<SeparateCheckpointClient["query"]>()
+      .mockResolvedValueOnce({ rows: [{ tableName: "checkpoints" }] } as never)
+      .mockResolvedValueOnce({ rows: [nativeCheckpoint] } as never);
+
+    setSeparateCheckpointClientFactoryForTesting(() => ({
+      connect: mockConnect,
+      query: mockQuery as unknown as SeparateCheckpointClient["query"],
+      end: mockEnd,
+    }));
+
+    try {
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBe(checkpointId);
+      expect(f.row.checkpointId).toBe(checkpointId);
+      expect(mockConnect).toHaveBeenCalled();
+      expect(mockEnd).toHaveBeenCalled();
+    } finally {
+      if (prevUrl === undefined) {
+        delete process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+      } else {
+        process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL = prevUrl;
+      }
+      setSeparateCheckpointClientFactoryForTesting((url: string) => ({
+        connect: async () => {},
+        query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+        end: async () => {},
+      }));
+    }
+  });
+
+  it("does not recover from a separate native checkpoint database when case pins mismatch", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    const runtimeRunId = f.runtimeRunId;
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+    const nativeCheckpoint = {
+      checkpointId,
+      serializedCheckpointId: checkpointId,
+      checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+      metadata: {
+        assessment_id: f.assessmentId,
+        lcsp_runtime_run_id: runtimeRunId,
+        lcsp_boundary_name: "assessment_root_requested",
+        lc_agent_name: "lcsp-assessment-root",
+        rule_set_version_id: randomUUID(),
+        repository_snapshot_id: randomUUID(),
+        repository_commit: "b".repeat(40), // mismatched pin
+      },
+    };
+    (f.tx as Record<string, unknown>).assessmentCase = {
+      findUnique: jest.fn<
+        () => Promise<{
+          ruleSetVersionId: string;
+          repositorySnapshotId: string;
+          repositoryCommit: string;
+        }>
+      >().mockResolvedValue({
+        ruleSetVersionId: randomUUID(),
+        repositorySnapshotId: randomUUID(),
+        repositoryCommit: "a".repeat(40),
+      }),
+    };
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: null }]);
+
+    const prevUrl = process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+    process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL =
+      "postgresql://postgres:postgres@127.0.0.1:55441/separate_checkpoints";
+
+    setSeparateCheckpointClientFactoryForTesting(() => ({
+      connect: async () => {},
+      query: async <R extends Record<string, unknown> = Record<string, unknown>>(
+        text: string,
+      ): Promise<{ rows: R[] }> => {
+        if (text.includes("to_regclass")) {
+          return { rows: [{ tableName: "checkpoints" } as unknown as R] };
+        }
+        return { rows: [nativeCheckpoint as unknown as R] };
+      },
+      end: async () => {},
+    }));
+
+    try {
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBeNull();
+      expect(f.row.checkpointId).toBeNull();
+    } finally {
+      if (prevUrl === undefined) {
+        delete process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+      } else {
+        process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL = prevUrl;
+      }
+      setSeparateCheckpointClientFactoryForTesting((url: string) => ({
+        connect: async () => {},
+        query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+        end: async () => {},
+      }));
+    }
+  });
+
+  it("does not recover when separate native checkpoint database connection fails", async () => {
+    const f = fixture();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: null }]);
+
+    const prevUrl = process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+    process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL =
+      "postgresql://postgres:postgres@127.0.0.1:55441/separate_checkpoints";
+
+    setSeparateCheckpointClientFactoryForTesting(() => ({
+      connect: async () => {
+        throw new Error("Connection refused");
+      },
+      query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+      end: async () => {},
+    }));
+
+    try {
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBeNull();
+      expect(f.row.checkpointId).toBeNull();
+    } finally {
+      if (prevUrl === undefined) {
+        delete process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+      } else {
+        process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL = prevUrl;
+      }
+      setSeparateCheckpointClientFactoryForTesting((url: string) => ({
+        connect: async () => {},
+        query: async <R extends Record<string, unknown> = Record<string, unknown>>() => ({ rows: [] as R[] }),
+        end: async () => {},
+      }));
+    }
   });
 
   it("rejects model or transport input pretending to supply an execution, thread or lease", () => {

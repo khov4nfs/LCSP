@@ -17,7 +17,7 @@ from langchain.agents.middleware import AgentMiddleware, AgentState, TodoListMid
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
-from assessment_root.researcher import RESEARCHER_PROMPT, researcher_subagent
+from assessment_root.researcher import RESEARCHER_NAME, RESEARCHER_PROMPT, researcher_subagent
 from assessment_root.tools import RootRun, build_root_tools
 from rule_set_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
 from orchestration.graph_execution import agent_graph_config
@@ -144,7 +144,7 @@ def create_assessment_root_agent(
     tools = graph_tools if graph_tools is not None else _graph_tools()
     summary_backend = CompositeBackend(default=run.backend, routes={}, artifacts_root="/.lcsp/agent")
     researcher_middleware = [*governance, governed_summarization_middleware(
-        model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
+        model, backend=summary_backend, role=RESEARCHER_NAME, governance=governance,
         system_prompt=RESEARCHER_PROMPT,
     )]
     # The default general-purpose subagent would inherit the governed tools; disable it so the

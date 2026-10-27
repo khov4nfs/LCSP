@@ -135,6 +135,9 @@ export async function startStack({
     PORT: String(apiPort),
     NODE_ENV: "test",
     DATABASE_URL: databaseUrl,
+    ...(checkpointDatabase !== database
+      ? { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl }
+      : {}),
     RABBITMQ_URL: "amqp://guest:guest@127.0.0.1:55999", // unreachable on purpose: outbox rows stay PENDING
     RABBITMQ_EXCHANGE: "lcsp.events.compliance_rule_setvertical",
     OUTBOX_POLL_INTERVAL_MS: "600000",

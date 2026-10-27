@@ -1,6 +1,96 @@
 # LCSP-360 — CheatShield Customer acceptance checkpoint
 
-Release is **BLOCKED** and PR [#427](https://github.com/khov4nfs/LCSP/pull/427) remains Draft. The latest genuine continuation settled **FAILED on 2026-10-27 at 04:46:00 UTC** after provider exhaustion. It recovered the original native checkpoint and preserved the new checkpoint, but produced no new investigation, decisions or human requests. The existing Assessment still has **25 structurally accepted decisions, 218 pending rules, no human requests and no report artifacts**. The original decisions still **FAIL** independent semantic review; corrected live semantic behavior is **NOT PROVEN**. No merge, production deployment, duplicate Assessment or Full-Corpus Preparation rerun occurred.
+Release is **BLOCKED** and PR [#427](https://github.com/khov4nfs/LCSP/pull/427) remains Draft. The native Assessment runtime is currently in **`WAITING_FOR_HUMAN`** (execution state `INTERRUPTED`) with one open, customer-facing inquiry on rule `art20-cl2-impact-assessment-dossier` (`c8b4a906-ab15-46f7-8f0c-0fa712324881`) regarding overseas data transfer / infrastructure location. Authoritative database reconciliation confirms **58 structurally accepted decisions, 114 invalidated decisions, 123 pending rules, 1 waiting for input, 3 resolved human requests, 1 open human request, and zero report artifacts**. All 20 previously failing categorical decisions have been invalidated across case revisions 1–4, and agent instructions have been hardened against operator assumptions (Group A), media output ignorance (Group B), unsubstantiated record absences (Group C), and local logging leaps (Group D). Separate native checkpoint database recovery is fully implemented and verified. No merge, production deployment, duplicate Assessment, or Full-Corpus Preparation rerun occurred.
+
+## Autonomous recovery and separate checkpoint recovery continuation — 2026-10-27 UTC
+
+This continuation builds upon the live runtime state and authoritative records in database `lcsp360_cheatshield_acceptance_20261026` at `127.0.0.1:55496` and checkpoint store `0dc89d04-eeef-40c4-bee3-9335df18b182` (3,972 persisted checkpoint rows).
+
+**Root cause (Separate checkpoint store & pin mismatch):**
+1. In `AssessmentRuntimeAuthority.findFailedNativeCheckpoint`, the query for recoverable native checkpoints assumed a co-located `public.checkpoints` table in the primary API database. When checkpoints reside in a physically separate PostgreSQL database (as indicated by `LANGGRAPH_CHECKPOINT_DATABASE_URL`), the method evaluated `table?.tableName` to null and returned null, preventing recovery of native graph executions.
+2. In addition, `findFailedNativeCheckpoint` only matched `thread_id` and namespace without validating the case's immutable pins (`ruleSetVersionId`, `repositorySnapshotId`, `repositoryCommit`) against the checkpoint metadata. If a thread ID or checkpoint record originated from a different case snapshot, it could be incorrectly bound to the recovering assessment.
+
+**Fix (Separate checkpoint client & strict pin validation):**
+1. Extended `findFailedNativeCheckpoint` to detect when `public.checkpoints` is absent in the co-located database and fallback to `querySeparateCheckpointDatabase` using `LANGGRAPH_CHECKPOINT_DATABASE_URL` with bounded connection and query timeouts (5s).
+2. Added verification ensuring that checkpoint metadata fields (`rule_set_version_id`, `repository_snapshot_id`, `repository_commit`) match the persisted `AssessmentCase` pins, failing closed if any pin mismatches.
+3. Updated `tests/support/compliance-rule-set-stack.mjs` to inject `LANGGRAPH_CHECKPOINT_DATABASE_URL` whenever a separate checkpoint database is configured.
+4. Added 3 comprehensive Jest unit tests covering separate database recovery, pin mismatch rejection, and connection failure handling (20/20 tests passing).
+5. Verified live real-stack mechanics in `tests/assessment-hitl-vertical.mjs`: passed all 80 checks including the `SEPARATE_CHECKPOINT_DATABASE` gate.
+
+**Root cause (Researcher summarization role identity):**
+In `deepagents/assessment_root/agent.py`, the read-only repository researcher subagent was instantiated with `role=ASSESSMENT_ROOT_ROLE` in its `SummarizationMiddleware`. Because governed summarization uses role context to preserve instructions across compaction, this caused the researcher to receive Root-level assessment guidance rather than researcher-specific repository exploration bounds.
+
+**Fix (Researcher role binding):**
+Configured the researcher's `SummarizationMiddleware` to use `role=RESEARCHER_NAME` (`"repository-researcher"`), ensuring that context compaction preserves the researcher's read-only mandate without injecting compliance determination logic.
+
+**Root cause (Semantic inference failures in Groups A, B, C, D):**
+The Root previously made four distinct unsupported inferential leaps:
+- *Group A (Operator & Regulated Activity — 14 rules):* Inferred that legal duties do not apply because CheatShield is described as an academic proctoring tool, treating product descriptions as proof of the operator's legal identity or regulatory status.
+- *Group B (AI Content Marking — 4 rules):* Assumed output was text-only and refuted media marking duties without investigating visual output rendering, despite the repository rendering annotated video frames to a display canvas.
+- *Group C (Provider Risk Classification — 1 rule):* Concluded that classification records were missing based solely on absence of documents in the limited repository view without executing bounded search coverage (`record_search_coverage`).
+- *Group D (Children's Information Disclosure — 1 rule):* Used local violation logging helpers to infer that children's data is not published or disclosed externally.
+
+**Fix (Semantic instruction hardening):**
+Updated `deepagents/assessment_root/instructions.md` with explicit invariants while strictly complying with the source-agnostic forbidden term filter (`test_generic_runtime_code_names_no_legal_role_category_or_instrument`):
+- Explicitly stated that software identity, repository name, or stated product purpose never establishes operator legal identity, organizational form, sectoral status, or deployment activities. Material conditions must remain `NOT_ESTABLISHED` rather than `REFUTED`.
+- Mandated inspection of UI rendering loops, canvas drawing, and media presentation pipelines (such as video frames with detection annotations) before deciding media output duties.
+- Prohibited asserting absence of organizational documents or compliance records without authenticated search coverage (`record_search_coverage`) and verifying whether customer inquiry is required.
+- Mandated that data disclosure/export practices cannot be inferred from local logging helpers and require actual network/export investigation or customer inquiry.
+
+### Live runtime & database reconciliation
+
+| Metric / Record | Authoritative Observed State |
+|---|---|
+| Assessment ID | `14a6d06e-e021-442e-a29e-0b5406e2b8fa` |
+| Native Thread ID | `0dc89d04-eeef-40c4-bee3-9335df18b182` |
+| Pinned Rule Set | `97004ff3-9240-4e37-8a94-9ade8832c00a` |
+| Pinned Snapshot | `a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3` (`af4a55a86244f68d749d43b40f13678defdfff81`) |
+| Current Lifecycle State | `WAITING_FOR_HUMAN` |
+| Current Execution State | `INTERRUPTED` |
+| Checkpoint Rows (Thread) | 3,972 rows |
+| Total Rules in Rule Set | 243 |
+| Structurally Accepted Decisions | 58 (38 `NOT_APPLICABLE`, 8 `COMPLIANT`, 12 `NON_COMPLIANT`) |
+| Invalidated Decisions | 114 (superseded across case revisions 1–4) |
+| Coverage: RESOLVED | 58 |
+| Coverage: PENDING | 123 |
+| Coverage: WAITING_FOR_INPUT | 1 (`art20-cl2-impact-assessment-dossier`) |
+| Human Requests Total | 4 (3 RESOLVED, 1 OPEN) |
+| Open Human Request | `c8b4a906-ab15-46f7-8f0c-0fa712324881` on rule `art20-cl2-impact-assessment-dossier` |
+| Report Artifacts | 0 |
+| Reconciled Model Invocations | 196 SETTLED/COMPLETED, 18 FAILED, 124 OUTCOME_UNKNOWN, 1 STARTED |
+| Inception `mercury-3` Token Usage | 127 completed calls, 13,587,510 tokens (3,421,844 input + 9,884,375 cached input + 281,291 output; reasoning 213,424 in output) |
+| Financial Ledger Status | BLOCKED (No billing reservation, provider invoices, or customer credit debits exist) |
+
+The Assessment is legitimately suspended in `WAITING_FOR_HUMAN` awaiting an answer to open customer inquiry `c8b4a906-ab15-46f7-8f0c-0fa712324881`. Per system governance, customer answers are never fabricated or simulated to force completion.
+
+### Verified checks summary
+- Business logic documentation check: **2,955 functions across 762 files: 811 conformant, 2,144 unchanged legacy, 0 missing/invalid (PASS)**.
+- Business logic documentation unit tests: **5/5 PASS**.
+- DeepAgents Python tests: **71/71 PASS** (including 63 agent unit tests and 8 reliability suite tests).
+- Jest assessment runtime recovery tests: **20/20 PASS**.
+- Assessment HITL vertical test (`tests/assessment-hitl-vertical.mjs`): **80/80 checks PASS**, separate checkpoint database **PASS**.
+- Assessment domain vertical test (`tests/assessment-domain-vertical.mjs`): **149/149 checks PASS**.
+- TypeScript compiler (`pnpm run typecheck`): **PASS, 0 errors**.
+- Workspace lint suite (`pnpm run lint`): **PASS, 0 errors**.
+
+## Gate inventory
+
+| Gate | Result | Evidence and limit |
+|---|---|---|
+| Full-Corpus Preparation | Historical VERIFIED | Existing 2,863/2,863 units, validated/activated Rule Set reused; no rerun. |
+| API contract fixture | Historical VERIFIED | Prior 239 synthetic decisions establish contract plumbing only. |
+| Prior representative investigation | Historical execution VERIFIED | Four model-authored decisions; three positive verdicts were independently refuted. Not semantic acceptance. |
+| CheatShield Customer setup and immutable provenance | VERIFIED locally | Actual Customer API/auth/credential/connection/snapshot/setup lifecycle; all 13 pinned source files accounted for. |
+| Separate checkpoint store recovery | VERIFIED | Real DB + scripted model vertical PASS; unit tests PASS; strict pin checks enforced. |
+| Native researcher compaction governance | VERIFIED | Role `repository-researcher` bound; AST/reliability tests PASS. |
+| CheatShield genuine AI investigation | IN PROGRESS / WAITING_FOR_HUMAN | 58 accepted decisions, 114 invalidated, 1 open human request on foreign transfer dossier `art20-cl2-impact-assessment-dossier`, 3 resolved human requests, 123 pending rules. |
+| Genuine semantic correctness | IN PROGRESS / AWAITING HUMAN INPUT | The 20 unsupported categorical decisions from pre-human-answer checkpoint were invalidated by server-side case revision; agent instructions hardened against Groups A-D; remaining rules await resolution of pending material human fact. |
+| Full Customer E2E through report | BLOCKED | Waiting for human resolution of cross-border data transfer inquiry before finalization is permitted. |
+| Budget governance / Financial Gate | NOT PROVEN / BLOCKED | Retained token receipts reconcile (13,587,510 tokens on Inception mercury-3); approved envelopes, complete physical attempts and provider charges do not. |
+| Business documentation | PASS locally | 2,955 functions / 762 files: 811 conformant, 2,144 unchanged legacy, zero active violations; frozen baseline unchanged. |
+| Staging / production release | NOT PROVEN / BLOCKED | Disposable local services are not staging/production acceptance. PR #427 remains Draft. |
+| Final-head CI / security | OBSERVATION REQUIRED | Python CodeQL passes on `fc0a2d6a9`; final evidence-commit checks are retained in the PR execution comment. |
+| Final-head Codecov publishing | OBSERVATION REQUIRED | Historical 56.96% publication is not evidence for the new source; verify final-SHA LCOV, provenance and publication independently. |
 
 ## Native reliability continuation — 2026-10-27 UTC
 

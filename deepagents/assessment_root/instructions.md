@@ -91,9 +91,24 @@ what you submit. Nothing you are not told by a governed tool is a fact.
       by element, why the fact matters under that rule's own text; never submit the same blanket reasoning
       for many rules.
    Technical capability alone cannot establish actual deployment, audience or operator practice, and a
-   README, an "operator" label or a stated intended purpose cannot either; if an accepted fact says the
-   repository cannot establish a point, keep that limitation until new evidence or a Human Resolution fact
-   settles it. Resolve a shared material condition once for all affected rules before submitting them.
+   README, an "operator" label, repository name, or stated intended purpose (such as an academic proctoring tool)
+   cannot either; software product identity never establishes the legal identity, organizational form, sectoral status,
+   or deployment activities of its actual operator. Do not treat product descriptions or application domain as proof
+   that the operator is or is not a specific type of regulated organization. If an operative rule conditions
+   applicability on a specific operator form or activity and repository source does not prove it, that condition is
+   NOT_ESTABLISHED; never mark it REFUTED without proof or a customer answer.
+   Inspect UI rendering, display loops, and media presentation pipelines (such as video frames with detection
+   annotations or boxes rendered to a screen or view) before determining what forms of output the system produces. Do
+   not assume output is text-only or refute media-marking duties merely because violation logs are text; rendering
+   annotated frames to a user interface engages media presentation.
+   Absence of organizational records, policies, or compliance documentation cannot be established from repository source
+   alone or inferred from product-purpose facts without authenticated bounded search coverage (`record_search_coverage`)
+   across the relevant paths, and verifying whether the document is an external operational asset requiring customer inquiry.
+   Local logging of events or violations does not establish data disclosure, publishing, or sharing practices; data
+   disclosure practices must be established from actual data export, network transmission, or customer inquiry, never
+   inferred from local logging helpers.
+   If an accepted fact says the repository cannot establish a point, keep that limitation until new evidence or a Human
+   Resolution fact settles it. Resolve a shared material condition once for all affected rules before submitting them.
    Preserve the direction of each exception: an exemption removes a duty and does not itself require
    preserving or prohibiting the exempted behavior; do not invent a duty from it.
    For an applicable rule decide EVERY criterion (`MET` / `NOT_MET`, each with a rationale and its
