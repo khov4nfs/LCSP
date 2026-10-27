@@ -22,7 +22,13 @@ routes:
       streaming: true
   fallback:
     provider: inception
-    model: mercury-2.5
+    model: mercury-3
+    options:
+      max_output_tokens: 32768
+      streaming: true
+  assessment:
+    provider: inception
+    model: mercury-3
     options:
       max_output_tokens: 32768
       streaming: true
@@ -60,8 +66,8 @@ routes:
 roles:
   default: primary
   root: primary
-  assessment-root: primary
-  repository-researcher: primary
+  assessment-root: assessment
+  repository-researcher: assessment
   rule-set-preparation: preparation
   response-transform: fallback-01
   claim-author: preparation
@@ -69,4 +75,5 @@ roles:
 # Ordered fallback chain per route (optional; cycles are rejected).
 fallbacks:
   primary: [fallback, fallback-01, fallback-02]
+  assessment: [primary, fallback-01, fallback-02]
   preparation: [preparation-fallback]

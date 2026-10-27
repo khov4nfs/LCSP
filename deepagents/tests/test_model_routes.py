@@ -308,7 +308,7 @@ def test_effective_telemetry_and_identities(routes):
     }
 
 
-def test_workflow_roles_resolve_mirai_inception_gemini_apx_with_native_options(monkeypatch):
+def test_workflow_roles_keep_native_options_and_assessment_prefers_mercury_3(monkeypatch):
     monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
     for role in mp.load_model_routes().roles:
         primary = mp.resolve_role(role)
@@ -324,13 +324,21 @@ def test_workflow_roles_resolve_mirai_inception_gemini_apx_with_native_options(m
             assert fallback.options["thinking_config"] == {"thinking_level": "HIGH"}
             continue
         chain = (primary, *mp.fallback_routes(primary.route_id))
-        assert [(r.provider, r.protocol, r.model) for r in chain] == [
+        first_routes = [
             ("miraiapi", "anthropic", "claude-sonnet-5"),
-            ("inception", "openai", "mercury-2.5"),
+            ("inception", "openai", "mercury-3"),
+        ]
+        if role in {"assessment-root", "repository-researcher"}:
+            first_routes.reverse()
+        assert [(r.provider, r.protocol, r.model) for r in chain] == [
+            *first_routes,
             ("google_genai", "google_genai", "gemini-3.5-flash-lite"),
             ("apx", "anthropic", "claude-sonnet-4-6-free"),
         ]
         assert all(r.options["streaming"] for r in chain)
         assert "thinking" not in primary.options and "effort" not in primary.options
-        assert [r.options["max_output_tokens"] for r in chain[1:]] == [32768, 65536, 64000]
+        assert [r.options.get("max_output_tokens") for r in chain] == (
+            [32768, None, 65536, 64000] if role in {"assessment-root", "repository-researcher"}
+            else [None, 32768, 65536, 64000]
+        )
         assert "thinking" not in chain[-1].options
