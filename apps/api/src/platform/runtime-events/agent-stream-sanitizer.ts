@@ -90,7 +90,27 @@ export function sanitizeAgentStreamIdentifier(value: unknown): string | null {
 
 const USAGE_METRIC_KEY = /^[a-z][a-z0-9_]{0,47}$/;
 
-/** Recursively redact structured live-stream payloads without collapsing useful tool output. */
+/**
+ * Business purpose: Redact structured runtime and provenance payloads while preserving their
+ * valid JSON values, including explicit null fields required by canonical event contracts.
+ *
+ * Business rules:
+ * - Credentials and private runtime state remain hidden; only trusted usage counters are exempt.
+ * - Explicit null values retain their fields and array positions; unsupported values are omitted.
+ * - Text length, collection size and nesting limits continue to bound exposed payloads.
+ *
+ * Execution flow:
+ * 1. Preserve JSON primitives and sanitize text.
+ * 2. Recursively sanitize bounded arrays and records without dropping explicit null values.
+ * 3. Redact sensitive keys and private runtime state before returning the safe projection.
+ *
+ * Failure cases:
+ * - Unsupported values return null and are omitted from containing collections.
+ * - Excessive nesting returns a truncation marker instead of traversing private state further.
+ *
+ * Side effects:
+ * - Pure projection; never mutates the supplied payload or persisted assessment records.
+ */
 export function sanitizeAgentStreamValue(
   value: unknown,
   depth = 0,
@@ -116,7 +136,7 @@ export function sanitizeAgentStreamValue(
     return value
       .slice(0, MAX_AGENT_STREAM_ITEMS)
       .map((item) => sanitizeAgentStreamValue(item, depth + 1))
-      .filter((item): item is AssessmentRuntimeSummaryValue => item !== null);
+      .filter((item, index) => item !== null || value[index] === null);
   }
   if (!isRecord(value)) return null;
   if (depth >= MAX_AGENT_STREAM_DEPTH) {
@@ -152,7 +172,7 @@ export function sanitizeAgentStreamValue(
       depth + 1,
       inUsage || (allowUsage && depth === 0 && key === "usage"),
     );
-    if (sanitized !== null) output[key] = sanitized;
+    if (sanitized !== null || nested === null) output[key] = sanitized;
   }
   return output;
 }

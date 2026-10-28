@@ -5,7 +5,12 @@ import {
   ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
   assessmentProvenanceArtifactSchema,
 } from "@lcsp/contracts/assessment-domain";
-import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
+import {
+  AGENTIC_ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_ERROR_CODES,
+  ASSESSMENT_EVENT_ACTOR_TYPES,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
+} from "@lcsp/contracts/assessment";
 import { AssessmentProvenanceLoader } from "./assessment-provenance.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
@@ -252,6 +257,50 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
 }
 
 describe("AssessmentProvenanceLoader", () => {
+  it("preserves a human request opening event's required null previous status", async () => {
+    const record = buildValidRecord({
+      events: [
+        {
+          ...buildValidRecord().events[0],
+          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.HUMAN_RESOLUTION_CHANGED,
+          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+          payload: {
+            requestId,
+            fromStatus: null,
+            toStatus: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            caseRevision: 1,
+          },
+        },
+      ],
+    });
+    const originalEvents = structuredClone(record.events);
+    const prisma = {
+      assessment: { findUnique: () => Promise.resolve(record) },
+    } as unknown as PrismaService;
+    const result = await new AssessmentProvenanceLoader(prisma).load({
+      assessmentId,
+      sessionUserId: ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId,
+    });
+
+    expect(result.events).toMatchObject([
+      {
+        eventId,
+        eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.HUMAN_RESOLUTION_CHANGED,
+        payload: {
+          requestId,
+          fromStatus: null,
+          toStatus: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+        },
+      },
+    ]);
+    expect(record.events).toEqual(originalEvents);
+    expect(() =>
+      assessmentProvenanceArtifactSchema.parse(result),
+    ).not.toThrow();
+  });
+
   it("assembles canonical provenance artifact with deterministic checksum and validates against schema", async () => {
     const record = buildValidRecord();
     const prisma = {
