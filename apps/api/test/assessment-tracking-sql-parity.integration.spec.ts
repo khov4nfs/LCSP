@@ -16,6 +16,7 @@ import {
   TRACKING_ACTION_REASONS,
   TRACKING_CHANGE_TYPES,
   TRACKING_FRESHNESS_STATUSES,
+  TRACKING_RULE_OUTCOMES,
 } from "@lcsp/contracts/assessment-domain";
 import { AssessmentTrackingLoader } from "../src/modules/assessment/infrastructure/persistence/assessment-tracking.loader.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
@@ -38,6 +39,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
   let ruleSetVersionId: string;
   let createdRuleSet = false;
   let createdRuleId: string | null = null;
+  let recordedQueryCount = 0;
 
   async function cleanup() {
     await prisma.repositoryScanJob.deleteMany({
@@ -148,7 +150,17 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
   }
 
   beforeAll(async () => {
-    prisma = new PrismaClient({ adapter: new PrismaPg(dbUrl) });
+    prisma = new PrismaClient({
+      adapter: new PrismaPg(dbUrl),
+      log: [{ emit: "event", level: "query" }],
+    });
+    (
+      prisma as unknown as {
+        $on: (event: "query", listener: () => void) => void;
+      }
+    ).$on("query", () => {
+      recordedQueryCount++;
+    });
     await prisma.$connect();
     loader = new AssessmentTrackingLoader(prisma as unknown as PrismaService);
 
@@ -394,6 +406,388 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       TRACKING_FRESHNESS_STATUSES.UNKNOWN,
     );
   });
+
+  it("pages obligation preview and follow-up rows in one canonical order for 25 divergent names and timestamps", async () => {
+    const assessmentCount = 25;
+    const baseTime = Date.now();
+    const rule = await prisma.assessmentRule.findFirstOrThrow({
+      where: { ruleSetVersionId, assessmentRuleId: "RULE-1" },
+      select: { assessmentRuleVersion: true },
+    });
+    const expectedIds: string[] = [];
+
+    for (let index = 0; index < assessmentCount; index++) {
+      const assessmentId = randomUUID();
+      expectedIds.push(assessmentId);
+      await prisma.assessment.create({
+        data: {
+          id: assessmentId,
+          ownerId: userId,
+          name: `Assessment ${String(assessmentCount - index).padStart(3, "0")}`,
+          lifecycleState: "ACTIVE",
+          lifecycleRevision: 1,
+          updatedAt: new Date(baseTime - index * 1_000),
+        },
+      });
+      const { snapshotId, scanJobId } = await seedPinnedRepository(
+        assessmentId,
+        `org/obligation-page-${testSuffix}-${index}`,
+      );
+      await prisma.assessmentCase.create({
+        data: {
+          assessmentId,
+          caseRevision: 1,
+          ruleSetVersionId,
+          repositoryCommit: commitSha,
+          repositorySnapshotId: snapshotId,
+          repositoryScanJobId: scanJobId,
+          pinnedAt: new Date(),
+        },
+      });
+      await prisma.assessmentDecisionCoverage.create({
+        data: {
+          assessmentId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId,
+          assessmentRuleVersion: rule.assessmentRuleVersion,
+          resolutionState: "PENDING",
+        },
+      });
+    }
+
+    const obligations = await loader.loadCustomerObligations({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-obligation-page-${randomUUID()}`,
+      needsAttention: true,
+    });
+    const group = obligations.items.find(
+      (item) =>
+        item.ruleSetVersionId === ruleSetVersionId &&
+        item.assessmentRuleId === "RULE-1",
+    );
+    expect(group?.affectedAssessmentCount).toBe(assessmentCount);
+    const previewIds =
+      group?.assessments.map((item) => item.assessmentId) ?? [];
+    expect(previewIds).toEqual(expectedIds.slice(0, 20));
+
+    const followUp = await loader.loadCustomerObligationAssessments({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      ruleSetVersionId,
+      assessmentRuleId: "RULE-1",
+      limit: 20,
+      offset: previewIds.length,
+    });
+    const allIds = [
+      ...previewIds,
+      ...followUp.items.map((item) => item.assessmentId),
+    ];
+
+    expect(followUp.pagination).toEqual({
+      total: assessmentCount,
+      limit: 20,
+      offset: 20,
+      hasMore: false,
+    });
+    expect(new Set(allIds).size).toBe(assessmentCount);
+    expect(allIds).toEqual(expectedIds);
+  }, 120_000);
+
+  it("keeps null-ref branch freshness distinct and in parity between SQL aggregate and assessment detail", async () => {
+    const rule = await prisma.assessmentRule.findFirstOrThrow({
+      where: { ruleSetVersionId, assessmentRuleId: "RULE-1" },
+      select: { assessmentRuleVersion: true },
+    });
+    const baseTime = Date.now();
+    const branches = [
+      { name: "main", pinnedCommit: commitSha, latestCommit: commitSha },
+      {
+        name: "release",
+        pinnedCommit: commitSha,
+        latestCommit: "b0000000000000000000000000000000000000002",
+      },
+    ];
+    const assessmentIds: Record<string, string> = {};
+
+    for (const branch of branches) {
+      const assessmentId = randomUUID();
+      assessmentIds[branch.name] = assessmentId;
+      await prisma.assessment.create({
+        data: {
+          id: assessmentId,
+          ownerId: userId,
+          name: `Branch ${branch.name}`,
+          lifecycleState: "ACTIVE",
+          lifecycleRevision: 1,
+        },
+      });
+      const { connectionId, snapshotId, scanJobId } =
+        await seedPinnedRepository(assessmentId, "org/null-ref-branches");
+      await prisma.repositorySnapshot.update({
+        where: { id: snapshotId },
+        data: {
+          ref: null,
+          branch: branch.name,
+          createdAt: new Date(baseTime - 60_000),
+        },
+      });
+      await prisma.assessmentCase.create({
+        data: {
+          assessmentId,
+          caseRevision: 1,
+          ruleSetVersionId,
+          repositoryCommit: branch.pinnedCommit,
+          repositorySnapshotId: snapshotId,
+          repositoryScanJobId: scanJobId,
+          pinnedAt: new Date(),
+        },
+      });
+      await prisma.assessmentDecisionCoverage.create({
+        data: {
+          assessmentId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId,
+          assessmentRuleVersion: rule.assessmentRuleVersion,
+          resolutionState: "PENDING",
+        },
+      });
+      await prisma.repositorySnapshot.create({
+        data: {
+          id: randomUUID(),
+          assessmentId,
+          connectionId,
+          repositoryId: `repo-${connectionId}`,
+          repositoryFullName: "org/null-ref-branches",
+          branch: branch.name,
+          ref: null,
+          commitSha: branch.latestCommit,
+          providerMetadata: { source: "test" },
+          actorId: userId,
+          status: "READY",
+          createdAt: new Date(baseTime - 30_000),
+        },
+      });
+    }
+
+    const aggregate = await loader.loadCustomerObligations({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-null-ref-aggregate-${randomUUID()}`,
+    });
+    const allBranchGroup = aggregate.items.find(
+      (item) =>
+        item.ruleSetVersionId === ruleSetVersionId &&
+        item.assessmentRuleId === "RULE-1",
+    );
+    expect(
+      Object.fromEntries(
+        allBranchGroup?.assessments.map((item) => [
+          item.assessmentId,
+          item.freshnessStatus,
+        ]) ?? [],
+      ),
+    ).toEqual({
+      [assessmentIds.main]: TRACKING_FRESHNESS_STATUSES.CURRENT,
+      [assessmentIds.release]: TRACKING_FRESHNESS_STATUSES.STALE,
+    });
+
+    const currentDetails = await loader.loadCustomerObligationAssessments({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      ruleSetVersionId,
+      assessmentRuleId: "RULE-1",
+      outcome: TRACKING_RULE_OUTCOMES.UNRESOLVED,
+      freshness: TRACKING_FRESHNESS_STATUSES.CURRENT,
+    });
+    const staleDetails = await loader.loadCustomerObligationAssessments({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      ruleSetVersionId,
+      assessmentRuleId: "RULE-1",
+      outcome: TRACKING_RULE_OUTCOMES.UNRESOLVED,
+      freshness: TRACKING_FRESHNESS_STATUSES.STALE,
+    });
+
+    expect(currentDetails.items.map((item) => item.assessmentId)).toEqual([
+      assessmentIds.main,
+    ]);
+    expect(currentDetails.items[0].freshnessStatus).toBe(
+      TRACKING_FRESHNESS_STATUSES.CURRENT,
+    );
+    expect(staleDetails.items.map((item) => item.assessmentId)).toEqual([
+      assessmentIds.release,
+    ]);
+    expect(staleDetails.items[0].freshnessStatus).toBe(
+      TRACKING_FRESHNESS_STATUSES.STALE,
+    );
+  }, 120_000);
+
+  it("keeps filtered obligation and report reads bounded for a 1,200-assessment tenant", async () => {
+    const totalAssessments = 1_200;
+    const baseTime = Date.now() - 3_600_000;
+    const rule = await prisma.assessmentRule.findFirstOrThrow({
+      where: { ruleSetVersionId, assessmentRuleId: "RULE-1" },
+      select: { assessmentRuleVersion: true },
+    });
+    const assessmentIds = Array.from({ length: totalAssessments }, () =>
+      randomUUID(),
+    );
+    const connectionIds = assessmentIds.map(
+      (_, index) => `tracking-filter-conn-${testSuffix}-${index}`,
+    );
+    const snapshotIds = assessmentIds.map(() => randomUUID());
+    const scanJobIds = assessmentIds.map(() => randomUUID());
+    const artifactIds = assessmentIds.map(() => randomUUID());
+    const repositoryNames = assessmentIds.map(
+      (_, index) => `org/tracking-filter-${testSuffix}-${index}`,
+    );
+
+    await prisma.assessment.createMany({
+      data: assessmentIds.map((id, index) => ({
+        id,
+        ownerId: userId,
+        name: `High cardinality assessment ${String(index).padStart(4, "0")}`,
+        lifecycleState: "COMPLETE",
+        lifecycleRevision: 1,
+        updatedAt: new Date(baseTime - index * 1_000),
+      })),
+    });
+    await prisma.repositoryConnection.createMany({
+      data: assessmentIds.map((assessmentId, index) => ({
+        id: connectionIds[index],
+        assessmentId,
+        userId,
+        installationId: `tracking-filter-installation-${testSuffix}-${index}`,
+        repositoryId: `tracking-filter-repository-${testSuffix}-${index}`,
+        repositoryName: `tracking-filter-${index}`,
+        repositoryFullName: repositoryNames[index],
+        defaultBranch: "main",
+        permissions: { contents: "READ" },
+        status: "ACTIVE",
+      })),
+    });
+    await prisma.repositorySnapshot.createMany({
+      data: assessmentIds.map((assessmentId, index) => ({
+        id: snapshotIds[index],
+        assessmentId,
+        connectionId: connectionIds[index],
+        repositoryId: `tracking-filter-repository-${testSuffix}-${index}`,
+        repositoryFullName: repositoryNames[index],
+        branch: "main",
+        ref: "refs/heads/main",
+        commitSha,
+        providerMetadata: { source: "test" },
+        actorId: userId,
+        status: "READY",
+        createdAt: new Date(baseTime - 60_000),
+      })),
+    });
+    await prisma.repositoryScanJob.createMany({
+      data: assessmentIds.map((assessmentId, index) => ({
+        id: scanJobIds[index],
+        assessmentId,
+        snapshotId: snapshotIds[index],
+        idempotencyKey: `tracking-filter-scan-${testSuffix}-${index}`,
+        triggerSource: "MANUAL",
+        status: "COMPLETED",
+        attemptCount: 1,
+        correlationId: `tracking-filter-correlation-${testSuffix}-${index}`,
+      })),
+    });
+    await prisma.assessmentCase.createMany({
+      data: assessmentIds.map((assessmentId, index) => ({
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotIds[index],
+        repositoryScanJobId: scanJobIds[index],
+        pinnedAt: new Date(baseTime - 60_000),
+      })),
+    });
+    await prisma.assessmentDecisionCoverage.createMany({
+      data: assessmentIds.map((assessmentId) => ({
+        assessmentId,
+        assessmentRuleId: "RULE-1",
+        ruleSetVersionId,
+        assessmentRuleVersion: rule.assessmentRuleVersion,
+        resolutionState: "PENDING",
+      })),
+    });
+    await prisma.assessmentArtifact.createMany({
+      data: assessmentIds.map((assessmentId, index) => ({
+        artifactId: artifactIds[index],
+        assessmentId,
+        kind: "FINAL_REPORT",
+        lifecycleState: "BUILDING",
+        ruleSetVersionId,
+        repositorySnapshotId: snapshotIds[index],
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        schemaVersion: "1.0.0",
+        storageRef: `/reports/${artifactIds[index]}.pdf`,
+        contentSha256: `sha256:${"c".repeat(64)}`,
+        sizeBytes: 1024,
+        createdAt: new Date(baseTime - index * 1_000),
+      })),
+    });
+    await prisma.assessmentArtifact.updateMany({
+      where: { assessmentId: { in: assessmentIds } },
+      data: { lifecycleState: "ACTIVE", activatedAt: new Date(baseTime) },
+    });
+
+    recordedQueryCount = 0;
+    const obligationStartedAt = Date.now();
+    const obligations = await loader.loadCustomerObligationAssessments({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      ruleSetVersionId,
+      assessmentRuleId: "RULE-1",
+      outcome: TRACKING_RULE_OUTCOMES.UNRESOLVED,
+      freshness: TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      limit: 20,
+      offset: 200,
+    });
+    const obligationQueryCount = recordedQueryCount;
+    const obligationElapsedMs = Date.now() - obligationStartedAt;
+
+    recordedQueryCount = 0;
+    const reportStartedAt = Date.now();
+    const reports = await loader.loadCustomerReports({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-filtered-reports-${randomUUID()}`,
+      freshness: TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      limit: 20,
+      offset: 200,
+    });
+    const reportQueryCount = recordedQueryCount;
+    const reportElapsedMs = Date.now() - reportStartedAt;
+
+    expect(obligations.pagination).toEqual({
+      total: totalAssessments,
+      limit: 20,
+      offset: 200,
+      hasMore: true,
+    });
+    expect(obligations.items.map((item) => item.assessmentId)).toEqual(
+      assessmentIds.slice(200, 220),
+    );
+    expect(reports.pagination).toEqual({
+      total: totalAssessments,
+      limit: 20,
+      offset: 200,
+      hasMore: true,
+    });
+    expect(reports.items.map((item) => item.assessmentId)).toEqual(
+      assessmentIds.slice(200, 220),
+    );
+    expect(obligationQueryCount).toBeLessThanOrEqual(20);
+    expect(reportQueryCount).toBeLessThanOrEqual(20);
+    expect(obligationElapsedMs).toBeLessThan(30_000);
+    expect(reportElapsedMs).toBeLessThan(30_000);
+  }, 120_000);
 
   it("proves SQL summary rejects structurally invalid decision (empty criteria/references) with 100% parity to per-assessment evaluation", async () => {
     const assessmentId = randomUUID();

@@ -1351,15 +1351,19 @@ export const enPages = {
       navCompliance: "Compliance",
       navReports: "Reports",
       overviewTitle: "Compliance overview",
-      overviewDescription: "See what needs your attention, what changed recently, and which results are ready to use.",
+      overviewDescription:
+        "See what needs your attention, what changed recently, and which results are ready to use.",
       actionsTitle: "What needs your attention?",
-      actionsDescription: "Only requests that need information or a decision from you appear here.",
+      actionsDescription:
+        "Only requests that need information or a decision from you appear here.",
       changesTitle: "Recent changes",
       changesDescription: "Material changes from the last 30 days.",
       assessmentsTitle: "Assessments and repositories",
-      assessmentsDescription: "Current outcomes, result freshness, and next steps for each assessment.",
+      assessmentsDescription:
+        "Current outcomes, result freshness, and next steps for each assessment.",
       obligationsTitle: "Obligations to follow up",
-      obligationsDescription: "Rules with non-compliant or unresolved outcomes across your assessments.",
+      obligationsDescription:
+        "Rules with non-compliant or unresolved outcomes across your assessments.",
       reportsTitle: "Final Reports ready to use",
       reportsDescription: "Completed reports available to review or download.",
       searchLabel: "Search assessments",
@@ -1372,18 +1376,24 @@ export const enPages = {
       noActions: "There are no requests waiting for your input.",
       noChanges: "There are no material changes in this period.",
       noAssessments: "No assessments match this search.",
-      noObligations: "No actionable obligations were found among evaluated assessments.",
-      notEvaluatedCount: "assessments could not be evaluated because rule set or coverage data is unavailable.",
+      noObligations:
+        "No actionable obligations were found among evaluated assessments.",
+      notEvaluatedCount:
+        "assessments could not be evaluated because rule set or coverage data is unavailable.",
       notEvaluated: "Not evaluated",
-      notEvaluatedDescription: "Obligation results are incomplete until these assessments have a valid pinned rule set and complete rule coverage.",
+      notEvaluatedDescription:
+        "Obligation results are incomplete until these assessments have a valid pinned rule set and complete rule coverage.",
       reviewAssessments: "Review affected assessments",
       investigateAssessment: "Open investigation",
+      investigationUnavailable:
+        "Investigation details are not available in this view.",
       assessmentIdLabel: "Assessment ID",
       detectedAt: "Detected",
       noReports: "No completed Final Reports are ready yet.",
       loading: "Loading tracking data",
       errorTitle: "Tracking data is unavailable",
-      errorDescription: "Try again in a moment. Assessment work is not affected.",
+      errorDescription:
+        "Try again in a moment. Assessment work is not affected.",
       retry: "Try again",
       viewAll: "View all",
       result: "Result",
@@ -1414,7 +1424,8 @@ export const enPages = {
         DATA_UNAVAILABLE: "Result unavailable",
       },
       adminTitle: "Tracking operations",
-      adminDescription: "Platform conditions affecting customer assessments and tracking data.",
+      adminDescription:
+        "Platform conditions affecting customer assessments and tracking data.",
       customerImpact: "Customer impact",
       executions: "Execution anomalies",
       usage: "Usage reconciliation",
@@ -1423,11 +1434,14 @@ export const enPages = {
         MISSING_PINS: "The assessment is missing required source pins.",
         SOURCE_SNAPSHOT_STALE: "The pinned repository snapshot is stale.",
         SOURCE_FRESHNESS_UNKNOWN: "The source freshness could not be verified.",
-        RULE_SET_UNAVAILABLE: "The assessment has no pinned compliance rule set version.",
-        DECISIONS_INVALIDATED: "The assessment contains invalidated rule decisions.",
+        RULE_SET_UNAVAILABLE:
+          "The assessment has no pinned compliance rule set version.",
+        DECISIONS_INVALIDATED:
+          "The assessment contains invalidated rule decisions.",
         EVIDENCE_INVALIDATED: "The assessment contains invalidated evidence.",
         INCOMPLETE_COVERAGE: "The assessment has incomplete rule coverage.",
-        DECISION_INCONSISTENCY: "The assessment has inconsistent rule decisions.",
+        DECISION_INCONSISTENCY:
+          "The assessment has inconsistent rule decisions.",
       },
       limitedRows: "Showing up to the 100 most recent items in each list.",
       generatedAt: "Data generated",
@@ -1452,13 +1466,18 @@ export const enPages = {
       blockedAssessments: "Blocked assessments",
       runtimeVersion: "Agent runtime version",
       secondsUnit: "seconds",
-      historicalReportWarning: "This report is preserved as a historical result. Reassess the repository to confirm its current status.",
+      historicalReportWarning:
+        "This report is preserved as a historical result. Reassess the repository to confirm its current status.",
       summary: {
-        compliant: "At least one evaluated requirement is compliant at the assessed commit.",
+        compliant:
+          "At least one evaluated requirement is compliant at the assessed commit.",
         nonCompliant: "At least one evaluated requirement is non-compliant.",
-        notApplicable: "The evaluated requirements are not applicable to this assessment.",
-        unresolved: "Some requirements have no validated current conclusion yet.",
-        notEvaluated: "No pinned compliance rule set or complete rule coverage is available.",
+        notApplicable:
+          "The evaluated requirements are not applicable to this assessment.",
+        unresolved:
+          "Some requirements have no validated current conclusion yet.",
+        notEvaluated:
+          "No pinned compliance rule set or complete rule coverage is available.",
       },
     },
     nextActions: {

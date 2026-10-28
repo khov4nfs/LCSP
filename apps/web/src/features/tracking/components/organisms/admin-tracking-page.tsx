@@ -1,85 +1,366 @@
 "use client";
 
-import type { ReactNode } from "react";
-import Link from "next/link";
 import type { TrackingUntrustedReason } from "@lcsp/contracts/assessment-domain";
-import { resolveMessage, type MessageKey } from "@lcsp/i18n";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { MessageKey } from "@lcsp/i18n";
+import { ChevronDownIcon } from "lucide-react";
+import {
+  Collapsible,
+  CollapsiblePanel,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrackingSection } from "../molecules/tracking-section";
+import { TrackingEmptyState } from "../molecules/tracking-empty-state";
+import { TrackingFact } from "../molecules/tracking-fact";
+import { TrackingMetric } from "../molecules/tracking-metric";
 import { appLocale } from "@/lib/locale";
 import { useAdminTrackingOperationalQuery } from "@/lib/api/tracking-queries";
-import { TrackingError } from "./tracking-dashboard";
+import { resolveAppMessage } from "@/lib/i18n";
+import { formatTrackingDate } from "../../utils/tracking-display";
+import { TrackingError } from "../molecules/tracking-error";
 
 export function AdminTrackingPage() {
   const query = useAdminTrackingOperationalQuery();
   const data = query.data;
-  return <div className="space-y-6">
-    <header className="space-y-1"><h1 className="font-heading text-2xl font-semibold">{t("adminTitle")}</h1><p className="text-sm text-muted-foreground">{t("adminDescription")}</p></header>
-    {query.isError ? <TrackingError onRetry={() => void query.refetch()} /> : null}
-    {query.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[0, 1, 2, 3, 4].map((i) => <Skeleton className="h-28" key={i} />)}</div> : null}
-    {data ? <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Metric label={t("failedAssessments")} value={data.platformHealth.totalFailedAssessments} />
-        <Metric label={t("blockedAssessments")} value={data.platformHealth.totalBlockedAssessments} />
-        <Metric label={t("executions")} value={data.platformHealth.totalExecutionAnomalies} />
-        <Metric label={t("usage")} value={data.platformHealth.totalUnreconciledUsageEvents} />
-        <Metric label={t("untrusted")} value={data.platformHealth.totalUntrustedProjections} />
-      </div>
-      <p className="text-xs text-muted-foreground">{t("limitedRows")} {t("generatedAt")}: {formatDate(data.generatedAt)}</p>
-      <TrackingSection title={t("customerImpact")}>
-        {data.impactedAssessments.length ? <Rows>{data.impactedAssessments.map((item) => <article key={item.assessmentId} className="rounded-lg border p-3">
-          <p className="font-medium">{item.name}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{t("affectedCustomer")}: {item.ownerId}</p>
-          <details className="mt-2 text-sm"><summary className="cursor-pointer">{t("detail")}</summary><dl className="mt-2 space-y-1 text-xs"><Fact label={t("executionState")} value={item.executionState ?? item.lifecycleState ?? ""} /><Fact label={t("anomaly")} value={item.impactReason} /><Fact label={t("detail")} value={item.blockerReason ?? ""} /><Fact label={t("updatedAt")} value={formatDate(item.lastActivityAt)} /></dl></details>
-        </article>)}</Rows> : <Empty />}
-      </TrackingSection>
-      <div className="grid gap-6 xl:grid-cols-2">
-        <TrackingSection title={t("executions")}>
-          {data.executionAnomalies.length ? <Rows>{data.executionAnomalies.map((item) => <article key={`${item.assessmentId}-${item.executionId ?? item.detectedAt}`} className="rounded-lg border p-3">
-            <p className="font-medium">{item.assessmentId}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{item.anomalyType}</p>
-            <details className="mt-2 text-sm"><summary className="cursor-pointer">{t("detail")}</summary><dl className="mt-2 space-y-1 text-xs"><Fact label={t("executionState")} value={item.executionState} /><Fact label={t("duration")} value={item.durationSeconds === null ? "" : `${item.durationSeconds} ${t("secondsUnit")}`} /><Fact label={t("runtimeVersion")} value={item.rootAgentVersion ?? ""} /><Fact label={t("generatedAt")} value={formatDate(item.detectedAt)} /></dl></details>
-          </article>)}</Rows> : <Empty />}
-        </TrackingSection>
-        <TrackingSection title={t("usage")}>
-          {data.unreconciledUsage.length ? <Rows>{data.unreconciledUsage.map((item) => <article key={item.eventId} className="rounded-lg border p-3">
-            <p className="font-medium">{item.assessmentId ?? item.eventId}</p><p className="mt-1 text-xs text-muted-foreground">{t("model")}: {item.model}</p>
-            <details className="mt-2 text-sm"><summary className="cursor-pointer">{t("detail")}</summary><dl className="mt-2 space-y-1 text-xs"><Fact label={t("tokenCount")} value={item.totalTokens?.toLocaleString(appLocale) ?? ""} /><Fact label={t("generatedAt")} value={formatDate(item.createdAt)} /></dl></details>
-          </article>)}</Rows> : <Empty />}
-        </TrackingSection>
-      </div>
-      <TrackingSection title={t("untrusted")}>
-        {data.untrustedProjections.length ? <Rows>{data.untrustedProjections.map((item) => <article id={`investigation-${item.assessmentId}`} key={`${item.assessmentId}-${item.untrustedReason}`} className="rounded-lg border p-3"><p className="font-medium">{item.name}</p><p className="mt-1 text-sm">{untrustedReasonMessage(item.untrustedReason)}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(item.detectedAt)}</p><details className="mt-2 text-sm"><summary className="cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("detail")}</summary><dl className="mt-2 space-y-1 text-xs"><Fact label={t("assessmentIdLabel")} value={item.assessmentId} /><Fact label={t("detectedAt")} value={formatDate(item.detectedAt)} /></dl></details><Link href={`/admin/tracking#investigation-${encodeURIComponent(item.assessmentId)}`} className="mt-3 inline-flex min-h-10 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("investigateAssessment")}</Link></article>)}</Rows> : <Empty />}
-      </TrackingSection>
-    </> : null}
-  </div>;
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle></CardHeader><CardContent><p className="text-3xl font-semibold tabular-nums">{value.toLocaleString(appLocale)}</p></CardContent></Card>;
-}
-
-function Rows({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col gap-3">{children}</div>;
+  return (
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="font-heading text-2xl font-semibold">
+          {resolveAppMessage(
+            "pages.workspace.tracking.adminTitle" as MessageKey,
+          )}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {resolveAppMessage(
+            "pages.workspace.tracking.adminDescription" as MessageKey,
+          )}
+        </p>
+      </header>
+      {query.isError ? (
+        <TrackingError onRetry={() => void query.refetch()} />
+      ) : null}
+      {query.isPending ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton className="h-28" key={i} />
+          ))}
+        </div>
+      ) : null}
+      {data ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <TrackingMetric
+              label={resolveAppMessage(
+                "pages.workspace.tracking.failedAssessments" as MessageKey,
+              )}
+              value={data.platformHealth.totalFailedAssessments}
+            />
+            <TrackingMetric
+              label={resolveAppMessage(
+                "pages.workspace.tracking.blockedAssessments" as MessageKey,
+              )}
+              value={data.platformHealth.totalBlockedAssessments}
+            />
+            <TrackingMetric
+              label={resolveAppMessage(
+                "pages.workspace.tracking.executions" as MessageKey,
+              )}
+              value={data.platformHealth.totalExecutionAnomalies}
+            />
+            <TrackingMetric
+              label={resolveAppMessage(
+                "pages.workspace.tracking.usage" as MessageKey,
+              )}
+              value={data.platformHealth.totalUnreconciledUsageEvents}
+            />
+            <TrackingMetric
+              label={resolveAppMessage(
+                "pages.workspace.tracking.untrusted" as MessageKey,
+              )}
+              value={data.platformHealth.totalUntrustedProjections}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {resolveAppMessage(
+              "pages.workspace.tracking.limitedRows" as MessageKey,
+            )}{" "}
+            {resolveAppMessage(
+              "pages.workspace.tracking.generatedAt" as MessageKey,
+            )}
+            : {formatTrackingDate(data.generatedAt)}
+          </p>
+          <TrackingSection
+            title={resolveAppMessage(
+              "pages.workspace.tracking.customerImpact" as MessageKey,
+            )}
+          >
+            {data.impactedAssessments.length ? (
+              <div className="flex flex-col gap-3">
+                {data.impactedAssessments.map((item) => (
+                  <article
+                    key={item.assessmentId}
+                    className="rounded-lg border p-3"
+                  >
+                    <p className="font-medium">{item.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {resolveAppMessage(
+                        "pages.workspace.tracking.affectedCustomer" as MessageKey,
+                      )}
+                      : {item.ownerId}
+                    </p>
+                    <Collapsible className="mt-2 text-sm">
+                      <CollapsibleTrigger className="w-full justify-between">
+                        {resolveAppMessage(
+                          "pages.workspace.tracking.detail" as MessageKey,
+                        )}
+                        <ChevronDownIcon
+                          aria-hidden="true"
+                          className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"
+                        />
+                      </CollapsibleTrigger>
+                      <CollapsiblePanel>
+                        <dl className="mt-2 space-y-1 text-xs">
+                          <TrackingFact
+                            label={resolveAppMessage(
+                              "pages.workspace.tracking.executionState" as MessageKey,
+                            )}
+                            value={
+                              item.executionState ?? item.lifecycleState ?? ""
+                            }
+                          />
+                          <TrackingFact
+                            label={resolveAppMessage(
+                              "pages.workspace.tracking.anomaly" as MessageKey,
+                            )}
+                            value={item.impactReason}
+                          />
+                          <TrackingFact
+                            label={resolveAppMessage(
+                              "pages.workspace.tracking.detail" as MessageKey,
+                            )}
+                            value={item.blockerReason ?? ""}
+                          />
+                          <TrackingFact
+                            label={resolveAppMessage(
+                              "pages.workspace.tracking.updatedAt" as MessageKey,
+                            )}
+                            value={formatTrackingDate(item.lastActivityAt)}
+                          />
+                        </dl>
+                      </CollapsiblePanel>
+                    </Collapsible>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <Empty />
+            )}
+          </TrackingSection>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <TrackingSection
+              title={resolveAppMessage(
+                "pages.workspace.tracking.executions" as MessageKey,
+              )}
+            >
+              {data.executionAnomalies.length ? (
+                <div className="flex flex-col gap-3">
+                  {data.executionAnomalies.map((item) => (
+                    <article
+                      key={`${item.assessmentId}-${item.executionId ?? item.detectedAt}`}
+                      className="rounded-lg border p-3"
+                    >
+                      <p className="font-medium">{item.assessmentId}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {item.anomalyType}
+                      </p>
+                      <Collapsible className="mt-2 text-sm">
+                        <CollapsibleTrigger className="w-full justify-between">
+                          {resolveAppMessage(
+                            "pages.workspace.tracking.detail" as MessageKey,
+                          )}
+                          <ChevronDownIcon
+                            aria-hidden="true"
+                            className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"
+                          />
+                        </CollapsibleTrigger>
+                        <CollapsiblePanel>
+                          <dl className="mt-2 space-y-1 text-xs">
+                            <TrackingFact
+                              label={resolveAppMessage(
+                                "pages.workspace.tracking.executionState" as MessageKey,
+                              )}
+                              value={item.executionState}
+                            />
+                            <TrackingFact
+                              label={resolveAppMessage(
+                                "pages.workspace.tracking.duration" as MessageKey,
+                              )}
+                              value={
+                                item.durationSeconds === null
+                                  ? ""
+                                  : `${item.durationSeconds} ${resolveAppMessage("pages.workspace.tracking.secondsUnit" as MessageKey)}`
+                              }
+                            />
+                            <TrackingFact
+                              label={resolveAppMessage(
+                                "pages.workspace.tracking.runtimeVersion" as MessageKey,
+                              )}
+                              value={item.rootAgentVersion ?? ""}
+                            />
+                            <TrackingFact
+                              label={resolveAppMessage(
+                                "pages.workspace.tracking.generatedAt" as MessageKey,
+                              )}
+                              value={formatTrackingDate(item.detectedAt)}
+                            />
+                          </dl>
+                        </CollapsiblePanel>
+                      </Collapsible>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <Empty />
+              )}
+            </TrackingSection>
+            <TrackingSection
+              title={resolveAppMessage(
+                "pages.workspace.tracking.usage" as MessageKey,
+              )}
+            >
+              {data.unreconciledUsage.length ? (
+                <div className="flex flex-col gap-3">
+                  {data.unreconciledUsage.map((item) => (
+                    <article
+                      key={item.eventId}
+                      className="rounded-lg border p-3"
+                    >
+                      <p className="font-medium">
+                        {item.assessmentId ?? item.eventId}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {resolveAppMessage(
+                          "pages.workspace.tracking.model" as MessageKey,
+                        )}
+                        : {item.model}
+                      </p>
+                      <Collapsible className="mt-2 text-sm">
+                        <CollapsibleTrigger className="w-full justify-between">
+                          {resolveAppMessage(
+                            "pages.workspace.tracking.detail" as MessageKey,
+                          )}
+                          <ChevronDownIcon
+                            aria-hidden="true"
+                            className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"
+                          />
+                        </CollapsibleTrigger>
+                        <CollapsiblePanel>
+                          <dl className="mt-2 space-y-1 text-xs">
+                            <TrackingFact
+                              label={resolveAppMessage(
+                                "pages.workspace.tracking.tokenCount" as MessageKey,
+                              )}
+                              value={
+                                item.totalTokens?.toLocaleString(appLocale) ??
+                                ""
+                              }
+                            />
+                            <TrackingFact
+                              label={resolveAppMessage(
+                                "pages.workspace.tracking.generatedAt" as MessageKey,
+                              )}
+                              value={formatTrackingDate(item.createdAt)}
+                            />
+                          </dl>
+                        </CollapsiblePanel>
+                      </Collapsible>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <Empty />
+              )}
+            </TrackingSection>
+          </div>
+          <TrackingSection
+            title={resolveAppMessage(
+              "pages.workspace.tracking.untrusted" as MessageKey,
+            )}
+          >
+            {data.untrustedProjections.length ? (
+              <div className="flex flex-col gap-3">
+                {data.untrustedProjections.map((item) => (
+                  <article
+                    key={`${item.assessmentId}-${item.untrustedReason}`}
+                    className="rounded-lg border p-3"
+                  >
+                    <p className="font-medium">{item.name}</p>
+                    <p className="mt-1 text-sm">
+                      {untrustedReasonMessage(item.untrustedReason)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatTrackingDate(item.detectedAt)}
+                    </p>
+                    <Collapsible className="mt-2 text-sm">
+                      <CollapsibleTrigger className="w-full justify-between">
+                        {resolveAppMessage(
+                          "pages.workspace.tracking.detail" as MessageKey,
+                        )}
+                        <ChevronDownIcon
+                          aria-hidden="true"
+                          className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"
+                        />
+                      </CollapsibleTrigger>
+                      <CollapsiblePanel>
+                        <dl className="mt-2 space-y-1 text-xs">
+                          <TrackingFact
+                            label={resolveAppMessage(
+                              "pages.workspace.tracking.assessmentIdLabel" as MessageKey,
+                            )}
+                            value={item.assessmentId}
+                          />
+                          <TrackingFact
+                            label={resolveAppMessage(
+                              "pages.workspace.tracking.detectedAt" as MessageKey,
+                            )}
+                            value={formatTrackingDate(item.detectedAt)}
+                          />
+                        </dl>
+                      </CollapsiblePanel>
+                    </Collapsible>
+                    <p
+                      className="mt-3 text-sm text-muted-foreground"
+                      role="status"
+                    >
+                      {resolveAppMessage(
+                        "pages.workspace.tracking.investigationUnavailable" as MessageKey,
+                      )}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <Empty />
+            )}
+          </TrackingSection>
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 function Empty() {
-  return <p className="text-sm text-muted-foreground">{t("noOperationalItems")}</p>;
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{label}</dt><dd className="max-w-3/5 break-all text-right">{value || t("notAvailable")}</dd></div>;
-}
-
-function t(suffix: string) {
-  return resolveMessage(appLocale, `pages.workspace.tracking.${suffix}` as MessageKey);
+  return (
+    <TrackingEmptyState>
+      {resolveAppMessage(
+        "pages.workspace.tracking.noOperationalItems" as MessageKey,
+      )}
+    </TrackingEmptyState>
+  );
 }
 
 function untrustedReasonMessage(reason: TrackingUntrustedReason) {
-  return t(`untrustedReason.${reason}`);
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(appLocale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return resolveAppMessage(
+    `pages.workspace.tracking.untrustedReason.${reason}` as MessageKey,
+  );
 }

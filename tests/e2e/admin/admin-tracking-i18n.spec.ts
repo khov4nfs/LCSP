@@ -16,16 +16,19 @@ const operationalData = JSON.parse(
   ),
 );
 
-for (const { locale, heading, reason } of [
+for (const { locale, heading, reason, investigationUnavailable } of [
   {
     locale: "en",
     heading: "Results needing investigation",
     reason: "The assessment has no pinned compliance rule set version.",
+    investigationUnavailable:
+      "Investigation details are not available in this view.",
   },
   {
     locale: "vi",
     heading: "Kết quả cần kiểm tra",
     reason: "Assessment chưa có phiên bản bộ quy tắc tuân thủ được cố định.",
+    investigationUnavailable: "Chưa thể mở chi tiết điều tra từ trang này.",
   },
 ] as const) {
   test(`admin tracking explains unavailable rule sets in ${locale}`, async ({
@@ -48,13 +51,13 @@ for (const { locale, heading, reason } of [
 
     await expect(page.getByText(heading, { exact: true }).last()).toBeVisible();
     await expect(page.getByText(reason)).toBeVisible();
-    const investigation = page.getByRole("link", { name: locale === "en" ? "Open investigation" : "Mở điều tra" });
-    await expect(investigation).toBeVisible();
-    await investigation.focus();
-    await expect(investigation).toBeFocused();
-    await investigation.click();
-    await expect(page).toHaveURL(/#investigation-/);
-    await expect(page.locator("[id^='investigation-']").first()).toBeVisible();
+    await expect(page.getByRole("status")).toContainText(
+      investigationUnavailable,
+    );
+    await expect(
+      page.getByRole("link", { name: /Open investigation|Mở điều tra/ }),
+    ).toHaveCount(0);
+    await expect(page.locator("[id^='investigation-']")).toHaveCount(0);
     await expect(page.getByText("RULE_SET_UNAVAILABLE")).toHaveCount(0);
     await expect(
       page.getByText(operationalData.untrustedProjections[0].detail, {

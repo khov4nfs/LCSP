@@ -1,5 +1,11 @@
-import type { ReactNode } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import type { TrackingSectionProps } from "../../types/tracking-ui.types";
 
 export function TrackingSection({
   title,
@@ -7,23 +13,27 @@ export function TrackingSection({
   children,
   action,
   compact = false,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-  action?: ReactNode;
-  compact?: boolean;
-}) {
+}: TrackingSectionProps) {
   return (
     <Card>
-      <CardHeader className={compact ? "flex flex-row items-start justify-between gap-4 p-4 pb-2" : "flex flex-row items-start justify-between gap-4"}>
+      <CardHeader
+        className={
+          compact
+            ? "flex flex-row items-start justify-between gap-4 p-4 pb-2"
+            : "flex flex-row items-start justify-between gap-4"
+        }
+      >
         <div className="space-y-1">
           <CardTitle>{title}</CardTitle>
-          {description ? <CardDescription>{description}</CardDescription> : null}
+          {description ? (
+            <CardDescription>{description}</CardDescription>
+          ) : null}
         </div>
         {action}
       </CardHeader>
-      <CardContent className={compact ? "px-4 pb-4" : undefined}>{children}</CardContent>
+      <CardContent className={compact ? "px-4 pb-4" : undefined}>
+        {children}
+      </CardContent>
     </Card>
   );
 }

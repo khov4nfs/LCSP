@@ -150,6 +150,8 @@ model Assessment {
   domainCase             AssessmentCase?
 
   @@index([ownerId])
+  @@index([ownerId, updatedAt(sort: Desc), id])
+  @@index([ownerId, lifecycleState, id])
 }
 
 enum AgentStreamBoundaryType {
@@ -1825,6 +1827,7 @@ model AssessmentDecisionCoverage {
 
   @@id([assessmentId, assessmentRuleId])
   @@index([assessmentId, resolutionState])
+  @@index([ruleSetVersionId, assessmentRuleId, assessmentId])
 }
 
 // resolvedFactId also carries a raw composite FK (resolvedFactId, assessmentId) ->
@@ -1926,8 +1929,6 @@ enum AuthorizationReasonCode {
   UNSUPPORTED_PROVIDER
   VALIDATION_FAILED
 }
-
-
 enum PreparationExecutionContract {
   CLAIM_INVENTORY_V1
   DIRECT_DRAFT_V1

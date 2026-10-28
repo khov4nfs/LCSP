@@ -39,6 +39,22 @@ export function formatLocaleDateTime(
 }
 
 /**
+ * Formats date and time with the year using the active or provided locale.
+ */
+export function formatLocaleDateTimeWithYear(
+  isoString: string | null | undefined,
+  locale?: Locale,
+): string {
+  if (!isoString) return "â€”";
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return "â€”";
+  return new Intl.DateTimeFormat(locale ?? appLocale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+/**
  * Formats activity time using locale authority
  * (e.g., "10/14, 02:00" in EN, localized month/day/time in VI).
  */

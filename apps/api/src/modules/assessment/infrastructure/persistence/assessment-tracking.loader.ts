@@ -51,6 +51,10 @@ import {
   type CustomerTrackingObligations,
   type CustomerTrackingReports,
 } from "@lcsp/contracts/assessment-domain";
+import type {
+  FilteredTrackingReportPagePayload,
+  TrackingObligationAggregatePayload,
+} from "./types/assessment-tracking-persistence.types.js";
 import {
   REPOSITORY_SNAPSHOT_STATUSES,
   REPOSITORY_CONNECTION_STATUSES,
@@ -108,13 +112,19 @@ async function mapWithConcurrency<T, R>(
  */
 
 /**
- * Business purpose: Provide the database projection with the canonical validity result for each owned rule decision.
- * Business rules: A decision is valid only when the current coverage pointer, persisted columns, strict JSON packet, evidence, and facts agree with the assessment's pinned rule set and revision.
- * Execution flow: 1. Bind the customer owner ID. 2. Read each owned coverage row and its current decision and references. 3. Return a CTE that marks only fully revalidated decisions as valid for downstream summary or grouped queries.
+ * Business purpose: Provide database projections with the canonical validity result for owned rule decisions.
+ * Business rules: A decision is valid only when the current coverage pointer, persisted columns, strict JSON packet, evidence, and facts agree with the assessment's pinned rule set and revision; optional group scope restricts the evaluated rule population.
+ * Execution flow: 1. Bind the customer owner ID. 2. Optionally bind a rule-set and rule group. 3. Read the scoped coverage rows and current decision references. 4. Return a CTE that marks only fully revalidated decisions as valid.
  * Failure cases: Missing, malformed, stale, invalidated, or cross-assessment references produce an invalid row that downstream projections count as unresolved.
  * Side effects: Builds a parameterized read-only SQL fragment; it performs no writes.
  */
-function ownerCanonicalDecisionEvaluationCte(ownerId: string): Prisma.Sql {
+function ownerCanonicalDecisionEvaluationCte(
+  ownerId: string,
+  group?: { ruleSetVersionId: string; assessmentRuleId: string },
+): Prisma.Sql {
+  const groupScope = group
+    ? Prisma.sql`AND adc."ruleSetVersionId" = ${group.ruleSetVersionId} AND adc."assessmentRuleId" = ${group.assessmentRuleId}`
+    : Prisma.empty;
   return Prisma.sql`
         WITH evaluated AS (
           SELECT
@@ -328,8 +338,78 @@ function ownerCanonicalDecisionEvaluationCte(ownerId: string): Prisma.Sql {
             AND ard."assessmentId" = adc."assessmentId"
             AND ard."assessmentRuleId" = adc."assessmentRuleId"
           WHERE a."ownerId" = ${ownerId}
+            ${groupScope}
         )
         `;
+}
+
+/**
+ * Business purpose: Calculate source freshness for a bounded owner-scoped assessment candidate set.
+ * Business rules: Only READY snapshots visible to the authenticated owner or an active owner connection can establish freshness; ref falls back to branch and matching commits are CURRENT.
+ * Execution flow: 1. Read pinned snapshots for scoped_assessments. 2. Find the latest visible snapshot for each repository and normalized ref-or-branch key. 3. Return freshness and observation time for each candidate assessment.
+ * Failure cases: Missing pins or a missing newer snapshot produce FRESHNESS_UNKNOWN; database errors propagate to the caller's shared error handling.
+ * Side effects: Builds a parameterized read-only SQL CTE.
+ */
+function ownerScopedFreshnessCte(ownerId: string): Prisma.Sql {
+  return Prisma.sql`, freshness AS (
+    SELECT
+      scoped."assessmentId",
+      CASE
+        WHEN latest."id" IS NOT NULL
+          AND pinned."id" IS NOT NULL
+          AND latest."id" <> pinned."id"
+          AND latest."createdAt" > pinned."createdAt"
+          AND LOWER(latest."commitSha") = LOWER(COALESCE(scoped."repositoryCommit", pinned."commitSha"))
+          THEN ${TRACKING_FRESHNESS_STATUSES.CURRENT}
+        WHEN latest."id" IS NOT NULL
+          AND pinned."id" IS NOT NULL
+          AND latest."id" <> pinned."id"
+          AND latest."createdAt" > pinned."createdAt"
+          THEN ${TRACKING_FRESHNESS_STATUSES.STALE}
+        ELSE ${TRACKING_FRESHNESS_STATUSES.UNKNOWN}
+      END AS "freshnessStatus",
+      CASE
+        WHEN latest."id" IS NOT NULL
+          AND pinned."id" IS NOT NULL
+          AND latest."id" <> pinned."id"
+          AND latest."createdAt" > pinned."createdAt"
+          THEN latest."createdAt"
+        ELSE NULL
+      END AS "observedAt"
+    FROM scoped_assessments scoped
+    LEFT JOIN "RepositorySnapshot" pinned
+      ON pinned."id" = scoped."repositorySnapshotId"
+    LEFT JOIN LATERAL (
+      SELECT candidate."id", candidate."createdAt", candidate."commitSha"
+      FROM "RepositorySnapshot" candidate
+      WHERE candidate."status" = ${REPOSITORY_SNAPSHOT_STATUSES.ready}
+        AND candidate."repositoryFullName" = pinned."repositoryFullName"
+        AND (
+          candidate."ref" = COALESCE(pinned."ref", pinned."branch")
+          OR (
+            candidate."ref" IS NULL
+            AND candidate."branch" = COALESCE(pinned."ref", pinned."branch")
+          )
+        )
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM "Assessment" snapshot_assessment
+            WHERE snapshot_assessment."id" = candidate."assessmentId"
+              AND snapshot_assessment."ownerId" = ${ownerId}
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM "RepositoryConnection" snapshot_connection
+            WHERE snapshot_connection."id" = candidate."connectionId"
+              AND snapshot_connection."userId" = ${ownerId}
+              AND snapshot_connection."status" = ${REPOSITORY_CONNECTION_STATUSES.active}
+          )
+        )
+      ORDER BY candidate."createdAt" DESC, candidate."id" ASC
+      LIMIT 1
+    ) latest ON true
+  )`;
 }
 
 interface DecisionEvaluationParams {
@@ -1876,9 +1956,9 @@ SELECT
    */
   /**
    * Business purpose: Provide customers a paginated view of completed Final Reports.
-   * Business rules: Only the authenticated customer owner may read owned assessments; incomplete or untrusted evaluations retain their canonical trust status.
-   * Execution flow: 1. Validate the role. 2. Page owned active reports in the database when freshness is unfiltered. 3. Evaluate details only for that page. 4. Preserve exact totals and freshness-filter behavior.
-   * Failure cases: Non-customer roles receive an empty page; unavailable data access propagates through the shared API problem handling.
+   * Business rules: Only the authenticated customer owner may read owned assessments; freshness filtering and pagination are applied to active reports before bounded detail hydration.
+   * Execution flow: 1. Validate the role. 2. Query owner-scoped active reports and freshness in PostgreSQL. 3. Apply the requested freshness, stable ordering, count, and page. 4. Hydrate only page details and preserve canonical trust status.
+   * Failure cases: Non-customer roles receive an empty page; query failure or a page/detail mismatch fails closed through shared API problem handling.
    * Side effects: Read-only database access.
    */
   async loadCustomerReports(input: {
@@ -1957,74 +2037,104 @@ SELECT
         generatedAt: new Date().toISOString(),
       });
     }
-    const reportWhere = {
-      kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
-      lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
-      assessmentCase: {
-        assessment: {
-          ownerId: input.sessionUserId,
-          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-        },
-      },
-    };
-    const totalReports = await this.prisma.assessmentArtifact.count({
-      where: reportWhere,
-    });
-    let total = 0;
-    const pageCandidates: Array<{
-      assessmentId: string;
-      assessmentName: string;
-      repositoryName: string | null;
-      repositoryOwner: string | null;
-      artifactId: string;
-      createdAt: string;
-      freshnessStatus: TrackingFreshnessStatus;
-      observedAt: string | null;
-      trustStatus: TrackingTrustStatus;
-    }> = [];
-    for (let skip = 0; skip < totalReports; skip += 100) {
-      const rows = await this.loadCustomerTrackingRows(
-        input.sessionUserId,
-        undefined,
-        {
-          skip,
-          take: 100,
-          reportsOnly: true,
-        },
+    let payload: FilteredTrackingReportPagePayload | undefined;
+    try {
+      const rows = await this.prisma.$queryRaw<
+        Array<{ payload: FilteredTrackingReportPagePayload }>
+      >(Prisma.sql`
+        WITH scoped_assessments AS (
+          SELECT
+            a."id" AS "assessmentId",
+            ac."repositorySnapshotId",
+            ac."repositoryCommit",
+            report."artifactId",
+            report."createdAt" AS "reportCreatedAt"
+          FROM "Assessment" a
+          JOIN "AssessmentCase" ac ON ac."assessmentId" = a."id"
+          JOIN "AssessmentArtifact" report ON report."assessmentId" = a."id"
+          WHERE a."ownerId" = ${input.sessionUserId}
+            AND a."lifecycleState" = ${ASSESSMENT_LIFECYCLE_STATES.COMPLETE}
+            AND report."kind" = ${ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT}
+            AND report."lifecycleState" = ${ARTIFACT_LIFECYCLE_STATES.ACTIVE}
+        )
+        ${ownerScopedFreshnessCte(input.sessionUserId)},
+        filtered_reports AS (
+          SELECT scoped.*, freshness."freshnessStatus", freshness."observedAt"
+          FROM scoped_assessments scoped
+          JOIN freshness USING ("assessmentId")
+          WHERE freshness."freshnessStatus" = ${input.freshness}
+        ),
+        report_page AS (
+          SELECT * FROM filtered_reports
+          ORDER BY "reportCreatedAt" DESC, "artifactId" ASC
+          LIMIT ${limit} OFFSET ${offset}
+        )
+        SELECT jsonb_build_object(
+          'total', (SELECT COUNT(*)::int FROM filtered_reports),
+          'items', COALESCE((
+            SELECT jsonb_agg(jsonb_build_object(
+              'assessmentId', page."assessmentId",
+              'artifactId', page."artifactId",
+              'createdAt', page."reportCreatedAt",
+              'freshnessStatus', page."freshnessStatus",
+              'observedAt', page."observedAt"
+            ) ORDER BY page."reportCreatedAt" DESC, page."artifactId" ASC)
+            FROM report_page page
+          ), '[]'::jsonb)
+        ) AS payload
+      `);
+      payload = rows[0]?.payload;
+    } catch (error) {
+      this.logger.error(
+        `Customer report freshness query failed for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
       );
-      for (const row of rows) {
-        if (row.reportArtifactId === null || !row.lifecycleComplete) continue;
-        if (row.freshnessStatus !== input.freshness) continue;
-        total++;
-        pageCandidates.push({
-          assessmentId: row.assessmentId,
-          assessmentName: row.assessmentName,
-          repositoryName: row.repositoryName,
-          repositoryOwner: row.repositoryOwner,
-          artifactId: row.reportArtifactId,
-          createdAt: row.reportCreatedAt!,
-          freshnessStatus: row.freshnessStatus,
-          observedAt: row.observedAt,
-          trustStatus: row.trustStatus,
-        });
-      }
-      pageCandidates.sort(
-        (a, b) =>
-          b.createdAt.localeCompare(a.createdAt) ||
-          a.artifactId.localeCompare(b.artifactId),
+      throw new ServiceUnavailableException(
+        `Customer report freshness is temporarily unavailable (correlationId: ${input.correlationId}).`,
       );
-      if (pageCandidates.length > offset + limit) {
-        pageCandidates.length = offset + limit;
-      }
     }
-    const items = pageCandidates.slice(offset, offset + limit);
+    if (!payload) {
+      throw new ServiceUnavailableException(
+        `Customer report freshness is temporarily unavailable (correlationId: ${input.correlationId}).`,
+      );
+    }
+    const pageRows = payload.items.length
+      ? await this.loadCustomerTrackingRows(
+          input.sessionUserId,
+          payload.items.map((item) => item.assessmentId),
+        )
+      : [];
+    const rowsByAssessmentId = new Map(
+      pageRows.map((row) => [row.assessmentId, row]),
+    );
+    const items = payload.items.map((report) => {
+      const row = rowsByAssessmentId.get(report.assessmentId);
+      if (!row || row.freshnessStatus !== report.freshnessStatus) {
+        throw new ServiceUnavailableException(
+          `Customer report details changed during pagination (correlationId: ${input.correlationId}).`,
+        );
+      }
+      return {
+        assessmentId: row.assessmentId,
+        assessmentName: row.assessmentName,
+        repositoryName: row.repositoryName,
+        repositoryOwner: row.repositoryOwner,
+        artifactId: report.artifactId,
+        createdAt: new Date(report.createdAt).toISOString(),
+        freshnessStatus: report.freshnessStatus,
+        observedAt: report.observedAt
+          ? new Date(report.observedAt).toISOString()
+          : null,
+        trustStatus: row.trustStatus,
+      };
+    });
     return customerTrackingReportsSchema.parse({
       items,
       pagination: {
-        total,
+        total: payload.total,
         limit,
         offset,
-        hasMore: offset + items.length < total,
+        hasMore: offset + items.length < payload.total,
       },
       generatedAt: new Date().toISOString(),
     });
@@ -2032,9 +2142,9 @@ SELECT
 
   /**
    * Business purpose: Let a customer inspect every owned assessment contributing to one obligation group.
-   * Business rules: The group key is validated by the request contract; rows are restricted to the authenticated owner and must match both pinned rule set and rule identifier.
-   * Execution flow: 1. Validate the role. 2. Load canonical owner tracking rows. 3. Match the requested group and filters. 4. Sort deterministically and return the requested page with an exact count.
-   * Failure cases: Non-customer roles receive an empty page; unknown or non-owned groups return an empty page without exposing other tenants' records.
+   * Business rules: The validated group key and optional outcome/freshness filters must match owner-scoped canonical decisions; preview and follow-up pages use updatedAt DESC then assessmentId ASC.
+   * Execution flow: 1. Validate the role. 2. Select the requested page and exact count in PostgreSQL. 3. Hydrate canonical details only for page IDs. 4. Preserve database ordering in the response.
+   * Failure cases: Non-customer roles receive an empty page; unknown or non-owned groups return an empty page; query or detail mismatches fail closed.
    * Side effects: Read-only database access.
    */
   async loadCustomerObligationAssessments(input: {
@@ -2076,7 +2186,7 @@ SELECT
         this.prisma.assessment.count({ where: groupWhere }),
         this.prisma.assessment.findMany({
           where: groupWhere,
-          orderBy: [{ name: "asc" }, { id: "asc" }],
+          orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
           skip: offset,
           take: limit,
           select: { id: true },
@@ -2091,23 +2201,24 @@ SELECT
       const rowsByAssessmentId = new Map(
         rows.map((row) => [row.assessmentId, row]),
       );
-      const items = pageAssessments.flatMap((assessment) => {
+      const items = pageAssessments.map((assessment) => {
         const row = rowsByAssessmentId.get(assessment.id);
         const rule = row?.rules.find(
           (item) => item.assessmentRuleId === input.assessmentRuleId,
         );
-        return row && rule
-          ? [
-              {
-                assessmentId: row.assessmentId,
-                assessmentName: row.assessmentName,
-                outcome: rule.outcome,
-                freshnessStatus: row.freshnessStatus,
-                observedAt: row.observedAt,
-                trustStatus: row.trustStatus,
-              },
-            ]
-          : [];
+        if (!row || !rule) {
+          throw new ServiceUnavailableException(
+            "Customer obligation assessment details changed during pagination.",
+          );
+        }
+        return {
+          assessmentId: row.assessmentId,
+          assessmentName: row.assessmentName,
+          outcome: rule.outcome,
+          freshnessStatus: row.freshnessStatus,
+          observedAt: row.observedAt,
+          trustStatus: row.trustStatus,
+        };
       });
       return customerTrackingObligationAssessmentsSchema.parse({
         items,
@@ -2115,65 +2226,148 @@ SELECT
           total,
           limit,
           offset,
-          hasMore: offset + pageAssessments.length < total,
+          hasMore: offset + items.length < total,
         },
         generatedAt: new Date().toISOString(),
       });
     }
 
-    const assessmentTotal = await this.prisma.assessment.count({
-      where: { ownerId: input.sessionUserId },
-    });
-    let total = 0;
-    const pageCandidates: Array<{
-      assessmentId: string;
-      assessmentName: string;
-      outcome: TrackingRuleOutcome;
-      freshnessStatus: TrackingFreshnessStatus;
-      observedAt: string | null;
-      trustStatus: TrackingTrustStatus;
-    }> = [];
-    for (let skip = 0; skip < assessmentTotal; skip += 100) {
-      const rows = await this.loadCustomerTrackingRows(
-        input.sessionUserId,
-        undefined,
-        { skip, take: 100 },
+    type FilteredObligationPage = {
+      total: number;
+      items: Array<{
+        assessmentId: string;
+        freshnessStatus: TrackingFreshnessStatus;
+      }>;
+    };
+    let payload: FilteredObligationPage | undefined;
+    try {
+      const rows = await this.prisma.$queryRaw<
+        Array<{ payload: FilteredObligationPage }>
+      >(Prisma.sql`
+        ${ownerCanonicalDecisionEvaluationCte(input.sessionUserId, {
+          ruleSetVersionId: input.ruleSetVersionId,
+          assessmentRuleId: input.assessmentRuleId,
+        })},
+        scoped_assessments AS (
+          SELECT DISTINCT
+            a."id" AS "assessmentId",
+            ac."repositorySnapshotId",
+            ac."repositoryCommit"
+          FROM "Assessment" a
+          JOIN "AssessmentCase" ac ON ac."assessmentId" = a."id"
+          JOIN "AssessmentDecisionCoverage" group_coverage
+            ON group_coverage."assessmentId" = a."id"
+            AND group_coverage."ruleSetVersionId" = ${input.ruleSetVersionId}
+            AND group_coverage."assessmentRuleId" = ${input.assessmentRuleId}
+          WHERE a."ownerId" = ${input.sessionUserId}
+            AND ac."ruleSetVersionId" = ${input.ruleSetVersionId}
+        )
+        ${ownerScopedFreshnessCte(input.sessionUserId)},
+        normalized AS (
+          SELECT
+            evaluated."assessmentId",
+            evaluated."assessmentName",
+            evaluated."updatedAt",
+            CASE
+              WHEN evaluated."is_valid" = true
+                AND evaluated."applicability" = 'NOT_APPLICABLE'
+                THEN ${TRACKING_RULE_OUTCOMES.NOT_APPLICABLE}
+              WHEN evaluated."is_valid" = true
+                AND evaluated."applicability" = 'APPLICABLE'
+                AND evaluated."compliance" = 'COMPLIANT'
+                THEN ${TRACKING_RULE_OUTCOMES.COMPLIANT}
+              WHEN evaluated."is_valid" = true
+                AND evaluated."applicability" = 'APPLICABLE'
+                AND evaluated."compliance" = 'NON_COMPLIANT'
+                THEN ${TRACKING_RULE_OUTCOMES.NON_COMPLIANT}
+              ELSE ${TRACKING_RULE_OUTCOMES.UNRESOLVED}
+            END AS outcome,
+            freshness."freshnessStatus"
+          FROM evaluated
+          JOIN scoped_assessments scoped USING ("assessmentId")
+          JOIN "AssessmentRule" rule
+            ON rule."ruleSetVersionId" = evaluated."ruleSetVersionId"
+            AND rule."assessmentRuleId" = evaluated."assessmentRuleId"
+          JOIN freshness USING ("assessmentId")
+        ),
+        filtered AS (
+          SELECT * FROM normalized
+          WHERE (${input.outcome ?? null}::text IS NULL
+            OR outcome = ${input.outcome ?? null}::text)
+            AND (${input.freshness ?? null}::text IS NULL
+              OR "freshnessStatus" = ${input.freshness ?? null}::text)
+        ),
+        obligation_page AS (
+          SELECT * FROM filtered
+          ORDER BY "updatedAt" DESC, "assessmentId" ASC
+          LIMIT ${limit} OFFSET ${offset}
+        )
+        SELECT jsonb_build_object(
+          'total', (SELECT COUNT(*)::int FROM filtered),
+          'items', COALESCE((
+            SELECT jsonb_agg(jsonb_build_object(
+              'assessmentId', page."assessmentId",
+              'freshnessStatus', page."freshnessStatus"
+            ) ORDER BY page."updatedAt" DESC, page."assessmentId" ASC)
+            FROM obligation_page page
+          ), '[]'::jsonb)
+        ) AS payload
+      `);
+      payload = rows[0]?.payload;
+    } catch (error) {
+      this.logger.error(
+        `Customer obligation page query failed for owner ${input.sessionUserId}: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
       );
-      for (const row of rows) {
-        if (row.ruleSetVersionId !== input.ruleSetVersionId) continue;
-        if (input.freshness && row.freshnessStatus !== input.freshness)
-          continue;
-        const rule = row.rules.find(
-          (item) => item.assessmentRuleId === input.assessmentRuleId,
-        );
-        if (!rule || (input.outcome && rule.outcome !== input.outcome))
-          continue;
-        total++;
-        pageCandidates.push({
-          assessmentId: row.assessmentId,
-          assessmentName: row.assessmentName,
-          outcome: rule.outcome,
-          freshnessStatus: row.freshnessStatus,
-          observedAt: row.observedAt,
-          trustStatus: row.trustStatus,
-        });
-      }
-      pageCandidates.sort(
-        (a, b) =>
-          a.assessmentName.localeCompare(b.assessmentName) ||
-          a.assessmentId.localeCompare(b.assessmentId),
+      throw new ServiceUnavailableException(
+        "Customer obligation assessment page is temporarily unavailable.",
       );
-      if (pageCandidates.length > offset + limit)
-        pageCandidates.length = offset + limit;
     }
-    const items = pageCandidates.slice(offset, offset + limit);
+    if (!payload) {
+      throw new ServiceUnavailableException(
+        "Customer obligation assessment page is temporarily unavailable.",
+      );
+    }
+    const rows = payload.items.length
+      ? await this.loadCustomerTrackingRows(
+          input.sessionUserId,
+          payload.items.map((item) => item.assessmentId),
+        )
+      : [];
+    const rowsByAssessmentId = new Map(
+      rows.map((row) => [row.assessmentId, row]),
+    );
+    const items = payload.items.map((pageItem) => {
+      const row = rowsByAssessmentId.get(pageItem.assessmentId);
+      const rule = row?.rules.find(
+        (item) => item.assessmentRuleId === input.assessmentRuleId,
+      );
+      if (
+        !row ||
+        !rule ||
+        row.freshnessStatus !== pageItem.freshnessStatus ||
+        (input.outcome && rule.outcome !== input.outcome)
+      ) {
+        throw new ServiceUnavailableException(
+          "Customer obligation assessment details changed during pagination.",
+        );
+      }
+      return {
+        assessmentId: row.assessmentId,
+        assessmentName: row.assessmentName,
+        outcome: rule.outcome,
+        freshnessStatus: row.freshnessStatus,
+        observedAt: row.observedAt,
+        trustStatus: row.trustStatus,
+      };
+    });
     return customerTrackingObligationAssessmentsSchema.parse({
       items,
       pagination: {
-        total,
+        total: payload.total,
         limit,
         offset,
-        hasMore: offset + items.length < total,
+        hasMore: offset + items.length < payload.total,
       },
       generatedAt: new Date().toISOString(),
     });
@@ -2230,29 +2424,10 @@ SELECT
     limit: number,
     offset: number,
   ): Promise<CustomerTrackingObligations> {
-    interface ObligationAggregatePayload {
-      total: number;
-      evaluationSummary: {
-        evaluatedAssessmentCount: number;
-        notEvaluatedAssessmentCount: number;
-      };
-      items: Array<{
-        ruleSetVersionId: string;
-        ruleSetVersion: string | null;
-        assessmentRuleId: string;
-        concept: string;
-        compliantCount: number;
-        nonCompliantCount: number;
-        notApplicableCount: number;
-        unresolvedCount: number;
-        affectedAssessmentCount: number;
-        previewAssessmentIds: string[];
-      }>;
-    }
-    let aggregateRows: Array<{ payload: ObligationAggregatePayload }>;
+    let aggregateRows: Array<{ payload: TrackingObligationAggregatePayload }>;
     try {
       aggregateRows = await this.prisma.$queryRaw<
-        Array<{ payload: ObligationAggregatePayload }>
+        Array<{ payload: TrackingObligationAggregatePayload }>
       >(Prisma.sql`
       ${ownerCanonicalDecisionEvaluationCte(input.sessionUserId)},
       /* tracking-obligation-aggregate */
@@ -2742,7 +2917,7 @@ SELECT
             ],
           },
           orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-          distinct: ["repositoryFullName", "ref"],
+          distinct: ["repositoryFullName", "ref", "branch"],
           select: {
             id: true,
             repositoryFullName: true,

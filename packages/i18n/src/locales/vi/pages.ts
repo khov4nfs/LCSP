@@ -1354,15 +1354,19 @@ export const viPages = {
       navCompliance: "Tuân thủ",
       navReports: "Báo cáo",
       overviewTitle: "Tổng quan tuân thủ",
-      overviewDescription: "Xem việc cần bạn xử lý, thay đổi gần đây và kết quả sẵn sàng sử dụng.",
+      overviewDescription:
+        "Xem việc cần bạn xử lý, thay đổi gần đây và kết quả sẵn sàng sử dụng.",
       actionsTitle: "Việc nào cần bạn xử lý?",
-      actionsDescription: "Chỉ hiển thị yêu cầu cần bạn cung cấp thông tin hoặc quyết định.",
+      actionsDescription:
+        "Chỉ hiển thị yêu cầu cần bạn cung cấp thông tin hoặc quyết định.",
       changesTitle: "Thay đổi gần đây",
       changesDescription: "Các thay đổi đáng chú ý trong 30 ngày qua.",
       assessmentsTitle: "Assessment và repository",
-      assessmentsDescription: "Kết quả, độ mới của dữ liệu và bước tiếp theo cho từng assessment.",
+      assessmentsDescription:
+        "Kết quả, độ mới của dữ liệu và bước tiếp theo cho từng assessment.",
       obligationsTitle: "Nghĩa vụ cần theo dõi",
-      obligationsDescription: "Các quy tắc chưa tuân thủ hoặc chưa có kết luận trong assessment của bạn.",
+      obligationsDescription:
+        "Các quy tắc chưa tuân thủ hoặc chưa có kết luận trong assessment của bạn.",
       reportsTitle: "Final Report sẵn sàng sử dụng",
       reportsDescription: "Báo cáo đã hoàn tất, có thể xem hoặc tải xuống.",
       searchLabel: "Tìm assessment",
@@ -1375,18 +1379,23 @@ export const viPages = {
       noActions: "Hiện không có yêu cầu nào đang chờ bạn cung cấp thông tin.",
       noChanges: "Không có thay đổi đáng chú ý trong khoảng thời gian này.",
       noAssessments: "Không có assessment phù hợp với từ khóa tìm kiếm.",
-      noObligations: "Không tìm thấy nghĩa vụ cần xử lý trong các assessment đã được đánh giá.",
-      notEvaluatedCount: "assessment chưa thể được đánh giá vì thiếu bộ quy tắc hoặc dữ liệu phạm vi.",
+      noObligations:
+        "Không tìm thấy nghĩa vụ cần xử lý trong các assessment đã được đánh giá.",
+      notEvaluatedCount:
+        "assessment chưa thể được đánh giá vì thiếu bộ quy tắc hoặc dữ liệu phạm vi.",
       notEvaluated: "Chưa được đánh giá",
-      notEvaluatedDescription: "Kết quả nghĩa vụ chưa đầy đủ cho đến khi các assessment này có bộ quy tắc được ghim hợp lệ và phạm vi quy tắc đầy đủ.",
+      notEvaluatedDescription:
+        "Kết quả nghĩa vụ chưa đầy đủ cho đến khi các assessment này có bộ quy tắc được ghim hợp lệ và phạm vi quy tắc đầy đủ.",
       reviewAssessments: "Xem các assessment bị ảnh hưởng",
       investigateAssessment: "Mở điều tra",
+      investigationUnavailable: "Chưa thể mở chi tiết điều tra từ trang này.",
       assessmentIdLabel: "Mã assessment",
       detectedAt: "Phát hiện lúc",
       noReports: "Chưa có Final Report hoàn tất nào sẵn sàng.",
       loading: "Đang tải dữ liệu theo dõi",
       errorTitle: "Không thể tải dữ liệu theo dõi",
-      errorDescription: "Vui lòng thử lại sau. Các assessment vẫn tiếp tục hoạt động bình thường.",
+      errorDescription:
+        "Vui lòng thử lại sau. Các assessment vẫn tiếp tục hoạt động bình thường.",
       retry: "Thử lại",
       viewAll: "Xem tất cả",
       result: "Kết quả",
@@ -1417,20 +1426,25 @@ export const viPages = {
         DATA_UNAVAILABLE: "Không có kết quả khả dụng",
       },
       adminTitle: "Theo dõi vận hành",
-      adminDescription: "Sự cố nền tảng ảnh hưởng assessment của khách hàng và độ tin cậy dữ liệu.",
+      adminDescription:
+        "Sự cố nền tảng ảnh hưởng assessment của khách hàng và độ tin cậy dữ liệu.",
       customerImpact: "Ảnh hưởng khách hàng",
       executions: "Execution bất thường",
       usage: "Đối soát usage",
       untrusted: "Kết quả cần kiểm tra",
       untrustedReason: {
-        MISSING_PINS: "Assessment thiếu thông tin nguồn bắt buộc đã được cố định.",
+        MISSING_PINS:
+          "Assessment thiếu thông tin nguồn bắt buộc đã được cố định.",
         SOURCE_SNAPSHOT_STALE: "Ảnh chụp kho mã đã cố định không còn mới.",
         SOURCE_FRESHNESS_UNKNOWN: "Chưa thể xác minh độ mới của nguồn.",
-        RULE_SET_UNAVAILABLE: "Assessment chưa có phiên bản bộ quy tắc tuân thủ được cố định.",
-        DECISIONS_INVALIDATED: "Assessment có kết luận quy tắc đã bị vô hiệu hóa.",
+        RULE_SET_UNAVAILABLE:
+          "Assessment chưa có phiên bản bộ quy tắc tuân thủ được cố định.",
+        DECISIONS_INVALIDATED:
+          "Assessment có kết luận quy tắc đã bị vô hiệu hóa.",
         EVIDENCE_INVALIDATED: "Assessment có bằng chứng đã bị vô hiệu hóa.",
         INCOMPLETE_COVERAGE: "Assessment chưa bao phủ đầy đủ các quy tắc.",
-        DECISION_INCONSISTENCY: "Assessment có các kết luận quy tắc không nhất quán.",
+        DECISION_INCONSISTENCY:
+          "Assessment có các kết luận quy tắc không nhất quán.",
       },
       limitedRows: "Mỗi danh sách hiển thị tối đa 100 mục mới nhất.",
       generatedAt: "Dữ liệu được tạo lúc",
@@ -1455,13 +1469,18 @@ export const viPages = {
       blockedAssessments: "Assessment bị chặn",
       runtimeVersion: "Phiên bản agent runtime",
       secondsUnit: "giây",
-      historicalReportWarning: "Báo cáo này được lưu như kết quả lịch sử. Hãy đánh giá lại repository để xác nhận trạng thái hiện tại.",
+      historicalReportWarning:
+        "Báo cáo này được lưu như kết quả lịch sử. Hãy đánh giá lại repository để xác nhận trạng thái hiện tại.",
       summary: {
-        compliant: "Có ít nhất một yêu cầu đã đánh giá tuân thủ tại commit được đánh giá.",
+        compliant:
+          "Có ít nhất một yêu cầu đã đánh giá tuân thủ tại commit được đánh giá.",
         nonCompliant: "Có ít nhất một yêu cầu chưa tuân thủ.",
-        notApplicable: "Các yêu cầu đã đánh giá không áp dụng cho assessment này.",
-        unresolved: "Một số yêu cầu chưa có kết luận hiện hành đã được xác minh.",
-        notEvaluated: "Chưa có bộ quy tắc tuân thủ được ghim hoặc phạm vi quy tắc đầy đủ.",
+        notApplicable:
+          "Các yêu cầu đã đánh giá không áp dụng cho assessment này.",
+        unresolved:
+          "Một số yêu cầu chưa có kết luận hiện hành đã được xác minh.",
+        notEvaluated:
+          "Chưa có bộ quy tắc tuân thủ được ghim hoặc phạm vi quy tắc đầy đủ.",
       },
     },
     nextActions: {

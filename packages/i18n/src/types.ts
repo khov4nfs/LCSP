@@ -1292,6 +1292,7 @@ export type PagesMessages = {
       notEvaluatedDescription: string;
       reviewAssessments: string;
       investigateAssessment: string;
+      investigationUnavailable: string;
       assessmentIdLabel: string;
       detectedAt: string;
       noReports: string;
@@ -1352,28 +1353,28 @@ export type PagesMessages = {
       model: string;
       tokenCount: string;
       detail: string;
-        filterOutcome: string;
-        allOutcomes: string;
-        allFreshness: string;
-        previousPage: string;
-        nextPage: string;
-        portfolioCount: string;
-        moreAssessments: string;
+      filterOutcome: string;
+      allOutcomes: string;
+      allFreshness: string;
+      previousPage: string;
+      nextPage: string;
+      portfolioCount: string;
+      moreAssessments: string;
       loadMoreAssessments: string;
-        notAvailable: string;
-        noOperationalItems: string;
-        failedAssessments: string;
-        blockedAssessments: string;
-        runtimeVersion: string;
-        secondsUnit: string;
-        historicalReportWarning: string;
-        summary: {
-          compliant: string;
-          nonCompliant: string;
-          notApplicable: string;
-          unresolved: string;
-      notEvaluated: string;
-        };
+      notAvailable: string;
+      noOperationalItems: string;
+      failedAssessments: string;
+      blockedAssessments: string;
+      runtimeVersion: string;
+      secondsUnit: string;
+      historicalReportWarning: string;
+      summary: {
+        compliant: string;
+        nonCompliant: string;
+        notApplicable: string;
+        unresolved: string;
+        notEvaluated: string;
+      };
     };
     nextActions: {
       workflowRun: string;
