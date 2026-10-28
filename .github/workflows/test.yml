@@ -556,6 +556,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-local-infra-windows.ps1
 
+      - name: Validate Windows PowerShell 5.1 launcher boundaries
+        shell: powershell
+        run: ./scripts/test-local-infra-windows.ps1
+
   v2-release-gate:
     name: V2 required release gate
     if: always()
