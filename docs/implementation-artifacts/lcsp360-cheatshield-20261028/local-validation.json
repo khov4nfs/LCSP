@@ -1,0 +1,60 @@
+{
+  "sourceParentSha": "9f2621e13ba101a21ba15acdd46e40a6a1bd5632",
+  "branch": "fix/LCSP-360-acceptance-evidence",
+  "filesSha256": {
+    "scripts/verify_operator_identity_scenarios.py": "2f0b4c2be331ebc144dfd67ca945d904a0225d28c8b03397767070d015fa5c54",
+    "deepagents/tests/test_operator_identity_verifier.py": "d0f229e8d881404077d47a65a8796ff76e0310bccc5715a872e06d3db060b0e0",
+    "deepagents/tests/test_assessment_semantic_reliability.py": "ac356711703b095b71d65299515270a25d1904c8e5913fe539b3aaf930c3cca9"
+  },
+  "checks": [
+    {
+      "command": "deepagents/.venv/bin/python -m pytest deepagents/tests -q",
+      "result": "PASS",
+      "passed": 1974,
+      "skipped": 22,
+      "seconds": 140.85,
+      "rawLogSha256": "652eaab60c3681b773febc567ea3c135d64a04ee9e64b6f1066ebfcc105d365c"
+    },
+    {
+      "command": "pnpm run check:business-logic-docs",
+      "result": "PASS",
+      "productionFunctions": 2956,
+      "conformant": 813,
+      "unchangedLegacy": 2143,
+      "missingOrInvalid": 0
+    },
+    {
+      "command": "pnpm run test:business-logic-docs",
+      "result": "PASS",
+      "passed": 5
+    },
+    {
+      "check": "Scripted suite implementation AST equivalence",
+      "result": "PASS"
+    },
+    {
+      "check": "Frozen documentation baseline unchanged",
+      "result": "PASS",
+      "sha256": "3d0522327577dc5f07971e90e86d6e7cc440b9554ee67fe285ab05b17a43b8d0"
+    },
+    {
+      "check": "Historical live fixture receipt unchanged",
+      "result": "PASS",
+      "sha256": "feb8f6c3cabf576dec3441ddb831d1a6cc65737a53f6ddfad5b5229155d029c5"
+    },
+    {
+      "check": "Published receipt JSON values equal raw model-run receipt",
+      "result": "PASS"
+    },
+    {
+      "check": "Configured credential scan of new full receipt",
+      "result": "PASS"
+    }
+  ],
+  "evidenceLimits": [
+    "No frontend changes or browser verification",
+    "No new Customer Assessment execution or full-corpus Preparation",
+    "New live model scenarios use synthetic rule/source/repository/customer fixtures",
+    "Financial governance and broader genuine Customer semantic acceptance remain unresolved"
+  ]
+}

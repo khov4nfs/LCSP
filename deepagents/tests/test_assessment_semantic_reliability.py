@@ -1,6 +1,10 @@
-"""Provider-free semantic reliability regression test suite.
+"""Provider-free, scripted Native DeepAgents mechanism regressions.
 
-Durable tests protecting against the 11 semantic failure patterns:
+Model responses, including the desired decisions and HITL calls, are supplied by
+RootScriptedModel. Passing tests show that tools/context support those scripted
+paths; they do not establish live-model semantic reliability or customer acceptance.
+
+The scripted scenarios cover these 11 previously observed failure patterns:
 1. Repository description mistaken for operator legal identity.
 2. Negative conditions inferred from absent repository files.
 3. Customer fact authority versus source-code observation.
