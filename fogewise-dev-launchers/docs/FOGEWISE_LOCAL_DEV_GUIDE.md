@@ -1350,7 +1350,7 @@ Scripts are grouped under `fedora/`, `macos/`, and `windows/`. Shared Caddy file
 LCSP host development currently uses these local connection strings:
 
 ```env
-RABBITMQ_URL=amqp://fogewise:10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807@127.0.0.1:5672
+RABBITMQ_URL=amqp://fogewise:<password-from-private-local-config>@127.0.0.1:5672
 ```
 
 The RabbitMQ URL already uses `127.0.0.1`, but the Redis URL uses hostname `fogewise-redis` from the host OS. For that reason the Fedora local infra launcher does two things:
@@ -1403,5 +1403,13 @@ getent hosts fogewise-redis
 Expected host-side env values:
 
 ```env
-RABBITMQ_URL=amqp://fogewise:10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807@127.0.0.1:5672
+RABBITMQ_URL=amqp://fogewise:<password-from-private-local-config>@127.0.0.1:5672
 ```
+
+## Private local infrastructure credentials
+
+Before starting local infrastructure, copy `fogewise-dev-launchers/common/.env.example` to `fogewise-dev-launchers/common/.env` and assign independent random passwords. The `.env` file is ignored by Git; keep it private. Set application `DATABASE_URL`, `LANGGRAPH_CHECKPOINT_DATABASE_URL`, and `RABBITMQ_URL` to the corresponding values, and update the Redis connection settings in each application that uses Redis. The launchers do not print passwords. Changing Compose initialization variables does not rotate existing database or broker accounts; rotate the actual accounts first and update every consumer.
+
+Save the private file as UTF-8. The Fedora and Windows launchers pass its absolute path through `--env-file` and run `docker compose config --quiet` before changing hosts or starting containers. Missing or empty passwords stop startup. On Windows, Docker Desktop must be running in Linux-container mode.
+
+Actual Windows Docker Desktop smoke testing remains **NOT_VERIFIED — ENVIRONMENT_UNAVAILABLE**. PowerShell syntax and mocked argument/error-handling tests do not establish that smoke-test result. To verify on a clean Windows host, configure the private file, run the Windows launcher from the repository root and from its launcher directory, confirm all three containers become healthy, and confirm no credential values appear in output.
