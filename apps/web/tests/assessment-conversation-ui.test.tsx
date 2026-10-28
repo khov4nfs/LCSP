@@ -332,6 +332,45 @@ test("an ACTIVE queued assessment without an execution offers canonical orphan r
   }
 });
 
+test("a failed execution in an ACTIVE assessment shows failure and Refresh without a spinner or automatic retry", async () => {
+  const failed = detail({ lifecycle: LIFE.ACTIVE, execution: EXEC.FAILED });
+  const stub = installFetch({
+    [`GET /api/assessments/${ASSESSMENT_ID}`]: failed,
+    [`GET /api/assessments/${ASSESSMENT_ID}/repository-setup`]: null,
+    [`GET /api/assessments/${ASSESSMENT_ID}/runtime/control`]: null,
+  });
+  let refreshed = 0;
+  try {
+    const view = render(
+      withClient(
+        <>
+          <AssessmentContextPanel assessmentId={ASSESSMENT_ID} />
+          <AssessmentInteractionBar
+            assessment={failed}
+            state={customerAssessmentState(failed.lifecycle, failed.runtime)}
+            onRefresh={() => refreshed++}
+          />
+        </>,
+      ),
+    );
+    await settle();
+    const bar = view.querySelector('[data-slot="chat-interaction-bar"]');
+    const panel = view.querySelector('[data-slot="assessment-context"]');
+    assert.ok(bar && panel);
+    assert.match(bar.textContent ?? "", /This assessment run failed\./);
+    assert.doesNotMatch(panel.textContent ?? "", /Working/);
+    assert.equal(view.querySelectorAll(".animate-spin").length, 0);
+    assert.equal(view.querySelectorAll("[data-runtime-action]").length, 0);
+    click(byText(bar, "button", "Refresh"));
+    await settle();
+    assert.equal(refreshed, 1);
+    assert.equal(stub.calls.filter((call) => call.method === "POST").length, 0);
+    assert.equal(failed.lifecycle?.state, LIFE.ACTIVE);
+  } finally {
+    stub.restore();
+  }
+});
+
 test("PAUSED shows Continue next to the thread, and no spinner", async () => {
   const paused = detail({ lifecycle: LIFE.PAUSED, execution: EXEC.PAUSED });
   const stub = installFetch({
