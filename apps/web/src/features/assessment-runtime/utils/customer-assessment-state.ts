@@ -10,8 +10,24 @@ import {
 } from "../config/customer-assessment-states";
 
 /**
- * One customer-facing state from the canonical lifecycle + execution pair. The raw pair stays
- * available under Run details; it is never shown as two competing badges.
+ * Business purpose: Present one customer-facing Assessment state from its canonical lifecycle
+ * and execution, including runs that fail while the Assessment remains active.
+ *
+ * Business rules:
+ * - An ACTIVE Assessment with a FAILED execution displays failure.
+ * - Paused and interrupted executions display pause; other lifecycle states retain their meaning.
+ *
+ * Execution flow:
+ * 1. Return unavailable when the lifecycle is absent.
+ * 2. Resolve failed or paused executions within an active Assessment.
+ * 3. Map the remaining lifecycle states to their customer-facing states.
+ *
+ * Failure cases:
+ * - Missing lifecycle data displays unavailable.
+ * - A failed active execution must not display working or leave the interaction bar spinning.
+ *
+ * Side effects:
+ * - Pure projection; does not change persisted state or initiate a retry.
  */
 export function customerAssessmentState(
   lifecycle: AssessmentLifecycle | null,
@@ -23,6 +39,9 @@ export function customerAssessmentState(
     case ASSESSMENT_LIFECYCLE_STATES.PREPARING:
       return CUSTOMER_ASSESSMENT_STATES.PREPARING;
     case ASSESSMENT_LIFECYCLE_STATES.ACTIVE:
+      if (runtime?.executionState === AGENT_EXECUTION_STATES.FAILED) {
+        return CUSTOMER_ASSESSMENT_STATES.FAILED;
+      }
       return runtime?.executionState === AGENT_EXECUTION_STATES.PAUSED ||
         runtime?.executionState === AGENT_EXECUTION_STATES.INTERRUPTED
         ? CUSTOMER_ASSESSMENT_STATES.PAUSED
