@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import threading
+from concurrent import futures
+from inspect import signature
+from types import SimpleNamespace
 from typing import Any, TypedDict
 
 import pytest
@@ -10,9 +13,42 @@ from deepagents.backends import FilesystemBackend
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.pregel._executor import BackgroundExecutor
+from langgraph.pregel._loop import SyncPregelLoop
 from test_assessment_root_agent import ASSESSMENT, THREAD, FakeClient
 
 from assessment_root.runner import run_assessment_root
+
+
+def test_checkpoint_writer_never_waits_for_a_later_superstep(monkeypatch):
+    later_write = futures.Future()
+    persisted = []
+    loop = SimpleNamespace(
+        _delta_write_futs=[later_write],
+        checkpointer=SimpleNamespace(put=lambda *_args: persisted.append(True)),
+    )
+    native_wait = futures.wait
+
+    def reject_later_writes(writes, *args, **kwargs):
+        assert later_write not in writes, "checkpoint is waiting for a later superstep"
+        return native_wait(writes, *args, **kwargs)
+
+    monkeypatch.setattr(futures, "wait", reject_later_writes)
+    writer = SyncPregelLoop._checkpointer_put_after_previous
+    arguments = {
+        "self": loop,
+        "prev": None,
+        "config": {},
+        "checkpoint": {},
+        "metadata": {},
+        "new_versions": {},
+    }
+    if "delta_write_futs" in signature(writer).parameters:
+        arguments["delta_write_futs"] = ()
+
+    writer(**arguments)
+
+    assert persisted == [True]
+    assert not later_write.done()
 
 
 @pytest.mark.parametrize("commit_fails", [False, True])
@@ -46,8 +82,7 @@ def test_root_checkpoint_commit_precedes_next_step(monkeypatch, tmp_path, commit
         future = native_submit(executor, task, *args, **kwargs)
         if (
             getattr(task, "__name__", "") == "_checkpointer_put_after_previous"
-            and len(args) >= 4
-            and args[3].get("step") == 1
+            and signature(task).bind(*args).arguments["metadata"].get("step") == 1
         ):
             native_result = future.result
 
