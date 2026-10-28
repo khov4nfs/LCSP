@@ -27,11 +27,23 @@ export class AssessmentProvenanceLoader {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Loads the complete provenance of an assessment with strict owner checks,
-   * reference integrity validation, sensitive payload redaction, and deterministic SHA-256 checksumming.
+   * Business purpose: Export the complete, verifiable provenance of an Assessment for its authorized reader.
    *
-   * @param input - The assessment ID, requesting user session, subject role, and correlation ID.
-   * @returns The fully validated, immutable AssessmentProvenanceArtifact.
+   * Business rules:
+   * - Customers may read only their own Assessment; every record and reference must retain the same Assessment and immutable pins.
+   * - A confirmed-fact reference names the decision's case revision. Its fact may originate in an earlier revision, but never after that decision.
+   * - Preserve historical revisions and human answers while redacting sensitive runtime payloads.
+   *
+   * Execution flow:
+   * 1. Load the Assessment, pinned case and complete durable history, then enforce ownership.
+   * 2. Verify record identities, pins and cross-references against the decision snapshot that used them.
+   * 3. Project the history, redact sensitive payloads and return a schema-validated artifact with a deterministic checksum.
+   *
+   * Failure cases:
+   * - Missing or foreign-owned Assessments return not found; broken references, future facts and mismatched pins return a provenance integrity conflict.
+   * - Invalid persisted contract shapes fail validation rather than producing a misleading audit trail.
+   *
+   * Side effects: Read-only database access and pure artifact projection; no state, checkpoint, decision or answer is rewritten.
    */
   async load(input: {
     assessmentId: string;
@@ -322,8 +334,8 @@ export class AssessmentProvenanceLoader {
             const confirmedFact = factMap.get(ref.factId);
             if (
               !confirmedFact ||
-              (ref.caseRevision != null &&
-                confirmedFact.caseRevision !== ref.caseRevision)
+              ref.caseRevision !== decision.caseRevision ||
+              confirmedFact.caseRevision > decision.caseRevision
             ) {
               throw problemException(
                 ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
