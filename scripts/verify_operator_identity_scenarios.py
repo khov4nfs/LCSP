@@ -81,28 +81,35 @@ class ScenarioTrace(BaseCallbackHandler):
                 self.calls.append({
                     "callIndex": len(self.calls) + 1,
                     "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "contentSnippet": str(getattr(msg, "content", ""))[:300],
-                    "toolCalls": [tc["name"] for tc in tcs],
+                    "contentSnippet": str(getattr(msg, "content", ""))[:400],
+                    "toolCalls": [
+                        tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", str(tc))
+                        for tc in tcs
+                    ],
                     "inputTokens": in_tok,
                     "outputTokens": out_tok,
+                    "cachedTokens": cache_tok,
+                    "reasoningTokens": reason_tok,
                 })
 
     def on_tool_start(self, serialized: Any, input_str: Any, **kwargs: Any) -> None:
         tool_name = (serialized or {}).get("name", "unknown")
         self.tool_calls.append({
+            "callIndex": len(self.tool_calls) + 1,
             "tool": tool_name,
-            "input": str(input_str)[:300],
+            "inputSnippet": str(input_str)[:400],
             "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
 
     def on_tool_end(self, output: Any, **kwargs: Any) -> None:
         content = str(getattr(output, "content", output))
         if self.tool_calls:
-            self.tool_calls[-1]["outputSnippet"] = content[:300]
+            self.tool_calls[-1]["outputSnippet"] = content[:400]
         else:
             self.tool_calls.append({
+                "callIndex": 1,
                 "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "outputSnippet": content[:300],
+                "outputSnippet": content[:400],
             })
 
 
@@ -131,8 +138,13 @@ def run_scenario_a(model: Any) -> dict[str, Any]:
     print(f"Decisions submitted: {len(decisions)}")
     print(f"Human requests opened: {len(human_requests)}")
 
-    # Verify invariant: No decision submitted based on repo silence; human request opened
-    success = interrupted and len(human_requests) > 0 and len(decisions) == 0
+    # Strict assertion: Must interrupt, open human request, submit 0 decisions, and question must address operator identity
+    question_valid = any(
+        any(kw in str(hr.get("question", "")).lower() or kw in str(hr.get("unresolvedFact", "")).lower()
+            for kw in ("operator", "vận hành", "tổ chức", "cơ quan"))
+        for hr in human_requests
+    )
+    success = interrupted and len(human_requests) > 0 and len(decisions) == 0 and question_valid
 
     return {
         "scenario": "Scenario A: Repository Only",
@@ -146,9 +158,15 @@ def run_scenario_a(model: Any) -> dict[str, Any]:
             "toolCallsCount": len(trace.tool_calls),
             "modelTurnsCount": len(trace.calls),
         },
+        "receipts": {
+            "modelTurns": trace.calls,
+            "toolCalls": trace.tool_calls,
+        },
         "telemetry": {
             "inputTokens": trace.input_tokens,
             "outputTokens": trace.output_tokens,
+            "cachedTokens": trace.cached_tokens,
+            "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
@@ -159,7 +177,7 @@ def run_scenario_b(model: Any) -> dict[str, Any]:
     print("\n================== Scenario B: Affirmative Private Operator Fact ==================")
     tmp_dir = Path(tempfile.mkdtemp())
     rule_id = "ANM-2025-Art23-Rule-Docs"
-    fact_id = "88888888-8888-4888-8888-888888888888"
+    fact_id = "b1111111-1111-4111-a111-111111111111"
 
     class PrivateOperatorClient(SemanticFakeClient):
         def context(self):
@@ -189,12 +207,28 @@ def run_scenario_b(model: Any) -> dict[str, Any]:
 
     decisions = [b for name, b in client.calls if name == "decision"]
     print(f"Decisions submitted: {len(decisions)}")
-    if decisions:
-        dec = decisions[0]["decision"]
+    dec = decisions[0]["decision"] if decisions else {}
+    if dec:
         print(f"Applicability: {dec.get('applicability')}")
         print(f"Rationale: {dec.get('rationale')[:150]}...")
 
-    success = len(decisions) == 1 and decisions[0]["decision"].get("applicability") == "NOT_APPLICABLE"
+    # Strict assertion: Must decide NOT_APPLICABLE, cite CONFIRMED_FACT with fact_id, and have applicabilityBasis REFUTED citing fact_id
+    has_fact_ref = any(
+        ref.get("type") == "CONFIRMED_FACT" and ref.get("factId") == fact_id
+        for ref in dec.get("references", [])
+    )
+    has_refuted_basis = any(
+        b.get("kind") in ("APPLICABILITY_CONDITION", "QUALIFIER")
+        and b.get("finding") == "REFUTED"
+        and any(r.get("factId") == fact_id for r in b.get("references", []))
+        for b in dec.get("applicabilityBasis", [])
+    )
+    success = (
+        len(decisions) == 1
+        and dec.get("applicability") == "NOT_APPLICABLE"
+        and has_fact_ref
+        and has_refuted_basis
+    )
 
     return {
         "scenario": "Scenario B: Affirmative Private Operator Fact",
@@ -206,9 +240,15 @@ def run_scenario_b(model: Any) -> dict[str, Any]:
             "toolCallsCount": len(trace.tool_calls),
             "modelTurnsCount": len(trace.calls),
         },
+        "receipts": {
+            "modelTurns": trace.calls,
+            "toolCalls": trace.tool_calls,
+        },
         "telemetry": {
             "inputTokens": trace.input_tokens,
             "outputTokens": trace.output_tokens,
+            "cachedTokens": trace.cached_tokens,
+            "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
@@ -219,8 +259,8 @@ def run_scenario_c(model: Any) -> dict[str, Any]:
     print("\n================== Scenario C: Opposite State Department Fact ==================")
     tmp_dir = Path(tempfile.mkdtemp())
     rule_id = "ANM-2025-Art23-Rule-Docs"
-    fact1_id = "99999999-9999-4999-8999-999999999999"
-    fact2_id = "88888888-8888-4888-8888-888888888888"
+    fact1_id = "c1111111-1111-4111-a111-111111111111"
+    fact2_id = "c2222222-2222-4222-a222-222222222222"
 
     class StateAgencyClient(SemanticFakeClient):
         def context(self):
@@ -261,16 +301,36 @@ def run_scenario_c(model: Any) -> dict[str, Any]:
 
     decisions = [b for name, b in client.calls if name == "decision"]
     print(f"Decisions submitted: {len(decisions)}")
-    if decisions:
-        dec = decisions[0]["decision"]
+    dec = decisions[0]["decision"] if decisions else {}
+    if dec:
         print(f"Applicability: {dec.get('applicability')}")
         print(f"Compliance: {dec.get('compliance')}")
         print(f"Rationale: {dec.get('rationale')[:150]}...")
 
+    # Strict assertion: Must decide APPLICABLE, cite fact1_id in references and applicabilityBasis (finding ESTABLISHED),
+    # and evaluate criteria non-compliant citing fact2_id
+    has_fact1_ref = any(
+        ref.get("type") == "CONFIRMED_FACT" and ref.get("factId") == fact1_id
+        for ref in dec.get("references", [])
+    )
+    has_est_basis = any(
+        b.get("kind") in ("APPLICABILITY_CONDITION", "QUALIFIER")
+        and b.get("finding") == "ESTABLISHED"
+        and any(r.get("factId") == fact1_id for r in b.get("references", []))
+        for b in dec.get("applicabilityBasis", [])
+    )
+    has_criteria_eval = any(
+        c.get("outcome") == "NOT_MET"
+        and any(r.get("factId") == fact2_id for r in c.get("references", []))
+        for c in dec.get("criteria", [])
+    )
     success = (
         len(decisions) == 1
-        and decisions[0]["decision"].get("applicability") == "APPLICABLE"
-        and decisions[0]["decision"].get("compliance") in ("COMPLIANT", "NON_COMPLIANT")
+        and dec.get("applicability") == "APPLICABLE"
+        and dec.get("compliance") in ("COMPLIANT", "NON_COMPLIANT")
+        and has_fact1_ref
+        and has_est_basis
+        and has_criteria_eval
     )
 
     return {
@@ -283,9 +343,15 @@ def run_scenario_c(model: Any) -> dict[str, Any]:
             "toolCallsCount": len(trace.tool_calls),
             "modelTurnsCount": len(trace.calls),
         },
+        "receipts": {
+            "modelTurns": trace.calls,
+            "toolCalls": trace.tool_calls,
+        },
         "telemetry": {
             "inputTokens": trace.input_tokens,
             "outputTokens": trace.output_tokens,
+            "cachedTokens": trace.cached_tokens,
+            "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
@@ -296,8 +362,8 @@ def run_scenario_d(model: Any) -> dict[str, Any]:
     print("\n================== Scenario D: Contradictory/Ambiguous Operator Fact ==================")
     tmp_dir = Path(tempfile.mkdtemp())
     rule_id = "ANM-2025-Art23-Rule-Docs"
-    fact1_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-    fact2_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    fact1_id = "d1111111-1111-4111-a111-111111111111"
+    fact2_id = "d2222222-2222-4222-a222-222222222222"
 
     class ContradictoryClient(SemanticFakeClient):
         def context(self):
@@ -343,7 +409,13 @@ def run_scenario_d(model: Any) -> dict[str, Any]:
     print(f"Human requests opened: {len(human_requests)}")
     print(f"Decisions submitted: {len(decisions)}")
 
-    success = (interrupted and len(human_requests) > 0) or (len(decisions) == 0)
+    # Strict assertion: Must interrupt, open human request, submit 0 decisions, and question/unresolvedFact must address ambiguity/contradiction
+    question_valid = any(
+        any(kw in str(hr.get("question", "")).lower() or kw in str(hr.get("unresolvedFact", "")).lower() or any(kw in str(att).lower() for att in hr.get("resolutionAttempts", []))
+            for kw in ("mâu thuẫn", "contradict", "vận hành", "operator", "cơ quan", "tổ chức"))
+        for hr in human_requests
+    )
+    success = interrupted and len(human_requests) > 0 and len(decisions) == 0 and question_valid
 
     return {
         "scenario": "Scenario D: Contradictory Operator Facts",
@@ -357,9 +429,15 @@ def run_scenario_d(model: Any) -> dict[str, Any]:
             "toolCallsCount": len(trace.tool_calls),
             "modelTurnsCount": len(trace.calls),
         },
+        "receipts": {
+            "modelTurns": trace.calls,
+            "toolCalls": trace.tool_calls,
+        },
         "telemetry": {
             "inputTokens": trace.input_tokens,
             "outputTokens": trace.output_tokens,
+            "cachedTokens": trace.cached_tokens,
+            "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
@@ -379,7 +457,17 @@ def main():
 
     summary = {
         "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "scope": "UNIT_LEVEL_NEGATIVE_CONTROL_VERIFICATION",
+        "testedRuleId": "ANM-2025-Art23-Rule-Docs",
         "model": model.model_name,
+        "note": (
+            "Isolated test harness verification of model reactivity across 4 simulated conditions (Scenarios A, B, C, D) "
+            "for rule ANM-2025-Art23-Rule-Docs with genuine live model turns, tool receipts, and token accounting. "
+            "This does NOT constitute a live database re-evaluation of all 14 disputed rules in historical assessment 43c4b233-8632-4dba-952a-41d04cbcc3cd."
+        ),
+        "totalModelCalls": sum(r["actualBehavior"]["modelTurnsCount"] for r in results),
+        "totalToolCalls": sum(r["actualBehavior"]["toolCallsCount"] for r in results),
+        "totalTokens": sum(r["telemetry"]["totalTokens"] for r in results),
         "scenarios": results,
         "overallVerdict": "PASS" if all(r["verdict"] == "VERIFIED_PASS" for r in results) else "FAIL",
     }

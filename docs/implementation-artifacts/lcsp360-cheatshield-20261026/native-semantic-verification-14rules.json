@@ -8,28 +8,29 @@
   "executionState": "SUCCEEDED",
   "rootExecutionId": "9c702c92-cad5-4466-b47b-7dbff15433de",
   "checkpointId": "1f1d22ea-cf31-653f-828b-47f864a92f31",
-  "semanticVerificationStatus": "ENGINEERING_VERIFIED",
+  "semanticVerificationStatus": "CHANGES_REQUESTED",
   "semanticAuditFindings": {
-    "status": "RESOLVED",
-    "remediationSummary": "Eliminated unsupported operator-identity inference via 10 source-agnostic invariants in root instructions and researcher subagent prompt. Verified genuine model reasoning across 4 negative-control scenarios with live Inception mercury-3 model inference. Zero hardcoded verdicts. External customer legal attestation and provider financial ledger settlement remain BLOCKED_EXTERNAL_EVIDENCE.",
-    "resolvedDefects": [
+    "status": "CHANGES_REQUESTED",
+    "historicalAssessmentScope": "Assessment 43c4b233-8632-4dba-952a-41d04cbcc3cd is an immutable historical record from 2026-10-27 containing 14 model-authored decisions created prior to prompt instruction hardening. Its decisions and rationales are preserved as-is. It remains classified as CHANGES_REQUESTED due to documented historical defects.",
+    "auditScopeNote": "Negative-control verification was executed exclusively on rule ANM-2025-Art23-Rule-Docs in an isolated test harness (scripts/verify_operator_identity_scenarios.py). It does NOT constitute a live database re-evaluation of all 14 disputed rules in this assessment.",
+    "unresolvedHistoricalDefects": [
       {
         "code": "OPERATOR_IDENTITY_INFERENCE_PERSISTS_IN_GROUP_A",
-        "status": "RESOLVED",
-        "resolution": "Hardened root instructions.md with the 10 source-agnostic invariants (strict separation of product purpose from operator legal identity, repo silence is not evidence of absence, mandatory human request for unknown operational facts). Tested in live Inception mercury-3 inference: Scenario A paused with open_human_request without inferring operator status from repo silence; Scenario B refuted condition and decided NOT_APPLICABLE on affirmative customer fact; Scenario C established condition and decided APPLICABLE on state agency fact; Scenario D paused on contradictory facts.",
-        "verificationRef": "operator-identity-negative-controls.json"
+        "status": "CHANGES_REQUESTED",
+        "description": "Historical decisions for Group A (e.g. ANM-2025-Art23-Rule-Docs decision de926519-0891-469f-8702-736888695014) in this assessment inferred operator identity and non-applicability from repository silence ('kho lưu trữ không chứa bất kỳ dấu hiệu nào về cơ quan nhà nước') rather than purely affirmative customer legal facts.",
+        "remediationBoundary": "Remediated at instruction level via the 10 source-agnostic invariants and verified on rule ANM-2025-Art23-Rule-Docs in isolated test harness (operator-identity-negative-controls.json), but historical assessment database decisions remain unchanged."
       },
       {
         "code": "PREDETERMINED_NEGATIVE_CONTROL_STATUSES",
-        "status": "RESOLVED",
-        "resolution": "Replaced static/predetermined test fixtures with live dynamic negative-control scenario executions (Scenarios A, B, C, D) run against genuine Inception mercury-3 model with zero predetermined outcomes.",
-        "verificationRef": "operator-identity-negative-controls.json"
+        "status": "CHANGES_REQUESTED",
+        "description": "Historical assessment artifact recorded pre-configured negative-control structures rather than independent dynamic execution receipts across all 14 rules.",
+        "remediationBoundary": "Isolated 4-scenario dynamic negative control execution was performed for rule ANM-2025-Art23-Rule-Docs only."
       },
       {
         "code": "MISSING_DIRECT_MODEL_TOOL_RECEIPTS",
-        "status": "RESOLVED",
-        "resolution": "Captured verbatim model turns, tool call traces, and token usage receipts for all negative control executions (563,945 tokens across 4 scenarios). Durable provider-free regression suite added with 11 passing tests in test_assessment_semantic_reliability.py.",
-        "verificationRef": "operator-identity-negative-controls.json"
+        "status": "CHANGES_REQUESTED",
+        "description": "Historical assessment telemetry recorded aggregate counters (83 calls, 626 tool calls) but lacks turn-by-turn prompts, completions, and raw tool execution receipts for these 14 historical decisions.",
+        "remediationBoundary": "Direct turn-by-turn receipts are captured in operator-identity-negative-controls.json for the isolated test harness, but cannot be retroactively injected into historical assessment 43c4b233... without altering immutable history."
       }
     ],
     "externalDependencies": [
