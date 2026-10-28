@@ -1673,7 +1673,10 @@ describe("Auth workspace (e2e)", () => {
       .set("Authorization", `Bearer ${sessionB.session_token}`)
       .send({ session_token: sessionB.session_token })
       .expect(403);
-    assert.equal(problemCode(attackerDeniedAgain), AUTH_ERROR_CODES.mfaRequired);
+    assert.equal(
+      problemCode(attackerDeniedAgain),
+      AUTH_ERROR_CODES.mfaRequired,
+    );
 
     // Genuine User A verifies candidate S2 OTP
     const candidateOtpA = totpForTime(candidateSecretA, Date.now());

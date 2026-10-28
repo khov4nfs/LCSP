@@ -297,7 +297,8 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             | undefined;
           if (
             !sessionCandidate ||
-            sessionCandidate.encryptedSecret !== input.candidate.encryptedSecret ||
+            sessionCandidate.encryptedSecret !==
+              input.candidate.encryptedSecret ||
             sessionCandidate.generationId !== input.candidate.generationId
           ) {
             return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };

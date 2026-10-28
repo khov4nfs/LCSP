@@ -77,9 +77,12 @@ export function mapSessionRecord(record: AuthRecord): Session {
   });
 }
 
-function mapCandidateMfaEnrollment(
-  metadata: unknown,
-): { encryptedSecret: string; generationId: string; batchId: string; enrolledAt: number } | null {
+function mapCandidateMfaEnrollment(metadata: unknown): {
+  encryptedSecret: string;
+  generationId: string;
+  batchId: string;
+  enrolledAt: number;
+} | null {
   if (
     !metadata ||
     typeof metadata !== "object" ||
@@ -88,7 +91,8 @@ function mapCandidateMfaEnrollment(
   ) {
     return null;
   }
-  const candidate = (metadata as Record<string, unknown>).candidateMfaEnrollment;
+  const candidate = (metadata as Record<string, unknown>)
+    .candidateMfaEnrollment;
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
     return null;
   }
