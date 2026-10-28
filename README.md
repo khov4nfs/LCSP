@@ -66,12 +66,13 @@ Agents interpret legal and repository content. The API owns authorization, persi
 | OpenAI (`openai`)             | OpenAI                                  | `ChatOpenAI`                    | `OPENAI_API_KEY`                     |
 | Google GenAI (`google_genai`) | Google GenAI                            | Native Google GenAI integration | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
 | Inception (`inception`)       | OpenAI-compatible                       | `ChatOpenAI`                    | `INCEPTION_API_KEY`                  |
+| Mirai API (`miraiapi`)        | Anthropic Messages / OpenAI-compatible   | `ChatAnthropic` / `ChatOpenAI`  | `MIRAI_API_KEY`                      |
 
 The checked-in primary route is APX over Anthropic protocol with `claude-sonnet-4-6-free`. APX can also use the OpenAI protocol for a GPT-family model when that protocol is selected explicitly in a route. In either case, the canonical provider remains APX for credential selection and usage identity.
 
 ## Reliability and fallback
 
-`APX_API_KEY` may contain a comma-separated pool of APX credentials. LCSP uses one credential at a time, moves to another slot when an allowance is permanently exhausted, and applies cooldown handling to transient rate limits. Only after same-provider credential handling does routing proceed to the configured provider fallback. The current configured chain is **APX → Google GenAI → Inception**. Credential values and pools are secret material; only safe credential fingerprints may appear in operational logs.
+Provider key variables, such as `APX_API_KEY`, may contain comma-separated credential pools. LCSP uses one credential at a time, moves to another slot when an allowance is permanently exhausted, and applies cooldown handling to transient rate limits. Only after same-provider credential handling does routing proceed to the configured provider fallback. The current configured chain is **Mirai API → Inception → Google GenAI → APX**. Mirai API uses `claude-sonnet-5` through Anthropic Messages at `https://api.miraiapi.com` with `MIRAI_API_KEY`. The native SDK appends `/v1/messages`; OpenAI-compatible routes remain available at `/v1`. Credential values and pools are secret material; only safe credential fingerprints may appear in operational logs.
 
 ## Architecture
 
@@ -161,7 +162,7 @@ The complete local template is [`.env.example`](.env.example). The names below a
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Database and infrastructure               | `DATABASE_URL`, `RABBITMQ_URL`, `PORT`, `NODE_ENV`                                                                                                                                                                       |
 | Authentication and repository credentials | `MFA_SECRET_ENCRYPTION_KEY`, `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`, `OAUTH_ALLOWED_REDIRECT_ORIGINS`, `WORKER_API_KEY`, `GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION`, `GITHUB_CLI_CREDENTIAL_KEK_KEYRING` |
-| Provider credentials                      | `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `INCEPTION_API_KEY`                                                                                                            |
+| Provider credentials                      | `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `INCEPTION_API_KEY`, `MIRAI_API_KEY`                                                                                            |
 | Agent Runtime                             | `LCSP_API_BASE_URL`, `NESTJS_API_BASE_URL`, `LCSP_AGENT_SERVER_URL`, `LCSP_MODEL_ROUTES_FILE`, `LANGGRAPH_CHECKPOINT_DATABASE_URL`, `USAGE_RECOVERY_STORE_PATH`                                                          |
 | Optional observability                    | `LCSP_LANGSMITH_TRACING`, `PHOENIX_TRACING`, `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_PROJECT`                                                                                                                             |
 | Email and payment integrations            | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `BILLING_SEPAY_BANK_NAME`, `BILLING_SEPAY_BANK_ACCOUNT_NUMBER`, `BILLING_SEPAY_ACCOUNT_HOLDER`, `BILLING_SEPAY_QR_URL_TEMPLATE`, `SEPAY_WEBHOOK_SECRET`              |

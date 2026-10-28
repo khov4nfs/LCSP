@@ -1,0 +1,1002 @@
+{
+  "timestampUtc": "2026-10-27T18:01:27Z",
+  "assessmentId": "43c4b233-8632-4dba-952a-41d04cbcc3cd",
+  "pinnedRuleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+  "pinnedRepositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+  "repositoryPath": "/home/khovan/.cache/lcsp360-cheatshield-20261026/audit-source",
+  "runtimeModel": "inception:mercury-3",
+  "executionState": "SUCCEEDED",
+  "rootExecutionId": "9c702c92-cad5-4466-b47b-7dbff15433de",
+  "checkpointId": "1f1d22ea-cf31-653f-828b-47f864a92f31",
+  "semanticVerificationStatus": "CHANGES_REQUESTED",
+  "semanticAuditFindings": {
+    "status": "CHANGES_REQUESTED",
+    "historicalAssessmentScope": "Assessment 43c4b233-8632-4dba-952a-41d04cbcc3cd is an immutable historical record from 2026-10-27 containing 14 model-authored decisions created prior to prompt instruction hardening. Its decisions and rationales are preserved as-is. It remains classified as CHANGES_REQUESTED due to documented historical defects.",
+    "auditScopeNote": "Negative-control verification was executed exclusively on rule ANM-2025-Art23-Rule-Docs in an isolated test harness (scripts/verify_operator_identity_scenarios.py). It does NOT constitute a live database re-evaluation of all 14 disputed rules in this assessment.",
+    "unresolvedHistoricalDefects": [
+      {
+        "code": "OPERATOR_IDENTITY_INFERENCE_PERSISTS_IN_GROUP_A",
+        "status": "CHANGES_REQUESTED",
+        "description": "Historical decisions for Group A (e.g. ANM-2025-Art23-Rule-Docs decision de926519-0891-469f-8702-736888695014) in this assessment inferred operator identity and non-applicability from repository silence ('kho lưu trữ không chứa bất kỳ dấu hiệu nào về cơ quan nhà nước') rather than purely affirmative customer legal facts.",
+        "remediationBoundary": "Remediated at instruction level via the 10 source-agnostic invariants and verified on rule ANM-2025-Art23-Rule-Docs in isolated test harness (operator-identity-negative-controls.json), but historical assessment database decisions remain unchanged."
+      },
+      {
+        "code": "PREDETERMINED_NEGATIVE_CONTROL_STATUSES",
+        "status": "CHANGES_REQUESTED",
+        "description": "Historical assessment artifact recorded pre-configured negative-control structures rather than independent dynamic execution receipts across all 14 rules.",
+        "remediationBoundary": "Isolated 4-scenario dynamic negative control execution was performed for rule ANM-2025-Art23-Rule-Docs only."
+      },
+      {
+        "code": "MISSING_DIRECT_MODEL_TOOL_RECEIPTS",
+        "status": "CHANGES_REQUESTED",
+        "description": "Historical assessment telemetry recorded aggregate counters (83 calls, 626 tool calls) but lacks turn-by-turn prompts, completions, and raw tool execution receipts for these 14 historical decisions.",
+        "remediationBoundary": "Direct turn-by-turn receipts are captured in operator-identity-negative-controls.json for the isolated test harness, but cannot be retroactively injected into historical assessment 43c4b233... without altering immutable history."
+      }
+    ],
+    "externalDependencies": [
+      {
+        "scope": "CUSTOMER_LEGAL_ATTESTATION",
+        "status": "BLOCKED_EXTERNAL_EVIDENCE",
+        "reason": "Production release requires authentic authenticated customer legal representative attestation. Test environment facts provided by coding agent are retained as simulated test fixtures only."
+      },
+      {
+        "scope": "FINANCIAL_LEDGER_SETTLEMENT",
+        "status": "BLOCKED_EXTERNAL_EVIDENCE",
+        "reason": "Production release requires reconciled provider billing invoices for token expenditure. Internal SQLite/PostgreSQL usage records are retained for engineering accounting only."
+      }
+    ]
+  },
+  "finalReportArtifact": {
+    "artifactId": "54176a70-3e11-54d3-8307-b00c5a769c32",
+    "kind": "FINAL_REPORT",
+    "lifecycleState": "ACTIVE",
+    "sizeBytes": 1792931,
+    "contentSha256": "sha256:8c0c8ed292da8494d90e584b97fd393fa829834729be2bd5cc49d645d5f703e3",
+    "createdAt": "2026-10-27T17:57:56.832000+00:00"
+  },
+  "telemetry": {
+    "modelCalls": 83,
+    "inputTokens": 35618374,
+    "cachedTokens": 0,
+    "outputTokens": 240620,
+    "reasoningTokens": 0,
+    "totalTokens": 35858994,
+    "toolCallsCount": 626,
+    "errors": []
+  },
+  "humanInTheLoop": {
+    "totalRequestsResolved": 3,
+    "resolutions": [
+      {
+        "requestId": "0d05346b-491c-4ec7-b297-ecdb45ec74c6",
+        "assessmentRuleId": "ar-art24-dual-consent",
+        "status": "RESOLVED",
+        "question": "Hệ thống có xử lý dữ liệu cá nhân của trẻ em từ đủ 07 tuổi trở lên nhằm mục đích công bố hoặc tiết lộ thông tin về đời sống riêng tư hoặc bí mật cá nhân của trẻ em hay không?",
+        "answer": "CheatShield operates exclusively as an offline desktop application monitoring student exam activity locally. The system does not publish, disclose, broadcast, export, or transmit examinee personal data, video recordings, or proctoring violation logs to external third parties, cloud platforms, or public networks.",
+        "resolvedFactId": "73404d6a-db67-4180-beb1-b7b05ebedf26",
+        "resolvedAtUtc": "2026-10-27T17:47:46.204000+00:00",
+        "authority": "SIMULATED_CUSTOMER_TEST_FACT",
+        "customerRole": "Authorized Simulated Customer (Isolated Test Environment)"
+      },
+      {
+        "requestId": "7a820731-42e2-4bea-91ba-a771dac43f77",
+        "assessmentRuleId": "ar-art24-representation",
+        "status": "RESOLVED",
+        "question": "Hệ thống có xử lý dữ liệu cá nhân của trẻ em hoặc của người bị mất năng lực hành vi dân sự hoặc bị hạn chế năng lực hành vi dân sự hay không?",
+        "answer": "CheatShield is an academic open-source desktop proctoring application developed by independent researchers for local test monitoring.",
+        "resolvedFactId": "c2901dc4-bbd5-433d-a0a1-a07c8190adc4",
+        "resolvedAtUtc": "2026-10-27T17:48:46.463000+00:00",
+        "authority": "SIMULATED_CUSTOMER_TEST_FACT",
+        "customerRole": "Authorized Simulated Customer (Isolated Test Environment)"
+      },
+      {
+        "requestId": "a4d8e6d1-8c6c-44e4-aa63-c2b80174c61d",
+        "assessmentRuleId": "ar-art24-stop-processing",
+        "status": "RESOLVED",
+        "question": "Hệ thống giám sát thi có xử lý dữ liệu cá nhân của trẻ em và của người bị mất năng lực hành vi dân sự hoặc bị hạn chế năng lực hành vi dân sự hay không?",
+        "answer": "CheatShield is an academic open-source desktop proctoring application developed by independent researchers for local test monitoring.",
+        "resolvedFactId": "6c3df539-62b3-446d-9891-86efb573f124",
+        "resolvedAtUtc": "2026-10-27T17:48:54.233000+00:00",
+        "authority": "SIMULATED_CUSTOMER_TEST_FACT",
+        "customerRole": "Authorized Simulated Customer (Isolated Test Environment)"
+      }
+    ],
+    "provenanceNote": "Coding agent provided simulated Customer test answers in isolated test environment; explicitly preserved as simulated test facts, not authentic real-customer legal statements."
+  },
+  "modelAuthoredDecisions14": [
+    {
+      "decisionId": "de926519-0891-469f-8702-736888695014",
+      "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Nghĩa vụ tại Điều 23 Luật 116/2025/QH15 về trách nhiệm của người đứng đầu cơ quan, tổ chức chỉ giới hạn trong phạm vi cơ quan nhà nước, tổ chức chính trị và tổ chức chính trị - xã hội ở trung ương và địa phương (Qualifier 1). Kho lưu trữ thể hiện hệ thống được đánh giá là phần mềm giám sát thi trực tuyến bằng AI (CheatShield) phục vụ mục đích học thuật, phân phối dưới dạng mã nguồn mở, và không chứa bất kỳ dấu hiệu nào về cơ quan nhà nước, tổ chức chính trị hoặc chính trị - xã hội vận hành hệ thống. Do đó phạm vi đối tượng điều chỉnh không bao gồm hệ thống này; nghĩa vụ không phát sinh.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [
+        {
+          "kind": "QUALIFIER",
+          "index": 0,
+          "finding": "REFUTED",
+          "rationale": "Qualifier giới hạn phạm vi áp dụng cho cơ quan nhà nước, tổ chức chính trị, tổ chức chính trị - xã hội. Sự kiện trường hợp sử dụng đã được chấp nhận và bằng chứng kho lưu trữ thể hiện CheatShield là phần mềm AI giám sát thi học thuật mã nguồn mở; kho lưu trữ không chứa dấu hiệu nào cho thấy hệ thống thuộc quyền quản lý của cơ quan nhà nước/tổ chức chính trị hoặc chính trị - xã hội, nên phạm vi đối tượng không được thiết lập.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "legalRequirementId": "luat116-2025-art23-heads-trienkhai"
+        }
+      ],
+      "criteria": []
+    },
+    {
+      "decisionId": "d9d6d647-1852-4943-9e1e-ebd5a5b9d718",
+      "assessmentRuleId": "ANM-2025-Art24-Rule-KyThuat",
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Nghĩa vụ tại Điều 24 khoản 2 điểm b Luật 116/2025/QH15 áp dụng cho cơ quan, tổ chức, cá nhân quản lý, khai thác cơ sở hạ tầng không gian mạng quốc gia hoặc cổng kết nối mạng quốc tế, khi có đề nghị của cơ quan nhà nước có thẩm quyền. CheatShield là phần mềm ứng dụng giám sát thi trực tuyến trên máy trạm, không phải đơn vị quản lý/khai thác hạ tầng không gian mạng quốc gia hay cổng kết nối quốc tế, và không có bằng chứng nào về đề nghị của cơ quan nhà nước có thẩm quyền trong kho lưu trữ. Điều kiện áp dụng không được thiết lập.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 0,
+          "finding": "REFUTED",
+          "rationale": "Điều kiện yêu cầu có đề nghị của cơ quan nhà nước có thẩm quyền; đồng thời chủ thể của nghĩa vụ là đơn vị quản lý/khai thác hạ tầng không gian mạng quốc gia hoặc cổng kết nối quốc tế. Kho lưu trữ chỉ chứa ứng dụng giám sát thi trên máy trạm; không có cơ chế, hồ sơ hay bằng chứng nào về đề nghị của cơ quan nhà nước hoặc vai trò quản lý hạ tầng không gian mạng quốc gia.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "legalRequirementId": "luat116-2025-art24-cl2-pt-b-taodieukien"
+        }
+      ],
+      "criteria": []
+    },
+    {
+      "decisionId": "2c1980f4-4dbd-41d5-9f0e-aecd1f680287",
+      "assessmentRuleId": "ar-06-provider-classification",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 6 khoản 1 Nghị định 142/2026/NĐ-CP đặt nghĩa vụ vô điều kiện lên nhà cung cấp hệ thống AI phải tự thực hiện phân loại rủi ro trước khi đưa hệ thống vào sử dụng. CheatShield là hệ thống AI giám sát thi được cung cấp dưới tên của nhà cung cấp, do đó nhà cung cấp thuộc đối tượng điều chỉnh; quy tắc vô điều kiện, áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Kho lưu trữ không chứa tài liệu thể hiện kết quả phân loại rủi ro của hệ thống trước khi đưa vào sử dụng (không có hồ sơ phân loại, tài liệu đối chiếu Danh mục hệ thống AI rủi ro cao hoặc các trường hợp quy định tại Điều 9 Nghị định 142/2026/NĐ-CP). Kho lưu trữ chỉ chứa mã nguồn ứng dụng và tài liệu mô tả.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "criterionId": "criterion_8ae168409f9d5b2934496cac"
+        }
+      ]
+    },
+    {
+      "decisionId": "529fa0a3-5539-4492-8054-373e4a01b545",
+      "assessmentRuleId": "ar-art24-dual-consent",
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "decisionRevision": 2,
+      "caseRevision": 5,
+      "rationale": "Điều 24 khoản 2 Luật 91/2025/QH15 yêu cầu sự đồng ý của trẻ em và người đại diện theo pháp luật khi xử lý dữ liệu cá nhân của trẻ em từ đủ 07 tuổi nhằm công bố, tiết lộ thông tin đời sống riêng tư, bí mật cá nhân. Khách hàng xác nhận hệ thống hoạt động hoàn toàn như ứng dụng máy tính để bàn ngoại tuyến giám sát hoạt động thi của thí sinh cục bộ và không công bố, tiết lộ, phát sóng, xuất hoặc truyền dữ liệu cá nhân, đoạn ghi hình hoặc nhật ký vi phạm của thí sinh cho bên thứ ba, nền tảng đám mây hoặc mạng công cộng. Do đó điều kiện áp dụng (xử lý nhằm công bố/tiết lộ thông tin đời sống riêng tư) bị bác bỏ; nghĩa vụ không phát sinh.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "73404d6a-db67-4180-beb1-b7b05ebedf26",
+          "caseRevision": 5
+        },
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        }
+      ],
+      "applicabilityBasis": [
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 0,
+          "finding": "REFUTED",
+          "rationale": "Điều kiện yêu cầu việc xử lý dữ liệu cá nhân của trẻ em từ đủ 07 tuổi nhằm công bố, tiết lộ thông tin đời sống riêng tư, bí mật cá nhân. Sự kiện do khách hàng cung cấp xác nhận hệ thống không công bố, tiết lộ, phát sóng, xuất hoặc truyền dữ liệu cá nhân của thí sinh ra bên ngoài; do đó mục đích công bố/tiết lộ không được thiết lập.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "73404d6a-db67-4180-beb1-b7b05ebedf26",
+              "caseRevision": 5
+            },
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            }
+          ],
+          "legalRequirementId": "art24-cl2-dual-consent"
+        }
+      ],
+      "criteria": []
+    },
+    {
+      "decisionId": "5cc1d2b8-677f-43ef-8069-16de15e30d06",
+      "assessmentRuleId": "ar-c12-content",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 12 khoản 2 Nghị định 142/2026/NĐ-CP yêu cầu hồ sơ phân loại rủi ro của hệ thống AI rủi ro cao/trung bình bao gồm bốn nhóm tài liệu (thông tin nhận diện hệ thống; mô tả hệ thống và bối cảnh sử dụng; thông tin về dữ liệu; nội dung quản lý rủi ro). CheatShield là hệ thống AI rủi ro cao, nên nghĩa vụ áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "5c76a6b4-9ba5-5888-84db-3f57f0e366b4"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Do không tồn tại hồ sơ phân loại rủi ro trong kho lưu trữ, cả bốn nhóm tài liệu bắt buộc (thông tin nhận diện hệ thống, mô tả hệ thống và bối cảnh sử dụng, thông tin về dữ liệu, nội dung quản lý rủi ro) đều không được bảo đảm.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "5c76a6b4-9ba5-5888-84db-3f57f0e366b4"
+            }
+          ],
+          "criterionId": "criterion_f5624cce0a7c5d2b3e6526dd"
+        }
+      ]
+    },
+    {
+      "decisionId": "96992495-8dba-4ceb-a796-7ae73920cc51",
+      "assessmentRuleId": "ar-c12-rec",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 12 khoản 1 Nghị định 142/2026/NĐ-CP yêu cầu nhà cung cấp hệ thống AI rủi ro cao (hoặc trung bình) lập hồ sơ phân loại rủi ro trước khi đưa hệ thống vào sử dụng. CheatShield là hệ thống AI giám sát thi rủi ro cao được cung cấp bởi nhà cung cấp, nên nghĩa vụ áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Không tồn tại hồ sơ phân loại rủi ro được lập đối với CheatShield trước khi đưa vào sử dụng trong kho lưu trữ; kho lưu trữ chỉ chứa mã nguồn ứng dụng và tài liệu mô tả, không có hồ sơ phân loại hay tài liệu kỹ thuật liên quan.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "criterionId": "criterion_82be1370748059a876b640a9"
+        }
+      ]
+    },
+    {
+      "decisionId": "b0d72450-2a38-4819-a529-b7dadfb035b7",
+      "assessmentRuleId": "ar-c12-storage",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 12 khoản 6 Nghị định 142/2026/NĐ-CP yêu cầu nhà cung cấp và bên triển khai lưu trữ hồ sơ phân loại rủi ro trong suốt thời gian hệ thống hoạt động. CheatShield là hệ thống AI rủi ro cao, nên nghĩa vụ áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Không có hồ sơ phân loại rủi ro nào được lưu trữ trong kho lưu trữ của nhà cung cấp/bên triển khai; kho lưu trữ chỉ chứa mã nguồn ứng dụng và tài liệu mô tả, không có hồ sơ phân loại nào tồn tại để lưu trữ theo yêu cầu.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "criterionId": "criterion_719d19c482f5a0970da4c2e4"
+        }
+      ]
+    },
+    {
+      "decisionId": "2e5e418a-5443-4ae7-97cd-a305da433f1c",
+      "assessmentRuleId": "ar-luat134-art12-cl1-safety-security-reliability",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 12 khoản 1 Luật 134/2025/QH15 yêu cầu nhà phát triển, nhà cung cấp, bên triển khai và người sử dụng hệ thống AI bảo đảm an toàn, an ninh, độ tin cậy của hệ thống và kịp thời phát hiện, khắc phục sự cố có khả năng gây thiệt hại. CheatShield là hệ thống AI được phát triển/cung cấp/triển khai bởi đơn vị được đánh giá, nên nghĩa vụ áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "564f7939-9955-510d-9c76-fced6bfe6448"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Kho lưu trữ không tài liệu hóa biện pháp bảo đảm an toàn/an ninh/độ tin cậy: kiểm soát truy cập chỉ là trình giữ chỗ mật khẩu được mã cứng (placeholder), không có thiết kế an ninh, mã hóa, kiểm soát truy cập, lưu trữ an toàn hoặc kế hoạch phản ứng sự cố được tài liệu hóa; chức năng phát hiện/cảnh báo vi phạm thi trong hệ thống chỉ phục vụ mục đích giám sát thi chứ không phải cơ chế khắc phục sự cố gây thiệt hại cho con người, tài sản, dữ liệu hoặc trật tự xã hội.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "564f7939-9955-510d-9c76-fced6bfe6448"
+            }
+          ],
+          "criterionId": "criterion_58c1a08b18aa2a6e18bf59bc"
+        }
+      ]
+    },
+    {
+      "decisionId": "344fb152-6cd7-4950-801e-42d712a88e0c",
+      "assessmentRuleId": "ar-luat134-art14-cl1-pt-a-risk-management-measures",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 14 khoản 1 điểm a Luật 134/2025/QH15 yêu cầu nhà cung cấp hệ thống AI rủi ro cao thiết lập, duy trì biện pháp quản lý rủi ro và rà soát thường xuyên khi hệ thống có thay đổi đáng kể hoặc phát sinh rủi ro mới. CheatShield là hệ thống AI rủi ro cao do nhà cung cấp cung cấp, nên nghĩa vụ áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Không tìm thấy biện pháp quản lý rủi ro được thiết lập và duy trì trong kho lưu trữ: không có hệ thống quản lý rủi ro, tài liệu xác định/đánh giá rủi ro, quy trình rà soát định kỳ hoặc cơ chế phản ứng với thay đổi đáng kể/phát sinh rủi ro mới.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "criterionId": "criterion_bd1a9587bcf5bee857436794"
+        }
+      ]
+    },
+    {
+      "decisionId": "d1a350dc-72a1-4de2-8940-a92b680f0e57",
+      "assessmentRuleId": "ar-luat134-art14-cl1-pt-b-data-governance",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 14 khoản 1 điểm b Luật 134/2025/QH15 yêu cầu nhà cung cấp hệ thống AI rủi ro cao quản lý dữ liệu huấn luyện, thử nghiệm và vận hành để bảo đảm chất lượng trong phạm vi năng lực kỹ thuật và phù hợp với mục đích sử dụng. CheatShield là hệ thống AI rủi ro cao do nhà cung cấp cung cấp, nên nghĩa vụ áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Không tìm thấy biện pháp quản trị dữ liệu cho dữ liệu huấn luyện/thử nghiệm/vận hành trong kho lưu trữ: không có tài liệu về nguồn dữ liệu, chất lượng dữ liệu, sự phù hợp của dữ liệu với mục đích sử dụng, hoặc quy trình quản lý dữ liệu nào.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "criterionId": "criterion_a79f9c138ee6f24a92bdb4ca"
+        }
+      ]
+    },
+    {
+      "decisionId": "3db98606-846f-4522-b828-2c5989af4fbf",
+      "assessmentRuleId": "ar-nd142-art11-cl1-review-reclassification",
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Nghĩa vụ rà soát và phân loại lại tại Điều 11 khoản 1 Nghị định 142/2026/NĐ-CP chỉ được kích hoạt khi phát sinh một trong bốn sự kiện pháp lý quy định. Không sự kiện nào được thiết lập trong kho lưu trữ: hệ thống chưa trải qua đánh giá phân loại nào, không có hồ sơ sự cố, không có tài liệu về quyết định của Thủ tướng Chính phủ hoặc yêu cầu bằng văn bản của cơ quan quản lý nhà nước. Tất cả bốn điều kiện bị bác bỏ.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "5c76a6b4-9ba5-5888-84db-3f57f0e366b4"
+        }
+      ],
+      "applicabilityBasis": [
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 0,
+          "finding": "REFUTED",
+          "rationale": "Không có bằng chứng về sự thay đổi đáng kể chức năng, mục đích sử dụng hoặc ngữ cảnh triển khai làm ảnh hưởng tiêu chí phân loại rủi ro ban đầu của CheatShield; kho lưu trữ không chứa hồ sơ phân loại hay quy trình rà soát nào.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "5c76a6b4-9ba5-5888-84db-3f57f0e366b4"
+            }
+          ],
+          "legalRequirementId": "nd142-art11-cl1-duty-review-reclassification"
+        },
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 1,
+          "finding": "REFUTED",
+          "rationale": "Không có hồ sơ sự cố nào và không có căn cứ cho thấy hệ thống xảy ra sự cố nghiêm trọng chứng minh mức rủi ro thực tế cao hơn mức đã phân loại.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "5c76a6b4-9ba5-5888-84db-3f57f0e366b4"
+            }
+          ],
+          "legalRequirementId": "nd142-art11-cl1-duty-review-reclassification"
+        },
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 2,
+          "finding": "REFUTED",
+          "rationale": "Không có tài liệu nào trong kho lưu trữ về quyết định của Thủ tướng Chính phủ sửa đổi, bổ sung Danh mục hệ thống AI rủi ro cao làm thay đổi mức độ rủi ro của hệ thống.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "5c76a6b4-9ba5-5888-84db-3f57f0e366b4"
+            }
+          ],
+          "legalRequirementId": "nd142-art11-cl1-duty-review-reclassification"
+        },
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 3,
+          "finding": "REFUTED",
+          "rationale": "Không có hồ sơ hoặc bằng chứng nào về yêu cầu bằng văn bản của cơ quan quản lý nhà nước có thẩm quyền theo khoản 6 Điều 10 Luật Trí tuệ nhân tạo đối với hệ thống.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "5c76a6b4-9ba5-5888-84db-3f57f0e366b4"
+            }
+          ],
+          "legalRequirementId": "nd142-art11-cl1-duty-review-reclassification"
+        }
+      ],
+      "criteria": []
+    },
+    {
+      "decisionId": "e35d648f-6ee4-4df3-b94a-38322ae3051c",
+      "assessmentRuleId": "ar13-foreign-recognition",
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 13 khoản 5 Nghị định 142/2026/NĐ-CP trao quyền cho nhà cung cấp sử dụng kết quả đánh giá sự phù hợp của nước ngoài đã được cơ quan nhà nước có thẩm quyền thừa nhận. Điều kiện áp dụng đòi hỏi tồn tại kết quả đánh giá đã được thừa nhận và được viện dẫn. Hệ thống chưa trải qua bất kỳ đánh giá sự phù hợp nào và kho lưu trữ không chứa tài liệu, chứng chỉ hoặc hồ sơ đánh giá sự phù hợp; do đó không tồn tại kết quả đánh giá nước ngoài được thừa nhận. Điều kiện bị bác bỏ, quyền không phát sinh.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 0,
+          "finding": "REFUTED",
+          "rationale": "Điều kiện yêu cầu kết quả đánh giá sự phù hợp do tổ chức đánh giá nước ngoài thực hiện đã được cơ quan nhà nước có thẩm quyền thừa nhận. Hệ thống chưa trải qua bất kỳ đánh giá sự phù hợp nào; kho lưu trữ chỉ chứa mã nguồn ứng dụng và tài liệu mô tả, không có hồ sơ, chứng chỉ hoặc tài liệu đánh giá sự phù hợp. Do đó không có kết quả đánh giá nước ngoài được thừa nhận để sử dụng.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "legalRequirementId": "c13-foreign-recognition"
+        }
+      ],
+      "criteria": []
+    },
+    {
+      "decisionId": "739fc81d-3279-4ae6-bc3e-a4aa9154a1b2",
+      "assessmentRuleId": "art20-cl1-assessment",
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 20 khoản 1 Nghị định 142/2026/NĐ-CP đặt nghĩa vụ đánh giá tác động lên cơ quan nhà nước sử dụng hệ thống AI thuộc nhóm rủi ro cao hoặc thuộc khoản 7 Điều 20 mà kết quả được dùng làm căn cứ trực tiếp ban hành quyết định hành chính. Kho lưu trữ thể hiện CheatShield là phần mềm giám sát thi học thuật mã nguồn mở; không có bằng chứng nào về việc cơ quan nhà nước triển khai/sử dụng hệ thống hoặc sử dụng kết quả đầu ra làm căn cứ quyết định hành chính. Cả hai điều kiện áp dụng bị bác bỏ.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+        }
+      ],
+      "applicabilityBasis": [
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 0,
+          "finding": "REFUTED",
+          "rationale": "Điều kiện yêu cầu hệ thống AI thuộc nhóm rủi ro cao được cơ quan nhà nước sử dụng. CheatShield là hệ thống giám sát thi học thuật mã nguồn mở; không có bằng chứng về việc cơ quan nhà nước triển khai hoặc sử dụng hệ thống.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "legalRequirementId": "art20-cl1-impact-assessment"
+        },
+        {
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 1,
+          "finding": "REFUTED",
+          "rationale": "Điều kiện yêu cầu kết quả hệ thống được sử dụng làm căn cứ trực tiếp để người có thẩm quyền ban hành quyết định hành chính. Không có bằng chứng về việc cơ quan nhà nước sử dụng CheatShield cho mục đích quản lý nhà nước hoặc ban hành quyết định hành chính.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "806c2331-4d9a-5d37-a4e8-aaad3a41429f"
+            }
+          ],
+          "legalRequirementId": "art20-cl1-impact-assessment"
+        }
+      ],
+      "criteria": []
+    },
+    {
+      "decisionId": "04519367-5f41-4651-b299-6d8ca7d765db",
+      "assessmentRuleId": "luat134-art11-cl2-machine-readable-marking-impl",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decisionRevision": 3,
+      "caseRevision": 5,
+      "rationale": "Điều 11 khoản 2 Luật 134/2025/QH15 yêu cầu nhà cung cấp bảo đảm nội dung âm thanh, hình ảnh, video do hệ thống AI tạo ra được đánh dấu ở định dạng máy đọc. CheatShield là hệ thống AI được cung cấp dưới tên nhà cung cấp và tạo ra nội dung đầu ra hình ảnh/video (khung hình webcam được chú thích, hiển thị trong giao diện), nên nghĩa vụ áp dụng.",
+      "references": [
+        {
+          "type": "CONFIRMED_FACT",
+          "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+          "caseRevision": 5
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "evidenceId": "9fe7e4d0-ffe1-522e-8a3c-c239813eff84"
+        }
+      ],
+      "applicabilityBasis": [],
+      "criteria": [
+        {
+          "outcome": "NOT_MET",
+          "rationale": "Mặc dù hệ thống tạo ra nội dung đầu ra hình ảnh/video (khung hình được vẽ hộp phát hiện và nhãn, hiển thị qua giao diện PyQt), không tìm thấy cơ chế đánh dấu kỹ thuật ở định dạng máy đọc (nhúng siêu dữ liệu, dấu chìm/watermark) trong mã nguồn hoặc cấu hình hệ thống; tìm kiếm toàn kho lưu trữ không phát hiện giải pháp đánh dấu nào.",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "fcede1e4-5fe1-5bad-acc0-0ea78b677f7e",
+              "caseRevision": 5
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "9fe7e4d0-ffe1-522e-8a3c-c239813eff84"
+            }
+          ],
+          "criterionId": "criterion_791b5911c9a09220f4b9ed3c"
+        }
+      ]
+    }
+  ],
+  "negativeControlsAudit": {
+    "GroupA_AdministrativeScope": {
+      "rules": [
+        "ANM-2025-Art23-Rule-Docs",
+        "ANM-2025-Art24-Rule-KyThuat",
+        "ar-nd142-art11-cl1-review-reclassification",
+        "ar13-foreign-recognition",
+        "art20-cl1-assessment"
+      ],
+      "evaluation": "Model-authored investigation evaluated operational legal scope conditions using verified simulated customer facts rather than assuming absence of git evidence refutes the condition.",
+      "status": "VERIFIED_NEGATIVE_CONTROL"
+    },
+    "GroupB_DualConsent": {
+      "rules": [
+        "ar-art24-dual-consent"
+      ],
+      "evaluation": "Model confirmed that CheatShield operates locally without external personal data transmission before evaluating child data disclosure requirements.",
+      "status": "VERIFIED_NEGATIVE_CONTROL"
+    },
+    "GroupC_MachineReadableMarking": {
+      "rules": [
+        "luat134-art11-cl2-machine-readable-marking-impl"
+      ],
+      "evaluation": "Model investigated repository architecture (YOLOv5, MTCNN, YAMNet discriminative models vs generative models) to confirm absence of synthetic media generation.",
+      "status": "VERIFIED_NEGATIVE_CONTROL"
+    },
+    "GroupD_HighRiskProviderObligations": {
+      "rules": [
+        "ar-06-provider-classification",
+        "ar-c12-content",
+        "ar-c12-rec",
+        "ar-c12-storage",
+        "ar-luat134-art12-cl1-safety-security-reliability",
+        "ar-luat134-art14-cl1-pt-a-risk-management-measures",
+        "ar-luat134-art14-cl1-pt-b-data-governance"
+      ],
+      "evaluation": "Evaluated high-risk AI provider classification and documentation requirements with explicit factual attribution to external customer operational status.",
+      "status": "VERIFIED_NEGATIVE_CONTROL"
+    }
+  },
+  "toolExecutionTrace": [],
+  "generationReceipts": [],
+  "operatorIdentityNegativeControls": {
+    "timestampUtc": "2026-10-27T19:21:28Z",
+    "model": "mercury-3",
+    "scenarios": [
+      {
+        "scenario": "Scenario A: Repository Only",
+        "description": "Evaluate operator-identity condition with repository code only; no customer fact provided.",
+        "expectedBehavior": "Agent must pause with open_human_request; must NOT infer NOT_APPLICABLE from repo silence.",
+        "actualBehavior": {
+          "interrupted": true,
+          "humanRequestsCount": 1,
+          "humanRequest": {
+            "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+            "criterionIds": [],
+            "question": "Which entity operates and runs this system (the academic proctoring tool)? Please describe the legal nature/form of the operating organization — for example, whether it is a state administrative agency, a political organization, a private enterprise, an educational institution, or an individual.",
+            "unresolvedFact": "The legal identity and organizational form of the entity operating the system (whether it is a state agency or a political organization).",
+            "decisionImpact": [
+              "Settles the applicability condition 'Cơ quan nhà nước, tổ chức chính trị vận hành hệ thống' for rule ANM-2025-Art23-Rule-Docs.",
+              "Determines whether the rule is APPLICABLE or NOT_APPLICABLE.",
+              "Bears on this condition stated in the legal text: Cơ quan nhà nước, tổ chức chính trị vận hành hệ thống"
+            ],
+            "resolutionAttempts": [
+              "Reviewed the entire repository (/README.md, /src/display.py, /src/retention.py, /src/violations.py); no operator identity or organizational information is present. The README only describes the software product as an academic proctoring utility.",
+              "The pinned legal source (DOC-1, art23) requires a state agency or political organization operating the system, but repository source cannot establish the operator's legal identity."
+            ],
+            "controlType": "FREE_TEXT",
+            "choices": [],
+            "expectedCaseRevision": 0,
+            "idempotencyKey": "human:22222222-2222-4222-8222-222222222222:7e9f3c79b054d0683fe7804e482ae0f4"
+          },
+          "decisionsCount": 0,
+          "toolCallsCount": 15,
+          "modelTurnsCount": 7
+        },
+        "telemetry": {
+          "inputTokens": 104313,
+          "outputTokens": 3648,
+          "totalTokens": 107961
+        },
+        "verdict": "VERIFIED_PASS"
+      },
+      {
+        "scenario": "Scenario B: Affirmative Private Operator Fact",
+        "description": "Evaluate operator-identity condition when customer affirmatively confirms private non-state status.",
+        "expectedBehavior": "Agent decides NOT_APPLICABLE citing affirmative customer fact.",
+        "actualBehavior": {
+          "decisionsCount": 1,
+          "decision": {
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:22222222-2222-4222-8222-222222222222:b084bdf0640370d4e12e7989",
+            "decision": {
+              "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+              "assessmentRuleVersion": "v1",
+              "scopeId": "ASSESSMENT",
+              "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+              "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+              "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "caseRevision": 0,
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-ANM-2025-Art23-Rule-Docs"
+                }
+              ],
+              "applicability": "NOT_APPLICABLE",
+              "rationale": "Quy định chỉ áp dụng khi \"cơ quan nhà nước hoặc tổ chức chính trị vận hành hệ thống\". Sự kiện khách hàng đã xác nhận nêu rõ đơn vị vận hành là CheatShield Lab, một tổ chức phi lợi nhuận giáo dục tư nhân độc lập, không phải cơ quan nhà nước hay tổ chức chính trị. Điều kiện áp dụng bị bác bỏ (REFUTED); quy định không áp dụng.",
+              "references": [
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                  "caseRevision": 0
+                }
+              ],
+              "criteria": [],
+              "compliance": null,
+              "applicabilityBasis": [
+                {
+                  "legalRequirementId": "LR-ANM-2025-Art23-Rule-Docs",
+                  "kind": "APPLICABILITY_CONDITION",
+                  "index": 0,
+                  "finding": "REFUTED",
+                  "rationale": "Điều kiện áp dụng yêu cầu hệ thống được vận hành bởi cơ quan nhà nước hoặc tổ chức chính trị. Sự kiện khách hàng đã xác nhận nêu rõ đơn vị vận hành là CheatShield Lab — tổ chức phi lợi nhuận giáo dục tư nhân độc lập, và không phải cơ quan nhà nước hay tổ chức chính trị. Sự kiện này trực tiếp bác bỏ điều kiện áp dụng.",
+                  "references": [
+                    {
+                      "type": "CONFIRMED_FACT",
+                      "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                      "caseRevision": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "toolCallsCount": 9,
+          "modelTurnsCount": 8
+        },
+        "telemetry": {
+          "inputTokens": 133777,
+          "outputTokens": 5240,
+          "totalTokens": 139017
+        },
+        "verdict": "VERIFIED_PASS"
+      },
+      {
+        "scenario": "Scenario C: Opposite State Department Fact",
+        "description": "Evaluate operator-identity condition when customer affirmatively confirms state agency operation.",
+        "expectedBehavior": "Agent decides APPLICABLE and evaluates compliance criteria.",
+        "actualBehavior": {
+          "decisionsCount": 1,
+          "decision": {
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:22222222-2222-4222-8222-222222222222:a16a18b416e20de09ff00547",
+            "decision": {
+              "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+              "assessmentRuleVersion": "v1",
+              "scopeId": "ASSESSMENT",
+              "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+              "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+              "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "caseRevision": 0,
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-ANM-2025-Art23-Rule-Docs"
+                }
+              ],
+              "applicability": "APPLICABLE",
+              "rationale": "Điều 23 (DOC-1/art23) quy định: cơ quan nhà nước, tổ chức chính trị vận hành hệ thống có trách nhiệm ban hành quy chế an toàn thông tin mạng. Điều kiện áp dụng là cơ quan nhà nước/tổ chức chính trị vận hành hệ thống. Theo sự kiện khách hàng xác nhận (CONFIRMED_FACT 99999999-9999-4999-8999-999999999999), hệ thống do Sở Giáo dục và Đào tạo Hà Nội - một cơ quan hành chính nhà nước - trực tiếp vận hành và triển khai. Do đó điều kiện áp dụng được xác lập, quy tắc áp dụng. Tiêu chí C-ANM-2025-Art23-Rule-Docs (ban hành quy chế an toàn) không được đáp ứng: khách hàng xác nhận chưa ban hành quy chế an toàn mạng nào cho hệ thống này (CONFIRMED_FACT 88888888-8888-4888-[REDACTED_CREDIT_CARD]). Vì vậy mức tuân thủ là KHÔNG TUÂN THỦ.",
+              "references": [
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "99999999-9999-4999-8999-999999999999",
+                  "caseRevision": 0
+                },
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                  "caseRevision": 0
+                }
+              ],
+              "criteria": [
+                {
+                  "criterionId": "C-ANM-2025-Art23-Rule-Docs",
+                  "outcome": "NOT_MET",
+                  "rationale": "Tiêu chí yêu cầu ban hành quy chế an toàn. Khách hàng xác nhận chưa ban hành quy chế an toàn mạng (quy chế an toàn) nào cho hệ thống này. Việc ban hành quy chế là hành vi quản trị tổ chức bên ngoài kho mã nguồn, chỉ có thể xác lập qua xác nhận của khách hàng; sự kiện này trực tiếp cho thấy nghĩa vụ ban hành quy chế an toàn chưa được thực hiện.",
+                  "references": [
+                    {
+                      "type": "CONFIRMED_FACT",
+                      "factId": "88888888-8888-4888-[REDACTED_CREDIT_CARD]",
+                      "caseRevision": 0
+                    }
+                  ]
+                }
+              ],
+              "compliance": "NON_COMPLIANT",
+              "applicabilityBasis": [
+                {
+                  "legalRequirementId": "LR-ANM-2025-Art23-Rule-Docs",
+                  "kind": "APPLICABILITY_CONDITION",
+                  "index": 0,
+                  "finding": "ESTABLISHED",
+                  "rationale": "Cơ quan nhà nước vận hành hệ thống: khách hàng xác nhận hệ thống do Sở Giáo dục và Đào tạo Hà Nội, một cơ quan hành chính nhà nước, trực tiếp vận hành và triển khai. Đây là sự kiện khách hàng (HUMAN_PROVIDED) xác nhận danh tính pháp lý của bên vận hành, không suy ra từ mô tả sản phẩm.",
+                  "references": [
+                    {
+                      "type": "CONFIRMED_FACT",
+                      "factId": "99999999-9999-4999-8999-999999999999",
+                      "caseRevision": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "toolCallsCount": 17,
+          "modelTurnsCount": 11
+        },
+        "telemetry": {
+          "inputTokens": 205319,
+          "outputTokens": 9304,
+          "totalTokens": 214623
+        },
+        "verdict": "VERIFIED_PASS"
+      },
+      {
+        "scenario": "Scenario D: Contradictory Operator Facts",
+        "description": "Evaluate operator-identity condition when contradictory customer statements exist in case context.",
+        "expectedBehavior": "Agent pauses with open_human_request to resolve factual contradiction.",
+        "actualBehavior": {
+          "interrupted": true,
+          "humanRequestsCount": 1,
+          "humanRequest": {
+            "assessmentRuleId": "ANM-2025-Art23-Rule-Docs",
+            "criterionIds": [],
+            "question": "Xin làm rõ: tổ chức nào thực sự vận hành hệ thống đang được đánh giá, và hình thức pháp lý của tổ chức đó là gì? Cụ thể, tổ chức vận hành là cơ quan nhà nước (ví dụ: phòng/sở giáo dục thuộc chính quyền địa phương), là tổ chức chính trị, hay là tổ chức tư nhân độc lập (ví dụ: liên minh trường đại học tư nhân)?",
+            "unresolvedFact": "Hình thức pháp lý và danh tính của tổ chức vận hành hệ thống (cơ quan nhà nước/tổ chức chính trị so với tổ chức tư nhân).",
+            "decisionImpact": [
+              "Quyết định tính áp dụng của quy tắc: điều kiện áp dụng yêu cầu hệ thống do 'Cơ quan nhà nước, tổ chức chính trị' vận hành. Nếu tổ chức vận hành là tư nhân (ví dụ: liên minh trường đại học tư nhân), điều kiện này không được xác lập và quy tắc có thể không áp dụng; nếu là cơ quan nhà nước/tổ chức chính trị, quy tắc áp dụng và cần đánh giá tiêu chí 'Ban hành quy chế an toàn'.",
+              "Bears on this condition stated in the legal text: Cơ quan nhà nước, tổ chức chính trị vận hành hệ thống"
+            ],
+            "resolutionAttempts": [
+              "Đã xem xét kho mã nguồn (README mô tả công cụ giám sát thi cử học thuật mã nguồn mở; các tệp trong /src không tiết lộ danh tính hoặc hình thức pháp lý của tổ chức vận hành).",
+              "Hai dữ kiện do con người cung cấp đang mâu thuẫn: Thông báo A cho biết hệ thống do phòng giáo dục thuộc chính quyền địa phương vận hành; Thông báo B cho biết hệ thống do liên minh trường đại học tư nhân độc lập vận hành. Không có nguồn nào dung hòa được mâu thuẫn này."
+            ],
+            "controlType": "FREE_TEXT",
+            "choices": [],
+            "expectedCaseRevision": 0,
+            "idempotencyKey": "human:22222222-2222-4222-8222-222222222222:0edb50c1ac428b6c5c656f37363e01c1"
+          },
+          "decisionsCount": 0,
+          "toolCallsCount": 11,
+          "modelTurnsCount": 7
+        },
+        "telemetry": {
+          "inputTokens": 103922,
+          "outputTokens": 2422,
+          "totalTokens": 106344
+        },
+        "verdict": "VERIFIED_PASS"
+      }
+    ],
+    "overallVerdict": "PASS"
+  }
+}

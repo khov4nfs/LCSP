@@ -1,11 +1,15 @@
+
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - isolated packet-layer fixture
 """Native, provider-free regressions for the preparation terminal contract."""
 
+
+import json
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from rule_set_preparation import runner
 from rule_set_preparation.legal_source_files import INDEX_PATH
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
@@ -47,7 +51,7 @@ def test_premature_normal_stop_continues_same_preparation(tmp_path: Path, monkey
     packet = _packet()
     model = _model([
         _call("read_file", {"file_path": INDEX_PATH}, "index"),
-        _call("read_file", {"file_path": f"/legal-source/{DOC}/art-1__cl-1.md"}, "provision"),
+        _call("read_file", {"file_path": f"/legal-source/{DOC}/dieu-1.md"}, "provision"),
         *[AIMessage(content='[[tool_calls]] [{"name":"validate_compliance_rule_set"}]',
                     response_metadata={"finish_reason": "stop"}) for _ in range(normal_stops)],
         _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
@@ -110,7 +114,7 @@ def test_preparation_stream_trace_emits_redacted_meaningful_native_tool_activity
         "",
         run_id="task-1",
         inputs={
-            "subagent_type": "legal-source-reader",
+            "subagent_type": "claim-author",
             "description": "Analyze /legal-source/LAW-71-2025-QH15 only",
         },
     )
@@ -139,12 +143,25 @@ def test_preparation_stream_trace_emits_redacted_meaningful_native_tool_activity
     }
     assert emitted[2][1]["data"] == {
         "native_tool": "task",
-        "subagent_type": "legal-source-reader",
+        "subagent_type": "claim-author",
         "source_path": "/legal-source/LAW-71-2025-QH15",
     }
-    assert emitted[3][1]["subagent_name"] == "legal-source-reader"
+    assert emitted[3][1]["subagent_name"] == "claim-author"
     assert emitted[3][1]["data"]["source_path"] == "/legal-source/LAW-71-2025-QH15/article-1.md"
     assert "private" not in repr(emitted)
+
+
+def test_correctable_native_tool_rejection_remains_observable_as_failed(monkeypatch):
+    emitted = []
+    monkeypatch.setattr(runner, "publish_agent_stream_event", lambda kind, **fields: emitted.append((kind, fields)))
+    trace = runner.PreparationStreamTrace()
+    trace.on_tool_start({"name": "get_legal_node"}, "", run_id="read")
+    trace.on_tool_end(ToolMessage(content="Source tool arguments rejected (traversal:extra_forbidden)",
+                                  name="get_legal_node", tool_call_id="read", status="error"), run_id="read")
+    assert emitted[-1][0] == "TOOL_RESULT"
+    assert emitted[-1][1]["status"] == "FAILED"
+    assert emitted[-1][1]["tool_name"] == "get_legal_node"
+    assert trace.active_tool_names() == []
 
 
 def test_source_blocked_is_explicit_and_terminal(tmp_path: Path, monkeypatch) -> None:
@@ -190,7 +207,7 @@ def test_legal_source_root_and_descendants_are_readable_only(tmp_path: Path) -> 
         _call("grep", {"pattern": "Records", "path": path, "output_mode": "content"}, "grep-nested"),
         _call("glob", {"pattern": "**/*.md", "path": "/legal-source"}, "glob"),
         _call("read_file", {"file_path": INDEX_PATH}, "index"),
-        _call("read_file", {"file_path": f"{path}/art-1__cl-1.md"}, "chunk"),
+        _call("read_file", {"file_path": f"{path}/dieu-1.md"}, "chunk"),
         _call("grep", {"pattern": "OUTSIDE", "path": "/", "output_mode": "content"}, "outside-grep"),
         _call("read_file", {"file_path": "/outside.txt"}, "outside-read"),
         _call("write_file", {"file_path": "/legal-source/mutated.md", "content": "MUTATED"}, "write"),
@@ -205,7 +222,7 @@ def test_legal_source_root_and_descendants_are_readable_only(tmp_path: Path) -> 
         assert "permission denied" not in messages[call_id].content
     for call_id in ["grep-root", "grep-nested", "chunk"]:
         assert "Records must be retained" in messages[call_id].content
-    assert "INDEX.md" in messages["ls"].content and "art-1__cl-1.md" in messages["glob"].content
+    assert "INDEX.md" in messages["ls"].content and "dieu-1.md" in messages["glob"].content
     for call_id in ["outside-grep", "outside-read"]:
         assert "OUTSIDE-PRIVATE" not in messages[call_id].content
         assert "permission denied" in messages[call_id].content
@@ -251,19 +268,17 @@ def test_invalid_source_blocking_signal_does_not_end_preparation(tmp_path: Path,
 def test_only_the_exact_passed_packet_can_be_submitted_once() -> None:
     api = FakeApi()
     context = RuleSetPreparationContext(RUN_ID, api)
-    validate, submit = build_rule_set_tools(context)[:2]
+    tools = {tool.name: tool for tool in build_rule_set_tools(context)}
+    validate = tools["validate_compliance_rule_set"]
+    submit = tools["submit_compliance_rule_set"]
     packet = _packet()
-    assert "error" in submit.invoke({"packet": packet})
-    assert api.names() == []
     validate.invoke({"packet": packet})
     changed = deepcopy(packet)
     changed["legalRequirements"][0]["title"] = "Changed after validation"
-    assert "error" in submit.invoke({"packet": changed})
-    assert api.names() == ["validate"]
-    submit.invoke({"packet": packet})
-    assert "alreadySubmitted" in submit.invoke({"packet": packet})
-    assert api.names() == ["validate", "submit"]
-    assert api.calls[-1][1] == (RUN_ID, context.idempotency_key, packet)
+    submit.invoke({"packet": changed})
+    assert "alreadySubmitted" in submit.invoke({"packet": changed})
+    assert api.names() == ["validate", "validate", "submit"]
+    assert api.calls[-1][1] == (RUN_ID, context.idempotency_key, changed)
 
 
 def test_failed_revalidation_revokes_previous_packet_pass() -> None:
@@ -274,12 +289,65 @@ def test_failed_revalidation_revokes_previous_packet_pass() -> None:
 
     api = ChangedValidationApi()
     context = RuleSetPreparationContext(RUN_ID, api)
-    validate, submit = build_rule_set_tools(context)[:2]
+    tools = {tool.name: tool for tool in build_rule_set_tools(context)}
+    validate = tools["validate_compliance_rule_set"]
+    submit = tools["submit_compliance_rule_set"]
     validate.invoke({"packet": _packet()})
     validate.invoke({"packet": _packet()})
-    assert "error" in submit.invoke({"packet": _packet()})
-    assert api.names() == ["validate", "validate"]
+    rejected = json.loads(submit.invoke({"packet": _packet()}))
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["outcome"] == "FAILED"
+    assert api.names() == ["validate", "validate", "validate"]
     assert context.submission is None
+
+
+def test_operative_coverage_gaps_reject_completion_and_keep_canonical_no_progress() -> None:
+    from middleware.failure_policy import NoProgressDetected
+
+    class OperativeCoverageApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id, packet):
+            self.calls.append(("validate", (run_id, packet)))
+            return {"outcome": "FAILED", "failures": [
+                {"code": "OPERATIVE_PROPOSITION_REQUIRED", "ref": "legalRequirement:LR-CONTEXT", "detail": "Author actor/modality/action and exact source bindings"},
+                {"code": "INCOMPLETE_SOURCE_COVERAGE", "ref": f"locator:{DOC}::art-1::cl-1", "detail": "Citation attachment alone does not discharge coverage"},
+            ]}
+
+    api = OperativeCoverageApi()
+    context = RuleSetPreparationContext(RUN_ID, api)
+    submit = next(t for t in build_rule_set_tools(context) if t.name == "submit_compliance_rule_set")
+    rejected = json.loads(submit.invoke({"packet": _packet()}))
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["failures"][0]["code"] == "OPERATIVE_PROPOSITION_REQUIRED"
+    assert "operativePropositions" in rejected["gaps"]["uncoveredProvisions"]["how"]
+    assert "ancestor citation alone does not discharge coverage" in rejected["gaps"]["uncoveredProvisions"]["how"]
+    feedback = json.loads(submit.invoke({"packet": _packet()}))
+    assert feedback["NO_PROGRESS"]
+    with pytest.raises(NoProgressDetected):
+        submit.invoke({"packet": _packet()})
+    assert context.submission is None
+    assert "submit" not in api.names()
+
+
+def test_actor_binding_mismatch_rejects_gate_before_persistence() -> None:
+    class ActorBindingApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id, packet):
+            self.calls.append(("validate", (run_id, packet)))
+            return {"outcome": "FAILED", "failures": [{
+                "code": "APPLICABILITY_BINDING_MISMATCH",
+                "ref": "assessmentRule:ER-DELEGATE",
+                "detail": "Omit independently authored guidance; derive it from parent bindings",
+            }]}
+
+    api = ActorBindingApi()
+    context = RuleSetPreparationContext(RUN_ID, api)
+    submit = next(t for t in build_rule_set_tools(context) if t.name == "submit_compliance_rule_set")
+    packet = _packet()
+    packet["assessmentRules"][0]["applicabilityGuidance"] = "The fulfillment actor delegates to the obligation holder"
+    rejected = json.loads(submit.invoke({"packet": packet}))
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["failures"][0]["code"] == "APPLICABILITY_BINDING_MISMATCH"
+    assert context.submission is None
+    assert api.names() == ["validate"]
 
 
 @pytest.mark.parametrize("gives_up_with_source_blocked", [False, True])

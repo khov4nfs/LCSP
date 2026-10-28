@@ -65,10 +65,15 @@ def _model_routes(monkeypatch, tmp_path):
 
 class FakeClient:
     def __init__(self):
-        self.payloads = []
+        self.attempts = []
+
+    @property
+    def payloads(self):
+        # Existing response assertions count responses; lifecycle is checked separately.
+        return [p for p in self.attempts if p.attemptStatus in (None, "COMPLETED")]
 
     def post_settled_usage(self, payload):
-        self.payloads.append(payload)
+        self.attempts.append(payload)
 
 
 class FailingClient:
@@ -126,6 +131,7 @@ def test_extract_provider_usage_is_numeric_and_does_not_persist_reasoning_conten
 
     assert usage == {
         "inputTokens": "2",
+        "inputTokensIncludingCache": "3",
         "cachedInputTokens": "1",
         "outputTokens": "2",
         "totalTokens": "5",
@@ -134,14 +140,10 @@ def test_extract_provider_usage_is_numeric_and_does_not_persist_reasoning_conten
     assert "reasoning" not in usage
 
 
-def test_extract_provider_usage_returns_none_when_required_dimensions_are_missing():
-    assert (
-        extract_provider_usage(
-            SimpleNamespace(usage_metadata={"input_tokens": 1}),
-            SimpleNamespace(provider="openai", model_name="model-alpha"),
-        )
-        is None
-    )
+def test_extract_provider_usage_preserves_partial_dimensions():
+    usage = extract_provider_usage(SimpleNamespace(usage_metadata={"input_tokens": 1}),
+        SimpleNamespace(provider="openai", protocol="openai", model_name="model-alpha"))
+    assert usage == {"inputTokensIncludingCache": "1"}
 
 
 # --- usage reporting --------------------------------------------------------------------
@@ -169,7 +171,7 @@ def test_one_response_posts_one_provider_reported_payload_without_money_fields()
     assert "reservationId" not in SettledUsagePayload.model_fields
 
 
-def test_response_without_usage_posts_nothing_and_invents_no_zeros():
+def test_partial_response_is_recorded_without_inventing_missing_tokens():
     client = FakeClient()
     with activate_agent_run_state(_state(client)):
         UsageMeteringMiddleware().wrap_model_call(
@@ -178,7 +180,9 @@ def test_response_without_usage_posts_nothing_and_invents_no_zeros():
                 usage_metadata={"input_tokens": 1}, response_metadata={"id": "partial"}
             ),
         )
-    assert client.payloads == []
+    assert len(client.payloads) == 1
+    assert client.payloads[0].inputTokensIncludingCache == "1"
+    assert client.payloads[0].outputTokens is None
 
 
 def test_failed_provider_attempt_posts_no_usage():
@@ -202,7 +206,7 @@ async def test_async_failed_provider_attempt_posts_no_usage():
     assert client.payloads == []
 
 
-def test_state_without_assessment_or_client_reports_nothing():
+def test_scoped_state_archives_usage_locally_even_without_api_client():
     for state in (
         AgentRunState(run_id="r", agent_role="legal"),
         AgentRunState(run_id="r", agent_role="legal", assessment_id="a"),
@@ -210,7 +214,8 @@ def test_state_without_assessment_or_client_reports_nothing():
     ):
         with activate_agent_run_state(state):
             UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
-    assert not Path(resolve_usage_recovery_store_path()).exists()
+    records = usage_recovery.read_usage_evidence(resolve_usage_recovery_store_path())
+    assert [r["attemptStatus"] for r in records] == ["STARTED", "COMPLETED"]
 
 
 def test_metering_runs_without_any_run_state(monkeypatch):
@@ -430,7 +435,8 @@ def test_output_cap_preserves_identity_for_usage_reporting():
     assert downstream[0].model is model
     (payload,) = client.payloads
     assert (payload.provider, payload.model) == ("OPENAI", "model-alpha")
-    assert (payload.inputTokens, payload.outputTokens) == ("3", "2")
+    assert payload.inputTokens is None
+    assert (payload.inputTokensIncludingCache, payload.outputTokens) == ("3", "2")
     assert payload.occurredAt.endswith("Z") and "+00:00" not in payload.occurredAt
 
 
@@ -473,7 +479,11 @@ def test_model_call_timeout_emits_timeout_event_and_no_usage(monkeypatch):
             ),
         )
 
-    assert [t for t, _ in events] == ["MODEL_CALL_STARTED", "MODEL_CALL_TIMEOUT"]
+    assert [t for t, _ in events] == ["MODEL_CALL_STARTED", "CUSTOM_PROGRESS", "MODEL_CALL_TIMEOUT"]
+    attempt = events[1][1]["data"]
+    assert attempt["activity_kind"] == "MODEL_PROVIDER_ATTEMPT_FAILED"
+    assert attempt["provider"] == "google_genai"
+    assert attempt["error_class"] == "TimeoutError"
     assert events[-1][1]["data"]["provider"] == "google_genai"
     assert events[-1][1]["data"]["error_type"] == "TimeoutError"
     assert client.payloads == []
@@ -710,7 +720,7 @@ def test_active_role_scopes_the_reported_agent_role_and_run_identity():
 
 def _store_rows(path):
     with sqlite3.connect(path) as db:
-        return db.execute("SELECT kind, state, recovery_key FROM usage_recovery ORDER BY id").fetchall()
+        return db.execute("SELECT kind, state, recovery_key FROM usage_recovery WHERE kind != 'EVIDENCE' ORDER BY id").fetchall()
 
 
 def test_failed_usage_post_is_enqueued_logged_and_never_fails_the_model_call(monkeypatch):
@@ -732,10 +742,9 @@ def test_failed_usage_post_is_enqueued_logged_and_never_fails_the_model_call(mon
         result = UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
 
     assert result is not None
-    assert warnings and warnings[0][0] == "MODEL_USAGE_DELIVERY_FAILED"
-    assert warnings[0][1]["error_type"] == "RuntimeError"
+    # API unavailability leaves both lifecycle callbacks durable; provider work is not repeated.
     rows = _store_rows(resolve_usage_recovery_store_path())
-    assert [(kind, state_) for kind, state_, _ in rows] == [("USAGE", "PENDING")]
+    assert [(kind, state_) for kind, state_, _ in rows] == [("USAGE", "PENDING"), ("USAGE", "PENDING")]
 
 
 def test_queued_usage_is_drained_later_exactly_once():
@@ -744,7 +753,7 @@ def test_queued_usage_is_drained_later_exactly_once():
     path = resolve_usage_recovery_store_path()
 
     recovered = FakeClient()
-    assert drain(path, recovered) == 1
+    assert drain(path, recovered) == 2
     assert len(recovered.payloads) == 1
     assert recovered.payloads[0].inputTokens == "2"
     assert drain(path, recovered) == 0
@@ -757,17 +766,20 @@ def test_still_failing_api_keeps_usage_pending_for_the_next_drain():
     path = resolve_usage_recovery_store_path()
 
     assert drain(path, FailingClient()) == 0
-    assert [s for _, s, _ in _store_rows(path)] == ["PENDING"]
+    assert [s for _, s, _ in _store_rows(path)] == ["PENDING", "PENDING"]
 
 
-def test_recovery_store_failure_never_fails_the_model_call(monkeypatch):
+def test_recovery_store_failure_prevents_provider_dispatch(monkeypatch):
     monkeypatch.setattr(
         usage_metering,
         "enqueue_usage",
         lambda *_a: (_ for _ in ()).throw(OSError("recovery-store-failed")),
     )
-    with activate_agent_run_state(_state(FailingClient())):
-        assert UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response()) is not None
+    from langchain_core.exceptions import ModelError
+    dispatched = []
+    with activate_agent_run_state(_state(FailingClient())), pytest.raises(ModelError, match="Durable usage commit failed"):
+        UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: dispatched.append(1))
+    assert dispatched == []
 
 
 def _payload(invocation_id="invocation-1"):
@@ -939,3 +951,25 @@ def test_corrupt_row_is_quarantined_and_does_not_block_later_rows(tmp_path):
     assert drain(path, delivered) == 1
     assert [p.invocationId for p in delivered.payloads] == ["invocation-2"]
     assert [s for _, s, _ in _store_rows(path)] == ["POISON"]
+
+
+@pytest.mark.parametrize("actual_route", ["audit-fallback", "general-fallback"])
+def test_usage_keeps_attached_route_options_when_provider_model_protocol_are_shared(monkeypatch, actual_route):
+    use_model_routes(monkeypatch, {
+        "routes": {
+            "primary": {"provider": "openai", "model": "model-alpha"},
+            "audit-fallback": {"provider": "google_genai", "model": "shared-model", "options": {"reasoning_effort": "high"}},
+            "general-fallback": {"provider": "google_genai", "model": "shared-model"},
+        },
+        "roles": {"default": "primary", "planner": "primary"},
+        "fallbacks": {"primary": ["audit-fallback"]},
+    })
+    assert mp.route_for_model("google_genai", "shared-model", "google_genai") is None
+    route = mp.load_model_routes().config(actual_route, "planner")
+    model = mp.attach_model_route(SimpleNamespace(provider="google_genai", model_name="shared-model"), route)
+    client = FakeClient()
+    with activate_agent_run_state(_state(client, role="planner")):
+        UsageMeteringMiddleware().wrap_model_call(SimpleNamespace(model=model, messages=[], tools=[]), lambda _: response())
+    expected = mp.config_snapshot(route, "planner")
+    expected.pop("role")
+    assert client.payloads[0].effectiveRuntimeModel == expected

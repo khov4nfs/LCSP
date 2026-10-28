@@ -2,6 +2,8 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
   LLM_USAGE_AVAILABILITY_REASONS,
   LLM_USAGE_STATUSES,
+  MODEL_ATTEMPT_STATUSES,
+  REFERENCE_COST_STATUSES,
 } from "@lcsp/contracts/billing";
 
 import {
@@ -41,6 +43,11 @@ function harness(ensure?: jest.Mock<(input: unknown) => Promise<unknown>>) {
       // Prisma returns null for columns the caller left unset.
       const nullable = Object.fromEntries(
         [
+          "assessmentId",
+          "inputTokensIncludingCache",
+          "cacheWrite5mTokens",
+          "cacheWrite1hTokens",
+          "visibleOutputTokens",
           "inputTokens",
           "cachedInputTokens",
           "cacheWriteTokens",
@@ -74,6 +81,11 @@ function harness(ensure?: jest.Mock<(input: unknown) => Promise<unknown>>) {
               row.providerResponseId === responseId,
           ) ?? null,
         ),
+      update: (id: string, input: Record<string, unknown>) => {
+        const row = rows.find((x) => x.id === id)!;
+        Object.assign(row, input);
+        return Promise.resolve(row);
+      },
       create,
     },
     runtimePolicy: {
@@ -233,5 +245,79 @@ describe("BillingUsageKernel provider token telemetry", () => {
       }),
     ).rejects.toThrow("not active");
     expect(ensure).not.toHaveBeenCalled();
+  });
+});
+
+describe("physical attempt reconciliation", () => {
+  it("keeps missing usage unavailable when completion has no reported buckets", async () => {
+    const { record, rows } = harness();
+    const missing = { inputTokens: undefined, outputTokens: undefined };
+    await record({ ...missing, attemptStatus: MODEL_ATTEMPT_STATUSES.STARTED });
+    await record({
+      ...missing,
+      attemptStatus: MODEL_ATTEMPT_STATUSES.COMPLETED,
+    });
+    expect(rows[0].status).toBe(LLM_USAGE_STATUSES.UNAVAILABLE);
+    expect(rows[0].availabilityReason).toBe(
+      LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing,
+    );
+    expect(rows[0].inputTokens).toBeNull();
+    expect(rows[0].outputTokens).toBeNull();
+  });
+
+  it("keeps one row across start, timeout, late response and duplicate response without repricing", async () => {
+    const { record, rows } = harness();
+    const identity = {
+      provider: "MIRAIAPI",
+      model: "claude-sonnet-5",
+      occurredAt: new Date("2026-10-22T16:00:00Z"),
+    };
+    await record({
+      ...identity,
+      attemptStatus: MODEL_ATTEMPT_STATUSES.STARTED,
+      inputTokens: undefined,
+      outputTokens: undefined,
+    });
+    await record({
+      ...identity,
+      attemptStatus: MODEL_ATTEMPT_STATUSES.OUTCOME_UNKNOWN,
+      inputTokens: undefined,
+      outputTokens: undefined,
+      failureClass: "TimeoutError",
+    });
+    const usage = {
+      ...identity,
+      attemptStatus: MODEL_ATTEMPT_STATUSES.COMPLETED,
+      inputTokens: 10n,
+      cachedInputTokens: 2n,
+      cacheWriteTokens: 0n,
+      outputTokens: 5n,
+    };
+    await record(usage);
+    const snapshot = rows[0].referenceCostSnapshot;
+    await record(usage);
+    await record({
+      ...identity,
+      attemptStatus: MODEL_ATTEMPT_STATUSES.STARTED,
+      inputTokens: undefined,
+      outputTokens: undefined,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].attemptStatus).toBe(MODEL_ATTEMPT_STATUSES.COMPLETED);
+    expect(rows[0].availabilityReason).toBeNull();
+    expect(rows[0].referenceCostSnapshot).toBe(snapshot);
+    expect(snapshot).toMatchObject({
+      estimatedCostUsd: "0.0000704",
+      status: REFERENCE_COST_STATUSES.COMPLETE,
+    });
+    await expect(record({ ...usage, outputTokens: 6n })).rejects.toBeInstanceOf(
+      BillingIdempotencyConflictError,
+    );
+    // Repair the stale marker on already-completed rows without repricing them.
+    rows[0].availabilityReason =
+      LLM_USAGE_AVAILABILITY_REASONS.providerUsageMetadataMissing;
+    await record(usage);
+    expect(rows[0].availabilityReason).toBeNull();
+    expect(rows[0].referenceCostSnapshot).toBe(snapshot);
   });
 });

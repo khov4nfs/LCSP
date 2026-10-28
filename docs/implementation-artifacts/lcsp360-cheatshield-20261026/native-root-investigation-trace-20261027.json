@@ -1,0 +1,665 @@
+{
+  "observedAtUtc": "2026-10-27T02:31:19.919592+00:00",
+  "databaseIdentity": {
+    "host": "127.0.0.1",
+    "port": 55496,
+    "database": "lcsp360_cheatshield_acceptance_20261026",
+    "readOnlyTransaction": true
+  },
+  "assessmentId": "14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+  "threadId": "0dc89d04-eeef-40c4-bee3-9335df18b182",
+  "executionId": "144cc556-1a8b-4785-bad6-c41aeb3c5904",
+  "latestCheckpointId": "1f1d15af-4152-6268-84f2-0d0288b95caa",
+  "reconstructedMessageCount": 141,
+  "messageTypeCounts": {
+    "HumanMessage": 4,
+    "AIMessage": 64,
+    "ToolMessage": 73
+  },
+  "modelCountsByAiMessage": {
+    "mercury-2.5": 53,
+    "gemini-3.5-flash-lite": 11
+  },
+  "toolCallCount": 73,
+  "toolCallCounts": {
+    "get_assessment_context": 5,
+    "get_pinned_rule_set": 1,
+    "read_file": 9,
+    "ls": 2,
+    "write_file": 1,
+    "accept_case_fact": 2,
+    "cite_repository_source": 2,
+    "start_rule_investigation": 1,
+    "get_assessment_rule": 11,
+    "grep": 3,
+    "submit_rule_decision": 35,
+    "request_finalization": 1
+  },
+  "submitDecisionFailureCodes": {
+    "ASSESSMENT_DECISION_VALIDATION_FAILED": 7,
+    "ASSESSMENT_DOMAIN_REQUEST_INVALID": 1,
+    "INVALID_TOOL_ARGUMENTS": 2
+  },
+  "allToolFailures": {
+    "accept_case_fact:INVALID_TOOL_ARGUMENTS": 1,
+    "submit_rule_decision:ASSESSMENT_DECISION_VALIDATION_FAILED": 7,
+    "submit_rule_decision:ASSESSMENT_DOMAIN_REQUEST_INVALID": 1,
+    "get_assessment_rule:RULE_NOT_IN_RULE_SET": 1,
+    "submit_rule_decision:INVALID_TOOL_ARGUMENTS": 2,
+    "get_assessment_rule:INVALID_TOOL_ARGUMENTS": 1
+  },
+  "rootToolUseGaps": {
+    "legalSourceReads": 0,
+    "legalSourceSearches": 0,
+    "nativeResearcherDelegations": 0,
+    "humanRequestCalls": 0,
+    "unresolvableHumanFactCalls": 0,
+    "humanResolutionCalls": 0,
+    "authenticatedCoverageRecords": 0,
+    "nativeTodoCalls": 0,
+    "graphSearchCalls": 0
+  },
+  "acceptedDecisionCount": 25,
+  "acceptedApplicabilityCounts": {
+    "APPLICABLE": 24,
+    "NOT_APPLICABLE": 1
+  },
+  "modelTransitions": [
+    {
+      "index": 1,
+      "model": "mercury-2.5"
+    },
+    {
+      "index": 119,
+      "model": "gemini-3.5-flash-lite"
+    }
+  ],
+  "modelInputTokenRanges": {
+    "gemini-3.5-flash-lite": {
+      "aiMessages": 11,
+      "minInputTokens": 231600,
+      "maxInputTokens": 263981,
+      "firstMessageIndex": 119,
+      "lastMessageIndex": 139
+    },
+    "mercury-2.5": {
+      "aiMessages": 53,
+      "minInputTokens": 10041,
+      "maxInputTokens": 225212,
+      "firstMessageIndex": 1,
+      "lastMessageIndex": 117
+    }
+  },
+  "messageNameCounts": {
+    "lcsp-assessment-root": 64,
+    "get_assessment_context": 5,
+    "get_pinned_rule_set": 1,
+    "read_file": 9,
+    "ls": 2,
+    "write_file": 1,
+    "accept_case_fact": 2,
+    "cite_repository_source": 2,
+    "start_rule_investigation": 1,
+    "get_assessment_rule": 11,
+    "grep": 3,
+    "submit_rule_decision": 35,
+    "request_finalization": 1
+  },
+  "acceptedDecisionTraceSummary": [
+    {
+      "assessmentRuleId": "art16-cl1-transparency-labeling",
+      "decisionId": "b5c540e3-3f99-4fc9-88e0-2de950ae2dbc",
+      "toolCallIndex": 39,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+        },
+        {
+          "type": "ASSESSMENT_EVIDENCE",
+          "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [
+        {
+          "legalRequirementId": "art16-cl1-transparency",
+          "kind": "QUALIFIER",
+          "index": 0,
+          "finding": "ESTABLISHED",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+            }
+          ]
+        }
+      ],
+      "legalContextIds": ["art16-cl1-transparency"],
+      "localToolCounts": {
+        "read_file": 9,
+        "ls": 2,
+        "cite_repository_source": 2,
+        "get_assessment_rule": 1,
+        "grep": 3
+      }
+    },
+    {
+      "assessmentRuleId": "art3-cl1-pte-security",
+      "decisionId": "330f4a42-f6d0-422a-8e5e-855789f8602a",
+      "toolCallIndex": 45,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl1-pte-security"],
+      "localToolCounts": {
+        "get_assessment_rule": 1
+      }
+    },
+    {
+      "assessmentRuleId": "art21-cl1-dpia-record-establish-storage-submission",
+      "decisionId": "c65553c7-1c28-4097-a4de-51b2592c3c5b",
+      "toolCallIndex": 51,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [
+        {
+          "legalRequirementId": "art21-cl1-dpia-record-establish-storage-submission-duty",
+          "kind": "EXCEPTION",
+          "index": 0,
+          "finding": "REFUTED",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+            }
+          ]
+        }
+      ],
+      "legalContextIds": [
+        "art21-cl1-dpia-record-establish-storage-submission-duty"
+      ],
+      "localToolCounts": {
+        "get_assessment_rule": 1
+      }
+    },
+    {
+      "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+      "decisionId": "e0e0937f-d88d-4148-b349-57e3ae741181",
+      "toolCallIndex": 57,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [
+        {
+          "legalRequirementId": "art10-cl3-controller-implementation",
+          "kind": "QUALIFIER",
+          "index": 0,
+          "finding": "ESTABLISHED",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+            }
+          ]
+        }
+      ],
+      "legalContextIds": ["art10-cl3-controller-implementation"],
+      "localToolCounts": {
+        "get_assessment_rule": 1
+      }
+    },
+    {
+      "assessmentRuleId": "art31-cl4pta-biometric-access-monitoring-assessment",
+      "decisionId": "21af8f86-c4e6-4dbc-8b50-94039eb08063",
+      "toolCallIndex": 63,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art31cl4pta-biometric-security-measures"],
+      "localToolCounts": {
+        "get_assessment_rule": 1
+      }
+    },
+    {
+      "assessmentRuleId": "art13-cl2-correction-assessment",
+      "decisionId": "8b973f47-0070-4392-bb2d-bcd383a24ff9",
+      "toolCallIndex": 65,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art13-cl2-controller-correction-duty"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+      "decisionId": "91b7e9ca-19e3-4c04-9269-56f92481e06e",
+      "toolCallIndex": 67,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art9-cl2-valid-consent-info-duty"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+      "decisionId": "d4804bb7-5706-4a83-9c53-08a35cde0f13",
+      "toolCallIndex": 69,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art9-cl4-consent-principles-duty"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+      "decisionId": "7e1cd8d5-19fa-4c63-816f-d3cd5f351e4f",
+      "toolCallIndex": 71,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art9-cl4-consent-prohibitions"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+      "decisionId": "4f8c1526-df22-40b3-8ba7-d8e096ba7d22",
+      "toolCallIndex": 73,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art9-cl3-consent-form-duty"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art28-cl8-pt-b-refusestorage-rule",
+      "decisionId": "0f9b2ca5-3690-48dd-a945-68bb7f05497b",
+      "toolCallIndex": 87,
+      "model": "mercury-2.5",
+      "applicability": "NOT_APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 0,
+      "applicabilityBasis": [
+        {
+          "legalRequirementId": "art28-cl8-pt-b-refusestorage",
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 0,
+          "finding": "REFUTED",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+            }
+          ]
+        }
+      ],
+      "legalContextIds": ["art28-cl8-pt-b-refusestorage"],
+      "localToolCounts": {
+        "get_assessment_rule": 2
+      }
+    },
+    {
+      "assessmentRuleId": "art16-cl2a-notify-mark-label",
+      "decisionId": "003fd5be-06b9-4d86-93e3-fd73c7370a7d",
+      "toolCallIndex": 93,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art16-cl2a-notify-mark-label"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art16-cl2b-provide-info",
+      "decisionId": "39100e71-dcb8-403e-8b0a-9a56f41cf4ab",
+      "toolCallIndex": 95,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art16-cl2b-provide-info"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl1-ptc-human-oversight",
+      "decisionId": "42799272-7d17-4152-b317-5ca116c20792",
+      "toolCallIndex": 97,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl1-ptc-human-oversight"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl1-ptb-quality-assurance",
+      "decisionId": "30044e43-4db8-4d52-a1c0-06f2354ee04e",
+      "toolCallIndex": 99,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl1-ptb-quality-assurance"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "ar-c12-dpia",
+      "decisionId": "46e126ca-25e3-48dd-a1e0-42658dc22bbf",
+      "toolCallIndex": 105,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [
+        {
+          "legalRequirementId": "c12-dpia",
+          "kind": "APPLICABILITY_CONDITION",
+          "index": 0,
+          "finding": "ESTABLISHED",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+            }
+          ]
+        },
+        {
+          "legalRequirementId": "c12-dpia",
+          "kind": "QUALIFIER",
+          "index": 0,
+          "finding": "NOT_ESTABLISHED",
+          "references": []
+        }
+      ],
+      "legalContextIds": ["c12-dpia"],
+      "localToolCounts": {
+        "get_assessment_rule": 1
+      }
+    },
+    {
+      "assessmentRuleId": "art3-cl3-pta-social-benefit",
+      "decisionId": "d32c37f5-e328-4d07-a468-86a70dd5deb8",
+      "toolCallIndex": 107,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl3-pta-social-benefit"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl2-pta-human-rights",
+      "decisionId": "bc37260c-f455-4e03-9b91-93b9712389e9",
+      "toolCallIndex": 109,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl2-pta-human-rights"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl2-ptb-fairness",
+      "decisionId": "552cbf35-f0b9-42b3-9137-8cd01adc52f0",
+      "toolCallIndex": 111,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl2-ptb-fairness"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl2-ptc-transparency",
+      "decisionId": "e595b75f-1661-4aa4-88ea-63e7e42d0418",
+      "toolCallIndex": 113,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl2-ptc-transparency"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl2-ptd-explainability",
+      "decisionId": "39d8287f-6b15-4093-bc22-c277e2aec4d9",
+      "toolCallIndex": 115,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl2-ptd-explainability"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl1-pta-risk-prevention",
+      "decisionId": "49f77573-e2bd-4c3a-8441-a45a5709ef8f",
+      "toolCallIndex": 117,
+      "model": "mercury-2.5",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl1-pta-safety-by-design"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl1-ptd-resilience",
+      "decisionId": "e611dff6-d0a2-4772-85e8-6a18311c1215",
+      "toolCallIndex": 119,
+      "model": "gemini-3.5-flash-lite",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl1-ptd-resilience"],
+      "localToolCounts": {}
+    },
+    {
+      "assessmentRuleId": "art3-cl3-ptc-sustainability",
+      "decisionId": "893d4629-15fc-4584-bde6-49953333909d",
+      "toolCallIndex": 125,
+      "model": "gemini-3.5-flash-lite",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [],
+      "legalContextIds": ["art3-cl3-ptc-sustainability"],
+      "localToolCounts": {
+        "get_assessment_rule": 1
+      }
+    },
+    {
+      "assessmentRuleId": "ar-c12-rec",
+      "decisionId": "7a354e73-68b3-4eed-a1e3-6b4eb0da5a69",
+      "toolCallIndex": 137,
+      "model": "gemini-3.5-flash-lite",
+      "applicability": "APPLICABLE",
+      "evidenceReferences": [
+        {
+          "type": "CONFIRMED_FACT",
+          "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+        }
+      ],
+      "criteriaCount": 1,
+      "applicabilityBasis": [
+        {
+          "legalRequirementId": "c12-rec",
+          "kind": "QUALIFIER",
+          "index": 0,
+          "finding": "ESTABLISHED",
+          "references": [
+            {
+              "type": "CONFIRMED_FACT",
+              "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+            }
+          ]
+        }
+      ],
+      "legalContextIds": ["c12-rec"],
+      "localToolCounts": {
+        "get_assessment_rule": 2
+      }
+    }
+  ],
+  "factEvidenceLinkObservation": "2026-10-27T04:13:35.266683+00:00",
+  "factEvidenceLinks": [
+    {
+      "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+      "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+    },
+    {
+      "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+      "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+    }
+  ],
+  "fullSanitizedTraceSha256": "4c7c5301963f2a17a7b74b8f5ff5e11b07a604f9314c9a9ab6121c0478fd5d29",
+  "qualification": "Read-only native trace and persisted fact-link audit; structural acceptance and source identity do not establish semantic correctness."
+}

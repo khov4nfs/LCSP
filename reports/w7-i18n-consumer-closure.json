@@ -1,9 +1,0 @@
-{
-  "scope": "CURRENT_I18N_SOURCE_EXPORT_AND_CONSUMER_CLOSURE",
-  "filesParsed": 1171,
-  "publicModules": 10,
-  "edges": 103,
-  "namedSymbols": 110,
-  "issues": [],
-  "limitations": "Static source export-symbol closure, including tests; not full workspace typecheck/browser/image proof."
-}

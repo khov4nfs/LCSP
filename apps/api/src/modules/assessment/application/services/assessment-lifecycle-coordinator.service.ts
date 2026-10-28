@@ -430,7 +430,7 @@ export class AssessmentLifecycleCoordinator {
     return this.toResult(this.toDomainEvent(persisted, input.correlationId));
   }
 
-  /** Runtime acknowledgements are a server boundary, never guard attestations. */
+  /** Runtime acknowledgements are a server boundary, never guard assertions. */
   async transitionFromRuntimeAcknowledgementInTx(
     input: {
       assessmentId: string;

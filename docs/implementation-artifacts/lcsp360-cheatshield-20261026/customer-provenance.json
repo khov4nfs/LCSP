@@ -1,0 +1,115 @@
+{
+  "github": {
+    "repositoryId": 939532018,
+    "repository": "vishal017/cheatshield",
+    "branch": "main",
+    "private": false,
+    "commitSha": "af4a55a86244f68d749d43b40f13678defdfff81",
+    "treeSha": "f624af750ff061be7542166ba8d7c440ae1c23e5",
+    "archiveSha256": "b77bb941f5174e8ab1adefc1ad8cb75e1e0970a084968e112b10fbbc81b99744",
+    "archiveBytes": 13204301,
+    "source": "GitHub REST + codeload pinned commit; independent audit copy, not an LCSP RepositorySnapshot"
+  },
+  "customerApiAndHydration": {
+    "phase": "CUSTOMER_SETUP_AND_PROVENANCE",
+    "repository": "vishal017/cheatshield",
+    "assessmentId": "14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+    "commitSha": "af4a55a86244f68d749d43b40f13678defdfff81",
+    "snapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+    "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+    "coverageCount": 243,
+    "acceptedDecisionsObserved": 0,
+    "archive": {
+      "files": {
+        ".gitignore": "9c5cbd704db08b5e134c8a036b5aaf11a0f33edc5b6a166550641f6d92f28f7c",
+        "LICENSE": "72d0f97c1ea0b0f63ed9e539eebd8677d730ba0cc131d14e8e32eb3514b833d9",
+        "README.md": "ad4e05c5c48847fb710a9b8ac27395d0b7b3be48172a53252581cc374b7715d5",
+        "index.html": "188a278822c7873d6b06ac86c977ee3190dd2ea773990173974142b404df3d79",
+        "main.py": "a1ab36b144022131b6d7f4a76978cfcf3004fdd1e7f326dd8a5c6a9768b70364",
+        "models/best.pt": "833f6647667167064e7062e93cdd604798dea4e366f2aee8112df9c9d1b87474",
+        "modules/audio_detection.py": "17f3814c428a20346f9b4f18021e135d43b88db53cfad8be3e08f790b5410ea7",
+        "modules/face_detection.py": "cc4ff054b3b2d298df1077a48aeac9df37cf136c8495909451a76b1ecfb3bbfa",
+        "modules/object_detection.py": "7d893bb383e7c9dc0568a10e5ef7a25023efe7528388966bb432fd8073979838",
+        "modules/system_control.py": "ed1bd01e122f82bd52452d0fc04fbef698fd743dac16b3cc2afc178026be2fc9",
+        "modules/utils.py": "252bb329b97dab72da1c1404a24c5d6fe3dfc4d950d882419e89e3b6fcdeea01",
+        "requirements.txt": "ed477f17b29bd8b90d92b1dc28a15fd2a625fe7da4addc38ac67a81a5e841cd9",
+        "styles.css": "08f12886d9a0bb1dcf487ef04adcbb2a2bdcd426269351be2dc7c6974f909966"
+      },
+      "lcspArchiveSha256": "42ea1bcc1cbdb35e2e94d91ba78e3e2b30f16df764f6fa6fb208f584ccccdd60",
+      "githubArchiveSha256": "b77bb941f5174e8ab1adefc1ad8cb75e1e0970a084968e112b10fbbc81b99744",
+      "allFileHashesMatch": true
+    },
+    "tenantIsolation": {
+      "status": "PASS",
+      "otherCustomerId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+      "otherAssessmentId": "87ddb54c-6304-4d9f-9ed2-22e1a0668733",
+      "otherAssessmentPurpose": "Isolation fixture; no model investigation"
+    },
+    "hydration": {
+      "status": "PASS",
+      "backend": "RuntimeRepositoryFilesystemBackend",
+      "threadId": "0dc89d04-eeef-40c4-bee3-9335df18b182",
+      "verifiedSandboxFiles": 12,
+      "pinnedFilesAccountedFor": 13,
+      "repositoryView": {
+        "coverageLimited": true,
+        "includedFiles": 12,
+        "skippedEntries": [
+          {
+            "limitBytes": 10485760,
+            "path": "models/best.pt",
+            "reason": "FILE_SIZE_LIMIT",
+            "sha256": "833f6647667167064e7062e93cdd604798dea4e366f2aee8112df9c9d1b87474",
+            "sizeBytes": 14357999
+          }
+        ]
+      },
+      "proof": "Production sandbox factory only; no claim or LLM invocation"
+    },
+    "apiTranscript": [
+      {
+        "method": "GET",
+        "path": "/assessments/14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+        "status": 200,
+        "ok": true,
+        "problemCode": null
+      },
+      {
+        "method": "GET",
+        "path": "/assessments/14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+        "status": 404,
+        "ok": false,
+        "problemCode": "ASSESSMENT_NOT_FOUND"
+      },
+      {
+        "method": "GET",
+        "path": "/assessments/14a6d06e-e021-442e-a29e-0b5406e2b8fa/repository-setup",
+        "status": 404,
+        "ok": false,
+        "problemCode": "ASSESSMENT_NOT_FOUND"
+      },
+      {
+        "method": "POST",
+        "path": "/assessments/87ddb54c-6304-4d9f-9ed2-22e1a0668733/snapshots",
+        "status": 404,
+        "ok": false,
+        "problemCode": "CONNECTION_NOT_FOUND"
+      },
+      {
+        "method": "GET",
+        "path": "/github/repositories",
+        "status": 200,
+        "ok": true,
+        "problemCode": null
+      },
+      {
+        "method": "POST",
+        "path": "/assessments/14a6d06e-e021-442e-a29e-0b5406e2b8fa/repository-connection",
+        "status": 409,
+        "ok": false,
+        "problemCode": "ASSESSMENT_STATE_INVALID"
+      }
+    ],
+    "genuineModelEvidence": "NOT_ESTABLISHED_BY_THIS_ENTRYPOINT"
+  }
+}

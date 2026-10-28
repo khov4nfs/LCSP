@@ -123,7 +123,8 @@ def test_agent_server_dispatch_cancels_run_at_boundary_deadline(monkeypatch) -> 
     )
 
 
-def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(monkeypatch) -> None:
+@pytest.mark.parametrize("metrics_available", [True, False])
+def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(monkeypatch, metrics_available) -> None:
     fake_client = MagicMock()
     fake_client.threads.search.return_value = [
         {"thread_id": "thread-1"},
@@ -156,11 +157,15 @@ def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(m
         ],
     ]
     response = SimpleNamespace(
-        text="process_start_time_seconds 1790267377.79\n",
+        text="process_start_time_seconds 1790267377.79\n" if metrics_available else "lg_api_workers_available 1\n",
         raise_for_status=lambda: None,
     )
     monkeypatch.setattr(agent_server_client.httpx, "get", lambda *_args, **_kwargs: response)
     monkeypatch.setattr(agent_server_client, "get_sync_client", lambda **_kwargs: fake_client)
+    monkeypatch.delenv("NODE_ENV", raising=False)
+    monkeypatch.delenv("LCSP_AGENT_RUNTIME_MODE", raising=False)
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_URL", "http://127.0.0.1:2024")
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_STARTED_AT", "2026-09-24T16:29:37.790Z")
 
     cancelled = agent_server_client.reconcile_stale_agent_runs(
         server_url="http://127.0.0.1:2024"
@@ -171,6 +176,25 @@ def test_reconcile_stale_agent_runs_interrupts_only_runs_before_current_server(m
         call("thread-1", "old-running", wait=False, action="interrupt"),
         call("thread-2", "old-pending", wait=False, action="interrupt"),
     ]
+
+
+@pytest.mark.parametrize("url, bound_url, started, mode", [
+    ("http://127.0.0.1:2024", "", "", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2025", "2026-09-24T16:29:37Z", "development"),
+    ("https://remote.example", "https://remote.example", "2026-09-24T16:29:37Z", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "invalid", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "2999-01-01T00:00:00Z", "development"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "2026-09-24T16:29:37Z", "production"),
+    ("http://127.0.0.1:2024", "http://127.0.0.1:2024", "2026-09-24T16:29:37Z", " production "),
+])
+def test_missing_process_metric_cannot_use_unbound_or_invalid_generation(monkeypatch, url, bound_url, started, mode):
+    monkeypatch.setenv("NODE_ENV", mode)
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_URL", bound_url)
+    monkeypatch.setenv("LCSP_AGENT_SERVER_GENERATION_STARTED_AT", started)
+    monkeypatch.setattr(agent_server_client.httpx, "get", lambda *args, **kwargs:
+                        SimpleNamespace(text="lg_api_workers_available 1\n", raise_for_status=lambda: None))
+    with pytest.raises(RuntimeError, match="did not expose process_start_time_seconds"):
+        agent_server_client.reconcile_stale_agent_runs(server_url=url)
 
 
 
@@ -352,3 +376,142 @@ def test_repository_hydration_clears_mount_contents_not_mountpoint() -> None:
         "tar -xzf /tmp/lcsp-assessment-repository.tar.gz "
         f"-C {repository_sandbox.REPOSITORY_ROOT}"
     ) in bootstrap
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/.lcsp/repository.json",
+        "/.lcsp/.hidden/marker.json",
+        "/workspace/repository/.lcsp/repository.json",
+        "/workspace/repository/.lcsp/agent/../repository.json",
+        "/.lcsp/agent/../../.lcsp/repository.json",
+        "//workspace/repository/.lcsp/repository.json",
+        "/../workspace/repository/.lcsp/agent/note.md",
+    ],
+)
+@pytest.mark.parametrize("operation", ["write", "edit", "delete", "upload"])
+def test_read_only_runtime_repository_rejects_writes_outside_agent_state(path, operation):
+    from deepagents.backends.protocol import DeleteResult, EditResult, FileUploadResponse
+
+    raw = MagicMock()
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryFilesystemBackend(
+            read_only_repository=True
+        )
+        if operation == "write":
+            result = backend.write(path, "content")
+            assert isinstance(result, WriteResult)
+            assert result.error
+        elif operation == "edit":
+            result = backend.edit(path, "old", "new")
+            assert isinstance(result, EditResult)
+            assert result.error
+        elif operation == "delete":
+            result = backend.delete(path)
+            assert isinstance(result, DeleteResult)
+            assert result.error
+        else:
+            result = backend.upload_files([(path, b"content")])
+            assert len(result) == 1
+            assert isinstance(result[0], FileUploadResponse)
+            assert result[0].error
+
+    raw.write.assert_not_called()
+    raw.edit.assert_not_called()
+    raw.delete.assert_not_called()
+    raw.upload_files.assert_not_called()
+
+
+@pytest.mark.parametrize("operation", ["write", "edit", "delete", "upload"])
+def test_read_only_runtime_repository_allows_agent_state_files(operation):
+    from deepagents.backends.protocol import DeleteResult, EditResult, FileUploadResponse
+
+    virtual_path = "/.lcsp/agent/.private/investigation.md"
+    physical_path = f"{repository_sandbox.REPOSITORY_AGENT_STATE}/.private/investigation.md"
+    raw = MagicMock()
+    raw.write.return_value = WriteResult(path=physical_path)
+    raw.edit.return_value = EditResult(path=physical_path, occurrences=1)
+    raw.delete.return_value = DeleteResult(path=physical_path)
+    raw.upload_files.return_value = [FileUploadResponse(path=physical_path)]
+
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryFilesystemBackend(
+            read_only_repository=True
+        )
+        if operation == "write":
+            result = backend.write(virtual_path, "content")
+            assert result.path == virtual_path
+            raw.write.assert_called_once_with(physical_path, "content")
+        elif operation == "edit":
+            result = backend.edit(virtual_path, "old", "new")
+            assert result.path == virtual_path
+            raw.edit.assert_called_once_with(
+                physical_path, "old", "new", replace_all=False
+            )
+        elif operation == "delete":
+            result = backend.delete(virtual_path)
+            assert result.path == virtual_path
+            raw.delete.assert_called_once_with(physical_path)
+        else:
+            result = backend.upload_files([(virtual_path, b"content")])
+            assert result[0].path == virtual_path
+            raw.upload_files.assert_called_once_with([(physical_path, b"content")])
+
+
+def test_read_only_runtime_repository_upload_rejects_outside_paths_individually():
+    from deepagents.backends.protocol import FileUploadResponse
+
+    safe_path = "/.lcsp/agent/investigation.md"
+    physical_safe_path = f"{repository_sandbox.REPOSITORY_AGENT_STATE}/investigation.md"
+    raw = MagicMock()
+    raw.upload_files.return_value = [FileUploadResponse(path=physical_safe_path)]
+
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryFilesystemBackend(
+            read_only_repository=True
+        )
+        results = backend.upload_files(
+            [(safe_path, b"safe"), ("/.lcsp/repository.json", b"blocked")]
+        )
+
+    assert results[0].path == safe_path and results[0].error is None
+    assert results[1].path == "/.lcsp/repository.json" and results[1].error
+    raw.upload_files.assert_called_once_with(
+        [(physical_safe_path, b"safe")]
+    )
+
+
+@pytest.mark.parametrize("operation", ["write", "edit", "delete", "upload"])
+def test_runtime_repository_backend_keeps_legacy_mutation_default(operation):
+    from deepagents.backends.protocol import DeleteResult, EditResult, FileUploadResponse
+
+    raw = MagicMock()
+    physical_path = f"{repository_sandbox.REPOSITORY_ROOT}/src/app.py"
+    raw.write.return_value = WriteResult(path=physical_path)
+    raw.edit.return_value = EditResult(path=physical_path, occurrences=1)
+    raw.delete.return_value = DeleteResult(path=physical_path)
+    raw.upload_files.return_value = [FileUploadResponse(path=physical_path)]
+
+    with repository_sandbox.activate_repository_backend(raw):
+        backend = repository_sandbox.RuntimeRepositoryBackend()
+        if operation == "write":
+            result = backend.write("/src/app.py", "content")
+            assert result.path == "/src/app.py"
+            raw.write.assert_called_once_with(physical_path, "content")
+        elif operation == "edit":
+            result = backend.edit("/src/app.py", "old", "new")
+            assert result.path == "/src/app.py"
+            raw.edit.assert_called_once_with(
+                physical_path, "old", "new", replace_all=False
+            )
+        elif operation == "delete":
+            result = backend.delete("/src/app.py")
+            assert result.path == "/src/app.py"
+            raw.delete.assert_called_once_with(physical_path)
+        else:
+            result = backend.upload_files([("/src/app.py", b"content")])
+            assert result[0].path == "/src/app.py"
+            raw.upload_files.assert_called_once_with(
+                [(physical_path, b"content")]
+            )

@@ -2,6 +2,8 @@ export * from "./statuses.ts";
 export * from "./admin.ts";
 export * from "./runtime-model.ts";
 export * from "./usage.ts";
+export * from "./usage-analytics.ts";
+export * from "./official-reference-pricing.ts";
 export * from "./prepaid.ts";
 export * from "./codes.ts";
 export * from "./audit.ts";

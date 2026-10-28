@@ -1,8 +1,0 @@
-{
-  "scope": "SYNTHETIC_POST_W6_DISPOSABLE_FIXTURE",
-  "status": "FAIL",
-  "checks": [],
-  "unrelatedSandboxCount": 66,
-  "reasonType": "RuntimeError",
-  "reason": "fixture command failed: pnpm (exit 1)"
-}

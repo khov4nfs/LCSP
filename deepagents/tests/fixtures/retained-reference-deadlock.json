@@ -1,0 +1,2263 @@
+{
+  "preparationId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+  "sourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+  "graph": {
+    "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+    "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+    "parserRevision": "legal-structure-v1",
+    "materializationRevision": "legal-graph-v1",
+    "sourceDigest": "19ad9d63722848e444f9ecac56b8069a1b36821739ce6fed5a92df12a781c635",
+    "inputModes": [
+      "EXTRACTED_TEXT"
+    ],
+    "nodes": [
+      {
+        "nodeId": "04047b29841acd0b190eeab0a1c4ff879568897237f72247cc781671a486e186",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "DOCUMENT",
+        "parentNodeId": null,
+        "ordinal": 0,
+        "label": "synthetic-legal-graph-instrument-test-material-only",
+        "title": "Synthetic Legal Graph Instrument - test material only",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "",
+        "contentFingerprint": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 1,
+        "pageEnd": 3,
+        "charStart": 0,
+        "charEnd": 4615
+      },
+      {
+        "nodeId": "4e69f87bd98806ac20afc0586d82d408a8d4dc4977d7d2166020daa4d10d7fda",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "CHAPTER",
+        "parentNodeId": "04047b29841acd0b190eeab0a1c4ff879568897237f72247cc781671a486e186",
+        "ordinal": 0,
+        "label": "I",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Chapter I",
+        "contentFingerprint": "cfc2ff002c53e000acce8b6dc2a5105094aff5d2d0e64c40381577e0a08d29ed",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 1,
+        "pageEnd": 2,
+        "charStart": 0,
+        "charEnd": 1821
+      },
+      {
+        "nodeId": "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "4e69f87bd98806ac20afc0586d82d408a8d4dc4977d7d2166020daa4d10d7fda",
+        "ordinal": 0,
+        "label": "1",
+        "title": "Definitions",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/1",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.",
+        "contentFingerprint": "3c5e3564d4b97cb9a7a5eff8d808d316dd04731213b074113eaddf131ad44e4a",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 1,
+        "pageEnd": 1,
+        "charStart": 10,
+        "charEnd": 411
+      },
+      {
+        "nodeId": "dc9b10dde51503a0faa30ce130a2ea878394b03c14333f5a1e24e552fde71772",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "4e69f87bd98806ac20afc0586d82d408a8d4dc4977d7d2166020daa4d10d7fda",
+        "ordinal": 1,
+        "label": "2",
+        "title": "Export and portability",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 2. Export and portability",
+        "contentFingerprint": "0d76286c7645d905a12c46298a024f4452bfb6e4a2d31d1b52e07292c0b32a47",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 1,
+        "pageEnd": 2,
+        "charStart": 412,
+        "charEnd": 1194
+      },
+      {
+        "nodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "PARAGRAPH",
+        "parentNodeId": "dc9b10dde51503a0faa30ce130a2ea878394b03c14333f5a1e24e552fde71772",
+        "ordinal": 0,
+        "label": "1",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2/paragraph/1",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\n\nThe implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request.",
+        "contentFingerprint": "846e904c4f3d7c523460e221e82cf0ea86f624700e73be7b9133f98ad504a6ba",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 1,
+        "pageEnd": 2,
+        "charStart": 446,
+        "charEnd": 837
+      },
+      {
+        "nodeId": "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "PARAGRAPH",
+        "parentNodeId": "dc9b10dde51503a0faa30ce130a2ea878394b03c14333f5a1e24e552fde71772",
+        "ordinal": 1,
+        "label": "2",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2/paragraph/2",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies.",
+        "contentFingerprint": "ac71948ed41f619ce43fbe1ff3b6f6d387841ab3446627487876a78255532c00",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 2,
+        "pageEnd": 2,
+        "charStart": 838,
+        "charEnd": 1194
+      },
+      {
+        "nodeId": "b6f377afccfd48cdabab7017b1e93420fd4ad0e9dcef36f363fc80059b50cb8c",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "4e69f87bd98806ac20afc0586d82d408a8d4dc4977d7d2166020daa4d10d7fda",
+        "ordinal": 2,
+        "label": "3",
+        "title": "Remedy and exception",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 3. Remedy and exception",
+        "contentFingerprint": "5342326eb06e4e98d02b5b2b40d16eb9bfd5bd4bd4955f27c1852ef56c4321b7",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 2,
+        "pageEnd": 2,
+        "charStart": 1195,
+        "charEnd": 1821
+      },
+      {
+        "nodeId": "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "PARAGRAPH",
+        "parentNodeId": "b6f377afccfd48cdabab7017b1e93420fd4ad0e9dcef36f363fc80059b50cb8c",
+        "ordinal": 0,
+        "label": "1",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3/paragraph/1",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty.",
+        "contentFingerprint": "12ef9b67b623c5d015266247a63759a715bfb72db5b2165f863942b632cfb7fd",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 2,
+        "pageEnd": 2,
+        "charStart": 1227,
+        "charEnd": 1504
+      },
+      {
+        "nodeId": "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "PARAGRAPH",
+        "parentNodeId": "b6f377afccfd48cdabab7017b1e93420fd4ad0e9dcef36f363fc80059b50cb8c",
+        "ordinal": 1,
+        "label": "2",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3/paragraph/2",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1).",
+        "contentFingerprint": "4e816ea5a532b0e159c546d6d1f3c8c7ee4eb8777c9159743e620f1c7ba8e372",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 2,
+        "pageEnd": 2,
+        "charStart": 1505,
+        "charEnd": 1821
+      },
+      {
+        "nodeId": "ac35131c353f52e977b44adf8e902f3a38b70700d8a70916028e900136d0df23",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "CHAPTER",
+        "parentNodeId": "04047b29841acd0b190eeab0a1c4ff879568897237f72247cc781671a486e186",
+        "ordinal": 1,
+        "label": "II",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Chapter II",
+        "contentFingerprint": "1d0a1b06127f5367e0d6ad9e86731adac7270407b23c3cb0b339019cbc966649",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 2,
+        "pageEnd": 3,
+        "charStart": 1822,
+        "charEnd": 4615
+      },
+      {
+        "nodeId": "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "ac35131c353f52e977b44adf8e902f3a38b70700d8a70916028e900136d0df23",
+        "ordinal": 0,
+        "label": "4",
+        "title": "Temporal transition",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/4",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\n\nFor covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation.",
+        "contentFingerprint": "52f0c319fad8bac42a4fef8a8e9f51bde73ad5e99674d77b1c2f33e6f393d5cd",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 2,
+        "pageEnd": 3,
+        "charStart": 1833,
+        "charEnd": 2192
+      },
+      {
+        "nodeId": "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "ac35131c353f52e977b44adf8e902f3a38b70700d8a70916028e900136d0df23",
+        "ordinal": 1,
+        "label": "5",
+        "title": "Incorporated duties",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/5",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty.",
+        "contentFingerprint": "f48114b1c5fd91fe57938f5b16fd623884820cc4606a70dd96e8e94e386089b6",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 3,
+        "pageEnd": 3,
+        "charStart": 2193,
+        "charEnd": 2549
+      },
+      {
+        "nodeId": "e858e90f79ec5aa224ff8446253f427fb0e3885f9cf9444fa35fe564c7e224b6",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "ac35131c353f52e977b44adf8e902f3a38b70700d8a70916028e900136d0df23",
+        "ordinal": 2,
+        "label": "6",
+        "title": "Context and separate configuration duties",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 6. Context and separate configuration duties",
+        "contentFingerprint": "45d697a4b8d44ed90e113902aad6fe91daf10511e0689f5ac20c39e0ba2e69cb",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 3,
+        "pageEnd": 3,
+        "charStart": 2550,
+        "charEnd": 3522
+      },
+      {
+        "nodeId": "e5df6412db45ec755054bb90b236bf21bee52b9456f9dea872ecc0419f9f9699",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "PARAGRAPH",
+        "parentNodeId": "e858e90f79ec5aa224ff8446253f427fb0e3885f9cf9444fa35fe564c7e224b6",
+        "ordinal": 0,
+        "label": "1",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6/paragraph/1",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission.",
+        "contentFingerprint": "a3f59627b000572e6e249da4560dc0339d9508ccf63eb6328c5ffe9cd8442e2a",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 3,
+        "pageEnd": 3,
+        "charStart": 2603,
+        "charEnd": 2879
+      },
+      {
+        "nodeId": "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "PARAGRAPH",
+        "parentNodeId": "e858e90f79ec5aa224ff8446253f427fb0e3885f9cf9444fa35fe564c7e224b6",
+        "ordinal": 1,
+        "label": "2",
+        "title": "",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6/paragraph/2",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher.",
+        "contentFingerprint": "e7ff3826499146912a7317e6b9bddecf49d59936ecda97dba516aada8eddd208",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 3,
+        "pageEnd": 3,
+        "charStart": 2880,
+        "charEnd": 3522
+      },
+      {
+        "nodeId": "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "ac35131c353f52e977b44adf8e902f3a38b70700d8a70916028e900136d0df23",
+        "ordinal": 3,
+        "label": "7",
+        "title": "Delegated fulfillment and direction",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/7",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty.",
+        "contentFingerprint": "53726c03d12af01030043b382896658bc0562d89ccb8e77720973b2f536f1e8f",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 3,
+        "pageEnd": 3,
+        "charStart": 3523,
+        "charEnd": 4166
+      },
+      {
+        "nodeId": "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7",
+        "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+        "documentId": "synthetic-legal-graph-instrument-test-material-only",
+        "nodeType": "ARTICLE",
+        "parentNodeId": "ac35131c353f52e977b44adf8e902f3a38b70700d8a70916028e900136d0df23",
+        "ordinal": 4,
+        "label": "8",
+        "title": "Conditional permission and evidence",
+        "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/8",
+        "sourcePath": "synthetic-legal-graph-instrument-test-material-only",
+        "content": "Article 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.\n",
+        "contentFingerprint": "f1fffa429d1e197e7bce59a5b6ef5e15671b60745ca974ab54139fad6d46962c",
+        "legalEffectStatus": "EFFECTIVE",
+        "legalStatusSourceRefs": [
+          "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+        ],
+        "pageStart": 3,
+        "pageEnd": 3,
+        "charStart": 4167,
+        "charEnd": 4615
+      }
+    ],
+    "references": [
+      {
+        "referenceId": "21d7381c3a65863959507b7b3cf56d6f329681a7819fe1bce82509cdc973b7f9",
+        "fromNodeId": "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767",
+        "toNodeId": "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe",
+        "text": "Article 3(2)",
+        "charStart": 335,
+        "charEnd": 347,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe"
+        ]
+      },
+      {
+        "referenceId": "84a4b184480f29d483ca65d6394dc0fc6055f2388ea9f0be6e397ee296b65350",
+        "fromNodeId": "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc",
+        "toNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "text": "Article 2(1)",
+        "charStart": 25,
+        "charEnd": 37,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+        ]
+      },
+      {
+        "referenceId": "c25a3e7fdb6859559131bf2a1af5178492afb970403d9df37e7248f354cc3023",
+        "fromNodeId": "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe",
+        "toNodeId": "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767",
+        "text": "Article 2(2)",
+        "charStart": 22,
+        "charEnd": 34,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767"
+        ]
+      },
+      {
+        "referenceId": "bd98e2e221b2bea1f113fe7743cca2715baf0c6744e67c813a5fd95f7cfba623",
+        "fromNodeId": "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe",
+        "toNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "text": "Article 2(1)",
+        "charStart": 303,
+        "charEnd": 315,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+        ]
+      },
+      {
+        "referenceId": "52be0eff2be751d7501ffbeb88af55675e55d11d0c26d43260956051bc1fc679",
+        "fromNodeId": "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b",
+        "toNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "text": "Article 2(1)",
+        "charStart": 150,
+        "charEnd": 162,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+        ]
+      },
+      {
+        "referenceId": "24869d17954fb3e0aaa907aa95d5523694fb62a774053b44ba6f0c328128723f",
+        "fromNodeId": "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b",
+        "toNodeId": "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767",
+        "text": "Article 2(2)",
+        "charStart": 167,
+        "charEnd": 179,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767"
+        ]
+      },
+      {
+        "referenceId": "ad0bb2502fbf1e4a17e9971ab5e32a0830c99c31f96646a3ba86285349ade503",
+        "fromNodeId": "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8",
+        "toNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "text": "Article\n2(1)",
+        "charStart": 226,
+        "charEnd": 238,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+        ]
+      },
+      {
+        "referenceId": "8acc1eaa72cdbb43716657949f70851f10cd5d9d3dd7a3d43fb9a8c3ec0c35fd",
+        "fromNodeId": "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8",
+        "toNodeId": "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c",
+        "text": "Article 1",
+        "charStart": 294,
+        "charEnd": 303,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c"
+        ]
+      },
+      {
+        "referenceId": "35faea44f2b474ef2f20314dd8fd46699ae53d030ad53d1111f7e1bd9ebf1fd9",
+        "fromNodeId": "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462",
+        "toNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "text": "Article 2(1)",
+        "charStart": 101,
+        "charEnd": 113,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+        ]
+      },
+      {
+        "referenceId": "21ad11117a1dd5c7a5082f727dcc34e4c901c3f034b2236f827a6cb044e9192d",
+        "fromNodeId": "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462",
+        "toNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "text": "Article 2(1)",
+        "charStart": 415,
+        "charEnd": 427,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+        ]
+      },
+      {
+        "referenceId": "469c431eefc58bd1e6c1bea811eba7a679b772aaf0472d1e8a9fd9f48b41a330",
+        "fromNodeId": "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462",
+        "toNodeId": "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8",
+        "text": "Article 5",
+        "charStart": 449,
+        "charEnd": 458,
+        "resolutionState": "RESOLVED",
+        "candidateNodeIds": [
+          "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8"
+        ]
+      }
+    ],
+    "chunkMappings": [
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-1",
+        "legalDocumentNodeId": "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-2",
+        "legalDocumentNodeId": "dc9b10dde51503a0faa30ce130a2ea878394b03c14333f5a1e24e552fde71772"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-2::cl-1",
+        "legalDocumentNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-2::cl-2",
+        "legalDocumentNodeId": "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-3",
+        "legalDocumentNodeId": "b6f377afccfd48cdabab7017b1e93420fd4ad0e9dcef36f363fc80059b50cb8c"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-3::cl-1",
+        "legalDocumentNodeId": "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-3::cl-2",
+        "legalDocumentNodeId": "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-4",
+        "legalDocumentNodeId": "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-5",
+        "legalDocumentNodeId": "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-6",
+        "legalDocumentNodeId": "e858e90f79ec5aa224ff8446253f427fb0e3885f9cf9444fa35fe564c7e224b6"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-6::cl-1",
+        "legalDocumentNodeId": "e5df6412db45ec755054bb90b236bf21bee52b9456f9dea872ecc0419f9f9699"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-6::cl-2",
+        "legalDocumentNodeId": "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-7",
+        "legalDocumentNodeId": "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462"
+      },
+      {
+        "chunkId": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-8",
+        "legalDocumentNodeId": "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7"
+      }
+    ],
+    "retrievalUnits": [
+      {
+        "unitId": "432c55ed030741623e3abfa3307204b9dcb6ecf4f0fa87b493d98ab9f14b346f",
+        "legalDocumentNodeId": "4e69f87bd98806ac20afc0586d82d408a8d4dc4977d7d2166020daa4d10d7fda",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 9,
+        "content": "Chapter I",
+        "contentSha256": "e9bb4a2354ecf6a95f1b4d9a8d0a44960c86288deff44b070cf286c6997125c4"
+      },
+      {
+        "unitId": "8651b6ba8cef2d7d4fee4610074584e8e229376264788e8ac877c0f7efdb5fd5",
+        "legalDocumentNodeId": "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 401,
+        "content": "Article 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.",
+        "contentSha256": "afc91a893b69fb957221aa9c86b2d1b162d4b38e09969425a8b05bcd555ddd31"
+      },
+      {
+        "unitId": "3c1781c94ec6c3d53befdfbacbe4aed2f1a40034471b9a64ca5e8c827af45518",
+        "legalDocumentNodeId": "dc9b10dde51503a0faa30ce130a2ea878394b03c14333f5a1e24e552fde71772",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 33,
+        "content": "Article 2. Export and portability",
+        "contentSha256": "74bf9c43aa6f160b42931c41b1e27867cbb8ae941b315d6bd049fb120eab82d4"
+      },
+      {
+        "unitId": "a759222ae369c35e4f5aba3f59af945a5fe3139f7dead97ef77c6648cb3cb8f3",
+        "legalDocumentNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 391,
+        "content": "1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\n\nThe implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request.",
+        "contentSha256": "51685dc887d129878ebfb44fb1bca081f3bd2eafb95a2c5c9d634c03bd386aa7"
+      },
+      {
+        "unitId": "bc6d3e8366eb2cc512c3c0621e209440254710d8276dc8fe3dd69cd7d1703113",
+        "legalDocumentNodeId": "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 356,
+        "content": "2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies.",
+        "contentSha256": "4027f9c83eee394e5d27a1dc9d1181eca63afcb7c4a3ee0204990c9f1d4ac8d5"
+      },
+      {
+        "unitId": "cdb99799dd9d3d5519db43766ab81609ee6d3a78754f3cef0e1b364e0811a9a1",
+        "legalDocumentNodeId": "b6f377afccfd48cdabab7017b1e93420fd4ad0e9dcef36f363fc80059b50cb8c",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 31,
+        "content": "Article 3. Remedy and exception",
+        "contentSha256": "2afa68fd73f5bb0a9ec077a207e91331345cb605a1532e900f16619d4074b3f5"
+      },
+      {
+        "unitId": "efaa6d40f46c704c44390881c1c95092e26541c036b2b678ac86efa07e92e204",
+        "legalDocumentNodeId": "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 277,
+        "content": "1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty.",
+        "contentSha256": "e77f9a4c320343b98d91c5de842f5bc16f7e019eb5e107faaf744c0aa86c25bd"
+      },
+      {
+        "unitId": "487340dd879929542d706252e431bb96af9c83f4b89d9ec03181a44bb472b9e7",
+        "legalDocumentNodeId": "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 316,
+        "content": "2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1).",
+        "contentSha256": "9c770f3c0a3734d9eef448fb58c6bdeded259e03ee980a1ba490c2df2da4fe87"
+      },
+      {
+        "unitId": "270bce89c749032ff7cb8446e024ed09be89fe447701046fb67161a8314f4a53",
+        "legalDocumentNodeId": "ac35131c353f52e977b44adf8e902f3a38b70700d8a70916028e900136d0df23",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 10,
+        "content": "Chapter II",
+        "contentSha256": "b0f19d99e23e221666f9c1899a55ca2e3b52cb6fe2f066293e5fdff0105f1fb0"
+      },
+      {
+        "unitId": "e417c05270323f9e15d4bb44b6223b8dde9a4b0a54229d4fb3778983a904f955",
+        "legalDocumentNodeId": "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 359,
+        "content": "Article 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\n\nFor covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation.",
+        "contentSha256": "efc150411cda9c3296b7c833a512a83d257b804964723493b3468b9dc2587021"
+      },
+      {
+        "unitId": "13acf3d515301206016cafe50ea92e088d5556325715986f7e4656fe7c9498ac",
+        "legalDocumentNodeId": "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 356,
+        "content": "Article 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty.",
+        "contentSha256": "8ca9212e981f0bef503ecdac349d1a57991ccd38c88effeb8c713cf610dea11d"
+      },
+      {
+        "unitId": "494ff9baf3f7d7df37ee0310e0e276e2a522a3426071d2d8a609ba128d3b3422",
+        "legalDocumentNodeId": "e858e90f79ec5aa224ff8446253f427fb0e3885f9cf9444fa35fe564c7e224b6",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 52,
+        "content": "Article 6. Context and separate configuration duties",
+        "contentSha256": "16ae464938d35f2226455fa4ea36ab1bee2a4d9322816132d032985059e2d21b"
+      },
+      {
+        "unitId": "8cce59bfbdbf9d2eb37b4a009f275911f08a165a590bfc9277a64d03b9d00842",
+        "legalDocumentNodeId": "e5df6412db45ec755054bb90b236bf21bee52b9456f9dea872ecc0419f9f9699",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 276,
+        "content": "1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission.",
+        "contentSha256": "59e08bb080c38146ab33de5a1f488316d146068de93aeffbb755a6ee407c675f"
+      },
+      {
+        "unitId": "b23c4f125944a37e229b4f2bda92b4c3217f1527049c0f3481d68d68e997a214",
+        "legalDocumentNodeId": "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 642,
+        "content": "2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher.",
+        "contentSha256": "996dc6b8e5009c37aacbfb42d11a2004326e4d258430c5b0785f79ed206055da"
+      },
+      {
+        "unitId": "a1cac2b9b9f98f3214fad7f6f9ff0aa269ff7cd9a1422198b2bf531efcc66f8b",
+        "legalDocumentNodeId": "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 643,
+        "content": "Article 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty.",
+        "contentSha256": "5998be4f91a57f7534d3dfb8d5018303975b01123022c12f1ae899ca8711ce10"
+      },
+      {
+        "unitId": "16874ee51bfd1ec118929bb09e877862478d20f8719182daa679f09530dc55bc",
+        "legalDocumentNodeId": "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7",
+        "ordinal": 0,
+        "contentStart": 0,
+        "contentEnd": 448,
+        "content": "Article 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.\n",
+        "contentSha256": "f183b8622a59a38de4e6a42eddfb1d7689385633b13b9067ce7a815709e4d3a2"
+      }
+    ],
+    "graphDigest": "a28dff4f586e0b6124ca605c7e50fcf63eb75bd9d77ddffbc4a2b384d3384ae4"
+  },
+  "reviews": [
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 3,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "81e07f9cd9901636e7d1439ca0a0397418e6a4eaf5f7fd8b4a75796cf9b6bc39",
+            "claimType": "QUALIFIER",
+            "operative": null,
+            "statement": "A compensation policy alone does not perform this payment duty.",
+            "sourceNodeIds": [
+              "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "cfbf6be1c955740f1f2e4a71944bb433669afcb70683a678bd20818e92d1c04c",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "compensate that customer for the documented loss within thirty calendar days after receiving notice of the loss",
+              "modality": "DUTY"
+            },
+            "statement": "The operator must compensate that customer for the documented loss within thirty calendar days after receiving notice of the loss.",
+            "sourceNodeIds": [
+              "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "ddfcc42f551320f473ab78130dff8acda06e48151ee0b0e504099e6f5f63ffc2",
+            "claimType": "CONDITION",
+            "operative": null,
+            "statement": "If failure to perform Article 2(1) causes a customer documented financial loss, the compensation duty is triggered.",
+            "sourceNodeIds": [
+              "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "CONDITION",
+            "toClaimId": "cfbf6be1c955740f1f2e4a71944bb433669afcb70683a678bd20818e92d1c04c",
+            "relationId": "8aef81a76870334b74089f6e7a27ce59285c8295d03e292e95cdaca0aedb09f7",
+            "fromClaimId": "ddfcc42f551320f473ab78130dff8acda06e48151ee0b0e504099e6f5f63ffc2",
+            "referenceId": null
+          },
+          {
+            "kind": "CONDITION",
+            "toClaimId": "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6",
+            "relationId": "a3e62772fc65bd7cafb649bfdc59b6c35a5ff5ed0663ecb7ab8df89436dd2144",
+            "fromClaimId": "ddfcc42f551320f473ab78130dff8acda06e48151ee0b0e504099e6f5f63ffc2",
+            "referenceId": "84a4b184480f29d483ca65d6394dc0fc6055f2388ea9f0be6e397ee296b65350"
+          },
+          {
+            "kind": "QUALIFIER",
+            "toClaimId": "cfbf6be1c955740f1f2e4a71944bb433669afcb70683a678bd20818e92d1c04c",
+            "relationId": "deb655f91eedbe6d2db6b68d6f9fa19e2a0f34f2259c65e1ff5bc3e3b89ef258",
+            "fromClaimId": "81e07f9cd9901636e7d1439ca0a0397418e6a4eaf5f7fd8b4a75796cf9b6bc39",
+            "referenceId": null
+          }
+        ],
+        "identities": {
+          "81e07f9cd9901636e7d1439ca0a0397418e6a4eaf5f7fd8b4a75796cf9b6bc39": "art-3-para-1-qualifier",
+          "cfbf6be1c955740f1f2e4a71944bb433669afcb70683a678bd20818e92d1c04c": "art-3-para-1-duty",
+          "ddfcc42f551320f473ab78130dff8acda06e48151ee0b0e504099e6f5f63ffc2": "art-3-para-1-condition"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "84a4b184480f29d483ca65d6394dc0fc6055f2388ea9f0be6e397ee296b65350",
+            "relationIds": [
+              "a3e62772fc65bd7cafb649bfdc59b6c35a5ff5ed0663ecb7ab8df89436dd2144"
+            ],
+            "nonMaterialReason": null
+          }
+        ]
+      },
+      "claimIds": [
+        "81e07f9cd9901636e7d1439ca0a0397418e6a4eaf5f7fd8b4a75796cf9b6bc39",
+        "cfbf6be1c955740f1f2e4a71944bb433669afcb70683a678bd20818e92d1c04c",
+        "ddfcc42f551320f473ab78130dff8acda06e48151ee0b0e504099e6f5f63ffc2"
+      ],
+      "updatedAt": "2026-10-17T04:30:14.726",
+      "completedAt": "2026-10-17T04:30:14.722",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [
+        "84a4b184480f29d483ca65d6394dc0fc6055f2388ea9f0be6e397ee296b65350"
+      ],
+      "sourceNodeId": "f677189e26c866d744ae3eb9ce400cd820b288f92caf1674ebd854171cc4f2bc",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3/paragraph/1",
+      "ownedClaimCount": 3,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "553ebb44776e014402b7f0964f26af77e7914ca533d2094bff8092aa8218fa81",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "e01fcdb08c0503cc5e29a477a570ef19e096f5aa4efcccca96b4516ba715284f"
+    },
+    {
+      "state": "BLOCKED_REFERENCE",
+      "reason": "Target node fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767 (Article 2(2)) has unresolved claims and needs review before binding this reference",
+      "ordinal": 4,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "65d39c969d2edd2d8503029906281f845410be6f4b6df43d51d6b5dc34617563",
+            "claimType": "QUALIFIER",
+            "operative": null,
+            "statement": "The block must be proportionate to that threat and end when the threat ends.",
+            "sourceNodeIds": [
+              "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "859d04eca448d5911539c5851e1aef09e3c616e0430cfc71a9599799239a3102",
+            "claimType": "PERMISSION",
+            "operative": {
+              "actor": "operator",
+              "action": "temporarily block a transfer while a documented, specific security threat makes that transfer unsafe",
+              "modality": "PERMISSION"
+            },
+            "statement": "As an exception to Article 2(2), the operator may temporarily block a transfer only while a documented, specific security threat makes that transfer unsafe.",
+            "sourceNodeIds": [
+              "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "EXCEPTION",
+            "toClaimId": "7e80bdbf9b3542b3ae9cd315c54169cd514b7a6c2453edb9c3027b2b92ce477f",
+            "relationId": "c90116c2f1a5d731d865fe5283e48baca23a7d7af2e01b996abaf23bee37ae8f",
+            "fromClaimId": "859d04eca448d5911539c5851e1aef09e3c616e0430cfc71a9599799239a3102",
+            "referenceId": "bd98e2e221b2bea1f113fe7743cca2715baf0c6744e67c813a5fd95f7cfba623"
+          }
+        ],
+        "identities": {
+          "65d39c969d2edd2d8503029906281f845410be6f4b6df43d51d6b5dc34617563": "art-3-para-2-proportionate-qualifier",
+          "859d04eca448d5911539c5851e1aef09e3c616e0430cfc71a9599799239a3102": "art-3-para-2-temporary-block-permission"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "bd98e2e221b2bea1f113fe7743cca2715baf0c6744e67c813a5fd95f7cfba623",
+            "relationIds": [
+              "c90116c2f1a5d731d865fe5283e48baca23a7d7af2e01b996abaf23bee37ae8f"
+            ],
+            "nonMaterialReason": null
+          }
+        ]
+      },
+      "claimIds": [
+        "65d39c969d2edd2d8503029906281f845410be6f4b6df43d51d6b5dc34617563",
+        "859d04eca448d5911539c5851e1aef09e3c616e0430cfc71a9599799239a3102"
+      ],
+      "updatedAt": "2026-10-17T04:30:40.361",
+      "completedAt": null,
+      "disposition": "REQUIRES_REFERENCE_RESOLUTION",
+      "operationId": null,
+      "referenceIds": [
+        "c25a3e7fdb6859559131bf2a1af5178492afb970403d9df37e7248f354cc3023",
+        "bd98e2e221b2bea1f113fe7743cca2715baf0c6744e67c813a5fd95f7cfba623"
+      ],
+      "sourceNodeId": "3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3/paragraph/2",
+      "ownedClaimCount": 2,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "5548f9dcba1efab1a064471a8eee10be39efa2fe7cad7aeaebf724d57e1652ce",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [
+        "c25a3e7fdb6859559131bf2a1af5178492afb970403d9df37e7248f354cc3023"
+      ],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "7f4914871fcfde3d27ccef59ecaca5eb26f69f98727a2feb36907ec45332fbb1"
+    },
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 8,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "41fd0823a9043ddfd10be656a438b7d783a187403ed47550a89dd0865847fe17",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "implement appropriate software safeguards protecting customer-created records during processing and export",
+              "modality": "DUTY"
+            },
+            "statement": "The operator must implement appropriate software safeguards protecting customer-created records during processing and export.",
+            "sourceNodeIds": [
+              "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "9cd26bf8d2c68734b7511b129377b92a1b7ab718d942d2cca71bfe7dc1498bc5",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "maintain a software configuration identifying the relevant covered service",
+              "modality": "DUTY"
+            },
+            "statement": "The operator must maintain a software configuration identifying the relevant covered service.",
+            "sourceNodeIds": [
+              "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "beef1fd5c53b9459762189c7e12c68b6f69d9f72bac3bacca355082adfd89d96",
+            "claimType": "QUALIFIER",
+            "operative": null,
+            "statement": "Export requests must be handled within five business days after they are received.",
+            "sourceNodeIds": [
+              "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "f9852ed340369a05f33491cb401000bdb1823be145b74f96d6313c3bdcc3bd9f",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "record the authorization decision in an audit entry and record completion or failure with its timestamp in the audit entry",
+              "modality": "DUTY"
+            },
+            "statement": "For its export function, the operator must record the authorization decision in an audit entry and must record completion or failure with its timestamp in the audit entry.",
+            "sourceNodeIds": [
+              "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "41fd0823a9043ddfd10be656a438b7d783a187403ed47550a89dd0865847fe17": "art6-3-safeguards",
+          "9cd26bf8d2c68734b7511b129377b92a1b7ab718d942d2cca71bfe7dc1498bc5": "art6-1-configuration",
+          "beef1fd5c53b9459762189c7e12c68b6f69d9f72bac3bacca355082adfd89d96": "art6-4-timing",
+          "f9852ed340369a05f33491cb401000bdb1823be145b74f96d6313c3bdcc3bd9f": "art6-2-audit-entries"
+        },
+        "referenceAccounting": []
+      },
+      "claimIds": [
+        "41fd0823a9043ddfd10be656a438b7d783a187403ed47550a89dd0865847fe17",
+        "9cd26bf8d2c68734b7511b129377b92a1b7ab718d942d2cca71bfe7dc1498bc5",
+        "beef1fd5c53b9459762189c7e12c68b6f69d9f72bac3bacca355082adfd89d96",
+        "f9852ed340369a05f33491cb401000bdb1823be145b74f96d6313c3bdcc3bd9f"
+      ],
+      "updatedAt": "2026-10-17T04:31:57.916",
+      "completedAt": "2026-10-17T04:31:57.913",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [],
+      "sourceNodeId": "dde0c75864e432e3d839ae3a8d5c8336dc5fd0c43f718500f169a8e5050168cf",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6/paragraph/2",
+      "ownedClaimCount": 4,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "b6827565dc5e4ace1b7bc8fd2d36e77153cc18a7d126a6610c907dbfffeda496",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "3cd95035e33cf15c376f2dea58238b92d9edf81f40067db2ec9bdb3b8258d980"
+    },
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 6,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "46f7e6bda526814196e972cf1802f967f564519215e38e5ed1853145c8aa0cac",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "External fulfillment provider",
+              "action": "implement the portable-copy software function and perform the same delivery duty required by Article 2(1) with the same seven-day period",
+              "modality": "DUTY"
+            },
+            "statement": "When an operator delegates export fulfillment to an external fulfillment provider, that provider must implement the portable-copy software function and perform the same delivery duty required by Article 2(1), with the same seven-day period.",
+            "sourceNodeIds": [
+              "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "c85fd904725eabec1022d04c5f9f2b99a973ddf0515f21e91908c4f4950054fb",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "Operator of a covered service",
+              "action": "implement portable-copy software and deliver copies within seven days (remains even after delegation)",
+              "modality": "DUTY"
+            },
+            "statement": "Delegation does not remove the operator's own duty to implement portable-copy software and deliver copies within seven days.",
+            "sourceNodeIds": [
+              "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "INCORPORATES",
+            "toClaimId": "7e80bdbf9b3542b3ae9cd315c54169cd514b7a6c2453edb9c3027b2b92ce477f",
+            "relationId": "54ecf51f74d3f128f76496489271c7a00dc3eed3a98e51c16175490cd014a9f2",
+            "fromClaimId": "46f7e6bda526814196e972cf1802f967f564519215e38e5ed1853145c8aa0cac",
+            "referenceId": "ad0bb2502fbf1e4a17e9971ab5e32a0830c99c31f96646a3ba86285349ade503"
+          },
+          {
+            "kind": "DEFINITION",
+            "toClaimId": "4dc3b4d7a3115668883a80e3d15a877da64bb84414c28067e61ff999efdc3e55",
+            "relationId": "9dc984ad88689962e18c3fd11db135d9a09684c9e392108d12aba56ab2272277",
+            "fromClaimId": "46f7e6bda526814196e972cf1802f967f564519215e38e5ed1853145c8aa0cac",
+            "referenceId": "8acc1eaa72cdbb43716657949f70851f10cd5d9d3dd7a3d43fb9a8c3ec0c35fd"
+          },
+          {
+            "kind": "SCOPE",
+            "toClaimId": "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6",
+            "relationId": "d1b1436b53c80efd95167ee9fb077c038c43ad9b35b4ddf0249b4c7904bac060",
+            "fromClaimId": "c85fd904725eabec1022d04c5f9f2b99a973ddf0515f21e91908c4f4950054fb",
+            "referenceId": "ad0bb2502fbf1e4a17e9971ab5e32a0830c99c31f96646a3ba86285349ade503"
+          }
+        ],
+        "identities": {
+          "46f7e6bda526814196e972cf1802f967f564519215e38e5ed1853145c8aa0cac": "article5_provider_duty",
+          "c85fd904725eabec1022d04c5f9f2b99a973ddf0515f21e91908c4f4950054fb": "article5_operator_duty_remainder"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "8acc1eaa72cdbb43716657949f70851f10cd5d9d3dd7a3d43fb9a8c3ec0c35fd",
+            "relationIds": [
+              "9dc984ad88689962e18c3fd11db135d9a09684c9e392108d12aba56ab2272277"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "ad0bb2502fbf1e4a17e9971ab5e32a0830c99c31f96646a3ba86285349ade503",
+            "relationIds": [
+              "54ecf51f74d3f128f76496489271c7a00dc3eed3a98e51c16175490cd014a9f2",
+              "d1b1436b53c80efd95167ee9fb077c038c43ad9b35b4ddf0249b4c7904bac060"
+            ],
+            "nonMaterialReason": null
+          }
+        ]
+      },
+      "claimIds": [
+        "46f7e6bda526814196e972cf1802f967f564519215e38e5ed1853145c8aa0cac",
+        "c85fd904725eabec1022d04c5f9f2b99a973ddf0515f21e91908c4f4950054fb"
+      ],
+      "updatedAt": "2026-10-17T04:31:30.437",
+      "completedAt": "2026-10-17T04:31:30.433",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [
+        "ad0bb2502fbf1e4a17e9971ab5e32a0830c99c31f96646a3ba86285349ade503",
+        "8acc1eaa72cdbb43716657949f70851f10cd5d9d3dd7a3d43fb9a8c3ec0c35fd"
+      ],
+      "sourceNodeId": "db410011230987764e52224b581f4cbda9ce5058d12c5157e4cc979262f71ba8",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/5",
+      "ownedClaimCount": 2,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "0d89a338af45c3756334e8f45cbaf68667c83c95e9a6a7655db8d8aced9303cf",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "fbe4145f4eec28bccf56cfc4cc4f980c12afec1911998ecca7e01f5e73f95d91"
+    },
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 9,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "0259006a085ee64d4bf116fd426f70522abfa261a782d2089596bbd6670ed305",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "fulfillment provider (Actor B)",
+              "action": "implement delegated portable-copy software path on behalf of operator",
+              "modality": "DUTY"
+            },
+            "statement": "When a covered-service operator delegates export fulfillment to a fulfillment provider, the fulfillment provider must implement the delegated portable-copy software path on behalf of the operator.",
+            "sourceNodeIds": [
+              "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "1f638629b9a1e4c01e7520c2841c4728821c7facd40d17ae31b2b54b816d9e18",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "Actor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider. The customer is the requesting record owner and beneficiary. An auditor owes no export-fulfillment duty.",
+            "sourceNodeIds": [
+              "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "2d55f852bb1a42d85c8ca1fa75b8248ad949e1632d39b04d0101e1daa0343b73",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "covered-service operator (Actor A)",
+              "action": "maintain software configuration identifying delegate",
+              "modality": "DUTY"
+            },
+            "statement": "If the covered-service operator delegates export fulfillment to a fulfillment provider, the operator must maintain a software configuration identifying the fulfillment provider as its delegate for that service.",
+            "sourceNodeIds": [
+              "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "3b1c8b61f336e93814ee087228b658a88ec43f37a9b27d01968d881eea0e657c",
+            "claimType": "QUALIFIER",
+            "operative": null,
+            "statement": "The fulfillment provider's express duty under Article 5 does not transfer or replace the covered-service operator's Article 2(1) export-fulfillment responsibility.",
+            "sourceNodeIds": [
+              "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "7e80bdbf9b3542b3ae9cd315c54169cd514b7a6c2453edb9c3027b2b92ce477f",
+            "relationId": "3890952e5e4dec70f082c26ac8d70076d28a7d54fcb083ae164ed83e33c44665",
+            "fromClaimId": "3b1c8b61f336e93814ee087228b658a88ec43f37a9b27d01968d881eea0e657c",
+            "referenceId": "35faea44f2b474ef2f20314dd8fd46699ae53d030ad53d1111f7e1bd9ebf1fd9"
+          },
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6",
+            "relationId": "43a0c05291251401546ccbc06b179da095ed5b94a36a3964b36c35d259d1ced2",
+            "fromClaimId": "3b1c8b61f336e93814ee087228b658a88ec43f37a9b27d01968d881eea0e657c",
+            "referenceId": "35faea44f2b474ef2f20314dd8fd46699ae53d030ad53d1111f7e1bd9ebf1fd9"
+          },
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6",
+            "relationId": "912ea3d1e972f91d88cd53aaf2b67f28e6194b33e5267c8a5d4dec968651e42b",
+            "fromClaimId": "0259006a085ee64d4bf116fd426f70522abfa261a782d2089596bbd6670ed305",
+            "referenceId": "21ad11117a1dd5c7a5082f727dcc34e4c901c3f034b2236f827a6cb044e9192d"
+          },
+          {
+            "kind": "INCORPORATES",
+            "toClaimId": "46f7e6bda526814196e972cf1802f967f564519215e38e5ed1853145c8aa0cac",
+            "relationId": "9db8798067e4fcf86b04271d783c4fd7629b1c3b3cfa040790cf7c1cc07f5a76",
+            "fromClaimId": "0259006a085ee64d4bf116fd426f70522abfa261a782d2089596bbd6670ed305",
+            "referenceId": "469c431eefc58bd1e6c1bea811eba7a679b772aaf0472d1e8a9fd9f48b41a330"
+          },
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "7e80bdbf9b3542b3ae9cd315c54169cd514b7a6c2453edb9c3027b2b92ce477f",
+            "relationId": "bad670d9e3fd269167ddf3b275840ea03f1c66296fe39ff7adc3d2580aec2834",
+            "fromClaimId": "0259006a085ee64d4bf116fd426f70522abfa261a782d2089596bbd6670ed305",
+            "referenceId": "21ad11117a1dd5c7a5082f727dcc34e4c901c3f034b2236f827a6cb044e9192d"
+          },
+          {
+            "kind": "CONDITION",
+            "toClaimId": "c85fd904725eabec1022d04c5f9f2b99a973ddf0515f21e91908c4f4950054fb",
+            "relationId": "ee950b296685ea4f66100b44c98a439d091b4a4fea41d49a53dae511aa04a266",
+            "fromClaimId": "2d55f852bb1a42d85c8ca1fa75b8248ad949e1632d39b04d0101e1daa0343b73",
+            "referenceId": "469c431eefc58bd1e6c1bea811eba7a679b772aaf0472d1e8a9fd9f48b41a330"
+          }
+        ],
+        "identities": {
+          "0259006a085ee64d4bf116fd426f70522abfa261a782d2089596bbd6670ed305": "article7_provider_implement_path",
+          "1f638629b9a1e4c01e7520c2841c4728821c7facd40d17ae31b2b54b816d9e18": "article7_actor_definitions",
+          "2d55f852bb1a42d85c8ca1fa75b8248ad949e1632d39b04d0101e1daa0343b73": "article7_operator_maintain_config",
+          "3b1c8b61f336e93814ee087228b658a88ec43f37a9b27d01968d881eea0e657c": "article7_duty_not_transferred"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "21ad11117a1dd5c7a5082f727dcc34e4c901c3f034b2236f827a6cb044e9192d",
+            "relationIds": [
+              "912ea3d1e972f91d88cd53aaf2b67f28e6194b33e5267c8a5d4dec968651e42b",
+              "bad670d9e3fd269167ddf3b275840ea03f1c66296fe39ff7adc3d2580aec2834"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "35faea44f2b474ef2f20314dd8fd46699ae53d030ad53d1111f7e1bd9ebf1fd9",
+            "relationIds": [
+              "3890952e5e4dec70f082c26ac8d70076d28a7d54fcb083ae164ed83e33c44665",
+              "43a0c05291251401546ccbc06b179da095ed5b94a36a3964b36c35d259d1ced2"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "469c431eefc58bd1e6c1bea811eba7a679b772aaf0472d1e8a9fd9f48b41a330",
+            "relationIds": [
+              "9db8798067e4fcf86b04271d783c4fd7629b1c3b3cfa040790cf7c1cc07f5a76",
+              "ee950b296685ea4f66100b44c98a439d091b4a4fea41d49a53dae511aa04a266"
+            ],
+            "nonMaterialReason": null
+          }
+        ]
+      },
+      "claimIds": [
+        "0259006a085ee64d4bf116fd426f70522abfa261a782d2089596bbd6670ed305",
+        "1f638629b9a1e4c01e7520c2841c4728821c7facd40d17ae31b2b54b816d9e18",
+        "2d55f852bb1a42d85c8ca1fa75b8248ad949e1632d39b04d0101e1daa0343b73",
+        "3b1c8b61f336e93814ee087228b658a88ec43f37a9b27d01968d881eea0e657c"
+      ],
+      "updatedAt": "2026-10-17T04:32:35.06",
+      "completedAt": "2026-10-17T04:32:35.056",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [
+        "35faea44f2b474ef2f20314dd8fd46699ae53d030ad53d1111f7e1bd9ebf1fd9",
+        "21ad11117a1dd5c7a5082f727dcc34e4c901c3f034b2236f827a6cb044e9192d",
+        "469c431eefc58bd1e6c1bea811eba7a679b772aaf0472d1e8a9fd9f48b41a330"
+      ],
+      "sourceNodeId": "f5e1148f7a3b2eeaae9c8e889bead138689bad5206fa5226ace103c301915462",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/7",
+      "ownedClaimCount": 4,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "c33e522ce322501474d06ad6438e5dcf6a4d1648b121c37d61a21c74524510ee",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "e166d94efb185bbb531573d73dbd069e237a6f25753cebc2d7327d49178c9a63"
+    },
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 10,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "38d683ef645968be5d2599a03d24ed6274d6627527d46408f0d563d002172fc4",
+            "claimType": "PERMISSION",
+            "operative": {
+              "actor": "operator",
+              "action": "restrict access to the export interface",
+              "modality": "PERMISSION"
+            },
+            "statement": "The operator may restrict access to the export interface only while a documented, specific security incident makes access unsafe.",
+            "sourceNodeIds": [
+              "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "68895ed2338d516336dc9eab62621c7a97901338fa7762e03a8f05c7f4f7e677",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "end the restriction",
+              "modality": "DUTY"
+            },
+            "statement": "The restriction must end when that condition ceases.",
+            "sourceNodeIds": [
+              "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "ca4bf122098489cff8a349d295f99d0406b5666ad06d029a0d1f5defdff82c29",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "provide evidence demonstrating whether the condition holds and whether any restriction respects it",
+              "modality": "DUTY"
+            },
+            "statement": "Evidence must demonstrate whether that condition holds and whether any restriction respects it.",
+            "sourceNodeIds": [
+              "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "dc756d80648c3b229d9c1a569d508d45a546cc8cb4b538ead8bccf4f46ef56f7",
+            "claimType": "CONDITION",
+            "operative": null,
+            "statement": "This Article does not require automatic blocking, automatic unblocking, or any other particular technical implementation.",
+            "sourceNodeIds": [
+              "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "38d683ef645968be5d2599a03d24ed6274d6627527d46408f0d563d002172fc4": "art8_restriction_permission",
+          "68895ed2338d516336dc9eab62621c7a97901338fa7762e03a8f05c7f4f7e677": "art8_restriction_end_duty",
+          "ca4bf122098489cff8a349d295f99d0406b5666ad06d029a0d1f5defdff82c29": "art8_evidence_duty",
+          "dc756d80648c3b229d9c1a569d508d45a546cc8cb4b538ead8bccf4f46ef56f7": "art8_no_automatic_implementation"
+        },
+        "referenceAccounting": []
+      },
+      "claimIds": [
+        "38d683ef645968be5d2599a03d24ed6274d6627527d46408f0d563d002172fc4",
+        "68895ed2338d516336dc9eab62621c7a97901338fa7762e03a8f05c7f4f7e677",
+        "ca4bf122098489cff8a349d295f99d0406b5666ad06d029a0d1f5defdff82c29",
+        "dc756d80648c3b229d9c1a569d508d45a546cc8cb4b538ead8bccf4f46ef56f7"
+      ],
+      "updatedAt": "2026-10-17T04:33:11.088",
+      "completedAt": "2026-10-17T04:33:11.081",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [],
+      "sourceNodeId": "8b079f8a2ef81cee0551e33f8fdbc4461c12b7e2f8fb1242c3e4fb5080d0b5b7",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/8",
+      "ownedClaimCount": 4,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "ead9649834ba61cadb76ffbbce77695e7859eebda27cba3cf47412eadb1e4128",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "bef7cec38bd3b3be49b4b8d38b5a2a2cbd6a83405ad86a7f6da05b4d66b6e9c8"
+    },
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 0,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "145d16c260020d1ad33fb1fd9e960e192bcd9c35d0eee49ceee2f96094240d85",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "A fulfillment provider is a separate entity selected by the operator to run its export software.",
+            "sourceNodeIds": [
+              "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "3dd974363fb97353064df6c71ca7b642bfb62e4fd5f06037045151fa5074a2fd",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "A portable copy contains all customer-created records in an interoperable machine-readable format.",
+            "sourceNodeIds": [
+              "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "4dc3b4d7a3115668883a80e3d15a877da64bb84414c28067e61ff999efdc3e55",
+            "claimType": "SCOPE",
+            "operative": null,
+            "statement": "These definitions apply throughout this instrument.",
+            "sourceNodeIds": [
+              "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "5ef6897fb2b2adefdb98223a559e17e1a8ec28a62d506ea75e4ad912b1536c3c",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "The operator controls that [covered] service.",
+            "sourceNodeIds": [
+              "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "cc0d58b8dfdd3d4d2f94a432f2f81314cf37be0b0470ff9421da050475fd3db8",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "A covered service stores customer-created records and offers them through a digital interface.",
+            "sourceNodeIds": [
+              "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "145d16c260020d1ad33fb1fd9e960e192bcd9c35d0eee49ceee2f96094240d85": "fulfillment_provider_def",
+          "3dd974363fb97353064df6c71ca7b642bfb62e4fd5f06037045151fa5074a2fd": "portable_copy_def",
+          "4dc3b4d7a3115668883a80e3d15a877da64bb84414c28067e61ff999efdc3e55": "definitions_scope",
+          "5ef6897fb2b2adefdb98223a559e17e1a8ec28a62d506ea75e4ad912b1536c3c": "operator_def",
+          "cc0d58b8dfdd3d4d2f94a432f2f81314cf37be0b0470ff9421da050475fd3db8": "covered_service_def"
+        },
+        "referenceAccounting": []
+      },
+      "claimIds": [
+        "145d16c260020d1ad33fb1fd9e960e192bcd9c35d0eee49ceee2f96094240d85",
+        "3dd974363fb97353064df6c71ca7b642bfb62e4fd5f06037045151fa5074a2fd",
+        "4dc3b4d7a3115668883a80e3d15a877da64bb84414c28067e61ff999efdc3e55",
+        "5ef6897fb2b2adefdb98223a559e17e1a8ec28a62d506ea75e4ad912b1536c3c",
+        "cc0d58b8dfdd3d4d2f94a432f2f81314cf37be0b0470ff9421da050475fd3db8"
+      ],
+      "updatedAt": "2026-10-17T04:29:32.55",
+      "completedAt": "2026-10-17T04:29:32.545",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [],
+      "sourceNodeId": "17e6f7f51611e0aeab63e5e2c421e2f05e52b080095e2f6a62acc7edb20b0b7c",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/1",
+      "ownedClaimCount": 5,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "f40e17de4afcca71f34bc9345d55fea37aba4ff76584276cb51ded29b711431c",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "becc92b98767557224bc8131e8c2b038419ed0a881f0bb4313b4e74371b731c1"
+    },
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 1,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "7e80bdbf9b3542b3ae9cd315c54169cd514b7a6c2453edb9c3027b2b92ce477f",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator of a covered service",
+              "action": "deliver the copy within seven calendar days after receiving the request",
+              "modality": "DUTY"
+            },
+            "statement": "The operator must deliver the copy within seven calendar days after receiving the request.",
+            "sourceNodeIds": [
+              "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator of a covered service",
+              "action": "implement a software export function that produces a portable copy for a requesting customer",
+              "modality": "DUTY"
+            },
+            "statement": "The operator of a covered service must implement a software export function that produces a portable copy for a requesting customer.",
+            "sourceNodeIds": [
+              "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "7e80bdbf9b3542b3ae9cd315c54169cd514b7a6c2453edb9c3027b2b92ce477f": "art2_para1_delivery_duty",
+          "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6": "art2_para1_export_function_duty"
+        },
+        "referenceAccounting": []
+      },
+      "claimIds": [
+        "7e80bdbf9b3542b3ae9cd315c54169cd514b7a6c2453edb9c3027b2b92ce477f",
+        "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6"
+      ],
+      "updatedAt": "2026-10-17T04:29:44.649",
+      "completedAt": "2026-10-17T04:29:44.645",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [],
+      "sourceNodeId": "8235e78373923913f896cbfd0f226784b04896da16817549fb5d44dcd6d4f509",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2/paragraph/1",
+      "ownedClaimCount": 2,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "5db4a75a7e6236878bab158fc44b54a8bb2656775fae887fc03b422b6c0dd2f4",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "51e4f6e8474e4e114f6922caf93c39726a487f7fae63301391363e9b1dd89207"
+    },
+    {
+      "state": "BLOCKED_REFERENCE",
+      "reason": "Article 2(2) references Article 3(2) which requires resolution/review of target node 3ea006f00e3985b661955f9bb8914497a131432397b425576e436007426d36fe before exception binding.",
+      "ordinal": 2,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "2e79a3919a0d85e1f5f70f32de9a3249f9ccc869fb0fc6b193db1e482e4c41e6",
+            "claimType": "PROHIBITION",
+            "operative": {
+              "actor": "operator",
+              "action": "impose commercial charges or technical obstacles intended to prevent customer record portability",
+              "modality": "PROHIBITION"
+            },
+            "statement": "The operator must not impose commercial charges or technical obstacles intended to prevent a customer moving their customer-created records to another service.",
+            "sourceNodeIds": [
+              "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "4d5f9ad1b604a54c8111f62d2e7760726728c7efd12f6db3d3638cb4a7ae4f3b",
+            "claimType": "EXCEPTION",
+            "operative": null,
+            "statement": "The prohibition is subject to the limited exception in Article 3(2).",
+            "sourceNodeIds": [
+              "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "9e1f04565c807db3cabb1c2f2cced3111f5b45959eec2c38f2868cf9b7e4964d",
+            "claimType": "QUALIFIER",
+            "operative": null,
+            "statement": "For both charges and obstacles, this prohibition is limited to those intended to prevent that portability; it does not prohibit charges generally.",
+            "sourceNodeIds": [
+              "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "2e79a3919a0d85e1f5f70f32de9a3249f9ccc869fb0fc6b193db1e482e4c41e6": "art-2-para-2-prohibition",
+          "4d5f9ad1b604a54c8111f62d2e7760726728c7efd12f6db3d3638cb4a7ae4f3b": "art-2-para-2-exception-ref",
+          "9e1f04565c807db3cabb1c2f2cced3111f5b45959eec2c38f2868cf9b7e4964d": "art-2-para-2-qualifier"
+        },
+        "referenceAccounting": []
+      },
+      "claimIds": [
+        "2e79a3919a0d85e1f5f70f32de9a3249f9ccc869fb0fc6b193db1e482e4c41e6",
+        "4d5f9ad1b604a54c8111f62d2e7760726728c7efd12f6db3d3638cb4a7ae4f3b",
+        "9e1f04565c807db3cabb1c2f2cced3111f5b45959eec2c38f2868cf9b7e4964d"
+      ],
+      "updatedAt": "2026-10-17T04:29:59.278",
+      "completedAt": null,
+      "disposition": "REQUIRES_REFERENCE_RESOLUTION",
+      "operationId": null,
+      "referenceIds": [
+        "21d7381c3a65863959507b7b3cf56d6f329681a7819fe1bce82509cdc973b7f9"
+      ],
+      "sourceNodeId": "fa2bb68bf14595206c1a5b3ceda69a2f2b9a5cec537fc5403e724f2c319b7767",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2/paragraph/2",
+      "ownedClaimCount": 3,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "b3ea72f6a35c954f0b4a2c4e01e21a73b642da073740d9f94905e1116a61bc1d",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [
+        "21d7381c3a65863959507b7b3cf56d6f329681a7819fe1bce82509cdc973b7f9"
+      ],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "b1a643a89651d79117cda550e7846baba14361c3e8a3be3543143f679f40cead"
+    },
+    {
+      "state": "BLOCKED_REFERENCE",
+      "reason": "This unit has a reference to Article 2(2) that targets a node not yet reviewed. Blocking here schedules the target for review.",
+      "ordinal": 5,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "91798df829b67716fb0ef447066946438d02360c88fa7e2cc57ae839953db81e",
+            "claimType": "TEMPORAL_RULE",
+            "operative": null,
+            "statement": "This instrument takes effect on 1 January 2026.",
+            "sourceNodeIds": [
+              "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "b3808f99a6bd238f3945fc94e15774a412f4130f8be42ec9390424d8070ef5cb",
+            "claimType": "TEMPORAL_RULE",
+            "operative": null,
+            "statement": "For covered services first operating on or after 1 January 2026, those duties apply immediately on first operation.",
+            "sourceNodeIds": [
+              "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "c4ad3f4ac9800807b9f6b20cf4f33277e60973cfb11e5217938b9d8b27105be9",
+            "claimType": "TEMPORAL_RULE",
+            "operative": null,
+            "statement": "For covered services already operating before 1 January 2026, the duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month transition.",
+            "sourceNodeIds": [
+              "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "CONDITION",
+            "toClaimId": "abe9006a88a229271e68016a55f2444d719966f315fd2f9b718787e7767e49a6",
+            "relationId": "55ac44a2fa156cc51b5667f7f4caf87a74fdce4712d570c706ed4ff63a9ce0bc",
+            "fromClaimId": "c4ad3f4ac9800807b9f6b20cf4f33277e60973cfb11e5217938b9d8b27105be9",
+            "referenceId": "52be0eff2be751d7501ffbeb88af55675e55d11d0c26d43260956051bc1fc679"
+          }
+        ],
+        "identities": {
+          "91798df829b67716fb0ef447066946438d02360c88fa7e2cc57ae839953db81e": "art4_effect_date",
+          "b3808f99a6bd238f3945fc94e15774a412f4130f8be42ec9390424d8070ef5cb": "art4_transition_services_first_operating",
+          "c4ad3f4ac9800807b9f6b20cf4f33277e60973cfb11e5217938b9d8b27105be9": "art4_transition_services_operating_before"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "52be0eff2be751d7501ffbeb88af55675e55d11d0c26d43260956051bc1fc679",
+            "relationIds": [
+              "55ac44a2fa156cc51b5667f7f4caf87a74fdce4712d570c706ed4ff63a9ce0bc"
+            ],
+            "nonMaterialReason": null
+          }
+        ]
+      },
+      "claimIds": [
+        "91798df829b67716fb0ef447066946438d02360c88fa7e2cc57ae839953db81e",
+        "b3808f99a6bd238f3945fc94e15774a412f4130f8be42ec9390424d8070ef5cb",
+        "c4ad3f4ac9800807b9f6b20cf4f33277e60973cfb11e5217938b9d8b27105be9"
+      ],
+      "updatedAt": "2026-10-17T04:31:04.235",
+      "completedAt": null,
+      "disposition": "REQUIRES_REFERENCE_RESOLUTION",
+      "operationId": null,
+      "referenceIds": [
+        "52be0eff2be751d7501ffbeb88af55675e55d11d0c26d43260956051bc1fc679",
+        "24869d17954fb3e0aaa907aa95d5523694fb62a774053b44ba6f0c328128723f"
+      ],
+      "sourceNodeId": "7b38fc244cab6ffe1ee73d80cd6b7f9f86852715177b919de9dd95b077957f5b",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/4",
+      "ownedClaimCount": 3,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "e2c1b64789ec9a15ad3d9e0870e8b12f391de53f43a0d85bb466c0431d80956f",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [
+        "24869d17954fb3e0aaa907aa95d5523694fb62a774053b44ba6f0c328128723f"
+      ],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "2581d33d6e2911e6262906481ca62f85d79a692a63cc476a4c782b913cad40da"
+    },
+    {
+      "state": "REVIEWED_WITH_CLAIMS",
+      "reason": null,
+      "ordinal": 7,
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "194d28c888dc340b2a20377901b498e3cefc2fc656025a67dd7018ee79ed17bb",
+            "claimType": "SCOPE",
+            "operative": null,
+            "statement": "This paragraph supplies context and definitions; it creates no independent duty, prohibition or permission.",
+            "sourceNodeIds": [
+              "e5df6412db45ec755054bb90b236bf21bee52b9456f9dea872ecc0419f9f9699"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "1b35699c0b47486b590cae44f8a20fb2c4ab827724f0ae1a1402b10736e91972",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "An audit entry means the event record about an export request.",
+            "sourceNodeIds": [
+              "e5df6412db45ec755054bb90b236bf21bee52b9456f9dea872ecc0419f9f9699"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "7b085e39131ebcdfed2c99a494da712de53019db3b55013d6c4ff5fe91d2effb",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "Repository storage means the storage surface used by the covered service for customer-created records.",
+            "sourceNodeIds": [
+              "e5df6412db45ec755054bb90b236bf21bee52b9456f9dea872ecc0419f9f9699"
+            ],
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "194d28c888dc340b2a20377901b498e3cefc2fc656025a67dd7018ee79ed17bb": "art6-scope-context",
+          "1b35699c0b47486b590cae44f8a20fb2c4ab827724f0ae1a1402b10736e91972": "art6-def-2-audit-entry",
+          "7b085e39131ebcdfed2c99a494da712de53019db3b55013d6c4ff5fe91d2effb": "art6-def-1-repository-storage"
+        },
+        "referenceAccounting": []
+      },
+      "claimIds": [
+        "194d28c888dc340b2a20377901b498e3cefc2fc656025a67dd7018ee79ed17bb",
+        "1b35699c0b47486b590cae44f8a20fb2c4ab827724f0ae1a1402b10736e91972",
+        "7b085e39131ebcdfed2c99a494da712de53019db3b55013d6c4ff5fe91d2effb"
+      ],
+      "updatedAt": "2026-10-17T04:31:44.446",
+      "completedAt": "2026-10-17T04:31:44.442",
+      "disposition": "CLAIMS_AUTHORED",
+      "operationId": null,
+      "referenceIds": [],
+      "sourceNodeId": "e5df6412db45ec755054bb90b236bf21bee52b9456f9dea872ecc0419f9f9699",
+      "leaseExpiresAt": null,
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6/paragraph/1",
+      "ownedClaimCount": 3,
+      "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+      "stateFingerprint": "b66401fe01b335b5b45f46c36ef4317fe7c64db8b9a2592a448f4c43990980a2",
+      "inventoryRevision": 1,
+      "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+      "blockedReferenceIds": [],
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "completionFingerprint": "9d1e5e1496760d18ebd18e7cc00544632c6e5ac5ce8a62ebd41c9f90e4f661d2"
+    }
+  ],
+  "frontier": {
+    "frozenAt": null,
+    "revision": 1,
+    "createdAt": "2026-10-17T04:29:22.435",
+    "unitCount": 11,
+    "expansions": [],
+    "fingerprint": "fb1e2b0938b0d8dd3209df56e936a051070c0ad08c8e3eafef44383e15cad0a4",
+    "blockedCount": 3,
+    "pendingCount": 0,
+    "inReviewCount": 0,
+    "preparationRunId": "94773fa8-3784-44bf-8929-3961d2a429e9",
+    "stateAccumulator": "dc6fd7ba766e85891ff22ad6bb5daa87516b599c93cafc7f1c43dfe152df66e8",
+    "stateFingerprint": "652a9a98392a46dc0ac4ca0d9d0a7648ca999778a0d0621c1aa2fe408d306154",
+    "inventoryRevision": 1,
+    "materializationId": "30ff86636fca4fcffd01afa28b57434971ee9ca0247afcde25e9149d7a68ca75",
+    "persistedClaimCount": 35,
+    "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+    "reviewedNoClaimsCount": 0,
+    "reviewedWithClaimsCount": 8
+  },
+  "documents": [
+    {
+      "id": "47fe3ae7-c747-43b3-9cc4-2b3989118d21",
+      "title": "Synthetic Legal Graph Instrument - test material only",
+      "origin": "UPLOAD",
+      "createdAt": "2026-10-17T04:27:27.131",
+      "createdBy": "synthetic-legal-graph:6a0b4a278640cb4d",
+      "mediaType": "application/pdf",
+      "sourceUrl": "upload://synthetic-legal-graph.pdf",
+      "blobSha256": "55426944bfe0d036d3c7ee0f40a4d955462b87f180b73a049e02573c5ea6ac1f",
+      "byteLength": 6525,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "extraction": {
+        "tool": "managed-document-ingest:pypdf",
+        "pages": [
+          "Chapter I\nArticle 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.\nArticle 2. Export and portability\n1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\n",
+          "The implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request.\n2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies.\nArticle 3. Remedy and exception\n1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty.\n2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1).\nChapter II\nArticle 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\n",
+          "For covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation.\nArticle 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty.\nArticle 6. Context and separate configuration duties\n1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission.\n2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher.\nArticle 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty.\nArticle 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.\n"
+        ],
+        "pageCount": 3,
+        "textSha256": "sha256:a3c9ddf17c52ca2d90ce06f40c9d4dfdfae371737e4010da6a32b16ba4f874a6",
+        "toolVersion": "1.0.0",
+        "characterCount": 4615,
+        "structureProfile": "ARTICLES",
+        "frontMatterCharacters": 0
+      },
+      "ingestedAt": "2026-10-17T04:27:27.227",
+      "provenance": {
+        "uploadedFileName": "synthetic-legal-graph.pdf",
+        "provisionStatuses": {
+          "art-1": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-2": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-3": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-4": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-5": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-6": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-7": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-8": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-2::cl-1": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-2::cl-2": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-3::cl-1": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-3::cl-2": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-6::cl-1": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          },
+          "art-6::cl-2": {
+            "status": "EFFECTIVE",
+            "sourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition."
+          }
+        }
+      },
+      "snapshotPath": null,
+      "sourceSha256": "sha256:55426944bfe0d036d3c7ee0f40a4d955462b87f180b73a049e02573c5ea6ac1f",
+      "effectiveDate": null,
+      "ingestionState": "READY",
+      "ingestionAttempt": 1,
+      "originalFileName": "synthetic-legal-graph.pdf",
+      "structureProfile": "ARTICLES",
+      "sourceEffectStatus": "EFFECTIVE",
+      "ingestionFailureCode": null,
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-1",
+      "content": "Article 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.",
+      "locator": "art-1",
+      "pageEnd": 1,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Definitions",
+        "chapterTitle": "",
+        "articleNumber": "1",
+        "chapterNumber": "I"
+      },
+      "pageStart": 1,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:afc91a893b69fb957221aa9c86b2d1b162d4b38e09969425a8b05bcd555ddd31",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-2",
+      "content": "Article 2. Export and portability",
+      "locator": "art-2",
+      "pageEnd": 1,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Export and portability",
+        "chapterTitle": "",
+        "articleNumber": "2",
+        "chapterNumber": "I"
+      },
+      "pageStart": 1,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:74bf9c43aa6f160b42931c41b1e27867cbb8ae941b315d6bd049fb120eab82d4",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-2::cl-1",
+      "content": "1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\nThe implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request.",
+      "locator": "art-2::cl-1",
+      "pageEnd": 2,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Export and portability",
+        "chapterTitle": "",
+        "clauseNumber": "1",
+        "articleNumber": "2",
+        "chapterNumber": "I"
+      },
+      "pageStart": 1,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:eca1e8f61d620cda42a1b2a054fc2e15278610b57f5cd41267cdfde20662782a",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-2::cl-2",
+      "content": "2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies.",
+      "locator": "art-2::cl-2",
+      "pageEnd": 2,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Export and portability",
+        "chapterTitle": "",
+        "clauseNumber": "2",
+        "articleNumber": "2",
+        "chapterNumber": "I"
+      },
+      "pageStart": 2,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:4027f9c83eee394e5d27a1dc9d1181eca63afcb7c4a3ee0204990c9f1d4ac8d5",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-3",
+      "content": "Article 3. Remedy and exception",
+      "locator": "art-3",
+      "pageEnd": 2,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Remedy and exception",
+        "chapterTitle": "",
+        "articleNumber": "3",
+        "chapterNumber": "I"
+      },
+      "pageStart": 2,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:2afa68fd73f5bb0a9ec077a207e91331345cb605a1532e900f16619d4074b3f5",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-3::cl-1",
+      "content": "1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty.",
+      "locator": "art-3::cl-1",
+      "pageEnd": 2,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Remedy and exception",
+        "chapterTitle": "",
+        "clauseNumber": "1",
+        "articleNumber": "3",
+        "chapterNumber": "I"
+      },
+      "pageStart": 2,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:e77f9a4c320343b98d91c5de842f5bc16f7e019eb5e107faaf744c0aa86c25bd",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-3::cl-2",
+      "content": "2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1).",
+      "locator": "art-3::cl-2",
+      "pageEnd": 2,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Remedy and exception",
+        "chapterTitle": "",
+        "clauseNumber": "2",
+        "articleNumber": "3",
+        "chapterNumber": "I"
+      },
+      "pageStart": 2,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:9c770f3c0a3734d9eef448fb58c6bdeded259e03ee980a1ba490c2df2da4fe87",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-4",
+      "content": "Article 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\nFor covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation.",
+      "locator": "art-4",
+      "pageEnd": 3,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Temporal transition",
+        "chapterTitle": "",
+        "articleNumber": "4",
+        "chapterNumber": "II"
+      },
+      "pageStart": 2,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:493b37953f7643b09aa48452edf49da9379d20a4f805188a72aec70bb40b28ab",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-5",
+      "content": "Article 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty.",
+      "locator": "art-5",
+      "pageEnd": 3,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Incorporated duties",
+        "chapterTitle": "",
+        "articleNumber": "5",
+        "chapterNumber": "II"
+      },
+      "pageStart": 3,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:8ca9212e981f0bef503ecdac349d1a57991ccd38c88effeb8c713cf610dea11d",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-6",
+      "content": "Article 6. Context and separate configuration duties",
+      "locator": "art-6",
+      "pageEnd": 3,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Context and separate configuration duties",
+        "chapterTitle": "",
+        "articleNumber": "6",
+        "chapterNumber": "II"
+      },
+      "pageStart": 3,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:16ae464938d35f2226455fa4ea36ab1bee2a4d9322816132d032985059e2d21b",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-6::cl-1",
+      "content": "1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission.",
+      "locator": "art-6::cl-1",
+      "pageEnd": 3,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Context and separate configuration duties",
+        "chapterTitle": "",
+        "clauseNumber": "1",
+        "articleNumber": "6",
+        "chapterNumber": "II"
+      },
+      "pageStart": 3,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:59e08bb080c38146ab33de5a1f488316d146068de93aeffbb755a6ee407c675f",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-6::cl-2",
+      "content": "2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher.",
+      "locator": "art-6::cl-2",
+      "pageEnd": 3,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Context and separate configuration duties",
+        "chapterTitle": "",
+        "clauseNumber": "2",
+        "articleNumber": "6",
+        "chapterNumber": "II"
+      },
+      "pageStart": 3,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:996dc6b8e5009c37aacbfb42d11a2004326e4d258430c5b0785f79ed206055da",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-7",
+      "content": "Article 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty.",
+      "locator": "art-7",
+      "pageEnd": 3,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Delegated fulfillment and direction",
+        "chapterTitle": "",
+        "articleNumber": "7",
+        "chapterNumber": "II"
+      },
+      "pageStart": 3,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:5998be4f91a57f7534d3dfb8d5018303975b01123022c12f1ae899ca8711ce10",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    },
+    {
+      "id": "85d19123-6aff-4929-b0b0-b9cf57244b98::synthetic-legal-graph-instrument-test-material-only::art-8",
+      "content": "Article 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.",
+      "locator": "art-8",
+      "pageEnd": 3,
+      "createdAt": "2026-10-17T04:27:27.224",
+      "hierarchy": {
+        "articleTitle": "Conditional permission and evidence",
+        "chapterTitle": "",
+        "articleNumber": "8",
+        "chapterNumber": "II"
+      },
+      "pageStart": 3,
+      "documentId": "synthetic-legal-graph-instrument-test-material-only",
+      "legalStatus": "UNKNOWN",
+      "contentSha256": "sha256:26028ffcbd77e30996a3df12b94f1ee8deee92841a4c52fb81dd63a72ee97c70",
+      "legalEffectStatus": "EFFECTIVE",
+      "legalSourceVersionId": "85d19123-6aff-4929-b0b0-b9cf57244b98",
+      "legalStatusSourceRef": "LCSP-360 synthetic architecture acceptance fixture. Authored test material, not enacted law or a government acquisition.",
+      "legalSourceDocumentId": "47fe3ae7-c747-43b3-9cc4-2b3989118d21"
+    }
+  ],
+  "repairBindings": [
+    {
+      "referenceId": "21d7381c3a65863959507b7b3cf56d6f329681a7819fe1bce82509cdc973b7f9",
+      "fromClaimId": "4d5f9ad1b604a54c8111f62d2e7760726728c7efd12f6db3d3638cb4a7ae4f3b",
+      "toClaimId": "859d04eca448d5911539c5851e1aef09e3c616e0430cfc71a9599799239a3102",
+      "kind": "EXCEPTION"
+    },
+    {
+      "referenceId": "c25a3e7fdb6859559131bf2a1af5178492afb970403d9df37e7248f354cc3023",
+      "fromClaimId": "859d04eca448d5911539c5851e1aef09e3c616e0430cfc71a9599799239a3102",
+      "toClaimId": "2e79a3919a0d85e1f5f70f32de9a3249f9ccc869fb0fc6b193db1e482e4c41e6",
+      "kind": "EXCEPTION"
+    },
+    {
+      "referenceId": "24869d17954fb3e0aaa907aa95d5523694fb62a774053b44ba6f0c328128723f",
+      "fromClaimId": "c4ad3f4ac9800807b9f6b20cf4f33277e60973cfb11e5217938b9d8b27105be9",
+      "toClaimId": "2e79a3919a0d85e1f5f70f32de9a3249f9ccc869fb0fc6b193db1e482e4c41e6",
+      "kind": "TEMPORALLY_LIMITS"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { ChevronRightIcon, LoaderCircleIcon } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { WorkDisclosureProps } from "@/components/types/chat.types";
 
@@ -10,18 +11,27 @@ import type { WorkDisclosureProps } from "@/components/types/chat.types";
 export function WorkDisclosure({
   summary,
   running,
+  defaultExpanded,
   meta,
   children,
   className,
 }: WorkDisclosureProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded ?? running);
+  const followsRunning = defaultExpanded === undefined;
+  const isOpen = followsRunning ? running : expanded;
+
   return (
     <details
       data-slot="work-disclosure"
       data-running={running ? "true" : "false"}
-      open={running}
+      open={isOpen}
+      onToggle={(event) => {
+        if (!followsRunning) setExpanded(event.currentTarget.open);
+      }}
       className={cn("group/work min-w-0 text-sm", className)}
     >
       <summary
+        aria-expanded={followsRunning ? undefined : isOpen}
         className={cn(
           "flex cursor-pointer list-none items-center gap-2 rounded-md py-1 text-muted-foreground select-none",
           "hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
@@ -34,7 +44,8 @@ export function WorkDisclosure({
             data-slot="work-spinner"
             className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
           />
-        ) : (
+        ) : null}
+        {followsRunning && running ? null : (
           <ChevronRightIcon
             aria-hidden="true"
             className="size-3.5 shrink-0 transition-transform group-open/work:rotate-90 motion-reduce:transition-none"

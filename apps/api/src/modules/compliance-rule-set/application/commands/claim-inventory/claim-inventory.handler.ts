@@ -1,0 +1,631 @@
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import {
+  AgentExecutionState,
+  ClaimPreparationPhase,
+  Prisma,
+  RuleSetPreparationFailureReason,
+  PreparationExecutionContract,
+} from "@prisma/client";
+import {
+  CLAIM_INVENTORY_ACTIONS as A,
+  CLAIM_INVENTORY_GAPS as G,
+  COMPLIANCE_RULE_SET_ERROR_CODES,
+  RULE_SET_PREPARATION_FAILURE_REASONS as FAILURE_REASONS,
+  CLAIM_PREPARATION_PHASES as P,
+  COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
+  COMPLIANCE_RULE_SET_FAILURE_CODES as F,
+  legalSemanticGraphSchema,
+  LEGAL_SEMANTIC_GRAPH_VERSION,
+  ruleSetPreparationAuthoringDraftSchema,
+  complianceRuleSetPacketSchema,
+} from "@lcsp/contracts/compliance-rule-set";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { LegalSourceSnapshotLoader } from "../../../infrastructure/persistence/legal-source-snapshot.service.js";
+import {
+  inventoryFingerprint,
+  inventoryHash,
+  noOperativeObligationsFailures,
+  normalizeInventory,
+  validateClaimInventory,
+} from "../../../domain/claim-inventory.js";
+import {
+  reviewedFrontierFingerprint,
+  completedReviewStates,
+} from "../../../domain/source-review-frontier.js";
+import { reviewPayload } from "../source-review/source-review.handler.js";
+import { ClaimInventoryCommand } from "./claim-inventory.command.js";
+import { validateComplianceRuleSetPacket } from "../../../domain/compliance-rule-set-integrity.validator.js";
+
+@CommandHandler(ClaimInventoryCommand)
+export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryCommand> {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly source: LegalSourceSnapshotLoader,
+  ) {}
+  /**
+   * Business purpose: Move one Preparation's source-grounded claim inventory through validation, freeze, and Rule authoring readiness.
+   *
+   * Business rules:
+   * - Every action is bound to the run's current inventory revision and serialized by the Preparation row lock.
+   * - Only a running Preparation may change inventory; a discovery-only run may only finalize its diagnostic inventory.
+   * - Frozen claims cannot be changed in place; explicit reopening advances the revision and invalidates downstream authoring state.
+   * - The no-operative-obligations outcome is allowed only when validation reports that absence and no operative-typed claim exists; it does not waive other failures.
+   *
+   * Execution flow:
+   * 1. Lock and load the run, then handle idempotent conclusion/reopen, draft load/save, or authoring-phase actions.
+   * 2. For validation or finalization, normalize the submitted graph, require the pinned date and completed review frontier, and reconstruct claims and accounting from persisted reviews.
+   * 3. Validate canonical identities, source support, topology, retrieval readiness, and any persisted direct draft against the pinned Legal Source snapshot.
+   * 4. Return VALIDATE results and fingerprints without freezing. A successful FINALIZE or no-obligations conclusion persists the fingerprinted inventory/frontier freeze and advances to authoring readiness or the explicit terminal result.
+   *
+   * Failure cases:
+   * - Missing runs throw the preparation-run-not-found problem; stale revisions, invalid phases, changed frozen graphs, incomplete reviews, bad drafts, and invalid provenance return typed failed outcomes.
+   * - Database or source-loading errors propagate and roll back transactional writes.
+   *
+   * Side effects:
+   * - Reads the pinned graph and persisted review evidence; may save a draft, advance or conclude the run, freeze an inventory/frontier, and persist validation results in one transaction.
+   */
+  async execute({
+    request: input,
+    correlationId,
+  }: ClaimInventoryCommand): Promise<Record<string, unknown>> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw(
+          Prisma.sql`SELECT id FROM "RuleSetPreparationRun" WHERE id=${input.preparationRunId} FOR UPDATE`,
+        );
+        const run = await tx.ruleSetPreparationRun.findUnique({
+          where: { id: input.preparationRunId },
+        });
+        if (!run)
+          throw problemException(
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunNotFound,
+            correlationId,
+            { status: 404 },
+          );
+        /**
+         * Business purpose: Return one action-level inventory rejection with the current run context.
+         *
+         * Business rules:
+         * - Rejections retain the run's current preparation phase and inventory revision.
+         * - The helper reports a failed outcome rather than mutating lifecycle state.
+         *
+         * Execution flow:
+         * 1. Accept the specific gap code and explanatory detail.
+         * 2. Package them with the current phase and revision as the action result.
+         *
+         * Failure cases:
+         * - None beyond the original validation failure represented by the returned result.
+         *
+         * Side effects:
+         * - None; constructs an in-memory response object.
+         */
+        const fail = (code: string, detail: string) => ({
+          outcome: O.FAILED,
+          phase: P[run.claimPhase],
+          revision: run.claimInventoryRevision,
+          failures: [{ code, ref: "claimInventory", detail }],
+        });
+        const conclude = input.action === A.CONCLUDE_NO_OPERATIVE_OBLIGATIONS;
+        if (
+          conclude &&
+          run.executionState === AgentExecutionState.FAILED &&
+          run.failureReason ===
+            RuleSetPreparationFailureReason.NO_OPERATIVE_OBLIGATIONS
+        ) {
+          // A transport retry of the accepted conclusion is idempotent; a different inventory is never concluded twice.
+          const concluded =
+            await tx.ruleSetPreparationClaimInventory.findUnique({
+              where: {
+                preparationRunId_revision: {
+                  preparationRunId: run.id,
+                  revision: input.revision,
+                },
+              },
+            });
+          return concluded &&
+            input.graph &&
+            concluded.fingerprint ===
+              inventoryFingerprint(
+                input.revision,
+                normalizeInventory(input.graph),
+              )
+            ? {
+                outcome: O.PASSED,
+                phase: P.COMPLETION,
+                revision: concluded.revision,
+                fingerprint: concluded.fingerprint,
+                failureReason: FAILURE_REASONS.NO_OPERATIVE_OBLIGATIONS,
+                alreadyConcluded: true,
+              }
+            : fail(
+                G.FROZEN,
+                "The Preparation already concluded with a different inventory",
+              );
+        }
+        if (
+          run.executionState !== AgentExecutionState.RUNNING &&
+          !(
+            run.claimDiscoveryOnly &&
+            run.executionState === AgentExecutionState.SUCCEEDED &&
+            input.action === A.FINALIZE
+          )
+        )
+          return fail(G.PHASE, "Preparation is not running");
+        if (conclude && run.claimDiscoveryOnly)
+          return fail(
+            G.PHASE,
+            "A discovery-only diagnostic cannot conclude a Preparation",
+          );
+        if (
+          input.action === A.REOPEN &&
+          run.claimInventoryRevision === input.revision + 1 &&
+          run.claimPhase === ClaimPreparationPhase.CLAIM_DISCOVERY &&
+          input.reason === run.claimInventoryReopenReason
+        )
+          return {
+            outcome: O.PASSED,
+            phase: P.CLAIM_DISCOVERY,
+            revision: run.claimInventoryRevision,
+            alreadyReopened: true,
+            downstreamInvalidated: true,
+          };
+        if (run.claimInventoryRevision !== input.revision)
+          return fail(G.STALE, "Reload the current inventory revision");
+        const frozen = await tx.ruleSetPreparationClaimInventory.findUnique({
+          where: {
+            preparationRunId_revision: {
+              preparationRunId: run.id,
+              revision: input.revision,
+            },
+          },
+        });
+        if (
+          input.action === A.SAVE_AUTHORING_DRAFT ||
+          input.action === A.LOAD_AUTHORING_DRAFT
+        ) {
+          if (
+            !frozen &&
+            !(
+              run.executionContract ===
+              PreparationExecutionContract.DIRECT_DRAFT_V1
+            )
+          )
+            return fail(G.PHASE, "A frozen inventory is required for a draft");
+          const draftKey = {
+            preparationRunId_revision: {
+              preparationRunId: run.id,
+              revision: input.revision,
+            },
+          };
+          if (input.action === A.LOAD_AUTHORING_DRAFT) {
+            const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({
+              where: draftKey,
+            });
+            return {
+              outcome: O.PASSED,
+              phase: P[run.claimPhase],
+              revision: input.revision,
+              draft: saved?.draft ?? null,
+              draftVersion: saved?.draftVersion ?? 0,
+              validation: run.draftValidation,
+            };
+          }
+          const parsed = ruleSetPreparationAuthoringDraftSchema.safeParse(
+            input.draft,
+          );
+          if (!parsed.success || input.draftVersion === undefined)
+            return fail(
+              G.SCHEMA,
+              "A typed draft and its loaded draftVersion are required: " +
+                (parsed.success
+                  ? "draftVersion"
+                  : parsed.error.issues
+                      .slice(0, 20)
+                      .map((i) => i.path.join(".") + ": " + i.message)
+                      .join("; ")),
+            );
+          if (
+            Object.values(parsed.data.legalRequirements).some(
+              (r) => r.claimInventoryRevision !== input.revision,
+            )
+          )
+            return fail(
+              G.STALE,
+              "Every draft Requirement must bind the exact inventory revision",
+            );
+          const draft = parsed.data as Prisma.InputJsonValue;
+          const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({
+            where: draftKey,
+          });
+          const version = saved?.draftVersion ?? 0;
+          if (input.draftVersion !== version) {
+            if (
+              saved &&
+              input.draftVersion === version - 1 &&
+              inventoryHash(saved.draft) === inventoryHash(draft)
+            )
+              return {
+                outcome: O.PASSED,
+                phase: P[run.claimPhase],
+                revision: input.revision,
+                draftVersion: version,
+                replayed: true,
+              };
+            return {
+              ...fail(
+                G.DRAFT_STALE,
+                "A newer authoring draft exists; reload it before editing",
+              ),
+              draftVersion: version,
+            };
+          }
+          await tx.ruleSetPreparationAuthoringDraft.upsert({
+            where: draftKey,
+            create: {
+              preparationRunId: run.id,
+              revision: input.revision,
+              draft,
+              draftVersion: version + 1,
+            },
+            update: { draft, draftVersion: version + 1 },
+          });
+          return {
+            outcome: O.PASSED,
+            phase: P[run.claimPhase],
+            revision: input.revision,
+            draftVersion: version + 1,
+          };
+        }
+        if (input.action === A.REOPEN) {
+          if (!frozen || !input.reason)
+            return fail(
+              G.PHASE,
+              "A frozen inventory and explicit reopening reason are required",
+            );
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: {
+              claimInventoryRevision: { increment: 1 },
+              claimPhase: ClaimPreparationPhase.CLAIM_DISCOVERY,
+              claimInventoryReopenReason: input.reason,
+              // The new revision gets its own review frontier; the worker initialises it with a fresh operation.
+              reviewOperationId: null,
+            },
+          });
+          return {
+            outcome: O.PASSED,
+            phase: P.CLAIM_DISCOVERY,
+            revision: input.revision + 1,
+            reason: input.reason,
+            downstreamInvalidated: true,
+          };
+        }
+        if (input.action === A.AUTHOR_RULES) {
+          if (
+            frozen &&
+            legalSemanticGraphSchema.parse(frozen.graph).contractVersion !==
+              LEGAL_SEMANTIC_GRAPH_VERSION
+          )
+            return fail(
+              F.SOURCE_SUPPORT_INVALID,
+              "Historical inventories are read-only; explicitly reopen and obtain V3 source support before new authoring",
+            );
+          if (run.claimDiscoveryOnly)
+            return fail(
+              G.PHASE,
+              "A discovery-only diagnostic cannot author Rules",
+            );
+          if (
+            frozen &&
+            (
+              [
+                ClaimPreparationPhase.RULE_AUTHORING,
+                ClaimPreparationPhase.RULE_VALIDATION,
+                ClaimPreparationPhase.SUBMISSION_READY,
+              ] as ClaimPreparationPhase[]
+            ).includes(run.claimPhase)
+          )
+            return {
+              outcome: O.PASSED,
+              phase: P[run.claimPhase],
+              revision: frozen.revision,
+              fingerprint: frozen.fingerprint,
+              alreadyStarted: true,
+            };
+
+          if (
+            !frozen ||
+            run.claimPhase !== ClaimPreparationPhase.CLAIM_INVENTORY_READY
+          )
+            return fail(
+              G.PHASE,
+              "Finalize inventory before starting Rule authoring",
+            );
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: { claimPhase: ClaimPreparationPhase.RULE_AUTHORING },
+          });
+          return {
+            outcome: O.PASSED,
+            phase: P.RULE_AUTHORING,
+            revision: frozen.revision,
+            fingerprint: frozen.fingerprint,
+          };
+        }
+        if (!input.graph || !input.identities)
+          return fail(
+            G.INVALID,
+            "Graph and canonical identity keys are required",
+          );
+        const graph = normalizeInventory(input.graph);
+        if (
+          run.executionContract ===
+            PreparationExecutionContract.DIRECT_DRAFT_V1 &&
+          (!run.targetDate ||
+            graph.targetDate !== run.targetDate.toISOString().slice(0, 10))
+        )
+          return fail(
+            G.STALE,
+            "Direct draft must use the run's pinned target date",
+          );
+        const fingerprint = inventoryFingerprint(input.revision, graph);
+        if (conclude && frozen)
+          return fail(
+            G.FROZEN,
+            "A frozen inventory supports Rule authoring; it cannot conclude without operative obligations",
+          );
+        if (frozen)
+          return frozen.fingerprint === fingerprint
+            ? {
+                outcome: O.PASSED,
+                phase: P[run.claimPhase],
+                revision: frozen.revision,
+                fingerprint,
+                alreadyFinalized: true,
+              }
+            : fail(
+                G.FROZEN,
+                "Frozen claims cannot mutate; reopen inventory explicitly",
+              );
+        if (
+          run.claimPhase !== ClaimPreparationPhase.CLAIM_DISCOVERY &&
+          run.claimPhase !== ClaimPreparationPhase.CLAIM_INVENTORY_VALIDATION
+        )
+          return fail(
+            G.PHASE,
+            "Claim discovery must precede inventory validation",
+          );
+        const frontier = await tx.ruleSetPreparationReviewFrontier.findUnique({
+          where: {
+            preparationRunId_inventoryRevision: {
+              preparationRunId: run.id,
+              inventoryRevision: input.revision,
+            },
+          },
+        });
+        if (!frontier)
+          return {
+            ...fail(
+              G.INVALID,
+              "Initialize the deterministic review frontier first",
+            ),
+            requiredAction: "read /work/discovery-progress.json",
+          };
+        const items = await tx.ruleSetPreparationSourceReview.findMany({
+          where: {
+            preparationRunId: run.id,
+            inventoryRevision: input.revision,
+          },
+          orderBy: { ordinal: "asc" },
+        });
+        const unfinished = items.filter(
+          (item) => !completedReviewStates.includes(item.state as never),
+        );
+        if (!items.length || unfinished.length)
+          return {
+            ...fail(
+              G.INVALID,
+              "Complete every pending/in-review/blocked review unit before freezing",
+            ),
+            requiredAction: "read /work/discovery-progress.json",
+            pendingCount: unfinished.length,
+            nextReviewUnitIds: unfinished
+              .slice(0, 3)
+              .map((i) => i.sourceNodeId),
+          };
+        const reviewBinding = {
+          revision: frontier.revision,
+          fingerprint: frontier.fingerprint,
+          reviewedFingerprint: reviewedFrontierFingerprint(
+            frontier.fingerprint,
+            items,
+          ),
+        };
+        const payloads = items.map(reviewPayload);
+        const persistentGraph = normalizeInventory({
+          ...graph,
+          reviewFrontier: reviewBinding,
+          claims: payloads.flatMap((p) => p.claims),
+          relations: [
+            ...new Map(
+              payloads
+                .flatMap((p) => p.relations)
+                .map((r) => [r.relationId, r]),
+            ).values(),
+          ],
+          sourceAccounting: items.map((item) => ({
+            sourceNodeId: item.sourceNodeId,
+            claimIds: item.claimIds,
+            nonSemanticReason: item.claimIds.length ? null : item.reason,
+          })),
+          referenceAccounting: payloads.flatMap((p) => p.referenceAccounting),
+        });
+        const persistentIdentities = Object.fromEntries(
+          payloads.flatMap((p) => Object.entries(p.identities)),
+        );
+        const { snapshot } = await this.source.load(run, {
+          legalRequirements: [],
+          assessmentRules: [],
+          contextRelations: [],
+        });
+        // Validate durable evidence before comparing projections, so legacy defects remain repairable.
+        const result = validateClaimInventory(
+          run.id,
+          input.revision,
+          persistentGraph,
+          persistentIdentities,
+          snapshot,
+          run.claimDiscoveryOnly
+            ? new Set(items.map((item) => item.sourceNodeId))
+            : undefined,
+        );
+        // INV-C2: the conclusion waives only the reported absence of an operative claim, never another gate.
+        const failures = conclude
+          ? noOperativeObligationsFailures(persistentGraph, result.failures)
+          : result.failures;
+        if (
+          !conclude &&
+          run.executionContract === PreparationExecutionContract.DIRECT_DRAFT_V1
+        ) {
+          const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({
+            where: {
+              preparationRunId_revision: {
+                preparationRunId: run.id,
+                revision: input.revision,
+              },
+            },
+          });
+          const draft = ruleSetPreparationAuthoringDraftSchema.safeParse(
+            saved?.draft,
+          );
+          if (!draft.success)
+            return fail(G.SCHEMA, "A persisted direct draft is required");
+          const packet = complianceRuleSetPacketSchema.safeParse({
+            legalRequirements: Object.values(draft.data.legalRequirements),
+            assessmentRules: Object.values(draft.data.assessmentRules),
+            contextRelations: Object.values(draft.data.contextRelations),
+            semanticGraph: persistentGraph,
+            claimInventory: { revision: input.revision, fingerprint },
+          });
+          if (!packet.success)
+            return fail(
+              G.SCHEMA,
+              packet.error.issues
+                .slice(0, 20)
+                .map((i) => i.path.join(".") + ": " + i.message)
+                .join("; "),
+            );
+          failures.push(
+            ...validateComplianceRuleSetPacket(
+              packet.data,
+              snapshot,
+              () => false,
+            ).failures,
+          );
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: {
+              draftValidation: {
+                outcome: failures.length ? O.FAILED : O.PASSED,
+                failures,
+              },
+            },
+          });
+        }
+        if (failures.length)
+          return {
+            ...result,
+            failures,
+            outcome: O.FAILED,
+            phase: P.CLAIM_INVENTORY_VALIDATION,
+            revision: input.revision,
+          };
+        if (
+          inventoryHash(persistentGraph) !== inventoryHash(graph) ||
+          inventoryHash(persistentIdentities) !==
+            inventoryHash(input.identities)
+        )
+          return {
+            ...fail(
+              G.INVALID,
+              "Candidate differs from transactionally completed source reviews",
+            ),
+            requiredAction: "get_claim_inventory",
+          };
+        if (failures.length || input.action === A.VALIDATE)
+          return {
+            ...result,
+            outcome: result.failures.length ? O.FAILED : O.PASSED,
+            phase: P.CLAIM_INVENTORY_VALIDATION,
+            revision: input.revision,
+            fingerprint,
+          };
+        await tx.ruleSetPreparationClaimInventory.create({
+          data: {
+            preparationRunId: run.id,
+            revision: input.revision,
+            fingerprint,
+            graphDigest: inventoryHash(graph),
+            reviewedFrontierFingerprint: reviewBinding.reviewedFingerprint,
+            graph,
+            identities: input.identities,
+            reopenReason: run.claimInventoryReopenReason,
+          },
+        });
+        await tx.ruleSetPreparationReviewFrontier.update({
+          where: {
+            preparationRunId_inventoryRevision: {
+              preparationRunId: run.id,
+              inventoryRevision: input.revision,
+            },
+          },
+          data: { frozenAt: new Date() },
+        });
+        if (conclude) {
+          // Terminal and explicit: no Rule Set is created or activated; the committed inventory above is the record.
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: {
+              claimPhase: ClaimPreparationPhase.COMPLETION,
+              executionState: AgentExecutionState.FAILED,
+              failureReason:
+                RuleSetPreparationFailureReason.NO_OPERATIVE_OBLIGATIONS,
+              completedAt: new Date(),
+            },
+          });
+          return {
+            outcome: O.PASSED,
+            phase: P.COMPLETION,
+            revision: input.revision,
+            fingerprint,
+            graphDigest: inventoryHash(graph),
+            failureReason: FAILURE_REASONS.NO_OPERATIVE_OBLIGATIONS,
+            coverage: result.coverage,
+          };
+        }
+        await tx.ruleSetPreparationRun.update({
+          where: { id: run.id },
+          data: {
+            claimPhase: ClaimPreparationPhase.CLAIM_INVENTORY_READY,
+            ...(run.claimDiscoveryOnly
+              ? {
+                  executionState: AgentExecutionState.SUCCEEDED,
+                  completedAt: new Date(),
+                }
+              : {}),
+          },
+        });
+        return {
+          outcome: O.PASSED,
+          phase: P.CLAIM_INVENTORY_READY,
+          revision: input.revision,
+          fingerprint,
+          graphDigest: inventoryHash(graph),
+          coverage: result.coverage,
+        };
+      },
+      { timeout: 30000 },
+    );
+  }
+}

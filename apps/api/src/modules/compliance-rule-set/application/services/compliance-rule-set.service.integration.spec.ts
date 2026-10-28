@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
+import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import type { z } from "zod";
@@ -8,8 +10,10 @@ import {
   PrismaClient,
 } from "@prisma/client";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import { LEGAL_SOURCE_CHUNK_STATUSES } from "@lcsp/contracts/legal-source";
 import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_EXECUTION_CONTRACTS,
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
@@ -20,6 +24,7 @@ import {
   ruleSetPreparationLegalSourceBundleSchema,
   ruleSetPreparationFailRequestSchema,
   ruleSetPreparationStartRequestSchema,
+  deriveAssessmentApplicabilityGuidance,
 } from "@lcsp/contracts/compliance-rule-set";
 
 import {
@@ -27,8 +32,10 @@ import {
   legalSourceFactory,
   ref,
   validPacket,
+  withDerivedAssessmentSemantics,
 } from "../../../../../test/support/compliance-rule-set-fixtures.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { semanticFidelityPair } from "../../../../../test/support/semantic-fidelity-fixtures.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
@@ -42,11 +49,15 @@ import { SubmitComplianceRuleSetCommand } from "../commands/submit-compliance-ru
 import { SubmitComplianceRuleSetHandler } from "../commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.js";
 import { GetActiveComplianceRuleSetHandler } from "../queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetActiveComplianceRuleSetQuery } from "../queries/get-active-compliance-rule-set/get-active-compliance-rule-set.query.js";
-import { ValidateComplianceRuleSetHandler } from "../queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
-import { ValidateComplianceRuleSetQuery } from "../queries/validate-compliance-rule-set/validate-compliance-rule-set.query.js";
+import { ValidateComplianceRuleSetHandler } from "../commands/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
+import { ValidateComplianceRuleSetCommand } from "../commands/validate-compliance-rule-set/validate-compliance-rule-set.command.js";
 import { LegalSourceSnapshotLoader } from "../../infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetReadModelLoader } from "../../infrastructure/persistence/compliance-rule-set-read-model.service.js";
+import {
+  reactivationTargetInclude,
+  storedRuleSetIntegrityValid,
+} from "../../infrastructure/persistence/stored-rule-set-integrity.js";
 
 /**
  * Real PostgreSQL proof of the rule set boundary: atomic activation, one ACTIVE
@@ -74,9 +85,15 @@ function buildRuleSetUseCases(
       schema,
       COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
     ).transform(body);
-  const legalSource = new LegalSourceSnapshotLoader(prisma);
+  const legalSource = new LegalSourceSnapshotLoader(
+    prisma,
+    new LegalDocumentGraphService(prisma),
+  );
   const start = new StartRuleSetPreparationHandler(prisma, outbox);
-  const claim = new ClaimRuleSetPreparationHandler(prisma);
+  const claim = new ClaimRuleSetPreparationHandler(
+    prisma,
+    new LegalDocumentGraphService(prisma),
+  );
   const fail = new FailRuleSetPreparationHandler(prisma);
   const submit = new SubmitComplianceRuleSetHandler(
     prisma,
@@ -99,7 +116,12 @@ function buildRuleSetUseCases(
     claimPreparation: async (i: Body) =>
       claim.execute(
         new ClaimRuleSetPreparationCommand(
-          parse(ruleSetPreparationClaimRequestSchema, i.body),
+          parse(ruleSetPreparationClaimRequestSchema, {
+            ...(i.body as Record<string, unknown>),
+            supportedExecutionContracts: [
+              PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1,
+            ],
+          }),
           i.correlationId,
         ),
       ),
@@ -113,15 +135,21 @@ function buildRuleSetUseCases(
     submit: async (i: Body & { actorId: string }) =>
       submit.execute(
         new SubmitComplianceRuleSetCommand(
-          parse(complianceRuleSetSubmitRequestSchema, i.body),
+          parse(
+            complianceRuleSetSubmitRequestSchema,
+            await pinFixtureRequest(prisma, i.body),
+          ),
           i.actorId,
           i.correlationId,
         ),
       ),
     validate: async (i: Body) =>
       validate.execute(
-        new ValidateComplianceRuleSetQuery(
-          parse(complianceRuleSetValidateRequestSchema, i.body),
+        new ValidateComplianceRuleSetCommand(
+          parse(
+            complianceRuleSetValidateRequestSchema,
+            await pinFixtureRequest(prisma, i.body),
+          ),
           i.correlationId,
         ),
       ),
@@ -131,6 +159,8 @@ function buildRuleSetUseCases(
 }
 
 describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
+  // Graph materialization needs the migration's deferrable parent FK.
+  beforeAll(ensureMigratedSchema, 180_000);
   let prisma: PrismaClient;
   let outbox: OutboxRepository;
   let service: ReturnType<typeof buildRuleSetUseCases>;
@@ -305,6 +335,10 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       await service.getActiveRuleSet(randomUUID()),
     );
     expect(read.ruleSetVersionId).toBe(result.ruleSetVersionId);
+    expect(read.claimInventory?.revision).toBe(1);
+    expect(
+      read.legalRequirements.every((r) => r.claimInventoryRevision === 1),
+    ).toBe(true);
     expect(read.legalSourceVersionId).toBe(legalSource.id);
     expect(read.legalRequirements).toHaveLength(5);
     expect(
@@ -318,6 +352,197 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     );
     expect(person?.nonRepositoryDuty).toBe(true);
     expect(person?.coverage.state).toBe("NON_ASSESSABLE");
+  });
+
+  it("derives omitted applicability once and preserves parent roles through persistence and the reader", async () => {
+    const source = await createLegalSource();
+    const run = await startRun(source.id);
+    const packet = validPacket();
+    const parent = packet.legalRequirements[0];
+    parent.operativePropositions![0].actor =
+      "Organization A remains the obligation holder";
+    parent.applicabilityConditions = [
+      "Organization A delegates fulfillment to Organization B, which performs on behalf of A without releasing A",
+    ];
+    parent.qualifiers = [
+      "Only actions intended to prevent the defined transfer",
+    ];
+    parent.exceptions = [
+      "Only while a documented specific security threat exists",
+    ];
+    packet.assessmentRules[0].criteria[0].investigationFocus =
+      "Repository billing endpoint only";
+    withDerivedAssessmentSemantics(packet);
+    const input = {
+      ...packet,
+      assessmentRules: packet.assessmentRules.map(
+        ({
+          applicabilityGuidance,
+          legalIntent,
+          contextRelationIds,
+          unresolvedConditions,
+          ...rule
+        }) => {
+          void applicabilityGuidance;
+          void legalIntent;
+          void contextRelationIds;
+          void unresolvedConditions;
+          return {
+            ...rule,
+            criteria: rule.criteria.map(({ statement, ...criterion }) => {
+              void statement;
+              return criterion;
+            }),
+          };
+        },
+      ),
+    };
+    const accepted = await submit(run.preparationRunId, input);
+    expect(accepted.validation.failures).toEqual([]);
+    const stored = await prisma.assessmentRule.findFirstOrThrow({
+      where: {
+        ruleSetVersionId: accepted.ruleSetVersionId,
+        assessmentRuleId: "ER-DEF",
+      },
+    });
+    const expected = deriveAssessmentApplicabilityGuidance([parent]);
+    expect(stored.applicabilityGuidance).toBe(expected);
+    expect(stored.criteria).toEqual([
+      {
+        criterionId: "C-1",
+        legalRequirementIds: [parent.legalRequirementId],
+        statement: expected,
+        investigationFocus: "Repository billing endpoint only",
+      },
+    ]);
+    expect(
+      (stored.contract as Record<string, unknown>).applicabilityGuidance,
+    ).toBe(expected);
+    const read = await service.getActiveRuleSet(randomUUID());
+    expect(
+      read.assessmentRules.find((rule) => rule.assessmentRuleId === "ER-DEF")
+        ?.applicabilityGuidance,
+    ).toBe(expected);
+    expect(
+      read.assessmentRules.find((rule) => rule.assessmentRuleId === "ER-DEF")
+        ?.criteria,
+    ).toEqual(stored.criteria);
+  });
+
+  it("persists inherited dependency direction and unresolved fact identity through the read model", async () => {
+    const source = await createLegalSource();
+    const run = await startRun(source.id);
+    const packet = semanticFidelityPair();
+    const result = await submit(run.preparationRunId, packet);
+    expect(result.validation.failures).toEqual([]);
+    const read = await service.getActiveRuleSet(randomUUID());
+    const expected = packet.assessmentRules[0];
+    const actual = read.assessmentRules.find(
+      (rule) => rule.assessmentRuleId === expected.assessmentRuleId,
+    )!;
+    expect(actual.contextRelationIds).toEqual(expected.contextRelationIds);
+    expect(actual.unresolvedConditionBindings).toEqual(
+      expected.unresolvedConditionBindings,
+    );
+    expect(actual.unresolvedConditions).toEqual(expected.unresolvedConditions);
+    expect(actual.criteria).toEqual(expected.criteria);
+    expect(actual.legalIntent).toEqual(expected.legalIntent);
+    expect(read.semanticGraph?.claims.length).toBeGreaterThan(0);
+    const accepted = await prisma.complianceRuleSetVersion.findUniqueOrThrow({
+      where: { id: result.ruleSetVersionId },
+      include: reactivationTargetInclude,
+    });
+    const chunks = await prisma.legalDocumentChunk.findMany({
+      where: { legalSourceVersionId: source.id },
+    });
+    expect(storedRuleSetIntegrityValid(accepted, chunks)).toBe(true);
+    await expect(
+      prisma.legalSemanticClaim.updateMany({
+        where: { ruleSetVersionId: result.ruleSetVersionId },
+        data: { statement: "mutated" },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      prisma.legalRequirementClaimBinding.deleteMany({
+        where: { ruleSetVersionId: result.ruleSetVersionId },
+      }),
+    ).rejects.toThrow();
+  });
+  it("persists and verifies claim-to-node lineage without requiring legacy chunk citations", async () => {
+    const source = await createLegalSource();
+    const run = await startRun(source.id);
+    const packet = validPacket();
+    packet.legalRequirements.forEach((r) => {
+      r.sourceRefs = [];
+      r.operativePropositions!.forEach((p) => {
+        p.sourceRefs = [];
+      });
+    });
+    packet.assessmentRules.forEach((r) => {
+      r.sourceRefs = [];
+    });
+    packet.contextRelations = packet.contextRelations.filter(
+      (r) => !r.toSourceRef,
+    );
+    const candidate = complianceRuleSetSubmitRequestSchema.shape.packet.parse({
+      ...packet,
+      assessmentRules: packet.assessmentRules.map((r) => ({
+        ...r,
+        legalIntent: undefined,
+        applicabilityGuidance: undefined,
+        contextRelationIds: undefined,
+        requiredEvidence: [],
+        supportingEvidence: [],
+        negativeEvidence: [],
+        investigationGoals: [],
+        criteria: r.criteria.map((c) => ({ ...c, statement: undefined })),
+      })),
+    });
+    const result = await submit(run.preparationRunId, candidate);
+    expect(result.validation.failures).toEqual([]);
+    const accepted = await prisma.complianceRuleSetVersion.findUniqueOrThrow({
+      where: { id: result.ruleSetVersionId },
+      include: reactivationTargetInclude,
+    });
+    expect(
+      accepted.rules.every(
+        (r) => r.provenance.length === 0 && r.claimBindings.length > 0,
+      ),
+    ).toBe(true);
+    expect(storedRuleSetIntegrityValid(accepted, [])).toBe(true);
+    const read = await service.getActiveRuleSet(randomUUID());
+    expect(read.semanticGraph!.claims.length).toBe(
+      candidate.semanticGraph!.claims.length,
+    );
+    expect(read.legalRequirements.every((r) => r.sources.length === 0)).toBe(
+      true,
+    );
+  });
+
+  it("reports contradictory downstream guidance as a deterministic gap before canonical submission", async () => {
+    const source = await createLegalSource();
+    const run = await startRun(source.id);
+    const packet = validPacket();
+    packet.legalRequirements[0].applicabilityConditions = [
+      "Organization A delegates fulfillment to Organization B",
+    ];
+    packet.assessmentRules[0].applicabilityGuidance =
+      "Organization B delegates fulfillment to Organization A";
+    const result = await service.validate({
+      body: { preparationRunId: run.preparationRunId, packet },
+      correlationId: randomUUID(),
+    });
+    expect(result.failures).toContainEqual(
+      expect.objectContaining({
+        code: COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+        ref: "assessmentRule:ER-DEF",
+      }),
+    );
+    expect(
+      await prisma.complianceRuleSetVersion.count({
+        where: { preparationRunId: run.preparationRunId },
+      }),
+    ).toBe(0);
   });
 
   it("replays the same idempotency key without a second activation, audit row or event", async () => {
@@ -700,6 +925,19 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       [...FIXTURE_LOCATORS].sort(),
     );
     expect(
+      bundle.documents[0].chunks.map((chunk) => [
+        chunk.legalEffectStatus,
+        chunk.legalStatusSourceRef,
+      ]),
+    ).toEqual(
+      [...FIXTURE_LOCATORS]
+        .sort()
+        .map(() => [
+          LEGAL_SOURCE_CHUNK_STATUSES.EFFECTIVE,
+          "source-metadata:fixture",
+        ]),
+    );
+    expect(
       (
         await prisma.ruleSetPreparationRun.findUniqueOrThrow({
           where: { id: run.preparationRunId },
@@ -736,10 +974,19 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     );
   });
 
-  it("validates a packet as a dry-run without persisting anything", async () => {
-    const run = await startRun((await createLegalSource()).id);
+  it("validates against a frozen inventory without publishing Rule artifacts", async () => {
+    const source = await createLegalSource();
+    await new LegalDocumentGraphService(prisma as PrismaService).materialize(
+      source.id,
+    );
+    const run = await startRun(source.id);
     const before = await prisma.complianceRuleSetVersion.count();
-    const bad = validPacket();
+    await claimBeforeSubmit(run.preparationRunId);
+    const pinned = await pinFixtureRequest(prisma, {
+      preparationRunId: run.preparationRunId,
+      packet: validPacket(),
+    });
+    const bad = structuredClone(pinned.packet);
     bad.assessmentRules[0].legalRequirementIds.push("LR-MISSING");
 
     const failed = await service.validate({
@@ -751,10 +998,11 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       COMPLIANCE_RULE_SET_FAILURE_CODES.ORPHAN_ASSESSMENT_RULE,
     );
     const passed = await service.validate({
-      body: { preparationRunId: run.preparationRunId, packet: validPacket() },
+      body: pinned,
       correlationId: randomUUID(),
     });
-    expect(passed).toEqual({ outcome: "PASSED", failures: [] });
+    expect(passed).toMatchObject({ outcome: "PASSED", failures: [] });
+    expect(passed.coverage!.semanticClaims.unaccounted).toBe(0);
 
     expect(await prisma.complianceRuleSetVersion.count()).toBe(before);
     expect(
@@ -763,7 +1011,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
           where: { id: run.preparationRunId },
         })
       ).executionState,
-    ).toBe("QUEUED");
+    ).toBe("RUNNING");
   });
 
   it("records an execution failure once and refuses to fail a finished run", async () => {
@@ -870,3 +1118,4 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     );
   });
 });
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";

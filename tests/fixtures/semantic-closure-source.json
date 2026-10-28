@@ -1,0 +1,55 @@
+{
+  "documentId": "SYNTHETIC-SEMANTIC-CLOSURE",
+  "title": "Synthetic semantic closure instrument - test material only",
+  "provenance": "LCSP-360 comprehensive semantic fidelity test fixture; synthetic material, not a government authority",
+  "provisions": [
+    {
+      "locator": "SEM-001",
+      "content": "Definitions. A covered service stores customer-created records and offers them to customers through a digital interface. The operator is the entity controlling that service. A portable copy contains all customer-created records in an interoperable machine-readable format. A fulfillment provider is a separate entity selected by the operator to run its export software. These definitions apply to SEM-002 through SEM-012."
+    },
+    {
+      "locator": "SEM-002",
+      "content": "Direct duty. The operator of a covered service must implement a software export function that produces a portable copy for a requesting customer. The operator must provide the copy within seven calendar days after receiving the request. The implemented function and the actual timely delivery are distinct aspects: a configured function alone does not establish that a particular request was fulfilled."
+    },
+    {
+      "locator": "SEM-003",
+      "content": "Qualified prohibition. The operator must not impose commercial charges or technical obstacles intended to prevent a customer moving their customer-created records to another service. For both commercial charges and technical obstacles, the prohibition is limited to those intended to prevent that portability; this provision does not prohibit charges generally. The narrowly limited security exception in SEM-007 applies."
+    },
+    {
+      "locator": "SEM-004",
+      "content": "Conditional remedy. If failure to perform SEM-002 causes a customer documented financial loss, the operator must compensate that customer for the documented loss within thirty calendar days after receiving notice of that loss. Maintaining a compensation policy alone does not perform this payment duty."
+    },
+    {
+      "locator": "SEM-005",
+      "content": "Transition. This instrument takes effect on 1 January 2026. For covered services already operating before that date, the duties in SEM-002 and SEM-003 become applicable on 1 July 2026 after a six-month transition. For services first operating on or after 1 January 2026, those duties apply immediately on first operation."
+    },
+    {
+      "locator": "SEM-006",
+      "content": "Incorporation. When an operator delegates fulfilment of export requests to an external fulfillment provider, that provider must implement the software portable-copy function required by SEM-002 and perform the same portable-copy delivery duty with the same seven-day period and definitions in SEM-001. Delegation does not remove the operator's own duty. This provision incorporates the operative duty, not merely its citation."
+    },
+    {
+      "locator": "SEM-007",
+      "content": "Limited exception. The operator may temporarily block a transfer prohibited from obstruction by SEM-003 only while a documented, specific security threat makes that transfer unsafe. The block must be proportionate to that threat and end when the threat ends. This exception does not remove or delay the portable-copy duty in SEM-002."
+    },
+    {
+      "locator": "SEM-008",
+      "content": "Directional roles. Actor A is the covered-service operator and legal holder of SEM-002. Actor B is the external fulfillment provider. The condition is that A delegates export fulfillment to B. A must maintain a software configuration identifying B as its delegate for the relevant service; B must implement the delegated portable-copy software path on behalf of A. B performs fulfillment, while A remains responsible for SEM-002. B's express SEM-006 duty is distinct and does not transfer or replace A's duty. B delegating to A is not this condition."
+    },
+    {
+      "locator": "SEM-009",
+      "content": "Distinct actors. The operator must implement a permission check limiting each portable-copy request to the records of the requesting customer. The fulfillment provider must honor that permission check when performing the delegated software path. The customer is the beneficiary and requesting record owner, not the operator or fulfillment provider. A repository auditor may inspect implementation evidence but owes no export-fulfillment duty under this paragraph."
+    },
+    {
+      "locator": "SEM-010",
+      "content": "Software safeguards. The operator must implement appropriate software safeguards protecting customer-created records during processing and export. An assessment may inspect the repository storage-encryption surface as one narrower evidence slice of these safeguards. That slice does not replace the broader safeguards duty or introduce a specific cipher or algorithm absent from this instrument."
+    },
+    {
+      "locator": "SEM-011",
+      "content": "Compatible audit duties. For the same export function, the operator must record the authorization decision in an audit entry and must record completion or failure with its timestamp in the audit entry. These are two compatible software duties with the same actor and scope; both must survive any combined representation."
+    },
+    {
+      "locator": "SEM-012",
+      "content": "Context-only interpretation. In SEM-010 and SEM-011, repository storage means the storage surface used by the covered service for customer-created records. An audit entry means the event record about that export request. This paragraph supplies definitions and scope for those operative provisions; it creates no independent duty, prohibition or permission."
+    }
+  ]
+}

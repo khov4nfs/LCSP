@@ -1,0 +1,92 @@
+[
+  {
+    "id": "otp-format-only",
+    "legalText": "Synthetic evaluation duty: services exposing an OTP login must authenticate the supplied OTP against the issued session challenge before accepting login.",
+    "condition": "The service exposes an OTP login.",
+    "criteria": [
+      {
+        "criterionId": "C-1",
+        "statement": "Login authenticates the supplied OTP against the issued session challenge."
+      }
+    ],
+    "files": {
+      "src/service.py": "def login(session_id, otp):\n    return len(otp) == 6 and otp.isdigit()\n"
+    },
+    "expected": {
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "criteria": [{ "criterionId": "C-1", "outcome": "NOT_MET" }]
+    }
+  },
+  {
+    "id": "logging-without-persistence",
+    "legalText": "Synthetic evaluation duty: services accepting records must persist an audit event for every accepted record and retain it for seven days.",
+    "condition": "The service accepts records.",
+    "criteria": [
+      {
+        "criterionId": "C-1",
+        "statement": "Accepting a record persists an audit event retained for seven days."
+      }
+    ],
+    "files": {
+      "src/service.py": "def accept_record(record):\n    event = {'record_id': record['id'], 'retention_days': 7}\n    return event\n"
+    },
+    "expected": {
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "criteria": [{ "criterionId": "C-1", "outcome": "NOT_MET" }]
+    }
+  },
+  {
+    "id": "partial-safeguard",
+    "legalText": "Synthetic evaluation duty: services storing records must encrypt stored records and keep the encryption key outside the stored record file.",
+    "condition": "The service stores records.",
+    "criteria": [
+      {
+        "criterionId": "C-1",
+        "statement": "Stored records are encrypted and the encryption key is kept outside the stored record file."
+      }
+    ],
+    "files": {
+      "src/service.py": "import base64\nimport json\nfrom pathlib import Path\nfrom cryptography.fernet import Fernet\n\ndef store_record(record, path):\n    key = Fernet.generate_key()\n    token = Fernet(key).encrypt(record)\n    Path(path).write_text(json.dumps({'key': key.decode(), 'record': base64.b64encode(token).decode()}))\n"
+    },
+    "expected": {
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "criteria": [{ "criterionId": "C-1", "outcome": "NOT_MET" }]
+    }
+  },
+  {
+    "id": "applicability-unproven",
+    "legalText": "Synthetic evaluation duty: a service offered to the public must designate an operations owner. Whether the service is offered to the public is an operator fact, not a technical capability.",
+    "condition": "The service is actually offered to the public.",
+    "criteria": [
+      {
+        "criterionId": "C-1",
+        "statement": "An operations owner has been designated."
+      }
+    ],
+    "files": {
+      "README.md": "This snapshot does not establish the service's actual audience or designated operations owner. Those facts are held by the operator.\n",
+      "src/service.py": "def handle_record(record):\n    return record['id']\n"
+    },
+    "expected": { "decision": null, "finding": "NOT_ESTABLISHED" }
+  },
+  {
+    "id": "applicability-refuted",
+    "legalText": "Synthetic evaluation duty: services whose input schema accepts biometric records must validate biometric consent. A schema that rejects biometric records is outside this duty.",
+    "condition": "The service input schema accepts biometric records.",
+    "criteria": [
+      { "criterionId": "C-1", "statement": "Biometric consent is validated." }
+    ],
+    "files": {
+      "src/service.py": "def accept_record(record):\n    if record.get('kind') != 'notice':\n        raise ValueError('Only notice records are accepted')\n    return {'id': record['id'], 'kind': 'notice'}\n"
+    },
+    "expected": {
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "criteria": [],
+      "finding": "REFUTED"
+    }
+  }
+]

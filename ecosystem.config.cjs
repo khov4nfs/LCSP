@@ -1,4 +1,4 @@
-const APP = "/srv/apps/lcsp-pm2";
+const APP = "/srv/apps/LCSP";
 const ENV_FILE = `${APP}/.env.pm2`;
 const PATH = [
   "/root/.local/bin",
@@ -22,7 +22,7 @@ module.exports = {
       name: "lcsp-api",
       cwd: APP,
 
-      script: "dotenv",
+      script: "/root/.nvm/versions/node/v24.19.0/bin/dotenv",
       interpreter: "none",
 
       args: [
@@ -48,7 +48,7 @@ module.exports = {
       name: "lcsp-web",
       cwd: APP,
 
-      script: "dotenv",
+      script: "/root/.nvm/versions/node/v24.19.0/bin/dotenv",
       interpreter: "none",
 
       args: [
@@ -59,13 +59,15 @@ module.exports = {
         "exec",
         "next",
         "start",
-        "-p", "3001",
+        "-p", "3002",
         "-H", "127.0.0.1"
       ],
 
       env: {
         ...commonEnv,
-        PORT: "3001",
+        // Node 22 only for lcsp-web (CI runtime). Node 24 SSR fails: renderToPipeableStream is not implemented.
+        PATH: `/root/.nvm/versions/node/v22.23.3/bin:/root/.nvm/versions/node/v24.19.0/bin:${PATH}`,
+        PORT: "3002",
         HOSTNAME: "127.0.0.1",
         LCSP_API_BASE_URL: "http://127.0.0.1:8080",
         LCSP_LEGAL_DOCUMENTS_DIR: `${APP}/reports`
@@ -82,7 +84,7 @@ module.exports = {
       name: "lcsp-agent-runtime",
       cwd: `${APP}/deepagents`,
 
-      script: "dotenv",
+      script: "/root/.nvm/versions/node/v24.19.0/bin/dotenv",
       interpreter: "none",
 
       args: [

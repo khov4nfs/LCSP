@@ -1,4 +1,5 @@
 import type { MessageKey } from "@lcsp/i18n";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -37,6 +38,7 @@ export function ComplianceRuleSetHistoryTable({
             {t("pages.complianceRuleSets.assessmentRules")}
           </TableHead>
           <TableHead>{t("pages.complianceRuleSets.activatedAt")}</TableHead>
+          <TableHead>{t("pages.complianceRuleSets.viewResult")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -60,6 +62,14 @@ export function ComplianceRuleSetHistoryTable({
               {ruleSet.activatedAt
                 ? formatLocaleTimestamp(ruleSet.activatedAt)
                 : "—"}
+            </TableCell>
+            <TableCell>
+              <Link
+                className="text-sm font-medium text-primary underline underline-offset-4"
+                href={`/admin/compliance-rule-sets/${ruleSet.ruleSetVersionId}`}
+              >
+                {t("pages.complianceRuleSets.viewResult")}
+              </Link>
             </TableCell>
           </TableRow>
         ))}

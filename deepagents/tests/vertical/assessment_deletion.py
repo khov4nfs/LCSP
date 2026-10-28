@@ -61,8 +61,12 @@ def main() -> None:
     root = Path(__file__).resolve().parents[3]
     url = os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]
     parsed = urlparse(url)
+    api_url = os.environ["ASSESSMENT_DELETE_DATABASE_URL"]
+    api_parsed = urlparse(api_url)
     server_url = urlparse(os.environ["LCSP_AGENT_SERVER_URL"])
-    assert parsed.hostname == "127.0.0.1" and parsed.path == "/lcsp_assessment_vertical"
+    assert api_parsed.hostname == "127.0.0.1" and api_parsed.path == "/lcsp_assessment_vertical"
+    assert parsed.hostname == api_parsed.hostname and parsed.port == api_parsed.port
+    assert parsed.path.startswith("/lcsp_assessment_")
     assert server_url.hostname == "127.0.0.1" and server_url.port
     targets = config["targets"]
     survivor = config["survivor"]
@@ -90,7 +94,8 @@ def main() -> None:
                              json=body, timeout=60)
 
     try:
-        with psycopg.connect(url, autocommit=True, row_factory=dict_row) as db:
+        with psycopg.connect(api_url, autocommit=True, row_factory=dict_row) as db, \
+                psycopg.connect(url, autocommit=True, row_factory=dict_row) as native_db:
             assert db.execute("SELECT current_database() AS name").fetchone()["name"] == "lcsp_assessment_vertical"
             for item in (*targets, survivor):
                 row = db.execute('SELECT a."ownerId",r."threadId"::text AS thread FROM "Assessment" a '
@@ -156,7 +161,7 @@ def main() -> None:
 
             def in_flight() -> None:
                 assert cancel.wait(45), "synthetic in-flight work did not receive cancellation"
-                with psycopg.connect(url, autocommit=True, row_factory=dict_row) as observed:
+                with psycopg.connect(api_url, autocommit=True, row_factory=dict_row) as observed:
                     row = observed.execute('SELECT "executionState"::text AS state,"leaseToken" FROM "AssessmentRuntime" '
                                            'WHERE "assessmentId"=%s', (active["assessmentId"],)).fetchone()
                     assert row == {"state": "CANCELLED", "leaseToken": None}
@@ -208,7 +213,7 @@ def main() -> None:
                 for thread in thread_groups[item["assessmentId"]]:
                     assert not list(saver.list({"configurable": {"thread_id": thread}}))
                     for table in ("checkpoints", "checkpoint_writes", "checkpoint_blobs"):
-                        assert not db.execute(sql.SQL("SELECT 1 FROM {} WHERE thread_id=%s").format(sql.Identifier(table)),
+                        assert not native_db.execute(sql.SQL("SELECT 1 FROM {} WHERE thread_id=%s").format(sql.Identifier(table)),
                                               (thread,)).fetchone()
                     assert httpx.get(os.environ["LCSP_AGENT_SERVER_URL"] + "/threads/" + thread + "/state").status_code == 404
                     assert httpx.post(os.environ["LCSP_AGENT_SERVER_URL"] + "/threads/" + thread + "/runs",

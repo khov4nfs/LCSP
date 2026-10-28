@@ -1,13 +1,19 @@
 """Reviewed synthetic obligations and source facts for Root semantic evaluation."""
+import base64
 import json
 import sys
+from pathlib import Path
 from vertical.scripted_preparation import build_packet, DOC
 
 
 def fixture(mode):
+    regressions = json.loads((Path(__file__).resolve().parents[3] / "tests/fixtures/assessment-root/semantic-false-positives.json").read_text())
+    regression = next((case for case in regressions if case["id"] == mode), None)
     locators = ["art-1", "art-1::cl-1", "art-2", "art-2::cl-1", "art-3", "art-3::cl-1", "art-4", "art-4::cl-1", "art-4::cl-1::pt-a", "art-5", "art-5::cl-1", "art-5::cl-1::pt-a", "art-5::cl-1::pt-b", "art-6", "art-6::cl-1"]
     import hashlib
     text = "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner."
+    if regression is not None:
+        text = regression["legalText"]
     hashes = {l: "sha256:"+hashlib.sha256(text.encode()).hexdigest() for l in locators}
     packet = build_packet(hashes)
     packet["contextRelations"] = []
@@ -24,6 +30,7 @@ def fixture(mode):
     for name,(lr,concept,intent,guidance,criterion) in definitions.items():
         legal[lr]["title"] = concept
         legal[lr]["proposition"] = intent
+        legal[lr]["applicabilityConditions"] = [guidance]
         rules[name].update(concept=concept, legalIntent=intent, applicabilityGuidance=guidance,
             criteria=[{"criterionId":"C-1","statement":criterion}], investigationGoals=[criterion], requiredEvidence=["Accepted repository source or authenticated bounded search coverage"], keywords=[])
     files = {
@@ -86,6 +93,19 @@ def fixture(mode):
         packet["assessmentRules"] = [rules["ER-XREF"]]
         files["README.md"] = "This notice service stores and deletes notice records. All application logic is in src/notices.py. Search indexes may lag; inspect direct source before concluding absence.\n"
         files["src/notices.py"] = "def delete_notice(record, store, notifier):\n    store.delete(record['id'])\n    notifier.send(record['recipient'], 'Your notice record was deleted')\n"
+    if regression is not None:
+        legal["LR-RET"].update(
+            title=mode, proposition=text, applicabilityConditions=[regression["condition"]],
+            qualifiers=[], exceptions=[], nonRepositoryDuty=False,
+        )
+        rules["ER-RET"].update(
+            concept=mode, legalIntent=text, applicabilityGuidance=regression["condition"],
+            criteria=regression["criteria"], investigationGoals=[c["statement"] for c in regression["criteria"]],
+            requiredEvidence=["Trace the complete implementation and callers; ask only for material operator facts."],
+        )
+        packet["legalRequirements"] = [legal["LR-RET"]]
+        packet["assessmentRules"] = [rules["ER-RET"]]
+        files = {"README.md": "All service implementation is in src/service.py; no other integrations are configured in this fixture.\n", **regression["files"]}
     used_legal_ids = {
         legal_id
         for assessment_rule in packet["assessmentRules"]
@@ -107,7 +127,16 @@ def fixture(mode):
     # The integrity validator requires every leaf in the seeded legal_source to be covered.
     # Keep only chunks this focused one-rule packet actually cites.
     locators = [locator for locator in locators if locator in referenced_locators]
-    return {"documentId":DOC,"hashes":hashes,"chunks":[{"locator":l,"content":text,"contentSha256":hashes[l]} for l in locators],"packet":packet,"files":files,"fixture":mode}
+    return {"documentId":DOC,"sourceSha256":hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "sourceBytesBase64":base64.b64encode(text.encode("utf-8")).decode("ascii"),
+            "hashes":hashes,"chunks":[{"locator":l,"content":text,"contentSha256":hashes[l]} for l in locators],"packet":packet,"files":files,"fixture":mode,
+            **({"semanticExpectation": regression["expected"]} if regression else {}),
+            # Ownership may be documented in the repository or supplied as a confirmed human fact.
+            "assessability": {"LR-PERSON": "MIXED"} if mode in {"source-answerable", "human"} else {},
+            "semanticFrames": {"LR-PERSON": {
+                "repositoryObservableAspect": "An approved operations register may document the designated owner.",
+                "externalFulfillmentAspect": "The organization must actually designate its responsible owner."
+            }} if mode in {"source-answerable", "human"} else {}}
 
 
 if __name__ == "__main__":

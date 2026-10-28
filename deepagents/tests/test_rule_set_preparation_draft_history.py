@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - isolated packet-layer fixture
+import pytest
+
+
 import json
 from pathlib import Path
 
@@ -80,3 +84,20 @@ def test_request_size_stays_flat_while_the_draft_grows(tmp_path: Path) -> None:
     assert max(sizes) <= 12, sizes  # messages sent per call stay bounded however many parts were added
     last_validation = [call for call in api.calls if call[0] == "validate"][-1]
     assert len(last_validation[1][1]["legalRequirements"]) == 30  # the draft itself is complete
+
+
+def test_incremental_history_remains_bounded_and_keeps_phase_transitions():
+    history = [HumanMessage(content="discover")]
+    history += _round(1000, "finalize_semantic_claim_inventory")
+    for i in range(1000):
+        history += _round(i, "author_legal_requirement")
+    history += _round(1001, "start_rule_authoring")
+    for i in range(20):
+        history += _round(2000 + i, "validate_compliance_rule_set")
+    compacted = compact_draft_history(history)
+    names = [c["name"] for m in compacted if isinstance(m, AIMessage) for c in m.tool_calls]
+    assert names.count("author_legal_requirement") == 3
+    assert names.count("validate_compliance_rule_set") == 2
+    assert "finalize_semantic_claim_inventory" in names and "start_rule_authoring" in names
+    assert any("get_claim_inventory" in m.content for m in compacted if isinstance(m, HumanMessage))
+    assert len(compacted) < 20

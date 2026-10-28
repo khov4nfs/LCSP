@@ -263,7 +263,7 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
     assert.equal(history.status, 404);
 
     const snapshot = await readSseEvent(
-      `/workspace/runtime-events?agent_stream_only=1&assessment_id=${OWNER_A_PRESENT_ASSESSMENT_ID}`,
+      "/workspace/runtime-events",
       ownerBToken,
       "workspace.runtime",
     );

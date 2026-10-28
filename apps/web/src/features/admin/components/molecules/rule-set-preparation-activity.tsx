@@ -1,21 +1,27 @@
 "use client";
 
 import type { MessageKey } from "@lcsp/i18n";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
 import type { AgentExecutionState } from "@lcsp/contracts/assessment";
-import { resolveAppMessage } from "@/lib/i18n";
+import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { WorkDisclosure } from "@/components/molecules/work-disclosure";
 import {
   preparationTokenUsage,
+  preparationModelCalls,
+  preparationProgress,
   projectPreparationActivity,
 } from "../../utils/rule-set-preparation-activity";
 import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
+import { PREPARATION_ACTIVITY_VISIBLE_LIMIT } from "../../config/preparation-activity.config";
 
 type Props = {
   events: AssessmentAgentStreamEvent[];
   terminal: boolean;
   executionState: AgentExecutionState | null;
   connected: boolean;
+  directDraft?: boolean;
 };
 
 export function RuleSetPreparationActivity({
@@ -23,6 +29,7 @@ export function RuleSetPreparationActivity({
   terminal,
   executionState,
   connected,
+  directDraft = false,
 }: Props) {
   const activities = projectPreparationActivity(
     events,
@@ -30,6 +37,22 @@ export function RuleSetPreparationActivity({
     executionState,
   );
   const usage = preparationTokenUsage(events);
+  const progress = preparationProgress(events);
+  const visibleActivities = activities.slice(
+    -PREPARATION_ACTIVITY_VISIBLE_LIMIT,
+  );
+  const coverageRate =
+    progress && progress.total > 0
+      ? `${((progress.reviewed / progress.total) * 100).toFixed(1)}%`
+      : null;
+  const tokensPerUnit =
+    progress && progress.reviewed > 0
+      ? Math.round(usage.totalTokens / progress.reviewed)
+      : null;
+  const tokensPerClaim =
+    progress && progress.persistedClaims && progress.persistedClaims > 0
+      ? Math.round(usage.totalTokens / progress.persistedClaims)
+      : null;
   return (
     <section
       className="rounded-lg border border-border/70 bg-muted/20 p-4"
@@ -40,53 +63,167 @@ export function RuleSetPreparationActivity({
           {resolveAppMessage("pages.complianceRuleSets.activity.title")}
         </h3>
         <span className="text-xs text-muted-foreground">
-          {connected
-            ? resolveAppMessage("pages.complianceRuleSets.activity.live")
-            : resolveAppMessage(
-                "pages.complianceRuleSets.activity.reconnecting",
-              )}
+          {terminal
+            ? resolveAppMessage(
+                executionState === AGENT_EXECUTION_STATES.SUCCEEDED
+                  ? "pages.complianceRuleSets.activity.terminalStatuses.SUCCEEDED"
+                  : executionState === AGENT_EXECUTION_STATES.FAILED
+                    ? "pages.complianceRuleSets.activity.terminalStatuses.FAILED"
+                    : executionState === AGENT_EXECUTION_STATES.CANCELLED
+                      ? "pages.complianceRuleSets.activity.terminalStatuses.CANCELLED"
+                      : executionState === AGENT_EXECUTION_STATES.INTERRUPTED
+                        ? "pages.complianceRuleSets.activity.terminalStatuses.INTERRUPTED"
+                        : executionState === AGENT_EXECUTION_STATES.PAUSED
+                          ? "pages.complianceRuleSets.activity.terminalStatuses.PAUSED"
+                          : "pages.complianceRuleSets.activity.terminalStatuses.FINISHED",
+              )
+            : connected
+              ? resolveAppMessage("pages.complianceRuleSets.activity.live")
+              : resolveAppMessage(
+                  "pages.complianceRuleSets.activity.reconnecting",
+                )}
         </span>
       </div>
+      {progress ? (
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.sourceCoverage"
+            value={`${progress.reviewed.toLocaleString()} / ${progress.total.toLocaleString()}${coverageRate ? ` (${coverageRate})` : ""}`}
+          />
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.sourceRemaining"
+            value={
+              progress.remaining !== null
+                ? progress.remaining.toLocaleString()
+                : (progress.total - progress.reviewed).toLocaleString()
+            }
+          />
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.reviewedWithClaims"
+            value={progress.reviewedWithClaims?.toLocaleString() ?? null}
+          /> : null}
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.reviewedNoClaims"
+            value={progress.reviewedNoClaims?.toLocaleString() ?? null}
+          /> : null}
+
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.inReview"
+            value={progress.inReview?.toLocaleString() ?? null}
+          />
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.pendingUnits"
+            value={progress.pending?.toLocaleString() ?? null}
+          />
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.verifiedClaims"
+            value={progress.persistedClaims?.toLocaleString() ?? null}
+          /> : null}
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.draftClaims"
+            value={progress.claims?.toLocaleString() ?? null}
+          /> : null}
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.tokenEfficiency"
+            value={
+              tokensPerUnit !== null
+                ? formatAppMessage(
+                    "pages.complianceRuleSets.activity.tokensPerUnitValue",
+                    { count: tokensPerUnit.toLocaleString() },
+                  )
+                : null
+            }
+          />
+          {!directDraft ? <Detail
+            labelKey="pages.complianceRuleSets.activity.tokensPerClaim"
+            value={
+              tokensPerClaim !== null
+                ? formatAppMessage(
+                    "pages.complianceRuleSets.activity.tokensPerClaimValue",
+                    { count: tokensPerClaim.toLocaleString() },
+                  )
+                : null
+            }
+          /> : null}
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.requirements"
+            value={progress.requirements?.toLocaleString() ?? null}
+          />
+          <Detail
+            labelKey="pages.complianceRuleSets.activity.rules"
+            value={progress.rules?.toLocaleString() ?? null}
+          />
+        </dl>
+      ) : null}
       {activities.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
           {resolveAppMessage("pages.complianceRuleSets.activity.empty")}
         </p>
       ) : (
         <ol className="mt-3 flex flex-col gap-2">
-          {activities.map((item) => (
+          {visibleActivities.map((item) => (
             <li
               key={item.id}
               className="rounded-md border border-border/60 bg-background p-3"
             >
-              <div className="flex items-center gap-2 text-sm">
-                <span
-                  className={cn(
-                    "size-2 rounded-full bg-muted-foreground",
-                    item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running &&
-                      "animate-pulse bg-primary",
-                    item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed &&
-                      "bg-emerald-600",
-                    item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed &&
-                      "bg-destructive",
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="font-medium">
-                  {resolveAppMessage(item.labelKey as MessageKey)}
-                </span>
-                {item.details.sourcePath ? (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {item.details.sourcePath}
+              <WorkDisclosure
+                summary={
+                  item.details.claimFile
+                    ? formatAppMessage(item.labelKey, {
+                        file: item.details.claimFile,
+                      })
+                    : resolveAppMessage(item.labelKey)
+                }
+                running={
+                  !terminal &&
+                  item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+                }
+                defaultExpanded={false}
+                meta={
+                  <span
+                    className={cn(
+                      "text-xs",
+                      item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed &&
+                        "text-destructive",
+                      item.status ===
+                        ASSESSMENT_RUNTIME_RUN_STATUSES.completed &&
+                        "text-emerald-700 dark:text-emerald-400",
+                    )}
+                  >
+                    {resolveAppMessage(
+                      item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+                        ? "pages.complianceRuleSets.activity.statuses.RUNNING"
+                        : item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed
+                          ? "pages.complianceRuleSets.activity.statuses.FAILED"
+                          : item.status ===
+                              ASSESSMENT_RUNTIME_RUN_STATUSES.completed
+                            ? "pages.complianceRuleSets.activity.statuses.COMPLETED"
+                            : item.status === AGENT_EXECUTION_STATES.PAUSED
+                              ? "pages.complianceRuleSets.activity.statuses.PAUSED"
+                              : "pages.complianceRuleSets.activity.statuses.CANCELLED",
+                    )}
+                    {item.details.provider || item.details.model
+                      ? ` · ${[item.details.provider, item.details.model]
+                          .filter(Boolean)
+                          .join(" / ")}`
+                      : null}
                   </span>
-                ) : null}
-              </div>
-              <details className="mt-2 text-xs text-muted-foreground">
-                <summary className="cursor-pointer">
-                  {resolveAppMessage(
-                    "pages.complianceRuleSets.activity.technicalDetails",
-                  )}
-                </summary>
+                }
+                className="text-foreground"
+              >
                 <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+                  <Detail
+                    labelKey="pages.complianceRuleSets.activity.claimFile"
+                    value={item.details.claimFile}
+                  />
+                  <Detail
+                    labelKey="pages.complianceRuleSets.activity.committedNodes"
+                    value={item.details.committedNodes}
+                  />
+                  <Detail
+                    labelKey="pages.complianceRuleSets.activity.rejectedNodes"
+                    value={item.details.rejected}
+                  />
                   <Detail
                     labelKey="pages.complianceRuleSets.activity.agent"
                     value={item.details.agent}
@@ -136,14 +273,20 @@ export function RuleSetPreparationActivity({
                     value={item.details.sourcePath}
                   />
                 </dl>
-              </details>
+              </WorkDisclosure>
             </li>
           ))}
         </ol>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
+        {resolveAppMessage("pages.complianceRuleSets.activity.modelCalls")}: {preparationModelCalls(events).toLocaleString()}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
         {resolveAppMessage("pages.complianceRuleSets.activity.tokenUsage")}:{" "}
         {usage.totalTokens.toLocaleString()}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {resolveAppMessage("pages.complianceRuleSets.activity.historyScope")}
       </p>
     </section>
   );

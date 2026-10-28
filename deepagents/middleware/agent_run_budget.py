@@ -18,6 +18,7 @@ returns. This middleware enforces three limits per run:
 from __future__ import annotations
 
 import os
+import threading
 from copy import deepcopy
 from typing import Annotated, Any
 
@@ -28,12 +29,12 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.channels.untracked_value import UntrackedValue
 from typing_extensions import NotRequired
 
+from middleware.failure_policy import AgentRunBudgetExceeded
 from middleware.usage_metering import (
     estimate_messages_input_tokens,
     estimate_request_metrics,
     provider_context_limit_tokens,
 )
-from middleware.failure_policy import AgentRunBudgetExceeded
 from orchestration.agent_stream import publish_agent_stream_event
 
 
@@ -88,8 +89,15 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         grace_calls: int | None = None,
         keep_tool_results: int = DEFAULT_KEEP_TOOL_RESULTS,
         finalize_tools: frozenset[str] = frozenset(),
+        run_quotas: dict[str, int] | None = None,
     ) -> None:
         super().__init__()
+        # File discovery shares this counter across Producer and native claim-author invocations.
+        # Quota mode never edits context or withdraws governed tools.
+        self.run_quotas = run_quotas
+        self.quota_calls = 0
+        self.quota_input_tokens = 0
+        self.quota_lock = threading.Lock()
         # Governed completion tools stay callable at finalize.
         self.finalize_tools = frozenset(finalize_tools)
         self.finalize_after = max(
@@ -121,18 +129,120 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return self.finalize_after + self.grace_calls
 
     def after_model(self, state, runtime) -> dict[str, Any] | None:
+        """Business purpose: Advance the checkpointed model-turn count used by the run's existing finalization policy.
+
+        Business rules:
+        - Explicit shared-quota mode uses its reservation counters instead of this graph-state count.
+
+        Execution flow:
+        1. Return no update in shared-quota mode; otherwise increment the normalized run model-call count.
+
+        Failure cases:
+        - Missing count state is handled by the shared counter reader; this hook does not reject an otherwise valid model response.
+
+        Side effects:
+        - Returns a graph-state count update; performs no provider call or durable financial settlement.
+        """
+        if self.run_quotas is not None:
+            return None
         return {RUN_MODEL_CALL_COUNT_KEY: _run_model_calls(state) + 1}
 
     async def aafter_model(self, state, runtime) -> dict[str, Any] | None:
         return self.after_model(state, runtime)
 
     def wrap_model_call(self, request, handler):
-        return handler(self._bounded_request(request))
+        """Business purpose: Apply the existing run budget before one synchronous model request and reconcile quota input after success.
+
+        Business rules:
+        - The shared bounded-request policy owns admission/context/finalization behavior; usage reconciliation occurs only after a returned response.
+
+        Execution flow:
+        1. Obtain the budget-approved request, call the handler, reconcile reported input usage, and return its response.
+
+        Failure cases:
+        - Budget rejections and handler errors propagate without invoking successful-response reconciliation.
+
+        Side effects:
+        - May reserve shared counters, publish policy events or alter request context/tools, then invokes the model handler.
+        """
+        response = handler(self._bounded_request(request))
+        self._settle_quota(request, response)
+        return response
 
     async def awrap_model_call(self, request, handler):
-        return await handler(self._bounded_request(request))
+        """Business purpose: Apply the existing run budget before one asynchronous model request and reconcile quota input after success.
+
+        Business rules:
+        - The shared bounded-request policy owns admission/context/finalization behavior; usage reconciliation occurs only after a returned response.
+
+        Execution flow:
+        1. Obtain the budget-approved request, await the handler, reconcile reported input usage, and return its response.
+
+        Failure cases:
+        - Budget rejections and handler errors propagate without invoking successful-response reconciliation.
+
+        Side effects:
+        - May reserve shared counters, publish policy events or alter request context/tools, then invokes the model handler.
+        """
+        response = await handler(self._bounded_request(request))
+        self._settle_quota(request, response)
+        return response
+
+    def _settle_quota(self, request, response):
+        """Business purpose: Replace the shared quota's estimated input reservation with reported model input usage when available.
+
+        Business rules:
+        - Reconcile only in explicit quota mode and only when response messages report input_tokens; hold the shared lock for the adjustment.
+
+        Execution flow:
+        1. Sum available response input usage, recompute the original estimate, and adjust the quota by reported minus reserved input.
+
+        Failure cases:
+        - Absent quota configuration or reported usage leaves counters unchanged; malformed reported values are not silently converted to zero.
+
+        Side effects:
+        - Mutates the in-memory shared quota input counter; no historical receipt or customer balance is rewritten.
+        """
+        if self.run_quotas is None:
+            return
+        reported = [m.usage_metadata["input_tokens"] for m in getattr(response, "result", [])
+            if getattr(m, "usage_metadata", None) and "input_tokens" in m.usage_metadata]
+        if reported:
+            reserved = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
+            with self.quota_lock:
+                self.quota_input_tokens += sum(reported) - reserved
 
     def _bounded_request(self, request):
+        """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
+
+        Business rules:
+        - Shared-quota mode reserves call/input estimates atomically and neither edits context nor withdraws tools.
+        - Standard mode stops at the hard call limit, trims older tool results near context capacity, and restricts late calls to configured finalization tools.
+
+        Execution flow:
+        1. In quota mode reject an exceeded configured threshold or reserve the next request.
+        2. Otherwise enforce the hard call count and trim old tool results when context warrants it.
+        3. Return the original/trimmed request or a finalization-only request with an unresolved-work instruction.
+
+        Failure cases:
+        - Quota or hard-limit exhaustion raises AgentRunBudgetExceeded; context limits request finalization without inventing completed work.
+
+        Side effects:
+        - Updates in-memory quota reservations and emits budget/trim telemetry; may return a modified message/tool request without calling the provider.
+        """
+        if self.run_quotas is not None:
+            tokens = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
+            with self.quota_lock:
+                calls_limit = self.run_quotas.get("model_calls")
+                tokens_limit = self.run_quotas.get("input_tokens")
+                if (calls_limit is not None and self.quota_calls >= calls_limit) or (tokens_limit is not None and self.quota_input_tokens + tokens > tokens_limit):
+                    publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={
+                        "required_state": "PAUSED", "model_calls": self.quota_calls,
+                        "input_tokens": self.quota_input_tokens, "limits": self.run_quotas})
+                    raise AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable")
+                self.quota_calls += 1
+                self.quota_input_tokens += tokens
+            return request
         calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:
             publish_agent_stream_event(

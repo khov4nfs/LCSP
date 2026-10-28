@@ -64,6 +64,8 @@ class FakeClient:
         self.lifecycle_state = "ACTIVE"
         self.open_requests = open_requests or []
         self.reject_decision: AssessmentApiError | None = None
+        self.rule_set_override: dict[str, Any] | None = None
+        self.legal_texts: dict[tuple[str, str], dict[str, Any]] = {}
 
     def claim(self, assessment_id: str) -> dict[str, Any]:
         self.assessment_id = assessment_id
@@ -107,8 +109,27 @@ class FakeClient:
             **PINS,
         }
 
+    def legal_source_text(self, document_id: str, locator: str) -> dict[str, Any]:
+        self.calls.append(("legal_text", (document_id, locator)))
+        found = self.legal_texts.get((document_id, locator))
+        if found is None:
+            raise AssessmentApiError(404, "ASSESSMENT_DOMAIN_REQUEST_INVALID", {"reason": "LEGAL_SOURCE_PROVISION_NOT_FOUND"})
+        return found
+
+    def legal_source_search(self, query: str) -> dict[str, Any]:
+        self.calls.append(("legal_search", query))
+        words = query.lower().split()
+        matches = [
+            {"documentId": doc, "locator": loc, "contentSha256": text["contentSha256"], "snippet": text["content"][:80]}
+            for (doc, loc), text in self.legal_texts.items()
+            if all(word in text["content"].lower() for word in words)
+        ]
+        return {"matches": matches, "truncated": False}
+
     def rule_set(self) -> dict[str, Any]:
         self.calls.append(("rule_set", None))
+        if self.rule_set_override is not None:
+            return self.rule_set_override
         return {
             "ruleSetVersionId": PINS["ruleSetVersionId"],
             "legalRequirements": [{"legalRequirementId": "LR-1", "title": "t", "proposition": "p"}],
@@ -461,6 +482,7 @@ def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_
     repo = _repo(tmp_path)
     sandbox = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
     monkeypatch.setattr(repository_sandbox, "REPOSITORY_ROOT", "/repo")
+    monkeypatch.setattr(repository_sandbox, "REPOSITORY_AGENT_STATE", "/repo/.lcsp/agent")
     monkeypatch.setattr(repository_sandbox, "resolve_repository_thread_backend", lambda _config: sandbox)
     monkeypatch.setattr(repository_sandbox, "hydrate_repository", lambda _backend, **_pins: None)
     client = FakeClient()
@@ -473,7 +495,7 @@ def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_
     model = RootScriptedModel(responses=[
         _call("read_file", {"file_path": "/src/retention.py"}, "read"),
         _call("write_file", {"file_path": "/src/new.py", "content": "forbidden"}, "deny"),
-        _call("write_file", {"file_path": "/.lcsp/scratch.txt", "content": "scratch"}, "scratch"),
+        _call("write_file", {"file_path": "/.lcsp/agent/scratch.txt", "content": "scratch"}, "scratch"),
         *complete_root_messages(),
     ])
     agent = create_assessment_root_agent(run=run, model=model, governance=(), graph_tools=[])
@@ -484,7 +506,7 @@ def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_
     assert "keep_days = 7" in replies["read"]
     assert "denied" in replies["deny"].lower()
     assert not (repo / "src" / "new.py").exists()
-    assert (repo / ".lcsp" / "scratch.txt").read_text() == "scratch"
+    assert (repo / ".lcsp" / "agent" / "scratch.txt").read_text() == "scratch"
     assert "execute" not in model.bound_tool_names[0]
     assert repository_sandbox.current_repository_backend() is None
 
@@ -537,7 +559,7 @@ def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_t
     assert listed == [RESEARCHER_NAME]  # no general-purpose delegate
     # The pinned repository is read-only for Root and researcher alike; only scratch is writable.
     rules = [(p.operations, p.paths, p.mode) for p in root_permissions()]
-    assert rules[-1] == (["write"], ["/**"], "deny")
+    assert rules[-1] == (["write"], ["/.lcsp/**", "/**"], "deny")
 
 
 def test_runner_acknowledges_already_complete_recovery_without_model_or_repository_work() -> None:
@@ -713,6 +735,7 @@ def test_root_human_tool_uses_native_interrupt_and_replays_the_same_request(tmp_
         "assessment_rule_id": "ER-1", "question": "Who owns the operational policy?",
         "unresolved_fact": "Operational policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed the available sources and accepted facts"],
+        "criterion_ids": ["C-1"],
     }, "human-call"), *complete_root_messages()])
     agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
     config = {"configurable": {"thread_id": THREAD}}
@@ -752,6 +775,7 @@ def test_unresolvable_fact_tool_blocks_then_resumes_without_reapplying_the_claim
         "assessment_rule_id": "ER-1", "question": "Who owned the historical operational policy?",
         "unresolved_fact": "Historical policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed all accepted sources"],
+        "criterion_ids": ["C-1"],
         "unavailability_rationale": "The records were permanently destroyed and no other source exists under the contract.",
         "evidence_ids": ["66666666-6666-4666-8666-666666666666"],
     }, "blocked-call"), *complete_root_messages()])
@@ -842,6 +866,192 @@ def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
     assert resumed["executionId"] == first["executionId"]
 
 
+def test_failed_root_attempt_persists_checkpoint_created_by_that_attempt(monkeypatch, tmp_path):
+    checkpoint_id = "44444444-4444-4444-8444-444444444444"
+
+    class RetryClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.finishes = []
+
+        def finish(self, state, **metadata):
+            self.finishes.append((state, metadata))
+            return super().finish(state, **metadata)
+
+    class SavedState:
+        def __init__(self, checkpoint, next_nodes=()):
+            configurable = {"thread_id": THREAD}
+            if checkpoint:
+                configurable["checkpoint_id"] = checkpoint
+            self.config = {"configurable": configurable}
+            self.tasks = []
+            self.next = next_nodes
+
+    class FailingAgent:
+        current_checkpoint = None
+
+        def get_state(self, _config):
+            return SavedState(self.current_checkpoint)
+
+        def invoke(self, _packet, *, config, context):
+            self.current_checkpoint = checkpoint_id
+            raise RuntimeError("model step failed after graph checkpoint")
+
+    client = RetryClient()
+    agent = FailingAgent()
+    monkeypatch.setattr(
+        "assessment_root.runner.create_assessment_root_agent",
+        lambda **_kwargs: agent,
+    )
+
+    result = run_assessment_root(
+        client,
+        ASSESSMENT,
+        backend_factory=lambda *_: (object(), None),
+        checkpointer=object(),
+        governance=(),
+    )
+
+    assert result["state"] == "FAILED"
+    assert result["checkpointId"] == checkpoint_id
+    assert client.finishes[-1] == ("FAILED", {"checkpoint_id": checkpoint_id})
+
+
+@pytest.mark.parametrize(
+    ("server_checkpoint", "pending_nodes"),
+    [
+        (None, ("agent",)),
+        ("66666666-6666-4666-8666-666666666666", ("agent",)),
+        (None, ()),
+    ],
+    ids=[
+        "missing-server-checkpoint",
+        "mismatched-server-checkpoint",
+        "unbound-checkpoint-without-pending-work",
+    ],
+)
+def test_failed_claim_does_not_resume_a_checkpoint_the_server_did_not_bind(
+    monkeypatch, tmp_path, server_checkpoint, pending_nodes
+):
+    checkpoint_id = "55555555-5555-4555-8555-555555555555"
+
+    class RetryClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.context_calls = 0
+            self.finishes = []
+
+        def claim(self, assessment_id):
+            return {
+                **super().claim(assessment_id),
+                "resumeCheckpointId": server_checkpoint,
+                "recoveredExecution": False,
+            }
+
+        def context(self):
+            self.context_calls += 1
+            value = super().context()
+            value["lifecycleState"] = (
+                "ACTIVE" if self.context_calls == 1 else "COMPLETE"
+            )
+            return value
+
+        def finish(self, state, **metadata):
+            self.finishes.append((state, metadata))
+            return super().finish(state, **metadata)
+
+    class SavedState:
+        config = {"configurable": {"thread_id": THREAD, "checkpoint_id": checkpoint_id}}
+        tasks = []
+        next = pending_nodes
+
+    class PendingAgent:
+        def __init__(self):
+            self.invocations = []
+
+        def get_state(self, _config):
+            return SavedState()
+
+        def invoke(self, packet, *, config, context):
+            self.invocations.append(packet)
+            return {"__interrupt__": ()}
+
+    client = RetryClient()
+    agent = PendingAgent()
+    monkeypatch.setattr(
+        "assessment_root.runner.create_assessment_root_agent",
+        lambda **_kwargs: agent,
+    )
+
+    result = run_assessment_root(
+        client,
+        ASSESSMENT,
+        backend_factory=lambda *_: (object(), None),
+        checkpointer=object(),
+        governance=(),
+    )
+
+    assert result["state"] == "FAILED"
+    assert result["checkpointId"] is None
+    assert agent.invocations == []
+    assert client.finishes[-1] == ("FAILED", {})
+
+
+@pytest.mark.parametrize("lifecycle", ["WAITING_FOR_HUMAN", "BLOCKED"])
+@pytest.mark.parametrize("has_open_request", [True, False])
+def test_human_request_crash_before_interrupt_replays_only_with_server_human_wait(
+    monkeypatch, tmp_path, lifecycle, has_open_request
+):
+    from types import SimpleNamespace
+
+    request_id = "77777777-7777-4777-8777-777777777777"
+    checkpoint_id = "88888888-8888-4888-8888-888888888888"
+
+    class HumanWaitClient(FakeClient):
+        def __init__(self):
+            super().__init__(open_requests=[request_id] if has_open_request else [])
+            self.lifecycle_state = lifecycle
+            self.finishes = []
+
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "lifecycleState": lifecycle}
+
+        def finish(self, state, **metadata):
+            self.finishes.append((state, metadata))
+            return super().finish(state, **metadata)
+
+    class PendingHumanTool:
+        def __init__(self):
+            self.invocations = []
+
+        def get_state(self, _config):
+            return SimpleNamespace(
+                config={"configurable": {"thread_id": THREAD, "checkpoint_id": checkpoint_id}},
+                tasks=[], next=("tools",),
+            )
+
+        def invoke(self, packet, *, config, context):
+            self.invocations.append(packet)
+            return {"__interrupt__": [SimpleNamespace(value={"requestIds": [request_id]})]}
+
+    client = HumanWaitClient()
+    agent = PendingHumanTool()
+    monkeypatch.setattr("assessment_root.runner.create_assessment_root_agent", lambda **_kwargs: agent)
+    result = run_assessment_root(
+        client, ASSESSMENT, backend_factory=lambda *_: (object(), None),
+        checkpointer=object(), governance=(),
+    )
+
+    if has_open_request:
+        assert result["state"] == "INTERRUPTED"
+        assert agent.invocations == [None]
+        assert client.finishes == [("INTERRUPTED", {"checkpoint_id": checkpoint_id, "request_ids": [request_id]})]
+    else:
+        assert result["state"] == "FAILED"
+        assert result["checkpointId"] is None
+        assert agent.invocations == []
+
+
 def test_stop_arriving_during_model_response_pauses_before_tool_effects(tmp_path):
     class ControlledClient(FakeClient):
         control = "RUNNING"
@@ -908,3 +1118,275 @@ def test_invalid_tool_arguments_come_back_as_feedback_and_do_not_end_the_run(tmp
     feedback = json.loads(next(m.content for m in model.prompts[1] if getattr(m, "name", None) == "accept_case_fact"))
     assert feedback["code"] == "INVALID_TOOL_ARGUMENTS"
     assert feedback["problems"][0].startswith("evidence_ids:")
+
+
+# ---- legal-source-driven applicability --------------------------------------------------------------------
+
+SOURCE_A = {  # one synthetic legal source ...
+    "requirement": "LR-A",
+    "conditions": ["Applies to a keeper of a public register.", "The register is kept in electronic form."],
+    "exceptions": ["Does not apply to a register kept for private use."],
+    "source": ("DOC-A", "art-2::cl-1"),
+}
+SOURCE_B = {  # ... and an unrelated one, in another language and vocabulary
+    "requirement": "LR-B",
+    "conditions": ["Gilt für Betreiber von Anlagen mit mehr als 50 Beschäftigten."],
+    "exceptions": [],
+    "source": ("DOC-B", "par-7"),
+}
+
+
+def _source_rule_set(spec: dict[str, Any]) -> dict[str, Any]:
+    doc, loc = spec["source"]
+    source = {"documentId": doc, "locator": loc, "contentSha256": "sha256:" + "a" * 64}
+    return {
+        "ruleSetVersionId": PINS["ruleSetVersionId"],
+        "legalRequirements": [{
+            "legalRequirementId": spec["requirement"], "title": "t", "proposition": "p",
+            "applicabilityConditions": spec["conditions"], "qualifiers": [], "exceptions": spec["exceptions"],
+            "sources": [source],
+        }],
+        "assessmentRules": [{
+            "assessmentRuleId": "ER-1", "assessmentRuleVersion": "v1", "concept": "c",
+            "legalRequirementIds": [spec["requirement"]], "criteria": [{"criterionId": "C-1", "statement": "s"}],
+            "sources": [source],
+        }],
+        "contextRelations": [],
+    }
+
+
+@pytest.mark.parametrize("source", [SOURCE_A, SOURCE_B], ids=["register-keepers", "betreiber"])
+def test_get_assessment_rule_exposes_each_legal_source_own_elements_and_sources(tmp_path, source) -> None:
+    client = FakeClient()
+    client.rule_set_override = _source_rule_set(source)
+    tools = _tools(_run(tmp_path, client))
+
+    out = json.loads(tools["get_assessment_rule"].invoke({"assessment_rule_id": "ER-1"}))
+
+    texts = [(item["kind"], item["index"], item["text"]) for item in out["applicabilityElements"]]
+    expected = [("APPLICABILITY_CONDITION", i, t) for i, t in enumerate(source["conditions"])] + [
+        ("EXCEPTION", i, t) for i, t in enumerate(source["exceptions"])
+    ]
+    assert texts == expected
+    assert {item["legalRequirementId"] for item in out["applicabilityElements"]} == {source["requirement"]}
+    assert [(s["documentId"], s["locator"]) for s in out["legalSources"]] == [source["source"]]
+
+
+def test_the_pinned_legal_source_is_read_and_searched_through_the_governed_tools(tmp_path) -> None:
+    client = FakeClient()
+    client.legal_texts[("DOC-A", "art-1")] = {
+        "documentId": "DOC-A", "locator": "art-1", "contentSha256": "sha256:" + "b" * 64,
+        "content": "In this instrument a keeper means whoever maintains a public register.",
+    }
+    tools = _tools(_run(tmp_path, client))
+
+    read = json.loads(tools["read_legal_source"].invoke({"document_id": "DOC-A", "locator": "art-1"}))
+    found = json.loads(tools["search_legal_source"].invoke({"query": "keeper register"}))
+    missing = json.loads(tools["read_legal_source"].invoke({"document_id": "DOC-A", "locator": "art-9"}))
+
+    assert read["ok"] and "whoever maintains a public register" in read["content"]
+    assert [(m["documentId"], m["locator"]) for m in found["matches"]] == [("DOC-A", "art-1")]
+    assert missing["ok"] is False and missing["code"] == "ASSESSMENT_DOMAIN_REQUEST_INVALID"
+
+
+def test_submit_rule_decision_carries_the_element_by_element_basis_only_when_given(tmp_path) -> None:
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+    reference = {"type": "ASSESSMENT_EVIDENCE", "id": "66666666-6666-4666-8666-666666666666"}
+    base = {
+        "assessment_rule_id": "ER-1", "applicability": "NOT_APPLICABLE", "rationale": "Refuted for this rule.",
+        "legal_context_ids": ["LR-1"], "references": [reference],
+    }
+
+    tools["submit_rule_decision"].invoke(base)
+    tools["submit_rule_decision"].invoke({**base, "applicability_basis": [{
+        "legal_requirement_id": "LR-1", "kind": "APPLICABILITY_CONDITION", "index": 0, "finding": "REFUTED",
+        "rationale": "The cited code shows the register is private.", "references": [reference],
+    }]})
+
+    plain, with_basis = [body for kind, body in client.calls if kind == "decision"]
+    assert "applicabilityBasis" not in plain["decision"]
+    assert with_basis["decision"]["applicabilityBasis"] == [{
+        "legalRequirementId": "LR-1", "kind": "APPLICABILITY_CONDITION", "index": 0, "finding": "REFUTED",
+        "rationale": "The cited code shows the register is private.",
+        "references": [{"type": "ASSESSMENT_EVIDENCE", "evidenceId": "66666666-6666-4666-8666-666666666666"}],
+    }]
+
+
+def test_a_human_question_must_hang_on_a_legal_source_element_or_a_criterion(tmp_path) -> None:
+    client = FakeClient()
+    client.rule_set_override = _source_rule_set(SOURCE_A)
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+    ask = {
+        "assessment_rule_id": "ER-1", "question": "Is the register kept in electronic form?",
+        "unresolved_fact": "Form in which the register is kept", "decision_impact": ["Settles one condition"],
+        "resolution_attempts": ["Searched the repository for storage code"],
+    }
+
+    unanchored = json.loads(tools["open_human_request"].invoke(ask))
+    unknown = json.loads(tools["open_human_request"].invoke({**ask, "condition_ref": {
+        "legal_requirement_id": "LR-A", "kind": "APPLICABILITY_CONDITION", "index": 9,
+    }}))
+
+    assert unanchored["code"] == "HUMAN_REQUEST_NOT_ANCHORED"
+    assert unknown["code"] == "UNKNOWN_APPLICABILITY_ELEMENT"
+    assert not any(kind == "human" for kind, _ in client.calls)  # nothing reached the API
+
+
+def test_an_anchored_human_question_carries_the_legal_source_wording_of_its_element(tmp_path) -> None:
+    from langgraph.types import Command
+
+    class AskingClient(FakeClient):
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            if self.case_revision == 0:
+                self.open_requests = [result["requestId"]]
+            return result
+
+    client = AskingClient()
+    client.rule_set_override = _source_rule_set(SOURCE_A)
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(responses=[_call("open_human_request", {
+        "assessment_rule_id": "ER-1", "question": "Is the register kept in electronic form?",
+        "unresolved_fact": "Form in which the register is kept", "decision_impact": ["Settles one condition"],
+        "resolution_attempts": ["Searched the repository for storage code"],
+        "condition_ref": {"legal_requirement_id": "LR-A", "kind": "APPLICABILITY_CONDITION", "index": 1},
+    }, "anchored"), *complete_root_messages()])
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=InMemorySaver(), graph_tools=[])
+    config = {"configurable": {"thread_id": THREAD}}
+
+    result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
+
+    assert result["__interrupt__"][0].value["requestIds"] == client.open_requests
+    posted = next(body for kind, body in client.calls if kind == "human")
+    assert posted["decisionImpact"][-1] == (
+        "Bears on this condition stated in the legal text: The register is kept in electronic form."
+    )
+    assert "condition_ref" not in posted and "conditionRef" not in posted
+    client.open_requests = []
+    client.case_revision = 1
+    agent.invoke(Command(resume={result["__interrupt__"][0].id: {"resolved": True}}), config)
+
+
+def test_generic_runtime_code_names_no_legal_role_category_or_instrument() -> None:
+    """The legal source defines who is regulated and how; the runtime may not know any of it in advance."""
+    root = Path(__file__).resolve().parents[2]
+    forbidden = (
+        "high-risk", "high risk", "medium-risk", "low-risk", "deployer", "provider of",
+        "134/2025", "71/2025", "134-2025", "71-2025", "qh15", "national infrastructure",
+        "ai database", "ai_provider", "ai_deployer", "high_risk",
+    )
+    generic = [
+        *sorted((root / "deepagents" / "assessment_root").glob("*.py")),
+        root / "deepagents" / "assessment_root" / "instructions.md",
+        *sorted((root / "deepagents" / "rule_set_preparation").glob("*.py")),
+        root / "deepagents" / "rule_set_preparation" / "instructions-common.md",
+        root / "deepagents" / "rule_set_preparation" / "instructions-authoring.md",
+        *sorted((root / "apps" / "api" / "src" / "modules" / "assessment").rglob("*.ts")),
+        *sorted((root / "apps" / "api" / "src" / "modules" / "compliance-rule-set").rglob("*.ts")),
+    ]
+    offenders = []
+    for path in generic:
+        if path.name.endswith((".spec.ts", ".test.ts")):
+            continue
+        text = path.read_text(encoding="utf-8").lower()
+        offenders += [f"{path.relative_to(root)}: {term}" for term in forbidden if term in text]
+    assert offenders == []
+
+
+def test_root_keeps_unknown_or_noncurrent_source_effect_out_of_current_obligation_reasoning() -> None:
+    root = Path(__file__).resolve().parents[2]
+    instructions = (root / "deepagents" / "assessment_root" / "instructions.md").read_text(encoding="utf-8")
+    assert "only `EFFECTIVE` supports" in instructions
+    assert "`UNKNOWN` stays undetermined" in instructions
+    assert "`REPEALED` and `FUTURE` are not current" in instructions
+
+
+def test_final_report_never_invents_verified_findings_for_omitted_rules(tmp_path):
+    class StrictReportClient(FakeClient):
+        def context(self):
+            value = super().context()
+            value["coverage"].append({**value["coverage"][0], "assessmentRuleId": "ER-2"})
+            return value
+
+        def post_final_report(self, body):
+            self.calls.append(("report_attempt", body))
+            if {row["assessmentRuleId"] for row in body["findings"]} != {"ER-1", "ER-2"}:
+                raise AssessmentApiError(422, "ASSESSMENT_FINAL_REPORT_INVALID", {})
+            return super().post_final_report(body)
+
+    client = StrictReportClient()
+    client.lifecycle_state = "FINALIZING"
+    run = RootRun(client, ASSESSMENT, THREAD, EXECUTION, FilesystemBackend(root_dir=tmp_path, virtual_mode=True))
+    run.adopt_context(client.context())
+    tool = next(tool for tool in build_root_tools(run) if tool.name == "submit_final_report")
+    authored = {"assessment_rule_id": "ER-1", "summary": "The observed safeguard is incomplete."}
+    rejected = json.loads(tool.invoke({"summary": "One finding authored.", "findings": [authored]}))
+    assert rejected["ok"] is False
+    assert client.lifecycle_state == "FINALIZING"
+    attempted = next(body for name, body in client.calls if name == "report_attempt")
+    assert attempted["findings"] == [{"assessmentRuleId": "ER-1", "summary": authored["summary"], "recommendations": []}]
+    complete = [authored, {"assessment_rule_id": "ER-2", "summary": "Applicability was refuted by accepted evidence."}]
+    accepted = json.loads(tool.invoke({"summary": "Both authored findings.", "findings": complete}))
+    assert accepted["ok"] is True
+    assert client.lifecycle_state == "COMPLETE"
+    body = next(body for name, body in client.calls if name == "final_report")
+    assert [row["summary"] for row in body["findings"]] == [row["summary"] for row in complete]
+
+
+def test_initial_context_failure_settles_claimed_root_without_hydrating_repository(tmp_path):
+    class UnavailableContext(FakeClient):
+        def context(self):
+            raise AssessmentApiError(503, "ASSESSMENT_CONTEXT_UNAVAILABLE", {})
+
+    client = UnavailableContext()
+    result = run_assessment_root(client, ASSESSMENT,
+        backend_factory=lambda *_: pytest.fail("context failure must not hydrate the repository"))
+    assert result["state"] == "FAILED"
+    assert result["errorType"] == "AssessmentApiError"
+    assert client.calls == [("claim", ASSESSMENT), ("finish", "FAILED")]
+
+
+@pytest.mark.parametrize("authority", ["EVIDENCE_CITED", "HUMAN_PROVIDED"])
+def test_root_context_preserves_fact_authority_when_reloading_accepted_claims(tmp_path, authority):
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    context = client.context()
+    context["facts"] = [
+        {
+            "factId": "77777777-7777-4777-8777-777777777777",
+            "caseRevision": 1,
+            "kind": "USE_CASE",
+            "state": "ACCEPTED",
+            "authority": authority,
+            "statement": "The README describes persistent examination logs.",
+            "evidenceIds": ["66666666-6666-4666-8666-666666666666"],
+        },
+    ]
+    client.context = lambda: context
+
+    result = json.loads(_tools(run)["get_assessment_context"].invoke({}))
+
+    assert result["facts"] == context["facts"]
+    assert client.case_revision == 0
+    assert not any(name == "fact" for name, _ in client.calls)
+
+
+def test_root_context_exposes_runtime_view_limits_and_rejects_wrong_source_pins(tmp_path):
+    client = FakeClient()
+    backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    run = RootRun(client, ASSESSMENT, THREAD, EXECUTION, backend)
+    run.adopt_context(client.context())
+    (tmp_path / ".lcsp").mkdir()
+    marker = {"assessmentId": ASSESSMENT, "snapshotId": PINS["repositorySnapshotId"], "commitSha": COMMIT,
+              "sourceCoverage": {"coverageLimited": True, "includedFiles": 12,
+                                 "skippedEntries": [{"path": "models/model.pt", "reason": "FILE_SIZE_LIMIT", "sha256": "a" * 64}]}}
+    (tmp_path / ".lcsp/repository.json").write_text(json.dumps(marker))
+    tool = next(tool for tool in build_root_tools(run) if tool.name == "get_assessment_context")
+    assert json.loads(tool.invoke({}))["repositoryView"] == marker["sourceCoverage"]
+    marker["commitSha"] = "b" * 40
+    (tmp_path / ".lcsp/repository.json").write_text(json.dumps(marker))
+    with pytest.raises(RuntimeError, match="repository view pins"):
+        tool.invoke({})

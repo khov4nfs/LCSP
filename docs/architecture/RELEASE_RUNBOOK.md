@@ -1,5 +1,22 @@
 # Release verification runbook
 
+## LCSP-360 canonical runtime and native mini acceptance
+
+For this task, use `fix/LCSP-360-corpus-driven-applicability` in the canonical local repository and on production. Every application change follows local tests, commit, push, VPS `git pull --ff-only`, affected builds/restarts, and safe real-runtime verification. Disposable execution is additional isolation for synthetic global Rule Set activation. The user selected native disposable processes, with no application image builds or image gate; the image-based workflow below remains historical for this task.
+
+After the same committed SHA is pushed and deployed, use a fresh 16-character hexadecimal run ID:
+
+```bash
+rtk proxy deepagents/.venv/bin/python tests/native-mini-preparation.py self-check
+rtk proxy deepagents/.venv/bin/python tests/native-mini-preparation.py start <owned-run-id>
+rtk proxy deepagents/.venv/bin/python tests/native-mini-preparation.py prepare <owned-run-id>
+rtk proxy deepagents/.venv/bin/python tests/native-mini-preparation.py stop <owned-run-id>
+```
+
+The native harness uses fresh owned PostgreSQL/RabbitMQ containers and native API/Agent processes. It replays canonical migrations and ingests the six-provision synthetic source through supported APIs. Before activation it requires six provisions, determined effect status, truthful `LCSP-360-MINI-FIXTURE` provenance, structural validation, and zero model activity. An exclusive activation latch prohibits a second Preparation. Private access, logs, source-status proof, and database diagnostics live under `tmp/staging/<owned-run-id>`; sanitized receipts live under `reports/staging/<owned-run-id>`. Stop only these owned resources after capturing the output and reviewing all six semantic dimensions. A failed mini does not authorize another attempt or a full corpus run.
+
+## Earlier release workflow
+
 Current pre-merge authority is [the PR #367 correction release proof](../../reports/pr367-correction-release-proof.md) and [the acceptance matrix](../../reports/staging-acceptance-matrix.json). The current final candidate must pass the complete browser journey on its own fresh isolated staging stack; an older candidate or equivalence bridge does not satisfy that gate. Production remains outside this pre-merge verification.
 
 The canonical physical PostgreSQL migration uses in-place renames, removes terminology compatibility maps, and preserves shared rule-set history and assessment pins. [The populated upgrade rehearsal](../../reports/pr367-physical-rename/receipt.json) must pass before the image gate. Source lifecycle routes are `/internal/legal-sources`; Legal Source activation automatically dispatches Rule Set Preparation through its durable event and CommandBus. Admin has bounded retry of a failed run and no generic Start; assessments only pin and reuse the shared immutable Compliance Rule Set.
@@ -9,13 +26,13 @@ Use purpose-based automation from the repository root:
 ```bash
 rtk proxy deepagents/.venv/bin/python tests/release-images.py --self-check
 rtk proxy deepagents/.venv/bin/python tests/release-images.py
-rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --self-check
-rtk proxy deepagents/.venv/bin/python tests/staging-stack.py
-rtk proxy deepagents/.venv/bin/python tests/staging-rule-set-preparation.py <owned-run-id>
+rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --self-check --image-evidence reports/release-images/<candidate>
+rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --image-evidence reports/release-images/<candidate>
+rtk proxy deepagents/.venv/bin/python tests/staging-rule-set-preparation.py <owned-run-id> --image-evidence reports/release-images/<candidate>
 rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --stop <owned-run-id>
 ```
 
-The launcher must point to the just-passed `reports/release-images/<candidate>/report.json`.
+Pass the same repository-relative image-evidence directory to each self-check, launch, and preparation command; the selected receipt is recorded in the owned stack manifest and reused by downstream checks.
 Require all four merged-rootfs audits and seven Docker integrations, with no skips, before launch.
 Use only those immutable image IDs; instruction/build-input changes make earlier receipts historical.
 Keep access files and provider diagnostics under private `tmp/staging/<owned-run-id>`; publish only

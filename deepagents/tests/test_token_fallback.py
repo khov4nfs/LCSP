@@ -960,16 +960,16 @@ async def test_retry_after_header_sets_bounded_cooldown(monkeypatch, asynchronou
     with pytest.raises(TerminalCredentialError):
         await _call(TokenFallbackMiddleware(), _openai_request(), handler, asynchronous)
 
-    # Waits exactly the provider's 7s for slot 0, never the capped 120s of slot 1.
+    # Waits exactly the provider's 7s for slot 0 and preserves slot 1's full delay.
     assert _waits(clock, asynchronous) == [7.0]
     assert token_fallback._RATE_LIMITED_UNTIL[("openai", "OPENAI_API_KEY")] == {
         0: 57.0 + 3.0,
-        1: 50.0 + token_fallback._MAX_RATE_LIMIT_COOLDOWN_SECONDS,
+        1: 50.0 + 9999.0,
     }
     rate_limited = [item[1] for item in logger.events if item[0] == "MODEL_CREDENTIAL_FALLBACK_SLOT_RATE_LIMITED"]
     assert [event["cooldown_seconds"] for event in rate_limited] == [
         7.0,
-        token_fallback._MAX_RATE_LIMIT_COOLDOWN_SECONDS,
+        9999.0,
         3.0,
     ]
     assert rate_limited[0]["credential_fingerprint"] == _fingerprint("first-test-token")
@@ -1314,7 +1314,7 @@ def _google_rate_limit(retry_delay: object) -> Exception:
 
 @pytest.mark.parametrize(
     ("retry_delay", "expected"),
-    [("45s", 45.0), ("37.4s", 37.4), ("9999s", None), ("soon", 30.0), (None, 30.0)],
+    [("45s", 45.0), ("37.4s", 37.4), ("9999s", 9999.0), ("soon", 30.0), (None, 30.0)],
 )
 def test_google_retry_info_delay_sets_bounded_cooldown(monkeypatch, retry_delay, expected):
     # Google reports its 429 delay in the error body (google.rpc.RetryInfo), not a
@@ -1329,7 +1329,7 @@ def test_google_retry_info_delay_sets_bounded_cooldown(monkeypatch, retry_delay,
 
     assert TokenFallbackMiddleware().wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), handler) is response
 
-    cooldown = expected if expected is not None else token_fallback._MAX_RATE_LIMIT_COOLDOWN_SECONDS
+    cooldown = expected
     assert token_fallback._RATE_LIMITED_UNTIL[("google_genai", "GOOGLE_API_KEY")] == {0: 100.0 + cooldown}
 
 
@@ -1346,6 +1346,18 @@ def test_google_retry_info_governs_the_single_cooldown_wait(monkeypatch):
 
     # Waits the provider-requested 40s for the soonest slot, not the 30s default.
     assert clock.sleeps == [40.0]
+
+
+def test_google_daily_reset_never_becomes_an_early_two_minute_retry(monkeypatch):
+    monkeypatch.setenv("GOOGLE_API_KEY", "first-test-token,second-test-token")
+    clock, token_fallback = _install_fake_cooldown_clock(monkeypatch, start=100.0)
+    model = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", **credential_init_kwargs("google_genai"))
+    handler = MagicMock(side_effect=_google_rate_limit("43200s"))
+    with pytest.raises(TerminalCredentialError):
+        TokenFallbackMiddleware().wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), handler)
+    assert handler.call_count == 2
+    assert clock.sleeps == []
+    assert token_fallback._RATE_LIMITED_UNTIL[("google_genai", "GOOGLE_API_KEY")] == {0: 43300.0, 1: 43300.0}
 
 
 def test_cooldown_wait_runs_under_liveness_heartbeat(monkeypatch):

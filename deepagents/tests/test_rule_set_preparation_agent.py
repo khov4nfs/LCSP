@@ -5,21 +5,28 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
+
+INSTRUCTIONS = "\n".join((Path(__file__).parents[1] / "rule_set_preparation" / name).read_text()
+    for name in ("instructions-common.md", "instructions-discovery.md", "instructions-authoring.md"))
+
+
+
 from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.usage_metering import AgentRoleMiddleware
+from orchestration.agent_stream import AgentStreamSession, activate_agent_stream
+import rule_set_preparation.agent as preparation_agent
 from rule_set_preparation.agent import (
+    PreparationObservationMiddleware,
     _without_general_purpose_subagent,
     create_rule_set_preparation_agent,
 )
 from rule_set_preparation.legal_source_files import INDEX_PATH, materialize_legal_source
-from rule_set_preparation.legal_source_reader import (
-    LegalSourceReaderResult,
-    legal_source_reader_subagent,
-)
 from rule_set_preparation.runner import (
     MODEL_ERROR,
     NO_SUBMISSION,
@@ -27,6 +34,7 @@ from rule_set_preparation.runner import (
     run_rule_set_preparation,
 )
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+from legal_graph_fixture import document_graph_for_bundle
 from test_rule_set_preparation_native_isolation_preparation import (
     RuleSetPreparationScriptedModel,
 )
@@ -34,6 +42,35 @@ from test_rule_set_preparation_native_isolation_preparation import (
 RUN_ID = "11111111-1111-4111-8111-111111111111"
 LEGAL_SOURCE_ID = "22222222-2222-4222-8222-222222222222"
 DOC = "SYNTHETIC-NOTICE-INSTRUMENT"
+
+
+@pytest.fixture(autouse=True)
+def _legacy_packet_unit_tools(monkeypatch):
+    """Keep pre-inventory packet/provider regressions as unit tests of the retained legacy adapter.
+
+    New production graph/phase wiring is exercised without this adapter in test_claim_inventory_protocol.
+    """
+    original = preparation_agent.build_rule_set_tools
+    def legacy_tools(context):
+        graph = context.source_graph
+        context.inventory = None
+        context.source_graph = None
+        try:
+            return original(context)
+        finally:
+            context.source_graph = graph
+    monkeypatch.setattr(preparation_agent, "build_rule_set_tools", legacy_tools)
+    from langchain_core.messages import SystemMessage
+    monkeypatch.setattr(preparation_agent.PreparationPhaseMiddleware, "_request", lambda self, request:
+        request.override(system_message=SystemMessage(content=preparation_agent.phase_instructions(self.context))))
+    monkeypatch.setattr(preparation_agent, "preparation_filesystem", lambda backend, **kw:
+        __import__("rule_set_preparation.agent", fromlist=["FilesystemMiddleware"]).FilesystemMiddleware(
+            backend=backend, tools=preparation_agent.READ_ONLY_TOOLS,
+            _permissions=[preparation_agent.FilesystemPermission(["read"], ["/legal-source", "/legal-source/**"], mode="allow"),
+                preparation_agent.FilesystemPermission(["read", "write"], ["/**"], mode="deny")]))
+    from rule_set_preparation.review_frontier import ReviewFrontier
+    monkeypatch.setattr(ReviewFrontier, "restore", lambda self, **kw: None)
+
 
 
 @pytest.fixture(autouse=True)
@@ -53,15 +90,10 @@ def _fast_model_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
                         else original(model, response))
 
 
-def test_legal_source_reader_uses_shared_model_governance_middleware(tmp_path):
-    subagent = legal_source_reader_subagent(
-        model=object(),
-        backend=FilesystemBackend(root_dir=tmp_path, virtual_mode=True),
-    )
 
-    assert subagent["middleware"][1:] == list(MODEL_GOVERNANCE_MIDDLEWARE)
-    assert subagent["tools"] == []
-    assert subagent["response_format"] is LegalSourceReaderResult
+
+
+
 
 
 def _sha(text: str) -> str:
@@ -73,9 +105,10 @@ def _bundle() -> dict[str, Any]:
         ("art-1::cl-1", "Records must be retained for five years."),
         ("art-2::cl-1", "Retention does not apply to anonymised records."),
     ]
-    return {
+    bundle = {
         "preparationRunId": RUN_ID,
         "executionState": "RUNNING",
+        "claimInventoryRevision": 1, "claimPhase": "CLAIM_DISCOVERY", "frozenInventory": None,
         "legalSourceVersionId": LEGAL_SOURCE_ID,
         "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
         "documents": [
@@ -92,6 +125,8 @@ def _bundle() -> dict[str, Any]:
                         "content": text,
                         "contentSha256": _sha(text),
                         "legalStatus": "IN_FORCE",
+                        "legalEffectStatus": "EFFECTIVE",
+                        "legalStatusSourceRef": "source-metadata:fixture",
                         "hierarchy": {"path": locator.split("::")},
                     }
                     for locator, text in chunks
@@ -99,6 +134,8 @@ def _bundle() -> dict[str, Any]:
             }
         ],
     }
+    bundle["documentGraph"] = document_graph_for_bundle(bundle)
+    return bundle
 
 
 def _ref(locator: str, text: str) -> dict[str, str]:
@@ -114,7 +151,7 @@ def _packet() -> dict[str, Any]:
                 "legalRequirementId": "LR-RET",
                 "title": "Retention",
                 "proposition": retain,
-                "applicabilityConditions": [],
+                "applicabilityConditions": ["Applies to an operator that keeps records."],
                 "qualifiers": [],
                 "exceptions": [anonymised],
                 "nonRepositoryDuty": False,
@@ -218,6 +255,15 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
             continue
         if tool.name == "remove_from_packet_draft":
             continue
+        if tool.name == "record_preparation_progress":
+            assert set(schema["required"]) == {
+                "establishedFindings",
+                "unresolvedMaterialWork",
+                "currentTarget",
+                "intendedAction",
+                "expectedInformationGain",
+            }
+            continue
         if tool.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"}:
             # The item contracts are carried once, by the draft tool; the packet argument is optional.
             assert "required" not in schema and schema["properties"]["packet"]["type"] == "object"
@@ -237,7 +283,19 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
         assert "NON_ASSESSABLE requires none" in coverage["properties"]["state"]["description"]
         engineering = packet["properties"]["assessmentRules"]["items"]
         assert "never reference a LegalRequirement declared NON_ASSESSABLE" in engineering["properties"]["legalRequirementIds"]["description"]
-        assert {"assessmentRuleId", "criteria", "applicabilityGuidance", "supportingEvidence", "sourceRefs"} <= set(engineering["required"])
+        assert {"assessmentRuleId", "criteria", "supportingEvidence"} <= set(engineering["required"])
+        assert engineering["properties"]["sourceRefs"]["default"] == []
+        assert "applicabilityGuidance" not in engineering["required"]
+        assert "server derives guidance" in engineering["properties"]["applicabilityGuidance"]["description"]
+        assert "legalIntent" not in engineering["required"]
+        assert "unresolvedConditions" not in engineering["required"]
+        assert "zero-based index" in engineering["properties"]["unresolvedConditionBindings"]["description"]
+        assert "directed context dependency" in engineering["properties"]["contextRelationIds"]["description"]
+        criterion = engineering["properties"]["criteria"]["items"]
+        assert "statement" not in criterion["required"]
+        assert "Required for new authoring" in criterion["properties"]["legalRequirementIds"]["description"]
+        assert "complete normative statement" in criterion["properties"]["statement"]["description"]
+        assert "replacement legal predicate" in criterion["properties"]["investigationFocus"]["description"]
         relation = packet["properties"]["contextRelations"]["items"]
         assert {"toLegalRequirementId", "toSourceRef"} <= set(relation["required"])
         assert "independently operative LegalRequirement only" in relation["properties"]["toLegalRequirementId"]["description"]
@@ -245,20 +303,23 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
 
 
 def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_legal_source(tmp_path: Path) -> None:
-    paths = materialize_legal_source(_bundle(), tmp_path)
+    from rule_set_preparation.source_graph import PinnedSourceGraph
+    bundle = _bundle()
+    paths = materialize_legal_source(bundle, tmp_path)
+    source = PinnedSourceGraph(bundle['documentGraph'], [c for d in bundle['documents'] for c in d['chunks']])
     assert paths[0] == INDEX_PATH
-    index = (tmp_path / "legal-source" / "INDEX.md").read_text()
-    chunk_file = next(tmp_path.rglob("art-1__cl-1.md"))
-    header = chunk_file.read_text().split("---")[0]
-    assert f"documentId: {DOC}" in header
-    assert "locator: art-1::cl-1" in header
-    assert f"contentSha256: {_sha('Records must be retained for five years.')}" in header
-    assert f"| {DOC} | art-2::cl-1 |" in index
-    assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {"INDEX.md", "art-1__cl-1.md", "art-2__cl-1.md"}
+    for path, ids in source.source_files.items():
+        text = (tmp_path / path.lstrip('/')).read_text()
+        for nid in ids:
+            assert text.count('[' + source.locators[nid] + ']') == 1
+            assert source.nodes[nid]['content'] in text
+    index = (tmp_path / 'legal-source/INDEX.md').read_text()
+    assert DOC in index and 'Immutable file hashes' in index
+    assert not (tmp_path / 'legal-source/nodes').exists()
 
 
 def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_tools(tmp_path: Path) -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
+    from test_rule_set_preparation_agent import INSTRUCTIONS
 
     materialize_legal_source(_bundle(), tmp_path)
     model = _model([
@@ -271,11 +332,55 @@ def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_to
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     bound = {name for names in model.bound_tool_names for name in names}
-    assert {"read_file", "ls", "glob", "grep", "validate_compliance_rule_set", "submit_compliance_rule_set", "report_rule_set_source_blocked"} <= bound
+    assert {
+        "read_file", "ls", "glob", "grep", "validate_compliance_rule_set",
+        "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked",
+    } <= bound
     forbidden = {"write_file", "edit_file", "execute", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
     assert "task" in bound
-    assert INSTRUCTIONS in model.prompts[0][0].content
+    assert preparation_agent.phase_instructions(RuleSetPreparationContext(RUN_ID, FakeApi())) in model.prompts[0][0].content
+
+
+def test_progress_ledger_advances_for_findings_not_strategy_alone() -> None:
+    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+    tool = next(tool for tool in build_rule_set_tools(context) if tool.name == "record_preparation_progress")
+
+    first = json.loads(tool.invoke({
+        "establishedFindings": ["DOC art-1 states the retention duty"],
+        "unresolvedMaterialWork": ["Resolve the linked exception"],
+        "currentTarget": "DOC art-2",
+        "intendedAction": "read",
+        "expectedInformationGain": "Exception scope",
+    }))
+    strategy_change = json.loads(tool.invoke({
+        "establishedFindings": ["DOC art-1 states the retention duty"],
+        "unresolvedMaterialWork": ["Resolve the linked exception"],
+        "currentTarget": "DOC art-3",
+        "intendedAction": "read",
+        "expectedInformationGain": "Cross-reference context",
+    }))
+
+    assert first["progressRevision"] == 1
+    assert strategy_change["progressRevision"] == 1
+    assert context.progress_state["currentTarget"] == "DOC art-3"
+
+
+def test_progress_ledger_accepts_partial_arguments_without_type_error() -> None:
+    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+    tool = next(tool for tool in build_rule_set_tools(context) if tool.name == "record_preparation_progress")
+
+    # Calling with only establishedFindings must succeed and not raise TypeError
+    res = json.loads(tool.invoke({"establishedFindings": ["DOC art-1 retained"]}))
+    assert res["progressRevision"] == 1
+    assert context.progress_state["establishedFindings"] == ["DOC art-1 retained"]
+    assert context.progress_state["currentTarget"] == ""
+
+    # Calling with unexpected extra keyword arguments must also succeed
+    res2 = json.loads(tool.invoke({"currentTarget": "DOC art-2", "extraArg": "ignored"}))
+    assert res2["progressRevision"] == 1
+    assert context.progress_state["currentTarget"] == "DOC art-2"
+    assert context.progress_state["establishedFindings"] == ["DOC art-1 retained"]
 
 
 def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_path: Path) -> None:
@@ -291,14 +396,113 @@ def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_p
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
 
     assert result["state"] == "SUCCEEDED" and result["failureReason"] is None
-    assert api.names() == ["claim", "validate", "submit"], api.names()  # the 2nd submit never reaches the API
+    assert api.names() == ["claim", "validate", "submit"], api.names()
     _, (run_id, key, sent) = api.calls[2]
     assert run_id == RUN_ID
     assert key == f"rule-set-preparation-submit-{RUN_ID}"
     assert sent == packet
     messages = _tool_messages(model)
-    assert "Pinned legal_source SYNTHETIC-LEGAL_SOURCE-V1" in messages["read-index"].content
+    assert "Pinned legal source 22222222-2222-4222-8222-222222222222" in messages["read-index"].content
     assert len(model.prompts) == 3  # Native graph ends at the first governed submission.
+
+
+def test_pinned_source_listing_is_visible_and_agent_changes_strategy(tmp_path: Path) -> None:
+    packet = _packet()
+    model = _model([
+        _call("ls", {"path": "/legal-source"}, "ls-first"),
+        _call("ls", {"path": "/legal-source"}, "ls-repeat"),
+        _call("read_file", {"file_path": INDEX_PATH}, "read-index"),
+        _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
+        _call("submit_compliance_rule_set", {"packet": packet}, "submit"),
+    ])
+    result = run_rule_set_preparation(FakeApi(), RUN_ID, model=model, work_dir=tmp_path)
+
+    assert result["state"] == "SUCCEEDED"
+    messages = _tool_messages(model)
+    listing = messages["ls-first"].content
+    assert "INDEX.md" in listing and DOC in listing
+    assert f'"pinnedLegalSourceVersionId": "{LEGAL_SOURCE_ID}"' in listing
+    repeated = messages["ls-repeat"].content
+    assert '"previouslyObserved": true' in repeated and '"novelty": "NONE"' in repeated
+    assert "Novel information: NONE" in repeated
+    assert "Novel information: NONE" in str(model.prompts[2])
+    assert f"Pinned legal source {LEGAL_SOURCE_ID}" in messages["read-index"].content
+
+
+def test_completion_claim_returns_gate_gaps_to_same_agent_then_submits(tmp_path: Path) -> None:
+    packet = _packet()
+    corrected = _packet()
+    corrected["assessmentRules"][0]["legalIntent"] += " Preserve the stated exception."
+
+    class GateApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id: str, candidate: dict) -> dict:
+            self.calls.append(("validate", (run_id, candidate)))
+            if sum(name == "validate" for name, _ in self.calls) == 1:
+                return {"outcome": "FAILED", "failures": [{
+                    "code": "INTEGRITY_GAP", "ref": "assessmentRule:ER-RET", "detail": "missing source-linked exception"
+                }]}
+            return {"outcome": "PASSED", "failures": []}
+
+    api = GateApi()
+    model = _model([
+        _call("submit_compliance_rule_set", {"packet": packet}, "claim-1"),
+        _call("validate_compliance_rule_set", {"packet": corrected}, "repair-check"),
+        _call("submit_compliance_rule_set", {"packet": corrected}, "claim-2"),
+    ])
+    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+
+    assert result["state"] == "SUCCEEDED"
+    assert api.names() == ["claim", "validate", "validate", "submit"]
+    rejected = json.loads(_tool_messages(model)["claim-1"].content)
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["failures"][0]["code"] == "INTEGRITY_GAP"
+    assert api.calls[-1][1][-1] == corrected
+
+
+@pytest.mark.parametrize("batch_size", [1, 10])
+def test_agent_ignoring_no_progress_feedback_fails_only_after_feedback(tmp_path: Path, batch_size: int) -> None:
+    from middleware.failure_policy import NoProgressDetected
+    context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=LEGAL_SOURCE_ID)
+    context.inventory = SimpleNamespace(frozen={'claims': []})
+    middleware = PreparationObservationMiddleware(context)
+    feedback = []
+    for turn in range(4):
+        decision = AIMessage(content='', id=f'turn-{turn}', tool_calls=[{'name': 'ls', 'args': {'path': '/legal-source'}, 'id': f'{turn}-{i}'} for i in range(batch_size)])
+        for i in range(batch_size):
+            request = SimpleNamespace(tool_call=decision.tool_calls[i], state={'messages': [decision]})
+            if turn == 3:
+                with pytest.raises(NoProgressDetected):
+                    middleware.wrap_tool_call(request, lambda _: ToolMessage(content='INDEX.md', tool_call_id=f'{turn}-{i}'))
+                break
+            feedback.append(middleware.wrap_tool_call(request, lambda _: ToolMessage(content='INDEX.md', tool_call_id=f'{turn}-{i}')).content)
+    assert 'NO_PROGRESS' in feedback[-1]
+
+
+def test_novelty_allows_changed_observations_and_state_advancement() -> None:
+    from rule_set_preparation.agent import PreparationObservationMiddleware
+
+    context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=LEGAL_SOURCE_ID)
+    context.inventory = SimpleNamespace(frozen={"claims": []})
+    middleware = PreparationObservationMiddleware(context)
+
+    def observe(name: str, path: str, output: str, call_id: str) -> str:
+        request = SimpleNamespace(tool_call={"name": name, "args": {"path": path}})
+        result = middleware.wrap_tool_call(
+            request, lambda _: ToolMessage(content=output, tool_call_id=call_id)
+        )
+        return result.content
+
+    first = observe("ls", "/legal-source", "child-a/", "1")
+    other_path = observe("ls", "/legal-source/child-a", "a.md", "2")
+    changed_result = observe("ls", "/legal-source/child-a", "a.md\nb.md", "3")
+    assert '"novelty": "NEW"' in first
+    assert '"novelty": "NEW"' in other_path
+    assert '"novelty": "CHANGED"' in changed_result
+
+    context.progress_revision += 1
+    after_progress = observe("ls", "/legal-source/child-a", "a.md\nb.md", "4")
+    assert '"progressStateAdvanced": true' in after_progress
+    assert '"NO_PROGRESS"' not in after_progress
 
 
 def test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -411,11 +615,11 @@ def test_no_submission_is_recorded_as_failed(tmp_path: Path, monkeypatch: pytest
 
     def materialize_then_lose_a_chunk(bundle: dict[str, Any], root: Path) -> list[str]:
         paths = real(bundle, root)
-        (root / paths[1].lstrip("/")).unlink()  # the pinned chunk really becomes unreadable
+        (root / f"legal-source/{DOC}/dieu-1.md").unlink()  # The pinned Article really becomes unreadable.
         return paths
 
     monkeypatch.setattr(runner, "materialize_legal_source", materialize_then_lose_a_chunk)
-    blocked = {"reason": "SOURCE_UNREADABLE", "path": "/legal-source/SYNTHETIC-NOTICE-INSTRUMENT/art-1__cl-1.md"}
+    blocked = {"reason": "SOURCE_UNREADABLE", "path": "/legal-source/SYNTHETIC-NOTICE-INSTRUMENT/dieu-1.md"}
     model = _model([_call("report_rule_set_source_blocked", blocked, "blocked")])
     api = FakeApi()
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
@@ -446,7 +650,7 @@ def test_source_block_claim_on_an_intact_pinned_source_is_refuted(tmp_path: Path
 def test_source_block_claim_for_a_path_the_index_does_not_pin_is_refuted(tmp_path: Path) -> None:
     tool, context, _ = _source_block_tool(tmp_path)
     result = json.loads(tool.invoke({"reason": "SOURCE_UNREADABLE", "path": "/legal-source/other/missing.md"}))
-    assert "not a pinned source file" in result["error"] and context.source_blocked is None
+    assert "not listed" in result["error"] and context.source_blocked is None
 
 
 def test_source_block_claim_is_honored_when_the_pinned_source_is_really_broken(tmp_path: Path) -> None:
@@ -481,6 +685,36 @@ def test_refuted_source_block_does_not_end_the_run_and_the_packet_is_still_submi
     assert "Source-blocking refused" in json.loads(_tool_messages(model)["blocked"].content)["error"]
 
 
+def test_incomplete_source_extraction_fails_before_model_invocation(tmp_path: Path, monkeypatch) -> None:
+    """A missing PDF text layer blocks the real Producer, without fabricating claims."""
+    import rule_set_preparation.runner as runner
+
+    class PartiallyExtractedApi(FakeApi):
+        def claim_rule_set_preparation(self, run_id: str) -> dict:
+            bundle = super().claim_rule_set_preparation(run_id)
+            bundle["documentGraph"]["extractionGaps"] = [
+                {"documentId": DOC, "page": 2, "kind": "NO_TEXT_LAYER"},
+            ]
+            return bundle
+
+    monkeypatch.setattr(
+        runner, "create_rule_set_preparation_agent",
+        lambda **kwargs: pytest.fail("incomplete legal source must not invoke Producer"),
+    )
+    monkeypatch.setattr(
+        runner, "publish_agent_stream_event", lambda *args, **kwargs: None,
+    )
+    api = PartiallyExtractedApi()
+    result = runner.run_rule_set_preparation(api, RUN_ID, work_dir=tmp_path)
+    assert result["failureReason"] == SOURCE_VERSION_UNAVAILABLE
+    assert result["error"] == {
+        "type": "SourceExtractionIncomplete", "stage": "SOURCE_MATERIALIZATION",
+        "extractionGapCount": 1,
+    }
+    assert api.names() == ["claim", "fail"]
+    assert api.calls[-1] == ("fail", (RUN_ID, SOURCE_VERSION_UNAVAILABLE))
+
+
 def test_model_error_and_claim_failure_are_recorded(tmp_path: Path) -> None:
     class ExplodingModel(RuleSetPreparationScriptedModel):
         def _generate(self, messages: list[Any], **kwargs: Any):
@@ -488,7 +722,18 @@ def test_model_error_and_claim_failure_are_recorded(tmp_path: Path) -> None:
 
     api = FakeApi()
     exploding = ExplodingModel(responses=[])
-    result = run_rule_set_preparation(api, RUN_ID, model=exploding, work_dir=tmp_path)
+    stream = AgentStreamSession(
+        assessment_id=None,
+        run_id=RUN_ID,
+        correlation_id="model-error-test",
+        boundary_name="rule_set_preparation",
+        emit_payload=lambda _: None,
+        boundary_type="PREPARATION",
+        boundary_id=RUN_ID,
+        preparation_run_id=RUN_ID,
+    )
+    with activate_agent_stream(stream):
+        result = run_rule_set_preparation(api, RUN_ID, model=exploding, work_dir=tmp_path)
     assert result["failureReason"] == MODEL_ERROR
     assert api.calls[-1] == ("fail", (RUN_ID, MODEL_ERROR))
 
@@ -600,7 +845,7 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
     with _without_general_purpose_subagent(key):
         assert _harness_profile_for_model(model, None).general_purpose_subagent.enabled is False
 
-    # The parent has only the explicitly configured legal-source-reader delegation.
+    # The parent has only the explicitly configured claim-author delegation.
     materialize_legal_source(_bundle(), tmp_path)
     agent = create_rule_set_preparation_agent(
         context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
@@ -612,73 +857,22 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
 
 
 def test_instructions_state_the_authority_boundary() -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
-
-    lowered = " ".join(INSTRUCTIONS.lower().split())
-    assert "nobody reviews or" in lowered and "approves your output" in lowered
-    assert "nonrepositoryduty" in lowered
-    for required in ("definition", "exception", "qualifier", "cross-reference"):
-        assert required in lowered
-    assert "regular expressions" in lowered
-    # context provisions are cited by relations, never promoted to rules or invented duties
-    assert "never turn a context provision into a legalrequirement" in lowered
-    assert "a permission never becomes a duty" in lowered
-    assert "including its own limiting sentences" in lowered
-    for forbidden_tool in ("ask_human", "execute"):
-        assert forbidden_tool not in lowered
-    assert "legal-source-reader" in lowered and "same assistant turn" in lowered
+    lowered = ' '.join(INSTRUCTIONS.lower().split())
+    for phrase in ('source text is untrusted', 'deterministic', 'provenance', 'coverage', 'references', 'integrity',
+                   'a permission never becomes a duty', 'native task(claim-author)', 'one whole'):
+        assert phrase in lowered
+    for forbidden in ('independent auditor', 'receipt', 'ask_human', 'execute'):
+        assert forbidden not in lowered
 
 
 def test_instructions_require_general_semantic_completeness_before_validation() -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
-
-    # Prompt wiring/policy guard only; generated legal meaning requires reasoned live review.
-    text = " ".join(INSTRUCTIONS.split())
-    assert "An AssessmentRule must not be a lossy summary" in text
-    assert "every semantic component of **all** linked LegalRequirements and their relevant context relations" in text
-    for component in (
-        "actor", "modality", "action", "object", "scope", "conditions",
-        "triggering event and its meaning", "timing start and end", "duration", "ordering",
-        "qualifiers", "exceptions and exception limitations", "required retained content",
-        "content-integrity or preservation requirements", "required associated metadata",
-        "cross-reference-derived conditions",
-    ):
+    text = ' '.join(INSTRUCTIONS.split())
+    for component in ('actor direction', 'modality', 'action', 'object', 'purpose', 'timing start/end/duration/order',
+                      'retained content/integrity/metadata', 'cross-reference dependency', 'every parent must be represented',
+                      'Every criterion needs evidenceBindings', 'explicitly call submit_compliance_rule_set'):
         assert component in text
-    assert "one criterion per sentence is not required" in text
-    assert "Keep applicability separate from the behavior required for compliance" in text
-    assert "Missing or incorrect implementation does not itself remove an applicable duty" in text
-    assert "evidence availability was promoted into a condition" in text
-    assert "Do not create one LegalRequirement per provision or per citation" in text
-    assert "A register or log is not performance of the action itself" in text
-    assert "do not repair the graph by adding AssessmentRule coverage to context" in text
-    assert "Mechanical coverage must never motivate a semantically false link" in text
-    assert "attach the exception only to the first duty" in text
-    assert "Apply the same target restriction to the LegalRequirement `exceptions` array" in text
-    assert "it must have no EXCEPTION relation to that provision" in text
-    assert "cite those material child clauses explicitly" in text
-    assert "does not replace references to the provisions it incorporates" in text
-    assert "complete criteria alone do not excuse incomplete evidence guidance" in text
-    assert "If it changes nothing, delete it" in text
-    assert "Correct the reported shape failures without dropping previously correct fields" in text
-    assert "Every context relation includes BOTH `toLegalRequirementId` and `toSourceRef`" in text
-    assert "Compare the relevant `contextRelations.toSourceRef` identities" in text
-    assert "insert every missing identity into the actual AssessmentRule `sourceRefs` array" in text
-    assert "An inline definition or paraphrase in a criterion does not replace its source reference" in text
-    assert "repeat this comparison after every packet repair" in text
-    assert "Repeat the private semantic completeness pass on that final packet" in text
-    assert "using the exact packet that just passed validation" in text
-    assert "Do not regenerate, shorten or change that packet between the two calls" in text
-    assert "Preserve inherited scope and other relevant context for NON_ASSESSABLE LegalRequirements too" in text
-    assert "A LegalRequirement declared `NON_ASSESSABLE` must have no AssessmentRule referencing its `legalRequirementId`" in text
-    assert "Never mark the entire duty `NON_ASSESSABLE` while also authoring an AssessmentRule to assess it" in text
-    assert "it does not decide legal assessability for you" in text
-    assert "Immediately before `validate_compliance_rule_set`, for every LegalRequirement" in text
-    assert "private agent reasoning, not a packet field" in text
-    for fixture_detail in (
-        "Article 1", "Article 3", "Article 4", "Article 5", "Article 6",
-        "seven days", "temporary test record", "notice text",
-    ):
-        assert fixture_detail not in text
+    assert 'claimBindings' in text
+
 
 
 def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_each(tmp_path: Path) -> None:
@@ -701,14 +895,12 @@ def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_
     assert context.last_validation["failures"] == failures  # the run keeps the full API result
 
 
-def test_instructions_require_covering_the_whole_source_in_one_large_packet() -> None:
-    from rule_set_preparation.agent import INSTRUCTIONS
+def test_instructions_require_operative_accounting_without_citation_buckets() -> None:
+    text = ' '.join(INSTRUCTIONS.split())
+    for required in ('Every printed locator', 'at least one claim OR in noClaims, never both', 'All relevant claims',
+                     'NON_ASSESSABLE never excuses omission', 'commit_claims', 'discoveryCompleteEligible=true'):
+        assert required in text
 
-    text = " ".join(INSTRUCTIONS.split())
-    assert "## Coverage of the whole pinned source" in text
-    assert "every non-repealed leaf provision to be referenced" in text
-    assert "Never stop, summarise or say that the volume is too large" in text
-    assert "add exactly those provisions" in text and "`uncoveredProvisions`" in text
 
 
 def _draft_tools(api: FakeApi | None = None) -> tuple[RuleSetPreparationContext, dict[str, Any]]:
@@ -748,9 +940,9 @@ def test_draft_items_are_replaced_by_label_and_any_edit_revokes_a_pass() -> None
     result = json.loads(add.invoke({"legalRequirements": [corrected]}))
     assert result["replaced"] == 1 and result["draft"]["legalRequirements"] == 1
     assert context.draft["legalRequirements"]["LR-RET"]["title"] == "Retention (corrected)"
-    assert "error" in json.loads(submit.invoke({}))  # the earlier PASS no longer describes the draft
-    assert context.submission is None
-    assert json.loads(validate.invoke({}))["outcome"] == "PASSED"
+    claim = json.loads(submit.invoke({}))
+    assert claim["lifecycleState"] == "ACTIVE"  # an edited draft is gated again before submission
+    assert context.submission is not None
 
 
 def test_only_items_named_by_the_latest_validation_failures_can_be_removed() -> None:
@@ -801,7 +993,10 @@ def test_a_packet_assembled_from_the_draft_is_what_an_agent_run_submits(tmp_path
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
     assert result["state"] == "SUCCEEDED"
     assert api.names() == ["claim", "validate", "submit"]
-    assert api.calls[1][1][1] == api.calls[2][1][2] == packet
+    validated = api.calls[1][1][1]
+    assert validated == api.calls[2][1][2]
+    assert {key: validated[key] for key in packet} == packet
+    assert validated["semanticGraph"]["materializationId"] == _bundle()["documentGraph"]["materializationId"]
 
 
 def test_stale_hash_feedback_names_the_pinned_identity_so_the_item_is_corrected_not_deleted(tmp_path: Path) -> None:
@@ -818,6 +1013,9 @@ def test_stale_hash_feedback_names_the_pinned_identity_so_the_item_is_corrected_
 
     context = RuleSetPreparationContext(run_id=RUN_ID, api=StaleApi(), source_root=tmp_path)
     tool = next(t for t in build_rule_set_tools(context) if t.name == "validate_compliance_rule_set")
+    from rule_set_preparation.source_graph import PinnedSourceGraph
+    bundle = _bundle()
+    context.source_graph = PinnedSourceGraph(bundle["documentGraph"], [c for d in bundle["documents"] for c in d["chunks"]])
     seen = json.loads(tool.invoke({"packet": _packet()}))["failures"]
     assert seen[0]["expectedContentSha256"] == expected
     assert "expectedContentSha256" not in seen[1]  # a locator the INDEX does not pin gets no invented hash
@@ -850,3 +1048,28 @@ def test_every_few_draft_parts_come_back_with_the_mechanical_validation_attached
     assert context.validation_calls == 1 and context.adds_since_validation == 1
     repeated = json.loads(add.invoke({"legalRequirements": [labelled(4)]}))
     assert "already existed" in repeated["note"]
+
+
+def test_instructions_derive_applicability_from_the_source_without_naming_a_legal_ontology() -> None:
+    text = ' '.join(INSTRUCTIONS.split())
+    for required in ('Applicability must state the actual addressee and source conditions', 'source-defined criteria',
+                     'Only SCOPE and CONDITION claims', 'any-of/all-of alternatives', 'Applicability is its own claim'):
+        assert required in text
+    for source_specific in ('134/2025', '71/2025', 'quoc hoi'):
+        assert source_specific not in text.lower()
+
+
+
+def test_the_model_facing_packet_schema_explains_what_a_good_applicability_condition_is() -> None:
+    import json
+    from pathlib import Path
+
+    schema_path = Path(__file__).parent.parent / "rule_set_preparation/packet-schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    requirement = schema["properties"]["packet"]["properties"]["legalRequirements"]["items"]["properties"]
+    rule = schema["properties"]["packet"]["properties"]["assessmentRules"]["items"]["properties"]
+    assert "unpack those criteria" in requirement["applicabilityConditions"]["description"]
+    assert "at least one" in requirement["applicabilityConditions"]["description"]
+    assert "facts" in rule["unresolvedConditions"]["description"]
+    assert "linked legalrequirementids" in rule["applicabilityGuidance"]["description"].lower()
+    assert "APPLICABILITY_BINDING_MISMATCH" in rule["applicabilityGuidance"]["description"]

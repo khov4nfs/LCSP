@@ -1,3 +1,8 @@
+import { LegalSourceDocumentCorpusRole as PrismaCorpusRole } from "@prisma/client";
+import {
+  LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES as CorpusRoles,
+  type LegalSourceDocumentCorpusRole,
+} from "@lcsp/contracts/legal-source";
 import {
   AuditExportStatus as PrismaAuditExportStatus,
   AuditResourceType as PrismaAuditResourceType,
@@ -5,6 +10,8 @@ import {
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,
   AuthUserRole as PrismaAuthUserRole,
+  LegalSourceDocumentIngestionState as PrismaLegalSourceDocumentIngestionState,
+  LegalSourceDocumentOrigin as PrismaLegalSourceDocumentOrigin,
   LegalSourceLifecycleStatus as PrismaLegalSourceLifecycleStatus,
   OutboxAggregateType as PrismaOutboxAggregateType,
   OutboxStatus as PrismaOutboxStatus,
@@ -46,9 +53,14 @@ import {
   type RepositorySnapshotStatus,
 } from "@lcsp/contracts/github-integration";
 
-import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
-
-import { type LegalSourceLifecycleStatus } from "@lcsp/contracts/legal-source";
+import {
+  LEGAL_SOURCE_DOCUMENT_INGESTION_STATES,
+  LEGAL_SOURCE_DOCUMENT_ORIGINS,
+  LEGAL_SOURCE_LIFECYCLE_STATUSES,
+  type LegalSourceDocumentIngestionState,
+  type LegalSourceDocumentOrigin,
+  type LegalSourceLifecycleStatus,
+} from "@lcsp/contracts/legal-source";
 
 import {
   OUTBOX_AGGREGATE_TYPES,
@@ -506,4 +518,101 @@ export function fromPrismaCredentialProvider(
     default:
       return CREDENTIAL_PROVIDERS.github;
   }
+}
+
+const LEGAL_SOURCE_DOCUMENT_ORIGIN_TO_PRISMA = {
+  [LEGAL_SOURCE_DOCUMENT_ORIGINS.UPLOAD]:
+    PrismaLegalSourceDocumentOrigin.UPLOAD,
+  [LEGAL_SOURCE_DOCUMENT_ORIGINS.URL_IMPORT]:
+    PrismaLegalSourceDocumentOrigin.URL_IMPORT,
+  [LEGAL_SOURCE_DOCUMENT_ORIGINS.MIGRATED]:
+    PrismaLegalSourceDocumentOrigin.MIGRATED,
+} as const satisfies Record<
+  LegalSourceDocumentOrigin,
+  PrismaLegalSourceDocumentOrigin
+>;
+
+const PRISMA_LEGAL_SOURCE_DOCUMENT_ORIGIN_TO_CONTRACT = {
+  [PrismaLegalSourceDocumentOrigin.UPLOAD]:
+    LEGAL_SOURCE_DOCUMENT_ORIGINS.UPLOAD,
+  [PrismaLegalSourceDocumentOrigin.URL_IMPORT]:
+    LEGAL_SOURCE_DOCUMENT_ORIGINS.URL_IMPORT,
+  [PrismaLegalSourceDocumentOrigin.MIGRATED]:
+    LEGAL_SOURCE_DOCUMENT_ORIGINS.MIGRATED,
+} as const satisfies Record<
+  PrismaLegalSourceDocumentOrigin,
+  LegalSourceDocumentOrigin
+>;
+
+const LEGAL_SOURCE_DOCUMENT_INGESTION_STATE_TO_PRISMA = {
+  [LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.PENDING]:
+    PrismaLegalSourceDocumentIngestionState.PENDING,
+  [LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.PROCESSING]:
+    PrismaLegalSourceDocumentIngestionState.PROCESSING,
+  [LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.READY]:
+    PrismaLegalSourceDocumentIngestionState.READY,
+  [LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.FAILED]:
+    PrismaLegalSourceDocumentIngestionState.FAILED,
+} as const satisfies Record<
+  LegalSourceDocumentIngestionState,
+  PrismaLegalSourceDocumentIngestionState
+>;
+
+const PRISMA_LEGAL_SOURCE_DOCUMENT_INGESTION_STATE_TO_CONTRACT = {
+  [PrismaLegalSourceDocumentIngestionState.PENDING]:
+    LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.PENDING,
+  [PrismaLegalSourceDocumentIngestionState.PROCESSING]:
+    LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.PROCESSING,
+  [PrismaLegalSourceDocumentIngestionState.READY]:
+    LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.READY,
+  [PrismaLegalSourceDocumentIngestionState.FAILED]:
+    LEGAL_SOURCE_DOCUMENT_INGESTION_STATES.FAILED,
+} as const satisfies Record<
+  PrismaLegalSourceDocumentIngestionState,
+  LegalSourceDocumentIngestionState
+>;
+
+/** Maps a managed document's origin from the contract layer to Prisma. */
+export function toPrismaLegalSourceDocumentOrigin(
+  origin: LegalSourceDocumentOrigin,
+): PrismaLegalSourceDocumentOrigin {
+  return LEGAL_SOURCE_DOCUMENT_ORIGIN_TO_PRISMA[origin];
+}
+
+/** Maps a managed document's origin from Prisma to the contract layer. */
+export function fromPrismaLegalSourceDocumentOrigin(
+  origin: PrismaLegalSourceDocumentOrigin,
+): LegalSourceDocumentOrigin {
+  return PRISMA_LEGAL_SOURCE_DOCUMENT_ORIGIN_TO_CONTRACT[origin];
+}
+
+/** Maps a document ingestion state from the contract layer to Prisma. */
+export function toPrismaLegalSourceDocumentIngestionState(
+  state: LegalSourceDocumentIngestionState,
+): PrismaLegalSourceDocumentIngestionState {
+  return LEGAL_SOURCE_DOCUMENT_INGESTION_STATE_TO_PRISMA[state];
+}
+
+/** Maps a document ingestion state from Prisma to the contract layer. */
+export function fromPrismaLegalSourceDocumentIngestionState(
+  state: PrismaLegalSourceDocumentIngestionState,
+): LegalSourceDocumentIngestionState {
+  return PRISMA_LEGAL_SOURCE_DOCUMENT_INGESTION_STATE_TO_CONTRACT[state];
+}
+
+export function toPrismaLegalSourceDocumentCorpusRole(
+  role: LegalSourceDocumentCorpusRole,
+): PrismaCorpusRole {
+  return {
+    [CorpusRoles.OPERATIVE]: PrismaCorpusRole.OPERATIVE,
+    [CorpusRoles.REFERENCE_ONLY]: PrismaCorpusRole.REFERENCE_ONLY,
+  }[role];
+}
+export function fromPrismaLegalSourceDocumentCorpusRole(
+  role: PrismaCorpusRole,
+): LegalSourceDocumentCorpusRole {
+  return {
+    [PrismaCorpusRole.OPERATIVE]: CorpusRoles.OPERATIVE,
+    [PrismaCorpusRole.REFERENCE_ONLY]: CorpusRoles.REFERENCE_ONLY,
+  }[role];
 }

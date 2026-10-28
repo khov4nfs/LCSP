@@ -1,0 +1,19 @@
+SYNTHETIC TEST FIXTURE — LCSP-360 disposable mini source. This text is not legislation.
+
+Article 1. MINI-001 — Definitions
+Covered Organization means an organization that stores or processes Protected Records. Protected Record means information relating to an identifiable individual.
+
+Article 2. MINI-002 — Base safeguard duty
+A Covered Organization that stores Protected Records must maintain documented technical and organizational safeguards appropriate to the sensitivity of the records.
+
+Article 3. MINI-003 — Qualified review duty
+If a Covered Organization processes more than 1,000 Protected Records during a calendar year, it must perform a documented safeguards review at least once every 12 months.
+
+Article 4. MINI-004 — Exception
+MINI-003 does not apply where Protected Records are processed solely for a temporary emergency-response activity lasting no more than 30 days. MINI-002 still applies.
+
+Article 5. MINI-005 — Cross-reference
+Where MINI-003 applies, the review must evaluate the safeguards required by MINI-002 and document material deficiencies and remediation actions.
+
+Article 6. MINI-006 — Non-repository duty
+A Covered Organization must designate a contact for questions concerning its handling of Protected Records and make that contact information available to affected individuals.

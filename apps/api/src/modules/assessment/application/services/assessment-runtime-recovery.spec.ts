@@ -12,7 +12,12 @@ import {
   assessmentRootClaimSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
-import { AssessmentRuntimeAuthority } from "./assessment-runtime-authority.service.js";
+import {
+  AssessmentRuntimeAuthority,
+  type SeparateCheckpointClient,
+  resetSeparateCheckpointClientFactoryForTesting,
+  setSeparateCheckpointClientFactoryForTesting,
+} from "./assessment-runtime-authority.service.js";
 import type { AppendAssessmentEventInput } from "./assessment-event-appender.service.js";
 
 function fixture(
@@ -21,6 +26,9 @@ function fixture(
 ) {
   const assessmentId = randomUUID();
   const runtimeRunId = randomUUID();
+  const ruleSetVersionId = randomUUID();
+  const repositorySnapshotId = randomUUID();
+  const repositoryCommit = "a".repeat(40);
   const row = {
     lifecycleState,
     lifecycleRevision: 3,
@@ -40,12 +48,30 @@ function fixture(
     threadId: row.threadId,
     boundary: ASSESSMENT_ROOT_BOUNDARY,
     contextJson: { runtimeRunId },
+    checkpointJson: null,
     state: Controls.running,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2027-01-01T00:00:00.000Z"),
   };
   const tx = {
     $queryRaw: jest
-      .fn<() => Promise<(typeof row)[]>>()
+      .fn<(query: unknown) => Promise<unknown[]>>()
       .mockResolvedValue([row]),
+    assessmentCase: {
+      findUnique: jest
+        .fn<
+          () => Promise<{
+            ruleSetVersionId: string;
+            repositorySnapshotId: string;
+            repositoryCommit: string;
+          } | null>
+        >()
+        .mockResolvedValue({
+          ruleSetVersionId,
+          repositorySnapshotId,
+          repositoryCommit,
+        }),
+    },
     assessmentRuntime: {
       update: jest.fn(({ data }: { data: Partial<typeof row> }) =>
         Promise.resolve(Object.assign(row, data)),
@@ -54,8 +80,13 @@ function fixture(
     assessmentRuntimeTurn: {
       findUnique: jest.fn<() => Promise<typeof turn>>().mockResolvedValue(turn),
       findFirst: jest.fn<() => Promise<null>>().mockResolvedValue(null),
-      upsert: jest.fn(({ update }: { update: Partial<typeof turn> }) =>
-        Promise.resolve(Object.assign(turn, update)),
+      upsert: jest.fn(
+        ({
+          update,
+        }: {
+          create: Record<string, unknown>;
+          update: Partial<typeof turn>;
+        }) => Promise.resolve(Object.assign(turn, update)),
       ),
       update: jest.fn(({ data }: { data: Partial<typeof turn> }) =>
         Promise.resolve(Object.assign(turn, data)),
@@ -86,10 +117,24 @@ function fixture(
     { appendInTx } as never,
     {} as never,
   );
-  return { authority, row, turn, tx, assessmentId, runtimeRunId, appendInTx };
+  return {
+    authority,
+    row,
+    turn,
+    tx,
+    assessmentId,
+    runtimeRunId,
+    ruleSetVersionId,
+    repositorySnapshotId,
+    repositoryCommit,
+    appendInTx,
+  };
 }
 
 describe("persisted Agent Server run recovery", () => {
+  afterEach(() => {
+    resetSeparateCheckpointClientFactoryForTesting();
+  });
   it.each([false, true])(
     "reattaches the same run with a fresh fenced lease, expired=%p",
     async (expired) => {
@@ -173,6 +218,620 @@ describe("persisted Agent Server run recovery", () => {
     expect(claim.lifecycleState).toBe(Lifecycle.WAITING_FOR_HUMAN);
     expect(claim.recoveredExecution).toBe(true);
     expect(f.row.lifecycleState).toBe(Lifecycle.WAITING_FOR_HUMAN);
+  });
+
+  it("authorizes a failed-run checkpoint only when the server row and failed turn bind it to this thread", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    const failedExecutionId = f.row.currentExecutionId;
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: { checkpointId },
+    });
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.executionId).not.toBe(failedExecutionId);
+    expect(claim.threadId).toBe(f.row.threadId);
+    expect(claim.resumeCheckpointId).toBe(checkpointId);
+  });
+
+  it("does not infer checkpoint authority for a failed run whose API checkpoint is absent", async () => {
+    const f = fixture();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.resumeCheckpointId).toBeNull();
+  });
+
+  it("recovers a null API checkpoint only from the latest native checkpoint bound to the failed Root turn", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    const runtimeRunId = f.runtimeRunId;
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+    const nativeCheckpoint = {
+      checkpointId,
+      serializedCheckpointId: checkpointId,
+      checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+      metadata: {
+        assessment_id: f.assessmentId,
+        lcsp_runtime_run_id: runtimeRunId,
+        lcsp_boundary_name: "assessment_root_requested",
+        lc_agent_name: "lcsp-assessment-root",
+        rule_set_version_id: f.ruleSetVersionId,
+        repository_snapshot_id: f.repositorySnapshotId,
+        repository_commit: f.repositoryCommit,
+      },
+    };
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: "checkpoints" }])
+      .mockResolvedValueOnce([nativeCheckpoint]);
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.resumeCheckpointId).toBe(checkpointId);
+    expect(f.row.checkpointId).toBe(checkpointId);
+    const newTurn = f.tx.assessmentRuntimeTurn.upsert.mock.calls[0]?.[0];
+    expect(newTurn?.create.checkpointJson).toEqual({
+      checkpointId,
+      resumedFromExecutionId: f.turn.id,
+      recoverySource: "NATIVE_CHECKPOINT_METADATA",
+    });
+    expect(newTurn?.create.contextJson).toMatchObject({
+      nativeCheckpointRecovery: {
+        checkpointId,
+        checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+        resumedFromExecutionId: f.turn.id,
+        recoverySource: "NATIVE_CHECKPOINT_METADATA",
+      },
+    });
+    const nativeQuery = f.tx.$queryRaw.mock.calls[3]?.[0] as
+      { sql?: string; values?: unknown[] } | undefined;
+    expect(nativeQuery?.sql).toContain('ORDER BY "checkpoint_id" DESC');
+    expect(nativeQuery?.values?.includes(f.row.threadId)).toBe(true);
+    expect(nativeQuery?.values?.includes("")).toBe(true);
+    expect(f.turn.checkpointJson).toBeNull();
+  });
+
+  it.each([
+    ["another assessment", { assessment_id: randomUUID() }],
+    ["another transport run", { lcsp_runtime_run_id: randomUUID() }],
+    ["another boundary", { lcsp_boundary_name: "command.other.v1" }],
+    ["another agent", { lc_agent_name: "another-agent" }],
+    ["another thread", { thread_id: randomUUID() }],
+    ["mismatched rule set pin", { rule_set_version_id: randomUUID() }],
+    ["mismatched snapshot pin", { repository_snapshot_id: randomUUID() }],
+    ["mismatched commit pin", { repository_commit: "b".repeat(40) }],
+    ["missing rule set pin", { rule_set_version_id: undefined }],
+    ["missing snapshot pin", { repository_snapshot_id: undefined }],
+    ["missing commit pin", { repository_commit: undefined }],
+    ["malformed rule set pin", { rule_set_version_id: 12345 }],
+    ["malformed snapshot pin", { repository_snapshot_id: null }],
+    ["malformed commit pin", { repository_commit: ["invalid"] }],
+  ])(
+    "does not recover a native checkpoint with %s",
+    async (_label, mismatch) => {
+      const f = fixture();
+      const checkpointId = randomUUID();
+      Object.assign(f.row, {
+        executionState: Execution.FAILED,
+        checkpointId: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+      });
+      Object.assign(f.turn, {
+        state: Controls.completed,
+        checkpointJson: null,
+      });
+      const metadata: Record<string, unknown> = {
+        assessment_id: f.assessmentId,
+        lcsp_runtime_run_id: f.runtimeRunId,
+        lcsp_boundary_name: "assessment_root_requested",
+        lc_agent_name: "lcsp-assessment-root",
+        rule_set_version_id: f.ruleSetVersionId,
+        repository_snapshot_id: f.repositorySnapshotId,
+        repository_commit: f.repositoryCommit,
+        ...mismatch,
+      };
+      const overrides = mismatch as Record<string, unknown>;
+      if (
+        "rule_set_version_id" in overrides &&
+        overrides.rule_set_version_id === undefined
+      )
+        delete metadata.rule_set_version_id;
+      if (
+        "repository_snapshot_id" in overrides &&
+        overrides.repository_snapshot_id === undefined
+      )
+        delete metadata.repository_snapshot_id;
+      if (
+        "repository_commit" in overrides &&
+        overrides.repository_commit === undefined
+      )
+        delete metadata.repository_commit;
+
+      f.tx.$queryRaw
+        .mockResolvedValueOnce([f.row])
+        .mockResolvedValueOnce([f.row])
+        .mockResolvedValueOnce([{ tableName: "checkpoints" }])
+        .mockResolvedValueOnce([
+          {
+            checkpointId,
+            serializedCheckpointId: checkpointId,
+            checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+            metadata,
+          },
+        ]);
+
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBeNull();
+      expect(f.row.checkpointId).toBeNull();
+      expect(f.turn.checkpointJson).toBeNull();
+    },
+  );
+
+  it("does not recover a native checkpoint when AssessmentCase record is missing", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, { state: Controls.completed, checkpointJson: null });
+    f.tx.assessmentCase.findUnique.mockResolvedValue(null);
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: "checkpoints" }])
+      .mockResolvedValueOnce([
+        {
+          checkpointId,
+          serializedCheckpointId: checkpointId,
+          checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+          metadata: {
+            assessment_id: f.assessmentId,
+            lcsp_runtime_run_id: f.runtimeRunId,
+            lcsp_boundary_name: "assessment_root_requested",
+            lc_agent_name: "lcsp-assessment-root",
+            rule_set_version_id: f.ruleSetVersionId,
+            repository_snapshot_id: f.repositorySnapshotId,
+            repository_commit: f.repositoryCommit,
+          },
+        },
+      ]);
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.resumeCheckpointId).toBeNull();
+    expect(f.row.checkpointId).toBeNull();
+  });
+
+  it.each([
+    ["null metadata", null],
+    ["string metadata", "invalid-string-metadata"],
+    ["array metadata", ["not", "an", "object"]],
+  ])(
+    "does not recover a native checkpoint with %s",
+    async (_label, invalidMetadata) => {
+      const f = fixture();
+      const checkpointId = randomUUID();
+      Object.assign(f.row, {
+        executionState: Execution.FAILED,
+        checkpointId: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+      });
+      Object.assign(f.turn, {
+        state: Controls.completed,
+        checkpointJson: null,
+      });
+      f.tx.$queryRaw
+        .mockResolvedValueOnce([f.row])
+        .mockResolvedValueOnce([f.row])
+        .mockResolvedValueOnce([{ tableName: "checkpoints" }])
+        .mockResolvedValueOnce([
+          {
+            checkpointId,
+            serializedCheckpointId: checkpointId,
+            checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+            metadata: invalidMetadata,
+          },
+        ]);
+
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBeNull();
+      expect(f.row.checkpointId).toBeNull();
+    },
+  );
+
+  it("does not resume a native checkpoint written after the failed Root turn ended", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, { state: Controls.completed, checkpointJson: null });
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: "checkpoints" }])
+      .mockResolvedValueOnce([
+        {
+          checkpointId,
+          serializedCheckpointId: checkpointId,
+          checkpointTimestamp: "2027-01-01T00:00:00.001Z",
+          metadata: {
+            assessment_id: f.assessmentId,
+            lcsp_runtime_run_id: f.runtimeRunId,
+            lcsp_boundary_name: "assessment_root_requested",
+            lc_agent_name: "lcsp-assessment-root",
+          },
+        },
+      ]);
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.resumeCheckpointId).toBeNull();
+    expect(f.row.checkpointId).toBeNull();
+  });
+
+  it("does not resume a native checkpoint whose payload ID differs from its stored identity", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, { state: Controls.completed, checkpointJson: null });
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: "checkpoints" }])
+      .mockResolvedValueOnce([
+        {
+          checkpointId,
+          serializedCheckpointId: randomUUID(),
+          checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+          metadata: {
+            assessment_id: f.assessmentId,
+            lcsp_runtime_run_id: f.runtimeRunId,
+            lcsp_boundary_name: "assessment_root_requested",
+            lc_agent_name: "lcsp-assessment-root",
+          },
+        },
+      ]);
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.resumeCheckpointId).toBeNull();
+    expect(f.row.checkpointId).toBeNull();
+  });
+
+  it("does not recover from an unavailable native checkpoint store", async () => {
+    const f = fixture();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, { state: Controls.completed, checkpointJson: null });
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: null }]);
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.resumeCheckpointId).toBeNull();
+    const newTurn = f.tx.assessmentRuntimeTurn.upsert.mock.calls[0]?.[0];
+    expect(newTurn?.create.checkpointJson).toBeUndefined();
+  });
+
+  it("does not authorize a failed checkpoint when the runtime and turn bindings disagree", async () => {
+    const f = fixture();
+    const runtimeCheckpointId = randomUUID();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: runtimeCheckpointId,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: { checkpointId: randomUUID() },
+    });
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+
+    expect(claim.resumeCheckpointId).toBeNull();
+  });
+
+  it("recovers a null API checkpoint from a separate native checkpoint database when configured", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    const runtimeRunId = f.runtimeRunId;
+    const ruleSetVersionId = randomUUID();
+    const repositorySnapshotId = randomUUID();
+    const repositoryCommit = "a".repeat(40);
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+    const nativeCheckpoint = {
+      checkpointId,
+      serializedCheckpointId: checkpointId,
+      checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+      metadata: {
+        assessment_id: f.assessmentId,
+        lcsp_runtime_run_id: runtimeRunId,
+        lcsp_boundary_name: "assessment_root_requested",
+        lc_agent_name: "lcsp-assessment-root",
+        rule_set_version_id: ruleSetVersionId,
+        repository_snapshot_id: repositorySnapshotId,
+        repository_commit: repositoryCommit,
+      },
+    };
+    (f.tx as Record<string, unknown>).assessmentCase = {
+      findUnique: jest
+        .fn<
+          () => Promise<{
+            ruleSetVersionId: string;
+            repositorySnapshotId: string;
+            repositoryCommit: string;
+          }>
+        >()
+        .mockResolvedValue({
+          ruleSetVersionId,
+          repositorySnapshotId,
+          repositoryCommit,
+        }),
+    };
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: null }]); // table absent in co-located API db
+
+    const prevUrl = process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+    process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL =
+      "postgresql://postgres:postgres@127.0.0.1:55441/separate_checkpoints";
+
+    const mockConnect = jest
+      .fn<() => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const mockEnd = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const mockQuery = jest
+      .fn<SeparateCheckpointClient["query"]>()
+      .mockResolvedValueOnce({ rows: [{ tableName: "checkpoints" }] })
+      .mockResolvedValueOnce({ rows: [nativeCheckpoint] });
+
+    setSeparateCheckpointClientFactoryForTesting(() => ({
+      connect: mockConnect,
+      query: mockQuery as unknown as SeparateCheckpointClient["query"],
+      end: mockEnd,
+    }));
+
+    try {
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBe(checkpointId);
+      expect(f.row.checkpointId).toBe(checkpointId);
+      expect(mockConnect).toHaveBeenCalled();
+      expect(mockEnd).toHaveBeenCalled();
+    } finally {
+      if (prevUrl === undefined) {
+        delete process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+      } else {
+        process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL = prevUrl;
+      }
+      resetSeparateCheckpointClientFactoryForTesting();
+    }
+  });
+
+  it("does not recover from a separate native checkpoint database when case pins mismatch", async () => {
+    const f = fixture();
+    const checkpointId = randomUUID();
+    const runtimeRunId = f.runtimeRunId;
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+    const nativeCheckpoint = {
+      checkpointId,
+      serializedCheckpointId: checkpointId,
+      checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+      metadata: {
+        assessment_id: f.assessmentId,
+        lcsp_runtime_run_id: runtimeRunId,
+        lcsp_boundary_name: "assessment_root_requested",
+        lc_agent_name: "lcsp-assessment-root",
+        rule_set_version_id: randomUUID(),
+        repository_snapshot_id: randomUUID(),
+        repository_commit: "b".repeat(40), // mismatched pin
+      },
+    };
+    (f.tx as Record<string, unknown>).assessmentCase = {
+      findUnique: jest
+        .fn<
+          () => Promise<{
+            ruleSetVersionId: string;
+            repositorySnapshotId: string;
+            repositoryCommit: string;
+          }>
+        >()
+        .mockResolvedValue({
+          ruleSetVersionId: randomUUID(),
+          repositorySnapshotId: randomUUID(),
+          repositoryCommit: "a".repeat(40),
+        }),
+    };
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: null }]);
+
+    const prevUrl = process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+    process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL =
+      "postgresql://postgres:postgres@127.0.0.1:55441/separate_checkpoints";
+
+    setSeparateCheckpointClientFactoryForTesting(() => ({
+      connect: () => Promise.resolve(),
+      query: <R extends Record<string, unknown> = Record<string, unknown>>(
+        text: string,
+      ): Promise<{ rows: R[] }> => {
+        if (text.includes("to_regclass")) {
+          return Promise.resolve({
+            rows: [{ tableName: "checkpoints" } as unknown as R],
+          });
+        }
+        return Promise.resolve({ rows: [nativeCheckpoint as unknown as R] });
+      },
+      end: () => Promise.resolve(),
+    }));
+
+    try {
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBeNull();
+      expect(f.row.checkpointId).toBeNull();
+    } finally {
+      if (prevUrl === undefined) {
+        delete process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+      } else {
+        process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL = prevUrl;
+      }
+      resetSeparateCheckpointClientFactoryForTesting();
+    }
+  });
+
+  it("does not recover when separate native checkpoint database connection fails", async () => {
+    const f = fixture();
+    Object.assign(f.row, {
+      executionState: Execution.FAILED,
+      checkpointId: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: null,
+    });
+    f.tx.$queryRaw
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([f.row])
+      .mockResolvedValueOnce([{ tableName: null }]);
+
+    const prevUrl = process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+    process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL =
+      "postgresql://postgres:postgres@127.0.0.1:55441/separate_checkpoints";
+
+    setSeparateCheckpointClientFactoryForTesting(() => ({
+      connect: () => Promise.reject(new Error("Connection refused")),
+      query: <R extends Record<string, unknown> = Record<string, unknown>>() =>
+        Promise.resolve({ rows: [] as R[] }),
+      end: () => Promise.resolve(),
+    }));
+
+    try {
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBeNull();
+      expect(f.row.checkpointId).toBeNull();
+    } finally {
+      if (prevUrl === undefined) {
+        delete process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL;
+      } else {
+        process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL = prevUrl;
+      }
+      resetSeparateCheckpointClientFactoryForTesting();
+    }
   });
 
   it("rejects model or transport input pretending to supply an execution, thread or lease", () => {

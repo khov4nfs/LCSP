@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextvars
+import traceback
 import json
 import re
 import tempfile
@@ -11,19 +12,26 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import ToolMessage
 from langchain_core.runnables.config import var_child_runnable_config
-from langgraph.errors import GraphRecursionError
-from orchestration.agent_stream import publish_agent_stream_event
+from anthropic import APIError as AnthropicAPIError
+from openai import APIError as OpenAIAPIError
+from langchain_google_genai.chat_models import GoogleAPIError
+from langgraph.errors import GraphRecursionError, NodeCancelledError
+from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected
+from orchestration.agent_stream import DURABLE, active_agent_stream, publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
 from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
+from rule_set_preparation.source_graph import GRAPH_TOOL_NAMES, PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext
 
 # Reasons mirror packages/contracts RULE_SET_PREPARATION_FAILURE_REASONS.
 NO_SUBMISSION = "NO_SUBMISSION"
+NO_OPERATIVE_OBLIGATIONS = "NO_OPERATIVE_OBLIGATIONS"
 MODEL_ERROR = "MODEL_ERROR"
 SOURCE_VERSION_UNAVAILABLE = "SOURCE_VERSION_UNAVAILABLE"
 RUNTIME_ERROR = "RUNTIME_ERROR"
@@ -33,8 +41,10 @@ HTTP_CONFLICT = 409
 logger = get_logger(__name__)
 
 _TASK = (
-    "Prepare the complete compliance rule set for the pinned Legal Source. Read /legal-source/INDEX.md first, "
-    "author the LegalRequirements, AssessmentRules and context relations, validate until the packet "
+    "Prepare the complete compliance rule set for the pinned Legal Source. Resume the durable phase and authoring state. "
+    "During discovery call discovery_status, delegate its whole-Article assignments to claim-author tasks, explicitly finalize "
+    "the frozen claim inventory, then enter Rule authoring against that revision. "
+    "then derive LegalRequirements and AssessmentRules, validate until the packet "
     "passes, then submit it once."
 )
 
@@ -45,11 +55,17 @@ _ACTIVITY_TOOLS = frozenset(
         "grep",
         "read_file",
         "task",
+        "write_file", "edit_file", "write_todos", "commit_claims", "discovery_status",
+        "get_next_legal_analysis_package", "get_rule_set_draft_candidate", "submit_rule_set_draft_candidates", "correct_rule_set_draft_submission",
         "validate_compliance_rule_set",
         "submit_compliance_rule_set",
+        "record_preparation_progress",
+        "remove_rule_candidate", "get_claim_inventory", "validate_semantic_claim_inventory",
+        "finalize_semantic_claim_inventory", "conclude_no_operative_obligations", "reopen_semantic_claim_inventory", "start_rule_authoring",
+        "author_legal_requirement", "author_assessment_rule",
         "report_rule_set_source_blocked",
     }
-)
+) | GRAPH_TOOL_NAMES
 _SOURCE_PATH_RE = re.compile(r"/legal-source/[A-Za-z0-9._/-]{1,200}")
 
 
@@ -111,6 +127,22 @@ class PreparationStreamTrace(BaseCallbackHandler):
         )
 
     def on_tool_end(self, output, *, run_id, **kwargs):
+        """Business purpose: Publish a bounded completion/failure event when a tracked native Preparation tool finishes.
+
+        Business rules:
+        - Only names recorded from the allowlisted activity tools are emitted; JSON result content contributes only a string outcome, never arbitrary payload data.
+
+        Execution flow:
+        1. Remove the tool and subagent identity from the active-call maps under lock.
+        2. Ignore untracked names.
+        3. Extract a safe outcome when the result is JSON and publish the corresponding TOOL_RESULT event.
+
+        Failure cases:
+        - Non-JSON results omit outcome; stream publication errors propagate to the callback runner.
+
+        Side effects:
+        - Mutates active-call tracking maps and publishes a tool-result event.
+        """
         with self._lock:
             name = self._names.pop(str(run_id), None)
             subagent = self._subagent_names.pop(str(run_id), None)
@@ -132,7 +164,7 @@ class PreparationStreamTrace(BaseCallbackHandler):
             tool_name=name,
             tool_call_id=str(run_id),
             subagent_name=subagent,
-            status="COMPLETED",
+            status="FAILED" if isinstance(output, ToolMessage) and output.status == "error" else "COMPLETED",
             data=data,
         )
 
@@ -154,6 +186,52 @@ class PreparationStreamTrace(BaseCallbackHandler):
             data=data,
         )
 
+    def active_tool_names(self) -> list[str]:
+        """Business purpose: Provide a bounded unique list of native tools currently active for safe failure diagnostics.
+
+        Business rules:
+        - Names are read under the callback lock, deduplicated, sorted and capped at 20.
+
+        Execution flow:
+        1. Acquire the callback lock.
+        2. Collect and sort active tool names.
+        3. Return the bounded list.
+
+        Failure cases:
+        - An empty active set returns an empty list; no diagnostic is inferred.
+
+        Side effects:
+        - None: reads callback state only.
+        """
+        with self._lock:
+            return sorted(set(self._names.values()))[:20]
+
+
+def _flush_draft(context) -> None:
+    """Whatever ended the run, the authored candidates are saved first so the next process resumes them.
+
+    Business purpose: Preserve the current authoring draft before a run exits so a later process can resume accepted candidate work.
+
+    Business rules:
+    - Draft flush is attempted only when a ClaimInventory exists; a flush failure must not mask the primary run outcome.
+
+    Execution flow:
+    1. Check for an initialized inventory.
+    2. Invoke its durable authoring-draft flush.
+    3. Log a warning and suppress any flush exception.
+
+    Failure cases:
+    - Flush errors are logged and swallowed to preserve the original cancellation/runtime failure.
+
+    Side effects:
+    - May persist the current authoring draft and writes a warning log on failure.
+    """
+    try:
+        if context.inventory is not None:
+            context.inventory.flush_authoring_draft()
+    except Exception:  # noqa: BLE001 - saving must never mask the failure being reported
+        logger.warning("RULE_SET_PREPARATION_DRAFT_FLUSH_FAILED", run_id=context.run_id)
+
 
 def run_rule_set_preparation(
     api: Any,
@@ -167,6 +245,31 @@ def run_rule_set_preparation(
 
     The API owns every state transition: an activated or invalid submission is recorded by
     the submit transaction itself; this function records ``FAILED`` only when the agent
+    explicitly reported a blocked source or encountered a model/runtime/legal-source error.
+
+    Business purpose: Claim and execute one governed Rule Set Preparation run, returning its authoritative lifecycle outcome and submission evidence.
+
+    Business rules:
+    - The API claim is the single execution gate; extraction gaps stop before model calls, source pins remain fixed, and only API callbacks authorize durable lifecycle transitions.
+    - Budget exhaustion pauses the run; cancellation is re-raised; provider/runtime errors are classified without exposing provider payloads.
+
+    Execution flow:
+    1. Claim the run and stop on duplicate delivery; classify unavailable source pins as failure.
+    2. Build the pinned source graph, reject extraction gaps, materialize source files and restore inventory/draft/frontier state.
+    3. Construct and invoke the native Preparation agent with isolated runnable config and stream tracing.
+    4. Flush the draft on cancellation, pause on configured budget exhaustion, or record safe failure diagnostics and fail the run.
+    5. Return the recorded no-obligation, discovery-ready, no-submission or validated submission outcome.
+
+    Failure cases:
+    - Source claim/materialization, extraction, agent construction, model/provider, runtime, callback or submission errors return the specific failed/paused/ready state; an already claimed run performs no duplicate execution.
+
+    Side effects:
+    - Claims the run, reads pinned source, materializes local files, restores durable state, runs the model/tool graph, flushes draft state and may call governed fail/submit operations and publish progress events.
+
+    Execute one run and return `{"state": ..., "submission": ..., "failureReason": ...}`.
+
+    The API owns every state transition: an activated or invalid submission is recorded by
+    the submit transaction itself; this function records `FAILED` only when the agent
     explicitly reported a blocked source or encountered a model/runtime/legal-source error.
     """
     try:
@@ -183,56 +286,160 @@ def run_rule_set_preparation(
         _fail(api, run_id, SOURCE_VERSION_UNAVAILABLE)
         return {"state": "FAILED", "submission": None, "failureReason": SOURCE_VERSION_UNAVAILABLE}
 
-    context = RuleSetPreparationContext(run_id=run_id, api=api)
+    context = RuleSetPreparationContext(run_id=run_id, api=api, direct_draft=bundle.get("executionContract") == "DIRECT_DRAFT_V1", target_date=bundle.get("targetDate"))
     with tempfile.TemporaryDirectory(prefix="lcsp-rule-set-preparation-") as scratch:
         root = work_dir or Path(scratch)
+        failure_stage = "SOURCE_MATERIALIZATION"
+        stream_trace: PreparationStreamTrace | None = None
         try:
+            context.source_graph = PinnedSourceGraph(bundle["documentGraph"], [
+                {**chunk, "documentId": document["documentId"], "legalSourceVersionId": bundle["legalSourceVersionId"]}
+                for document in bundle["documents"] for chunk in document["chunks"]
+            ])
+            # A partly extracted legal source cannot prove source completeness. Stop
+            # before paying for model calls or asking the Producer to invent
+            # material from pages or document parts that were not extracted.
+            if context.source_graph.extraction_gaps:
+                gap_count = len(context.source_graph.extraction_gaps)
+                publish_agent_stream_event(
+                    "CUSTOM_PROGRESS", status="FAILED", data={
+                        "activity_kind": "SOURCE_EXTRACTION_INCOMPLETE",
+                        "failure_reason": SOURCE_VERSION_UNAVAILABLE,
+                        "extraction_gap_count": gap_count,
+                    },
+                )
+                logger.warning("RULE_SET_PREPARATION_SOURCE_EXTRACTION_INCOMPLETE",
+                               run_id=run_id, extraction_gap_count=gap_count)
+                _fail(api, run_id, SOURCE_VERSION_UNAVAILABLE)
+                return {
+                    "state": "FAILED", "submission": None,
+                    "failureReason": SOURCE_VERSION_UNAVAILABLE,
+                    "error": {"type": "SourceExtractionIncomplete", "stage": failure_stage,
+                              "extractionGapCount": gap_count},
+                }
             materialize_legal_source(bundle, root)
             context.source_root = root
+            context.pinned_source_version_id = bundle.get("legalSourceVersionId")
+            from rule_set_preparation.claim_inventory import ClaimInventory
+            from rule_set_preparation.claim_files import rebuild_claim_files
+            context.inventory = ClaimInventory(context, revision=bundle["claimInventoryRevision"], phase=bundle["claimPhase"])
+            if bundle.get("operationId"):
+                context.inventory.frontier.operation_id = bundle["operationId"]
+            if context.direct_draft:
+                refused = context.inventory.frontier.restore()
+                if refused:
+                    raise ValueError("Could not restore persisted source review")
+            else:
+                rebuild_claim_files(context)
+            context.inventory.restore_frozen_inventory(bundle["frozenInventory"])
+            if context.direct_draft or context.inventory.frozen:
+                context.inventory.restore_authoring_draft()
             publish_agent_stream_event(
                 "CUSTOM_PROGRESS",
                 status="RUNNING",
                 data={
                     "activity_kind": "SOURCE_MATERIALIZED",
-                    "source_chunk_count": len(bundle.get("chunks", []))
-                    if isinstance(bundle, dict)
-                    else None,
+                    "source_chunk_count": sum(len(d["chunks"]) for d in bundle["documents"]),
+                    "source_node_count": len(bundle["documentGraph"]["nodes"]),
                 },
             )
+            failure_stage = "AGENT_CONSTRUCTION"
             agent = create_rule_set_preparation_agent(
                 context=context, legal_source_root=root, model=model
             )
             stream_trace = PreparationStreamTrace()
             # An independent graph, not a subgraph of the Agent Server run: inheriting that run's
-            # runnable config would make the agent and every legal-source-reader child write
+            # runnable config would make the agent and every claim-author child write
             # checkpoints into its Postgres saver, which nothing resumes from (see agent.py).
             isolated = contextvars.copy_context()
             isolated.run(var_child_runnable_config.set, None)
+
+            failure_stage = "AGENT_GRAPH"
             isolated.run(
                 agent.invoke,
-                {"messages": [{"role": "user", "content": _TASK}]},
-                config=agent_graph_config(
-                    {"callbacks": [*(callbacks or []), stream_trace]}
-                ),
+                {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
+                config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
             )
-        except Exception as error:  # noqa: BLE001 - classify provider/runtime failures
-            logger.warning(
-                "RULE_SET_PREPARATION_AGENT_FAILED",
-                run_id=run_id,
-                error_type=type(error).__name__,
-                error_message=str(error)[:500],
-            )
-            if context.submission is None:
-                reason = RUNTIME_ERROR if isinstance(error, GraphRecursionError) else MODEL_ERROR
+        except NodeCancelledError:
+            _flush_draft(context)
+            raise
+        except AgentRunBudgetExceeded as error:
+            _flush_draft(context)
+            # The API records PAUSED and retains LOAD payloads; no terminal failure callback follows.
+            if context.submission is None and context.concluded is None:
+                paused = api.fail_rule_set_preparation(run_id, "AGENT_BUDGET_REACHED")
+                if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
+                    raise RuntimeError("Budget pause callback did not establish PAUSED") from error
+                publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                    "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": "AGENT_BUDGET_REACHED"})
+                return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
+        except Exception as error:  # noqa: BLE001 - classify only proven model failures
+            _flush_draft(context)
+            # A conclusion the API already recorded is terminal; a later exception cannot turn it into a model/runtime failure.
+            if context.submission is None and context.concluded is None:
+                active_tool_names = stream_trace.active_tool_names() if stream_trace else []
+                session = active_agent_stream.get()
+                model_call_diagnostics = session.model_call_diagnostics() if session else {}
+                failing_model_call = model_call_diagnostics.get("failing_model_call")
+                last_completed_model_call = model_call_diagnostics.get("last_completed_model_call")
+                # A concurrent child's success can replace the session's last model diagnostic.
+                provider_error = isinstance(error, (OpenAIAPIError, AnthropicAPIError, GoogleAPIError))
+                reason = MODEL_ERROR if failing_model_call or provider_error else RUNTIME_ERROR
+                category = reason
+                if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded, NoProgressDetected)):
+                    reason = RUNTIME_ERROR
+                    category = "RUNTIME_ERROR"
+                diagnostic = {
+                    "durability": DURABLE,
+                    "activity_kind": "PREPARATION_FAILURE",
+                    "failure_reason": reason,
+                    "terminal_stage": failure_stage,
+                    "safe_error_category": category,
+                    "exception_class": type(error).__name__,
+                    "active_tool_names": active_tool_names,
+                }
+                callback_error = {}
+                if isinstance(error, WorkerCallbackError):
+                    callback_error["callback_status"] = error.status_code
+                    if error.error_code and re.fullmatch(r"[A-Z][A-Z0-9_]{0,127}", error.error_code):
+                        callback_error["callback_code"] = error.error_code
+                diagnostic.update(callback_error)
+                if failing_model_call:
+                    diagnostic["failing_model_call"] = failing_model_call
+                if last_completed_model_call:
+                    diagnostic["last_completed_model_call"] = last_completed_model_call
+                if model_call_diagnostics.get("active_model_call"):
+                    diagnostic["active_model_call"] = model_call_diagnostics["active_model_call"]
+                try:
+                    publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data=diagnostic)
+                except Exception:  # noqa: BLE001 - diagnostics must not mask execution failure
+                    pass
+                logger.warning("RULE_SET_PREPARATION_AGENT_FAILED", run_id=run_id, **diagnostic)
                 _fail(api, run_id, reason)
+                safe_error = {"type": type(error).__name__, "stage": failure_stage, **callback_error}
+                frames = traceback.extract_tb(error.__traceback__)
+                if frames and reason == RUNTIME_ERROR:  # where our own code raised, never its message (provider errors stay opaque)
+                    safe_error["where"] = f"{Path(frames[-1].filename).name}:{frames[-1].lineno} {frames[-1].name}"
+                if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded, NoProgressDetected)):
+                    safe_error["detail"] = str(error)[:2000]  # our own bounded-failure diagnostics only; provider errors stay opaque
+                if isinstance(error, NoProgressDetected):
+                    safe_error["message"] = "NO_PROGRESS_DETECTED"
                 return {
                     "state": "FAILED",
                     "submission": None,
                     "failureReason": reason,
-                    "error": {"type": type(error).__name__, "message": str(error)[:300]},
+                    "error": safe_error,
                     "trace": context.trace,
                 }
 
+    if context.concluded is not None and context.submission is None:
+        # The API recorded the committed inventory and moved the run to FAILED/NO_OPERATIVE_OBLIGATIONS in the same
+        # transaction, so there is nothing to report and no Rule Set to submit.
+        logger.info("RULE_SET_PREPARATION_CONCLUDED_WITHOUT_OPERATIVE_OBLIGATIONS", run_id=run_id,
+                    inventory_fingerprint=context.concluded["fingerprint"], inventory_revision=context.concluded["revision"])
+        return {"state": "FAILED", "submission": None, "failureReason": NO_OPERATIVE_OBLIGATIONS, "trace": context.trace}
+    if context.discovery_only and context.inventory and context.inventory.frozen:
+        return {"state": "CLAIM_INVENTORY_READY", "submission": None, "failureReason": None, "trace": context.trace}
     if context.submission is None:
         reason = NO_SUBMISSION if context.source_blocked is not None else RUNTIME_ERROR
         _fail(api, run_id, reason)
