@@ -1,10 +1,9 @@
 import type { MessageKey } from "@lcsp/i18n";
 import {
-  BookOpenIcon,
   ActivityIcon,
+  BookOpenIcon,
   LayoutDashboardIcon,
   UsersIcon,
-  ActivityIcon,
   WalletCardsIcon,
 } from "lucide-react";
 
