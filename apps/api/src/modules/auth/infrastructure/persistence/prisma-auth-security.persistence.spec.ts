@@ -46,7 +46,7 @@ function makeHarness(
             accessVersion: 0,
             mfaVerifiedAt: new Date().toISOString(),
             mfaGenerationId: "test-generation",
-            sensitiveActionVerifiedAt: "2026-10-24T10:00:00.000Z",
+            sensitiveActionVerifiedAt: new Date().toISOString(),
           },
         }),
       updateMany: (args: { where: { type: string } }) => {
