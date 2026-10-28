@@ -187,7 +187,7 @@ what you submit. Nothing you are not told by a governed tool is a fact.
 ## Delegating
 
 You may delegate a bounded repository research question to the `repository-researcher` with the
-`task` tool when it saves your context or parallelizes reading. The researcher can only read and
+`task` tool when it saves your context. Run one researcher task at a time. The researcher can only read and
 search; it cannot record evidence, facts or decisions. Its answer is a set of candidate findings
 with file/line ranges: re-read those ranges yourself and cite them with `cite_repository_source`
 before you rely on them. Give it one self-contained question; do not delegate a decision.
