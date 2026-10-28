@@ -445,10 +445,29 @@ class WorkerApiClient:
         return data
 
     def claim_rule_set_preparation(self, preparation_run_id: str) -> dict:
-        """Claim one Rule Set Preparation run; returns only its pinned legal_source bundle."""
+        """Claim one Rule Set Preparation run; returns only its pinned legal_source bundle.
+
+        Business purpose: Request the pinned source bundle for an existing Rule Set Preparation execution.
+
+        Business rules:
+        - The run identifier is supplied to the canonical claim endpoint; the API owns run eligibility, authorization, and pin validation.
+        - The request advertises only the worker's supported `CLAIM_INVENTORY_V1` and `DIRECT_DRAFT_V1` execution contracts.
+        - Claiming returns the existing run's pinned source context and does not create a Preparation.
+
+        Execution flow:
+        1. POST the run identifier and supported execution contracts to the internal Preparation claims route.
+        2. Return the unwrapped response only when its data is a dictionary.
+
+        Failure cases:
+        - API client, stale execution, cancellation, and response-contract failures propagate as WorkerCallbackError or the active-execution boundary error.
+        - A non-dictionary claim response raises WorkerCallbackError instead of fabricating a source bundle.
+
+        Side effects:
+        - Sends an authenticated internal API request and may claim the existing run through the server; it performs no local Preparation creation.
+        """
         data = self._post_with_retry(
             InternalPath.COMPLIANCE_RULE_SET_CLAIMS,
-            {"preparationRunId": preparation_run_id},
+            {"preparationRunId": preparation_run_id, "supportedExecutionContracts": ["CLAIM_INVENTORY_V1", "DIRECT_DRAFT_V1"]},
             redact=False,
         )
         if not isinstance(data, dict):
@@ -464,6 +483,81 @@ class WorkerApiClient:
         )
         if not isinstance(data, dict):
             raise WorkerCallbackError("Compliance rule set validation response was invalid.")
+        return data
+
+    def source_review_operation(self, preparation_run_id: str, revision: int, action: str, **fields) -> dict:
+        """Business purpose: Submit one source-review frontier action against a specific Rule Set Preparation inventory revision.
+
+        Business rules:
+        - The supplied run, revision, action, and fields are passed to the canonical API; the server validates eligibility, pins, payload shape, and allowed state transitions.
+        - This client does not interpret a review result or retry a rejected client request.
+
+        Execution flow:
+        1. Build the operation payload from the Preparation identifier, inventory revision, action, and supplied fields.
+        2. POST it without generic payload redaction so source-grounded values reach the API unchanged.
+        3. Return a dictionary result, or fail when the response violates that contract.
+
+        Failure cases:
+        - API 4xx and response-shape errors raise WorkerCallbackError; network and server failures use the shared bounded retry policy.
+        - A business rejection returned as a valid dictionary remains an explicit operation result for the caller to handle.
+
+        Side effects:
+        - Sends an authenticated internal API request that may transactionally update the run's review frontier; the client has no local state mutation.
+        """
+        data = self._post_with_retry(InternalPath.COMPLIANCE_RULE_SET_SOURCE_REVIEWS,
+            {"preparationRunId": preparation_run_id, "inventoryRevision": revision, "action": action, **fields}, redact=False)
+        if not isinstance(data, dict): raise WorkerCallbackError("Source review response was invalid")
+        return data
+
+    def start_claim_discovery_diagnostic(self, legal_source_version_id: str, idempotency_key: str) -> dict:
+        """Business purpose: Request an idempotent, source-only claim-discovery diagnostic for one Legal Source Version.
+
+        Business rules:
+        - The API requires its diagnostic feature flag, an explicitly allowed isolated database, an existing materialized source graph, and a source-bound idempotency key.
+        - This endpoint is diagnostic-only and cannot create paid Preparation work or author Rules.
+        - Environment and graph eligibility are enforced by the server; this client only forwards the version and idempotency key.
+
+        Execution flow:
+        1. POST the Legal Source Version identifier and idempotency key to the discovery-diagnostics endpoint.
+        2. Return the unwrapped server response to the caller.
+
+        Failure cases:
+        - Server-side diagnostic rejection is returned as a normal diagnostic result; transport and API client failures follow the shared retry/error policy.
+
+        Side effects:
+        - Sends an authenticated internal API request; an eligible server may create or reuse an isolated diagnostic run and return source graph/chunk context.
+        """
+        return self._post_with_retry(InternalPath.COMPLIANCE_RULE_SET_DISCOVERY_DIAGNOSTICS,
+            {"legalSourceVersionId": legal_source_version_id, "idempotencyKey": idempotency_key}, redact=False)
+
+    def claim_inventory_operation(self, preparation_run_id: str, action: str, revision: int, **fields) -> dict:
+        """Validate/freeze/reopen the one Preparation's claim inventory; never creates a Preparation.
+
+        Business purpose: Submit a claim-inventory lifecycle action for an existing Rule Set Preparation.
+
+        Business rules:
+        - Every operation is bound to the supplied Preparation identifier and inventory revision; the API validates the action and state transition.
+        - Stale revisions and invalid action payloads remain explicit server rejections; this method never creates a Preparation.
+        - Additional operation fields are forwarded without generic payload redaction.
+
+        Execution flow:
+        1. Build the operation payload from run identity, action, revision, and action-specific fields.
+        2. POST to the claim-inventory route and return the unwrapped result only when it is a dictionary.
+
+        Failure cases:
+        - API 4xx, active-execution interruption, and invalid response shape propagate as errors; network and 5xx failures use the shared bounded retry policy.
+        - A valid dictionary describing a rejected inventory operation is returned unchanged for caller recovery.
+
+        Side effects:
+        - Sends an authenticated internal API request that may load, validate, freeze, reopen, or update the existing run's inventory through the server.
+        """
+        data = self._post_with_retry(
+            InternalPath.COMPLIANCE_RULE_SET_CLAIM_INVENTORIES,
+            {"preparationRunId": preparation_run_id, "action": action, "revision": revision, **fields},
+            redact=False,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Claim inventory response was invalid.")
         return data
 
     def submit_compliance_rule_set(

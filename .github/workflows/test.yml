@@ -96,6 +96,12 @@ jobs:
       - name: Typecheck workspace
         run: pnpm run typecheck
 
+      - name: Test business documentation checker
+        run: pnpm run test:business-logic-docs
+
+      - name: Check business logic documentation
+        run: pnpm run check:business-logic-docs
+
       - name: Check import policy
         run: pnpm run check:imports
 
@@ -113,6 +119,9 @@ jobs:
 
       - name: Test staging answer selection security
         run: node --test tests/literal-answer-choice.test.mjs
+
+      - name: Test semantic regression oracle (no provider calls)
+        run: node --test tests/assessment-semantic-oracle.test.mjs
 
   decision-pr-review-triage:
     name: PR review shadow triage packet
@@ -306,9 +315,31 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
 
+      # Python/API parity tests run the API's TypeScript domain code through `pnpm exec tsx`.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Node dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Build runtime packages and Prisma client
+        working-directory: .
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55436/lcsp_worker_test?schema=public
+        run: |
+          pnpm run build:runtime-packages
+          pnpm --filter @lcsp/api prisma:generate
+
       - name: Validate LangGraph Agent Runtime config
         env:
           OPENAI_API_KEY: ci-import-only
+          # The default route is Mirai, whose key is never inherited from another provider.
+          MIRAI_API_KEY: ci-import-only
           LANGSMITH_TRACING: "false"
           LANGCHAIN_TRACING_V2: "false"
         run: |
@@ -438,9 +469,13 @@ jobs:
           retention-days: 7
 
       - name: Compliance Rule Set vertical
-        run: node tests/compliance-rule-set-vertical.mjs
+        run: |
+          node --test tests/source-document-provenance.integration.mjs
+          node tests/compliance-rule-set-vertical.mjs
 
       - name: Assessment Root and same-thread Human Resolution verticals
+        env:
+          LCSP_TEST_CHECKPOINT_DATABASE: lcsp_assessment_checkpoint_vertical
         run: |
           node tests/assessment-domain-vertical.mjs
           node tests/assessment-hitl-vertical.mjs

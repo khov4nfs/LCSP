@@ -4,6 +4,7 @@ import {
   BLOCKER_REASONS,
   DECISION_RESOLUTION_STATES,
   RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
   ruleDecisionSchema,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
@@ -36,6 +37,29 @@ const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([
   BLOCKER_REASONS.REQUIRED_RUNTIME_INPUT_UNAVAILABLE,
 ]);
 
+/**
+ * Business purpose: Extract an exact repository source range for report provenance.
+ * Business rules:
+ * - Only a path and integer start/end lines constitute a cited range.
+ * Execution flow:
+ * 1. Inspect the stored evidence payload and project its location fields.
+ * Failure cases:
+ * - Missing or malformed location fields return null, not a fabricated citation.
+ * Side effects:
+ * - None; evidence stays unchanged.
+ */
+function citedRange(
+  payload: unknown,
+): { path: string; startLine: number; endLine: number } | null {
+  if (payload === null || typeof payload !== "object") return null;
+  const { path, startLine, endLine } = payload as Record<string, unknown>;
+  return typeof path === "string" &&
+    Number.isInteger(startLine) &&
+    Number.isInteger(endLine)
+    ? { path, startLine: startLine as number, endLine: endLine as number }
+    : null;
+}
+
 export interface AssessmentFinalizationSnapshot {
   caseRevision: number;
   pins: {
@@ -54,6 +78,8 @@ export interface AssessmentFinalizationSnapshot {
     type: string;
     contentSha256: string;
     repositoryCommit: string;
+    /** Repository range the evidence cites, when it cites one (REPOSITORY_SOURCE). */
+    source: { path: string; startLine: number; endLine: number } | null;
   }>;
   facts: Array<{
     factId: string;
@@ -75,6 +101,19 @@ export interface AssessmentCompletionInspection {
 export class AssessmentCompletionGate {
   constructor(private readonly support: AssessmentCaseSupport) {}
 
+  /**
+   * Business purpose: Determine whether a Customer Assessment is eligible for finalization.
+   * Business rules:
+   * - Every pinned rule requires a current accepted decision and valid provenance; human
+   *   requests, stopped executions, stale evidence and broken source pins block completion.
+   * Execution flow:
+   * 1. Read the case, pins, coverage, decisions, evidence and facts; validate each persisted
+   *   decision and assemble a report snapshot only if no blockers remain.
+   * Failure cases:
+   * - Missing or stale records produce typed blockers; database errors propagate.
+   * Side effects:
+   * - Read-only transaction; this gate never manufactures decisions or evidence.
+   */
   async inspectInTx(
     tx: Prisma.TransactionClient,
     assessmentId: string,
@@ -251,6 +290,7 @@ export class AssessmentCompletionGate {
           state: true,
           contentSha256: true,
           repositoryCommit: true,
+          payload: true,
         },
       }),
       tx.assessmentCaseFact.findMany({
@@ -469,10 +509,7 @@ export class AssessmentCompletionGate {
     const referencedEvidenceIds = new Set<string>();
     const referencedFactIds = new Set<string>();
     for (const { decision } of resolvedDecisions) {
-      for (const reference of [
-        ...decision.references,
-        ...decision.criteria.flatMap((criterion) => criterion.references),
-      ]) {
+      for (const reference of ruleDecisionReferences(decision)) {
         if (
           reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
         ) {
@@ -495,6 +532,7 @@ export class AssessmentCompletionGate {
                 type: record.type,
                 contentSha256: record.contentSha256,
                 repositoryCommit: record.repositoryCommit,
+                source: citedRange(record.payload),
               },
             ]
           : [];

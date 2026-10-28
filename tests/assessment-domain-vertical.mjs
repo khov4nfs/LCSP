@@ -88,9 +88,10 @@ const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = await startStack({
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl } = await startStack({
   database,
   apiPort,
+  checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
 });
 const { hashSecret } = await import(
   path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
@@ -127,16 +128,21 @@ const customerHttp = (method, route, token, body) =>
 
 try {
   // ---- compliance rule set P1 (legalSource A) through the real COMPLIANCE_RULE_SET path ---------------------------------
-  const seedLegalSourceVersion = (name, variant, status) =>
-    seedLegalSource({
+  const seedLegalSourceVersion = (name, variant, status) => {
+    const sourceBytes = Buffer.from(LOCATORS.map((locator) => contentFor(locator, variant)).join("\n") + "\n", "utf8");
+    const lines = sourceBytes.toString("utf8").split("\n");
+    return seedLegalSource({
       name,
       status,
       documentId: DOC,
-      chunks: LOCATORS.map((locator) => {
-        const content = contentFor(locator, variant);
+      sourceBytes,
+      sourceSha256: contentHash(sourceBytes),
+      chunks: LOCATORS.map((locator, index) => {
+        const content = lines[index];
         return { locator, content, contentSha256: contentHash(content) };
       }),
     });
+  };
   const legalSourceA = await seedLegalSourceVersion("assessment-a", "a", "ACTIVE");
   const legalSourceB = await seedLegalSourceVersion("assessment-b", "b", "ACTIVE");
   const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-vertical-"));
@@ -297,17 +303,21 @@ try {
 
   // ---- the REAL Root on assessment A -------------------------------------------------------------
   const script = path.join(root, "deepagents/tests/vertical/scripted_root.py");
+  const rootOptions = {
+    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl },
+  };
   const first = await runPython(script, [
     base,
     workerKey,
     A.id,
     repoDir,
     "full",
-  ]);
+  ], rootOptions);
   // This partial-work fixture deliberately exhausts its offline model before finalization.
   // A normal response cannot falsely settle unfinished domain work as SUCCEEDED.
   eq(first.result.state, AGENT_EXECUTION_STATES.FAILED, JSON.stringify(first));
   eq(first.result.errorType, "AssertionError");
+  ok(first.result.checkpointId, "failed native work retains its checkpoint");
   eq(first.remainingSteps, 0);
   eq(first.result.threadId, threadA);
   // the validator rejected the bad attempt with mechanical codes and the Root corrected itself
@@ -315,7 +325,7 @@ try {
   eq(first.captured.rejected.code, "ASSESSMENT_DECISION_VALIDATION_FAILED");
   for (const failure of [
     "UNKNOWN_LEGAL_CONTEXT:LR-NOT-LINKED",
-    "CRITERIA_INCOMPLETE:C-1",
+    ...first.captured.rule_set.assessmentRules.find((r) => r.assessmentRuleId === "ER-RET").criterionIds.map((id) => `CRITERIA_INCOMPLETE:${id}`),
     "UNKNOWN_CRITERION:C-9",
   ]) {
     ok(
@@ -329,6 +339,7 @@ try {
       first.captured.decision_ret.decisionRevision,
     ],
     [true, 1],
+    JSON.stringify(first.captured.decision_ret),
   );
 
   // every pinned rule is covered by exactly one accepted decision
@@ -418,20 +429,26 @@ try {
     { s: AGENT_EXECUTION_STATES.FAILED, lease: null },
   );
 
-  // ---- restart: a NEW execution on the SAME thread reloads everything from the server -----------
+  // ---- restart: retain native state on the SAME thread and reload server authority -----------
+  const failedCheckpoint = (await q(
+    `SELECT "checkpointId" AS checkpoint FROM "AssessmentRuntime" WHERE "assessmentId"=$1`,
+    [A.id],
+  )).rows[0].checkpoint;
+  eq(failedCheckpoint, first.result.checkpointId, "API binds the failed native checkpoint");
   const second = await runPython(script, [
     base,
     workerKey,
     A.id,
     repoDir,
     "resume",
-  ]);
+  ], rootOptions);
   eq(
     second.result.state,
     AGENT_EXECUTION_STATES.FAILED,
     JSON.stringify(second),
   );
   eq(second.result.errorType, "AssertionError");
+  ok(second.result.checkpointId !== failedCheckpoint, "same-thread retry advances the native checkpoint");
   eq(second.result.threadId, threadA);
   ok(
     second.result.executionId !== rootExecution,
@@ -782,7 +799,7 @@ try {
     completedByRoot.id,
     repoDir,
     "complete",
-  ]);
+  ], rootOptions);
   eq(
     completed.result.state,
     AGENT_EXECUTION_STATES.SUCCEEDED,
@@ -1026,7 +1043,7 @@ try {
   )).rows[0].thread;
   const humanScript = path.join(root, "deepagents/tests/vertical/hitl_root.py");
   const humanRun = (mode) => runPython(humanScript, [base, workerKey, B.id, repoDir, mode], {
-    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0] },
+    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl },
   });
   const interruptedForDelete = await humanRun("ask");
   eq(interruptedForDelete.result.state, AGENT_EXECUTION_STATES.INTERRUPTED);
@@ -1059,7 +1076,7 @@ try {
       expectedCaseRevision: deletionCaseRevision,
       idempotencyKey: "release-deletion-open-request",
       assessmentRuleId: "ER-RET",
-      criterionIds: ["C-1"],
+      criterionIds: first.captured.rule_set.assessmentRules.find((r) => r.assessmentRuleId === "ER-RET").criterionIds,
       question: "Who owns the external operational retention process?",
       unresolvedFact: "External organizational ownership",
       decisionImpact: ["Ownership determines the operational duty."],
@@ -1091,7 +1108,8 @@ try {
     path.join(root, "deepagents/tests/vertical/assessment_deletion.py"),
     [deletionInput],
     { env: {
-      LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0],
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl,
+      ASSESSMENT_DELETE_DATABASE_URL: databaseUrl.split("?")[0],
       ASSESSMENT_DELETE_OWNER_TOKEN: owner.token,
       ASSESSMENT_DELETE_OTHER_TOKEN: otherOwner.token,
       WORKER_API_KEY: workerKey,
@@ -1100,6 +1118,10 @@ try {
   eq(deletion.status, "PASS", JSON.stringify(deletion));
   console.log(`RELEASE deletion evidence: ${deletion.evidenceDirectory}`);
 
+  if (process.env.LCSP_TEST_CHECKPOINT_DATABASE) {
+    eq((await q(`SELECT to_regclass('public.checkpoints')::text AS name`)).rows[0].name, null,
+      "Root retry, HITL and erasure completed without a checkpoint table in the API database");
+  }
   console.log(
     `PASS: ${checks} ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
   );

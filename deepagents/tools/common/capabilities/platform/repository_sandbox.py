@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import re
 import shlex
@@ -192,6 +193,24 @@ def resolve_repository_thread_backend(config: object | None) -> object:
 class RuntimeRepositoryFilesystemBackend(BackendProtocol):
     """Late-bind permission-governed file tools without exposing shell execution."""
 
+    def __init__(self, *, read_only_repository: bool = False) -> None:
+        """Business purpose: Configure the runtime file backend's repository mutation boundary.
+
+        Business rules:
+        - Existing callers remain writable by default for compatibility.
+        - Read-only callers may mutate only canonical paths inside agent state.
+
+        Execution flow:
+        1. Store whether this backend enforces the pinned-source write boundary.
+
+        Failure cases:
+        - This configuration step performs no path access and cannot authorize a path by itself.
+
+        Side effects:
+        - Stores one in-memory policy flag; it does not access the repository or change files.
+        """
+        self._read_only_repository = read_only_repository
+
     @property
     def id(self) -> str:
         return "lcsp-runtime-repository"
@@ -222,7 +241,62 @@ class RuntimeRepositoryFilesystemBackend(BackendProtocol):
     def glob(self, pattern: str, path: str | None = None) -> GlobResult:
         return self._backend().glob(pattern, path)
 
+    def _write_path_error(self, path: str) -> str | None:
+        """Business purpose: Enforce the opt-in repository mutation boundary for filesystem
+        operations.
+
+        Business rules:
+        - Legacy backends accept their existing paths.
+        - Read-only backends allow only canonical paths under `REPOSITORY_AGENT_STATE`.
+        - Path traversal and malformed values are rejected without reaching the sandbox backend.
+
+        Execution flow:
+        1. Return immediately when the caller retains legacy writable behavior.
+        2. Canonicalize the requested path through `_real_path` and compare it with the agent-state
+           root.
+        3. Return a typed-result error message for malformed or out-of-scope paths.
+
+        Failure cases:
+        - Invalid, traversing, or repository-source paths return a stable error string instead of
+          raising or mutating data.
+
+        Side effects:
+        - Pure path authorization check; it does not resolve the backend or perform filesystem I/O.
+        """
+        if not self._read_only_repository:
+            return None
+        if not isinstance(path, str):
+            return "Invalid repository path; use a path inside the agent-state directory."
+        try:
+            real_path = _real_path(path)
+        except (AttributeError, TypeError, ValueError):
+            return "Invalid repository path; use a path inside the agent-state directory."
+        if real_path == REPOSITORY_AGENT_STATE or real_path.startswith(
+            REPOSITORY_AGENT_STATE + "/"
+        ):
+            return None
+        return "Pinned repository is read-only; only agent-state paths may be changed."
+
     def write(self, file_path: str, content: str) -> WriteResult:
+        """Business purpose: Write an agent file while protecting a pinned repository snapshot.
+
+        Business rules:
+        - Read-only mode permits writes only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+
+        Execution flow:
+        1. Validate the path when the read-only boundary is enabled.
+        2. Return an error result for invalid or protected paths, otherwise delegate the write.
+
+        Failure cases:
+        - Rejected paths return `WriteResult.error`; sandbox failures retain the backend's error.
+
+        Side effects:
+        - Persists content only at an authorized path in read-only mode.
+        """
+        error = self._write_path_error(file_path)
+        if error:
+            return WriteResult(error=error)
         return self._backend().write(file_path, content)
 
     def edit(
@@ -232,15 +306,88 @@ class RuntimeRepositoryFilesystemBackend(BackendProtocol):
         new_string: str,
         replace_all: bool = False,
     ) -> EditResult:
+        """Business purpose: Edit an agent file while protecting a pinned repository snapshot.
+
+        Business rules:
+        - Read-only mode permits edits only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+
+        Execution flow:
+        1. Validate the path when the read-only boundary is enabled.
+        2. Return an error result for invalid or protected paths, otherwise delegate the edit.
+
+        Failure cases:
+        - Rejected paths return `EditResult.error`; sandbox failures retain the backend's error.
+
+        Side effects:
+        - Changes content only at an authorized path in read-only mode.
+        """
+        error = self._write_path_error(file_path)
+        if error:
+            return EditResult(error=error)
         return self._backend().edit(file_path, old_string, new_string, replace_all)
 
     def delete(self, file_path: str) -> DeleteResult:
+        """Business purpose: Delete an agent file without allowing removal from a pinned repository.
+
+        Business rules:
+        - Read-only mode permits deletion only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+
+        Execution flow:
+        1. Validate the path when the read-only boundary is enabled.
+        2. Return an error result for invalid or protected paths, otherwise delegate deletion.
+
+        Failure cases:
+        - Rejected paths return `DeleteResult.error`; sandbox failures retain the backend's error.
+
+        Side effects:
+        - Removes a file only at an authorized path in read-only mode.
+        """
+        error = self._write_path_error(file_path)
+        if error:
+            return DeleteResult(error=error)
         return self._backend().delete(file_path)
 
     def upload_files(
         self,
         files: list[tuple[str, bytes]],
     ) -> list[FileUploadResponse]:
+        """Business purpose: Upload files without allowing customer-source mutation in read-only
+        mode.
+
+        Business rules:
+        - Read-only mode allows each upload only inside the canonical agent-state subtree.
+        - The default mode preserves legacy callers.
+        - Rejected entries receive individual errors while authorized entries retain normal handling.
+
+        Execution flow:
+        1. Validate every requested path before uploading any authorized entries.
+        2. Return per-file errors for invalid or protected paths and delegate authorized files together.
+        3. Restore the backend results to their original request order.
+
+        Failure cases:
+        - Rejected paths return `FileUploadResponse.error`; backend failures stay with their results.
+
+        Side effects:
+        - Persists uploaded bytes only at authorized paths in read-only mode.
+        """
+        if self._read_only_repository:
+            results: list[FileUploadResponse | None] = [None] * len(files)
+            allowed: list[tuple[int, str, bytes]] = []
+            for index, (path, content) in enumerate(files):
+                error = self._write_path_error(path)
+                if error:
+                    results[index] = FileUploadResponse(path=path, error=error)
+                else:
+                    allowed.append((index, path, content))
+            if allowed:
+                uploaded = self._backend().upload_files(
+                    [(path, content) for _, path, content in allowed]
+                )
+                for (index, _, _), result in zip(allowed, uploaded):
+                    results[index] = result
+            return [result for result in results if result is not None]
         return self._backend().upload_files(files)
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
@@ -287,11 +434,34 @@ def hydrate_repository(
     correlation_id: str | None = None,
     lifecycle: RepositoryHydrationLifecycle | None = None,
 ) -> None:
-    """Create/reuse the live repository database from an immutable baseline snapshot."""
+    """Business purpose:
+    Mount the customer's pinned snapshot with an explicit account of source excluded by runtime guards.
+
+    Business rules:
+    - Reusing the same snapshot/job requires matching assessment and commit pins.
+    - Archive safety limits remain effective; omitted source is reported as limited coverage.
+    - An existing matching workspace keeps its repository and agent state when metadata is upgraded.
+
+    Execution flow:
+    1. Validate cached pins and reuse a workspace whose coverage metadata is already present.
+    2. Download and sanitize the owned snapshot, retaining omission provenance.
+    3. Extract a new workspace or update only the metadata of an existing matching workspace.
+
+    Failure cases:
+    - Conflicting cached pins, archive guards or failed sandbox operations reject hydration.
+    - A failed metadata upgrade never clears an existing repository or agent state.
+
+    Side effects:
+    - Downloads the snapshot and writes sandbox metadata; initial hydration creates its source and Git baseline.
+    """
     marker = _read_marker(backend)
-    if marker.get("snapshotId") == snapshot_id and marker.get("scanJobId") == scan_job_id:
-        _emit_lifecycle(lifecycle, "repository_sandbox_reused")
-        return
+    reused = marker.get("snapshotId") == snapshot_id and marker.get("scanJobId") == scan_job_id
+    if reused:
+        if marker.get("commitSha") != commit_sha or marker.get("assessmentId") != assessment_id:
+            raise RuntimeError("cached repository view pins do not match the requested snapshot")
+        if isinstance(marker.get("sourceCoverage"), dict):
+            _emit_lifecycle(lifecycle, "repository_sandbox_reused")
+            return
 
     config = load_config()
     _emit_lifecycle(lifecycle, "repository_archive_downloading")
@@ -306,7 +476,7 @@ def hydrate_repository(
         )
     )
     _emit_lifecycle(lifecycle, "repository_archive_downloaded")
-    sanitized_archive = _sanitize_archive(archive, snapshot_id=snapshot_id)
+    sanitized_archive, source_coverage = _sanitize_archive(archive, snapshot_id=snapshot_id)
 
     upload_files = getattr(backend, "upload_files", None)
     execute = getattr(backend, "execute", None)
@@ -316,23 +486,23 @@ def hydrate_repository(
             "repository sandbox backend does not support filesystem operations"
         )
 
-    _emit_lifecycle(lifecycle, "repository_sandbox_hydrating")
-    uploads = upload_files([(_ARCHIVE_PATH, sanitized_archive)])
-    if not uploads or getattr(uploads[0], "error", None):
-        raise RuntimeError("failed to upload assessment repository into sandbox")
+    if not reused:
+        _emit_lifecycle(lifecycle, "repository_sandbox_hydrating")
+        uploads = upload_files([(_ARCHIVE_PATH, sanitized_archive)])
+        if not uploads or getattr(uploads[0], "error", None):
+            raise RuntimeError("failed to upload assessment repository into sandbox")
 
-    baseline_label = (
-        commit_sha.lower()
-        if re.fullmatch(r"[0-9a-fA-F]{7,64}", commit_sha or "")
-        else "unknown"
-    )
-    bootstrap = _repository_hydration_bootstrap(baseline_label)
-    extraction = execute(bootstrap, timeout=120)
-    if getattr(extraction, "exit_code", 1) != 0:
-        output = str(getattr(extraction, "output", "") or "").strip()
-        detail = f": {output}" if output else ""
-        raise RuntimeError(f"failed to materialize assessment repository database{detail}")
-
+        baseline_label = (
+            commit_sha.lower()
+            if re.fullmatch(r"[0-9a-fA-F]{7,64}", commit_sha or "")
+            else "unknown"
+        )
+        bootstrap = _repository_hydration_bootstrap(baseline_label)
+        extraction = execute(bootstrap, timeout=120)
+        if getattr(extraction, "exit_code", 1) != 0:
+            output = str(getattr(extraction, "output", "") or "").strip()
+            detail = f": {output}" if output else ""
+            raise RuntimeError(f"failed to materialize assessment repository database{detail}")
 
     marker_payload = json.dumps(
         {
@@ -343,6 +513,7 @@ def hydrate_repository(
             "repositoryRoot": REPOSITORY_ROOT,
             "agentFilesystemRoot": "/",
             "role": "assessment_repository_database",
+            "sourceCoverage": source_coverage,
         },
         separators=(",", ":"),
         sort_keys=True,
@@ -408,12 +579,36 @@ def _read_marker(backend: object) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> bytes:
-    """Apply archive guards and reserve .git/.lcsp for the agent database."""
+def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> tuple[bytes, dict[str, Any]]:
+    """Business purpose:
+    Build the runtime source archive while preserving an account of excluded customer source.
+
+    Business rules:
+    - Workspace safety guards apply before sandbox upload; .git and .lcsp belong to the runtime.
+    - Every excluded source entry remains visible in coverage metadata with its repository-relative path.
+
+    Execution flow:
+    1. Materialize the pinned archive through the existing bounded extractor.
+    2. Normalize omission paths and exclude runtime-reserved paths from the sanitized archive.
+    3. Return archive bytes and the included count plus omission reasons and available source hashes.
+
+    Failure cases:
+    - Invalid archives or unsafe paths propagate extraction failure before any sandbox source is changed.
+
+    Side effects:
+    - Uses and removes a temporary workspace; does not modify the immutable snapshot.
+    """
     with tempfile.TemporaryDirectory(prefix="lcsp-repository-sandbox-") as root:
         workspace = RepositoryWorkspace(Path(root))
         result = workspace.materialize("snapshot", archive, snapshot_id=snapshot_id)
         source_root = _repository_root(result.workspace_path)
+        prefix = source_root.relative_to(result.workspace_path)
+        skipped = [
+            {"path": Path(entry.path).relative_to(prefix).as_posix(), "reason": entry.reason,
+             "sizeBytes": entry.size_bytes, "limitBytes": entry.limit_bytes, "sha256": entry.sha256}
+            for entry in result.skipped_entries
+        ]
+        included = 0
         output = io.BytesIO()
         with tarfile.open(fileobj=output, mode="w:gz") as sanitized:
             for path in sorted(source_root.rglob("*")):
@@ -421,13 +616,18 @@ def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> bytes:
                     continue
                 relative = path.relative_to(source_root)
                 if relative.parts and relative.parts[0] in _RESERVED_REPOSITORY_DIRS:
+                    with path.open("rb") as source:
+                        digest = hashlib.file_digest(source, "sha256").hexdigest()
+                    skipped.append({"path": relative.as_posix(), "reason": "RESERVED_RUNTIME_PATH",
+                                    "sizeBytes": path.stat().st_size, "limitBytes": None, "sha256": digest})
                     continue
                 sanitized.add(
                     path,
                     arcname=relative.as_posix(),
                     recursive=False,
                 )
-        return output.getvalue()
+                included += 1
+        return output.getvalue(), {"coverageLimited": bool(skipped), "includedFiles": included, "skippedEntries": skipped}
 
 
 def _repository_root(workspace_path: Path) -> Path:

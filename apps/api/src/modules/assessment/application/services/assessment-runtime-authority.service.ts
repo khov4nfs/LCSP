@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Client } from "pg";
 
 import {
   AGENT_EXECUTION_STATES,
@@ -63,6 +64,10 @@ const ROOT_ACTOR = {
   type: AUDIT_ACTOR_TYPES.service,
 } as const;
 
+const NATIVE_ROOT_CHECKPOINT_NAMESPACE = "";
+const NATIVE_ROOT_BOUNDARY_NAME = "assessment_root_requested";
+const NATIVE_ROOT_AGENT_NAME = "lcsp-assessment-root";
+
 /**
  * Server-owned Root run authority. An agent can never name its own assessment, thread,
  * execution or lease: the API issues them at claim time and every governed tool call must
@@ -76,7 +81,30 @@ export class AssessmentRuntimeAuthority {
     private readonly coordinator: AssessmentLifecycleCoordinator,
   ) {}
 
-  /** Starts (or restarts after expiry/failure) the one Root execution of an ACTIVE assessment. */
+  /**
+   * Business purpose: Claim the one authorized Root execution for an assessment retry or continuation.
+   *
+   * Business rules:
+   * - A live lease excludes a competing execution; a retry after failure uses a new execution ID on the same thread.
+   * - A failed checkpoint is resumable only when the runtime row and failed Root turn bind the same checkpoint,
+   *   or a missing API checkpoint is recovered from the latest native Root checkpoint with matching persisted
+   *   assessment, runtime, boundary, agent, and timestamp provenance.
+   * - Missing or inconsistent checkpoint IDs and metadata grant no checkpoint authority.
+   * - Human interrupts, safe pauses, and authenticated transport recovery retain their existing lifecycle guards.
+   *
+   * Execution flow:
+   * 1. Lock the assessment/runtime and load the current Root turn.
+   * 2. Validate lifecycle, lease, and any failed-turn checkpoint binding; recover a missing checkpoint only
+   *    from the canonical native checkpoint store under the same assessment transaction.
+   * 3. Issue a lease and execution identity, returning only the authorized resume checkpoint.
+   *
+   * Failure cases:
+   * - Missing runtime, inactive lifecycle, held lease, or invalid guarded recovery returns the corresponding domain problem.
+   * - A failed turn with no matching checkpoint record remains claimable as a fresh attempt without checkpoint authority.
+   *
+   * Side effects:
+   * - Updates runtime and turn execution state, issues a lease, and appends an execution-state event when needed.
+   */
   async claimRoot(input: {
     assessmentId: string;
     correlationId: string;
@@ -96,6 +124,69 @@ export class AssessmentRuntimeAuthority {
             where: { id: row.currentExecutionId },
           })
         : null;
+      const failedCheckpointJson =
+        previousTurn?.checkpointJson &&
+        typeof previousTurn.checkpointJson === "object" &&
+        !Array.isArray(previousTurn.checkpointJson)
+          ? previousTurn.checkpointJson
+          : null;
+      const failedCheckpointId =
+        row.executionState === AGENT_EXECUTION_STATES.FAILED &&
+        row.checkpointId &&
+        previousTurn?.assessmentId === input.assessmentId &&
+        previousTurn.threadId === row.threadId &&
+        previousTurn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
+        previousTurn.state === Controls.completed &&
+        failedCheckpointJson?.checkpointId === row.checkpointId
+          ? row.checkpointId
+          : null;
+      const previousContextJson =
+        previousTurn?.contextJson &&
+        typeof previousTurn.contextJson === "object" &&
+        !Array.isArray(previousTurn.contextJson)
+          ? previousTurn.contextJson
+          : null;
+      const previousRuntimeRunId = previousContextJson?.runtimeRunId;
+      const caseRow = tx.assessmentCase
+        ? await tx.assessmentCase.findUnique({
+            where: { assessmentId: input.assessmentId },
+            select: {
+              ruleSetVersionId: true,
+              repositorySnapshotId: true,
+              repositoryCommit: true,
+            },
+          })
+        : null;
+      const nativeCheckpointRecovery =
+        row.executionState === AGENT_EXECUTION_STATES.FAILED &&
+        row.checkpointId === null &&
+        previousTurn?.id === row.currentExecutionId &&
+        previousTurn.assessmentId === input.assessmentId &&
+        previousTurn.threadId === row.threadId &&
+        previousTurn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
+        previousTurn.state === Controls.completed &&
+        previousTurn.checkpointJson === null &&
+        typeof previousRuntimeRunId === "string" &&
+        previousRuntimeRunId.length > 0
+          ? await findFailedNativeCheckpoint(tx, {
+              assessmentId: input.assessmentId,
+              threadId: row.threadId,
+              runtimeRunId: previousRuntimeRunId,
+              turnCreatedAt: previousTurn.createdAt,
+              turnUpdatedAt: previousTurn.updatedAt,
+              casePins: caseRow ?? undefined,
+            })
+          : null;
+      const resumedCheckpointId =
+        failedCheckpointId ?? nativeCheckpointRecovery?.checkpointId ?? null;
+      const nativeCheckpointRecoveryContext = nativeCheckpointRecovery && {
+        nativeCheckpointRecovery: {
+          checkpointId: nativeCheckpointRecovery.checkpointId,
+          checkpointTimestamp: nativeCheckpointRecovery.checkpointTimestamp,
+          resumedFromExecutionId: previousTurn?.id ?? null,
+          recoverySource: "NATIVE_CHECKPOINT_METADATA",
+        },
+      };
       const recoveredExecution = Boolean(
         input.runtimeRunId &&
         row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
@@ -208,6 +299,9 @@ export class AssessmentRuntimeAuthority {
         data: {
           currentExecutionId: executionId,
           executionState: AGENT_EXECUTION_STATES.RUNNING,
+          ...(nativeCheckpointRecovery
+            ? { checkpointId: nativeCheckpointRecovery.checkpointId }
+            : {}),
           leaseToken,
           leaseExpiresAt,
           startedAt: now,
@@ -245,7 +339,17 @@ export class AssessmentRuntimeAuthority {
               ? { responseLanguage: persistedLanguage }
               : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
+            ...(nativeCheckpointRecoveryContext ?? {}),
           },
+          ...(nativeCheckpointRecovery
+            ? {
+                checkpointJson: {
+                  checkpointId: nativeCheckpointRecovery.checkpointId,
+                  resumedFromExecutionId: previousTurn?.id ?? null,
+                  recoverySource: "NATIVE_CHECKPOINT_METADATA",
+                },
+              }
+            : {}),
         },
         update: {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
@@ -255,6 +359,7 @@ export class AssessmentRuntimeAuthority {
               ? { responseLanguage: persistedLanguage }
               : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
+            ...(nativeCheckpointRecoveryContext ?? {}),
           },
         },
       });
@@ -312,7 +417,9 @@ export class AssessmentRuntimeAuthority {
         leaseExpiresAt: leaseExpiresAt.toISOString(),
         checkpointNamespace: row.checkpointNamespace,
         executionState: AGENT_EXECUTION_STATES.RUNNING,
-        resumeCheckpointId: resumesSameExecution ? row.checkpointId : null,
+        resumeCheckpointId: resumesSameExecution
+          ? row.checkpointId
+          : resumedCheckpointId,
         lifecycleState: safePauseResume
           ? ASSESSMENT_LIFECYCLE_STATES.ACTIVE
           : row.lifecycleState!,
@@ -562,6 +669,302 @@ interface LockedRuntimeRow {
   executionState: AgentExecutionState;
   leaseToken: string | null;
   leaseExpiresAt: Date | null;
+}
+
+interface FailedNativeCheckpoint {
+  checkpointId: string;
+  checkpointTimestamp: string;
+}
+
+export type SeparateCheckpointClient = {
+  connect(): Promise<unknown>;
+  query<R extends Record<string, unknown> = Record<string, unknown>>(
+    queryText: string,
+    values?: unknown[],
+  ): Promise<{ rows: R[] }>;
+  end(): Promise<unknown>;
+};
+
+/**
+ * Business purpose: Construct a PostgreSQL client connected to a physically separate native checkpoint database.
+ *
+ * Business rules:
+ * - Creates a standard pg.Client configured with 5-second query and connection timeouts.
+ * - Used as the default client factory for separate checkpoint queries when no test override is installed.
+ *
+ * Execution flow:
+ * 1. Instantiate and return a new pg.Client instance for the provided database connection URL.
+ *
+ * Failure cases:
+ * - None during construction; connection failures are handled during client.connect.
+ *
+ * Side effects:
+ * - Allocates a pg.Client object without opening network sockets until connect is called.
+ */
+function defaultSeparateCheckpointClientFactory(
+  databaseUrl: string,
+): SeparateCheckpointClient {
+  return new Client({
+    connectionString: databaseUrl,
+    query_timeout: 5000,
+    connectionTimeoutMillis: 5000,
+  });
+}
+
+let separateCheckpointClientFactory: (
+  databaseUrl: string,
+) => SeparateCheckpointClient = defaultSeparateCheckpointClientFactory;
+
+/**
+ * Business purpose: Configure an alternative PostgreSQL client factory for separate checkpoint testing.
+ *
+ * Business rules:
+ * - Overrides the module-level client factory for separate checkpoint queries during test execution.
+ * - Restores standard pg.Client behavior when passed the default factory implementation.
+ *
+ * Execution flow:
+ * 1. Assign the provided factory function to the module-scoped variable.
+ *
+ * Failure cases:
+ * - None; assignment is synchronous and infallible.
+ *
+ * Side effects:
+ * - Modifies the client factory reference used by querySeparateCheckpointDatabase.
+ */
+export function setSeparateCheckpointClientFactoryForTesting(
+  factory?: (databaseUrl: string) => SeparateCheckpointClient,
+): void {
+  separateCheckpointClientFactory =
+    factory ?? defaultSeparateCheckpointClientFactory;
+}
+
+/**
+ * Business purpose: Reset the PostgreSQL client factory for separate checkpoint testing back to the default implementation.
+ *
+ * Business rules:
+ * - Restores defaultSeparateCheckpointClientFactory so test pollution cannot affect subsequent queries.
+ *
+ * Execution flow:
+ * 1. Assign defaultSeparateCheckpointClientFactory to separateCheckpointClientFactory.
+ *
+ * Failure cases:
+ * - None; assignment is synchronous and infallible.
+ *
+ * Side effects:
+ * - Restores module-level client factory state.
+ */
+export function resetSeparateCheckpointClientFactoryForTesting(): void {
+  separateCheckpointClientFactory = defaultSeparateCheckpointClientFactory;
+}
+
+/**
+ * Business purpose: Query the newest native checkpoint row from a physically separate native checkpoint database.
+ *
+ * Business rules:
+ * - Connects read-only to the specified native checkpoint database URL with bounded query and connection timeouts.
+ * - Verifies the existence of the public.checkpoints table before querying.
+ * - Fetches only the newest checkpoint for the specified thread and native Root namespace.
+ * - Always disconnects the client to prevent connection leaks regardless of success or failure.
+ *
+ * Execution flow:
+ * 1. Instantiate and connect a dedicated PostgreSQL client to the checkpoint database URL.
+ * 2. Verify that public.checkpoints exists via to_regclass.
+ * 3. Query the newest checkpoint row for the thread and namespace, ordered by checkpoint_id descending.
+ * 4. Clean up the connection and return the raw row if found.
+ *
+ * Failure cases:
+ * - Connection failures, timeouts, missing table, or missing rows safely return undefined.
+ *
+ * Side effects:
+ * - Establishes a short-lived read-only database connection to the separate checkpoint store.
+ */
+async function querySeparateCheckpointDatabase(
+  databaseUrl: string,
+  threadId: string,
+): Promise<
+  | {
+      checkpointId: string;
+      serializedCheckpointId: string | null;
+      checkpointTimestamp: string | null;
+      metadata: unknown;
+    }
+  | undefined
+> {
+  const client = separateCheckpointClientFactory(databaseUrl);
+  try {
+    await client.connect();
+    const tableRes = await client.query<{ tableName: string | null }>(
+      `SELECT to_regclass('public.checkpoints')::text AS "tableName"`,
+    );
+    if (!tableRes.rows[0]?.tableName) {
+      return undefined;
+    }
+    const res = await client.query<{
+      checkpointId: string;
+      serializedCheckpointId: string | null;
+      checkpointTimestamp: string | null;
+      metadata: unknown;
+    }>(
+      `SELECT "checkpoint_id" AS "checkpointId",
+          "checkpoint"->>'id' AS "serializedCheckpointId",
+          "checkpoint"->>'ts' AS "checkpointTimestamp",
+          "metadata"
+        FROM "public"."checkpoints"
+        WHERE "thread_id" = $1
+          AND "checkpoint_ns" = $2
+        ORDER BY "checkpoint_id" DESC
+        LIMIT 1`,
+      [threadId, NATIVE_ROOT_CHECKPOINT_NAMESPACE],
+    );
+    return res.rows[0];
+  } catch {
+    return undefined;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+/**
+ * Business purpose: Recover a native checkpoint omitted from the API runtime row after a failed Root turn.
+ *
+ * Business rules:
+ * - The newest checkpoint for the exact Root thread and native Root namespace must carry the same persisted
+ *   assessment, transport run, Root boundary, agent identity, and exact immutable case pins (rule set, repository snapshot, commit).
+ * - Authoritative case pins (rule set, repository snapshot, commit) are required; missing case pins fail closed.
+ * - Checkpoint metadata must explicitly contain string values for rule_set_version_id, repository_snapshot_id, and repository_commit matching case pins.
+ * - Missing checkpoint pins, malformed pins, or mismatching pins immediately fail closed and return null.
+ * - The checkpoint row ID must match its serialized checkpoint ID, and its timestamp must fall within that turn.
+ * - If the checkpoint table is absent from the API database, the authority checks the configured native checkpoint database URL.
+ * - An unavailable table, missing row, malformed checkpoint, or mismatched provenance grants no resume authority.
+ *
+ * Execution flow:
+ * 1. Validate that the input case pins exist and contain non-empty string values for rule set, repository snapshot, and commit.
+ * 2. Check for the co-located native checkpoint table in the current database transaction.
+ * 3. If absent and a separate native checkpoint database URL is configured, query that external database securely.
+ * 4. Read only the newest checkpoint for this thread and the native Root namespace.
+ * 5. Validate checkpoint identity, metadata types, case pins, and timestamp against the failed turn before returning its ID.
+ *
+ * Failure cases:
+ * - Missing table or row, missing/malformed/mismatched case pins or identity metadata return null; query errors abort or return null.
+ *
+ * Side effects:
+ * - Performs read-only queries against the co-located or separate native checkpoint store.
+ */
+async function findFailedNativeCheckpoint(
+  tx: Prisma.TransactionClient,
+  input: {
+    assessmentId: string;
+    threadId: string;
+    runtimeRunId: string;
+    turnCreatedAt: Date;
+    turnUpdatedAt: Date;
+    casePins?: {
+      ruleSetVersionId?: string | null;
+      repositorySnapshotId?: string | null;
+      repositoryCommit?: string | null;
+    } | null;
+  },
+): Promise<FailedNativeCheckpoint | null> {
+  if (
+    !input.casePins ||
+    typeof input.casePins.ruleSetVersionId !== "string" ||
+    input.casePins.ruleSetVersionId.length === 0 ||
+    typeof input.casePins.repositorySnapshotId !== "string" ||
+    input.casePins.repositorySnapshotId.length === 0 ||
+    typeof input.casePins.repositoryCommit !== "string" ||
+    input.casePins.repositoryCommit.length === 0
+  ) {
+    return null;
+  }
+
+  const [table] = await tx.$queryRaw<Array<{ tableName: string | null }>>(
+    Prisma.sql`SELECT to_regclass('public.checkpoints')::text AS "tableName"`,
+  );
+
+  let checkpoint:
+    | {
+        checkpointId: string;
+        serializedCheckpointId: string | null;
+        checkpointTimestamp: string | null;
+        metadata: unknown;
+      }
+    | undefined;
+
+  if (table?.tableName) {
+    const [row] = await tx.$queryRaw<
+      Array<{
+        checkpointId: string;
+        serializedCheckpointId: string | null;
+        checkpointTimestamp: string | null;
+        metadata: unknown;
+      }>
+    >(
+      Prisma.sql`SELECT "checkpoint_id" AS "checkpointId",
+          "checkpoint"->>'id' AS "serializedCheckpointId",
+          "checkpoint"->>'ts' AS "checkpointTimestamp",
+          "metadata"
+        FROM "public"."checkpoints"
+        WHERE "thread_id" = ${input.threadId}
+          AND "checkpoint_ns" = ${NATIVE_ROOT_CHECKPOINT_NAMESPACE}
+        -- Checkpoint IDs are time-ordered; validate the newest row rather than falling back to older metadata.
+        ORDER BY "checkpoint_id" DESC
+        LIMIT 1`,
+    );
+    checkpoint = row;
+  } else if (process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL) {
+    checkpoint = await querySeparateCheckpointDatabase(
+      process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL,
+      input.threadId,
+    );
+  } else {
+    return null;
+  }
+
+  if (
+    !checkpoint?.checkpointId ||
+    checkpoint.serializedCheckpointId !== checkpoint.checkpointId ||
+    !checkpoint.checkpointTimestamp
+  ) {
+    return null;
+  }
+
+  const metadata =
+    checkpoint.metadata &&
+    typeof checkpoint.metadata === "object" &&
+    !Array.isArray(checkpoint.metadata)
+      ? (checkpoint.metadata as Record<string, unknown>)
+      : null;
+  if (
+    !metadata ||
+    metadata.assessment_id !== input.assessmentId ||
+    metadata.lcsp_runtime_run_id !== input.runtimeRunId ||
+    metadata.lcsp_boundary_name !== NATIVE_ROOT_BOUNDARY_NAME ||
+    metadata.lc_agent_name !== NATIVE_ROOT_AGENT_NAME ||
+    (typeof metadata.thread_id === "string" &&
+      metadata.thread_id !== input.threadId) ||
+    typeof metadata.rule_set_version_id !== "string" ||
+    metadata.rule_set_version_id !== input.casePins.ruleSetVersionId ||
+    typeof metadata.repository_snapshot_id !== "string" ||
+    metadata.repository_snapshot_id !== input.casePins.repositorySnapshotId ||
+    typeof metadata.repository_commit !== "string" ||
+    metadata.repository_commit !== input.casePins.repositoryCommit
+  ) {
+    return null;
+  }
+
+  const timestamp = new Date(checkpoint.checkpointTimestamp);
+  if (
+    Number.isNaN(timestamp.getTime()) ||
+    timestamp < input.turnCreatedAt ||
+    timestamp > input.turnUpdatedAt
+  ) {
+    return null;
+  }
+
+  return {
+    checkpointId: checkpoint.checkpointId,
+    checkpointTimestamp: checkpoint.checkpointTimestamp,
+  };
 }
 
 /** Same lock order as the lifecycle coordinator: assessment row, then runtime row. */

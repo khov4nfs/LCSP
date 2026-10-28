@@ -3,13 +3,14 @@ import { Prisma } from "@prisma/client";
 import {
   DECISION_RESOLUTION_STATES,
   RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
-import { criterionIdsOf } from "../../domain/rule-criteria.js";
+import { criterionIdsOf, listLength } from "../../domain/rule-criteria.js";
 
 export const ROOT_AUDIT_ACTOR = {
   id: AUDIT_ACTOR_IDS.assessmentRootAgent,
@@ -156,6 +157,32 @@ export class AssessmentCaseSupport {
     }
   }
 
+  /**
+   * Business purpose: Assemble server-owned rule, fact and evidence authority for deterministic
+   *   validation of a Root-authored decision.
+   *
+   * Business rules:
+   * - Resolve the AssessmentRule and directly related legal-context targets only within the
+   *   pinned Rule Set.
+   * - Load cited facts and their supporting evidence only from this Assessment;
+   *   applicability-element counts come from linked LegalRequirements, never inferred legal
+   *   categories.
+   *
+   * Execution flow:
+   * 1. Read the pinned rule, linked requirements and outgoing context targets.
+   * 2. Resolve the decision’s cited facts, then collect direct evidence references and those
+   *   facts’ evidence links.
+   * 3. Return exact pins/revision, criterion and legal-context identities, declared-element
+   *   counts and record maps.
+   *
+   * Failure cases:
+   * - A missing rule remains null and missing facts/evidence remain absent, allowing the
+   *   validator to reject them; database failures propagate.
+   *
+   * Side effects:
+   * - Read-only queries inside the supplied transaction; does not accept references or alter
+   *   model conclusions.
+   */
   async buildValidationContext(
     tx: Prisma.TransactionClient,
     input: { assessmentId: string; pins: PinnedCase; decision: RuleDecision },
@@ -172,7 +199,13 @@ export class AssessmentCaseSupport {
         legalRequirementLinks: {
           include: {
             legalRequirement: {
-              select: { id: true, legalRequirementId: true },
+              select: {
+                id: true,
+                legalRequirementId: true,
+                applicabilityConditions: true,
+                qualifiers: true,
+                exceptions: true,
+              },
             },
           },
         },
@@ -210,10 +243,7 @@ export class AssessmentCaseSupport {
         for (const row of related) legalContextIds.add(row.legalRequirementId);
       }
     }
-    const references = [
-      ...decision.references,
-      ...decision.criteria.flatMap((criterion) => criterion.references),
-    ];
+    const references = ruleDecisionReferences(decision);
     const factIds = [
       ...new Set(
         references.flatMap((r) =>
@@ -268,6 +298,18 @@ export class AssessmentCaseSupport {
             assessmentRuleVersion: rule.assessmentRuleVersion,
             criterionIds: new Set(criterionIdsOf(rule.criteria)),
             legalContextIds,
+            declaredElements: new Map(
+              rule.legalRequirementLinks.map((link) => [
+                link.legalRequirement.legalRequirementId,
+                {
+                  applicabilityConditions: listLength(
+                    link.legalRequirement.applicabilityConditions,
+                  ),
+                  qualifiers: listLength(link.legalRequirement.qualifiers),
+                  exceptions: listLength(link.legalRequirement.exceptions),
+                },
+              ]),
+            ),
           }
         : null,
       evidence: new Map(evidence.map((row) => [row.evidenceId, row])),

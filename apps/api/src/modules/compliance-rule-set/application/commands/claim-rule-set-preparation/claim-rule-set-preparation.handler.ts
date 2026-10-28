@@ -1,15 +1,24 @@
+import { fromPrismaLegalSourceDocumentCorpusRole } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS,
   type RuleSetPreparationLegalSourceBundle,
+  CLAIM_PREPARATION_PHASES as P,
+  ruleSetPreparationLegalSourceBundleSchema,
 } from "@lcsp/contracts/compliance-rule-set";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client";
+import {
+  AgentExecutionState as PrismaAgentExecutionState,
+  SourceReviewState,
+  PreparationExecutionContract,
+} from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.command.js";
+import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
+import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 
 /**
  * Claims a run for exactly one worker: QUEUED -> RUNNING. A duplicated or redelivered command
@@ -19,8 +28,33 @@ import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.com
  */
 @CommandHandler(ClaimRuleSetPreparationCommand)
 export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRuleSetPreparationCommand> {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly graph: LegalDocumentGraphService,
+  ) {}
 
+  /**
+   * Business purpose: Give one worker exclusive, leased ownership of a queued or abandoned Preparation and return its pinned source package.
+   *
+   * Business rules:
+   * - The worker must support the run's execution contract; a published run cannot be claimed.
+   * - QUEUED runs transition to RUNNING once, while RUNNING runs can be taken over only after the claim lease expires.
+   * - Compare-and-set state checks prevent concurrent deliveries from claiming the same live run.
+   * - Reuse the materialization pinned by an existing inventory frontier when available; otherwise materialize the source graph.
+   *
+   * Execution flow:
+   * 1. Load the run and reject a missing run or unsupported worker contract.
+   * 2. Claim a queued run or refresh an expired running lease, clearing the prior review operation as part of the transition.
+   * 3. Expire prior leases for in-review units, load the run's Legal Source documents and frozen inventory, and export the pinned graph.
+   * 4. Map the pinned source and run state into the validated worker bundle.
+   *
+   * Failure cases:
+   * - A missing run returns not found; an unsupported contract, active competing claim, or already-published run returns a preparation conflict.
+   * - Missing pinned source data or an invalid response bundle fails the operation instead of substituting another source revision.
+   *
+   * Side effects:
+   * - Updates run claim timestamps/state and active review lease expirations; reads source, graph, and inventory records.
+   */
   async execute(
     input: ClaimRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationLegalSourceBundle> {
@@ -35,6 +69,18 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         { status: HttpStatus.NOT_FOUND },
       );
     }
+    const supported = input.request.supportedExecutionContracts ?? [
+      PreparationExecutionContract.CLAIM_INVENTORY_V1,
+    ];
+    if (!supported.includes(run.executionContract))
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+        input.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: { reason: "WORKER_EXECUTION_CONTRACT_UNSUPPORTED" },
+        },
+      );
     const now = new Date();
     const leaseCutoff = new Date(
       now.getTime() - RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS * 1000,
@@ -51,6 +97,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
             data: {
               executionState: PrismaAgentExecutionState.RUNNING,
               startedAt: now,
+              reviewOperationId: null,
             },
           })
         : run.executionState === PrismaAgentExecutionState.RUNNING &&
@@ -62,7 +109,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
                 executionState: PrismaAgentExecutionState.RUNNING,
                 startedAt: run.startedAt,
               },
-              data: { startedAt: now },
+              data: { startedAt: now, reviewOperationId: null },
             })
           : { count: 0 };
     if (claimed.count !== 1) {
@@ -72,6 +119,15 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         { status: HttpStatus.CONFLICT },
       );
     }
+    await this.prisma.ruleSetPreparationSourceReview.updateMany({
+      where: {
+        preparationRunId: run.id,
+        state: SourceReviewState.IN_REVIEW,
+      },
+      data: {
+        leaseExpiresAt: now,
+      },
+    });
     const state = PrismaAgentExecutionState.RUNNING;
 
     const legalSource = await this.prisma.legalSourceVersion.findUniqueOrThrow({
@@ -87,6 +143,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
             sourceUrl: true,
             sourceSha256: true,
             sourceEffectStatus: true,
+            corpusRole: true,
             chunks: {
               orderBy: { locator: "asc" },
               select: {
@@ -95,6 +152,8 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
                 content: true,
                 contentSha256: true,
                 legalStatus: true,
+                legalEffectStatus: true,
+                legalStatusSourceRef: true,
                 hierarchy: true,
               },
             },
@@ -102,18 +161,49 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         },
       },
     });
-    return {
+    // A taken-over run resumes on the graph its review frontier pinned, even across a parser revision bump.
+    const pinned = await pinnedMaterializationId(this.prisma, run.id);
+    const frozen =
+      await this.prisma.ruleSetPreparationClaimInventory.findUnique({
+        where: {
+          preparationRunId_revision: {
+            preparationRunId: run.id,
+            revision: run.claimInventoryRevision,
+          },
+        },
+        select: {
+          revision: true,
+          fingerprint: true,
+          graph: true,
+          identities: true,
+        },
+      });
+    return ruleSetPreparationLegalSourceBundleSchema.parse({
+      documentGraph: pinned
+        ? (await this.graph.export(legalSource.id, pinned))!
+        : await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
+      executionContract: run.executionContract,
+      ...(run.targetDate
+        ? { targetDate: run.targetDate.toISOString().slice(0, 10) }
+        : {}),
       executionState: state,
+      claimInventoryRevision: run.claimInventoryRevision,
+      claimPhase: P[run.claimPhase],
+      frozenInventory: frozen,
       legalSourceVersionId: legalSource.id,
       legalSourceVersion: legalSource.version,
       documents: legalSource.documents.map((document) => ({
         ...document,
+        corpusRole: fromPrismaLegalSourceDocumentCorpusRole(
+          document.corpusRole,
+        ),
         chunks: document.chunks.map(({ id, ...chunk }) => ({
           chunkId: id,
           ...chunk,
+          legalEffectStatus: chunk.legalEffectStatus,
         })),
       })),
-    };
+    });
   }
 }

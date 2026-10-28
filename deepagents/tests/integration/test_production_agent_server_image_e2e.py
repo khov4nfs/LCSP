@@ -260,6 +260,8 @@ def _start_server_container(
             "LANGCHAIN_TRACING_V2=false",
             "-e",
             "OPENAI_API_KEY=lcsp-production-image-smoke",
+            "-e",
+            "MIRAI_API_KEY=lcsp-production-image-smoke",
             server_image,
         ],
         timeout=60,

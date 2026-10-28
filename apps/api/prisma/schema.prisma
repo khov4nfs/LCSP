@@ -200,11 +200,13 @@ enum LegalContextRelationKind {
 }
 
 enum RuleSetPreparationFailureReason {
+  AGENT_BUDGET_REACHED
   MODEL_ERROR
   NO_SUBMISSION
   RULE_SET_VALIDATION_FAILED
   SOURCE_VERSION_UNAVAILABLE
   RUNTIME_ERROR
+  NO_OPERATIVE_OBLIGATIONS
 }
 
 enum ComplianceRuleSetValidationOutcome {
@@ -499,7 +501,7 @@ model AssessmentRuntimeTurn {
 }
 
 model AssessmentRuntimeEvent {
-  id                String     @id @default(uuid())
+  id                String                  @id @default(uuid())
   assessmentId      String?
   boundaryType      AgentStreamBoundaryType @default(ASSESSMENT)
   boundaryId        String
@@ -517,9 +519,9 @@ model AssessmentRuntimeEvent {
   durationMs        Int?
   attempt           Int?
   waitingReason     String?
-  createdAt         DateTime   @default(now())
-  assessment        Assessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  preparationRun    RuleSetPreparationRun? @relation(fields: [preparationRunId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                @default(now())
+  assessment        Assessment?             @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  preparationRun    RuleSetPreparationRun?  @relation(fields: [preparationRunId], references: [id], onDelete: Cascade)
 
   @@unique([runId, sequence])
   @@index([assessmentId, createdAt])
@@ -540,22 +542,41 @@ model GitHubAppInstallState {
   user         User        @relation("GitHubAppInstallStateUser", fields: [userId], references: [id], onDelete: Restrict)
 }
 
+/// Admin-managed parent of an ordered family of immutable Legal Source Versions.
+model LegalSource {
+  id          String               @id @default(uuid())
+  slug        String               @unique
+  name        String
+  description String?
+  createdBy   String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  versions    LegalSourceVersion[]
+}
+
 model LegalSourceVersion {
   id                     String                        @id @default(uuid())
+  /// Always set: a database trigger assigns a parent when an insert names none (older callers).
+  legalSourceId          String?
   version                String                        @unique
   status                 LegalSourceLifecycleStatus    @default(DRAFT)
   sourceManifest         Json
   integrityManifestRef   String?
+  basedOnVersionId       String?
+  createdBy              String?
   createdAt              DateTime                      @default(now())
   activatedAt            DateTime?
+  legalSource            LegalSource?                  @relation(fields: [legalSourceId], references: [id], onDelete: Restrict)
   documents              LegalSourceDocument[]
   chunks                 LegalDocumentChunk[]
   activations            LegalSourceActivationRecord[]
   retrievalIndexes       LegalRetrievalIndex[]
   ruleSetPreparationRuns RuleSetPreparationRun[]
   ruleSetVersions        ComplianceRuleSetVersion[]
+  documentMaterializations LegalDocumentMaterialization[]
 
   @@index([status, createdAt])
+  @@index([legalSourceId, createdAt])
 }
 
 model LegalRetrievalIndex {
@@ -573,8 +594,13 @@ model LegalRetrievalIndex {
   @@index([legalSourceVersionId, status, validatedAt])
 }
 
+enum LegalSourceDocumentCorpusRole {
+  OPERATIVE
+  REFERENCE_ONLY
+}
+
 model LegalSourceDocument {
-  id                   String               @id @default(uuid())
+  id                   String                            @id @default(uuid())
   legalSourceVersionId String
   documentId           String
   title                String
@@ -582,13 +608,39 @@ model LegalSourceDocument {
   sourceSha256         String
   effectiveDate        DateTime?
   sourceEffectStatus   String
+  corpusRole           LegalSourceDocumentCorpusRole     @default(OPERATIVE)
   snapshotPath         String?
-  createdAt            DateTime             @default(now())
-  legalSourceVersion   LegalSourceVersion   @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
+  origin               LegalSourceDocumentOrigin         @default(MIGRATED)
+  ingestionState       LegalSourceDocumentIngestionState @default(READY)
+  ingestionFailureCode String?
+  ingestionAttempt     Int                               @default(0)
+  mediaType            String?
+  originalFileName     String?
+  byteLength           Int?
+  blobSha256           String?
+  structureProfile     String?
+  provenance           Json?
+  extraction           Json?
+  createdBy            String?
+  createdAt            DateTime                          @default(now())
+  ingestedAt           DateTime?
+  legalSourceVersion   LegalSourceVersion                @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
+  blob                 LegalSourceDocumentBlob?          @relation(fields: [blobSha256], references: [sha256], onDelete: Restrict)
   chunks               LegalDocumentChunk[]
 
   @@unique([legalSourceVersionId, documentId])
   @@index([documentId])
+  @@index([blobSha256])
+}
+
+/// Content-addressed original bytes of an uploaded or imported document. Immutable: a changed
+/// file is a different hash, so a version never rewrites what another version pinned.
+model LegalSourceDocumentBlob {
+  sha256     String                @id
+  byteLength Int
+  bytes      Bytes
+  createdAt  DateTime              @default(now())
+  documents  LegalSourceDocument[]
 }
 
 model LegalSourceSnapshot {
@@ -628,6 +680,8 @@ model LegalDocumentChunk {
   contentSha256           String
   hierarchy               Json
   legalStatus             String
+  legalEffectStatus       LegalEffectStatus                 @default(UNKNOWN)
+  legalStatusSourceRef    String?
   pageStart               Int?
   pageEnd                 Int?
   createdAt               DateTime                          @default(now())
@@ -635,11 +689,154 @@ model LegalDocumentChunk {
   sourceDocument          LegalSourceDocument               @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
   ruleSetProvenance       LegalRequirementProvenance[]
   ruleSetContextRelations LegalRequirementContextRelation[]
+  documentNodeMappings    LegalDocumentChunkNode[]
 
   @@unique([id, legalSourceVersionId])
   @@unique([legalSourceVersionId, documentId, locator])
   @@index([legalSourceVersionId, documentId])
   @@index([legalSourceVersionId, legalStatus])
+}
+
+enum LegalDocumentNodeType {
+  DOCUMENT
+  PART
+  TITLE
+  CHAPTER
+  SUBCHAPTER
+  SECTION
+  SUBSECTION
+  ARTICLE
+  CLAUSE
+  PARAGRAPH
+  SUBPARAGRAPH
+  POINT
+  ITEM
+  ANNEX
+  SCHEDULE
+  TABLE
+  DEFINITION_BLOCK
+  UNSTRUCTURED_BLOCK
+}
+
+enum LegalReferenceResolutionState {
+  RESOLVED
+  AMBIGUOUS
+  UNRESOLVED
+}
+
+/// Derived data only. No activation, preparation, assessment or provider side effects.
+model LegalDocumentMaterialization {
+  id                      String @id
+  legalSourceVersionId    String
+  parserRevision         String
+  materializationRevision String
+  sourceDigest           String
+  graphDigest            String
+  inputModes             Json
+  createdAt              DateTime @default(now())
+  legalSourceVersion     LegalSourceVersion @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  nodes                  LegalDocumentNode[]
+  references             LegalDocumentReference[]
+  chunkMappings          LegalDocumentChunkNode[]
+  retrievalUnits         LegalDocumentRetrievalUnit[]
+  semanticGraphs         LegalSemanticGraph[]
+  reviewFrontiers        RuleSetPreparationReviewFrontier[]
+
+  @@unique([id, legalSourceVersionId])
+  @@unique([legalSourceVersionId, parserRevision, materializationRevision, sourceDigest], map: "LegalMaterialization_revision_key")
+}
+
+/// Node identity excludes pages, chunk windows and parser revision. Membership pins a revision.
+model LegalDocumentNode {
+  nodeId                 String
+  materializationId      String
+  legalSourceVersionId   String
+  documentId             String
+  nodeType               LegalDocumentNodeType
+  parentNodeId           String?
+  ordinal                Int
+  label                  String
+  title                  String
+  structuralPath         String
+  sourcePath             String
+  content                String
+  contentFingerprint     String
+  legalEffectStatus      LegalEffectStatus
+  legalStatusSourceRefs  Json
+  pageStart              Int?
+  pageEnd                Int?
+  charStart              Int?
+  charEnd                Int?
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  parent                 LegalDocumentNode? @relation("DocumentHierarchy", fields: [parentNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: NoAction, onUpdate: Restrict, map: "LegalNode_parent_fkey")
+  children               LegalDocumentNode[] @relation("DocumentHierarchy")
+  outgoingReferences     LegalDocumentReference[] @relation("DocumentReferenceFrom")
+  incomingReferences     LegalDocumentReference[] @relation("DocumentReferenceTo")
+  chunks                 LegalDocumentChunkNode[]
+  retrievalUnits         LegalDocumentRetrievalUnit[]
+  semanticClaims         LegalSemanticClaimSource[]
+  sourceReviews          RuleSetPreparationSourceReview[]
+
+  @@id([nodeId, materializationId])
+  @@unique([nodeId, materializationId, legalSourceVersionId], map: "LegalNode_source_key")
+  @@unique([materializationId, documentId, structuralPath], map: "LegalNode_path_key")
+  @@index([materializationId, parentNodeId, ordinal], map: "LegalNode_children_idx")
+  @@index([materializationId, documentId, nodeType, label], map: "LegalNode_locator_idx")
+}
+
+model LegalDocumentReference {
+  referenceId            String
+  materializationId      String
+  legalSourceVersionId   String
+  fromNodeId             String
+  toNodeId               String?
+  text                   String
+  charStart              Int
+  charEnd                Int
+  resolutionState        LegalReferenceResolutionState
+  candidateNodeIds       Json
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  fromNode               LegalDocumentNode @relation("DocumentReferenceFrom", fields: [fromNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  toNode                 LegalDocumentNode? @relation("DocumentReferenceTo", fields: [toNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  semanticRelations      LegalSemanticClaimRelation[]
+
+  @@id([referenceId, materializationId])
+  @@index([materializationId, fromNodeId], map: "LegalReference_outbound_idx")
+  @@index([materializationId, toNodeId], map: "LegalReference_inbound_idx")
+  @@index([materializationId, resolutionState], map: "LegalReference_resolution_idx")
+}
+
+/// Additive mapping preserves historical immutable chunk IDs and existing provenance FKs.
+model LegalDocumentChunkNode {
+  materializationId      String
+  legalSourceVersionId   String
+  chunkId                String
+  legalDocumentNodeId    String
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  chunk                  LegalDocumentChunk @relation(fields: [chunkId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  node                   LegalDocumentNode @relation(fields: [legalDocumentNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([materializationId, chunkId])
+  @@index([materializationId, legalDocumentNodeId], map: "LegalChunkNode_node_idx")
+  @@index([chunkId, legalSourceVersionId], map: "LegalChunkNode_source_idx")
+}
+
+/// Regenerable retrieval windows. Historical LegalDocumentChunk rows remain immutable provenance.
+model LegalDocumentRetrievalUnit {
+  unitId                 String
+  materializationId      String
+  legalSourceVersionId   String
+  legalDocumentNodeId    String
+  ordinal                Int
+  contentStart           Int
+  contentEnd             Int
+  content                String
+  contentSha256          String
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  node                   LegalDocumentNode @relation(fields: [legalDocumentNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([unitId, materializationId])
+  @@unique([materializationId, legalDocumentNodeId, ordinal], map: "LegalRetrievalUnit_node_key")
 }
 
 model LegalSourceActivationRecord {
@@ -725,10 +922,30 @@ enum LegalSourceLifecycleStatus {
   SUPERSEDED
 }
 
+enum LegalSourceDocumentOrigin {
+  UPLOAD
+  URL_IMPORT
+  MIGRATED
+}
+
+enum LegalSourceDocumentIngestionState {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
 enum LegalRetrievalIndexStatus {
   BUILDING
   VALID
   INVALID
+}
+
+enum LegalEffectStatus {
+  EFFECTIVE
+  REPEALED
+  FUTURE
+  UNKNOWN
 }
 
 // Account access and pending provisioning are separate lifecycles.
@@ -788,6 +1005,13 @@ enum BillingReservationStatus {
   RESERVED
   SETTLED
   RELEASED
+}
+
+enum ModelAttemptStatus {
+  STARTED
+  COMPLETED
+  FAILED
+  OUTCOME_UNKNOWN
 }
 
 enum LlmUsageStatus {
@@ -991,7 +1215,7 @@ model RuntimeModelPolicySnapshot {
 
 model LlmUsageEvent {
   id                      String                      @id @default(uuid())
-  userId                  String
+  userId                  String?
   assessmentId            String?
   runId                   String?
   agentRole               String                      @default("LEGACY")
@@ -1001,6 +1225,13 @@ model LlmUsageEvent {
   status                  LlmUsageStatus              @default(SETTLED)
   availabilityReason      String?
   providerResponseId      String?
+  attemptStatus              ModelAttemptStatus?
+  failureClass               String?
+  referenceCostSnapshot      Json?
+  inputTokensIncludingCache  BigInt?
+  cacheWrite5mTokens         BigInt?
+  cacheWrite1hTokens         BigInt?
+  visibleOutputTokens        BigInt?
   inputTokens             BigInt?
   cachedInputTokens       BigInt?
   cacheWriteTokens        BigInt?
@@ -1015,12 +1246,13 @@ model LlmUsageEvent {
   chargedCredits          BigInt?
   occurredAt              DateTime                    @default(now())
   createdAt               DateTime                    @default(now())
-  user                    User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user                    User?                        @relation(fields: [userId], references: [id], onDelete: Restrict)
   assessment              Assessment?                 @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
   pricingSnapshot         ModelPricingSnapshot?       @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
   runtimePolicySnapshot   RuntimeModelPolicySnapshot? @relation(fields: [runtimePolicySnapshotId], references: [id], onDelete: Restrict)
   reservation             BillingReservation?         @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
+  @@index([occurredAt])
   @@unique([userId, invocationId])
   @@unique([provider, providerResponseId])
   @@index([assessmentId, runId, createdAt])
@@ -1038,6 +1270,17 @@ model LlmUsageEvent {
 // ---------------------------------------------------------------------------
 
 model RuleSetPreparationRun {
+  executionContract PreparationExecutionContract @default(CLAIM_INVENTORY_V1)
+  targetDate DateTime? @db.Date
+  draftValidation Json?
+  reviewOperationId String?
+  claimDiscoveryOnly Boolean @default(false)
+  reviewFrontiers RuleSetPreparationReviewFrontier[]
+  claimPhase ClaimPreparationPhase @default(CLAIM_DISCOVERY)
+  claimInventoryRevision Int @default(1)
+  claimInventoryReopenReason String?
+  claimInventories RuleSetPreparationClaimInventory[]
+  authoringDrafts  RuleSetPreparationAuthoringDraft[]
   id                   String                             @id @default(uuid())
   idempotencyKey       String                             @unique
   legalSourceVersionId String
@@ -1054,32 +1297,36 @@ model RuleSetPreparationRun {
   activationRecord     ComplianceRuleSetActivationRecord?
   runtimeEvents        AssessmentRuntimeEvent[]
 
+  @@unique([id, legalSourceVersionId])
   @@index([legalSourceVersionId])
   @@index([executionState, createdAt])
 }
 
 model ComplianceRuleSetVersion {
-  id                      String                              @id @default(uuid())
-  version                 String                              @unique
+  id                      String                                @id @default(uuid())
+  version                 String                                @unique
   legalSourceVersionId    String
-  preparationRunId        String                              @unique
-  lifecycleState          ArtifactLifecycleState              @default(BUILDING)
+  preparationRunId        String                                @unique
+  lifecycleState          ArtifactLifecycleState                @default(BUILDING)
   ruleSetDigest           String
   validationOutcome       ComplianceRuleSetValidationOutcome?
-  validationFailures      Json                                @default("[]")
-  createdAt               DateTime                            @default(now())
+  validationFailures      Json                                  @default("[]")
+  createdAt               DateTime                              @default(now())
   validatedAt             DateTime?
   activatedAt             DateTime?
   supersededAt            DateTime?
-  legalSourceVersion      LegalSourceVersion                  @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
-  preparationRun          RuleSetPreparationRun               @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  legalSourceVersion      LegalSourceVersion                    @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
+  preparationRun          RuleSetPreparationRun                 @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
   rules                   LegalRequirement[]
   assessmentRules         AssessmentRule[]
   provenance              LegalRequirementProvenance[]
   contextRelations        LegalRequirementContextRelation[]
-  activation              ComplianceRuleSetActivationRecord?  @relation("ActivationTarget")
-  supersededByActivations ComplianceRuleSetActivationRecord[] @relation("ActivationPrevious")
+  semanticGraph           LegalSemanticGraph?
+  activation              ComplianceRuleSetActivationRecord?    @relation("ActivationTarget")
+  supersededByActivations ComplianceRuleSetActivationRecord[]   @relation("ActivationPrevious")
   assessmentCases         AssessmentCase[]
+  reactivationsAsTarget   ComplianceRuleSetReactivationRecord[] @relation("ReactivationTarget")
+  reactivationsAsPrevious ComplianceRuleSetReactivationRecord[] @relation("ReactivationPrevious")
 
   // Lets child rows prove they share the rule set's legal source version (composite FK).
   @@unique([id, legalSourceVersionId])
@@ -1088,11 +1335,14 @@ model ComplianceRuleSetVersion {
 }
 
 model LegalRequirement {
+  applicabilityMode LegalApplicabilityMode?
   id                      String                            @id @default(uuid())
   ruleSetVersionId        String
   legalRequirementId      String
   title                   String
   proposition             String
+  operativePropositions   Json?
+  semanticContext         Json?
   applicabilityConditions Json
   qualifiers              Json
   exceptions              Json
@@ -1105,9 +1355,163 @@ model LegalRequirement {
   assessmentRuleLinks     AssessmentRuleLegalRequirement[]
   provenance              LegalRequirementProvenance[]
   outgoingRelations       LegalRequirementContextRelation[] @relation("RelationFrom")
+  claimBindings           LegalRequirementClaimBinding[]
 
   @@unique([ruleSetVersionId, legalRequirementId])
   @@unique([id, ruleSetVersionId])
+}
+
+enum LegalSemanticClaimType {
+  DUTY
+  PROHIBITION
+  PERMISSION
+  DEFINITION
+  SCOPE
+  QUALIFIER
+  EXCEPTION
+  CROSS_REFERENCE
+  CONDITION
+  TEMPORAL_RULE
+  TRANSITION_RULE
+  CONTEXT
+}
+enum LegalSemanticClaimState {
+  RELEVANT
+  INTENTIONALLY_NON_OPERATIVE
+}
+enum LegalClaimAccountingRole {
+  OPERATIVE_PROPOSITION
+  APPLICABILITY_CONDITION
+  QUALIFIER
+  EXCEPTION
+  CONTEXT
+  DEFINITION
+}
+enum LegalSemanticRelationKind {
+  DEFINITION
+  SCOPE
+  QUALIFIER
+  EXCEPTION
+  CROSS_REFERENCE
+  CONDITION
+  INCORPORATES
+  TEMPORALLY_LIMITS
+  CONDITION_OF
+  QUALIFIES
+  EXCEPTION_TO
+  TEMPORALLY_APPLIES_TO
+  DEFINED_BY
+  PRESERVES
+  EVIDENCE_SLICE_OF
+  CONTEXT_FOR
+}
+
+enum LegalSemanticAuthority {
+  LEGAL_NORMATIVE
+  DEFINITION
+  CONTEXT
+  ASSESSMENT_GUIDANCE
+  EVIDENCE_GUIDANCE
+}
+
+enum LegalAssessability {
+  REPOSITORY_VERIFIABLE
+  EXTERNAL_FULFILLMENT
+  MIXED
+  NON_ASSESSABLE
+}
+
+/// Agent-authored semantic authority for a new Rule Set; no retroactive graph for historical rows.
+model LegalSemanticGraph {
+  ruleSetVersionId        String @id
+  legalSourceVersionId    String
+  materializationId      String
+  contractVersion        String
+  sourceAccounting       Json
+  referenceAccounting    Json
+  graphDigest            String
+  ruleSet                ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  claims                 LegalSemanticClaim[]
+  relations              LegalSemanticClaimRelation[]
+
+  @@unique([ruleSetVersionId, materializationId, legalSourceVersionId], map: "LegalClaimGraph_source_key")
+  @@unique([ruleSetVersionId, legalSourceVersionId], map: "LegalClaimGraph_version_key")
+}
+
+model LegalSemanticClaim {
+  claimId                String
+  ruleSetVersionId       String
+  materializationId      String
+  legalSourceVersionId   String
+  claimType              LegalSemanticClaimType
+  statement              String
+  operative              Json?
+  sourceSupport          Json?
+  semanticFrame          Json?
+  semanticAuthority      LegalSemanticAuthority?
+  assessability          LegalAssessability?
+  state                  LegalSemanticClaimState
+  nonOperativeReason     String?
+  candidateFingerprint   String
+  ordinal                Int
+  graph                  LegalSemanticGraph @relation(fields: [ruleSetVersionId, materializationId, legalSourceVersionId], references: [ruleSetVersionId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  sources                LegalSemanticClaimSource[]
+  bindings               LegalRequirementClaimBinding[]
+  outgoingRelations      LegalSemanticClaimRelation[] @relation("SemanticRelationFrom")
+  incomingRelations      LegalSemanticClaimRelation[] @relation("SemanticRelationTo")
+
+  @@id([claimId, ruleSetVersionId])
+  @@unique([claimId, ruleSetVersionId, materializationId, legalSourceVersionId], map: "LegalClaim_source_key")
+  @@index([ruleSetVersionId, state], map: "LegalClaim_accounting_idx")
+}
+
+model LegalSemanticClaimSource {
+  claimId                String
+  ruleSetVersionId       String
+  materializationId      String
+  legalSourceVersionId   String
+  sourceNodeId           String
+  ordinal                Int
+  claim                  LegalSemanticClaim @relation(fields: [claimId, ruleSetVersionId, materializationId, legalSourceVersionId], references: [claimId, ruleSetVersionId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  sourceNode             LegalDocumentNode @relation(fields: [sourceNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([claimId, ruleSetVersionId, sourceNodeId])
+  @@index([materializationId, sourceNodeId], map: "LegalClaimSource_node_idx")
+}
+
+model LegalSemanticClaimRelation {
+  relationId             String
+  ruleSetVersionId       String
+  kind                   LegalSemanticRelationKind
+  fromClaimId            String
+  toClaimId              String
+  referenceId            String?
+  ordinal                Int
+  materializationId      String
+  legalSourceVersionId   String
+  graph                  LegalSemanticGraph @relation(fields: [ruleSetVersionId, materializationId, legalSourceVersionId], references: [ruleSetVersionId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  sourceReference        LegalDocumentReference? @relation(fields: [referenceId, materializationId], references: [referenceId, materializationId], onDelete: Restrict, onUpdate: Restrict)
+  fromClaim              LegalSemanticClaim @relation("SemanticRelationFrom", fields: [fromClaimId, ruleSetVersionId], references: [claimId, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+  toClaim                LegalSemanticClaim @relation("SemanticRelationTo", fields: [toClaimId, ruleSetVersionId], references: [claimId, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([relationId, ruleSetVersionId])
+  @@index([ruleSetVersionId, fromClaimId], map: "LegalClaimRelation_out_idx")
+  @@index([ruleSetVersionId, toClaimId], map: "LegalClaimRelation_in_idx")
+}
+
+model LegalRequirementClaimBinding {
+  ruleSetVersionId        String
+  legalRequirementRowId   String
+  claimId                String
+  role                   LegalClaimAccountingRole
+  index                  Int
+  ordinal                Int
+  requirement            LegalRequirement @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+  claim                  LegalSemanticClaim @relation(fields: [claimId, ruleSetVersionId], references: [claimId, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([legalRequirementRowId, claimId, role, index])
+  @@index([ruleSetVersionId, claimId], map: "LegalRequirementClaim_claim_idx")
 }
 
 model AssessmentRule {
@@ -1156,6 +1560,8 @@ model LegalRequirementProvenance {
   locator               String
   contentSha256         String
   sourceEffectStatus    String
+  legalEffectStatus     LegalEffectStatus        @default(UNKNOWN)
+  legalStatusSourceRef  String?
   ordinal               Int
   ruleSet               ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
   rule                  LegalRequirement         @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
@@ -1205,6 +1611,35 @@ model ComplianceRuleSetActivationRecord {
   preparationRun                 RuleSetPreparationRun              @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
 
   @@index([previousActiveRuleSetVersionId])
+}
+
+enum RuleSetReactivationReason {
+  SEMANTIC_AUTHORITY_CONTAINMENT
+}
+
+// Repeated authority transitions are distinct from the original Preparation acceptance.
+model ComplianceRuleSetReactivationRecord {
+  id                         String                    @id @default(uuid())
+  targetRuleSetVersionId     String
+  previousRuleSetVersionId   String
+  targetRuleSetDigest        String
+  previousRuleSetDigest      String
+  targetPreviousActivatedAt  DateTime
+  targetPreviousSupersededAt DateTime
+  previousActiveActivatedAt  DateTime
+  actorId                    String
+  reason                     RuleSetReactivationReason
+  idempotencyKey             String                    @unique
+  requestDigest              String
+  correlationId              String
+  auditEventId               String                    @unique
+  outboxEventId              String                    @unique
+  createdAt                  DateTime                  @default(now())
+  target                     ComplianceRuleSetVersion  @relation("ReactivationTarget", fields: [targetRuleSetVersionId], references: [id], onDelete: Restrict, map: "CRSReactivation_target_fkey")
+  previous                   ComplianceRuleSetVersion  @relation("ReactivationPrevious", fields: [previousRuleSetVersionId], references: [id], onDelete: Restrict, map: "CRSReactivation_previous_fkey")
+
+  @@index([targetRuleSetVersionId, createdAt], map: "CRSReactivation_target_created_idx")
+  @@index([previousRuleSetVersionId], map: "CRSReactivation_previous_idx")
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1390,6 +1825,10 @@ model AssessmentDecisionCoverage {
   @@index([assessmentId, resolutionState])
 }
 
+// resolvedFactId also carries a raw composite FK (resolvedFactId, assessmentId) ->
+// AssessmentCaseFact(factId, assessmentId) in the migrations (no Prisma relation), next to the
+// AssessmentHumanRequest_resolved_shape CHECK. Restored by
+// 20261014090000_restore_human_request_resolved_fact_fk after re_generate_db dropped it.
 model AssessmentHumanRequest {
   requestId          String                       @id @db.Uuid
   assessmentId       String
@@ -1484,4 +1923,127 @@ enum AuthorizationReasonCode {
   TEMPORARY_LOCKED
   UNSUPPORTED_PROVIDER
   VALIDATION_FAILED
+}
+
+
+enum PreparationExecutionContract {
+  CLAIM_INVENTORY_V1
+  DIRECT_DRAFT_V1
+}
+
+enum LegalApplicabilityMode {
+  UNCONDITIONAL
+  CONDITIONAL
+}
+
+enum ClaimPreparationPhase {
+  CLAIM_DISCOVERY
+  CLAIM_INVENTORY_VALIDATION
+  CLAIM_INVENTORY_READY
+  RULE_AUTHORING
+  RULE_VALIDATION
+  SUBMISSION_READY
+  COMPLETION
+}
+
+model RuleSetPreparationClaimInventory {
+  reviewedFrontierFingerprint String?
+  preparationRunId String
+  revision         Int
+  fingerprint      String
+  graphDigest      String
+  graph            Json
+  identities       Json
+  reopenReason     String?
+  createdAt        DateTime              @default(now())
+  preparation      RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([preparationRunId, revision])
+  @@index([preparationRunId, fingerprint])
+}
+
+/// The Requirements and AssessmentRules a Preparation is drafting, per frozen inventory revision. The agent saves it as it authors
+/// and loads it on restart, so a pause or crash during authoring does not discard the work.
+model RuleSetPreparationAuthoringDraft {
+  preparationRunId String
+  revision         Int
+  draftVersion     Int                   @default(0)
+  draft            Json
+  updatedAt        DateTime              @updatedAt
+  preparation      RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+
+  @@id([preparationRunId, revision])
+}
+
+enum SourceReviewState {
+  PENDING
+  IN_REVIEW
+  REVIEWED_WITH_CLAIMS
+  REVIEWED_NO_CLAIMS
+  BLOCKED_REFERENCE
+  REOPENED
+}
+
+enum SourceReviewDisposition {
+  CLAIMS_AUTHORED
+  NO_RELEVANT_SEMANTIC_CLAIMS
+  CONTEXT_ONLY
+  REQUIRES_REFERENCE_RESOLUTION
+}
+
+model RuleSetPreparationReviewFrontier {
+  preparationRunId String
+  inventoryRevision Int
+  legalSourceVersionId String
+  materializationId String
+  revision Int @default(1)
+  fingerprint String
+  stateFingerprint String
+  stateAccumulator String
+  unitCount Int @default(0)
+  pendingCount Int @default(0)
+  inReviewCount Int @default(0)
+  reviewedWithClaimsCount Int @default(0)
+  reviewedNoClaimsCount Int @default(0)
+  blockedCount Int @default(0)
+  persistedClaimCount Int @default(0)
+  expansions Json @default("[]")
+  frozenAt DateTime?
+  createdAt DateTime @default(now())
+  preparation RuleSetPreparationRun @relation(fields: [preparationRunId,legalSourceVersionId], references: [id,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  materialization LegalDocumentMaterialization @relation(fields: [materializationId,legalSourceVersionId], references: [id,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  items RuleSetPreparationSourceReview[]
+  @@id([preparationRunId, inventoryRevision])
+  @@unique([preparationRunId,inventoryRevision,materializationId,legalSourceVersionId])
+}
+
+model RuleSetPreparationSourceReview {
+  preparationRunId String
+  inventoryRevision Int
+  materializationId String
+  legalSourceVersionId String
+  sourceNodeId String
+  structuralPath String
+  ordinal Int
+  state SourceReviewState @default(PENDING)
+  disposition SourceReviewDisposition?
+  reason String?
+  operationId String?
+  leaseExpiresAt DateTime?
+  claimIds String[] @default([])
+  ownedClaimCount Int @default(0)
+  referenceIds String[] @default([])
+  blockedReferenceIds String[] @default([])
+  payload Json @default("{\"claims\":[],\"identities\":{},\"relations\":[],\"referenceAccounting\":[]}")
+  stateFingerprint String
+  completionFingerprint String?
+  completedAt DateTime?
+  updatedAt DateTime @updatedAt
+  frontier RuleSetPreparationReviewFrontier @relation(fields: [preparationRunId,inventoryRevision,materializationId,legalSourceVersionId], references: [preparationRunId,inventoryRevision,materializationId,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  node LegalDocumentNode @relation(fields: [sourceNodeId,materializationId,legalSourceVersionId], references: [nodeId,materializationId,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  @@id([preparationRunId,inventoryRevision,sourceNodeId])
+  @@index([preparationRunId,inventoryRevision,state,ordinal], map: "SourceReview_pending_idx")
+  @@index([claimIds], type: Gin)
+  @@index([blockedReferenceIds], type: Gin)
+  @@index([preparationRunId,inventoryRevision,structuralPath], map: "SourceReview_path_idx")
 }

@@ -10,12 +10,17 @@ from hashlib import sha256
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.structured_output import StructuredOutputError
 from pydantic import ValidationError
+from anthropic import APIError as AnthropicAPIError
+from openai import APIError as OpenAIAPIError
+from langchain_google_genai.chat_models import GoogleAPIError
+import httpx
 
 from middleware.failure_policy import (
     TerminalCredentialError,
     TerminalSchemaError,
     error_status,
     is_auth_failure,
+    is_paid_admission_error,
     is_provider_capacity_failure,
     is_provider_quota_exhaustion,
     is_terminal_task_error,
@@ -27,6 +32,7 @@ from provider_credentials import (
     NO_SDK_RETRY_MAX_RETRIES,
     apx_base_url,
     inception_base_url,
+    mirai_base_url,
     provider_token_source,
 )
 from tools.common.capabilities.platform.logging import get_logger
@@ -35,7 +41,7 @@ logger = get_logger(__name__)
 _RATE_LIMITED_STATUSES = frozenset({429})
 _RETRYABLE_TRANSIENT_STATUSES = frozenset({408, 409, 425, 429})
 _DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS = 30.0
-_MAX_RATE_LIMIT_COOLDOWN_SECONDS = 120.0
+_MAX_RATE_LIMIT_WAIT_SECONDS = 120.0
 # Process-window credential health. Auth/depleted allowances are dead for this process;
 # rate limits make a slot ineligible until its cooldown expires.
 _DEAD_CREDENTIAL_SLOTS: dict[tuple[str, str], set[int]] = {}
@@ -72,7 +78,34 @@ def _error_status(error: BaseException) -> int | None:
     return error_status(error)
 
 
+_PROVIDER_API_ERRORS = (
+    OpenAIAPIError,
+    AnthropicAPIError,
+    GoogleAPIError,
+    httpx.HTTPError,
+)
+
+
 def _is_terminal_model_error(error: BaseException) -> bool:
+    """Business purpose: Identify model-call errors that must stop credential-slot retry for the current request.
+
+    Business rules:
+    - The shared terminal-task classifier is authoritative for known task-level failures.
+    - Type, validation, structured-output, and terminal-schema errors in the cause/context chain are also terminal.
+
+    Execution flow:
+    1. Return true if is_terminal_task_error classifies the original error as terminal.
+    2. Otherwise walk its cause/context chain once for the additional terminal model error classes.
+    3. Return false when no terminal signal is present.
+
+    Failure cases:
+    - Nonterminal errors remain subject to transient, capacity, and credential-rotation policy.
+
+    Side effects:
+    - Pure classification; it does not mark credential slots or invoke providers.
+    """
+    if is_terminal_task_error(error):
+        return True
     seen: set[int] = set()
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
@@ -84,6 +117,25 @@ def _is_terminal_model_error(error: BaseException) -> bool:
 
 
 def _is_retryable_transient_error(error: BaseException) -> bool:
+    """Business purpose: Recognize temporary model-provider failures that may justify trying another credential slot.
+
+    Business rules:
+    - Terminal task errors are never transient for credential rotation.
+    - Explicit retryable HTTP statuses and statuses at or above 500 are transient; without a status, timeout names, provider API errors, and local timeout/connection errors qualify.
+
+    Execution flow:
+    1. Reject terminal model errors.
+    2. Check the provider status against the retryable set and server-error range.
+    3. When status is absent, inspect the exception chain once for timeout or provider API errors.
+    4. Fall back to local TimeoutError or ConnectionError classification.
+
+    Failure cases:
+    - A present status outside the retryable set returns false without overriding it from the exception type.
+    - Unrecognized failures return false.
+
+    Side effects:
+    - Pure classification with no cooldown, logging, or provider invocation.
+    """
     if _is_terminal_model_error(error):
         return False
     status = _error_status(error)
@@ -97,6 +149,8 @@ def _is_retryable_transient_error(error: BaseException) -> bool:
         seen.add(id(current))
         name = type(current).__name__.lower()
         if "timeout" in name:
+            return True
+        if isinstance(current, _PROVIDER_API_ERRORS):
             return True
         current = current.__cause__ or current.__context__
     return isinstance(error, (TimeoutError, ConnectionError))
@@ -157,15 +211,44 @@ def _retry_after_seconds(error: BaseException) -> float | None:
 
 
 def credential_failure(error: BaseException) -> bool:
-    """Return whether an error may move a model call to another credential slot.
+    """Business purpose: Decide whether a failed credential slot may be bypassed for a model call.
 
-    Authentication failures are handled separately: they mark the failing slot dead for
-    this process instead of being treated as a transient failure of the same slot.
+    Business rules:
+    - Paid-call admission failures cannot trigger rotation.
+    - Provider-capacity and retryable transient failures may rotate; authentication failures are handled separately as dead credentials.
+
+    Execution flow:
+    1. Exclude paid-admission failures.
+    2. Return true for provider-capacity failures or a retryable transient model error.
+
+    Failure cases:
+    - Terminal, authentication-only, and otherwise unclassified failures return false for this predicate.
+
+    Side effects:
+    - Pure classification; slot health changes are performed by the middleware caller.
     """
-    return is_provider_capacity_failure(error) or _is_retryable_transient_error(error)
+    return not is_paid_admission_error(error) and (is_provider_capacity_failure(error) or _is_retryable_transient_error(error))
 
 
 def model_provider(model) -> str | None:
+    """Business purpose: Resolve the provider identity used to select the model's configured credential pool.
+
+    Business rules:
+    - An explicit model route configuration takes precedence over package and URL inference.
+    - For supported LangChain adapters, infer the gateway/provider from package module and configured base URL; unknown model types return None.
+
+    Execution flow:
+    1. Return the provider from explicit route configuration when present.
+    2. Classify OpenAI-compatible adapters by Inception, APX, MiraiAPI, or default OpenAI base URL.
+    3. Classify Google GenAI directly and Anthropic adapters by APX, MiraiAPI, or default Anthropic URL.
+    4. Return None for unsupported adapter modules.
+
+    Failure cases:
+    - Missing or unrecognized model routing information returns None so credential middleware can pass the call through without rotation.
+
+    Side effects:
+    - Reads model route metadata and configured base URLs; it does not access credentials or make a provider call.
+    """
     route = model_route_config(model)
     if route is not None:
         return route.provider
@@ -182,6 +265,8 @@ def model_provider(model) -> str | None:
             return "inception"
         if base_url == apx_base_url("openai"):
             return "apx"
+        if base_url == mirai_base_url():
+            return "miraiapi"
         return "openai"
     if module.startswith("langchain_google_genai."):
         return "google_genai"
@@ -193,6 +278,8 @@ def model_provider(model) -> str | None:
         ).rstrip("/")
         if base_url == apx_base_url():
             return "apx"
+        if base_url == mirai_base_url("anthropic"):
+            return "miraiapi"
         return "anthropic"
     return None
 
@@ -253,11 +340,32 @@ class TokenFallbackMiddleware(AgentMiddleware):
     """
 
     def wrap_model_call(self, request, handler):
+        """Business purpose: Execute a synchronous model inference using an eligible credential slot and rotate within that provider's pool when policy permits.
+
+        Business rules:
+        - Calls without a known provider token source pass directly to the next handler.
+        - A single credential is used once with a safe metering slot label; multiple credentials use the bounded fallback state machine.
+        - APX pool identity is refreshed before multi-slot rotation, and this middleware does not replay tool execution.
+
+        Execution flow:
+        1. Resolve the provider from the model and obtain its configured credential source.
+        2. Pass through when no source exists, or invoke once with slot context when only one token exists.
+        3. For a multi-token pool, refresh APX pool identity when applicable and run the synchronous rotation flow.
+
+        Failure cases:
+        - Nonretryable errors propagate; exhausted retryable slots produce the fallback flow's terminal credential error.
+
+        Side effects:
+        - Invokes the downstream inference handler, may rotate credentials and update in-process slot health/cooldowns, and emits metering/fallback telemetry.
+        """
         provider = model_provider(request.model)
         source = provider_token_source(provider) if provider else None
-        if source is None or len(source[1]) < 2:
+        if source is None:
             return handler(request)
         env_name, tokens = source
+        if len(tokens) < 2:
+            with self._attempt_context(0):
+                return handler(request)
         if provider == "apx":
             self._refresh_pool_identity(provider, env_name, tokens)
         return self._run_with_fallback(
@@ -270,11 +378,32 @@ class TokenFallbackMiddleware(AgentMiddleware):
         )
 
     async def awrap_model_call(self, request, handler):
+        """Business purpose: Execute an asynchronous model inference using an eligible credential slot and rotate within that provider's pool when policy permits.
+
+        Business rules:
+        - Calls without a known provider token source pass directly to the next handler.
+        - A single credential is used once with a safe metering slot label; multiple credentials use the bounded asynchronous fallback state machine.
+        - APX pool identity is refreshed before multi-slot rotation, and this middleware does not replay tool execution.
+
+        Execution flow:
+        1. Resolve the provider from the model and obtain its configured credential source.
+        2. Await pass-through when no source exists, or await one call with slot context when only one token exists.
+        3. For a multi-token pool, refresh APX pool identity when applicable and await the asynchronous rotation flow.
+
+        Failure cases:
+        - Nonretryable errors propagate; exhausted retryable slots produce the fallback flow's terminal credential error.
+
+        Side effects:
+        - Awaits the downstream inference handler, may rotate credentials and update in-process slot health/cooldowns, and emits metering/fallback telemetry.
+        """
         provider = model_provider(request.model)
         source = provider_token_source(provider) if provider else None
-        if source is None or len(source[1]) < 2:
+        if source is None:
             return await handler(request)
         env_name, tokens = source
+        if len(tokens) < 2:
+            with self._attempt_context(0):
+                return await handler(request)
         if provider == "apx":
             self._refresh_pool_identity(provider, env_name, tokens)
         return await self._run_with_fallback(
@@ -290,6 +419,28 @@ class TokenFallbackMiddleware(AgentMiddleware):
         if index == 0:
             return request
         return request.override(model=model_with_token(request.model, provider, token))
+
+    @staticmethod
+    def _attempt_context(index: int):
+        """Business purpose: Associate one model inference with a safe credential-slot identifier in the shared usage-metering context.
+
+        Business rules:
+        - Use a one-based CREDENTIAL_SLOT identifier rather than exposing the credential value.
+        - Delegate context lifetime and restoration to provider_attempt_context.
+
+        Execution flow:
+        1. Convert the zero-based slot index to a padded one-based safe identifier.
+        2. Return the metering context manager for the caller to enter around the provider attempt.
+
+        Failure cases:
+        - Metering context setup errors propagate to the caller.
+
+        Side effects:
+        - Creates a context manager that temporarily changes provider-attempt metering context when entered.
+        """
+        from middleware.usage_metering import provider_attempt_context
+
+        return provider_attempt_context(credential_slot_safe_id=f"CREDENTIAL_SLOT_{index + 1:02d}")
 
     def _dead_slots(self, provider: str, env_name: str) -> set[int]:
         return _DEAD_CREDENTIAL_SLOTS.setdefault((provider, env_name), set())
@@ -437,11 +588,25 @@ class TokenFallbackMiddleware(AgentMiddleware):
         token: str,
         error: BaseException,
     ) -> None:
+        """Business purpose: Hold a rate-limited credential slot until the provider's requested or default cooldown expires.
+
+        Business rules:
+        - Honor a valid Retry-After or provider retry delay; use the configured default when none can be parsed.
+        - Record cooldown by provider, credential environment name, and slot index, while logging only a credential fingerprint.
+
+        Execution flow:
+        1. Derive the retry delay from the error chain or choose the default cooldown.
+        2. Store the monotonic expiry for this slot.
+        3. Emit the rate-limited-slot event with its safe fingerprint and cooldown duration.
+
+        Failure cases:
+        - Invalid or absent retry timing falls back to the default; logging and clock behavior follow their configured implementations.
+
+        Side effects:
+        - Mutates the in-process cooldown map and writes a rate-limit telemetry event; it does not persist or log the token itself.
+        """
         retry_after = _retry_after_seconds(error)
-        cooldown = min(
-            retry_after if retry_after is not None else _DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS,
-            _MAX_RATE_LIMIT_COOLDOWN_SECONDS,
-        )
+        cooldown = retry_after if retry_after is not None else _DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS
         self._rate_limited_slots(provider, env_name)[index] = _monotonic() + cooldown
         self._log_rate_limited_slot(
             provider=provider,
@@ -518,13 +683,24 @@ class TokenFallbackMiddleware(AgentMiddleware):
         saw_auth_failure: bool,
         recovery_retry_used: bool,
     ) -> tuple[list[int], tuple[int, float] | None, bool]:
-        """Plan the next slots while keeping one bounded recovery retry per model call.
+        """Business purpose: Plan the next credential attempts while bounding recovery work for a single model call.
 
-        Every slot is invoked at most once initially. Once no healthy untried slot
-        remains, exactly one extra provider invocation may be used either to retry a
-        transiently failed slot when every alternative slot is permanently dead, or to
-        wait for and retry the soonest rate-limited slot. A model call therefore makes
-        at most len(tokens) + 1 provider invocations.
+        Business rules:
+        - Try healthy unattempted slots first; permanently dead and cooling slots are unavailable until their state changes.
+        - After initial slots, allow at most one recovery attempt: retry a transient slot only when every alternative is permanently dead, or wait for the soonest rate-limited slot.
+        - Do not wait beyond the configured maximum or sleep while another provider route is available; retain cooldown state for later calls.
+
+        Execution flow:
+        1. Ask _attempt_order for eligible unattempted slots and return them when available.
+        2. Stop when a recovery retry was already used.
+        3. Consider one transient retry only when an authentication failure has made every alternative slot dead.
+        4. Otherwise select the soonest cooling slot, reject excessive waits, defer to another provider route when available, or return the wait plan.
+
+        Failure cases:
+        - Return an empty plan when no eligible attempt or bounded wait remains; this is not itself an exception.
+
+        Side effects:
+        - May clear an expired cooldown or emit a warning when deferring to another provider; it does not invoke a model.
         """
         order = self._attempt_order(
             provider=provider,
@@ -563,6 +739,9 @@ class TokenFallbackMiddleware(AgentMiddleware):
             env_name=env_name,
             tokens=tokens,
         )
+        # Preserve long provider delays; fail this call instead of retrying before its reset.
+        if wait is not None and wait[1] > _MAX_RATE_LIMIT_WAIT_SECONDS:
+            return [], None, False
         if wait is not None and _FURTHER_PROVIDER_ROUTE.get():
             # Hand the call to the next provider now instead of sleeping for the
             # soonest cooldown; the cooling slots stay recorded for later calls.
@@ -641,6 +820,25 @@ class TokenFallbackMiddleware(AgentMiddleware):
         return self._srun_with_fallback(request, handler, provider, env_name, tokens)
 
     def _srun_with_fallback(self, request, handler, provider: str, env_name: str, tokens: tuple[str, ...]):
+        """Business purpose: Run the synchronous credential-rotation state machine for one model inference.
+
+        Business rules:
+        - Follow _next_step's bounded slot order and one-recovery limit; preserve terminal task and nonretryable provider errors.
+        - Continue after a failed slot only when _record_failure classifies rotation as safe.
+        - Do not expose credential values in attempt context or fallback telemetry.
+
+        Execution flow:
+        1. Initialize per-call attempted-slot, transient-retry, authentication, and recovery state.
+        2. Repeatedly request the next attempt plan; for a cooldown plan, report a wait heartbeat, sleep once, clear that cooldown, and re-plan.
+        3. Invoke each planned slot under safe attempt context, recording eligible failures and slot health.
+        4. Mark a successful slot healthy and return its response; if no plan remains, raise terminal credential exhaustion chained from the first failure.
+
+        Failure cases:
+        - Propagate any error _record_failure marks non-rotatable; raise TerminalCredentialError when all allowed slots and recovery attempts fail.
+
+        Side effects:
+        - Invokes provider inference, may sleep and emit heartbeat/log events, and updates in-process credential health and cooldown state.
+        """
         first_error: BaseException | None = None
         attempted: set[int] = set()
         transient_retry_index: int | None = None
@@ -686,7 +884,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
                 )
                 attempt_count += 1
                 try:
-                    response = handler(self._candidate_request(request, provider, tokens[index], index))
+                    with self._attempt_context(index):
+                        response = handler(self._candidate_request(request, provider, tokens[index], index))
                 except Exception as error:
                     if not self._record_failure(
                         provider=provider,
@@ -711,6 +910,25 @@ class TokenFallbackMiddleware(AgentMiddleware):
         raise TerminalCredentialError("All configured retryable provider credential slots failed; task stopped") from first_error
 
     async def _arun_with_fallback(self, request, handler, provider: str, env_name: str, tokens: tuple[str, ...]):
+        """Business purpose: Run the asynchronous credential-rotation state machine for one model inference.
+
+        Business rules:
+        - Follow _next_step's bounded slot order and one-recovery limit; preserve terminal task and nonretryable provider errors.
+        - Continue after a failed slot only when _record_failure classifies rotation as safe.
+        - Do not expose credential values in attempt context or fallback telemetry.
+
+        Execution flow:
+        1. Initialize per-call attempted-slot, transient-retry, authentication, and recovery state.
+        2. Repeatedly request the next attempt plan; for a cooldown plan, report a wait heartbeat, await one sleep, clear that cooldown, and re-plan.
+        3. Await each planned slot under safe attempt context, recording eligible failures and slot health.
+        4. Mark a successful slot healthy and return its response; if no plan remains, raise terminal credential exhaustion chained from the first failure.
+
+        Failure cases:
+        - Propagate any error _record_failure marks non-rotatable; raise TerminalCredentialError when all allowed slots and recovery attempts fail.
+
+        Side effects:
+        - Awaits provider inference, may await cooldowns and emit heartbeat/log events, and updates in-process credential health and cooldown state.
+        """
         first_error: BaseException | None = None
         attempted: set[int] = set()
         transient_retry_index: int | None = None
@@ -756,7 +974,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
                 )
                 attempt_count += 1
                 try:
-                    response = await handler(self._candidate_request(request, provider, tokens[index], index))
+                    with self._attempt_context(index):
+                        response = await handler(self._candidate_request(request, provider, tokens[index], index))
                 except Exception as error:
                     if not self._record_failure(
                         provider=provider,

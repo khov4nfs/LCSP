@@ -1,0 +1,318 @@
+{
+  "author": "Primary Architecture Owner (Claude Opus 5.5, max effort)",
+  "authoredAt": "2026-10-20",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "rules": [
+    "Texts and expectations are authored independently of the implementation and must not be edited to obtain PASS (INV-0c). Report suspected oracle errors to the Architecture Owner with source evidence.",
+    "Binary fixtures (PDF/DOCX/HTML) are built deterministically from 'text' following 'build'. Builder scripts and their output hashes are retained.",
+    "Deterministic expectations are hard gates. 'soft' expectations are recorded as observed and never fail the item.",
+    "Semantic expectations are judged on real governed model output. 'facts' must be represented with the stated force/addressee; 'forbidden' must not appear. Wording may differ; meaning may not.",
+    "Every item is evaluated separately; legitimate failures are expected outcomes, not defects."
+  ],
+  "commonDeterministic": {
+    "losslessChunks": "multiset of persisted chunk lines == multiset of normalized non-empty extracted lines",
+    "losslessGraph": "every extracted line appears in exactly one canonical node's content",
+    "maxUnitOwnContentChars": 6000,
+    "everyChunkMappedToNodeContainingItsText": true
+  },
+  "items": [
+    {
+      "id": "P01-numbered-statute",
+      "format": "application/pdf",
+      "build": "Two-page text PDF via LibreOffice from plain paragraphs. Page break immediately before the line 'Chapter II'.",
+      "text": "REGULATION ON RECORD RETENTION\nChapter I\nGeneral provisions\nArticle 1. Definitions\nIn this Regulation:\n(a) \"record\" means any information created or received by a provider in the course of its service;\n(b) \"provider\" means a person that offers a hosted storage service to the public.\nArticle 2. Scope\nThis Regulation applies to providers established in the Republic.\nChapter II\nObligations\nArticle 3. Retention\n1. A provider must retain each record for at least five years after its creation.\n2. A provider must delete a record within thirty days after the end of the retention period referred to in paragraph 1.\n3. A provider may retain a record longer where a court orders it.\nArticle 4. Disclosure\n1. A provider must not disclose a record to a third party without the consent of the person to whom the record relates.\n2. Paragraph 1 does not apply where disclosure is required by law.\nArticle 5. Notification\nA provider must notify the supervisory authority of any loss of records within 72 hours of becoming aware of it.",
+      "deterministic": {
+        "pageCount": 2,
+        "extractionGaps": [],
+        "mustOpenNodes": ["Chapter I", "Article 1. Definitions", "Article 2. Scope", "Chapter II", "Article 3. Retention", "Article 4. Disclosure", "Article 5. Notification"],
+        "mustNotOpenNodes": ["Paragraph 1 does not apply where disclosure is required by law."],
+        "references": [
+          {"inUnitContaining": "within thirty days after the end of the retention period", "text": "paragraph 1", "expect": "RESOLVED", "targetContains": "retain each record for at least five years"},
+          {"inUnitContaining": "does not apply where disclosure is required by law", "text": "Paragraph 1", "expect": "RESOLVED", "targetContains": "must not disclose a record to a third party"}
+        ]
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "definition of record", "force": "DEFINITION"},
+          {"gist": "definition of provider", "force": "DEFINITION"},
+          {"gist": "Regulation applies to providers established in the Republic", "force": "SCOPE"},
+          {"gist": "provider must retain each record at least five years", "force": "DUTY", "addressee": "provider"},
+          {"gist": "provider must delete record within 30 days after retention period ends", "force": "DUTY", "addressee": "provider"},
+          {"gist": "provider may retain longer where a court orders", "force": "PERMISSION", "addressee": "provider", "note": "limits the deletion duty; may be represented as exception/qualification of 3(2)"},
+          {"gist": "provider must not disclose record to third party without consent", "force": "PROHIBITION", "addressee": "provider"},
+          {"gist": "4(1) does not apply where disclosure is required by law", "force": "EXCEPTION", "targets": "4(1)"},
+          {"gist": "provider must notify supervisory authority of loss within 72 hours", "force": "DUTY", "addressee": "provider"}
+        ],
+        "forbidden": [
+          {"gist": "court-order retention read as a duty to retain"},
+          {"gist": "the 4(2) exception read as a separate prohibition or duty"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P01b-partially-scanned-statute",
+      "format": "application/pdf",
+      "build": "Same as P01 but page 2 is replaced by a raster image of page 2 with no text layer.",
+      "legitimateFailure": true,
+      "deterministic": {
+        "pageCount": 2,
+        "ingestion": "READY",
+        "extractionGaps": [{"page": 2, "kind": "NO_TEXT_LAYER"}],
+        "gapPersistedAndExposedToGraphConsumers": true,
+        "mustNotClaim": "whole-source review completeness over page 2"
+      },
+      "terminalOutcome": "EXTRACTION_GAP_REPORTED"
+    },
+    {
+      "id": "P02-unnumbered-policy",
+      "format": "text/markdown",
+      "build": "Markdown file as given. Total length must exceed 6000 characters (it does), to exercise bounded segmentation.",
+      "text": "# Acceptable Use Policy\n\n## Purpose\n\nThis policy describes how company information systems may be used.\n\n## Who this policy covers\n\nThis policy applies to all employees, contractors and temporary staff who use company systems.\n\n## Requirements\n\nStaff must lock their workstation whenever they leave it unattended.\n\nStaff must report a suspected security incident to the security team within one hour of noticing it.\n\nStaff must not install software that the IT department has not approved.\n\nStaff may use company devices for limited personal purposes outside working hours.\n\n## Exceptions\n\nThe security team may grant a written exception to the software installation rule where there is a documented business need.\n\n## Background\n\nThe company operates a large number of laptops, desktop computers and mobile devices that are shared across several offices. Over the past years the security team has observed that most incidents begin with an unattended device or with software that was downloaded from an unknown source. These observations are summarised here so that readers understand why the requirements above exist. The summary is explanatory only and does not add any requirement beyond those listed in the Requirements section.\n\nUnattended devices are a recurring concern because offices are open to visitors, cleaners and contractors at different times of day. A device that remains unlocked can be used by anyone who passes by, and actions taken from it are recorded under the name of the person who left it. The security team therefore considers screen locking to be one of the simplest and most effective protections that staff can apply, and it has configured devices to lock automatically after a short period of inactivity as an additional safeguard.\n\nSoftware installed without review can contain hidden functions that collect information or open connections to external systems. In several past cases such software was offered for free and appeared harmless, but later updates changed its behaviour. The IT department maintains a catalogue of approved applications that have been reviewed for these risks, and the catalogue is updated regularly as new business needs are identified by teams across the company.\n\nPrompt reporting matters because the damage caused by an incident usually grows with time. When the security team learns about a suspicious email, an unexpected login prompt or a lost device quickly, it can often contain the problem before information leaves the company. Reports that arrive days later frequently mean that the opportunity to limit the damage has already passed, which is why the policy asks for reports within a short period.\n\nPersonal use of company devices is tolerated within limits because staff sometimes need to complete small personal tasks during breaks. The limits exist because personal browsing increases exposure to unsafe websites and because company devices are not designed to store personal files. Staff who need extensive personal computing should use their own devices, which are not managed by the company and are not covered by company backups or support arrangements.\n\nThe company reviews this policy every year together with representatives of staff, the IT department and the security team. Suggestions for improvements are welcome at any time and are considered during the annual review. Changes are communicated through the usual internal channels and take effect on the date stated in the announcement, so that every team has enough time to adjust its procedures and train new colleagues.\n\nThis background section may be updated more often than the rest of the policy, because it reflects the current understanding of threats and practical experience. Such updates are editorial and do not change the meaning of the requirements, which can only be changed through the formal annual review described above.",
+      "deterministic": {
+        "extractionGaps": [],
+        "minReviewUnits": 2,
+        "mustNotOpenNodes": [],
+        "note": "No recognized structural vocabulary: content must be partitioned into bounded UNSTRUCTURED_BLOCK units, not one root unit."
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "policy applies to employees, contractors and temporary staff using company systems", "force": "SCOPE"},
+          {"gist": "staff must lock workstation when unattended", "force": "DUTY", "addressee": "staff"},
+          {"gist": "staff must report suspected security incident within one hour", "force": "DUTY", "addressee": "staff"},
+          {"gist": "staff must not install unapproved software", "force": "PROHIBITION", "addressee": "staff"},
+          {"gist": "staff may use devices for limited personal purposes outside working hours", "force": "PERMISSION", "addressee": "staff"},
+          {"gist": "security team may grant written exception to software rule for documented business need", "force": "EXCEPTION", "targets": "software installation prohibition"}
+        ],
+        "forbidden": [
+          {"gist": "any duty, prohibition or permission derived from the Background section (for example a duty to configure automatic locking or to use own devices)"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P03-contract-embedded-obligations",
+      "format": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "build": "Hand-built DOCX (stdlib zipfile). One paragraph per line except the last line, which is NOT a body paragraph: its text after 'Footnote 1: ' becomes a real footnote (word/footnotes.xml) anchored at the end of the availability sentence.",
+      "text": "MASTER SERVICES AGREEMENT\nThis Agreement is made between Alpha Hosting Ltd (\"Supplier\") and Beta Retail Ltd (\"Customer\").\nSection 1. Definitions\n\"Services\" means the hosting services described in Schedule A.\nSection 2. Supplier obligations\nThe Supplier shall provide the Services with an availability of at least 99.5% in each calendar month.\nThe Supplier shall notify the Customer of any planned maintenance at least five business days in advance.\nSection 3. Customer obligations\nThe Customer shall pay each undisputed invoice within thirty days of receipt.\nThe Customer may withhold payment of any amount it disputes in good faith.\nSection 4. Term\nThis Agreement continues until terminated under Section 6.\nSection 5. Data protection\n\"Personal Data\" means information relating to an identified individual that the Supplier processes for the Customer.\nThe Supplier must process Personal Data only on the Customer's documented instructions.\nSection 6. Termination\nEither party may terminate this Agreement by giving ninety days' written notice.\nFootnote 1: The Supplier must credit the Customer 5% of the monthly fee for each month in which availability falls below 99.5%.",
+      "deterministic": {
+        "extractionGaps": [],
+        "footnoteTextPresentExactlyOnce": "The Supplier must credit the Customer 5% of the monthly fee for each month in which availability falls below 99.5%.",
+        "mustOpenNodes": ["Section 1. Definitions", "Section 2. Supplier obligations", "Section 3. Customer obligations", "Section 4. Term", "Section 5. Data protection", "Section 6. Termination"],
+        "chunksMustNotAllMapToRoot": true,
+        "references": [
+          {"inUnitContaining": "continues until terminated", "text": "Section 6", "expect": "RESOLVED", "targetContains": "ninety days' written notice"},
+          {"inUnitContaining": "hosting services described in", "text": "Schedule A", "expect": "UNRESOLVED", "soft": true, "note": "no Schedule A exists; must never resolve to another node"}
+        ]
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "definition of Services", "force": "DEFINITION"},
+          {"gist": "definition of Personal Data", "force": "DEFINITION"},
+          {"gist": "Supplier shall provide Services with at least 99.5% monthly availability", "force": "DUTY", "addressee": "Supplier"},
+          {"gist": "Supplier must credit 5% of monthly fee when availability falls below 99.5% (footnote)", "force": "DUTY", "addressee": "Supplier"},
+          {"gist": "Supplier shall notify Customer of planned maintenance five business days in advance", "force": "DUTY", "addressee": "Supplier"},
+          {"gist": "Customer shall pay undisputed invoices within thirty days", "force": "DUTY", "addressee": "Customer"},
+          {"gist": "Customer may withhold disputed amounts in good faith", "force": "PERMISSION", "addressee": "Customer"},
+          {"gist": "Supplier must process Personal Data only on documented instructions", "force": "DUTY", "addressee": "Supplier"},
+          {"gist": "either party may terminate on ninety days' written notice", "force": "PERMISSION", "addressee": "either party"},
+          {"gist": "Agreement continues until terminated under Section 6", "force": "CONTEXT_OR_TEMPORAL"}
+        ],
+        "forbidden": [
+          {"gist": "Supplier duty attributed to Customer or vice versa"},
+          {"gist": "withholding permission read as a duty"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P04-mixed-irregular-hierarchy",
+      "format": "text/plain",
+      "text": "CODE OF PRACTICE FOR CLOUD OPERATORS\nPart 1 — General\nArticle 1. Purpose\nThis Code sets minimum practices for cloud operators.\nArticle 2. Application\nPart 1 does not limit any other obligation of an operator.\nPart 2 — Provisions applying only to large operators\nArticle 4. Capacity planning\nA large operator must publish an annual capacity plan.\nSection 4.1 Content of the plan\nThe capacity plan must state the expected peak load for the next year.\nArticle 7. Audits\nArticle 4 applies to every large operator from 1 January 2027.\nAn auditor may inspect the capacity plan.",
+      "deterministic": {
+        "mustOpenNodes": ["Part 1 — General", "Article 1. Purpose", "Article 2. Application", "Part 2 — Provisions applying only to large operators", "Article 4. Capacity planning", "Article 7. Audits"],
+        "mustNotOpenNodes": ["Part 1 does not limit any other obligation of an operator.", "Article 4 applies to every large operator from 1 January 2027."],
+        "ancestorsOfUnitContaining": {"The capacity plan must state the expected peak load": ["Part 2 — Provisions applying only to large operators"]},
+        "soft": {"section41OwnedUnderArticle4": true, "scopeBearingHeadingHasCompletenessOwner": "observe only (B5 UNVERIFIED)"},
+        "references": [
+          {"inUnitContaining": "applies to every large operator from 1 January 2027", "text": "Article 4", "expect": "RESOLVED", "targetContains": "publish an annual capacity plan"}
+        ]
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "Code sets minimum practices for cloud operators", "force": "CONTEXT"},
+          {"gist": "Part 1 does not limit other obligations", "force": "PRESERVATION_OR_CONTEXT"},
+          {"gist": "Part 2 provisions apply only to large operators", "force": "SCOPE"},
+          {"gist": "large operator must publish annual capacity plan", "force": "DUTY", "addressee": "large operator"},
+          {"gist": "capacity plan must state expected peak load for next year", "force": "DUTY_OR_QUALIFIER", "addressee": "large operator"},
+          {"gist": "Article 4 applies from 1 January 2027", "force": "TEMPORAL"},
+          {"gist": "auditor may inspect the capacity plan", "force": "EVIDENCE_OR_ASSESSMENT_GUIDANCE"}
+        ],
+        "forbidden": [
+          {"gist": "auditor inspection read as a duty or permission of the operator"},
+          {"gist": "the temporal rule read as a new standalone duty"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P05-definition-heavy",
+      "format": "text/plain",
+      "text": "STANDARD ON ELECTRONIC IDENTIFICATION\nArticle 1. Definitions\n1. \"Identity provider\" means an entity that issues electronic identification means.\n2. \"Electronic identification means\" means a material or immaterial unit containing person identification data that is used for authentication.\n3. \"Relying party\" means a person that relies on electronic identification.\n4. \"Authentication\" means an electronic process that enables the confirmation of the identity of a person.\n5. \"High assurance\" means a level of assurance that provides a high degree of confidence in the claimed identity.\n6. \"Incident\" means any event that compromises the security of electronic identification means.\n7. \"Qualified identity provider\" means an identity provider that holds a valid certificate under this Standard.\n8. A term defined in this Article has the same meaning throughout this Standard.\nArticle 2. Duties of identity providers\n1. A qualified identity provider must offer authentication at high assurance.\n2. An identity provider must notify each relying party of an incident within 24 hours.\nArticle 3. Relying parties\nA relying party may refuse electronic identification means that do not provide high assurance.",
+      "deterministic": {
+        "mustOpenNodes": ["Article 1. Definitions", "Article 2. Duties of identity providers", "Article 3. Relying parties"]
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "seven definitions (identity provider, electronic identification means, relying party, authentication, high assurance, incident, qualified identity provider)", "force": "DEFINITION"},
+          {"gist": "defined terms have the same meaning throughout", "force": "CONTEXT_OR_DEFINITION"},
+          {"gist": "qualified identity provider must offer authentication at high assurance", "force": "DUTY", "addressee": "qualified identity provider", "usesDefinitions": ["qualified identity provider", "authentication", "high assurance"]},
+          {"gist": "identity provider must notify each relying party of an incident within 24 hours", "force": "DUTY", "addressee": "identity provider", "usesDefinitions": ["identity provider", "relying party", "incident"]},
+          {"gist": "relying party may refuse means without high assurance", "force": "PERMISSION", "addressee": "relying party"}
+        ],
+        "forbidden": [
+          {"gist": "any definition read as a duty"},
+          {"gist": "the refusal permission read as a duty"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P06-cross-reference-heavy",
+      "format": "text/plain",
+      "text": "RULES ON DATA TRANSFERS\nArticle 1. General rule\n1. A controller must not transfer personal data outside the Union except as permitted by Article 2 or Article 3.\n2. Paragraph 1 applies to every controller established in the Union.\nArticle 2. Adequacy\n1. A controller may transfer personal data to a country that the Commission has declared adequate.\n2. A transfer under paragraph 1 must be recorded in the register referred to in Article 4(2).\nArticle 3. Safeguards\n1. In the absence of a decision under Article 2(1), a controller may transfer personal data if it applies the safeguards listed in point (a) or point (b) of paragraph 2.\n2. The safeguards are:\n(a) standard contractual clauses;\n(b) binding corporate rules.\n3. Point (b) of paragraph 2 is available only to controllers that belong to a group of undertakings.\nArticle 4. Records\n1. Each controller must keep a register of transfers.\n2. The register must contain the destination country and the legal basis of each transfer.\nArticle 5. Relationship with other law\nThis Regulation does not affect Article 5 of the Data Protection Act.\nArticle 6. Penalties\nA breach of Article 9 is subject to penalties.",
+      "deterministic": {
+        "mustNotOpenNodes": ["Paragraph 1 applies to every controller established in the Union.", "Point (b) of paragraph 2 is available only to controllers that belong to a group of undertakings."],
+        "references": [
+          {"inUnitContaining": "outside the Union except as permitted by", "text": "Article 2", "expect": "RESOLVED", "targetContains": "declared adequate"},
+          {"inUnitContaining": "outside the Union except as permitted by", "text": "Article 3", "expect": "RESOLVED", "targetContains": "Safeguards"},
+          {"inUnitContaining": "applies to every controller established in the Union", "text": "Paragraph 1", "expect": "RESOLVED", "targetContains": "must not transfer personal data outside the Union"},
+          {"inUnitContaining": "must be recorded in the register", "text": "Article 4(2)", "expect": "RESOLVED", "targetContains": "destination country and the legal basis"},
+          {"inUnitContaining": "In the absence of a decision under", "text": "Article 2(1)", "expect": "RESOLVED", "targetContains": "declared adequate"},
+          {"inUnitContaining": "does not affect", "text": "Article 5", "expect": "UNRESOLVED", "note": "external instrument; must never resolve to this document's Article 5"},
+          {"inUnitContaining": "A breach of", "text": "Article 9", "expect": "UNRESOLVED", "note": "no Article 9 exists; target must not be fabricated"}
+        ],
+        "soft": {"pointBOfParagraph2ResolvesToArticle3Para2PointB": true}
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "controller must not transfer personal data outside the Union except as permitted by Articles 2 or 3", "force": "PROHIBITION", "addressee": "controller"},
+          {"gist": "Paragraph 1 applies to controllers established in the Union", "force": "SCOPE"},
+          {"gist": "controller may transfer to adequate country", "force": "PERMISSION", "addressee": "controller"},
+          {"gist": "adequacy transfer must be recorded in the register of Article 4(2)", "force": "DUTY", "addressee": "controller"},
+          {"gist": "absent adequacy decision, controller may transfer with safeguards (a) or (b)", "force": "PERMISSION", "addressee": "controller", "condition": "no decision under 2(1)"},
+          {"gist": "safeguards are standard contractual clauses and binding corporate rules", "force": "CONTEXT_OR_DEFINITION"},
+          {"gist": "binding corporate rules available only to group undertakings", "force": "CONDITION"},
+          {"gist": "controller must keep a register of transfers", "force": "DUTY", "addressee": "controller"},
+          {"gist": "register must contain destination country and legal basis", "force": "DUTY_OR_QUALIFIER", "addressee": "controller"},
+          {"gist": "Regulation does not affect Article 5 of the Data Protection Act", "force": "PRESERVATION_OR_CONTEXT", "externalTarget": true},
+          {"gist": "breach of Article 9 subject to penalties", "force": "CONTEXT_OR_CONSEQUENCE", "unresolvedTarget": true}
+        ],
+        "forbidden": [
+          {"gist": "content invented for Article 9"},
+          {"gist": "Article 5 of the Data Protection Act treated as this Regulation's Article 5"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P07-unconditional-duty",
+      "format": "text/plain",
+      "text": "STAFF SECURITY RULES\nEvery employee must complete security awareness training once each calendar year.\nEmployees must not share their passwords with anyone.",
+      "deterministic": {
+        "maxReviewUnits": 2
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "every employee must complete security awareness training each calendar year", "force": "DUTY", "addressee": "employee"},
+          {"gist": "employees must not share passwords", "force": "PROHIBITION", "addressee": "employee"}
+        ],
+        "forbidden": [
+          {"gist": "any applicability condition other than the named addressee (for example 'if the employee has system access')"},
+          {"gist": "any third operative claim"}
+        ],
+        "applicability": "Each LegalRequirement's applicability states only the addressee the source names (employees). This item tests B8 (UNVERIFIED): the pipeline must reach a valid Rule Set without fabricating conditions."
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P08-guidance-only",
+      "format": "text/html",
+      "text": "<html><body><h1>Guidance Note: Choosing Strong Passphrases</h1><p>This guidance explains good practice for choosing passphrases. It does not create legal obligations and does not replace any applicable law or contract.</p><p>Many organizations find that longer passphrases are easier to remember than short complex passwords.</p><table><tr><th>Approach</th><th>Typical effect</th></tr><tr><td>Four random words</td><td>Easier to remember</td></tr><tr><td>Password manager</td><td>Fewer reused passwords</td></tr></table><p>Readers may wish to discuss these options with their IT team.</p></body></html>",
+      "deterministic": {
+        "tableCellsSeparated": [["Approach", "Typical effect"], ["Four random words", "Easier to remember"], ["Password manager", "Fewer reused passwords"]],
+        "forbiddenGluedTokens": ["ApproachTypical", "wordsEasier", "managerFewer"]
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "guidance explains good practice and creates no legal obligations", "force": "CONTEXT"},
+          {"gist": "longer passphrases easier to remember; table of approaches", "force": "CONTEXT"},
+          {"gist": "readers may wish to discuss with IT team", "force": "CONTEXT", "note": "suggestion, not a legal permission"}
+        ],
+        "forbidden": [
+          {"gist": "any DUTY, PROHIBITION or PERMISSION"}
+        ]
+      },
+      "terminalOutcome": "NON_OPERATIVE_SOURCE"
+    },
+    {
+      "id": "P09-schedule-table",
+      "format": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "build": "Hand-built DOCX. Lines are paragraphs, except the three table rows, which are a real w:tbl with two cells per row.",
+      "text": "FEES ORDER\nArticle 1. Fees\nThe operator must pay the annual fee set out in Schedule 1 for each licensed service.\nArticle 2. Payment date\nThe fee must be paid by 31 March of each year.\nSchedule 1 — Annual fees\n[TABLE] Service | Annual fee\n[TABLE] Data hosting | 1,000 units\n[TABLE] Data export | 250 units\nAnnex A — Licensed services\n1. Data hosting\n2. Data export",
+      "deterministic": {
+        "tableRowsKeepCellAssociation": [["Service", "Annual fee"], ["Data hosting", "1,000 units"], ["Data export", "250 units"]],
+        "mustOpenNodes": ["Article 1. Fees", "Article 2. Payment date", "Schedule 1 — Annual fees", "Annex A — Licensed services"],
+        "references": [
+          {"inUnitContaining": "pay the annual fee set out in", "text": "Schedule 1", "expect": "RESOLVED", "targetContains": "Data hosting", "soft": true, "note": "requires structural reference vocabulary to include schedules (backlog G4)"}
+        ]
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "operator must pay annual fee set out in Schedule 1 for each licensed service", "force": "DUTY", "addressee": "operator"},
+          {"gist": "fee must be paid by 31 March each year", "force": "DUTY_OR_TEMPORAL_QUALIFIER", "addressee": "operator"},
+          {"gist": "Schedule 1 fee amounts (hosting 1,000 units; export 250 units)", "force": "CONTEXT_OR_INCORPORATED_CONTENT"},
+          {"gist": "Annex A lists licensed services (data hosting, data export)", "force": "DEFINITION_OR_SCOPE"}
+        ],
+        "forbidden": [
+          {"gist": "fee amounts invented or attributed to the wrong service"},
+          {"gist": "each table row read as a duty of a different actor"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P10-multilingual-unfamiliar",
+      "format": "text/plain",
+      "text": "RÈGLEMENT INTÉRIEUR RELATIF À LA SÉCURITÉ DES DONNÉES\nTITRE PREMIER — DISPOSITIONS GÉNÉRALES\nArt. 1er — Le présent règlement s'applique à tout le personnel de la société.\nArt. 2 — Définitions\nAu sens du présent règlement, on entend par « incident » toute atteinte à la confidentialité des données.\nTITRE II — OBLIGATIONS\nArt. 3 — Le personnel doit signaler tout incident au délégué à la protection des données dans un délai de 24 heures.\nArt. 4 — Il est interdit de copier des données clients sur un support personnel.\nArt. 5 — Le délégué peut accorder une dérogation écrite à l'article 4 pour un besoin professionnel justifié.",
+      "deterministic": {
+        "noFabricatedHierarchy": "Structure words outside the configured vocabulary must not create nodes of unrelated types; content stays in bounded units.",
+        "maxReviewUnits": 2
+      },
+      "semantic": {
+        "facts": [
+          {"gist": "règlement applies to all company personnel", "force": "SCOPE"},
+          {"gist": "definition of incident", "force": "DEFINITION"},
+          {"gist": "personnel must report any incident to the DPO within 24 hours", "force": "DUTY", "addressee": "personnel"},
+          {"gist": "copying client data to personal media is prohibited", "force": "PROHIBITION", "addressee": "personnel"},
+          {"gist": "DPO may grant written derogation to article 4 for justified business need", "force": "EXCEPTION", "targets": "Art. 4 prohibition"}
+        ],
+        "forbidden": [
+          {"gist": "the derogation read as a duty of the DPO"}
+        ]
+      },
+      "terminalOutcome": "RULE_SET"
+    },
+    {
+      "id": "P11-scanned-only",
+      "format": "application/pdf",
+      "build": "One-page PDF containing only a raster image of the P07 text, no text layer.",
+      "legitimateFailure": true,
+      "deterministic": {
+        "ingestion": "FAILED",
+        "failureCode": "NO_EXTRACTABLE_TEXT"
+      },
+      "terminalOutcome": "EXTRACTION_FAILED"
+    }
+  ]
+}

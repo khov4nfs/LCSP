@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "data": {
+    "preparation": {
+      "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "legalSourceVersion": "2026.10",
+      "activeRuleSetVersionId": null,
+      "canStart": false,
+      "canReplace": false,
+      "refusalReason": "PREPARATION_IN_PROGRESS",
+      "currentRun": {
+        "preparationRunId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "executionState": "PAUSED",
+        "ruleSetVersionId": null
+      }
+    },
+    "ruleSets": [],
+    "preparations": [
+      {
+        "preparationRunId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "executionState": "PAUSED",
+        "ruleSetVersionId": null,
+        "legalSourceVersion": "2026.10",
+        "attempt": 1,
+        "requestedBy": "admin@example.com",
+        "createdAt": "2026-10-13T00:00:00.000Z",
+        "completedAt": null,
+        "failureReason": "AGENT_BUDGET_REACHED",
+        "retryable": false
+      }
+    ]
+  }
+}

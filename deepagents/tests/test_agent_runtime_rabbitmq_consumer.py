@@ -9,6 +9,35 @@ import pytest
 from tools.common.capabilities.agent_runtime import rabbitmq_consumer
 
 
+@pytest.mark.parametrize("mode_variable", ["LCSP_AGENT_RUNTIME_MODE", "NODE_ENV"])
+def test_production_localhost_preserves_server_owned_run_recovery(monkeypatch, mode_variable):
+    monkeypatch.delenv("LCSP_AGENT_RUNTIME_MODE", raising=False)
+    monkeypatch.delenv("NODE_ENV", raising=False)
+    monkeypatch.delenv("LCSP_AGENT_RUNTIME_RECONCILE_STALE_RUNS", raising=False)
+    monkeypatch.setenv(mode_variable, "production")
+    monkeypatch.setenv("LCSP_AGENT_SERVER_URL", "http://127.0.0.1:20246")
+    def forbidden(*args, **kwargs):
+        pytest.fail("Production must not use the dev-only metrics/search/cancellation protocol")
+    monkeypatch.setattr(rabbitmq_consumer.httpx, "get", forbidden)
+    monkeypatch.setattr(rabbitmq_consumer, "reconcile_stale_agent_runs", forbidden)
+    rabbitmq_consumer._reconcile_local_agent_server_stale_runs(timeout_seconds=0, stopping=Event())
+
+
+@pytest.mark.parametrize("production,override", [(False, None), (True, "true")])
+def test_dev_reconciliation_and_explicit_override_remain_enabled(monkeypatch, production, override):
+    monkeypatch.setenv("LCSP_AGENT_RUNTIME_MODE", "production" if production else "development")
+    monkeypatch.setenv("NODE_ENV", "development")
+    monkeypatch.setenv("LCSP_AGENT_SERVER_URL", "http://127.0.0.1:20246")
+    monkeypatch.delenv("LCSP_AGENT_RUNTIME_RECONCILE_STALE_RUNS", raising=False)
+    if override:
+        monkeypatch.setenv("LCSP_AGENT_RUNTIME_RECONCILE_STALE_RUNS", override)
+    calls = []
+    monkeypatch.setattr(rabbitmq_consumer.httpx, "get", lambda *a, **kw: SimpleNamespace(status_code=200))
+    monkeypatch.setattr(rabbitmq_consumer, "reconcile_stale_agent_runs", lambda **kw: calls.append(kw) or 0)
+    rabbitmq_consumer._reconcile_local_agent_server_stale_runs(timeout_seconds=0, stopping=Event())
+    assert calls == [{"server_url": "http://127.0.0.1:20246"}]
+
+
 class FakeChannel:
     def __init__(self):
         self.acked = []

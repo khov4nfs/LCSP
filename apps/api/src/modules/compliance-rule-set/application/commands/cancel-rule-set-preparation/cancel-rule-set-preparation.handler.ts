@@ -13,7 +13,6 @@ import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { CommandBus, CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   AgentExecutionState as PrismaAgentExecutionState,
-  ArtifactLifecycleState as PrismaArtifactLifecycleState,
   Prisma,
 } from "@prisma/client";
 
@@ -35,6 +34,26 @@ export class CancelRuleSetPreparationHandler implements ICommandHandler<CancelRu
     private readonly commands: CommandBus,
   ) {}
 
+  /**
+   * Business purpose: Stop one unpublished Preparation run while preserving any existing active Rule Set.
+   *
+   * Business rules:
+   * - Missing runs are rejected; already-cancelled runs replay successfully.
+   * - Only PAUSED, QUEUED, or RUNNING runs without a published Rule Set may be cancelled.
+   * - The run-row lock serializes cancellation with submission; a replacement run never supersedes or edits the current Rule Set here.
+   *
+   * Execution flow:
+   * 1. Lock and load the Preparation run and its publication state in a transaction.
+   * 2. Cancel the runtime for a RUNNING run, then compare-and-set the run to CANCELLED.
+   * 3. After commit, publish cancellation activity on a best-effort basis and return the run projection.
+   *
+   * Failure cases:
+   * - An unknown run returns the preparation-run-not-found problem.
+   * - A terminal or published run, or a failed compare-and-set, returns a preparation-run conflict.
+   *
+   * Side effects:
+   * - Updates the run state and completion time, may cancel the agent runtime, and attempts an Agent Stream event after commit.
+   */
   async execute(
     input: CancelRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationRun> {
@@ -58,6 +77,7 @@ export class CancelRuleSetPreparationHandler implements ICommandHandler<CancelRu
         return { run, changed: false };
 
       const open =
+        run.executionState === PrismaAgentExecutionState.PAUSED ||
         run.executionState === PrismaAgentExecutionState.QUEUED ||
         run.executionState === PrismaAgentExecutionState.RUNNING;
       if (!open || run.ruleSet) {
@@ -67,20 +87,9 @@ export class CancelRuleSetPreparationHandler implements ICommandHandler<CancelRu
           { status: HttpStatus.CONFLICT },
         );
       }
-      const activeRuleSet = await tx.complianceRuleSetVersion.findFirst({
-        where: {
-          legalSourceVersionId: run.legalSourceVersionId,
-          lifecycleState: PrismaArtifactLifecycleState.ACTIVE,
-        },
-        select: { id: true },
-      });
-      if (activeRuleSet) {
-        throw problemException(
-          COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
-          input.correlationId,
-          { status: HttpStatus.CONFLICT },
-        );
-      }
+      // A run that already published is refused above (`run.ruleSet`), and publication takes this
+      // same row lock. An ACTIVE rule set of the source says nothing about THIS run: a replacement
+      // preparation runs beside the ACTIVE version, which cancelling it must not touch.
 
       if (run.executionState === PrismaAgentExecutionState.RUNNING)
         await this.runtime.cancel(run.correlationId);

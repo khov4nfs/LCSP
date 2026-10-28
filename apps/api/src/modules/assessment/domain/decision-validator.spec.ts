@@ -1,6 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   RULE_DECISION_APPLICABILITIES,
+  RULE_DECISION_BASIS_FINDINGS,
+  RULE_DECISION_BASIS_KINDS,
   RULE_DECISION_COMPLIANCE_OUTCOMES,
   RULE_DECISION_CRITERION_OUTCOMES,
   RULE_DECISION_REFERENCE_TYPES,
@@ -40,6 +42,7 @@ const context = (): DecisionValidationContext => ({
     assessmentRuleVersion: "v1",
     criterionIds: new Set(["C-1", "C-2"]),
     legalContextIds: new Set(["LR-RET", "LR-EXC"]),
+    declaredElements: new Map(),
   },
   evidence: new Map([
     [
@@ -452,5 +455,221 @@ describe("validateRuleDecision (identity and provenance only)", () => {
       validateRuleDecision(decision, ctx),
     );
     expect(JSON.stringify(decision)).toBe(snapshot);
+  });
+});
+
+describe("applicability basis (structure only, whatever the legal source calls its elements)", () => {
+  const CONDITION = RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION;
+  const EXCEPTION = RULE_DECISION_BASIS_KINDS.EXCEPTION;
+  const { ESTABLISHED, REFUTED, NOT_ESTABLISHED } =
+    RULE_DECISION_BASIS_FINDINGS;
+
+  // Two unrelated synthetic legal sources: different languages and vocabularies, same structure.
+  const legalSources = {
+    "register keepers": {
+      requirement: "LR-A",
+      declared: { applicabilityConditions: 2, qualifiers: 0, exceptions: 1 },
+    },
+    "Betreiber von Anlagen": {
+      requirement: "LR-B",
+      declared: { applicabilityConditions: 3, qualifiers: 1, exceptions: 0 },
+    },
+  } as const;
+
+  const contextFor = (requirement: string, declared: object) => {
+    const ctx = context();
+    ctx.rule = {
+      ...ctx.rule!,
+      legalContextIds: new Set([requirement]),
+      declaredElements: new Map([[requirement, declared as never]]),
+    };
+    return ctx;
+  };
+  const basis = (
+    requirement: string,
+    kind: string,
+    index: number,
+    finding: string,
+    references: unknown[] = [evidenceRef],
+  ) => ({
+    legalRequirementId: requirement,
+    kind,
+    index,
+    finding,
+    rationale: "Element-specific rationale.",
+    references,
+  });
+  const notApplicable = (
+    requirement: string,
+    applicabilityBasis?: unknown[],
+  ): RuleDecision =>
+    ruleDecisionSchema.parse({
+      assessmentRuleId: "ER-RET",
+      assessmentRuleVersion: "v1",
+      scopeId: ASSESSMENT_DECISION_SCOPE,
+      ruleSetVersionId: ids.ruleSet,
+      repositorySnapshotId: ids.snapshot,
+      repositoryCommit: COMMIT,
+      caseRevision: 3,
+      legalContextRefs: [{ legalContextId: requirement }],
+      applicability: RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE,
+      rationale: "Reasoned from the pinned elements.",
+      references: [factRef],
+      ...(applicabilityBasis ? { applicabilityBasis } : {}),
+      criteria: [],
+      compliance: null,
+    });
+  const applicableWith = (
+    requirement: string,
+    applicabilityBasis?: unknown[],
+  ) =>
+    applicable({
+      legalContextRefs: [{ legalContextId: requirement }],
+      ...(applicabilityBasis ? { applicabilityBasis } : {}),
+    });
+
+  it("keeps accepting a decision without a basis when the pinned requirements declare no elements", () => {
+    expect(codes(notApplicable("LR-RET"))).toEqual([]);
+    expect(codes(applicableWith("LR-RET"))).toEqual([]);
+  });
+
+  describe.each(Object.entries(legalSources))(
+    "legal source: %s",
+    (_name, { requirement, declared }) => {
+      const ctx = () => contextFor(requirement, declared);
+
+      it("one broad factual answer cannot silently disposition the rule", () => {
+        // A confirmed fact is cited, but no element of THIS rule is refuted or established.
+        expect(codes(notApplicable(requirement), ctx())).toEqual([
+          FAIL.APPLICABILITY_BASIS_REQUIRED,
+        ]);
+      });
+
+      it("an element the evidence does not settle never supports NOT_APPLICABLE", () => {
+        const decision = notApplicable(requirement, [
+          basis(requirement, CONDITION, 0, NOT_ESTABLISHED, []),
+          basis(requirement, CONDITION, 1, NOT_ESTABLISHED, []),
+        ]);
+        expect(codes(decision, ctx())).toEqual([
+          FAIL.APPLICABILITY_BASIS_REQUIRED,
+        ]);
+      });
+
+      it("an independently refuted condition, with its references, proves NOT_APPLICABLE", () => {
+        const decision = notApplicable(requirement, [
+          basis(requirement, CONDITION, 1, REFUTED, [evidenceRef, factRef]),
+        ]);
+        expect(codes(decision, ctx())).toEqual([]);
+      });
+
+      it("a refuted element must carry references", () => {
+        const decision = notApplicable(requirement, [
+          basis(requirement, CONDITION, 0, REFUTED, []),
+        ]);
+        expect(codes(decision, ctx())).toEqual(
+          expect.arrayContaining([FAIL.APPLICABILITY_BASIS_UNREFERENCED]),
+        );
+      });
+
+      it("rejects an element the requirement does not declare", () => {
+        const tooFar = declared.applicabilityConditions;
+        const decision = notApplicable(requirement, [
+          basis(requirement, CONDITION, tooFar, REFUTED),
+        ]);
+        expect(codes(decision, ctx())).toEqual(
+          expect.arrayContaining([FAIL.UNKNOWN_APPLICABILITY_ELEMENT]),
+        );
+        const foreign = notApplicable(requirement, [
+          basis("LR-NOT-LINKED", CONDITION, 0, REFUTED),
+        ]);
+        expect(codes(foreign, ctx())).toEqual(
+          expect.arrayContaining([FAIL.UNKNOWN_APPLICABILITY_ELEMENT]),
+        );
+      });
+
+      it("APPLICABLE needs an established condition and cannot also report a refuting element", () => {
+        expect(codes(applicableWith(requirement), ctx())).toEqual([
+          FAIL.APPLICABILITY_BASIS_REQUIRED,
+        ]);
+        expect(
+          codes(
+            applicableWith(requirement, [
+              basis(requirement, CONDITION, 0, ESTABLISHED),
+            ]),
+            ctx(),
+          ),
+        ).toEqual([]);
+        expect(
+          codes(
+            applicableWith(requirement, [
+              basis(requirement, CONDITION, 0, ESTABLISHED),
+              basis(requirement, CONDITION, 1, REFUTED),
+            ]),
+            ctx(),
+          ),
+        ).toEqual([FAIL.APPLICABILITY_BASIS_CONTRADICTION]);
+      });
+
+      it("basis references are authority-checked like every other reference", () => {
+        const unknown = {
+          type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+          evidenceId: "99999999-9999-4999-8999-999999999999",
+        };
+        const decision = notApplicable(requirement, [
+          basis(requirement, CONDITION, 0, REFUTED, [unknown]),
+        ]);
+        expect(codes(decision, ctx())).toEqual([
+          FAIL.UNKNOWN_EVIDENCE_REFERENCE,
+        ]);
+      });
+    },
+  );
+
+  it("an established exception proves NOT_APPLICABLE and contradicts APPLICABLE", () => {
+    const { requirement, declared } = legalSources["register keepers"];
+    const ctx = contextFor(requirement, declared);
+    expect(
+      codes(
+        notApplicable(requirement, [
+          basis(requirement, EXCEPTION, 0, ESTABLISHED),
+        ]),
+        ctx,
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        applicableWith(requirement, [
+          basis(requirement, CONDITION, 0, ESTABLISHED),
+          basis(requirement, EXCEPTION, 0, ESTABLISHED),
+        ]),
+        ctx,
+      ),
+    ).toEqual([FAIL.APPLICABILITY_BASIS_CONTRADICTION]);
+  });
+
+  it("the stored decision shape is unchanged for decisions without a basis, and bad bases are rejected by the schema", () => {
+    const plain = applicable();
+    expect("applicabilityBasis" in plain).toBe(false);
+    expect(ruleDecisionSchema.parse(JSON.parse(JSON.stringify(plain)))).toEqual(
+      plain,
+    );
+
+    const duplicate = () =>
+      applicable({
+        applicabilityBasis: [
+          basis("LR-RET", CONDITION, 0, ESTABLISHED),
+          basis("LR-RET", CONDITION, 0, REFUTED),
+        ],
+      });
+    expect(duplicate).toThrow();
+    const staleFact = () =>
+      applicable({
+        applicabilityBasis: [
+          basis("LR-RET", CONDITION, 0, ESTABLISHED, [
+            { ...factRef, caseRevision: 1 },
+          ]),
+        ],
+      });
+    expect(staleFact).toThrow();
   });
 });

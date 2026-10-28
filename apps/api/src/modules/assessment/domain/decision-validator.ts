@@ -1,6 +1,9 @@
 import {
   RULE_DECISION_APPLICABILITIES,
+  RULE_DECISION_BASIS_FINDINGS,
+  RULE_DECISION_BASIS_KINDS,
   RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
 import {
@@ -32,6 +35,18 @@ export interface DecisionValidationContext {
     criterionIds: ReadonlySet<string>;
     /** LegalRequirement IDs linked to the rule (and their directly related context rules). */
     legalContextIds: ReadonlySet<string>;
+    /**
+     * How many applicability elements each LINKED LegalRequirement declares, per kind. These lists
+     * are authored from the legal source; the validator only counts and indexes them.
+     */
+    declaredElements: ReadonlyMap<
+      string,
+      {
+        applicabilityConditions: number;
+        qualifiers: number;
+        exceptions: number;
+      }
+    >;
   } | null;
   evidence: ReadonlyMap<
     string,
@@ -49,10 +64,19 @@ export interface DecisionValidationContext {
 }
 
 /**
- * DETERMINISTIC_GUARD. Checks a Root-authored packet's exact identity, pins, revisions,
- * criterion completeness and reference authority against server state. It never re-evaluates
- * what the Root decided: applicability, criterion outcomes, compliance, rationale and the
- * sufficiency of evidence are all left untouched.
+ * Business purpose: Gate Root-authored decisions against the authoritative Customer case.
+ * Business rules:
+ * - Rule identity/version, repository/source pins, case revision, criteria and accepted
+ *   evidence/fact references must match the persisted authority.
+ * Execution flow:
+ * 1. Check exact identities, applicability-basis structure and all referenced evidence and
+ *   facts, collecting individual validation failures.
+ * Failure cases:
+ * - Missing, stale, rejected or incomplete references produce typed failures.
+ * Side effects:
+ * - None; the stored case and model-authored conclusions remain unchanged.
+ *   DETERMINISTIC_GUARD: Applicability, compliance, rationale and factual sufficiency remain
+ *   decisions of the Root rather than this structural validator.
  */
 export function validateRuleDecision(
   decision: RuleDecision,
@@ -125,10 +149,11 @@ export function validateRuleDecision(
     fail(DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_SCOPE, decision.scopeId);
   }
 
-  const references = [
-    ...decision.references,
-    ...decision.criteria.flatMap((criterion) => criterion.references),
-  ];
+  if (context.rule) {
+    validateApplicabilityBasis(decision, context.rule.declaredElements, fail);
+  }
+
+  const references = ruleDecisionReferences(decision);
   const seen = new Set<string>();
   const validateEvidence = (evidenceId: string) => {
     const key = `E:${evidenceId}`;
@@ -198,4 +223,104 @@ export function validateRuleDecision(
     }
   }
   return failures;
+}
+
+type DeclaredElements = NonNullable<
+  DecisionValidationContext["rule"]
+>["declaredElements"];
+
+const ELEMENT_COUNT_KEY = {
+  [RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION]:
+    "applicabilityConditions",
+  [RULE_DECISION_BASIS_KINDS.QUALIFIER]: "qualifiers",
+  [RULE_DECISION_BASIS_KINDS.EXCEPTION]: "exceptions",
+} as const;
+
+/**
+ * Business purpose: Validate the legal-element basis behind submitted applicability findings.
+ * Business rules:
+ * - Findings name real source-declared conditions, qualifiers or exceptions; referenced
+ *   established/refuted findings must support the overall applicability outcome.
+ * Execution flow:
+ * 1. Scan entries, detect establishing/refuting conditions and compare their basis with the
+ *   submitted APPLICABLE or NOT_APPLICABLE conclusion.
+ * Failure cases:
+ * - Invalid indices, absent references or contradictory findings emit failures.
+ * Side effects:
+ * - None; only the provided failure collector receives diagnostic entries. NOT_ESTABLISHED
+ *   cannot support NOT_APPLICABLE. The pinned Rule Set defines which elements exist; this
+ *   function does not determine whether the underlying legal claim is true.
+ */
+function validateApplicabilityBasis(
+  decision: RuleDecision,
+  declared: DeclaredElements,
+  fail: (code: DecisionValidationFailureCode, ref: string) => void,
+): void {
+  const basis = decision.applicabilityBasis ?? [];
+  let refuting = false;
+  let establishing = false;
+  for (const entry of basis) {
+    const ref = `${entry.legalRequirementId}:${entry.kind}:${entry.index}`;
+    const counts = declared.get(entry.legalRequirementId);
+    if (!counts || entry.index >= counts[ELEMENT_COUNT_KEY[entry.kind]]) {
+      fail(
+        DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_APPLICABILITY_ELEMENT,
+        ref,
+      );
+      continue;
+    }
+    if (
+      entry.finding !== RULE_DECISION_BASIS_FINDINGS.NOT_ESTABLISHED &&
+      entry.references.length === 0
+    ) {
+      fail(
+        DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_UNREFERENCED,
+        ref,
+      );
+    }
+    const isCondition =
+      entry.kind === RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION;
+    const isException = entry.kind === RULE_DECISION_BASIS_KINDS.EXCEPTION;
+    if (
+      (isCondition && entry.finding === RULE_DECISION_BASIS_FINDINGS.REFUTED) ||
+      (isException &&
+        entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED)
+    ) {
+      refuting = true;
+    }
+    if (
+      isCondition &&
+      entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED
+    ) {
+      establishing = true;
+    }
+  }
+
+  let conditionCount = 0;
+  let elementCount = 0;
+  for (const counts of declared.values()) {
+    conditionCount += counts.applicabilityConditions;
+    elementCount += counts.applicabilityConditions + counts.exceptions;
+  }
+  if (decision.applicability === RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE) {
+    if (elementCount > 0 && !refuting) {
+      fail(
+        DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_REQUIRED,
+        decision.assessmentRuleId,
+      );
+    }
+    return;
+  }
+  if (refuting) {
+    fail(
+      DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_CONTRADICTION,
+      decision.assessmentRuleId,
+    );
+  }
+  if (conditionCount > 0 && !establishing) {
+    fail(
+      DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_REQUIRED,
+      decision.assessmentRuleId,
+    );
+  }
 }

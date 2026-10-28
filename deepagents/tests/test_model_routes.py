@@ -51,11 +51,12 @@ def test_default_file_loads_without_override(monkeypatch):
     monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
     routes = mp.load_model_routes()
     assert mp.DEFAULT_ROUTES_FILE == Path(mp.__file__).resolve().parent / "config" / "model_routes.yaml"
-    assert routes.roles["default"] == "primary" and routes.fallbacks["primary"] == ("fallback", "fallback-01")
+    assert routes.roles["default"] == "primary" and routes.fallbacks["primary"] == ("fallback", "fallback-01", "fallback-02")
+    assert (routes.config("primary").provider, routes.config("primary").model) == ("miraiapi", "claude-sonnet-5")
     for role in ("root", "assessment-root", "repository-researcher", "rule-set-preparation"):
         assert role in routes.roles
     # The committed default names a model, but tests must not pin which one: model id is configuration.
-    assert routes.routes["primary"]["provider"] == "apx"
+    assert routes.routes["primary"]["provider"] == "miraiapi"
     assert routes.routes["primary"]["protocol"] == "anthropic"
     assert isinstance(routes.routes["primary"]["model"], str) and routes.routes["primary"]["model"].strip()
 
@@ -305,3 +306,39 @@ def test_effective_telemetry_and_identities(routes):
         ("GOOGLE_GENAI", "google_genai", "Future-Model-X9"),
         ("APX", "anthropic", "model-gamma"),
     }
+
+
+def test_workflow_roles_keep_native_options_and_assessment_prefers_mercury_3(monkeypatch):
+    monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
+    for role in mp.load_model_routes().roles:
+        primary = mp.resolve_role(role)
+        if role == "response-transform":  # rewrites a finished answer's language on the light Gemini route
+            assert (primary.provider, primary.model, mp.fallback_routes(primary.route_id)) == ("google_genai", "gemini-3.5-flash-lite", ())
+            continue
+        if role in {"claim-author", "rule-set-preparation"}:
+            assert (primary.provider, primary.protocol) == ("inception", "openai")
+            assert primary.options["reasoning_effort"] == "high"
+            assert primary.options["context_window_tokens"] == 1000000
+            fallback, = mp.fallback_routes(primary.route_id)
+            assert fallback.provider == "google_genai"
+            assert fallback.options["thinking_config"] == {"thinking_level": "HIGH"}
+            continue
+        chain = (primary, *mp.fallback_routes(primary.route_id))
+        first_routes = [
+            ("miraiapi", "anthropic", "claude-sonnet-5"),
+            ("inception", "openai", "mercury-3"),
+        ]
+        if role in {"assessment-root", "repository-researcher"}:
+            first_routes.reverse()
+        assert [(r.provider, r.protocol, r.model) for r in chain] == [
+            *first_routes,
+            ("google_genai", "google_genai", "gemini-3.5-flash-lite"),
+            ("apx", "anthropic", "claude-sonnet-4-6-free"),
+        ]
+        assert all(r.options["streaming"] for r in chain)
+        assert "thinking" not in primary.options and "effort" not in primary.options
+        assert [r.options.get("max_output_tokens") for r in chain] == (
+            [32768, None, 65536, 64000] if role in {"assessment-root", "repository-researcher"}
+            else [None, 32768, 65536, 64000]
+        )
+        assert "thinking" not in chain[-1].options

@@ -15,8 +15,8 @@ from assessment_root.runner import run_assessment_root
 from vertical.scripted_root import DynamicScriptedModel, _call, _tool_results
 
 
-def question(rule: str, suffix: str) -> dict:
-    return {"assessment_rule_id": rule, "criterion_ids": ["C-1"],
+def question(rule: str, suffix: str, criteria: dict) -> dict:
+    return {"assessment_rule_id": rule, "criterion_ids": criteria[rule],
             "question": f"Who owns the customer notification process {suffix}?",
             "unresolved_fact": f"Customer notification owner {suffix}",
             "decision_impact": ["The confirmed owner determines which operational duty applies."],
@@ -27,25 +27,33 @@ def question(rule: str, suffix: str) -> dict:
 def main() -> None:
     base, key, assessment_id, repo_dir, mode = sys.argv[1:6]
     steps = []
+    criteria = {}
+    def load_criteria(messages):
+        result = next(r for r in reversed(_tool_results(messages)) if "assessmentRules" in r)
+        criteria.update({r["assessmentRuleId"]: r["criterionIds"] for r in result["assessmentRules"]})
+        return _call("grep", {"pattern": "notification_owner", "path": "/"}, "search")
     if mode in {"ask", "multiple", "crash", "crash-before-checkpoint"}:
         steps = [lambda m: _call("get_assessment_context", {}, "context"),
-                 lambda m: _call("grep", {"pattern": "notification_owner", "path": "/"}, "search")]
-        calls = [{"name": "open_human_request", "args": question("ER-RET", "one"), "id": "human-one"}]
-        if mode == "multiple":
-            calls.append({"name": "open_human_request", "args": question("ER-XREF", "two"), "id": "human-two"})
-        steps.append(lambda m: AIMessage(content="", tool_calls=calls))
+                 lambda m: _call("get_pinned_rule_set", {}, "rules"), load_criteria]
+        def ask(messages):
+            calls = [{"name": "open_human_request", "args": question("ER-RET", "one", criteria), "id": "human-one"}]
+            if mode == "multiple":
+                calls.append({"name": "open_human_request", "args": question("ER-XREF", "two", criteria), "id": "human-two"})
+            return AIMessage(content="", tool_calls=calls)
+        steps.append(ask)
     if mode in {"unresolvable", "unresolvable-crash", "unresolvable-crash-before-checkpoint", "unresolvable-multiple", "unresolvable-rejected"}:
         steps = [lambda m: _call("get_assessment_context", {}, "context"),
-                 lambda m: _call("cite_repository_source", {"path": "README.md", "start_line": 1, "end_line": 1}, "source"),
+                 lambda m: _call("get_pinned_rule_set", {}, "rules"),
+                 lambda m: (load_criteria(m), _call("cite_repository_source", {"path": "README.md", "start_line": 1, "end_line": 1}, "source"))[1],
                  lambda m: _call("report_human_fact_unresolvable", {
-                     **question("ER-RET", "one"),
+                     **question("ER-RET", "one", criteria),
                      "unavailability_rationale": "The historical ownership records were permanently lost and no alternate source exists under the assessment contract.",
                      "evidence_ids": [_tool_results(m)[-1]["evidenceId"]],
                  }, "unresolvable")]
         if mode == "unresolvable-multiple":
             steps[-1] = lambda m: AIMessage(content="", tool_calls=[{
                 "name": "report_human_fact_unresolvable",
-                "args": {**question(rule, suffix),
+                "args": {**question(rule, suffix, criteria),
                          "unavailability_rationale": "Historical records were permanently lost and no alternate source exists under the assessment contract.",
                          "evidence_ids": [_tool_results(m)[-1]["evidenceId"]]},
                 "id": f"unresolvable-{suffix}",

@@ -1,9 +1,16 @@
 import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  LEGAL_OPERATIVE_MODALITIES,
+  deriveAssessmentApplicabilityGuidance,
+  complianceRuleSetPacketSchema,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
 } from "@lcsp/contracts/compliance-rule-set";
+import {
+  fixtureDocumentGraph,
+  authorFixtureClaims,
+} from "./legal-graph-fixtures.js";
 
 import type {
   LegalSourceChunkSnapshot,
@@ -55,7 +62,9 @@ export function fixtureChunks(
       locator,
       variant === "v2" && locator === "art-5::cl-1" ? "v2" : "v1",
     ),
-    legalStatus: "IN_FORCE",
+    legalStatus: "ACTIVE",
+    legalEffectStatus: "EFFECTIVE",
+    legalStatusSourceRef: "source-metadata:fixture",
     sourceEffectStatus: "IN_FORCE",
     ...overrides[locator],
   }));
@@ -67,10 +76,13 @@ export function fixtureLegalSource(
     Record<string, Partial<LegalSourceChunkSnapshot>>
   > = {},
 ): LegalSourceSnapshot {
+  const version = "00000000-0000-4000-8000-000000000001";
+  const chunks = fixtureChunks("v1", chunkOverrides);
   return {
-    legalSourceVersionId: "legalSource-v1",
+    legalSourceVersionId: version,
     retrievalIndexValid: true,
-    chunks: fixtureChunks("v1", chunkOverrides),
+    chunks,
+    documentGraph: fixtureDocumentGraph(version, chunks),
     ...overrides,
   };
 }
@@ -106,7 +118,20 @@ function legalRequirement(
     legalRequirementId,
     title: `Rule ${legalRequirementId}`,
     proposition: `Proposition for ${legalRequirementId}.`,
-    applicabilityConditions: [],
+    operativePropositions: [
+      {
+        actor: "The operator addressed by the synthetic provision",
+        modality: LEGAL_OPERATIVE_MODALITIES.DUTY,
+        action: `Perform the synthetic duty ${legalRequirementId}`,
+        sourceRefs: locators.map((locator) => ref(locator)),
+      },
+    ],
+    applicabilityConditions:
+      coverage === "covered"
+        ? [
+            `Applies to the system that stores the records of ${legalRequirementId}.`,
+          ]
+        : [],
     qualifiers: [],
     exceptions: [],
     nonRepositoryDuty,
@@ -157,7 +182,7 @@ function assessmentRule(
 
 /** A complete packet: every leaf provision cited, one non-repository duty, one context relation. */
 export function validPacket(): ComplianceRuleSetPacket {
-  return {
+  const packet: ComplianceRuleSetPacket = {
     legalRequirements: [
       legalRequirement("LR-DEF", ["art-1::cl-1"]),
       legalRequirement("LR-RET", ["art-5::cl-1::pt-a", "art-5::cl-1::pt-b"]),
@@ -191,6 +216,55 @@ export function validPacket(): ComplianceRuleSetPacket {
       },
     ],
   };
+  for (const rule of packet.assessmentRules) {
+    rule.applicabilityGuidance = deriveAssessmentApplicabilityGuidance(
+      packet.legalRequirements.filter((parent) =>
+        rule.legalRequirementIds.includes(parent.legalRequirementId),
+      ),
+    );
+    for (const criterion of rule.criteria) {
+      criterion.legalRequirementIds = [...rule.legalRequirementIds];
+      criterion.statement = rule.applicabilityGuidance;
+    }
+  }
+  return withDerivedAssessmentSemantics(packet);
+}
+
+/** Fixture authoring uses omitted derived fields; negative tests mutate the resulting bindings. */
+export function withDerivedAssessmentSemantics(
+  packet: ComplianceRuleSetPacket,
+  source: LegalSourceSnapshot = fixtureLegalSource(),
+): ComplianceRuleSetPacket {
+  authorFixtureClaims(
+    packet,
+    source.documentGraph ??
+      fixtureDocumentGraph(source.legalSourceVersionId, source.chunks),
+    source.chunks,
+  );
+  return complianceRuleSetPacketSchema.parse({
+    ...packet,
+    assessmentRules: packet.assessmentRules.map(
+      ({
+        applicabilityGuidance,
+        legalIntent,
+        contextRelationIds,
+        unresolvedConditions,
+        ...rule
+      }) => {
+        void applicabilityGuidance;
+        void legalIntent;
+        void contextRelationIds;
+        void unresolvedConditions;
+        return {
+          ...rule,
+          criteria: rule.criteria.map(({ statement, ...criterion }) => {
+            void statement;
+            return criterion;
+          }),
+        };
+      },
+    ),
+  });
 }
 
 export const FIXTURE_LEAVES = LEAVES;
@@ -243,7 +317,9 @@ export function legalSourceFactory(prisma: LegalSourcePrisma, runTag: string) {
           changed && locator === "art-5::cl-1" ? "v2" : "v1",
         ),
         hierarchy: {},
-        legalStatus: "IN_FORCE",
+        legalStatus: "ACTIVE",
+        legalEffectStatus: "EFFECTIVE",
+        legalStatusSourceRef: "source-metadata:fixture",
       })),
     });
     await prisma.legalRetrievalIndex.create({

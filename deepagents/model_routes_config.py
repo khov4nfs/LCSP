@@ -17,8 +17,10 @@ DEFAULT_PROTOCOLS = {
     "anthropic": "anthropic",
     "google_genai": "google_genai",
     "inception": "openai",
+    "miraiapi": "openai",
 }
-APX_PROTOCOLS = frozenset({"anthropic", "openai"})
+DUAL_PROTOCOL_PROVIDERS = frozenset({"apx", "miraiapi"})
+DUAL_PROTOCOLS = frozenset({"anthropic", "openai"})
 # Option keys are normalised (lowercase, strip every char outside [a-z0-9]) and rejected when the
 # result is "auth" or contains one of these parts: credentials, base URLs/endpoints, headers, proxy,
 # client objects and transports are trusted adapter config, never route options.
@@ -127,7 +129,25 @@ def _default_protocol(provider: str, model: str) -> str:
 
 
 def parse_model_routes(text: str, providers: tuple[str, ...]) -> tuple[dict, dict, dict]:
-    """Validate YAML text; return ``(routes, roles, fallbacks)``. Raises ``ValueError``."""
+    """Validate YAML text; return ``(routes, roles, fallbacks)``. Raises ``ValueError``.
+
+    Business purpose: Validate the complete model-routing configuration before it can govern agent provider selection.
+
+    Business rules:
+    - Require version 1, unique YAML keys, declared providers/protocols, nonblank model identities and valid options.
+    - Roles must reference known routes with a default role; fallback references must exist and the fallback graph must be acyclic.
+
+    Execution flow:
+    1. Reject tabs and parse YAML with the unique-key safe loader.
+    2. Validate top-level shape, routes, roles and ordered fallback chains.
+    3. Walk fallback edges to reject cycles and return normalized route/role/fallback mappings.
+
+    Failure cases:
+    - Malformed YAML, duplicate or unrecognized keys, invalid option/value shapes, missing references and fallback cycles raise ValueError.
+
+    Side effects:
+    - None: parses in-memory text without loading secrets, changing active routes or invoking providers.
+    """
     if "\t" in text:  # PyYAML and js-yaml disagree on tab handling; forbid tabs outright
         raise ValueError("invalid YAML: tab characters are not allowed (indent with spaces)")
     try:
@@ -165,9 +185,9 @@ def parse_model_routes(text: str, providers: tuple[str, ...]) -> tuple[dict, dic
         protocol = route["protocol"] if "protocol" in route else _default_protocol(provider, model)
         if not isinstance(protocol, str) or protocol not in PROTOCOLS:
             raise ValueError(f"{where}.protocol must be exactly one of: {', '.join(sorted(PROTOCOLS))} (got {protocol!r})")
-        if provider == "apx" and protocol not in APX_PROTOCOLS:
-            raise ValueError(f"{where}.protocol must be one of: {', '.join(sorted(APX_PROTOCOLS))}")
-        if provider in DEFAULT_PROTOCOLS and protocol != DEFAULT_PROTOCOLS[provider]:
+        if provider in DUAL_PROTOCOL_PROVIDERS and protocol not in DUAL_PROTOCOLS:
+            raise ValueError(f"{where}.protocol must be one of: {', '.join(sorted(DUAL_PROTOCOLS))}")
+        if provider in DEFAULT_PROTOCOLS and provider not in DUAL_PROTOCOL_PROVIDERS and protocol != DEFAULT_PROTOCOLS[provider]:
             raise ValueError(f"{where}.protocol must be {DEFAULT_PROTOCOLS[provider]!r} for provider {provider!r}")
         options = route.get("options", {})
         if not isinstance(options, dict):

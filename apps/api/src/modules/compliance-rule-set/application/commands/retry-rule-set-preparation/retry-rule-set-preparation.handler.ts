@@ -31,6 +31,27 @@ export class RetryRuleSetPreparationHandler implements ICommandHandler<RetryRule
     private readonly commandBus: CommandBus,
   ) {}
 
+  /**
+   * Business purpose: Create the next idempotent attempt for the latest failed Preparation of the current active Legal Source Version.
+   *
+   * Business rules:
+   * - The retry source is derived from the failed run; the caller cannot redirect the attempt to another source.
+   * - Only the latest FAILED attempt for the currently active and eligible source can be retried.
+   * - An existing concurrently created next attempt is returned when its deterministic attempt key proves it is the matching retry.
+   * - An existing active Rule Set remains active while a valid replacement is prepared.
+   *
+   * Execution flow:
+   * 1. Read the failed run, current availability, attempt count, and any in-progress attempt key under repeatable-read isolation.
+   * 2. Check failed state, active source identity, latest-attempt ownership, and availability refusal reason.
+   * 3. Return the matching concurrent retry or dispatch the next attempt through the normal start command.
+   *
+   * Failure cases:
+   * - A missing run returns not found; non-failed, inactive, ineligible, stale, or otherwise unavailable attempts return preparation-not-allowed with a reason.
+   * - Start-command failures propagate without changing the original failed run.
+   *
+   * Side effects:
+   * - Reads retry eligibility; an accepted retry delegates new run and outbox creation to the start handler.
+   */
   async execute(
     input: RetryRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationRun> {
@@ -121,7 +142,13 @@ export class RetryRuleSetPreparationHandler implements ICommandHandler<RetryRule
     if (availability.currentRun?.preparationRunId !== run.id) {
       throw refuse(RULE_SET_PREPARATION_REFUSAL_REASONS.RUN_NOT_LATEST_ATTEMPT);
     }
-    if (availability.refusalReason !== null) {
+    // Retrying a failed run (first preparation or failed replacement) only needs nothing in
+    // progress; an ACTIVE rule set is no obstacle and stays ACTIVE until a successor activates.
+    if (
+      availability.refusalReason !== null &&
+      availability.refusalReason !==
+        RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS
+    ) {
       throw refuse(availability.refusalReason);
     }
 

@@ -1,0 +1,8 @@
+{
+  "activity_kind": "CLAIM_FILE_COMMITTED",
+  "file": "luat-134/dieu-5.json",
+  "committedNodes": ["node-a", "node-b"],
+  "rejected": {
+    "d5-k3-duty": ["Source support requires correction"]
+  }
+}

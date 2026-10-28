@@ -6,6 +6,9 @@ queued predecessors) stalled a run for 10+ minutes right after the document fan-
 
 from __future__ import annotations
 
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - isolated packet-layer fixture
+
+
 from pathlib import Path
 from typing import Any
 
@@ -42,7 +45,7 @@ def test_preparation_inside_an_agent_server_run_writes_no_nested_checkpoints(tmp
     model = _ParallelPreparationModel(responses=[
         AIMessage(content="", tool_calls=[
             {"name": "task", "args": {"description": f"Read document {document} only at /legal-source/{document}.",
-                                      "subagent_type": "legal-source-reader"}, "id": f"read-{document}"}
+                                      "subagent_type": "claim-author"}, "id": f"read-{document}"}
             for document in ("134-2025-QH15", "LAW-71-2025-QH15")]),
         _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
         _call("submit_compliance_rule_set", {"packet": packet}, "submit"),

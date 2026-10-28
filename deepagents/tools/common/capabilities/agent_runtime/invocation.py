@@ -57,6 +57,12 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "command.legal-source.ingest.v1",
     ),
     AgentInvocationBoundary(
+        "managed_document_ingest_requested",
+        "tools.legal.managed_documents.boundary:ManagedDocumentIngestBoundary",
+        "legal.managed-document-ingest",
+        "command.legal-source.document-ingest.requested.v1",
+    ),
+    AgentInvocationBoundary(
         "official_text_extraction_requested",
         "tools.legal.sources.extraction.official_text_extraction_boundary:OfficialTextExtractionBoundary",
         "legal.official-text-extraction",
@@ -217,7 +223,20 @@ def _agent_run_state(
     message: dict[str, Any],
     correlation_id: str,
 ) -> AgentRunState:
-    """Run-scoped state for every boundary; stream transport also covers preparation."""
+    """Business purpose: Attach canonical usage observability to one Assessment or Preparation boundary invocation.
+
+    Business rules:
+    - The registered boundary owns the agent role; an event cannot override it.
+    - Preserve assessment, preparation and run identities so receipts can be attributed and recovered.
+    Execution flow:
+    1. Find the assessment, preparation and run identifiers in the accepted event shape.
+    2. Create the worker API client when the invocation has an assessment or Preparation owner.
+    3. Build the shared AgentRunState, using the correlation identity only when no run identity is present.
+    Failure cases:
+    - Invalid worker configuration propagates instead of creating a pretend metered owner.
+    Side effects:
+    - Constructs run context and a client; does not dispatch a provider request or create a budget envelope.
+    """
     assessment_id = _find_first_text(message, ("assessmentId", "assessment_id"))
     preparation_run_id = _find_first_text(
         message, ("preparationRunId", "preparation_run_id")
@@ -247,6 +266,7 @@ def _agent_run_state(
         run_id=run_id,
         agent_role=boundary_name,
         assessment_id=assessment_id,
+        preparation_run_id=preparation_run_id,
         api_client=client,
     )
 

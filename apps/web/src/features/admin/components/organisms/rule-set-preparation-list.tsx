@@ -1,7 +1,8 @@
 import type { MessageKey } from "@lcsp/i18n";
+import Link from "next/link";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { useState } from "react";
-import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
+import { RULE_SET_PREPARATION_SYSTEM_ACTOR, PREPARATION_EXECUTION_CONTRACTS } from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import { resolveAppMessage } from "@/lib/i18n";
 import {
   useCancelRuleSetPreparationMutation,
   useRetryRuleSetPreparationMutation,
+  useResumeRuleSetPreparationMutation,
 } from "@/lib/api/compliance-rule-set-queries";
 import {
   canonicalExecutionLabel,
@@ -24,6 +26,7 @@ import {
 import type { RuleSetPreparationListProps } from "../../types/compliance-rule-sets.types";
 import { useRuleSetPreparationActivity } from "../../hooks/use-rule-set-preparation-activity";
 import { RuleSetPreparationActivity } from "../molecules/rule-set-preparation-activity";
+import { RuleSetPreparationDraft } from "../molecules/rule-set-preparation-draft";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -32,6 +35,8 @@ const t = (key: string) => resolveAppMessage(key as MessageKey);
  */
 export function RuleSetPreparationList({
   preparations,
+  availability,
+  ruleSets,
 }: RuleSetPreparationListProps) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(
     preparations[0]?.preparationRunId ?? null,
@@ -41,9 +46,9 @@ export function RuleSetPreparationList({
   )
     ? selectedRunId
     : (preparations[0]?.preparationRunId ?? null);
-  const activity = useRuleSetPreparationActivity(activeRunId);
   const retry = useRetryRuleSetPreparationMutation();
   const cancel = useCancelRuleSetPreparationMutation();
+  const resume = useResumeRuleSetPreparationMutation();
   const [confirmRunId, setConfirmRunId] = useState<string | null>(null);
   const selectedRun = preparations.find(
     (run) => run.preparationRunId === activeRunId,
@@ -52,6 +57,11 @@ export function RuleSetPreparationList({
     selectedRun !== undefined &&
     selectedRun.executionState !== AGENT_EXECUTION_STATES.RUNNING &&
     selectedRun.executionState !== AGENT_EXECUTION_STATES.QUEUED;
+  const activity = useRuleSetPreparationActivity(activeRunId, terminal);
+  const activeRuleSet = ruleSets.find(
+    (ruleSet) =>
+      ruleSet.ruleSetVersionId === availability.activeRuleSetVersionId,
+  );
   if (preparations.length === 0)
     return (
       <p className="text-sm text-muted-foreground">
@@ -94,7 +104,9 @@ export function RuleSetPreparationList({
                 </span>
               ) : null}
             </div>
-            {run.retryable ? (
+            {run.resumable ? <Button type="button" variant="outline" size="sm" disabled={resume.isPending || cancel.isPending || retry.isPending} onClick={() => resume.mutate(run.preparationRunId)}>{t(resume.isPending ? "pages.complianceRuleSets.resuming" : "pages.complianceRuleSets.resume")}</Button> : null}
+            {!run.resumable && run.retryable &&
+            run.executionState === AGENT_EXECUTION_STATES.FAILED ? (
               <Button
                 type="button"
                 variant="outline"
@@ -128,17 +140,43 @@ export function RuleSetPreparationList({
                 )}
               </Button>
             ) : null}
+            {run.executionState === AGENT_EXECUTION_STATES.QUEUED ||
+            run.executionState === AGENT_EXECUTION_STATES.RUNNING ? (
+              activeRuleSet ? (
+                <p className="w-full text-xs text-muted-foreground">
+                  {t("pages.complianceRuleSets.replacingActiveVersion")}{" "}
+                  <span className="font-medium">{activeRuleSet.version}</span>.{" "}
+                  {t("pages.complianceRuleSets.activeVersionRemainsInUse")}
+                </p>
+              ) : null
+            ) : run.retryable && activeRuleSet ? (
+              <p className="w-full text-xs text-muted-foreground">
+                {t("pages.complianceRuleSets.activeVersionRemainsInUse")}
+              </p>
+            ) : null}
+            {run.executionState === AGENT_EXECUTION_STATES.SUCCEEDED &&
+            run.ruleSetVersionId ? (
+              <Link
+                className="text-sm font-medium text-primary underline underline-offset-4"
+                href={`/admin/compliance-rule-sets/${run.ruleSetVersionId}`}
+              >
+                {t("pages.complianceRuleSets.viewResult")}
+              </Link>
+            ) : null}
           </li>
         ))}
       </ul>
+      {selectedRun?.draft ? <RuleSetPreparationDraft draft={selectedRun.draft} /> : null}
       {activeRunId ? (
         <RuleSetPreparationActivity
           events={activity.events}
           connected={activity.connected}
           terminal={terminal}
           executionState={selectedRun?.executionState ?? null}
+          directDraft={selectedRun?.executionContract === PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1}
         />
       ) : null}
+      {resume.isError ? <Alert variant="destructive"><AlertDescription>{t("pages.complianceRuleSets.resumeFailed")}</AlertDescription></Alert> : null}
       {retry.isError ? (
         <Alert variant="destructive">
           <AlertDescription>

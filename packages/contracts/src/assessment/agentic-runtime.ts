@@ -130,6 +130,28 @@ export const RULE_DECISION_REFERENCE_TYPES = {
 export type RuleDecisionReferenceType =
   (typeof RULE_DECISION_REFERENCE_TYPES)[keyof typeof RULE_DECISION_REFERENCE_TYPES];
 
+/**
+ * Which source-stated element of a pinned LegalRequirement an applicability finding is about. The
+ * element lists are authored from the legal source by Rule Set Preparation; this contract names
+ * only the three list kinds, never any legal role, category or term.
+ */
+export const RULE_DECISION_BASIS_KINDS = {
+  APPLICABILITY_CONDITION: "APPLICABILITY_CONDITION",
+  QUALIFIER: "QUALIFIER",
+  EXCEPTION: "EXCEPTION",
+} as const;
+export type RuleDecisionBasisKind =
+  (typeof RULE_DECISION_BASIS_KINDS)[keyof typeof RULE_DECISION_BASIS_KINDS];
+
+/** What the Root found for one element. NOT_ESTABLISHED means the evidence does not settle it. */
+export const RULE_DECISION_BASIS_FINDINGS = {
+  ESTABLISHED: "ESTABLISHED",
+  REFUTED: "REFUTED",
+  NOT_ESTABLISHED: "NOT_ESTABLISHED",
+} as const;
+export type RuleDecisionBasisFinding =
+  (typeof RULE_DECISION_BASIS_FINDINGS)[keyof typeof RULE_DECISION_BASIS_FINDINGS];
+
 export const AGENTIC_RUNTIME_TRANSITION_GUARDS = {
   AUTHORIZED_REVISION_CAS_AND_ATOMIC_EVENT:
     "AUTHORIZED_REVISION_CAS_AND_ATOMIC_EVENT",
@@ -162,7 +184,7 @@ export const AGENTIC_RUNTIME_TRANSITION_GUARDS = {
 export type AgenticRuntimeTransitionGuard =
   (typeof AGENTIC_RUNTIME_TRANSITION_GUARDS)[keyof typeof AGENTIC_RUNTIME_TRANSITION_GUARDS];
 
-/** Guard names are obligations, not client/agent-supplied attestations.
+/** Guard names are obligations, not client/agent-supplied assertions.
  * Only the owning server boundary supplies verifiedGuards from authoritative state.
  * Missing guard evidence fails closed; this helper neither writes state nor judges facts.
  */
@@ -614,6 +636,23 @@ export const ruleDecisionCriterionSchema = z.strictObject({
 });
 export type RuleDecisionCriterion = z.infer<typeof ruleDecisionCriterionSchema>;
 
+/**
+ * One element-by-element applicability finding. `index` is the position in the linked
+ * LegalRequirement's list of that `kind`; DecisionValidator checks it exists and that findings
+ * cohere with the overall applicability. It never decides which finding is right.
+ */
+export const ruleDecisionApplicabilityBasisSchema = z.strictObject({
+  legalRequirementId: identifierSchema,
+  kind: z.enum(RULE_DECISION_BASIS_KINDS),
+  index: z.number().int().nonnegative(),
+  finding: z.enum(RULE_DECISION_BASIS_FINDINGS),
+  rationale: privateTextSchema,
+  references: z.array(ruleDecisionReferenceSchema),
+});
+export type RuleDecisionApplicabilityBasis = z.infer<
+  typeof ruleDecisionApplicabilityBasisSchema
+>;
+
 export const ruleDecisionLegalContextReferenceSchema = z.strictObject({
   legalContextId: identifierSchema,
 });
@@ -643,6 +682,9 @@ export const ruleDecisionSchema = z
       applicability: z.literal(RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE),
       rationale: privateTextSchema,
       references: decisionReferencesSchema,
+      applicabilityBasis: z
+        .array(ruleDecisionApplicabilityBasisSchema)
+        .optional(),
       criteria: z.array(ruleDecisionCriterionSchema).length(0),
       compliance: z.null(),
     }),
@@ -651,6 +693,9 @@ export const ruleDecisionSchema = z
       applicability: z.literal(RULE_DECISION_APPLICABILITIES.APPLICABLE),
       rationale: privateTextSchema,
       references: decisionReferencesSchema,
+      applicabilityBasis: z
+        .array(ruleDecisionApplicabilityBasisSchema)
+        .optional(),
       criteria: z.array(ruleDecisionCriterionSchema).min(1),
       compliance: z.enum(RULE_DECISION_COMPLIANCE_OUTCOMES),
     }),
@@ -684,10 +729,17 @@ export const ruleDecisionSchema = z
         message: "Criterion IDs must be unique",
       });
     }
-    for (const reference of [
-      ...decision.references,
-      ...decision.criteria.flatMap((criterion) => criterion.references),
-    ]) {
+    const basisKeys = (decision.applicabilityBasis ?? []).map(
+      (entry) => `${entry.legalRequirementId}|${entry.kind}|${entry.index}`,
+    );
+    if (new Set(basisKeys).size !== basisKeys.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["applicabilityBasis"],
+        message: "Each applicability element may be reported once",
+      });
+    }
+    for (const reference of ruleDecisionReferences(decision)) {
       if (
         reference.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT &&
         reference.caseRevision !== decision.caseRevision
@@ -701,6 +753,32 @@ export const ruleDecisionSchema = z
     }
   });
 export type RuleDecision = z.infer<typeof ruleDecisionSchema>;
+
+/** Every evidence/fact reference of a decision: overall, per criterion and per applicability element. */
+/**
+ * Business purpose: Collect all accepted-reference claims carried by an Assessment rule decision for downstream integrity validation.
+ *
+ * Business rules:
+ * - Include decision-level, criterion-level and applicability-basis references; preserve duplicates and leave validity/deduplication to the consumer.
+ *
+ * Execution flow:
+ * 1. Concatenate the decision references with each criterion and optional applicability finding's references.
+ *
+ * Failure cases:
+ * - Absent applicability basis contributes no references; malformed required decision/criterion arrays propagate rather than invent evidence.
+ *
+ * Side effects:
+ * - Pure projection; does not accept references or persist decisions.
+ */
+export function ruleDecisionReferences(
+  decision: RuleDecision,
+): RuleDecisionReference[] {
+  return [
+    ...decision.references,
+    ...decision.criteria.flatMap((criterion) => criterion.references),
+    ...(decision.applicabilityBasis ?? []).flatMap((entry) => entry.references),
+  ];
+}
 
 const humanQuestionShape = {
   assessmentRuleId: identifierSchema,

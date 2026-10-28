@@ -1,0 +1,521 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LCSP claim file",
+  "type": "object",
+  "properties": {
+    "article": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "DUTY",
+              "PROHIBITION",
+              "PERMISSION",
+              "DEFINITION",
+              "SCOPE",
+              "QUALIFIER",
+              "EXCEPTION",
+              "CROSS_REFERENCE",
+              "CONDITION",
+              "TEMPORAL_RULE",
+              "TRANSITION_RULE",
+              "CONTEXT"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authority": {
+            "type": "string",
+            "enum": [
+              "LEGAL_NORMATIVE",
+              "DEFINITION",
+              "CONTEXT",
+              "ASSESSMENT_GUIDANCE",
+              "EVIDENCE_GUIDANCE"
+            ]
+          },
+          "assessability": {
+            "type": "string",
+            "enum": [
+              "REPOSITORY_VERIFIABLE",
+              "EXTERNAL_FULFILLMENT",
+              "MIXED",
+              "NON_ASSESSABLE"
+            ]
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "object": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "beneficiary": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "trigger": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "scope": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "qualifier": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "exception": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "temporalApplicability": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repositoryObservableAspect": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "externalFulfillmentAspect": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "legalEffect": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "AMENDS",
+                          "REPEALS",
+                          "REPLACES",
+                          "SUPPLEMENTS",
+                          "SUSPENDS",
+                          "REFERENCES"
+                        ]
+                      },
+                      "targets": {
+                        "maxItems": 128,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "nodeId": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "scope": {
+                              "type": "string",
+                              "enum": [
+                                "EXACT",
+                                "SUBTREE"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "nodeId",
+                            "scope"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "unresolvedTargets": {
+                        "maxItems": 128,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "documentIdentifier": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "locator": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "reason": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 8000
+                            }
+                          },
+                          "required": [
+                            "documentIdentifier",
+                            "locator",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "effectiveFrom": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "effectiveUntil": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "conditions": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "targets",
+                      "unresolvedTargets",
+                      "effectiveFrom",
+                      "effectiveUntil",
+                      "conditions"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relevant": {
+            "type": "boolean"
+          },
+          "nonOperativeReason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "support": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "properties": {
+                "locator": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "quote": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "locator",
+                "quote"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "CONDITION_OF",
+                    "QUALIFIES",
+                    "EXCEPTION_TO",
+                    "TEMPORALLY_APPLIES_TO",
+                    "DEFINED_BY",
+                    "PRESERVES",
+                    "EVIDENCE_SLICE_OF",
+                    "CONTEXT_FOR",
+                    "INCORPORATES",
+                    "CROSS_REFERENCE"
+                  ]
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "referenceId": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "kind",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "key",
+          "type",
+          "statement",
+          "authority",
+          "assessability",
+          "support"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "noClaims": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    },
+    "references": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "material": {
+                "const": false
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "material",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "material": {
+                "const": "UNRESOLVED"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "material",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "material": {
+                "const": true
+              },
+              "binding": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "CONDITION_OF",
+                      "QUALIFIES",
+                      "EXCEPTION_TO",
+                      "TEMPORALLY_APPLIES_TO",
+                      "DEFINED_BY",
+                      "PRESERVES",
+                      "EVIDENCE_SLICE_OF",
+                      "CONTEXT_FOR",
+                      "INCORPORATES",
+                      "CROSS_REFERENCE"
+                    ]
+                  }
+                },
+                "required": [
+                  "from",
+                  "to",
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "material",
+              "binding"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "article",
+    "claims"
+  ],
+  "additionalProperties": false
+}

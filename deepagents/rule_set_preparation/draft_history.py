@@ -9,16 +9,26 @@ limit long before the source is covered.
 from __future__ import annotations
 
 from typing import Any
+import json
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from rule_set_preparation.tools import ITEM_ID_KEYS
+from rule_set_preparation.tools import ITEM_ID_KEYS, RuleSetPreparationContext
 
 ADD_TOOL = "add_to_packet_draft"
-CHECK_TOOLS = frozenset({"validate_compliance_rule_set", "remove_from_packet_draft"})
+INCREMENTAL_TOOLS = frozenset({
+    "get_applicable_legal_state", "author_legal_requirement", "author_assessment_rule", "remove_rule_candidate",
+    "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure",
+})
+CHECK_TOOLS = frozenset({"validate_compliance_rule_set", "remove_from_packet_draft",
+                         "validate_semantic_claim_inventory"})
 KEEP_RECENT_ADDS = 3
 KEEP_RECENT_CHECKS = 2
+# Rule authoring: reads are navigation, not bookkeeping. They get their own small budget so they can neither evict
+# the model's Requirement/Rule results nor be mistaken for them; what they carried lives in the runtime digest.
+AUTHORING_READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure"})
+KEEP_RECENT_AUTHORING_READS = 2
 _GIST_KEYS = ("title", "concept", "kind")
 
 
@@ -33,24 +43,71 @@ def _gists(call_args: dict[str, Any]) -> dict[str, dict[str, str]]:
     return found
 
 
-def _kind(message: Any) -> str | None:
-    """'add', 'check' for a message made only of draft-bookkeeping calls, otherwise None."""
+def _kind(message: Any, authoring: bool = False) -> str | None:
+    """'add', 'check' (or, while authoring, 'read') for a message made only of draft-bookkeeping calls, otherwise None.
+
+    Business purpose: Classify an AI message as an incremental draft, validation/check or authoring-read round that may be compacted.
+
+    Business rules:
+    - Messages containing unrelated tools or no tool calls are retained; authoring read calls are tracked separately from mutations.
+
+    Execution flow:
+    1. Require an AIMessage with tool calls.
+    2. Reject messages with tool names outside the allowed bookkeeping sets.
+    3. Return the authoring read/add/check kind or `None`.
+
+    Failure cases:
+    - Unsupported message types or mixed unrelated tool batches return `None` rather than being removed from history.
+
+    Side effects:
+    - None: classifies message history only.
+    """
     if not isinstance(message, AIMessage) or not message.tool_calls:
         return None
     names = {call["name"] for call in message.tool_calls}
-    if not names <= CHECK_TOOLS | {ADD_TOOL}:
+    if not names <= CHECK_TOOLS | INCREMENTAL_TOOLS | {ADD_TOOL}:
         return None
-    return "add" if ADD_TOOL in names else "check"
+    if authoring and names <= AUTHORING_READ_TOOLS:
+        return "read"
+    return "add" if ADD_TOOL in names or names & INCREMENTAL_TOOLS else "check"
 
 
 def compact_draft_history(
-    messages: list[Any], keep_adds: int = KEEP_RECENT_ADDS, keep_checks: int = KEEP_RECENT_CHECKS
+    messages: list[Any], keep_adds: int = KEEP_RECENT_ADDS, keep_checks: int = KEEP_RECENT_CHECKS,
+    authoring: bool = False, keep_reads: int = KEEP_RECENT_AUTHORING_READS,
 ) -> list[Any]:
-    """Drop old draft-bookkeeping rounds (the call and its result) and list their item labels once."""
-    kinds = {i: _kind(m) for i, m in enumerate(messages)}
+    """Drop old draft-bookkeeping rounds (the call and its result) and list their item labels once.
+
+    A dropped round is only safe when the Agent's next valid transition survives without it. While authoring that is
+    the runtime digest (state) plus the bounded read tools (detail), which the middleware appends to every request.
+
+    Business purpose: Reduce repeated draft-bookkeeping history while preserving recent operations and a compact recovery summary.
+
+    Business rules:
+    - Only recognized bookkeeping call/result pairs beyond configured retention windows are removed; durable run state and exact item labels remain available for recovery.
+    - Authoring compaction relies on the runtime digest and bounded read tools, while ordinary draft compaction lists added item labels.
+
+    Execution flow:
+    1. Classify message rounds and select older add/check/read rounds beyond their separate keep limits.
+    2. Collect IDs of tool results tied to removed calls and summarize removed draft labels or retrieval instructions.
+    3. Remove the selected calls/results and insert one summary at the first removed position.
+
+    Failure cases:
+    - If nothing qualifies, return the original messages; mixed tool rounds remain intact.
+
+    Side effects:
+    - Returns a new conversation projection; stored draft, source review and original message list are not mutated.
+
+    Drop old draft-bookkeeping rounds (the call and its result) and list their item labels once.
+
+    A dropped round is only safe when the Agent's next valid transition survives without it. While authoring that is the runtime digest (state) plus the bounded read tools (detail), which the middleware appends to every request.
+    """
+    kinds = {i: _kind(m, authoring) for i, m in enumerate(messages)}
     adds = [i for i, k in kinds.items() if k == "add"]
     checks = [i for i, k in kinds.items() if k == "check"]
-    dropped = set(adds[:-keep_adds] if keep_adds else adds) | set(checks[:-keep_checks] if keep_checks else checks)
+    reads = [i for i, k in kinds.items() if k == "read"]
+    dropped = (set(adds[:-keep_adds] if keep_adds else adds) | set(checks[:-keep_checks] if keep_checks else checks)
+               | set(reads[:-keep_reads] if keep_reads else reads))
     if not dropped:
         return messages
 
@@ -66,9 +123,18 @@ def compact_draft_history(
         for section, items in labels.items()
     ]
     summary = HumanMessage(content=(
+        "Earlier inventory reads and Requirement/Rule operations were set aside to keep your context small. Their state is in the "
+        "RULE AUTHORING STATE message that follows (claim IDs, what is authored, any unresolved problem); it is authoritative. "
+        "Use get_rule_authoring_context to page the index and get_claim_inventory(kind=CLAIMS, claim_id=...) for an exact claim."
+    )) if authoring else HumanMessage(content=(
         "Draft parts you already added (stored in the draft; do not resend them, resend an item only to "
         "correct it):\n" + "\n".join(lines)
-    )) if lines else None
+    )) if lines else HumanMessage(content=(
+        "Earlier incremental claim/review/Rule operations remain stored in the run context. "
+        "Use get_claim_inventory with STATUS, CLAIMS, RELATIONS, REQUIREMENTS, UNREVIEWED_SOURCE_NODES "
+        "or UNACCOUNTED_CLAIMS and pagination to recover exact current IDs and revision. "
+        "Do not recreate claims from forgotten tool history. Frozen inventory changes require explicit reopening."
+    ))
 
     compacted: list[Any] = []
     for i, message in enumerate(messages):
@@ -83,8 +149,95 @@ def compact_draft_history(
 class DraftHistoryMiddleware(AgentMiddleware):
     """Applied to every model request; the stored draft and the full message state are untouched."""
 
+    def __init__(self, context: RuleSetPreparationContext):
+        self.context = context
+
+
+    def _view(self, messages: list[Any]) -> list[Any]:
+        """Business purpose: Build the conversation view required for the current direct-draft or frozen-inventory authoring turn.
+
+        Business rules:
+        - Direct draft treats accepted candidates as durable and resumes from the latest successful package receipt; ordinary authoring compacts old bookkeeping and appends the current state digest.
+
+        Execution flow:
+        1. For direct draft, locate the latest accepted submission receipt with a next package and retain its continuation tail.
+        2. Otherwise retain the latest package request with a durable draft-count summary, or return the original messages if none exists.
+        3. For non-direct authoring, compact safe bookkeeping history and append/publish the current digest when active.
+
+        Failure cases:
+        - Unparseable JSON submission receipts are skipped; valid non-object JSON or other unexpected receipt shapes may raise instead of reconstructing accepted state.
+
+        Side effects:
+        - May publish a changed authoring digest; returns a new message view without mutating durable draft state.
+        """
+        if getattr(self.context, "direct_draft", False):
+            # New packages read durable authority; earlier packages never need to be reinterpreted.
+            for i in range(len(messages) - 1, -1, -1):
+                message = messages[i]
+                if not isinstance(message, ToolMessage) or message.name not in {"submit_rule_set_draft_candidates", "correct_rule_set_draft_submission"} or not isinstance(message.content, str):
+                    continue
+                try:
+                    result = json.loads(message.content.partition("\n\n[Pinned source observation metadata]")[0])
+                except ValueError:
+                    continue
+                if result.get("outcome") != "PASSED" or "nextPackage" not in result:
+                    continue
+                tail = next((j for j in range(i + 1, len(messages)) if isinstance(messages[j], AIMessage)), len(messages))
+                return [HumanMessage(content="Accepted candidates are persisted. Current bounded legal analysis package:\n" + json.dumps(result, ensure_ascii=False)), *messages[tail:]]
+            starts = [i for i, m in enumerate(messages) if isinstance(m, AIMessage) and any(c["name"] == "get_next_legal_analysis_package" for c in m.tool_calls)]
+            if not starts:
+                return list(messages)
+            ledger = self.context.inventory
+            return [HumanMessage(content=f"Accepted Rule Set Draft is in PostgreSQL, version {ledger.draft_version}: {len(self.context.draft['legalRequirements'])} requirements and {len(self.context.draft['assessmentRules'])} assessment rules. Use get_rule_set_draft_candidate for a targeted correction; do not recreate accepted work."), *messages[starts[-1]:]]
+        state = getattr(self.context, "authoring", None)
+        authoring = state is not None and state.active()
+        view = compact_draft_history(list(messages), authoring=authoring)
+        digest = state.digest() if authoring else None
+        if digest:
+            state.publish_if_changed(digest)
+            view = [*view, HumanMessage(content=digest)]
+        return view
+
     def wrap_model_call(self, request, handler):
-        return handler(request.override(messages=compact_draft_history(list(request.messages))))
+        """Business purpose: Supply a compact, current conversation view to synchronous model calls after the relevant Preparation lifecycle is active.
+
+        Business rules:
+        - Unfrozen discovery is passed through unchanged; other phases increment the run-local model-turn counter and use `_view`.
+
+        Execution flow:
+        1. Pass through when non-direct discovery has not frozen the inventory.
+        2. Increment the model-turn count.
+        3. Replace request messages with the current compact view and invoke the handler.
+
+        Failure cases:
+        - Digest/view construction and model errors propagate to the run lifecycle.
+
+        Side effects:
+        - Increments run-local model-turn state and performs one model invocation; the durable draft is unchanged by the middleware.
+        """
+        if not getattr(self.context, "direct_draft", False) and self.context.inventory is not None and not self.context.inventory.frozen:
+            return handler(request)
+        self.context.model_turn = (self.context.model_turn or 0) + 1
+        return handler(request.override(messages=self._view(request.messages)))
 
     async def awrap_model_call(self, request, handler):
-        return await handler(request.override(messages=compact_draft_history(list(request.messages))))
+        """Business purpose: Supply a compact, current conversation view to asynchronous model calls after the relevant Preparation lifecycle is active.
+
+        Business rules:
+        - Unfrozen discovery is passed through unchanged; other phases increment the run-local model-turn counter and use `_view`.
+
+        Execution flow:
+        1. Pass through when non-direct discovery has not frozen the inventory.
+        2. Increment the model-turn count.
+        3. Replace request messages with the current compact view and await the handler.
+
+        Failure cases:
+        - Digest/view construction and model errors propagate to the run lifecycle.
+
+        Side effects:
+        - Increments run-local model-turn state and performs one model invocation; the durable draft is unchanged by the middleware.
+        """
+        if not getattr(self.context, "direct_draft", False) and self.context.inventory is not None and not self.context.inventory.frozen:
+            return await handler(request)
+        self.context.model_turn = (self.context.model_turn or 0) + 1
+        return await handler(request.override(messages=self._view(request.messages)))

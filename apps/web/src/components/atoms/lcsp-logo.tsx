@@ -1,19 +1,8 @@
+"use client";
+
 import Image from "next/image";
 
 import { cn } from "@/lib/utils";
-
-function resolveComponent(comp: unknown) {
-  let current = comp;
-  while (current && typeof current === "object" && "default" in current) {
-    current = (current as { default: unknown }).default;
-  }
-  return typeof current === "function" || typeof current === "string"
-    ? current
-    : "img";
-}
-
-const ImageComponent = resolveComponent(Image) as React.ElementType;
-
 
 import {
   LCSP_LOGO_SIZES,
@@ -22,6 +11,10 @@ import {
   type LCSPLogoSize,
   type LCSPLogoVariant,
 } from "../types/lcsp-logo.types";
+
+// Node ESM can wrap Next's CommonJS export; keep React's forwardRef component intact.
+const ImageComponent =
+  (Image as typeof Image & { default?: typeof Image }).default ?? Image;
 
 const LOGO_ASSETS = {
   [LCSP_LOGO_VARIANTS.mark]: {

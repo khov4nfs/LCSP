@@ -107,6 +107,29 @@ def test_t08_safe_metadata_field_names_survive_key_redaction() -> None:
     assert redact_dict(payload) == payload
 
 
+def test_provider_attempt_safe_slot_survives_without_exempting_credentials() -> None:
+    payload = {
+        "credential_slot_safe_id": "safe-slot-example",
+        "credential_value": "private-credential-value",
+        "api_key": "private-api-key",
+        "authorization": "Bearer private-token-value",
+        "raw_error_body": "private-provider-response",
+    }
+
+    redacted = redact_dict(payload)
+
+    assert redacted == {
+        "credential_slot_safe_id": "safe-slot-example",
+        "credential_value": "",
+        "api_key": "",
+        "authorization": "",
+        "raw_error_body": "",
+    }
+    assert redact_dict({"credential_id": "credential-id-is-still-sensitive"})[
+        "credential_id"
+    ] == ""
+
+
 def test_t09_secret_field_names_are_redacted_and_logged(caplog) -> None:
     caplog.set_level("INFO")
     secret_field_names = (

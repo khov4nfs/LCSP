@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools, DOC, FakeApi, RUN_ID, _bundle, _call, _model, _packet, _sha
+
 import inspect
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,6 +14,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langgraph.config import get_config
 from langgraph.errors import GraphRecursionError
+from middleware.failure_policy import NoProgressDetected
 from pydantic import Field
 
 from assessment_root.runner import run_assessment_root
@@ -24,7 +27,7 @@ from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 from test_assessment_root_agent import complete_root_messages, ASSESSMENT, THREAD, FakeClient, RootScriptedModel
-from test_rule_set_preparation_agent import FakeApi, RUN_ID, _bundle, _call, _model, _packet
+from legal_graph_fixture import document_graph_for_bundle
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
 from tools.common.capabilities.agent_runtime.local_server import _runtime_config
 
@@ -66,9 +69,17 @@ class GraphSteps(BaseCallbackHandler):
 
 def preparation_responses() -> list[AIMessage]:
     # A finite scripted reasoning sequence unrelated to Legal Source size. All native
-    # middleware is present; validation is deliberately later than the old ceiling.
+    # middleware is present; each read advances to a different source range before
+    # validation, so the no-progress guard correctly treats these as distinct evidence.
     return [
-        *[_call("read_file", {"file_path": "/legal-source/INDEX.md"}, f"read-{i}") for i in range(16)],
+        *[
+            _call(
+                "read_file",
+                {"file_path": "/legal-source/INDEX.md", "offset": i * 2, "limit": 2},
+                f"read-{i}",
+            )
+            for i in range(16)
+        ],
         _call("validate_compliance_rule_set", {"packet": _packet()}, "validate"),
         _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
         AIMessage(content="complete"),
@@ -95,6 +106,50 @@ def test_preparation_continues_past_150_steps_and_submits_once(tmp_path: Path) -
     assert api.names() == ["claim", "validate", "submit"]
     assert steps.highest_step > 150
     print(f"PREPARATION_COMPLETED graph_step={steps.highest_step}")
+
+
+def test_large_productive_preparation_exceeds_old_call_assumptions(tmp_path: Path) -> None:
+    bundle = _bundle()
+    chunks = []
+    responses = [_call("read_file", {"file_path": "/legal-source/INDEX.md"}, "index")]
+    for index in range(270):
+        locator = f"section-{index}::clause-1"
+        content = f"Distinct synthetic provision observation {index}."
+        chunks.append({
+            "chunkId": f"chunk-{index}", "locator": locator, "content": content,
+            "contentSha256": _sha(content), "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE", "legalStatusSourceRef": "fixture:source",
+            "hierarchy": {"path": [f"section-{index}"]},
+        })
+        responses.append(_call(
+            "read_file",
+            {"file_path": f"/legal-source/{DOC}/section-{index}__clause-1.md"},
+            f"source-{index}",
+        ))
+    bundle["documents"][0]["chunks"] = chunks
+    bundle["documentGraph"] = document_graph_for_bundle(bundle)
+    class LargeApi(FakeApi):
+        def claim_rule_set_preparation(self, run_id: str) -> dict:
+            self.calls.append(("claim", (run_id,)))
+            return bundle
+
+    # This long but productive run is allowed to let its own agent make the completion claim.
+    responses.extend([
+        _call("validate_compliance_rule_set", {"packet": _packet()}, "validate"),
+        _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
+    ])
+    api = LargeApi()
+    model = _model(responses)
+    result = preparation_runner.run_rule_set_preparation(
+        api,
+        RUN_ID,
+        model=model,
+        work_dir=tmp_path,
+    )
+
+    assert result["state"] == "SUCCEEDED"
+    assert api.names() == ["claim", "validate", "submit"]
+    assert len(model.prompts) > 256
 
 
 def test_root_continues_past_its_old_1000_steps_with_governance(tmp_path: Path) -> None:
@@ -147,6 +202,22 @@ def test_framework_exhaustion_is_runtime_error_not_model_error(monkeypatch, tmp_
     result = preparation_runner.run_rule_set_preparation(api, RUN_ID, work_dir=tmp_path)
     assert result["failureReason"] == preparation_runner.RUNTIME_ERROR
     assert result["error"]["type"] == "GraphRecursionError"
+    assert api.calls[-1] == ("fail", (RUN_ID, preparation_runner.RUNTIME_ERROR))
+
+
+def test_no_progress_execution_failure_is_runtime_error_not_model_error(monkeypatch, tmp_path: Path) -> None:
+    class ExhaustedGraph:
+        def invoke(self, *args, **kwargs):
+            raise NoProgressDetected(
+                "NO_PROGRESS_DETECTED"
+            )
+
+    monkeypatch.setattr(preparation_runner, "create_rule_set_preparation_agent", lambda **kw: ExhaustedGraph())
+    api = FakeApi()
+    result = preparation_runner.run_rule_set_preparation(api, RUN_ID, work_dir=tmp_path)
+    assert result["failureReason"] == preparation_runner.RUNTIME_ERROR
+    assert result["error"]["type"] == "NoProgressDetected"
+    assert "NO_PROGRESS_DETECTED" in result["error"]["message"]
     assert api.calls[-1] == ("fail", (RUN_ID, preparation_runner.RUNTIME_ERROR))
 
 

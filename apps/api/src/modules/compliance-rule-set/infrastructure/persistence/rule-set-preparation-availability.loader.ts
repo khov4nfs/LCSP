@@ -52,7 +52,9 @@ export async function loadRuleSetPreparationAvailability(
   const unavailable: RuleSetPreparationAvailability = {
     legalSourceVersionId: null,
     legalSourceVersion: null,
+    activeRuleSetVersionId: null,
     canStart: false,
+    canReplace: false,
     refusalReason:
       RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ELIGIBLE,
     currentRun: null,
@@ -87,15 +89,22 @@ export async function loadRuleSetPreparationAvailability(
       include: { ruleSet: { select: { id: true } } },
     }),
   ]);
-  const refusalReason = ruleSet
-    ? RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS
-    : run && inProgress.has(run.executionState)
-      ? RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS
+  // One preparation at a time, first or replacement: an in-progress run is reported before anything
+  // else so it is returned idempotently instead of a second paid run being started. An ACTIVE rule
+  // set never makes preparation permanently unavailable: it only means a start must be an explicit
+  // replacement, and it stays ACTIVE while that replacement runs, fails or is cancelled.
+  const preparing = run !== null && inProgress.has(run.executionState);
+  const refusalReason = preparing
+    ? RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS
+    : ruleSet
+      ? RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS
       : null;
   return {
     legalSourceVersionId: source.id,
     legalSourceVersion: source.version,
+    activeRuleSetVersionId: ruleSet?.id ?? null,
     canStart: refusalReason === null,
+    canReplace: ruleSet !== null && !preparing,
     refusalReason,
     currentRun: run ? toRun(run, run.ruleSet?.id ?? null) : null,
   };

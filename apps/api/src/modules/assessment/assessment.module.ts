@@ -58,7 +58,10 @@ import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessmen
 import { ListAssessmentEventsHandler } from "./application/queries/list-assessment-events/list-assessment-events.handler.js";
 import { GetAssessmentHandler } from "./application/queries/get-assessment/get-assessment.handler.js";
 import { GetPinnedRuleSetHandler } from "./application/queries/get-pinned-rule-set/get-pinned-rule-set.handler.js";
+import { GetPinnedLegalSourceTextHandler } from "./application/queries/get-pinned-legal-source-text/get-pinned-legal-source-text.handler.js";
+import { SearchPinnedLegalSourceHandler } from "./application/queries/search-pinned-legal-source/search-pinned-legal-source.handler.js";
 import { GetRootContextHandler } from "./application/queries/get-root-context/get-root-context.handler.js";
+import { GetRuleDecisionHandler } from "./application/queries/get-rule-decision/get-rule-decision.handler.js";
 import { ListAssessmentsHandler } from "./application/queries/list-assessments/list-assessments.handler.js";
 import { AssessmentCompletionGate } from "./application/services/assessment-completion-gate.service.js";
 import { AssessmentEventAppender } from "./application/services/assessment-event-appender.service.js";
@@ -72,6 +75,7 @@ import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-
 import { AssessmentDomainController } from "./presentation/http/assessment-domain.controller.js";
 import { AssessmentRuntimeControlController } from "./presentation/http/assessment-runtime-control.controller.js";
 import { AssessmentController } from "./presentation/http/assessment.controller.js";
+import { ReconcileOrphanedAssessmentHandler } from "./application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.js";
 
 /**
  * Wires RBAC-protected assessment commands and queries to Prisma-backed persistence and HTTP endpoints.
@@ -129,13 +133,17 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     StartRuleInvestigationHandler,
     SubmitRuleDecisionHandler,
     GetPinnedRuleSetHandler,
+    GetPinnedLegalSourceTextHandler,
+    SearchPinnedLegalSourceHandler,
     GetRootContextHandler,
+    GetRuleDecisionHandler,
     AssessmentRuntimeEventService,
     WorkerApiKeyGuard,
     CreateAssessmentHandler,
     TransitionAssessmentLifecycleHandler,
     CompleteRepositorySetupHandler,
     DeleteAssessmentHandler,
+    ReconcileOrphanedAssessmentHandler,
     AgentServerAssessmentErasure,
     {
       provide: ASSESSMENT_RUNTIME_ERASURE,

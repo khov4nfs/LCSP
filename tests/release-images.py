@@ -77,7 +77,7 @@ def policy() -> dict:
 
 def sources() -> dict[str, str]:
     paths = run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--",
-                 "apps/api/src", "apps/web/src", "packages", "deepagents"], capture=True).split("\0")
+                 "apps/api/src", "apps/web/src", "packages", "deepagents", "scripts/check-canonical-terminology.mjs"], capture=True).split("\0")
     result = {}
     for name in paths:
         if not name or EXCLUDED_SOURCE.search(name):
@@ -174,6 +174,9 @@ def audit(archive: tarfile.TarFile, expected: dict[str, str], marker: str,
             violations.append({"path": path, "reason": "source differs from frozen candidate manifest"})
         if path == marker and not data:
             violations.append({"path": path, "reason": "empty built runtime marker"})
+        # Terminology policy names retired symbols; require its exact frozen bytes before skipping content patterns.
+        if path == "scripts/check-canonical-terminology.mjs" and expected.get(path) == sha:
+            continue
         # This fence only rejects obsolete outbox keys; it has no legacy handler or selector.
         if path == "scripts/check-legal-v1-authority-retired.mjs" or "apps/api/src/platform/outbox/retired-event-policy.ts" in variants:
             continue
@@ -220,19 +223,22 @@ def self_check(rules: dict) -> None:
                 archive.addfile(member, None if data is None else io.BytesIO(data))
         output.seek(0)
         with tarfile.open(fileobj=output, mode="r:") as archive:
-            return audit(archive, {"deepagents/agent.py": digest(b"canonical")},
+            return audit(archive, {"deepagents/agent.py": digest(b"canonical"), "scripts/check-canonical-terminology.mjs": digest(b"preparation-callback/")},
                          "deepagents/agent.py", rules, {"apps/api/src/retired.ts"})
 
     good = [("app/deepagents/agent.py", b"canonical"),
+            ("app/scripts/check-canonical-terminology.mjs", b"preparation-callback/"),
             ("app/apps/web/src/app/(workspace)/artifacts/page.tsx", b"canonical"),
             ("app/.env.example", b"example"),
             ("app/deepagents/.env.example", b"example")]
     assert fixture(good)["status"] == "PASS"
+    assert fixture([(name, b"changed policy" if name.endswith("check-canonical-terminology.mjs") else data) for name, data in good])["status"] == "FAIL"
     for mutation in [
         [], [("app/deepagents/agent.py", b"changed")],
         good + [("app/apps/api/dist/src/retired.js", b"old")],
         good + [("app/deepagents/skills/lcsp/SKILL.md", b"old")],
         good + [("app/apps/api/dist/src/hidden.js", b"EngineeringRuleEvaluator")],
+        good + [("app/apps/api/dist/src/hidden.js", b"preparation-callback/")],
         good + [("app/deepagents/.env", b"private")],
         good + [("app/deepagents/.langgraph_api/checkpoint.pckl", b"private")],
         good + [("app/apps/api/src/.claude/logs/pending-prompts.jsonl", b"private")],

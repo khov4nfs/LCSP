@@ -75,7 +75,8 @@ def main() -> None:
         activations = int(stack.sql('SELECT count(*) FROM "ComplianceRuleSetActivationRecord" WHERE "preparationRunId"=' + legal.quote(run["id"]) + ';'))
         receipt = {"scope": "EXACT_IMAGE_AUTOMATIC_RULE_SET_PREPARATION_CAPTURE", "runId": run_id,
                    "status": "PASS_RUNTIME_MECHANICS" if run["executionState"] == "SUCCEEDED" else "FAILED_PREPARATION",
-                   "imageReceipt": str(staging.IMAGE_EVIDENCE.relative_to(ROOT) / "report.json"),
+                   "imageReceipt": str(staging.image_evidence_path(stack.manifest["imageEvidence"])
+                                       .relative_to(ROOT) / "report.json"),
                    "run": run, "activations": activations, "initiatedThrough": "DURABLE_LEGAL_SOURCE_ACTIVATION",
                    "packetManuallyEdited": False, "semanticReview": "REQUIRED"}
         staging.require((run["executionState"] != "SUCCEEDED") or (run["lifecycleState"] == "ACTIVE" and run["validationOutcome"] == "PASSED" and run["outboxStatus"] == "PUBLISHED" and activations == 1), "persisted activation mismatch")

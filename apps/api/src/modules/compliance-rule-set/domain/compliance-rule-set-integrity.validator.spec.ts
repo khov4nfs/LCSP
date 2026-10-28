@@ -8,6 +8,7 @@ import {
   fixtureHash,
   ref,
   validPacket,
+  withDerivedAssessmentSemantics,
 } from "../../../../test/support/compliance-rule-set-fixtures.js";
 import {
   canonicalJson,
@@ -95,7 +96,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
   it("rejects a repealed source reference", () => {
     const legalSource = fixtureLegalSource(
       {},
-      { "art-2::cl-1": { legalStatus: "REPEALED" } },
+      { "art-2::cl-1": { legalEffectStatus: "REPEALED" } },
     );
     const { failures } = validateComplianceRuleSetPacket(
       validPacket(),
@@ -104,6 +105,87 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     );
     expect(codes(failures)).toContain(
       COMPLIANCE_RULE_SET_FAILURE_CODES.REPEALED_SOURCE_REFERENCE,
+    );
+  });
+
+  it("does not require a provision explicitly marked repealed as a current obligation", () => {
+    const packet = validPacket();
+    packet.legalRequirements.forEach((rule) => {
+      rule.sourceRefs = rule.sourceRefs.filter(
+        (source) => source.locator !== "art-2::cl-1",
+      );
+      for (const proposition of rule.operativePropositions ?? []) {
+        proposition.sourceRefs = proposition.sourceRefs.filter(
+          (source) => source.locator !== "art-2::cl-1",
+        );
+      }
+    });
+    packet.assessmentRules.forEach((rule) => {
+      rule.sourceRefs = rule.sourceRefs.filter(
+        (source) => source.locator !== "art-2::cl-1",
+      );
+    });
+    packet.contextRelations = packet.contextRelations.filter(
+      (relation) => relation.toSourceRef?.locator !== "art-2::cl-1",
+    );
+    const source = fixtureLegalSource(
+      {},
+      { "art-2::cl-1": { legalEffectStatus: "REPEALED" } },
+    );
+    const { failures } = validateComplianceRuleSetPacket(
+      withDerivedAssessmentSemantics(packet, source),
+      source,
+      never,
+    );
+    expect(codes(failures)).not.toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
+    );
+    expect(codes(failures)).not.toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.REPEALED_SOURCE_REFERENCE,
+    );
+  });
+
+  it("keeps unknown source effect explicitly undetermined", () => {
+    const source = fixtureLegalSource(
+      {},
+      {
+        "art-2::cl-1": {
+          legalEffectStatus: "UNKNOWN",
+          legalStatusSourceRef: null,
+        },
+      },
+    );
+    const chunk = source.chunks.find((item) => item.locator === "art-2::cl-1");
+    expect(chunk).toMatchObject({
+      legalEffectStatus: "UNKNOWN",
+      legalStatusSourceRef: null,
+    });
+    const { failures } = validateComplianceRuleSetPacket(
+      validPacket(),
+      source,
+      never,
+    );
+    expect(codes(failures)).toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.UNDETERMINED_SOURCE_STATUS,
+    );
+  });
+
+  it("does not accept a future-effective provision as a current source", () => {
+    const { failures } = validateComplianceRuleSetPacket(
+      validPacket(),
+      fixtureLegalSource(
+        {},
+        {
+          "art-1::cl-1": {
+            legalEffectStatus: "FUTURE",
+            legalStatusSourceRef: "metadata:future",
+          },
+        },
+      ),
+      never,
+    );
+    expect(codes(failures)).toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.NON_CURRENT_SOURCE_REFERENCE,
     );
   });
 
@@ -155,22 +237,37 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     const coverage = failures.filter(
       (failure) =>
         failure.code ===
-        COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
+        COMPLIANCE_RULE_SET_FAILURE_CODES.UNACCOUNTED_SEMANTIC_CLAIM,
     );
     expect(coverage.map((failure) => failure.ref)).toEqual([
-      "locator:SYNTHETIC-NOTICE-INSTRUMENT::art-6::cl-1",
+      "claim:LR-PERSON.OPERATIVE_PROPOSITION.0",
     ]);
   });
 
-  it("counts a cited ancestor as covering its descendants", () => {
+  it("does not discharge operative descendant accounting with a cited ancestor", () => {
     const packet = validPacket();
-    packet.legalRequirements[1].sourceRefs = [ref("art-5::cl-1")]; // parent covers pt-a and pt-b
+    packet.legalRequirements[1].sourceRefs = [ref("art-5::cl-1")];
+    packet.legalRequirements[1].operativePropositions![0].sourceRefs = [
+      ref("art-5::cl-1"),
+    ];
+    packet.legalRequirements[1].claimBindings = [];
     const { failures } = validateComplianceRuleSetPacket(
       packet,
       fixtureLegalSource(),
       never,
     );
-    expect(failures).toEqual([]);
+    expect(
+      failures
+        .filter(
+          (failure) =>
+            failure.code ===
+            COMPLIANCE_RULE_SET_FAILURE_CODES.UNACCOUNTED_SEMANTIC_CLAIM,
+        )
+        .map((failure) => failure.ref),
+    ).toEqual([
+      "claim:LR-RET.APPLICABILITY_CONDITION.0",
+      "claim:LR-RET.OPERATIVE_PROPOSITION.0",
+    ]);
   });
 
   it("requires every covered rule to have an AssessmentRule and every non-assessable rule a reason", () => {
@@ -189,6 +286,66 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
         COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_RULE_COVERAGE,
         COMPLIANCE_RULE_SET_FAILURE_CODES.NON_ASSESSABLE_REASON_REQUIRED,
       ]),
+    );
+  });
+
+  it("requires an assessable requirement to declare its applicability scope, in whatever terms the source uses", () => {
+    const withoutScope = validPacket();
+    const covered = withoutScope.legalRequirements.find(
+      (rule) => rule.coverage.state === "COVERED_BY_ASSESSMENT_RULES",
+    );
+    if (!covered) throw new Error("fixture must contain a covered requirement");
+    covered.applicabilityConditions = [];
+    const rejected = validateComplianceRuleSetPacket(
+      withoutScope,
+      fixtureLegalSource(),
+      never,
+    ).failures.filter(
+      (failure) =>
+        failure.code ===
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
+    );
+    expect(rejected).toEqual([
+      expect.objectContaining({
+        ref: `legalRequirement:${covered.legalRequirementId}`,
+      }),
+    ]);
+
+    // Any wording passes: the check never learns which roles, categories or terms a legal source uses.
+    for (const scope of [
+      "Applies to the keeper of a register.",
+      "Gilt für Betreiber von Hochrisikosystemen, sofern sie Daten verarbeiten.",
+      "Every holder of a vessel licence",
+    ]) {
+      covered.applicabilityConditions = [scope];
+      expect(
+        codes(
+          validateComplianceRuleSetPacket(
+            withoutScope,
+            fixtureLegalSource(),
+            never,
+          ).failures,
+        ),
+      ).not.toContain(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
+      );
+    }
+  });
+
+  it("does not ask a non-assessable requirement for an applicability scope", () => {
+    const packet = validPacket();
+    const nonAssessable = packet.legalRequirements.filter(
+      (rule) => rule.coverage.state === "NON_ASSESSABLE",
+    );
+    expect(nonAssessable.length).toBeGreaterThan(0);
+    for (const rule of nonAssessable) rule.applicabilityConditions = [];
+    expect(
+      codes(
+        validateComplianceRuleSetPacket(packet, fixtureLegalSource(), never)
+          .failures,
+      ),
+    ).not.toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
     );
   });
 

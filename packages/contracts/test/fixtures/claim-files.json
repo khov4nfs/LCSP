@@ -1,0 +1,2120 @@
+[
+  {
+    "name": "minimal duty",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "no claims with occurrence locator",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [],
+      "noClaims": {
+        "art-5::cl-1::occurrence/2": "Repeats the preceding text."
+      },
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type DUTY",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type PROHIBITION",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "PROHIBITION",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type PERMISSION",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "PERMISSION",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type DEFINITION",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DEFINITION",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type SCOPE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "SCOPE",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type QUALIFIER",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "QUALIFIER",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type EXCEPTION",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "EXCEPTION",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type CROSS_REFERENCE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "CROSS_REFERENCE",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type CONDITION",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "CONDITION",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type TEMPORAL_RULE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "TEMPORAL_RULE",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type TRANSITION_RULE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "TRANSITION_RULE",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "claim type CONTEXT",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "CONTEXT",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "authority LEGAL_NORMATIVE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "authority DEFINITION",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "DEFINITION",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "authority CONTEXT",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "CONTEXT",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "authority ASSESSMENT_GUIDANCE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "ASSESSMENT_GUIDANCE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "authority EVIDENCE_GUIDANCE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "EVIDENCE_GUIDANCE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "assessability REPOSITORY_VERIFIABLE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "assessability EXTERNAL_FULFILLMENT",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "EXTERNAL_FULFILLMENT",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "assessability MIXED",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "MIXED",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "assessability NON_ASSESSABLE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "NON_ASSESSABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation CONDITION_OF",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "CONDITION_OF",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation QUALIFIES",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "QUALIFIES",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation EXCEPTION_TO",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "EXCEPTION_TO",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation TEMPORALLY_APPLIES_TO",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "TEMPORALLY_APPLIES_TO",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation DEFINED_BY",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "DEFINED_BY",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation PRESERVES",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "PRESERVES",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation EVIDENCE_SLICE_OF",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "EVIDENCE_SLICE_OF",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation CONTEXT_FOR",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "CONTEXT_FOR",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation INCORPORATES",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "INCORPORATES",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reviewed relation CROSS_REFERENCE",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "CROSS_REFERENCE",
+              "to": "luat-134/dieu-3.json#d3-k7-def",
+              "referenceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "reference False",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "material": false,
+          "reason": "Source target cannot be identified."
+        }
+      }
+    }
+  },
+  {
+    "name": "reference UNRESOLVED",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "material": "UNRESOLVED",
+          "reason": "Source target cannot be identified."
+        }
+      }
+    }
+  },
+  {
+    "name": "bound reference",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "material": true,
+          "binding": {
+            "from": "d5-k1-duty",
+            "to": "luat-134/dieu-3.json#d3-k7-def",
+            "kind": "DEFINED_BY"
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "locator legal effect",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {
+            "scope": "High risk AI",
+            "legalEffect": {
+              "kind": "REPEALS",
+              "targets": [
+                {
+                  "nodeId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "scope": "EXACT"
+                }
+              ],
+              "unresolvedTargets": [],
+              "effectiveFrom": "2026-01-01",
+              "effectiveUntil": null,
+              "conditions": null
+            }
+          },
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "missing article",
+    "valid": false,
+    "document": {
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "missing claims",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "omitted noClaims defaults to empty",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "references": {}
+    }
+  },
+  {
+    "name": "omitted references defaults to empty",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {}
+    }
+  },
+  {
+    "name": "invalid claim key",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "../bad",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim type",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "duty",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim authority",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "UNKNOWN",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim assessability",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_OBSERVABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim support",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim frame",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {
+            "unknown": "x"
+          },
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim statement",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim relevant",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": "true",
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid claim actor",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "  ",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "unreviewed relation CONDITION",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "CONDITION",
+              "to": "sibling"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "unreviewed relation SCOPE",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "SCOPE",
+              "to": "sibling"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "unreviewed relation TEMPORALLY_LIMITS",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "TEMPORALLY_LIMITS",
+              "to": "sibling"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "unreviewed relation UNKNOWN",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "UNKNOWN",
+              "to": "sibling"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid reference {'material': False}",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "material": false
+        }
+      }
+    }
+  },
+  {
+    "name": "invalid reference {'material': 'UNRESOLVED', 'reason': ' '}",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "material": "UNRESOLVED",
+          "reason": " "
+        }
+      }
+    }
+  },
+  {
+    "name": "invalid reference {'material': True, 'reason': 'Missing binding'}",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "material": true,
+          "reason": "Missing binding"
+        }
+      }
+    }
+  },
+  {
+    "name": "invalid reference {'material': 'unresolved', 'reason': 'Noncanonical value'}",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "material": "unresolved",
+          "reason": "Noncanonical value"
+        }
+      }
+    }
+  },
+  {
+    "name": "extra top-level property",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {},
+      "extra": 1
+    }
+  },
+  {
+    "name": "blank quote",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": " "
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "runtime offset supplied by agent",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records.",
+              "startOffset": 0
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid reference id",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {},
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": [
+            {
+              "kind": "DEFINED_BY",
+              "to": "x",
+              "referenceId": "wrong"
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invalid effect date",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {
+            "legalEffect": {
+              "kind": "REPEALS",
+              "targets": [
+                {
+                  "nodeId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "scope": "EXACT"
+                }
+              ],
+              "unresolvedTargets": [],
+              "effectiveFrom": "2026-02-30",
+              "effectiveUntil": null,
+              "conditions": null
+            }
+          },
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "frame syntax does not trim source dimensions",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {
+            "scope": "  "
+          },
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "only semantic claim fields; mechanical fields omitted",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "CONTEXT",
+          "statement": "Operators must keep records.",
+          "authority": "CONTEXT",
+          "assessability": "NON_ASSESSABLE",
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ]
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "null frame is an empty frame",
+    "valid": true,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": null,
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  },
+  {
+    "name": "invented frame dimension",
+    "valid": false,
+    "document": {
+      "article": "art-5",
+      "claims": [
+        {
+          "key": "d5-k1-duty",
+          "type": "DUTY",
+          "statement": "Operators must keep records.",
+          "actor": "Operators",
+          "action": "keep records",
+          "authority": "LEGAL_NORMATIVE",
+          "assessability": "REPOSITORY_VERIFIABLE",
+          "frame": {
+            "purpose": "invented dimension"
+          },
+          "relevant": true,
+          "nonOperativeReason": null,
+          "support": [
+            {
+              "locator": "art-5::cl-1",
+              "quote": "Operators must keep records."
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "noClaims": {},
+      "references": {}
+    }
+  }
+]

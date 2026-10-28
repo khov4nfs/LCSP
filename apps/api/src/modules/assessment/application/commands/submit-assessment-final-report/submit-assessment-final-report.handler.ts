@@ -5,6 +5,8 @@ import {
   AGENTIC_RUNTIME_TRANSITION_GUARDS,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
+  RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
@@ -39,8 +41,10 @@ const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
   type: AUDIT_ACTOR_TYPES.service,
 } as const;
-const unresolvedReportText =
-  /\b(?:UNKNOWN|PARTIAL|NEEDS_CONTEXT|BLOCKED_UNKNOWN_FACT|TBD)\b|information\s+(?:is\s+)?still\s+required|open\s+questions?|unresolved\s+(?:question|decision|fact|input)|to\s+be\s+determined/i;
+const unresolvedSentinelTokens =
+  /\b(?:UNKNOWN|PARTIAL|NEEDS_CONTEXT|BLOCKED_UNKNOWN_FACT|TBD)\b/;
+const unresolvedPhrases =
+  /information\s+(?:is\s+)?still\s+required|open\s+questions?|unresolved\s+(?:question|decision|fact|input)|to\s+be\s+determined/i;
 
 function deterministicUuid(value: string): string {
   const bytes = Buffer.from(
@@ -53,6 +57,209 @@ function deterministicUuid(value: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+type Tx = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
+
+/**
+ * Business purpose: Project stored textual applicability conditions, qualifiers and
+ *   exceptions into report legal-basis entries.
+ *
+ * Business rules:
+ * - Only string members of an array are retained, verbatim and in their stored order; this is
+ *   shape normalization rather than legal interpretation.
+ *
+ * Execution flow:
+ * 1. Filter an array to its string entries, otherwise return an empty list.
+ *
+ * Failure cases:
+ * - Absent or non-array JSON produces an empty list; non-string members are omitted rather
+ *   than rendered as legal text.
+ *
+ * Side effects:
+ * - None: returns a new list without changing persisted legal requirements.
+ */
+const textList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+
+/**
+ * Business purpose: Attach the pinned source-derived legal basis to each requested report
+ *   finding.
+ *
+ * Business rules:
+ * - Read only requested AssessmentRules within the supplied Rule Set; retain linked
+ *   LegalRequirement identities, applicability text and exact source provenance.
+ * - Order requirements and their provenance by stored ordinals; do not substitute the
+ *   currently active Rule Set.
+ *
+ * Execution flow:
+ * 1. Load requested pinned rules with linked requirements and ordered provenance.
+ * 2. Normalize the stored text lists and order requirement entries.
+ * 3. Return a map keyed by AssessmentRule identity for report assembly.
+ *
+ * Failure cases:
+ * - Missing rules have no map entry and are not fabricated; database errors propagate and
+ *   report-schema validation remains the caller’s responsibility.
+ *
+ * Side effects:
+ * - Read-only queries through the supplied transaction; no legal or report state is mutated.
+ */
+async function loadLegalBasis(
+  tx: Tx,
+  ruleSetVersionId: string,
+  assessmentRuleIds: string[],
+) {
+  const rules = await tx.assessmentRule.findMany({
+    where: { ruleSetVersionId, assessmentRuleId: { in: assessmentRuleIds } },
+    select: {
+      assessmentRuleId: true,
+      concept: true,
+      legalIntent: true,
+      applicabilityGuidance: true,
+      legalRequirementLinks: {
+        select: {
+          legalRequirement: {
+            select: {
+              legalRequirementId: true,
+              title: true,
+              applicabilityConditions: true,
+              qualifiers: true,
+              exceptions: true,
+              ordinal: true,
+              provenance: {
+                orderBy: { ordinal: "asc" },
+                select: {
+                  documentId: true,
+                  locator: true,
+                  contentSha256: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  return new Map(
+    rules.map((rule) => [
+      rule.assessmentRuleId,
+      {
+        concept: rule.concept,
+        legalIntent: rule.legalIntent,
+        applicabilityGuidance: rule.applicabilityGuidance,
+        legalRequirements: rule.legalRequirementLinks
+          .map((link) => link.legalRequirement)
+          .sort((a, b) => a.ordinal - b.ordinal)
+          .map((requirement) => ({
+            legalRequirementId: requirement.legalRequirementId,
+            title: requirement.title,
+            applicabilityConditions: textList(
+              requirement.applicabilityConditions,
+            ),
+            qualifiers: textList(requirement.qualifiers),
+            exceptions: textList(requirement.exceptions),
+            sources: requirement.provenance,
+          })),
+      },
+    ]),
+  );
+}
+
+/**
+ * Business purpose: Include the accepted frozen evidence and facts that a particular report
+ *   decision cites.
+ *
+ * Business rules:
+ * - Resolve references solely from the completion snapshot; include supporting evidence of
+ *   cited facts as well as directly cited evidence.
+ * - Retain stored commit and source locations without creating citations for missing records.
+ *
+ * Execution flow:
+ * 1. Collect the decision’s evidence and fact identities.
+ * 2. Select cited snapshot facts and add their supporting evidence identities.
+ * 3. Project matching frozen evidence and facts for the finding.
+ *
+ * Failure cases:
+ * - References missing from the snapshot produce no invented record; upstream completion
+ *   validation owns rejection of incomplete authority.
+ *
+ * Side effects:
+ * - None: pure projection of the supplied decision and frozen snapshot.
+ */
+function citedRecords(
+  decision: AssessmentFinalReportArtifact["findings"][number]["decision"],
+  snapshot: {
+    evidence: Array<{
+      evidenceId: string;
+      type: string;
+      repositoryCommit: string;
+      source: { path: string; startLine: number; endLine: number } | null;
+    }>;
+    facts: Array<{
+      factId: string;
+      kind: string;
+      authority: string;
+      statement: string;
+      evidenceIds: string[];
+    }>;
+  },
+) {
+  const evidenceIds = new Set<string>();
+  const factIds = new Set<string>();
+  for (const reference of ruleDecisionReferences(decision)) {
+    if (reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
+      evidenceIds.add(reference.evidenceId);
+    } else {
+      factIds.add(reference.factId);
+    }
+  }
+  const facts = snapshot.facts.filter((fact) => factIds.has(fact.factId));
+  for (const fact of facts) {
+    for (const evidenceId of fact.evidenceIds) evidenceIds.add(evidenceId);
+  }
+  return {
+    evidence: snapshot.evidence
+      .filter((item) => evidenceIds.has(item.evidenceId))
+      .map((item) => ({
+        evidenceId: item.evidenceId,
+        type: item.type,
+        repositoryCommit: item.repositoryCommit,
+        ...(item.source ?? {}),
+      })),
+    facts: facts.map((fact) => ({
+      factId: fact.factId,
+      kind: fact.kind,
+      authority: fact.authority,
+      statement: fact.statement,
+    })),
+  };
+}
+
+/**
+ * Business purpose: Enforce final-report completeness by rejecting unresolved placeholder
+ *   sentinel tokens or uncertainty expressions across authored summaries, findings,
+ *   decision rationales, criteria rationales, and recommendations.
+ *
+ * Business rules:
+ * - Placeholder sentinels (e.g. UNKNOWN, PARTIAL, NEEDS_CONTEXT, BLOCKED_UNKNOWN_FACT, TBD)
+ *   are evaluated case-sensitively so that valid natural-language prose (such as "partial elements")
+ *   is not erroneously flagged as an incomplete decision verdict.
+ * - Conversational indicators of incomplete resolution (such as "information still required",
+ *   "open questions", "unresolved fact", "to be determined") are evaluated case-insensitively.
+ *
+ * Execution flow:
+ * 1. Collect all narrative text from the report summary, finding summaries, decision rationales,
+ *    criterion rationales, and recommendations.
+ * 2. Scan every text string against both unresolved status sentinels and uncertainty phrases.
+ * 3. Throw a FINAL_REPORT_INVALID problem exception upon detecting any unresolved language.
+ *
+ * Failure cases:
+ * - Any occurrence of an unresolved status sentinel token or uncertainty phrase triggers an
+ *   UNPROCESSABLE_ENTITY (422) error with code FINAL_REPORT_INVALID.
+ *
+ * Side effects:
+ * - Pure validation function; no persistence or state mutations.
+ */
 function rejectUnresolvedLanguage(
   report: AssessmentFinalReportArtifact,
   correlationId: string,
@@ -66,7 +273,12 @@ function rejectUnresolvedLanguage(
       ...finding.recommendations,
     ]),
   ];
-  if (text.some((value) => unresolvedReportText.test(value))) {
+  if (
+    text.some(
+      (value) =>
+        unresolvedSentinelTokens.test(value) || unresolvedPhrases.test(value),
+    )
+  ) {
     throw problemException(
       ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
       correlationId,
@@ -86,6 +298,37 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
     private readonly storage: ArtifactStorageService,
   ) {}
 
+  /**
+   * Business purpose: Persist one integrity-checked final report and complete the eligible
+   *   Customer Assessment, with exact-request replay support.
+   *
+   * Business rules:
+   * - Authorize the Root lease; a new report requires FINALIZING and a blocker-free completion
+   *   snapshot.
+   * - Narrative rule identities must exactly cover frozen decisions; preserve pins, revisions,
+   *   decision fingerprints and source-backed legal/evidence/fact projections.
+   * - An existing ACTIVE report can be replayed only for the same request digest and verified
+   *   artifact identity, hash, byte size and decision fingerprint.
+   *
+   * Execution flow:
+   * 1. Authorize the execution and verify an existing report for idempotent replay, if present.
+   * 2. For a new report, enforce finalization eligibility and exact finding coverage.
+   * 3. Assemble pinned legal basis and frozen citations, validate the report and reject
+   *   unresolved report language.
+   * 4. Write the immutable artifact, persist BUILDING then ACTIVE metadata/events, and
+   *   transition the Assessment to COMPLETE.
+   *
+   * Failure cases:
+   * - Conflicting or damaged existing reports are rejected; wrong lifecycle, completion
+   *   blockers or mismatched findings prevent publication.
+   * - Schema, unresolved-language, storage and hash-verification failures propagate; database
+   *   failures roll back transactional metadata/events but cannot undo already written
+   *   immutable storage bytes.
+   *
+   * Side effects:
+   * - Writes immutable artifact bytes, report metadata and audit/runtime events, then completes
+   *   the lifecycle transaction; an exact replay only reads and verifies stored content.
+   */
   async execute(
     command: SubmitAssessmentFinalReportCommand,
   ): Promise<AssessmentFinalReportResult> {
@@ -218,6 +461,11 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         );
       }
 
+      const legalBasis = await loadLegalBasis(
+        tx,
+        snapshot.pins.ruleSetVersionId,
+        snapshot.decisions.map(({ decision }) => decision.assessmentRuleId),
+      );
       const artifactId = deterministicUuid(
         `${command.assessmentId}:${requestDigest}`,
       );
@@ -245,6 +493,8 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
             ...item,
             summary: narrative.summary,
             recommendations: narrative.recommendations,
+            legalBasis: legalBasis.get(item.decision.assessmentRuleId),
+            ...citedRecords(item.decision, snapshot),
           };
         }),
         provenance: {

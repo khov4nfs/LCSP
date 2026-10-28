@@ -12,6 +12,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import {
@@ -244,6 +245,25 @@ export class CapturingRecoveryNotifier {
 }
 
 export function pushPrismaSchema(): void {
+  rebuildPrismaSchema(["db", "push", "--accept-data-loss"]);
+}
+
+/**
+ * `db push` drops migration-only DDL (deferrable FKs, triggers, CHECKs); a suite that needs it
+ * restores the migrated schema when an earlier suite pushed the shared database.
+ */
+export async function ensureMigratedSchema(): Promise<void> {
+  const db = new PrismaClient({ adapter: new PrismaPg(TEST_DATABASE_URL) });
+  try {
+    const [{ migrated }] = await db.$queryRaw<{ migrated: boolean }[]>`
+      SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS migrated`;
+    if (!migrated) rebuildPrismaSchema(["migrate", "deploy"]);
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+function rebuildPrismaSchema(build: string[]): void {
   const cacheHome = resolve(apiRoot, ".cache");
   mkdirSync(cacheHome, { recursive: true });
 
@@ -269,7 +289,7 @@ export function pushPrismaSchema(): void {
     shell,
   });
 
-  execFileSync(prismaBinary, ["db", "push", "--accept-data-loss"], {
+  execFileSync(prismaBinary, build, {
     cwd: apiRoot,
     env,
     stdio: "pipe",

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force",
-    "export:rule-set-preparation-schema": "tsx scripts/export-rule-set-preparation-schema.ts"
+    "export:rule-set-preparation-schema": "tsx scripts/export-rule-set-preparation-schema.ts",
+    "test": "pnpm --dir ../../apps/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --roots ../../packages/contracts/test"
   },
   "exports": {
     ".": "./src/index.ts",
