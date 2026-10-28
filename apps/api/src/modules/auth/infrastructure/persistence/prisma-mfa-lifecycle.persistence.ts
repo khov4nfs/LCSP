@@ -79,7 +79,10 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
       // Rotating an existing verified factor requires proof for the currently active
       // generation and fresh password re-authentication.
       // An abandoned/unverified setup (user.mfaVerifiedAt === null) is safe to restart.
-      if (user.mfaEncryptedSecret !== null && user.mfaVerifiedAt !== null) {
+      const isRotation =
+        user.mfaEncryptedSecret !== null && user.mfaVerifiedAt !== null;
+
+      if (isRotation) {
         if (
           !authRecordMetadataDate(session, "mfaVerifiedAt") ||
           authRecordMetadataString(session, "mfaGenerationId") !==
@@ -89,16 +92,55 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         }
         if (
           !isSensitiveActionVerificationFresh(
-            authRecordMetadataDate(session, "sensitiveActionVerifiedAt"),
+            authRecordMetadataDate(session, "passwordReauthenticatedAt"),
             input.now,
           )
         ) {
           return { ok: false, code: AUTH_ERROR_CODES.reauthRequired };
         }
+
+        // Staged replacement:
+        // Do NOT overwrite user.mfaEncryptedSecret or clear user.mfaVerifiedAt on the User row.
+        // Stage the replacement secret and candidate recovery codes bound to the initiating session.
+        const candidateGenerationId = crypto.randomUUID();
+        await tx.authRecord.update({
+          where: { id: input.sessionId },
+          data: {
+            metadata: {
+              ...authRecordMetadata(session.metadata),
+              candidateMfaEnrollment: {
+                encryptedSecret: input.enrollment.encryptedSecret,
+                generationId: candidateGenerationId,
+                batchId: input.candidateBatchId,
+                enrolledAt: input.enrollment.enrolledAt,
+              },
+            },
+          },
+        });
+
+        await this.replaceCandidateCodeRecords(
+          tx,
+          input.userId,
+          candidateGenerationId,
+          input.candidateBatchId,
+          input.candidateCodes,
+          input.now,
+          user.mfaGenerationId,
+        );
+
+        await this.writeCodeAudit(
+          tx,
+          input.userId,
+          input.sessionId,
+          input.correlationId,
+          input.candidateBatchId,
+          input.candidateCodes.length,
+        );
+
+        return { ok: true, recoveryCodesCreated: true };
       }
 
-      // Rotate proofs and credentials under the same User lock/transaction.
-      // A failure to persist any step, including audit, rolls everything back.
+      // Initial unverified setup: save directly to User and replace codes
       const nextGenerationId = crypto.randomUUID();
       await tx.user.update({
         where: { id: input.userId },
@@ -242,13 +284,34 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         );
         if (!current.ok) return current;
         const { user, session } = current;
-        if (
-          !user.mfaEncryptedSecret ||
-          user.mfaEncryptedSecret !== input.expectedEncryptedSecret ||
-          !user.mfaEnrolledAt
-        ) {
-          return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+
+        if (input.candidate) {
+          const sessionCandidate = authRecordMetadata(session.metadata)
+            .candidateMfaEnrollment as
+            | {
+                encryptedSecret: string;
+                generationId: string;
+                batchId: string;
+                enrolledAt: number;
+              }
+            | undefined;
+          if (
+            !sessionCandidate ||
+            sessionCandidate.encryptedSecret !== input.candidate.encryptedSecret ||
+            sessionCandidate.generationId !== input.candidate.generationId
+          ) {
+            return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+          }
+        } else {
+          if (
+            !user.mfaEncryptedSecret ||
+            user.mfaEncryptedSecret !== input.expectedEncryptedSecret ||
+            !user.mfaEnrolledAt
+          ) {
+            return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+          }
         }
+
         if (user.mfaLockedUntil && user.mfaLockedUntil > new Date(input.now)) {
           return { ok: false, code: AUTH_ERROR_CODES.mfaRateLimited };
         }
@@ -304,6 +367,74 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
           }
         }
 
+        if (input.candidate) {
+          // Commit the staged rotation atomically
+          await tx.user.update({
+            where: { id: input.userId },
+            data: {
+              mfaEncryptedSecret: input.candidate.encryptedSecret,
+              mfaGenerationId: input.candidate.generationId,
+              mfaEnrolledAt: new Date(input.candidate.enrolledAt),
+              mfaVerifiedAt: new Date(input.now),
+              mfaRequired: true,
+              mfaFailedCount: 0,
+              mfaLockedUntil: null,
+            },
+          });
+          // Revoke old recovery codes
+          await tx.authRecord.updateMany({
+            where: {
+              userId: input.userId,
+              type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+              revokedAt: null,
+              usedAt: null,
+              NOT: {
+                metadata: {
+                  path: ["mfaGenerationId"],
+                  equals: input.candidate.generationId,
+                },
+              },
+            },
+            data: { revokedAt: new Date(input.now) },
+          });
+          await invalidateSessionProofsInTx(
+            tx,
+            input.userId,
+            input.candidate.generationId,
+          );
+          // Session that proved candidate secret becomes verified on new generation
+          await tx.authRecord.update({
+            where: { id: input.sessionId },
+            data: {
+              metadata: {
+                ...authRecordMetadata(session.metadata),
+                mfaVerifiedAt: new Date(input.now).toISOString(),
+                mfaGenerationId: input.candidate.generationId,
+                candidateMfaEnrollment: null,
+              },
+            },
+          });
+          await this.audit.writeInTx(
+            {
+              event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
+              actor_id: input.userId,
+              decision: AUDIT_DECISIONS.allow,
+              correlationId: input.correlationId,
+            },
+            this.auditWriter.forTransaction(tx),
+          );
+          await this.audit.writeInTx(
+            {
+              event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaVerified,
+              actor_id: input.userId,
+              decision: AUDIT_DECISIONS.allow,
+              correlationId: input.correlationId,
+            },
+            this.auditWriter.forTransaction(tx),
+          );
+          return { ok: true };
+        }
+
         // Proof consumption, account MFA state, session step-up and audit are
         // committed together. Failure leaves a recovery code reusable.
         await tx.user.update({
@@ -321,7 +452,6 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             metadata: {
               ...authRecordMetadata(session.metadata),
               mfaVerifiedAt: new Date(input.now).toISOString(),
-              sensitiveActionVerifiedAt: new Date(input.now).toISOString(),
               mfaGenerationId: user.mfaGenerationId,
             },
           },
@@ -357,6 +487,51 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
       }
       throw error;
     }
+  }
+
+  private async replaceCandidateCodeRecords(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    candidateGenerationId: string,
+    batchId: string,
+    codes: readonly MfaRecoveryCodeCreateInput[],
+    now: number,
+    activeGenerationId: string,
+  ): Promise<void> {
+    await tx.authRecord.updateMany({
+      where: {
+        userId,
+        type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+        revokedAt: null,
+        usedAt: null,
+        NOT: {
+          metadata: {
+            path: ["mfaGenerationId"],
+            equals: activeGenerationId,
+          },
+        },
+      },
+      data: { revokedAt: new Date(now) },
+    });
+    await tx.authRecord.createMany({
+      data: codes.map((record) => ({
+        id: record.id,
+        userId,
+        type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.mfaRecoveryCode,
+          userId,
+          record.codeHash,
+        ),
+        secretHash: record.codeHash,
+        metadata: {
+          batchId,
+          mfaGenerationId: candidateGenerationId,
+          candidate: true,
+        },
+        createdAt: new Date(now),
+      })),
+    });
   }
 
   private async lockAccountAndSession(

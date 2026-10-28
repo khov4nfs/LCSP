@@ -89,6 +89,17 @@ export class PrismaSessionRepository implements SessionRepository {
         sensitiveActionVerifiedAt: authRecordDateMetadata(
           session.sensitiveActionVerifiedAt,
         ),
+        passwordReauthenticatedAt: authRecordDateMetadata(
+          session.passwordReauthenticatedAt,
+        ),
+        candidateMfaEnrollment: session.candidateMfaEnrollment
+          ? {
+              encryptedSecret: session.candidateMfaEnrollment.encryptedSecret,
+              generationId: session.candidateMfaEnrollment.generationId,
+              batchId: session.candidateMfaEnrollment.batchId,
+              enrolledAt: session.candidateMfaEnrollment.enrolledAt,
+            }
+          : null,
       } satisfies Prisma.InputJsonObject;
       const existing = await tx.authRecord.findUnique({
         where: { id: session.id },

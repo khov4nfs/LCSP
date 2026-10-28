@@ -1223,6 +1223,9 @@ export const enPages = {
       recoveryCodeInvalidFormat: "Enter a valid recovery code.",
       requestFailedTitle: "Unable to verify",
       requestFailedDetail: "Unable to verify the code. Please try again.",
+      secretUnavailableTitle: "Authenticator secret unavailable",
+      secretUnavailableDetail:
+        "Your authenticator credential cannot be read. Please use a recovery code instead.",
     },
   },
   mfaEnroll: {

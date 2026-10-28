@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { useRouter } from "next/navigation";
 
+import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Field,
@@ -128,6 +129,14 @@ export function MfaVerifyForm({
         titleKey: "auth.errors.mfaRequired.title",
         detailKey: "auth.errors.mfaRequired.detail",
       });
+      return;
+    }
+    if (
+      outcome.kind === API_OUTCOME_KINDS.invalid &&
+      outcome.requiredAction === REQUIRED_ACTIONS.retryRecovery
+    ) {
+      setMethod(MFA_VERIFY_METHODS.recoveryCode);
+      setError(outcome);
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.rateLimited) {

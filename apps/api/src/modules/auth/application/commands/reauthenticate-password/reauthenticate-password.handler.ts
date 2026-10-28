@@ -41,10 +41,28 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
   ) {}
 
   /**
-   * Executes password re-authentication for the active session.
+   * Business purpose: Verify account password for step-up elevation (sudo mode) on sensitive actions.
    *
-   * @param command - Contains current password, userId, sessionId, and request metadata.
-   * @returns Verification success response.
+   * Business rules:
+   * - Caller must possess an active, unexpired session belonging to an active account.
+   * - Provided password must match the account password hash using constant-time verification.
+   * - Successful verification marks the session with both password-specific and general sensitive-action timestamps.
+   * - Password re-authentication is valid for 5 minutes and is generation-bound.
+   *
+   * Execution flow:
+   * 1. Validate caller identity and active session validity.
+   * 2. Verify account access status and match session user identity.
+   * 3. Validate submitted password against stored password hash with constant-time comparison.
+   * 4. Update session entity with fresh password re-authentication timestamps and persist.
+   * 5. Record security audit trail event for accepted verification.
+   *
+   * Failure cases:
+   * - Missing IDs or inactive session returns sessionInvalid.
+   * - Suspended account returns accountSuspended.
+   * - Password mismatch records failed login audit and throws invalidCredentials.
+   *
+   * Side effects:
+   * - Updates session record in persistence and records security audit trail.
    */
   async execute(
     command: ReauthenticatePasswordCommand,
@@ -89,7 +107,7 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
       });
     }
 
-    session.markSensitiveActionVerified(this.support.now());
+    session.markPasswordReauthenticated(this.support.now());
     await sessions.save(session);
 
     await this.support.recordAudit({

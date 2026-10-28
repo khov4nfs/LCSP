@@ -109,7 +109,10 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     }
 
     const enrollment = await mfaEnrollments.findByUserId(session.userId);
-    if (!enrollment) {
+    const targetEncryptedSecret =
+      session.candidateMfaEnrollment?.encryptedSecret ??
+      enrollment?.encryptedSecret;
+    if (!targetEncryptedSecret) {
       throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
@@ -140,7 +143,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
 
     let plaintextSecret: string;
     try {
-      plaintextSecret = this.cipher.decrypt(enrollment.encryptedSecret);
+      plaintextSecret = this.cipher.decrypt(targetEncryptedSecret);
     } catch {
       await this.recordFailedAttempt(
         session.userId,
@@ -167,10 +170,11 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     const proofResult = await this.lifecycle.verifyProof({
       userId: session.userId,
       sessionId: session.id,
-      expectedEncryptedSecret: enrollment.encryptedSecret,
+      expectedEncryptedSecret: targetEncryptedSecret,
       now,
       correlationId,
       proof: { kind: MFA_PROOF_TYPES.otp, otp },
+      candidate: session.candidateMfaEnrollment ?? null,
     });
     if (!proofResult.ok) {
       if (proofResult.code === AUTH_ERROR_CODES.mfaInvalid) {

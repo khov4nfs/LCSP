@@ -594,6 +594,7 @@ security review. This section reports local execution only.
    - *Problem:* Google OAuth sign-in projects `mfa_required: true` and routes to `/mfa/verify`, but provided no unified factor recovery path if the authenticator was lost.
    - *Resolution:* Preserved invariant that OAuth claims do not satisfy second factor possession. Unified the recovery path on the `/mfa/verify` screen, enabling users to switch directly to recovery code entry or access actionable support guidance without dead ends.
 
-4. **RC-4 (Auth HTTP error boundary simplification):**
-   - *Problem:* Duplicate `ApplicationError` hierarchy bypassed canonical `problemException` options and status overrides outside the configured HTTP filter.
-   - *Resolution:* Simplified `AuthApplicationError` to extend `HttpException` directly wrapping `problemException` while preserving reason-to-status resolution (e.g., `resourceNotFound` -> 404). Aligned import policy in `scripts/check-import-policy.mjs` and verified standard problem envelopes, error codes, and correlation IDs across all Auth endpoints.
+4. **RC-4 (Auth HTTP error boundary design):**
+   - *Problem:* Exception construction consistency between application-layer errors and HTTP problem envelopes.
+   - *Resolution:* Preserved the transport-neutral Clean Architecture boundary in the CQRS application layer, where `AuthApplicationError` extends `ApplicationError` without coupling use cases to HTTP transport concerns. Transport-level mapping to canonical problem envelopes (`{ ok: false, problem: { type, status, code, ... } }`) and HTTP status codes is centralized at the edge by `HttpExceptionFilter`. Verified standard problem envelopes, error codes, and correlation IDs across all Auth endpoints.
+

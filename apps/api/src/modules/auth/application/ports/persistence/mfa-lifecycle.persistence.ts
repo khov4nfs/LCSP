@@ -46,6 +46,12 @@ export type MfaProofCommit = {
   proof:
     | { kind: typeof MFA_PROOF_TYPES.otp; otp: string }
     | { kind: typeof MFA_PROOF_TYPES.recoveryCode; codeHash: string };
+  candidate?: {
+    encryptedSecret: string;
+    generationId: string;
+    batchId: string;
+    enrolledAt: number;
+  } | null;
 };
 
 export type MfaProofCommitResult =

@@ -1229,6 +1229,9 @@ export const viPages = {
       recoveryCodeInvalidFormat: "Nhập mã khôi phục hợp lệ.",
       requestFailedTitle: "Không thể xác minh",
       requestFailedDetail: "Không thể xác minh mã. Vui lòng thử lại.",
+      secretUnavailableTitle: "Mã bí mật xác thực không khả dụng",
+      secretUnavailableDetail:
+        "Không thể đọc thông tin xác thực. Vui lòng sử dụng mã khôi phục.",
     },
   },
   mfaEnroll: {

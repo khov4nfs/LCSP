@@ -5,7 +5,10 @@ export { MfaRateLimit } from "../entities/mfa-rate-limit.entity.ts";
 export { OAuthIdentity } from "../entities/oauth-identity.entity.ts";
 export { OAuthState } from "../entities/oauth-state.entity.ts";
 export { RecoveryRequest } from "../entities/recovery-request.entity.ts";
-export { Session } from "../entities/session.entity.ts";
+export {
+  Session,
+  type CandidateMfaEnrollment,
+} from "../entities/session.entity.ts";
 export { User } from "../entities/user.entity.ts";
 
 export type AuditEvent = Record<string, unknown> & {

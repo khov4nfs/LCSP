@@ -118,7 +118,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       if (!session.isMfaVerified(user.mfaGenerationId)) {
         throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
       }
-      if (!session.isSensitiveActionVerified(now)) {
+      if (!session.isPasswordReauthenticated(now, user.mfaGenerationId)) {
         throw authFailure(AUTH_ERROR_CODES.reauthRequired, correlationId);
       }
     }

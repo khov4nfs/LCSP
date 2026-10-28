@@ -1,4 +1,4 @@
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -19,7 +19,7 @@ function problem(code: string, status: number) {
       code,
       titleKey: "auth.errors.validationFailed.title",
       detailKey: "auth.errors.validationFailed.detail",
-      requiredAction: "none",
+      requiredAction: REQUIRED_ACTIONS.none,
       correlationId: "test-correlation",
     },
   };
@@ -58,6 +58,28 @@ test("invalid OTP responses use the shared non-leaking error contract", () => {
     toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.mfaInvalid, 403), false),
     expected,
   );
+});
+
+test("undecryptable TOTP secret returns retryRecovery action with specialized copy", () => {
+  const problemPayload = {
+    ok: false,
+    problem: {
+      type: "test/mfa-invalid",
+      status: 403,
+      code: AUTH_ERROR_CODES.mfaInvalid,
+      titleKey: "auth.errors.validationFailed.title",
+      detailKey: "auth.errors.validationFailed.detail",
+      requiredAction: REQUIRED_ACTIONS.retryRecovery,
+      correlationId: "test-correlation",
+    },
+  };
+
+  assert.deepEqual(toMfaVerifyOutcome(problemPayload, false), {
+    kind: "invalid",
+    requiredAction: REQUIRED_ACTIONS.retryRecovery,
+    titleKey: "pages.mfaVerify.errors.secretUnavailableTitle",
+    detailKey: "pages.mfaVerify.errors.secretUnavailableDetail",
+  });
 });
 
 test("MFA rate limiting returns a locked outcome", () => {

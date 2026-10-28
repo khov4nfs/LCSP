@@ -1151,6 +1151,8 @@ export type PagesMessages = {
       recoveryCodeInvalidFormat: string;
       requestFailedTitle: string;
       requestFailedDetail: string;
+      secretUnavailableTitle: string;
+      secretUnavailableDetail: string;
     };
   };
   mfaEnroll: {

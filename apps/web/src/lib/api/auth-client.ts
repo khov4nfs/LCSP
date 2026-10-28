@@ -9,6 +9,7 @@ import {
   type MfaRecoveryCodeAccessAction,
   type ProblemMeta,
   PROBLEM_KEYS,
+  REQUIRED_ACTIONS,
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
@@ -24,6 +25,7 @@ import {
   getProblemCode,
   getProblemMessageKeys,
   getProblemMeta,
+  getProblemRequiredAction,
 } from "./problem-envelope.ts";
 
 export type { MfaVerifyOutcome } from "./types/mfa-verify.types";
@@ -319,6 +321,25 @@ export function toSignUpOutcome(
   }
 }
 
+/**
+ * Business purpose: Map an MFA OTP or recovery-code verification API response to a typed UI outcome.
+ *
+ * Business rules:
+ * - Successful API verification maps directly to the verified outcome.
+ * - Decryption failures (retryRecovery required action) map to an invalid outcome with targeted recovery instructions.
+ * - Rate limiting, invalid codes, and session errors map to discrete domain-level error states.
+ *
+ * Execution flow:
+ * 1. Check if the HTTP response indicates success.
+ * 2. If rejected, extract problem code and required action metadata.
+ * 3. Return matching typed MfaVerifyOutcome variant with localized message keys.
+ *
+ * Failure cases:
+ * - Unrecognized failures fall back to a generic request failed outcome.
+ *
+ * Side effects:
+ * - None: pure mapping function.
+ */
 export function toMfaVerifyOutcome(
   payload: unknown,
   ok: boolean,
@@ -342,8 +363,20 @@ export function toMfaVerifyOutcome(
     return { kind: API_OUTCOME_KINDS.mfaRequired };
   }
   if (problemCode === AUTH_ERROR_CODES.mfaInvalid) {
+    const requiredAction = getProblemRequiredAction(payload);
+    if (requiredAction === REQUIRED_ACTIONS.retryRecovery) {
+      return {
+        kind: API_OUTCOME_KINDS.invalid,
+        requiredAction,
+        titleKey: "pages.mfaVerify.errors.secretUnavailableTitle",
+        detailKey: "pages.mfaVerify.errors.secretUnavailableDetail",
+      };
+    }
     return {
       kind: API_OUTCOME_KINDS.invalid,
+      ...(requiredAction && requiredAction !== REQUIRED_ACTIONS.none
+        ? { requiredAction }
+        : {}),
       titleKey: "auth.errors.mfaInvalid.title",
       detailKey: "auth.errors.mfaInvalid.detail",
     };

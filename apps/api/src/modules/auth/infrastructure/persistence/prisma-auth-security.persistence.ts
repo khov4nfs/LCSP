@@ -154,7 +154,7 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
       }
       if (
         !isSensitiveActionVerificationFresh(
-          authRecordMetadataDate(session, "sensitiveActionVerifiedAt"),
+          authRecordMetadataDate(session, "passwordReauthenticatedAt"),
           input.now,
         )
       ) {

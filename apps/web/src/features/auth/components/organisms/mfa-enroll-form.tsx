@@ -8,6 +8,7 @@ import {
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { MessageKey } from "@lcsp/i18n";
 import { resolveMessage } from "@lcsp/i18n";
 
 import {
@@ -16,11 +17,14 @@ import {
 } from "@lcsp/contracts/auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
 import { FormCard } from "@/components/organisms/form-card";
 import { appLocale } from "@/lib/locale";
 import {
+  useAuthSettingsProfileQuery,
   useMfaEnrollMutation,
   useMfaRecoveryCodeAccessMutation,
+  usePasswordReauthMutation,
 } from "@/lib/api/auth-queries";
 import {
   API_OUTCOME_KINDS,
@@ -31,11 +35,20 @@ import type { MfaEnrollErrorState } from "../../types/mfa-enroll.types";
 
 export function MfaEnrollForm() {
   const router = useRouter();
+  const profileQuery = useAuthSettingsProfileQuery();
   const enrollMutation = useMfaEnrollMutation();
   const recoveryCodeAccessMutation = useMfaRecoveryCodeAccessMutation();
+  const reauthMutation = usePasswordReauthMutation();
   const [totpUri, setTotpUri] = useState<string | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState<MfaEnrollErrorState>(null);
+  const [reauthOpen, setReauthOpen] = useState(false);
+  const [reauthError, setReauthError] = useState<{
+    titleKey?: MessageKey;
+    detailKey?: MessageKey;
+  } | null>(null);
+
+  const profile = profileQuery.data ?? null;
 
   async function handleEnroll() {
     setError(null);
@@ -65,10 +78,7 @@ export function MfaEnrollForm() {
     }
 
     if (outcome.kind === API_OUTCOME_KINDS.reauthRequired) {
-      setError({
-        titleKey: "auth.errors.reauthRequired.title",
-        detailKey: "auth.errors.reauthRequired.detail",
-      });
+      setReauthOpen(true);
       return;
     }
 
@@ -81,6 +91,50 @@ export function MfaEnrollForm() {
     }
 
     setError({
+      titleKey: "pages.mfaEnroll.errors.requestFailedTitle",
+      detailKey: "pages.mfaEnroll.errors.requestFailedDetail",
+    });
+  }
+
+  async function handleReauthPasswordSubmit(values: { password: string }) {
+    setReauthError(null);
+    const result = await reauthMutation
+      .mutateAsync({ password: values.password })
+      .catch(() => ({
+        kind: API_OUTCOME_KINDS.error,
+        titleKey: "pages.mfaEnroll.errors.requestFailedTitle" as const,
+        detailKey: "pages.mfaEnroll.errors.requestFailedDetail" as const,
+      }));
+
+    if (result.kind === API_OUTCOME_KINDS.verified) {
+      setReauthOpen(false);
+      setReauthError(null);
+      await handleEnroll();
+      return;
+    }
+
+    if (result.kind === API_OUTCOME_KINDS.invalid) {
+      setReauthError({
+        titleKey: "auth.errors.invalidCredentials.title",
+        detailKey: "auth.errors.invalidCredentials.detail",
+      });
+      return;
+    }
+
+    if (result.kind === API_OUTCOME_KINDS.sessionInvalid) {
+      router.replace(API_REDIRECT_LOCATIONS.signIn);
+      return;
+    }
+
+    if (result.kind === API_OUTCOME_KINDS.error) {
+      setReauthError({
+        titleKey: result.titleKey,
+        detailKey: result.detailKey,
+      });
+      return;
+    }
+
+    setReauthError({
       titleKey: "pages.mfaEnroll.errors.requestFailedTitle",
       detailKey: "pages.mfaEnroll.errors.requestFailedDetail",
     });
@@ -155,7 +209,8 @@ export function MfaEnrollForm() {
   }
 
   return (
-    <FormCard
+    <>
+      <FormCard
       eyebrow={resolveMessage(appLocale, "pages.mfaEnroll.formEyebrow")}
       title={resolveMessage(appLocale, "pages.mfaEnroll.formTitle")}
       description={resolveMessage(appLocale, "pages.mfaEnroll.formDescription")}
@@ -260,5 +315,31 @@ export function MfaEnrollForm() {
         ) : null}
       </div>
     </FormCard>
+    <ConfirmAccessDialog
+      open={reauthOpen}
+      onOpenChange={(open) => {
+        setReauthOpen(open);
+        if (!open) {
+          setReauthError(null);
+        }
+      }}
+      onPasswordSubmit={handleReauthPasswordSubmit}
+      accountLabelKey="pages.workspace.settingsHub.reauth.accountLabel"
+      accountHandle={profile?.email ?? ""}
+      avatarFallback={(profile?.email ?? "U").slice(0, 1).toUpperCase()}
+      titleKey="pages.workspace.settingsHub.reauth.title"
+      descriptionKey="pages.workspace.settingsHub.reauth.description"
+      passwordLabelKey="pages.signIn.passwordLabel"
+      passwordPlaceholderKey="pages.workspace.settingsHub.reauth.passwordPlaceholder"
+      forgotPasswordHref={API_REDIRECT_LOCATIONS.recoveryRequest}
+      forgotPasswordLabelKey="pages.signIn.forgotPassword"
+      supportTitleKey="pages.workspace.settingsHub.reauth.supportTitle"
+      confirmLabelKey="pages.workspace.settingsHub.reauth.confirm"
+      confirmingLabelKey="pages.workspace.settingsHub.reauth.confirming"
+      closeLabelKey="pages.workspace.settingsHub.reauth.close"
+      errorTitleKey={reauthError?.titleKey}
+      errorKey={reauthError?.detailKey ?? null}
+    />
+  </>
   );
 }
