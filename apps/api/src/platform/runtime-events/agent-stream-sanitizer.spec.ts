@@ -8,6 +8,21 @@ import {
 } from "./agent-stream-sanitizer.js";
 
 describe("agent stream sanitizer", () => {
+  it("preserves explicit JSON null fields and array entries while omitting unsupported values", () => {
+    expect(
+      sanitizeAgentStreamValue({
+        fromStatus: null,
+        values: [null, undefined, { nested: null }, false, 0],
+        unsupported: undefined,
+        api_key: "hidden",
+      }),
+    ).toEqual({
+      fromStatus: null,
+      values: [null, { nested: null }, false, 0],
+      api_key: "[REDACTED]",
+    });
+  });
+
   it("preserves whitespace and text beyond runtime-summary length", () => {
     const text = `  ${"x".repeat(500)}\n`;
     expect(sanitizeAgentStreamText(text)).toBe(text);
