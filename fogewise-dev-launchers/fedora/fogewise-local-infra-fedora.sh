@@ -4,6 +4,7 @@ set -Eeuo pipefail
 LAUNCHER_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 BASE_DIR="$(cd -- "$LAUNCHER_DIR/.." && pwd)"
 COMPOSE_FILE="$BASE_DIR/common/docker-compose.local-infra.yml"
+PRIVATE_ENV_FILE="$BASE_DIR/common/.env"
 HOSTS_FILE="/etc/hosts"
 
 step() {
@@ -17,12 +18,12 @@ fail() {
 
 compose_cmd() {
   if docker compose version >/dev/null 2>&1; then
-    docker compose "$@"
+    docker compose --env-file "$PRIVATE_ENV_FILE" "$@"
     return
   fi
 
   if command -v docker-compose >/dev/null 2>&1; then
-    docker-compose "$@"
+    docker-compose --env-file "$PRIVATE_ENV_FILE" "$@"
     return
   fi
 
@@ -86,8 +87,8 @@ print_summary() {
 [Fogewise] Local infra is ready for Fedora.
 
 Use these local endpoints from the host machine:
-  DATABASE_URL=postgresql://fogewise:6f9242d8c5d84112a7f8c7f11f6e6372b7f8b5b61a83b7a4@127.0.0.1:5432/lcsp_dev?schema=public
-  RABBITMQ_URL=amqp://fogewise:10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807@127.0.0.1:5672
+  DATABASE_URL=postgresql://fogewise:<password-from-private-local-config>@127.0.0.1:5432/lcsp_dev?schema=public
+  RABBITMQ_URL=amqp://fogewise:<password-from-private-local-config>@127.0.0.1:5672
 
 Useful checks:
   PostgreSQL: postgresql://fogewise@127.0.0.1:5432/lcsp_dev
@@ -98,9 +99,13 @@ EOF
 }
 
 [ -f "$COMPOSE_FILE" ] || fail "Compose file not found: $COMPOSE_FILE"
+[ -f "$PRIVATE_ENV_FILE" ] || fail "Private configuration missing. Copy common/.env.example to common/.env and set the three passwords."
 
 step "Ensuring Docker is available"
 ensure_docker
+
+step "Validating private local infrastructure configuration"
+compose_cmd -f "$COMPOSE_FILE" config --quiet
 
 step "Ensuring host alias for fogewise-redis"
 ensure_hosts_alias

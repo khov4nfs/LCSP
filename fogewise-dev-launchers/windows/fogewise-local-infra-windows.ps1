@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $LauncherDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BaseDir = Split-Path -Parent $LauncherDir
 $ComposeFile = Join-Path $BaseDir "common\docker-compose.local-infra.yml"
+$PrivateEnvFile = Join-Path $BaseDir "common\.env"
 $HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
 
 function Step([string]$Message) {
@@ -22,7 +23,7 @@ function Invoke-Compose([string[]]$ComposeArgs) {
     $ErrorActionPreference = "Continue"
     $PSNativeCommandUseErrorActionPreference = $false
     try {
-        & docker compose @ComposeArgs
+        & docker compose --env-file $PrivateEnvFile @ComposeArgs
         $exitCode = $LASTEXITCODE
     }
     finally {
@@ -48,6 +49,10 @@ function Ensure-Docker {
     try {
         & docker info *> $null
         $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            $dockerOs = [string](& docker info --format "{{.OSType}}")
+            $exitCode = $LASTEXITCODE
+        }
     }
     finally {
         $ErrorActionPreference = $previousErrorPreference
@@ -56,6 +61,9 @@ function Ensure-Docker {
 
     if ($exitCode -ne 0) {
         Fail "Docker Desktop is not running or this terminal cannot access Docker."
+    }
+    if ($dockerOs.Trim() -ne "linux") {
+        Fail "Docker Desktop must use Linux containers for PostgreSQL, RabbitMQ, and Redis."
     }
 }
 
@@ -121,9 +129,15 @@ function Wait-ForHealthyContainer([string]$ContainerName, [string]$Label, [int]$
 if (-not (Test-Path $ComposeFile)) {
     Fail "Compose file not found: $ComposeFile"
 }
+if (-not (Test-Path $PrivateEnvFile)) {
+    Fail "Private configuration missing. Copy common/.env.example to common/.env and set the three passwords."
+}
 
 Step "Ensuring Docker Desktop is available"
 Ensure-Docker
+
+Step "Validating private local infrastructure configuration"
+Invoke-Compose @("-f", $ComposeFile, "config", "--quiet")
 
 Step "Ensuring host alias for fogewise-redis"
 Ensure-HostsAlias
@@ -143,8 +157,8 @@ Write-Host ""
 Write-Host "[Fogewise] Local infra is ready for Windows." -ForegroundColor Green
 Write-Host ""
 Write-Host "Use these local endpoints from the host machine:"
-Write-Host "  DATABASE_URL=postgresql://fogewise:6f9242d8c5d84112a7f8c7f11f6e6372b7f8b5b61a83b7a4@127.0.0.1:5432/lcsp_dev?schema=public"
-Write-Host "  RABBITMQ_URL=amqp://fogewise:10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807@127.0.0.1:5672"
+Write-Host "  DATABASE_URL=postgresql://fogewise:<password-from-private-local-config>@127.0.0.1:5432/lcsp_dev?schema=public"
+Write-Host "  RABBITMQ_URL=amqp://fogewise:<password-from-private-local-config>@127.0.0.1:5672"
 Write-Host ""
 Write-Host "Useful checks:"
 Write-Host "  RabbitMQ UI: http://127.0.0.1:15672"
