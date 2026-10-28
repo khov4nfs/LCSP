@@ -10,6 +10,7 @@ import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   HUMAN_RESOLUTION_REQUEST_STATUSES,
+  RULE_DECISION_REFERENCE_TYPES,
 } from "@lcsp/contracts/assessment";
 import { AssessmentProvenanceLoader } from "./assessment-provenance.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -161,7 +162,12 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
                     type: "ASSESSMENT_EVIDENCE",
                     evidenceId,
                   },
-                ],
+                ] as Array<{
+                  type: string;
+                  evidenceId?: string;
+                  factId?: string;
+                  caseRevision?: number;
+                }>,
               },
             ],
             compliance: "COMPLIANT",
@@ -257,6 +263,81 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
 }
 
 describe("AssessmentProvenanceLoader", () => {
+  it.each([1, 2, 3])(
+    "preserves a fact created at revision 1 when referenced by a decision at revision %i",
+    async (decisionRevision) => {
+      const record = buildValidRecord();
+      const decision = record.domainCase.decisions[0];
+      decision.caseRevision = decisionRevision;
+      decision.decision.caseRevision = decisionRevision;
+      const reference = {
+        type: RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT,
+        factId,
+        caseRevision: decisionRevision,
+      };
+      decision.decision.references = [reference];
+      decision.decision.criteria[0].references = [reference];
+      const originalCase = structuredClone(record.domainCase);
+      const prisma = {
+        assessment: { findUnique: () => Promise.resolve(record) },
+      } as unknown as PrismaService;
+
+      const result = await new AssessmentProvenanceLoader(prisma).load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      });
+
+      expect(result.acceptedFacts[0].caseRevision).toBe(1);
+      expect(result.decisions[0].decision.references).toEqual([reference]);
+      expect(result.decisions[0].decision.criteria[0].references).toEqual([
+        reference,
+      ]);
+      expect(record.domainCase).toEqual(originalCase);
+    },
+  );
+
+  it.each([
+    { factRevision: 2, decisionRevision: 1, referenceRevision: 1 },
+    { factRevision: 1, decisionRevision: 3, referenceRevision: 1 },
+  ])(
+    "rejects invalid fact/reference revision pins: %j",
+    async ({ factRevision, decisionRevision, referenceRevision }) => {
+      const record = buildValidRecord();
+      record.domainCase.facts[0].caseRevision = factRevision;
+      const decision = record.domainCase.decisions[0];
+      decision.caseRevision = decisionRevision;
+      decision.decision.caseRevision = decisionRevision;
+      decision.decision.references = [
+        {
+          type: RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT,
+          factId,
+          caseRevision: referenceRevision,
+        },
+      ];
+      const prisma = {
+        assessment: { findUnique: () => Promise.resolve(record) },
+      } as unknown as PrismaService;
+
+      await expect(
+        new AssessmentProvenanceLoader(prisma).load({
+          assessmentId,
+          sessionUserId: ownerId,
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          problem: expect.objectContaining({
+            code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+          }),
+        }),
+      });
+    },
+  );
+
   it("preserves a human request opening event's required null previous status", async () => {
     const record = buildValidRecord({
       events: [
