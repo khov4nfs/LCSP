@@ -1,0 +1,81 @@
+{
+  "checkedAtUtc": "2026-10-28T02:22:12.265539+00:00",
+  "database": "lcsp360_cheatshield_acceptance_20261026",
+  "host": "127.0.0.1",
+  "hostPort": 55496,
+  "transactionReadOnly": true,
+  "scope": "Retained isolated acceptance database; no API, native runtime, inference or assessment writes",
+  "assessments": [
+    {
+      "assessmentId": "14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+      "lifecycleState": "COMPLETE",
+      "threadId": "0dc89d04-eeef-40c4-bee3-9335df18b182",
+      "executionState": "SUCCEEDED",
+      "hasActiveLease": false,
+      "checkpointId": "1f1d1f9b-9523-61cb-97f3-a6afe617c660",
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+      "caseRevision": 14,
+      "decisionStates": {
+        "ACCEPTED": 243,
+        "INVALIDATED": 378
+      },
+      "humanRequestStates": {
+        "RESOLVED": 13
+      },
+      "activeFinalReport": {
+        "artifactId": "abbac41c-1746-5665-a8c9-7ec6be246644",
+        "contentSha256": "sha256:a7fd2602901777561b02b3fe13b4308b4640004286bc5d72fcccfcb32696bf13",
+        "sizeBytes": 1763911
+      }
+    },
+    {
+      "assessmentId": "3343efe1-d18f-42ba-8db1-ec65d6792721",
+      "lifecycleState": "COMPLETE",
+      "threadId": "bae1ecb0-1544-4dee-b8ab-65656504d3fb",
+      "executionState": "SUCCEEDED",
+      "hasActiveLease": false,
+      "checkpointId": "1f1d1d31-8b1e-60f1-8ed8-4fedf35efea6",
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "4f74f7f3-3af5-4825-a889-e4b8331ee584",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+      "caseRevision": 31,
+      "decisionStates": {
+        "ACCEPTED": 243
+      },
+      "humanRequestStates": {
+        "RESOLVED": 3
+      },
+      "activeFinalReport": {
+        "artifactId": "81a8e33c-8f79-563a-bc9f-080c8d3e55af",
+        "contentSha256": "sha256:27e48883fa2ae4bf409b9096641faa6841f7282fdc358c8972fb6106f4602f6c",
+        "sizeBytes": 1822949
+      }
+    },
+    {
+      "assessmentId": "43c4b233-8632-4dba-952a-41d04cbcc3cd",
+      "lifecycleState": "COMPLETE",
+      "threadId": "b1fa3183-e918-4690-9cbc-91a9209cd068",
+      "executionState": "SUCCEEDED",
+      "hasActiveLease": false,
+      "checkpointId": "1f1d22ea-cf31-653f-828b-47f864a92f31",
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "6c14e386-8cfb-41a2-9d24-f5ac16c9d006",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+      "caseRevision": 5,
+      "decisionStates": {
+        "ACCEPTED": 243,
+        "INVALIDATED": 256
+      },
+      "humanRequestStates": {
+        "RESOLVED": 3
+      },
+      "activeFinalReport": {
+        "artifactId": "54176a70-3e11-54d3-8307-b00c5a769c32",
+        "contentSha256": "sha256:8c0c8ed292da8494d90e584b97fd393fa829834729be2bd5cc49d645d5f703e3",
+        "sizeBytes": 1792931
+      }
+    }
+  ]
+}

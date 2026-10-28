@@ -23,94 +23,114 @@ Execution flow:
 
 Failure cases:
 - Any scenario violating source authority or inferring facts from repo silence fails.
+- Existing receipt paths are rejected before inference; provider failures propagate.
 
 Side effects:
-- Writes verification report to disk.
+- Dispatches paid inference against synthetic fixtures and exclusively creates the requested receipt.
+- Does not mutate persisted Customer Assessments or their historical decisions.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
-import os
 import sys
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "deepagents"))
 sys.path.insert(0, str(ROOT / "deepagents/tests"))
 
-from vertical.live_preparation import _load_llm_env
-
-_load_llm_env()
-
-from assessment_root.agent import create_assessment_root_agent
-from assessment_root.runner import TaskLineage
+from assessment_root.agent import ROOT_INSTRUCTIONS, create_assessment_root_agent
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import BaseMessage, message_to_dict, messages_to_dict
 from langgraph.checkpoint.memory import InMemorySaver
 from model_policy import resolve_agent_model
 from test_assessment_root_agent import PINS, THREAD
 from test_assessment_semantic_reliability import SemanticFakeClient, _setup_semantic_test
+from vertical.live_preparation import _load_llm_env
 
 
 class ScenarioTrace(BaseCallbackHandler):
+    """Retain complete isolated-fixture receipts, correlated by native callback identity."""
+
+    raise_error = True
+
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self.tool_calls: list[dict[str, Any]] = []
+        self._model_runs: dict[UUID, dict[str, Any]] = {}
+        self._tool_runs: dict[UUID, dict[str, Any]] = {}
         self.input_tokens = 0
         self.output_tokens = 0
         self.cached_tokens = 0
         self.reasoning_tokens = 0
+        self.usage_complete = True
 
-    def on_llm_end(self, response: Any, **kwargs: Any) -> None:
+    def on_chat_model_start(
+        self, serialized: Any, messages: list[list[BaseMessage]], *, run_id: UUID,
+        parent_run_id: UUID | None = None, **kwargs: Any,
+    ) -> None:
+        receipt = {
+            "callIndex": len(self.calls) + 1,
+            "runId": str(run_id),
+            "parentRunId": str(parent_run_id) if parent_run_id else None,
+            "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "inputMessages": [messages_to_dict(batch) for batch in messages],
+            "status": "RUNNING",
+        }
+        self._model_runs[run_id] = receipt
+        self.calls.append(receipt)
+
+    def on_llm_end(self, response: Any, *, run_id: UUID, **kwargs: Any) -> None:
+        receipt = self._model_runs[run_id]
+        receipt["outputMessages"] = [
+            message_to_dict(gen.message) for batch in response.generations for gen in batch
+        ]
+        receipt["status"] = "COMPLETED"
         for generations in response.generations:
             for gen in generations:
-                msg = getattr(gen, "message", None)
-                usage = getattr(msg, "usage_metadata", {}) or {}
-                tcs = getattr(msg, "tool_calls", []) or []
-                in_tok = int(usage.get("input_tokens", 0))
-                out_tok = int(usage.get("output_tokens", 0))
-                cache_tok = int((usage.get("input_token_details") or {}).get("cache_read", 0))
-                reason_tok = int((usage.get("output_token_details") or {}).get("reasoning", 0))
-                self.input_tokens += in_tok
-                self.output_tokens += out_tok
-                self.cached_tokens += cache_tok
-                self.reasoning_tokens += reason_tok
-                self.calls.append({
-                    "callIndex": len(self.calls) + 1,
-                    "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "contentSnippet": str(getattr(msg, "content", ""))[:400],
-                    "toolCalls": [
-                        tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", str(tc))
-                        for tc in tcs
-                    ],
-                    "inputTokens": in_tok,
-                    "outputTokens": out_tok,
-                    "cachedTokens": cache_tok,
-                    "reasoningTokens": reason_tok,
-                })
+                usage = gen.message.usage_metadata or {}
+                if usage.get("input_tokens") is None or usage.get("output_tokens") is None:
+                    self.usage_complete = False
+                self.input_tokens += int(usage.get("input_tokens") or 0)
+                self.output_tokens += int(usage.get("output_tokens") or 0)
+                self.cached_tokens += int((usage.get("input_token_details") or {}).get("cache_read") or 0)
+                self.reasoning_tokens += int((usage.get("output_token_details") or {}).get("reasoning") or 0)
 
-    def on_tool_start(self, serialized: Any, input_str: Any, **kwargs: Any) -> None:
+    def on_llm_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
+        self._model_runs[run_id].update(status="ERROR", error={"type": type(error).__name__, "message": str(error)})
+        self.usage_complete = False
+
+    def on_tool_start(
+        self, serialized: Any, input_str: Any, *, run_id: UUID,
+        parent_run_id: UUID | None = None, **kwargs: Any,
+    ) -> None:
         tool_name = (serialized or {}).get("name", "unknown")
-        self.tool_calls.append({
+        receipt = {
             "callIndex": len(self.tool_calls) + 1,
+            "runId": str(run_id),
+            "parentRunId": str(parent_run_id) if parent_run_id else None,
             "tool": tool_name,
-            "inputSnippet": str(input_str)[:400],
+            "input": input_str,
             "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        })
+            "status": "RUNNING",
+        }
+        self._tool_runs[run_id] = receipt
+        self.tool_calls.append(receipt)
 
-    def on_tool_end(self, output: Any, **kwargs: Any) -> None:
-        content = str(getattr(output, "content", output))
-        if self.tool_calls:
-            self.tool_calls[-1]["outputSnippet"] = content[:400]
-        else:
-            self.tool_calls.append({
-                "callIndex": 1,
-                "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "outputSnippet": content[:400],
-            })
+    def on_tool_end(self, output: Any, *, run_id: UUID, **kwargs: Any) -> None:
+        self._tool_runs[run_id].update(
+            status="COMPLETED",
+            output=message_to_dict(output) if isinstance(output, BaseMessage) else str(output),
+        )
+
+    def on_tool_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
+        self._tool_runs[run_id].update(status="ERROR", error={"type": type(error).__name__, "message": str(error)})
 
 
 def run_scenario_a(model: Any) -> dict[str, Any]:
@@ -168,6 +188,7 @@ def run_scenario_a(model: Any) -> dict[str, Any]:
             "cachedTokens": trace.cached_tokens,
             "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
+            "usageComplete": trace.usage_complete,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
     }
@@ -250,12 +271,30 @@ def run_scenario_b(model: Any) -> dict[str, Any]:
             "cachedTokens": trace.cached_tokens,
             "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
+            "usageComplete": trace.usage_complete,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
     }
 
 
 def run_scenario_c(model: Any) -> dict[str, Any]:
+    """Business purpose:
+    Verify the live model responds to the fixture's affirmative operator and unmet-duty facts.
+
+    Business rules:
+    - This offline scenario expects applicability and an unmet criterion citing their respective facts.
+    - A COMPLIANT summary cannot satisfy this fixture's explicit NOT_MET criterion.
+
+    Execution flow:
+    1. Provide the simulated operator and missing-regulation facts to Native DeepAgents.
+    2. Invoke the existing Root and inspect the model-authored decision and source references.
+
+    Failure cases:
+    - Missing, contradictory or incorrectly referenced findings fail this scenario.
+
+    Side effects:
+    - Dispatches paid inference and retains in-memory fixture calls; never changes Customer decisions.
+    """
     print("\n================== Scenario C: Opposite State Department Fact ==================")
     tmp_dir = Path(tempfile.mkdtemp())
     rule_id = "ANM-2025-Art23-Rule-Docs"
@@ -327,7 +366,7 @@ def run_scenario_c(model: Any) -> dict[str, Any]:
     success = (
         len(decisions) == 1
         and dec.get("applicability") == "APPLICABLE"
-        and dec.get("compliance") in ("COMPLIANT", "NON_COMPLIANT")
+        and dec.get("compliance") == "NON_COMPLIANT"
         and has_fact1_ref
         and has_est_basis
         and has_criteria_eval
@@ -353,6 +392,7 @@ def run_scenario_c(model: Any) -> dict[str, Any]:
             "cachedTokens": trace.cached_tokens,
             "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
+            "usageComplete": trace.usage_complete,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
     }
@@ -439,12 +479,34 @@ def run_scenario_d(model: Any) -> dict[str, Any]:
             "cachedTokens": trace.cached_tokens,
             "reasoningTokens": trace.reasoning_tokens,
             "totalTokens": trace.input_tokens + trace.output_tokens,
+            "usageComplete": trace.usage_complete,
         },
         "verdict": "VERIFIED_PASS" if success else "FAILED",
     }
 
 
-def main():
+def main(out_file: Path) -> int:
+    """Business purpose:
+    Produce an independently reviewable receipt for four live-model fixture scenarios.
+
+    Business rules:
+    - Historical receipts must never be overwritten; scenario failure must fail the process.
+    - Fixture results do not establish Customer semantic acceptance or provider billing settlement.
+
+    Execution flow:
+    1. Reject an existing output path before resolving a model or dispatching inference.
+    2. Execute the four isolated scenarios with the configured native model.
+    3. Persist their receipts and return the aggregate scenario result to the caller.
+
+    Failure cases:
+    - Existing output paths and provider failures propagate; any failed scenario returns exit code 1.
+
+    Side effects:
+    - Loads secure model configuration, dispatches paid inference and exclusively creates one receipt.
+    """
+    if out_file.exists():
+        raise FileExistsError(f"Preserve existing verification receipt: {out_file}")
+    _load_llm_env()
     print("=== Native DeepAgents Operator-Identity Negative Control Verification ===")
     model = resolve_agent_model("assessment-root")
     print(f"Model: {model.model_name}")
@@ -458,6 +520,11 @@ def main():
     summary = {
         "timestampUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "scope": "UNIT_LEVEL_NEGATIVE_CONTROL_VERIFICATION",
+        "receiptVersion": 2,
+        "verifierSha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "rootInstructionsSha256": hashlib.sha256(ROOT_INSTRUCTIONS.encode()).hexdigest(),
+        "fixtureKind": "SYNTHETIC_RULE_AND_REPOSITORY",
+        "fixturePins": PINS,
         "testedRuleId": "ANM-2025-Art23-Rule-Docs",
         "model": model.model_name,
         "note": (
@@ -468,15 +535,21 @@ def main():
         "totalModelCalls": sum(r["actualBehavior"]["modelTurnsCount"] for r in results),
         "totalToolCalls": sum(r["actualBehavior"]["toolCallsCount"] for r in results),
         "totalTokens": sum(r["telemetry"]["totalTokens"] for r in results),
+        "usageComplete": all(r["telemetry"]["usageComplete"] for r in results),
         "scenarios": results,
         "overallVerdict": "PASS" if all(r["verdict"] == "VERIFIED_PASS" for r in results) else "FAIL",
     }
 
-    out_file = ROOT / "docs/implementation-artifacts/lcsp360-cheatshield-20261026/operator-identity-negative-controls.json"
-    out_file.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
+    with out_file.open("x", encoding="utf-8") as receipt:
+        json.dump(summary, receipt, indent=2, default=str)
     print(f"\nVerification complete. Summary written to {out_file}")
     print(f"Overall verdict: {summary['overallVerdict']}")
+    return 0 if summary["overallVerdict"] == "PASS" else 1
 
 
 if __name__ == "__main__":
-    main()
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True, help="New receipt path; existing files are preserved")
+    raise SystemExit(main(parser.parse_args().output))
