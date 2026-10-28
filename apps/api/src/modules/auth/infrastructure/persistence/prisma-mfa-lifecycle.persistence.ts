@@ -79,10 +79,7 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
       // Rotating an existing verified factor requires proof for the currently active
       // generation and fresh password re-authentication.
       // An abandoned/unverified setup (user.mfaVerifiedAt === null) is safe to restart.
-      if (
-        user.mfaEncryptedSecret !== null &&
-        user.mfaVerifiedAt !== null
-      ) {
+      if (user.mfaEncryptedSecret !== null && user.mfaVerifiedAt !== null) {
         if (
           !authRecordMetadataDate(session, "mfaVerifiedAt") ||
           authRecordMetadataString(session, "mfaGenerationId") !==

@@ -85,7 +85,10 @@ export class Session {
    * Side effects:
    * - None: evaluates the stored proof identity without mutating state.
    */
-  isSensitiveActionVerified(now: number, currentGenerationId?: string): boolean {
+  isSensitiveActionVerified(
+    now: number,
+    currentGenerationId?: string,
+  ): boolean {
     if (currentGenerationId && this.mfaGenerationId !== currentGenerationId) {
       return false;
     }

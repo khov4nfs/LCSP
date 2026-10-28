@@ -8,12 +8,13 @@ import {
   type ProblemOptions,
 } from "../../../../platform/http/filters/error.factory.js";
 
-const APPLICATION_FAILURE_HTTP_STATUS: Record<ApplicationErrorReason, number> = {
-  [APPLICATION_ERROR_REASONS.resourceAlreadyExists]: 409,
-  [APPLICATION_ERROR_REASONS.resourceNotFound]: 404,
-  [APPLICATION_ERROR_REASONS.authenticationRequired]: 401,
-  [APPLICATION_ERROR_REASONS.accessDenied]: 403,
-};
+const APPLICATION_FAILURE_HTTP_STATUS: Record<ApplicationErrorReason, number> =
+  {
+    [APPLICATION_ERROR_REASONS.resourceAlreadyExists]: 409,
+    [APPLICATION_ERROR_REASONS.resourceNotFound]: 404,
+    [APPLICATION_ERROR_REASONS.authenticationRequired]: 401,
+    [APPLICATION_ERROR_REASONS.accessDenied]: 403,
+  };
 
 export type AuthApplicationOptions = ProblemOptions & {
   reason?: ApplicationErrorReason;
@@ -28,10 +29,16 @@ export class AuthApplicationError extends HttpException {
   readonly correlationId: string;
   readonly reason?: ApplicationErrorReason;
 
-  constructor(code: string, correlationId: string, options?: AuthApplicationOptions) {
+  constructor(
+    code: string,
+    correlationId: string,
+    options?: AuthApplicationOptions,
+  ) {
     const status =
       options?.status ??
-      (options?.reason ? APPLICATION_FAILURE_HTTP_STATUS[options.reason] : undefined);
+      (options?.reason
+        ? APPLICATION_FAILURE_HTTP_STATUS[options.reason]
+        : undefined);
     const exc = problemException(code, correlationId, {
       ...options,
       status,

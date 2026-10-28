@@ -164,11 +164,21 @@ describe("EnrollMfaHandler", () => {
     const handler = new EnrollMfaHandler(
       support as never,
       { findById: jest.fn(() => Promise.resolve(session)) } as never,
-      { findByUserId: jest.fn(() => Promise.resolve(existingEnrollment)) } as never,
-      { findByUserId: jest.fn(() => Promise.resolve([])), nextBatchId: () => "b1", nextId: () => "c1" } as never,
+      {
+        findByUserId: jest.fn(() => Promise.resolve(existingEnrollment)),
+      },
+      {
+        findByUserId: jest.fn(() => Promise.resolve([])),
+        nextBatchId: () => "b1",
+        nextId: () => "c1",
+      } as never,
       { findById: jest.fn(() => Promise.resolve(activeUser)) } as never,
       { encrypt: () => "encrypted", decrypt: () => "secret" },
-      { enroll: jest.fn(() => Promise.resolve({ ok: true, recoveryCodesCreated: true })) } as never,
+      {
+        enroll: jest.fn(() =>
+          Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -217,11 +227,21 @@ describe("EnrollMfaHandler", () => {
     const handler = new EnrollMfaHandler(
       support as never,
       { findById: jest.fn(() => Promise.resolve(session)) } as never,
-      { findByUserId: jest.fn(() => Promise.resolve(existingEnrollment)) } as never,
-      { findByUserId: jest.fn(() => Promise.resolve([])), nextBatchId: () => "b1", nextId: () => "c1" } as never,
+      {
+        findByUserId: jest.fn(() => Promise.resolve(existingEnrollment)),
+      },
+      {
+        findByUserId: jest.fn(() => Promise.resolve([])),
+        nextBatchId: () => "b1",
+        nextId: () => "c1",
+      } as never,
       { findById: jest.fn(() => Promise.resolve(activeUser)) } as never,
       { encrypt: () => "encrypted", decrypt: () => "secret" },
-      { enroll: jest.fn(() => Promise.resolve({ ok: true, recoveryCodesCreated: true })) } as never,
+      {
+        enroll: jest.fn(() =>
+          Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+        ),
+      } as never,
     );
 
     let thrown: unknown;
@@ -270,11 +290,21 @@ describe("EnrollMfaHandler", () => {
     const handler = new EnrollMfaHandler(
       support as never,
       { findById: jest.fn(() => Promise.resolve(session)) } as never,
-      { findByUserId: jest.fn(() => Promise.resolve(abandonedEnrollment)) } as never,
-      { findByUserId: jest.fn(() => Promise.resolve([])), nextBatchId: () => "b1", nextId: () => "c1" } as never,
+      {
+        findByUserId: jest.fn(() => Promise.resolve(abandonedEnrollment)),
+      },
+      {
+        findByUserId: jest.fn(() => Promise.resolve([])),
+        nextBatchId: () => "b1",
+        nextId: () => "c1",
+      } as never,
       { findById: jest.fn(() => Promise.resolve(activeUser)) } as never,
       { encrypt: () => "encrypted", decrypt: () => "secret" },
-      { enroll: jest.fn(() => Promise.resolve({ ok: true, recoveryCodesCreated: true })) } as never,
+      {
+        enroll: jest.fn(() =>
+          Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+        ),
+      } as never,
     );
 
     const result = await handler.execute(
