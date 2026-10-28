@@ -10,6 +10,7 @@ import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
+import { isSensitiveActionVerificationFresh } from "../../../../platform/security/sensitive-route-policy.js";
 import type {
   AuthSecurityPersistence,
   DisableMfaCommit,
@@ -99,15 +100,17 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
    *
    * Business rules:
    * - The initiator must present current-generation verified MFA proof.
+   * - The session must present fresh password re-authentication proof (sensitiveActionVerifiedAt).
    * - All session MFA/sensitive proofs and recovery codes must be invalidated in the same transaction.
    *
    * Execution flow:
    * 1. Lock and authenticate the owning user/session against the current generation.
-   * 2. Clear the MFA enrollment and rotate the account proof generation.
-   * 3. Clear all session proofs, revoke recovery codes, delete old OTP markers and write audit.
+   * 2. Verify sensitive-action freshness.
+   * 3. Clear the MFA enrollment and rotate the account proof generation.
+   * 4. Clear all session proofs, revoke recovery codes, delete old OTP markers and write audit.
    *
    * Failure cases:
-   * - Stale session proof rejects disable without changing the factor.
+   * - Stale session proof or missing/expired password re-auth rejects disable without changing the factor.
    * - Any write or audit failure rolls back the entire disable operation.
    *
    * Side effects:
@@ -148,6 +151,14 @@ export class PrismaAuthSecurityPersistence implements AuthSecurityPersistence {
         user.mfaVerifiedAt === null
       ) {
         return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+      }
+      if (
+        !isSensitiveActionVerificationFresh(
+          authRecordMetadataDate(session, "sensitiveActionVerifiedAt"),
+          input.now,
+        )
+      ) {
+        return { ok: false, code: AUTH_ERROR_CODES.reauthRequired };
       }
       if (!user.mfaEncryptedSecret || !user.mfaEnrolledAt) return { ok: true };
 

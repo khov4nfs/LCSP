@@ -11,6 +11,8 @@ type SessionInput = {
   sensitiveActionVerifiedAt?: number | null;
 };
 
+export const SENSITIVE_ACTION_REAUTH_TTL_MS = 5 * 60_000;
+
 export class Session {
   readonly id: string;
   readonly userId: string;
@@ -63,6 +65,33 @@ export class Session {
     return (
       this.mfaVerifiedAt !== null &&
       this.mfaGenerationId === currentGenerationId
+    );
+  }
+
+  /**
+   * Business purpose: Determine whether the session has valid, non-expired step-up reauthentication proof.
+   *
+   * Business rules:
+   * - Verification must be non-null and within the sensitive action TTL (5 minutes).
+   * - If an active generation is provided, the session's generation must match.
+   *
+   * Execution flow:
+   * 1. Check generation match if provided.
+   * 2. Verify sensitiveActionVerifiedAt is fresh against current time.
+   *
+   * Failure cases:
+   * - Expired timestamp or mismatched generation returns false.
+   *
+   * Side effects:
+   * - None: evaluates the stored proof identity without mutating state.
+   */
+  isSensitiveActionVerified(now: number, currentGenerationId?: string): boolean {
+    if (currentGenerationId && this.mfaGenerationId !== currentGenerationId) {
+      return false;
+    }
+    return (
+      this.sensitiveActionVerifiedAt !== null &&
+      now - this.sensitiveActionVerifiedAt <= SENSITIVE_ACTION_REAUTH_TTL_MS
     );
   }
 

@@ -10,6 +10,7 @@ import { Prisma, type AuthRecord, type User } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
+import { isSensitiveActionVerificationFresh } from "../../../../platform/security/sensitive-route-policy.js";
 import { MFA_PROOF_TYPES } from "../../application/ports/persistence/mfa-lifecycle.persistence.ts";
 import type {
   MfaEnrollmentCommit,
@@ -42,18 +43,19 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
    * Business purpose: Install a new TOTP generation and rotate all account backup credentials.
    *
    * Business rules:
-   * - An existing MFA secret requires verified proof of its current generation to rotate.
+   * - An existing verified MFA secret requires verified proof of its current generation and fresh password re-auth to rotate.
+   * - Unverified/abandoned enrollments can be restarted without prior factor proof.
    * - Prior recovery codes and all session step-up proofs must become invalid in one transaction.
    * - A new backup batch must not be used before the replacement TOTP has been verified.
    *
    * Execution flow:
-   * 1. Lock the User and originating session, then verify the existing credential generation.
+   * 1. Lock the User and originating session, then verify the existing credential generation and sensitive-action freshness.
    * 2. Advance the generation and replace the encrypted TOTP secret.
    * 3. Invalidate all session proofs, used TOTP history and active recovery codes.
    * 4. Persist the new code batch and security audit atomically.
    *
    * Failure cases:
-   * - Unverified/stale sessions or obsolete secrets are rejected without mutation.
+   * - Unverified/stale sessions, obsolete secrets, or missing password step-up are rejected without mutation.
    * - Failed audit or database writes roll back the entire rotation.
    *
    * Side effects:
@@ -74,16 +76,28 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
       }
 
-      // Rotating an existing factor requires proof for the currently active
-      // generation. A password-only session may not replace undecryptable MFA.
+      // Rotating an existing verified factor requires proof for the currently active
+      // generation and fresh password re-authentication.
+      // An abandoned/unverified setup (user.mfaVerifiedAt === null) is safe to restart.
       if (
         user.mfaEncryptedSecret !== null &&
-        (user.mfaVerifiedAt === null ||
+        user.mfaVerifiedAt !== null
+      ) {
+        if (
           !authRecordMetadataDate(session, "mfaVerifiedAt") ||
           authRecordMetadataString(session, "mfaGenerationId") !==
-            user.mfaGenerationId)
-      ) {
-        return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+            user.mfaGenerationId
+        ) {
+          return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+        }
+        if (
+          !isSensitiveActionVerificationFresh(
+            authRecordMetadataDate(session, "sensitiveActionVerifiedAt"),
+            input.now,
+          )
+        ) {
+          return { ok: false, code: AUTH_ERROR_CODES.reauthRequired };
+        }
       }
 
       // Rotate proofs and credentials under the same User lock/transaction.

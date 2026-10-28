@@ -18,6 +18,7 @@ export const API_OUTCOME_KINDS = {
   notFound: "not_found",
   passwordTooShort: "password_too_short",
   rateLimited: "rate_limited",
+  reauthRequired: "reauth_required",
   redirect: "redirect",
   requested: "requested",
   resolved: "resolved",

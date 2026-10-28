@@ -65,18 +65,19 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
    * Business purpose: Start a fresh TOTP enrollment or securely rotate a proven existing factor.
    *
    * Business rules:
-   * - An existing factor can be replaced only by a proof for its current MFA generation.
+   * - An existing verified factor can be replaced only by proof for its current MFA generation and fresh password re-authentication.
+   * - Unverified or abandoned enrollments can be restarted without prior factor proof.
    * - Every new secret revokes old backup codes and invalidates all session step-up proofs atomically.
    * - A password-only session cannot recover ciphertext that has become undecryptable.
    *
    * Execution flow:
-   * 1. Validate the owning active session and existing MFA proof generation.
+   * 1. Validate the owning active session and existing MFA proof generation and sensitive re-auth freshness.
    * 2. Create an encrypted TOTP secret and one candidate recovery-code batch.
    * 3. Commit the new generation, code replacement, session invalidation and audit in one transaction.
    * 4. Return the TOTP URI and only the recovery codes actually committed.
    *
    * Failure cases:
-   * - Missing, stale or unverified session proof rejects MFA replacement without changing credentials.
+   * - Missing, stale or unverified session proof or missing password step-up rejects MFA replacement without changing credentials.
    * - Transactional audit or persistence failure rolls back secret, code and proof changes together.
    *
    * Side effects:
@@ -109,15 +110,18 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
-    const existingEnrollment = await mfaEnrollments.findByUserId(userId);
-    // A password-only session must never rotate the factor. If ciphertext
-    // cannot be decrypted, recovery needs a separately authorized support
-    // flow; it is not equivalent to MFA proof.
-    if (existingEnrollment && !session.isMfaVerified(user.mfaGenerationId)) {
-      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
-    }
-
     const now = this.support.now();
+    const existingEnrollment = await mfaEnrollments.findByUserId(userId);
+    // Rotating an existing verified factor requires verified MFA for the current generation
+    // and fresh password re-authentication. Unverified initial/abandoned enrollments can be restarted.
+    if (existingEnrollment?.verifiedAt) {
+      if (!session.isMfaVerified(user.mfaGenerationId)) {
+        throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      }
+      if (!session.isSensitiveActionVerified(now)) {
+        throw authFailure(AUTH_ERROR_CODES.reauthRequired, correlationId);
+      }
+    }
     const plainSecret = generateTotpSecret();
     const encryptedSecret = this.cipher.encrypt(plainSecret);
     const enrollment = new MfaEnrollment({

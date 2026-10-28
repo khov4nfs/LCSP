@@ -567,3 +567,33 @@ security review. This section reports local execution only.
    rather than resetting security controls as part of this change.
 3. Deprecated import facades should remain until all consuming modules are
    migrated and tests prove they can be removed safely.
+
+## PR #430 follow-up: MFA reauthentication proof semantics and lost-MFA UX resolution (2026-10-28)
+
+**Review baseline:** merge commit `c828878eb8dd32c75c8866285b2774a58f9a6c03` / PR #430 (`LCSP-999`).
+
+### Product and security policy decision
+
+**Strict 2FA policy:**
+1. A pending-MFA session (e.g. after password sign-in or Google OAuth login) cannot reset or rebind MFA using password reauthentication alone. Allowing password-only rebind for pending-MFA sessions would enable an attacker with a compromised password to bypass the second factor entirely.
+2. A user who loses their primary authenticator (TOTP) must use an issued recovery code to verify their second factor, or have an existing active session with verified second factor (`mfaVerifiedAt`).
+3. For already-MFA-verified sessions, sensitive operations (re-enrolling/replacing MFA via `POST /auth/mfa/enroll` or disabling MFA via `DELETE /auth/mfa`) require fresh password re-authentication (`@ReAuthForSensitiveRoute`, TTL 5 minutes) to protect against unattended session hijacking.
+4. Abandoned initial/replacement enrollments (`mfaVerifiedAt === null`) are safe to restart without prior factor proof, preventing accounts from being stranded when setup is interrupted before the first OTP is verified.
+
+### Root causes and remediation
+
+1. **RC-1 (Inconsistent proof semantics between password re-auth and MFA replacement):**
+   - *Problem:* `POST /auth/re-auth/password` wrote `sensitiveActionVerifiedAt` to session metadata, but `EnrollMfaHandler` and `PrismaMfaLifecyclePersistence.enroll` only checked `mfaVerifiedAt` and exact generation. Conversely, `DELETE /auth/mfa` and `POST /auth/mfa/enroll` lacked sensitive route protection, allowing replacement without fresh password proof.
+   - *Resolution:* Added `Session.isSensitiveActionVerified(now, currentGenerationId)` checking fresh password re-auth (5-minute TTL). Both `EnrollMfaHandler` and the database transaction in `PrismaMfaLifecyclePersistence.enroll` enforce that replacing an existing verified MFA factor requires BOTH active MFA verification (`isMfaVerified`) AND fresh password reauthentication (`isSensitiveActionVerified`). If missing/expired, returns `AUTH_ERROR_CODES.reauthRequired` with `REQUIRED_ACTIONS.reauthRequired`. Added `@ReAuthForSensitiveRoute` to `DELETE /auth/mfa` and enforced fresh sensitive proof in `disableMfa` transaction.
+
+2. **RC-2 (Verify ↔ enroll bounce and stranded setups):**
+   - *Problem:* `VerifyMfaOtpHandler` threw `mfaRequired` on secret decryption failure, causing web verify to navigate to `/mfa/enroll`, while web enroll redirected back to `/mfa/verify` on `mfaRequired`. Furthermore, `PrismaMfaLifecyclePersistence.enroll` rejected any enrollment if `user.mfaVerifiedAt === null`, permanently locking abandoned setups.
+   - *Resolution:* `VerifyMfaOtpHandler` returns `AUTH_ERROR_CODES.mfaInvalid` with `REQUIRED_ACTIONS.retryRecovery` when ciphertext decryption fails, prompting the user directly to use a recovery code instead of bouncing. `EnrollMfaHandler` and `PrismaMfaLifecyclePersistence.enroll` permit unverified/abandoned enrollments (`user.mfaVerifiedAt === null`) to restart without requiring factor proof. On the web frontend (`mfa-verify-form.tsx`), interactive state allows toggling between TOTP and recovery code in place on the same screen, and error outcomes render actionable inline alerts rather than redirect bounces.
+
+3. **RC-3 (OAuth MFA funnel unification):**
+   - *Problem:* Google OAuth sign-in projects `mfa_required: true` and routes to `/mfa/verify`, but provided no unified factor recovery path if the authenticator was lost.
+   - *Resolution:* Preserved invariant that OAuth claims do not satisfy second factor possession. Unified the recovery path on the `/mfa/verify` screen, enabling users to switch directly to recovery code entry or access actionable support guidance without dead ends.
+
+4. **RC-4 (Auth HTTP error boundary simplification):**
+   - *Problem:* Duplicate `ApplicationError` hierarchy bypassed canonical `problemException` options and status overrides outside the configured HTTP filter.
+   - *Resolution:* Simplified `AuthApplicationError` to extend `HttpException` directly wrapping `problemException` while preserving reason-to-status resolution (e.g., `resourceNotFound` -> 404). Aligned import policy in `scripts/check-import-policy.mjs` and verified standard problem envelopes, error codes, and correlation IDs across all Auth endpoints.

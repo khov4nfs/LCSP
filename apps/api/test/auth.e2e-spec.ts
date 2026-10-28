@@ -54,6 +54,7 @@ import {
 
 import {
   AUTH_RECORD_TYPE,
+  authRecordMetadata,
   authRecordMetadataString,
   createAuthSessionRecord,
   findLatestAuthSession,
@@ -910,7 +911,7 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaRateLimited);
   });
 
-  it("undecryptable MFA secrets redirect verification back to enrollment", async () => {
+  it("undecryptable MFA secrets fail verification safely and suggest recovery code retry without enrollment bounce", async () => {
     const originalKey = process.env.MFA_SECRET_ENCRYPTION_KEY;
     process.env.MFA_SECRET_ENCRYPTION_KEY = "1".repeat(64);
     const signIn = await signInApprovedUser();
@@ -926,7 +927,11 @@ describe("Auth workspace (e2e)", () => {
         .expect(403);
 
       const failure = expectFailure(result.body);
-      assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaRequired);
+      assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaInvalid);
+      assert.equal(
+        failure.problem.requiredAction,
+        REQUIRED_ACTIONS.retryRecovery,
+      );
     } finally {
       process.env.MFA_SECRET_ENCRYPTION_KEY = originalKey;
     }
@@ -937,6 +942,10 @@ describe("Auth workspace (e2e)", () => {
     process.env.MFA_SECRET_ENCRYPTION_KEY = "1".repeat(64);
     const signIn = await signInApprovedUser();
     await seedMfaEnrollment(prisma, fixture.approvedUser.id);
+    await prisma.user.update({
+      where: { id: fixture.approvedUser.id },
+      data: { mfaVerifiedAt: new Date() },
+    });
     const oldUser = await prisma.user.findUniqueOrThrow({
       where: { id: fixture.approvedUser.id },
     });
@@ -1124,20 +1133,50 @@ describe("Auth workspace (e2e)", () => {
   // Review follow-ups: MFA hardening, mandatory-MFA policy, profile safety, recovery flow
 
   it("re-enrolling MFA requires a verified session so a stolen pre-MFA session cannot replace the secret", async () => {
-    const signIn = await signInApprovedUser();
-    await httpRequest(app)
+    const sessionA = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
       .post("/auth/mfa/enroll")
-      .set("Authorization", `Bearer ${signIn.session_token}`)
-      .send({ session_token: signIn.session_token })
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({ session_token: sessionA.session_token })
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(enrolled);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(totpSecretFromUri(s1.totp_uri), Date.now()),
+      })
       .expect(201);
 
+    const stolenPreMfaSession = await signInApprovedUser();
     const reEnroll = await httpRequest(app)
       .post("/auth/mfa/enroll")
-      .set("Authorization", `Bearer ${signIn.session_token}`)
-      .send({ session_token: signIn.session_token })
+      .set("Authorization", `Bearer ${stolenPreMfaSession.session_token}`)
+      .send({ session_token: stolenPreMfaSession.session_token })
       .expect(403);
 
     assert.equal(problemCode(reEnroll), AUTH_ERROR_CODES.mfaRequired);
+  });
+
+  it("initial enrollment abandoned before OTP verification allows safely restarting setup", async () => {
+    const session = await signInApprovedUser();
+    const firstEnroll = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(firstEnroll);
+    assert.ok(s1.totp_uri);
+
+    // Abandoned setup: user restarts enrollment without verifying OTP
+    const restartEnroll = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(201);
+    const s2 = successBody<EnrollMfaSuccess>(restartEnroll);
+    assert.ok(s2.totp_uri);
+    assert.ok(s2.recovery_codes.length > 0);
   });
 
   it("rotation revokes S1 recovery codes and step-up proofs across A/B/C sessions", async () => {
@@ -1511,6 +1550,116 @@ describe("Auth workspace (e2e)", () => {
       .expect(200);
 
     assert.equal(successBody<UpdateProfileSuccess>(result).ok, true);
+  });
+
+  it("disabling MFA requires fresh password re-auth and rejects when sensitive proof is missing", async () => {
+    const session = await signInAndVerifyApprovedUser();
+    // Clear sensitive action proof while keeping MFA verified
+    const sessionRecord = await findLatestAuthSession(
+      prisma,
+      fixture.approvedUser.id,
+    );
+    assert.ok(sessionRecord);
+    await prisma.authRecord.update({
+      where: { id: sessionRecord.id },
+      data: {
+        metadata: {
+          ...authRecordMetadata(sessionRecord),
+          sensitiveActionVerifiedAt: null,
+        },
+      },
+    });
+
+    const denied = await httpRequest(app)
+      .delete("/auth/mfa")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .expect(403);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.reauthRequired);
+
+    // Re-authenticate password
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({
+        session_token: session.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Now disable succeeds
+    await httpRequest(app)
+      .delete("/auth/mfa")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .expect(200);
+  });
+
+  it("re-enrolling verified MFA requires fresh password re-auth and succeeds after re-auth", async () => {
+    const session = await signInAndVerifyApprovedUser();
+    // Clear sensitive action proof while keeping MFA verified
+    const sessionRecord = await findLatestAuthSession(
+      prisma,
+      fixture.approvedUser.id,
+    );
+    assert.ok(sessionRecord);
+    await prisma.authRecord.update({
+      where: { id: sessionRecord.id },
+      data: {
+        metadata: {
+          ...authRecordMetadata(sessionRecord),
+          sensitiveActionVerifiedAt: null,
+        },
+      },
+    });
+
+    const denied = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(403);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.reauthRequired);
+
+    // Re-authenticate password
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({
+        session_token: session.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Now re-enroll succeeds
+    const replacement = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(201);
+    assert.ok(successBody<EnrollMfaSuccess>(replacement).totp_uri);
+  });
+
+  it("pending-MFA session with successful password re-auth cannot rebind without factor proof (strict 2FA)", async () => {
+    await signInAndVerifyApprovedUser();
+    // New sign-in on MFA-enrolled user is pending MFA
+    const pendingSession = await signInApprovedUser();
+    assert.equal(pendingSession.mfa_required, true);
+
+    // Password re-auth succeeds
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${pendingSession.session_token}`)
+      .send({
+        session_token: pendingSession.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Attempting to enroll/rebind without MFA factor proof fails with MFA_REQUIRED
+    const denied = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${pendingSession.session_token}`)
+      .send({ session_token: pendingSession.session_token })
+      .expect(403);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.mfaRequired);
   });
 
   it("profile update rejects a malformed recovery_email", async () => {

@@ -2,6 +2,7 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
+  REQUIRED_ACTIONS,
 } from "@lcsp/contracts/auth";
 import { Inject, Logger } from "@nestjs/common";
 
@@ -71,10 +72,26 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
   ) {}
 
   /**
-   * Executes TOTP OTP verification.
+   * Business purpose: Verify time-based one-time password (OTP) and elevate the session to MFA-verified.
    *
-   * @param command - Contains sessionToken, otp code, and request correlation metadata.
-   * @returns Success response with correlation ID.
+   * Business rules:
+   * - Session must be active and unexpired.
+   * - Must not exceed failed attempt rate limits (5 attempts per 15 minutes).
+   * - TOTP secret must be decryptable and OTP must match with clock skew tolerance (+/- 1 step).
+   * - Replayed OTPs within the replay protection window must be rejected.
+   * - On success, elevates session MFA status and records audit atomically.
+   *
+   * Execution flow:
+   * 1. Validate session and rate limit status.
+   * 2. Decrypt secret; if undecryptable, reject with retryRecovery required action.
+   * 3. Verify OTP against current time; check replay protection.
+   * 4. Atomically commit proof, session elevation, and audit via lifecycle persistence.
+   *
+   * Failure cases:
+   * - Invalid session, rate-limited lockout, undecryptable secret, or wrong OTP rejects elevation and increments failure counters.
+   *
+   * Side effects:
+   * - Consumes OTP token, elevates session, records security audit events.
    */
   async execute(command: VerifyMfaOtpCommand): Promise<VerifyMfaOtpSuccess> {
     const { sessionToken, otp, requestMeta } = command;
@@ -131,7 +148,9 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "decrypt_error",
       );
-      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId, {
+        requiredAction: REQUIRED_ACTIONS.retryRecovery,
+      });
     }
 
     const valid = verifyTotpOtp(plaintextSecret, otp, now);

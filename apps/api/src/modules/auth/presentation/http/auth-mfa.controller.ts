@@ -71,11 +71,17 @@ export class AuthMfaController {
 
   /**
    * Guarded MFA disable endpoint.
-   * Disables MFA for the authenticated user.
+   * Disables MFA for the authenticated user, requiring recent sensitive-action re-authentication.
    */
   @Delete()
   @UseGuards(RbacGuard)
   @RequireSession()
+  @ReAuthForSensitiveRoute({
+    routeId: SENSITIVE_ROUTE_IDS.mfaDisable,
+    method: "DELETE",
+    pathTemplate: "/auth/mfa",
+    aliases: [{ method: "DELETE", pathTemplate: "/api/auth/mfa" }],
+  })
   async disableMfa(
     @Req() request: AuthenticatedRequest,
   ): Promise<DisableMfaSuccess> {

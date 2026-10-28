@@ -57,11 +57,33 @@ export function MfaEnrollForm() {
     }
 
     if (outcome.kind === API_OUTCOME_KINDS.mfaRequired) {
-      router.replace(API_REDIRECT_LOCATIONS.mfaVerify);
+      setError({
+        titleKey: "auth.errors.mfaRequired.title",
+        detailKey: "auth.errors.mfaRequired.detail",
+      });
       return;
     }
 
-    setError(outcome);
+    if (outcome.kind === API_OUTCOME_KINDS.reauthRequired) {
+      setError({
+        titleKey: "auth.errors.reauthRequired.title",
+        detailKey: "auth.errors.reauthRequired.detail",
+      });
+      return;
+    }
+
+    if (outcome.kind === API_OUTCOME_KINDS.error) {
+      setError({
+        titleKey: outcome.titleKey,
+        detailKey: outcome.detailKey,
+      });
+      return;
+    }
+
+    setError({
+      titleKey: "pages.mfaEnroll.errors.requestFailedTitle",
+      detailKey: "pages.mfaEnroll.errors.requestFailedDetail",
+    });
   }
 
   async function logRecoveryCodeAccess(action: MfaRecoveryCodeAccessAction) {
@@ -72,11 +94,21 @@ export function MfaEnrollForm() {
         titleKey: "pages.mfaEnroll.errors.requestFailedTitle" as const,
         detailKey: "pages.mfaEnroll.errors.requestFailedDetail" as const,
       }));
-    if (outcome.kind !== API_OUTCOME_KINDS.saved) {
-      setError(outcome);
-      return false;
+    if (outcome.kind === API_OUTCOME_KINDS.saved) {
+      return true;
     }
-    return true;
+    if (outcome.kind === API_OUTCOME_KINDS.error) {
+      setError({
+        titleKey: outcome.titleKey,
+        detailKey: outcome.detailKey,
+      });
+    } else {
+      setError({
+        titleKey: "pages.mfaEnroll.errors.requestFailedTitle",
+        detailKey: "pages.mfaEnroll.errors.requestFailedDetail",
+      });
+    }
+    return false;
   }
 
   async function handleCopyRecoveryCodes() {

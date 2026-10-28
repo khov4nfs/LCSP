@@ -67,6 +67,7 @@ export type EnrollMfaOutcome =
       recoveryCodes: string[];
     }
   | { kind: typeof API_OUTCOME_KINDS.mfaRequired }
+  | { kind: typeof API_OUTCOME_KINDS.reauthRequired }
   | { kind: typeof API_OUTCOME_KINDS.sessionInvalid }
   | {
       kind: typeof API_OUTCOME_KINDS.error;
@@ -85,6 +86,7 @@ export type MfaRecoveryCodeAccessOutcome =
 export type DisableMfaOutcome =
   | { kind: typeof API_OUTCOME_KINDS.disabled }
   | { kind: typeof API_OUTCOME_KINDS.mfaRequired }
+  | { kind: typeof API_OUTCOME_KINDS.reauthRequired }
   | { kind: typeof API_OUTCOME_KINDS.sessionInvalid }
   | {
       kind: typeof API_OUTCOME_KINDS.error;
@@ -384,6 +386,26 @@ export async function verifyMfaRecoveryCode(
   return toMfaVerifyOutcome(payload, ok, problemCode);
 }
 
+/**
+ * Business purpose: Map raw MFA enrollment API response into strongly typed client outcomes.
+ *
+ * Business rules:
+ * - Successful responses must yield loaded outcome with TOTP URI and recovery codes.
+ * - Session invalid, MFA required, and reauth required are mapped to discrete UI outcome kinds.
+ * - Generic problem responses extract localized title and detail keys.
+ *
+ * Execution flow:
+ * 1. Check success response and presence of totp_uri string.
+ * 2. Check problemCode for sessionInvalid, mfaRequired, and reauthRequired.
+ * 3. Extract localized problem keys if available.
+ * 4. Fallback to generic requestFailed outcome.
+ *
+ * Failure cases:
+ * - Non-200 responses map to typed failure outcomes without throwing.
+ *
+ * Side effects:
+ * - None: pure mapping function.
+ */
 export function toEnrollMfaOutcome(
   payload: unknown,
   ok: boolean,
@@ -417,6 +439,10 @@ export function toEnrollMfaOutcome(
 
   if (problemCode === AUTH_ERROR_CODES.mfaRequired) {
     return { kind: API_OUTCOME_KINDS.mfaRequired };
+  }
+
+  if (problemCode === AUTH_ERROR_CODES.reauthRequired) {
+    return { kind: API_OUTCOME_KINDS.reauthRequired };
   }
 
   const problemKeys = getProblemMessageKeys(payload);
@@ -474,6 +500,26 @@ export async function recordMfaRecoveryCodeAccess(
 
 export { MFA_RECOVERY_CODE_ACCESS_ACTIONS };
 
+/**
+ * Business purpose: Map raw MFA disable API response into strongly typed client outcomes.
+ *
+ * Business rules:
+ * - Successful delete responses yield disabled outcome.
+ * - Session invalid, MFA required, and reauth required map to discrete UI outcome kinds.
+ * - Other problems extract localized title and detail keys.
+ *
+ * Execution flow:
+ * 1. Check success response.
+ * 2. Check problemCode for sessionInvalid, mfaRequired, and reauthRequired.
+ * 3. Extract localized problem keys if available.
+ * 4. Fallback to generic disableFailed outcome.
+ *
+ * Failure cases:
+ * - Non-200 responses map to typed failure outcomes without throwing.
+ *
+ * Side effects:
+ * - None: pure mapping function.
+ */
 export function toDisableMfaOutcome(
   payload: unknown,
   ok: boolean,
@@ -489,6 +535,10 @@ export function toDisableMfaOutcome(
 
   if (problemCode === AUTH_ERROR_CODES.mfaRequired) {
     return { kind: API_OUTCOME_KINDS.mfaRequired };
+  }
+
+  if (problemCode === AUTH_ERROR_CODES.reauthRequired) {
+    return { kind: API_OUTCOME_KINDS.reauthRequired };
   }
 
   const problemKeys = getProblemMessageKeys(payload);

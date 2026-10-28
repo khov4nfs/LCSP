@@ -64,6 +64,7 @@ export function MfaVerifyForm({
   const router = useRouter();
   const mfaVerifyMutation = useMfaVerifyMutation();
   const recoveryCodeVerifyMutation = useMfaRecoveryCodeVerifyMutation();
+  const [method, setMethod] = useState<MfaVerifyMethod>(initialMethod);
   const [error, setError] = useState<MfaVerifyError>();
   const [isLocked, setIsLocked] = useState(false);
   const form = useForm<MfaVerifyFormValues>({
@@ -74,7 +75,7 @@ export function MfaVerifyForm({
     resolver: zodResolver(mfaRecoveryCodeVerifySchema),
     defaultValues: { code: "" },
   });
-  const isRecoveryCode = initialMethod === MFA_VERIFY_METHODS.recoveryCode;
+  const isRecoveryCode = method === MFA_VERIFY_METHODS.recoveryCode;
   const otpError = form.formState.errors.otp?.message;
   const recoveryCodeError = recoveryCodeForm.formState.errors.code?.message;
   const isSubmitting =
@@ -123,7 +124,10 @@ export function MfaVerifyForm({
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.mfaRequired) {
-      router.replace(API_REDIRECT_LOCATIONS.mfaEnroll);
+      setError({
+        titleKey: "auth.errors.mfaRequired.title",
+        detailKey: "auth.errors.mfaRequired.detail",
+      });
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.rateLimited) {
@@ -159,6 +163,10 @@ export function MfaVerifyForm({
           isSubmitting={isSubmitting}
           onSubmit={recoveryCodeForm.handleSubmit(onRecoveryCodeSubmit)}
           control={recoveryCodeForm.control}
+          onSwitchMethod={() => {
+            setError(undefined);
+            setMethod(MFA_VERIFY_METHODS.otp);
+          }}
         />
       ) : (
         <OtpForm
@@ -168,6 +176,10 @@ export function MfaVerifyForm({
           isSubmitting={isSubmitting}
           control={form.control}
           onSubmit={form.handleSubmit(onSubmit)}
+          onSwitchMethod={() => {
+            setError(undefined);
+            setMethod(MFA_VERIFY_METHODS.recoveryCode);
+          }}
         />
       )}
     </AuthFormSurface>
@@ -181,6 +193,7 @@ function OtpForm({
   isSubmitting,
   control,
   onSubmit,
+  onSwitchMethod,
 }: {
   error?: MfaVerifyError;
   otpError?: string;
@@ -188,6 +201,7 @@ function OtpForm({
   isSubmitting: boolean;
   control: Control<MfaVerifyFormValues>;
   onSubmit: () => void;
+  onSwitchMethod: () => void;
 }) {
   return (
     <>
@@ -270,6 +284,10 @@ function OtpForm({
       </form>
       <AuthInlineLink
         href={API_REDIRECT_LOCATIONS.mfaRecoveryCode}
+        onClick={(event: React.MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onSwitchMethod();
+        }}
         className="mt-[40px] self-center"
       >
         {resolveMessage(appLocale, "pages.mfaVerify.moreOptions")}
@@ -288,6 +306,7 @@ function RecoveryCodeForm({
   isSubmitting,
   onSubmit,
   control,
+  onSwitchMethod,
 }: {
   error?: MfaVerifyError;
   recoveryCodeError?: string;
@@ -295,6 +314,7 @@ function RecoveryCodeForm({
   isSubmitting: boolean;
   onSubmit: () => void;
   control: Control<MfaRecoveryCodeVerifyFormValues>;
+  onSwitchMethod: () => void;
 }) {
   return (
     <>
@@ -364,6 +384,10 @@ function RecoveryCodeForm({
       </form>
       <AuthInlineLink
         href={API_REDIRECT_LOCATIONS.mfaVerify}
+        onClick={(event: React.MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onSwitchMethod();
+        }}
         className="mt-[22px] self-start"
       >
         {resolveMessage(appLocale, "pages.mfaVerify.useAuthenticator")}
