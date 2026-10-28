@@ -61,6 +61,7 @@ jobs:
             release_gate:
               - '.dockerignore'
               - '.github/workflows/test.yml'
+              - 'fogewise-dev-launchers/**'
               - 'apps/api/**'
               - 'apps/web/**'
               - 'deepagents/**'
@@ -549,7 +550,11 @@ jobs:
           pnpm --version
 
       - name: Run Windows launcher security tests
-        run: node --test scripts/dev-entry-command.test.mjs
+        run: node --test scripts/dev-entry-command.test.mjs scripts/local-infra-launcher.test.mjs
+
+      - name: Validate PowerShell syntax and mocked launcher boundaries
+        shell: pwsh
+        run: ./scripts/test-local-infra-windows.ps1
 
   v2-release-gate:
     name: V2 required release gate
