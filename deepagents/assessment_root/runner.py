@@ -136,9 +136,12 @@ def run_assessment_root(
       to persist its interrupt after the human-request side effect committed before a crash.
     - A failed execution resumes under a new execution identity on the same thread, and success
       requires authoritative COMPLETE.
+    - With a checkpointer, persist each superstep before advancing so queued checkpoint puts
+      cannot exhaust the executor while waiting for delta writes scheduled by later steps.
     Execution flow:
     1. Claim the execution and load its pinned context under the failure/cleanup boundary.
-    2. Hydrate the pinned repository, verify any checkpoint binding, and invoke or resume the graph.
+    2. Hydrate the pinned repository, verify checkpoint binding, and invoke or resume the graph
+       with synchronous checkpoint durability before advancing to another step.
     3. Settle success, a durable human/control interrupt, or failure through the runtime API, retaining
        only a server-bound checkpoint or one created by this execution.
     Failure cases:
@@ -285,7 +288,12 @@ def run_assessment_root(
                     packet = None
             if final_state not in {EXECUTION_INTERRUPTED, EXECUTION_PAUSED}:
                 graph_invoke_started = True
-                output = agent.invoke(packet, config=graph_config, context=run_context)
+                output = agent.invoke(
+                    packet,
+                    config=graph_config,
+                    context=run_context,
+                    durability="sync" if checkpointer is not None else None,
+                )
                 interrupts = output.get("__interrupt__", ())
                 if interrupts:
                     saved = agent.get_state(graph_config)

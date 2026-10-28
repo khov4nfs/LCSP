@@ -893,7 +893,7 @@ def test_failed_root_attempt_persists_checkpoint_created_by_that_attempt(monkeyp
         def get_state(self, _config):
             return SavedState(self.current_checkpoint)
 
-        def invoke(self, _packet, *, config, context):
+        def invoke(self, _packet, *, config, context, durability=None):
             self.current_checkpoint = checkpoint_id
             raise RuntimeError("model step failed after graph checkpoint")
 
@@ -972,7 +972,7 @@ def test_failed_claim_does_not_resume_a_checkpoint_the_server_did_not_bind(
         def get_state(self, _config):
             return SavedState()
 
-        def invoke(self, packet, *, config, context):
+        def invoke(self, packet, *, config, context, durability=None):
             self.invocations.append(packet)
             return {"__interrupt__": ()}
 
@@ -1030,7 +1030,7 @@ def test_human_request_crash_before_interrupt_replays_only_with_server_human_wai
                 tasks=[], next=("tools",),
             )
 
-        def invoke(self, packet, *, config, context):
+        def invoke(self, packet, *, config, context, durability=None):
             self.invocations.append(packet)
             return {"__interrupt__": [SimpleNamespace(value={"requestIds": [request_id]})]}
 
