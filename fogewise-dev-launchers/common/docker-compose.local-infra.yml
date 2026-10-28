@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: fogewise
-      POSTGRES_PASSWORD: 6f9242d8c5d84112a7f8c7f11f6e6372b7f8b5b61a83b7a4
+      POSTGRES_PASSWORD: ${LCSP_LOCAL_POSTGRES_PASSWORD:?Set LCSP_LOCAL_POSTGRES_PASSWORD in the private common/.env file}
       POSTGRES_DB: lcsp_dev
     ports:
       - "127.0.0.1:5432:5432"
@@ -31,7 +31,7 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: fogewise
-      RABBITMQ_DEFAULT_PASS: 10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807
+      RABBITMQ_DEFAULT_PASS: ${LCSP_LOCAL_RABBITMQ_PASSWORD:?Set LCSP_LOCAL_RABBITMQ_PASSWORD in the private common/.env file}
       # Agent runs are not time-bounded (they take as long as model reasoning
       # needs), so a held delivery must never be reclaimed by the broker.
       RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout undefined"
@@ -56,14 +56,19 @@ services:
       - --appendonly
       - "yes"
       - --requirepass
-      - 5b6e86e4792f020029955afa3409d8842a06e976beda806a
+      - ${LCSP_LOCAL_REDIS_PASSWORD:?Set LCSP_LOCAL_REDIS_PASSWORD in the private common/.env file}
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "redis-cli -a 5b6e86e4792f020029955afa3409d8842a06e976beda806a ping | grep PONG",
+          "CMD",
+          "redis-cli",
+          "-e",
+          "--no-auth-warning",
+          "-a",
+          "${LCSP_LOCAL_REDIS_PASSWORD:?Set LCSP_LOCAL_REDIS_PASSWORD in the private common/.env file}",
+          "ping",
         ]
       interval: 10s
       timeout: 5s
