@@ -48,6 +48,6 @@
     "./shared/type-guards": "./src/shared/type-guards.ts"
   },
   "dependencies": {
-    "zod": "4.0.17"
+    "zod": "4.6.7"
   }
 }
