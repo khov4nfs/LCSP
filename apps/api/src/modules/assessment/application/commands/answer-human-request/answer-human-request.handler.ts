@@ -62,6 +62,28 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
     private readonly audit: AuditWriterService,
   ) {}
 
+  /**
+   * Business purpose: Record an authenticated customer's factual answer and resume the same Assessment only when its human blockers are resolved.
+   *
+   * Business rules:
+   * - Only the Assessment owner may answer an open request at the current request and case revisions and its bound native checkpoint.
+   * - Exact idempotent replays preserve the original result; a conflicting payload or actor is rejected.
+   * - A known answer supplies human-owned text, while the agent-authored question remains explicitly labelled context rather than a customer assertion.
+   * - Unknown answers keep the request open and create no accepted fact or case revision.
+   *
+   * Execution flow:
+   * 1. Lock the owned Assessment, validate replay identity, revisions, checkpoint and any selected choice.
+   * 2. For a known answer, advance the case revision, invalidate affected current decisions, and persist answer evidence and a provenance-labelled fact.
+   * 3. Append answer history and audit events, update the request and coverage, and enqueue same-thread resume only after all human blockers resolve.
+   *
+   * Failure cases:
+   * - Missing, closed, stale, conflicting or checkpoint-mismatched requests are rejected with the existing domain problem codes.
+   * - An invalid choice is rejected; transaction failure rolls back facts, history, lifecycle and outbox effects together.
+   *
+   * Side effects:
+   * - Atomically persists the answer and audit history; a known answer also writes evidence/fact links and may transition the lifecycle and enqueue Root continuation.
+   * - Preserves historical answers and decision packets; it does not interpret the answer or author a compliance decision.
+   */
   execute(
     input: AnswerHumanRequestCommand,
   ): Promise<AnswerAssessmentHumanRequestResult> {
@@ -186,7 +208,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
             caseRevision,
             kind: ASSESSMENT_FACT_KINDS.FACT,
             authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
-            statement: `${row.unresolvedFact}: ${answer}`,
+            statement: `Customer answer: ${answer}\nAgent-authored question (context only): ${row.question}`,
           },
         });
         await tx.assessmentCaseFactEvidence.create({

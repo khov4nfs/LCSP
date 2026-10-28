@@ -1,8 +1,0 @@
-{
-  "status": "HISTORICAL_SUPERSEDED_BEFORE_FULL_ACCEPTANCE",
-  "reason": "Broader PostgreSQL metadata audit found 28 old index tuple labels. Safe in-place index attribute rename must be added to forward migration, preserving OIDs.",
-  "staging": "48af65a0e6e04250",
-  "fullBrowserAcceptance": "NOT_PROVEN",
-  "productionTouched": false,
-  "at": "2026-10-12T04:16:05.656905+00:00"
-}

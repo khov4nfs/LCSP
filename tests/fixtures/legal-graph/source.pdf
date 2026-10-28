@@ -1,0 +1,177 @@
+%PDF-1.3
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+/Title (Synthetic Legal Graph Instrument \055 test material only)
+/Subject (LCSP\055360 synthetic architecture acceptance fixture\056 Authored test material\054 not enacted law or a government acquisition\056)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 3
+/Kids [ 5 0 R 7 0 R 9 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+>>
+endobj
+5 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 4 0 R
+>>
+>>
+/MediaBox [ 0.0 0.0 612 792 ]
+/Parent 2 0 R
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 783
+>>
+stream
+BT /F1 9 Tf 11 TL 42 756 Td
+(Chapter I) Tj T*
+(Article 1. Definitions) Tj T*
+(A covered service stores customer-created records and offers them through a digital interface. The) Tj T*
+(operator controls that service. A portable copy contains all customer-created records in an interoperable) Tj T*
+(machine-readable format. A fulfillment provider is a separate entity selected by the operator to run its) Tj T*
+(export software. These definitions apply throughout this instrument.) Tj T*
+(Article 2. Export and portability) Tj T*
+(1. The operator of a covered service must implement a software export function that produces a portable) Tj T*
+(copy for a requesting customer. The operator must deliver the copy within seven calendar days after) Tj T*
+(receiving the request.) Tj T*
+ET
+endstream
+endobj
+7 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 4 0 R
+>>
+>>
+/MediaBox [ 0.0 0.0 612 792 ]
+/Parent 2 0 R
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 1596
+>>
+stream
+BT /F1 9 Tf 11 TL 42 756 Td
+(The implemented export function and actual timely delivery are distinct aspects: configured software) Tj T*
+(alone does not establish fulfillment of an individual request.) Tj T*
+(2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer) Tj T*
+(moving their customer-created records to another service. For both charges and obstacles, this) Tj T*
+(prohibition is limited to those intended to prevent that portability; it does not prohibit charges) Tj T*
+(generally. The limited exception in Article 3\(2\) applies.) Tj T*
+(Article 3. Remedy and exception) Tj T*
+(1. If failure to perform Article 2\(1\) causes a customer documented financial loss, the operator must) Tj T*
+(compensate that customer for the documented loss within thirty calendar days after receiving notice of) Tj T*
+(the loss. A compensation policy alone does not perform this payment duty.) Tj T*
+(2. As an exception to Article 2\(2\), the operator may temporarily block a transfer only while a) Tj T*
+(documented, specific security threat makes that transfer unsafe. The block must be proportionate to that) Tj T*
+(threat and end when the threat ends. This exception does not remove or delay the portable-copy duty in) Tj T*
+(Article 2\(1\).) Tj T*
+(Chapter II) Tj T*
+(Article 4. Temporal transition) Tj T*
+(This instrument takes effect on 1 January 2026. For covered services already operating before that date,) Tj T*
+(the duties in Article 2\(1\) and Article 2\(2\) become applicable on 1 July 2026 after a six-month) Tj T*
+(transition.) Tj T*
+ET
+endstream
+endobj
+9 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 4 0 R
+>>
+>>
+/MediaBox [ 0.0 0.0 612 792 ]
+/Parent 2 0 R
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 2814
+>>
+stream
+BT /F1 9 Tf 11 TL 42 756 Td
+(For covered services first operating on or after 1 January 2026, those duties apply immediately on first) Tj T*
+(operation.) Tj T*
+(Article 5. Incorporated duties) Tj T*
+(When an operator delegates export fulfillment to an external fulfillment provider, that provider must) Tj T*
+(implement the portable-copy software function and perform the same delivery duty required by Article) Tj T*
+(2\(1\), with the same seven-day period and the definitions in Article 1. Delegation does not remove the) Tj T*
+(operator's own duty.) Tj T*
+(Article 6. Context and separate configuration duties) Tj T*
+(1. Repository storage means the storage surface used by the covered service for customer-created records.) Tj T*
+(An audit entry means the event record about an export request. This paragraph supplies context and) Tj T*
+(definitions; it creates no independent duty, prohibition or permission.) Tj T*
+(2. The operator must maintain a software configuration identifying the relevant covered service. For its) Tj T*
+(export function, the operator must record the authorization decision in an audit entry and must record) Tj T*
+(completion or failure with its timestamp in the audit entry. These two audit duties are compatible and) Tj T*
+(both must survive a combined representation. The operator must implement appropriate software safeguards) Tj T*
+(protecting customer-created records during processing and export. A repository assessment may inspect) Tj T*
+(storage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a) Tj T*
+(particular cipher.) Tj T*
+(Article 7. Delegated fulfillment and direction) Tj T*
+(Actor A is the covered-service operator and holder of Article 2\(1\). Actor B is the fulfillment provider.) Tj T*
+(If A delegates export fulfillment to B, A must maintain a software configuration identifying B as its) Tj T*
+(delegate for that service, and B must implement the delegated portable-copy software path on behalf of A.) Tj T*
+(B performs fulfillment while A remains responsible for Article 2\(1\). B's express duty in Article 5 does) Tj T*
+(not transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting) Tj T*
+(record owner and beneficiary; an auditor owes no export-fulfillment duty.) Tj T*
+(Article 8. Conditional permission and evidence) Tj T*
+(The operator may restrict access to the export interface only while a documented, specific security) Tj T*
+(incident makes access unsafe. The restriction must end when that condition ceases. Evidence must) Tj T*
+(demonstrate whether that condition holds and whether any restriction respects it. This Article does not) Tj T*
+(require automatic blocking, automatic unblocking, or any other particular technical implementation.) Tj T*
+ET
+endstream
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000015 00000 n 
+0000000264 00000 n 
+0000000335 00000 n 
+0000000384 00000 n 
+0000000481 00000 n 
+0000000613 00000 n 
+0000001447 00000 n 
+0000001579 00000 n 
+0000003227 00000 n 
+0000003360 00000 n 
+trailer
+<<
+/Size 11
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+6227
+%%EOF

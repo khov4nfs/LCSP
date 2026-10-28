@@ -36,7 +36,17 @@ def test_live_eval_budget_and_authoritative_tool_output_capture():
     assert trace.attempted_calls == 1
 
 
-def test_native_root_terminal_response_is_not_failed_by_eval_budget(tmp_path):
+def test_native_root_terminal_response_is_not_failed_by_eval_budget(tmp_path, monkeypatch):
+    import httpx
+
+    network_attempts = []
+
+    def deny_network(_client, request, **_kwargs):
+        network_attempts.append(request.url.host)
+        raise AssertionError("provider-free graph tests must not dispatch HTTP")
+
+    monkeypatch.setattr(httpx.Client, "send", deny_network)
+    monkeypatch.setenv("LCSP_RESPONSE_LOCALIZATION_ENABLED", "false")
     client = FakeClient()
     trace = ReviewTrace()
     class CompletedResponse(RootScriptedModel):
@@ -59,11 +69,27 @@ def test_native_root_terminal_response_is_not_failed_by_eval_budget(tmp_path):
     assert result["state"] == "SUCCEEDED"
     assert trace.calls == 1 and trace.attempted_calls == 1
     assert trace.messages[-1]["content"] == "Assessment complete."
+    assert network_attempts == []
 
 
 def test_budget_failure_resumes_native_pending_model_without_repeating_tool(tmp_path):
     (tmp_path / "notice.py").write_text("notice = True\n")
-    client = FakeClient()
+
+    class RetryingClient(FakeClient):
+        checkpoint_id = None
+        claims = 0
+
+        def claim(self, assessment_id):
+            claim = super().claim(assessment_id)
+            self.claims += 1
+            return {**claim, "executionId": EXECUTION if self.claims == 1 else "33333333-3333-4333-8333-333333333334",
+                    "resumeCheckpointId": self.checkpoint_id, "recoveredExecution": False}
+
+        def finish(self, state, **metadata):
+            self.checkpoint_id = metadata.get("checkpoint_id")
+            return super().finish(state, **metadata)
+
+    client = RetryingClient()
     saver = InMemorySaver()
     backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
     first = run_assessment_root(
@@ -75,12 +101,18 @@ def test_budget_failure_resumes_native_pending_model_without_repeating_tool(tmp_
         checkpointer=saver, governance=(), extra_callbacks=[ReviewTrace()],
     )
     assert first["state"] == "FAILED"
+    assert first["checkpointId"] == client.checkpoint_id and client.checkpoint_id
+    retained = saver.get_tuple({"configurable": {"thread_id": THREAD, "checkpoint_id": first["checkpointId"]}})
+    assert retained.metadata["assessment_root_execution_id"] == first["executionId"]
+    assert retained.metadata["assessment_id"] == ASSESSMENT
+    assert retained.metadata["repository_commit"] == "a" * 40
     second = run_assessment_root(
         client, ASSESSMENT, backend_factory=lambda claim, context: (backend, None),
         model=RootScriptedModel(responses=complete_root_messages()),
         checkpointer=saver, governance=(), extra_callbacks=[ReviewTrace()],
     )
     assert second["state"] == "SUCCEEDED" and second["threadId"] == first["threadId"]
+    assert second["executionId"] != first["executionId"]
     assert len([call for call in client.calls if call[0] == "evidence"]) == 1
     agent = create_assessment_root_agent(
         run=RootRun(client=client, assessment_id=ASSESSMENT, thread_id=THREAD, execution_id=EXECUTION, backend=backend),

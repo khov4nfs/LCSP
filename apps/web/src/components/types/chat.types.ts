@@ -20,6 +20,8 @@ export type WorkDisclosureProps = {
   summary: string;
   /** Animate and expand while the work is in flight; collapse once it settles. */
   running: boolean;
+  /** Keep the user's disclosure choice stable when streamed content changes. */
+  defaultExpanded?: boolean;
   /** Secondary text shown at the end of the summary row (usage). */
   meta?: ReactNode;
   children?: ReactNode;

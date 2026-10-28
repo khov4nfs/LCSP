@@ -11,6 +11,7 @@ import {
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { assertSemanticOutcome } from "./support/assessment-semantic-oracle.mjs";
 import {
   AGENT_EXECUTION_STATES,
   AGENTIC_ASSESSMENT_EVENT_TYPES,
@@ -60,6 +61,11 @@ assert.ok(
     "bounded-absence",
     "bounded-absence-gapped",
     "fallback-found",
+    "otp-format-only",
+    "logging-without-persistence",
+    "partial-safeguard",
+    "applicability-unproven",
+    "applicability-refuted",
   ].includes(mode),
 );
 const artifactStoragePath = mkdtempSync(
@@ -72,7 +78,15 @@ const stack = await startStack({
   apiPort: Number(process.env.LCSP_ASSESSMENT_EVAL_API_PORT ?? 3415),
   resetDatabase: previousEval === null,
 });
-const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = stack;
+const {
+  q,
+  base,
+  post,
+  stop,
+  seedLegalSource,
+  activateLegalSource,
+  databaseUrl,
+} = stack;
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const { ArtifactLifecycleState } = requireApi("@prisma/client");
 const http = async (route, body, token) => {
@@ -147,9 +161,15 @@ try {
       status: "ACTIVE",
       documentId: fixture.documentId,
       chunks: fixture.chunks,
+      sourceBytes: Buffer.from(fixture.sourceBytesBase64, "base64"),
+      sourceSha256: fixture.sourceSha256,
     });
     const prep = await activateLegalSource(legalSource);
-    assert.equal(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
+    assert.equal(
+      prep.runs.length,
+      1,
+      "one Legal Source -> one automatic preparation",
+    );
     const prepared = await runPython(
       path.join(tests, "scripted_preparation.py"),
       [base, workerKey, prep.preparationRunId, seed, "valid"],
@@ -402,10 +422,7 @@ try {
       ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
     );
     assert.equal(artifact.lifecycleState, ArtifactLifecycleState.ACTIVE);
-    assert.equal(
-      artifact.ruleSetVersionId,
-      assessment.ruleSetVersionId,
-    );
+    assert.equal(artifact.ruleSetVersionId, assessment.ruleSetVersionId);
     assert.equal(
       artifact.repositorySnapshotId,
       assessment.repositorySnapshotId,
@@ -544,6 +561,37 @@ try {
       "the affected rule remains unresolved",
     );
     assert.notEqual(lifecycleState, ASSESSMENT_LIFECYCLE_STATES.COMPLETE);
+  }
+  if (fixture.semanticExpectation) {
+    assert.equal(
+      result.result.state,
+      fixture.semanticExpectation.decision === null
+        ? AGENT_EXECUTION_STATES.INTERRUPTED
+        : AGENT_EXECUTION_STATES.SUCCEEDED,
+    );
+    const lifecycleState = (
+      await q('SELECT "lifecycleState" FROM "Assessment" WHERE id=$1', [id])
+    ).rows[0]?.lifecycleState;
+    const expected = structuredClone(fixture.semanticExpectation);
+    if (expected.criteria?.length) {
+      const pinned = (
+        await q(
+          'SELECT r.criteria FROM "AssessmentRule" r JOIN "AssessmentCase" c ON c."ruleSetVersionId"=r."ruleSetVersionId" WHERE c."assessmentId"=$1',
+          [id],
+        )
+      ).rows;
+      assert.equal(
+        pinned.length,
+        1,
+        "Each adversarial semantic case has one pinned rule",
+      );
+      assert.equal(pinned[0].criteria.length, expected.criteria.length);
+      expected.criteria = expected.criteria.map((criterion, index) => ({
+        ...criterion,
+        criterionId: pinned[0].criteria[index].criterionId,
+      }));
+    }
+    assertSemanticOutcome({ decisions, requests, lifecycleState }, expected);
   }
   writeFileSync(
     path.join(outputDir, `${outputLabel}.json`),

@@ -1,0 +1,10 @@
+{
+  "assessmentId": "3343efe1-d18f-42ba-8db1-ec65d6792721",
+  "artifactId": "81a8e33c-8f79-563a-bc9f-080c8d3e55af",
+  "ownerDownloadStatus": 200,
+  "ownerReportSize": 1822949,
+  "ownerReportSha256": "27e48883fa2ae4bf409b9096641faa6841f7282fdc358c8972fb6106f4602f6c",
+  "unauthenticatedStatus": 401,
+  "crossTenantStatus": 404,
+  "verified": true
+}

@@ -88,19 +88,21 @@ Provider keys and deployment credentials are environment-managed secrets and mus
 
 Sensitive values include, but are not limited to:
 
-- `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, and `INCEPTION_API_KEY`;
+- `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `INCEPTION_API_KEY`, and `MIRAI_API_KEY`;
 - repository/OAuth tokens and client secrets;
 - encryption/signing keys and webhook secrets;
 - database URLs and passwords;
 - worker/runtime credentials and deployment keys.
 
-A comma-separated `APX_API_KEY` pool is entirely secret material; every slot and the complete value must be protected.
+A comma-separated provider key pool (for example `APX_API_KEY`) is entirely secret material; every slot and the complete value must be protected.
 
 ## Application trust boundaries
 
 ### Model routing
 
 Canonical provider identity and transport protocol are separate. Trusted, source-controlled model-route configuration determines provider identity, protocol, model, and allowed options. User input and model output are not trusted routing configuration and must not provide credentials, endpoints, or privileged headers.
+
+For a provider pool, LCSP selects one key per request. Permanent allowance exhaustion retires only the affected slot; transient rate limits use cooldown handling. Provider fallback follows same-provider credential handling and uses the configured route chain, currently Mirai API to Inception to Google GenAI to APX. Mirai API uses only `MIRAI_API_KEY` through its own Anthropic Messages or OpenAI-compatible endpoint. SDK clients receive an individual key, not the comma-separated pool. Logs may contain provider, model, protocol, request identifiers, and safe fingerprints, but never raw key values.
 
 ### Agent Runtime
 

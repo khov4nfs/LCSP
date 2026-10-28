@@ -9,12 +9,35 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { contractChunkIds } from "./compliance-rule-set.mappers.js";
+import {
+  semanticGraphInclude,
+  readSemanticGraph,
+} from "./semantic-graph.persistence.js";
 
 /** Builds the validated read model of one stored rule set version. */
 @Injectable()
 export class ComplianceRuleSetReadModelLoader {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Business purpose: Reconstruct one stored Rule Set version as the validated contract read model used by Assessment and admin flows.
+   *
+   * Business rules:
+   * - The requested version is loaded using the caller's exact persistence predicate; its own source pins, stored children, latest frozen inventory, and source provenance define the projection.
+   * - AssessmentRule source links are exposed only when their chunk belongs to the Rule Set's pinned Legal Source Version.
+   * - The contract schema is the final boundary for the assembled read model.
+   *
+   * Execution flow:
+   * 1. Load the Rule Set and ordered Preparation, semantic graph, Requirement, AssessmentRule, provenance, and context-relation records.
+   * 2. Resolve contract source chunk IDs within the pinned source version and map the latest frozen inventory and legal source metadata.
+   * 3. Parse the complete projection against the shared Rule Set read-model schema.
+   *
+   * Failure cases:
+   * - No matching version returns the active-rule-set-not-found problem; missing or malformed persisted relations fail database or schema validation.
+   *
+   * Side effects:
+   * - None beyond database reads; does not alter lifecycle or persisted child data.
+   */
   async load(
     where: Prisma.ComplianceRuleSetVersionWhereInput,
     correlationId: string,
@@ -22,9 +45,18 @@ export class ComplianceRuleSetReadModelLoader {
     const active = await this.prisma.complianceRuleSetVersion.findFirst({
       where,
       include: {
+        preparationRun: {
+          include: {
+            claimInventories: { orderBy: { revision: "desc" }, take: 1 },
+          },
+        },
+        semanticGraph: { include: semanticGraphInclude },
         rules: {
           orderBy: { ordinal: "asc" },
-          include: { provenance: { orderBy: { ordinal: "asc" } } },
+          include: {
+            provenance: { orderBy: { ordinal: "asc" } },
+            claimBindings: { orderBy: { ordinal: "asc" } },
+          },
         },
         assessmentRules: {
           orderBy: { ordinal: "asc" },
@@ -74,12 +106,45 @@ export class ComplianceRuleSetReadModelLoader {
         documentId: true,
         locator: true,
         contentSha256: true,
+        legalEffectStatus: true,
+        legalStatusSourceRef: true,
         sourceDocument: { select: { sourceEffectStatus: true } },
       },
     });
     const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
 
+    const frozen = active.preparationRun?.claimInventories?.[0];
     return complianceRuleSetReadModelSchema.parse({
+      ...(frozen
+        ? {
+            claimInventory: {
+              revision: frozen.revision,
+              fingerprint: frozen.fingerprint,
+            },
+          }
+        : {}),
+      ...(active.semanticGraph
+        ? {
+            semanticGraph: {
+              ...readSemanticGraph(active.semanticGraph),
+              ...((frozen?.graph as { targetDate?: string } | undefined)
+                ?.targetDate
+                ? {
+                    targetDate: (frozen.graph as { targetDate: string })
+                      .targetDate,
+                  }
+                : {}),
+              ...((frozen?.graph as { reviewFrontier?: unknown } | undefined)
+                ?.reviewFrontier
+                ? {
+                    reviewFrontier: (
+                      frozen.graph as { reviewFrontier: unknown }
+                    ).reviewFrontier,
+                  }
+                : {}),
+            },
+          }
+        : {}),
       ruleSetVersionId: active.id,
       version: active.version,
       legalSourceVersionId: active.legalSourceVersionId,
@@ -88,8 +153,28 @@ export class ComplianceRuleSetReadModelLoader {
       activatedAt: active.activatedAt?.toISOString() ?? null,
       legalRequirements: active.rules.map((rule) => ({
         legalRequirementId: rule.legalRequirementId,
+        ...(rule.applicabilityMode
+          ? { applicabilityMode: rule.applicabilityMode }
+          : {}),
+        ...(active.preparationRun?.claimInventories?.[0]
+          ? {
+              claimInventoryRevision:
+                active.preparationRun?.claimInventories?.[0].revision,
+            }
+          : {}),
         title: rule.title,
         proposition: rule.proposition,
+        ...(active.semanticGraph
+          ? {
+              claimBindings: rule.claimBindings.map(
+                ({ claimId, role, index }) => ({ claimId, role, index }),
+              ),
+              semanticContext: rule.semanticContext ?? [],
+            }
+          : {}),
+        ...(rule.operativePropositions != null
+          ? { operativePropositions: rule.operativePropositions }
+          : {}),
         applicabilityConditions: rule.applicabilityConditions,
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,
@@ -104,6 +189,8 @@ export class ComplianceRuleSetReadModelLoader {
           locator: p.locator,
           contentSha256: p.contentSha256,
           sourceEffectStatus: p.sourceEffectStatus,
+          legalEffectStatus: p.legalEffectStatus,
+          legalStatusSourceRef: p.legalStatusSourceRef,
         })),
       })),
       assessmentRules: active.assessmentRules.map((rule) => {
@@ -134,6 +221,8 @@ export class ComplianceRuleSetReadModelLoader {
                     locator: chunk.locator,
                     contentSha256: chunk.contentSha256,
                     sourceEffectStatus: chunk.sourceDocument.sourceEffectStatus,
+                    legalEffectStatus: chunk.legalEffectStatus,
+                    legalStatusSourceRef: chunk.legalStatusSourceRef,
                   },
                 ]
               : [];

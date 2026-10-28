@@ -107,8 +107,22 @@ def retrieve_heuristics(store, query: str) -> list[dict]:
 def retrieve_shared_heuristics(query: Annotated[str, Field(min_length=2, max_length=80)]) -> dict:
     """Find bounded generic investigation tips. NON_AUTHORITATIVE_HEURISTIC only: never evidence,
     law, accepted facts, decision provenance or authenticated negative search coverage.
+
+    Business purpose: Offer bounded generic investigation tips without granting them legal or evidentiary authority.
+
+    Business rules:
+    - Results retain NON_AUTHORITATIVE_HEURISTIC authority and cannot serve as law, accepted facts, decision provenance or authenticated negative search coverage.
+
+    Execution flow:
+    1. Obtain the native learning Store, return an explicit warning when unavailable, otherwise retrieve bounded matching heuristics.
+
+    Failure cases:
+    - An unavailable Store yields an empty result with a warning; retrieval failures propagate rather than fabricating tips.
+
+    Side effects:
+    - Reads the native learning Store; no Assessment evidence or decision is created.
     """
     store = get_store()
     if store is None:
-        raise RuntimeError("native learning Store is unavailable")
+        return {"authority": HEURISTIC_AUTHORITY, "heuristics": [], "warning": "native learning Store is unavailable"}
     return {"authority": HEURISTIC_AUTHORITY, "heuristics": retrieve_heuristics(store, query)}

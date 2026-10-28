@@ -1,3 +1,4 @@
+import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 import { randomUUID } from "node:crypto";
 import {
   afterAll,
@@ -10,8 +11,10 @@ import {
 import { PrismaPg } from "@prisma/adapter-pg";
 import { LegalSourceLifecycleStatus, PrismaClient } from "@prisma/client";
 import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
+  RULE_SET_PREPARATION_REFUSAL_REASONS,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
@@ -43,6 +46,8 @@ import { CancelRuleSetPreparationCommand } from "../commands/cancel-rule-set-pre
 import { CancelRuleSetPreparationHandler } from "../commands/cancel-rule-set-preparation/cancel-rule-set-preparation.handler.js";
 import { SubmitComplianceRuleSetCommand } from "../commands/submit-compliance-rule-set/submit-compliance-rule-set.command.js";
 import { SubmitComplianceRuleSetHandler } from "../commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.js";
+import { AssessmentRuntimePreparation } from "../../../assessment/application/services/assessment-runtime-preparation.service.js";
+import { loadRuleSetPreparationAvailability } from "../../infrastructure/persistence/rule-set-preparation-availability.loader.js";
 import { LegalSourceSnapshotLoader } from "../../infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/compliance-rule-set-activation.service.js";
 
@@ -50,7 +55,7 @@ import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/co
 const url = new URL(process.env.DATABASE_URL ?? "postgresql://unused/unused");
 const isolated =
   url.hostname === "127.0.0.1" &&
-  url.port === "55445" &&
+  url.port === "55495" &&
   url.pathname === "/lcsp_admin_prepare_test";
 const database = isolated ? describe : describe.skip;
 const tag = `admin-trigger-${randomUUID().slice(0, 8)}`;
@@ -105,12 +110,18 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         },
       } as unknown as CommandBus,
     );
-    claim = new ClaimRuleSetPreparationHandler(service);
+    claim = new ClaimRuleSetPreparationHandler(
+      service,
+      new LegalDocumentGraphService(service),
+    );
     fail = new FailRuleSetPreparationHandler(service);
     const outbox = new OutboxRepository(service);
     submit = new SubmitComplianceRuleSetHandler(
       service,
-      new LegalSourceSnapshotLoader(service),
+      new LegalSourceSnapshotLoader(
+        service,
+        new LegalDocumentGraphService(service),
+      ),
       new ComplianceRuleSetActivation(outbox, new AuditWriterService(service)),
     );
   });
@@ -160,6 +171,44 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     cancel.execute(
       new CancelRuleSetPreparationCommand(preparationRunId, randomUUID()),
     );
+
+  it("refuses a request that names a Legal Source Version which is not the active one, and starts nothing", async () => {
+    const source = await eligibleSource();
+    const runsBefore = await prisma.ruleSetPreparationRun.count();
+
+    await expect(
+      manual.execute(
+        new PrepareCurrentRuleSetCommand(
+          "owner-admin",
+          randomUUID(),
+          false,
+          randomUUID(),
+        ),
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: {
+          code: COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+          meta: {
+            reason:
+              RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
+          },
+        },
+      },
+    });
+    expect(await prisma.ruleSetPreparationRun.count()).toBe(runsBefore);
+
+    // Naming the version that really is active proceeds as before.
+    const run = await manual.execute(
+      new PrepareCurrentRuleSetCommand(
+        "owner-admin",
+        randomUUID(),
+        false,
+        source.id,
+      ),
+    );
+    expect(run.legalSourceVersionId).toBe(source.id);
+  });
 
   it("racing Admin requests and activation create exactly one run and one queued command, no rule-set rows", async () => {
     const source = await eligibleSource();
@@ -308,11 +357,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     await expect(
       submit.execute(
         new SubmitComplianceRuleSetCommand(
-          {
+          await pinFixtureRequest(prisma, {
             preparationRunId: running.preparationRunId,
             idempotencyKey: `submit-${randomUUID()}`,
             packet: validPacket(),
-          },
+          }),
           "test-worker",
           randomUUID(),
         ),
@@ -353,6 +402,12 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
       ),
     );
 
+    const submissionRequest = await pinFixtureRequest(prisma, {
+      preparationRunId: running.preparationRunId,
+      idempotencyKey: `submit-${randomUUID()}`,
+      packet: validPacket(),
+    });
+
     let nativeCancelStarted!: () => void;
     const nativeStarted = new Promise<void>((resolve) => {
       nativeCancelStarted = resolve;
@@ -383,11 +438,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
 
     const submission = submit.execute(
       new SubmitComplianceRuleSetCommand(
-        {
-          preparationRunId: running.preparationRunId,
-          idempotencyKey: `submit-${randomUUID()}`,
-          packet: validPacket(),
-        },
+        submissionRequest,
         "test-worker",
         randomUUID(),
       ),
@@ -439,11 +490,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     );
     const result = await submit.execute(
       new SubmitComplianceRuleSetCommand(
-        {
+        await pinFixtureRequest(prisma, {
           preparationRunId: running.preparationRunId,
           idempotencyKey: `submit-${randomUUID()}`,
           packet: validPacket(),
-        },
+        }),
         "test-worker",
         randomUUID(),
       ),
@@ -670,8 +721,253 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     ).toBe(1);
   });
 
+  async function publishActiveRuleSet() {
+    const source = await eligibleSource();
+    const run = await prepare();
+    await claim.execute(
+      new ClaimRuleSetPreparationCommand(
+        { preparationRunId: run.preparationRunId },
+        randomUUID(),
+      ),
+    );
+    const published = await submit.execute(
+      new SubmitComplianceRuleSetCommand(
+        await pinFixtureRequest(prisma, {
+          preparationRunId: run.preparationRunId,
+          idempotencyKey: `submit-${randomUUID()}`,
+          packet: validPacket(),
+        }),
+        "test-worker",
+        randomUUID(),
+      ),
+    );
+    return { source, run, published };
+  }
+  const availability = () =>
+    prisma.$transaction((tx) => loadRuleSetPreparationAvailability(tx));
+
+  const replace = () =>
+    manual.execute(
+      new PrepareCurrentRuleSetCommand("owner-admin", randomUUID(), true),
+    );
+  const stateOf = async (ruleSetVersionId: string) =>
+    (
+      await prisma.complianceRuleSetVersion.findUniqueOrThrow({
+        where: { id: ruleSetVersionId },
+      })
+    ).lifecycleState;
+  const claimRun = (preparationRunId: string) =>
+    claim.execute(
+      new ClaimRuleSetPreparationCommand({ preparationRunId }, randomUUID()),
+    );
+  const submitFor = async (preparationRunId: string) =>
+    submit.execute(
+      new SubmitComplianceRuleSetCommand(
+        await pinFixtureRequest(prisma, {
+          preparationRunId,
+          idempotencyKey: `submit-${randomUUID()}`,
+          packet: validPacket(),
+        }),
+        "test-worker",
+        randomUUID(),
+      ),
+    );
+
+  describe("replacing the ACTIVE rule set from the same pinned Legal Source Version", () => {
+    it("ordinary Prepare keeps refusing while a rule set is ACTIVE, but an explicit replacement is allowed", async () => {
+      const { source, published } = await publishActiveRuleSet();
+
+      expect(await availability()).toMatchObject({
+        legalSourceVersionId: source.id,
+        activeRuleSetVersionId: published.ruleSetVersionId,
+        canStart: false,
+        canReplace: true,
+        refusalReason: "ACTIVE_RULE_SET_EXISTS",
+      });
+      await expect(prepare()).rejects.toMatchObject({ status: 409 });
+
+      const replacement = await replace();
+      expect(replacement).toMatchObject({
+        legalSourceVersionId: source.id,
+        executionState: AGENT_EXECUTION_STATES.QUEUED,
+        ruleSetVersionId: null,
+      });
+      // A new attempt with its own run: the ACTIVE version is neither reused nor edited.
+      expect(replacement.preparationRunId).not.toBe(published.preparationRunId);
+      await expect(
+        prisma.ruleSetPreparationRun.findUniqueOrThrow({
+          where: { id: replacement.preparationRunId },
+        }),
+      ).resolves.toMatchObject({
+        idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 2),
+      });
+    });
+
+    it("keeps v1 ACTIVE while the replacement runs, and concurrent replacements share exactly one run", async () => {
+      const { source, published } = await publishActiveRuleSet();
+
+      const [one, two, three] = await Promise.all([
+        replace(),
+        replace(),
+        replace(),
+      ]);
+      expect(two.preparationRunId).toBe(one.preparationRunId);
+      expect(three.preparationRunId).toBe(one.preparationRunId);
+      await claimRun(one.preparationRunId);
+
+      expect(await replace()).toMatchObject({
+        preparationRunId: one.preparationRunId,
+        executionState: AGENT_EXECUTION_STATES.RUNNING,
+      });
+      expect(
+        await prisma.ruleSetPreparationRun.count({
+          where: { legalSourceVersionId: source.id },
+        }),
+      ).toBe(2);
+      expect(await availability()).toMatchObject({
+        canStart: false,
+        canReplace: false,
+        refusalReason: "PREPARATION_IN_PROGRESS",
+        activeRuleSetVersionId: published.ruleSetVersionId,
+      });
+      expect(await stateOf(published.ruleSetVersionId)).toBe(
+        ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      );
+    });
+
+    it("a FAILED replacement leaves v1 ACTIVE and can be retried, which is not a new replacement", async () => {
+      const { published } = await publishActiveRuleSet();
+      const replacement = await replace();
+      await claimRun(replacement.preparationRunId);
+      await fail.execute(
+        new FailRuleSetPreparationCommand(
+          {
+            preparationRunId: replacement.preparationRunId,
+            reason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
+          },
+          randomUUID(),
+        ),
+      );
+
+      expect(await stateOf(published.ruleSetVersionId)).toBe(
+        ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      );
+      expect(await availability()).toMatchObject({
+        canReplace: true,
+        activeRuleSetVersionId: published.ruleSetVersionId,
+      });
+      const retried = await retry.execute(
+        new RetryRuleSetPreparationCommand(
+          replacement.preparationRunId,
+          "owner-admin",
+          randomUUID(),
+        ),
+      );
+      expect(retried.preparationRunId).not.toBe(replacement.preparationRunId);
+      expect(retried.executionState).toBe(AGENT_EXECUTION_STATES.QUEUED);
+      expect(await stateOf(published.ruleSetVersionId)).toBe(
+        ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      );
+    });
+
+    it("a CANCELLED replacement leaves v1 ACTIVE and another replacement can follow", async () => {
+      const { published } = await publishActiveRuleSet();
+      const replacement = await replace();
+      await claimRun(replacement.preparationRunId);
+
+      await cancelRun(replacement.preparationRunId);
+
+      expect(await stateOf(published.ruleSetVersionId)).toBe(
+        ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      );
+      expect(
+        (
+          await prisma.ruleSetPreparationRun.findUniqueOrThrow({
+            where: { id: replacement.preparationRunId },
+          })
+        ).executionState,
+      ).toBe(AGENT_EXECUTION_STATES.CANCELLED);
+      expect(await availability()).toMatchObject({ canReplace: true });
+      const next = await replace();
+      expect(next.preparationRunId).not.toBe(replacement.preparationRunId);
+    });
+
+    it("a SUCCEEDED replacement activates v2 and supersedes v1 atomically; assessments keep the version they pinned", async () => {
+      const { source, published } = await publishActiveRuleSet();
+      const owner = `replace-owner-${tag}`;
+      await prisma.user.create({
+        data: {
+          id: owner,
+          email: `${owner}@example.invalid`,
+          passwordHash: "x",
+          emailVerified: true,
+          failedLoginCount: 0,
+        },
+      });
+      const preparation = new AssessmentRuntimePreparation(
+        null as never,
+        null as never,
+      );
+      const createAssessment = async () => {
+        const id = randomUUID();
+        await prisma.$transaction(async (tx) => {
+          await tx.assessment.create({
+            data: { id, ownerId: owner, name: id },
+          });
+          await preparation.createCaseInTx(tx, id);
+        });
+        return (
+          await prisma.assessmentCase.findUniqueOrThrow({
+            where: { assessmentId: id },
+          })
+        ).ruleSetVersionId;
+      };
+      const pinnedToV1 = await createAssessment();
+      const v1Digest = (
+        await prisma.complianceRuleSetVersion.findUniqueOrThrow({
+          where: { id: published.ruleSetVersionId },
+        })
+      ).ruleSetDigest;
+
+      const replacement = await replace();
+      await claimRun(replacement.preparationRunId);
+      // Still v1 until the successor is validated AND submitted.
+      expect(await createAssessment()).toBe(published.ruleSetVersionId);
+      const successor = await submitFor(replacement.preparationRunId);
+
+      expect(successor.previousActiveRuleSetVersionId).toBe(
+        published.ruleSetVersionId,
+      );
+      expect(successor.version.endsWith(".p2")).toBe(true);
+      expect(await stateOf(successor.ruleSetVersionId)).toBe(
+        ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      );
+      const v1 = await prisma.complianceRuleSetVersion.findUniqueOrThrow({
+        where: { id: published.ruleSetVersionId },
+      });
+      expect(v1.lifecycleState).toBe(ARTIFACT_LIFECYCLE_STATES.SUPERSEDED);
+      expect(v1.ruleSetDigest).toBe(v1Digest); // superseded, not rewritten
+      expect(
+        await prisma.complianceRuleSetVersion.count({
+          where: {
+            legalSourceVersionId: source.id,
+            lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+          },
+        }),
+      ).toBe(1);
+      // Historical assessments stay on v1; new ones pin v2.
+      expect(pinnedToV1).toBe(published.ruleSetVersionId);
+      expect(await createAssessment()).toBe(successor.ruleSetVersionId);
+      expect(await availability()).toMatchObject({
+        activeRuleSetVersionId: successor.ruleSetVersionId,
+        canReplace: true,
+      });
+    });
+  });
+
   it("an ACTIVE fixture without canonical activation cannot be selected", async () => {
     await sourceFactory();
     await expect(prepare()).rejects.toMatchObject({ status: 409 });
   });
 });
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";

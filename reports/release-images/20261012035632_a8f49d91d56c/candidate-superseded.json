@@ -1,9 +1,0 @@
-{
-  "status": "HISTORICAL_SUPERSEDED_BEFORE_FULL_ACCEPTANCE",
-  "reason": "Final audit enum rename introduced one Prettier line-wrap; CI would change a shipped source file. Exact final acceptance is deferred to rebuilt candidate.",
-  "staging": "374170cc375641bd",
-  "modelPayloadChangedByFormatting": false,
-  "fullBrowserAcceptance": "NOT_PROVEN",
-  "productionTouched": false,
-  "at": "2026-10-12T04:05:19.814914+00:00"
-}

@@ -1,0 +1,9 @@
+RÈGLEMENT INTÉRIEUR RELATIF À LA SÉCURITÉ DES DONNÉES
+TITRE PREMIER — DISPOSITIONS GÉNÉRALES
+Art. 1er — Le présent règlement s'applique à tout le personnel de la société.
+Art. 2 — Définitions
+Au sens du présent règlement, on entend par « incident » toute atteinte à la confidentialité des données.
+TITRE II — OBLIGATIONS
+Art. 3 — Le personnel doit signaler tout incident au délégué à la protection des données dans un délai de 24 heures.
+Art. 4 — Il est interdit de copier des données clients sur un support personnel.
+Art. 5 — Le délégué peut accorder une dérogation écrite à l'article 4 pour un besoin professionnel justifié.

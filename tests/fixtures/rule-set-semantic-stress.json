@@ -1,0 +1,35 @@
+{
+  "documentId": "SYNTHETIC-SEMANTIC-STRESS",
+  "title": "Synthetic portable-record service instrument - test material only",
+  "provenance": "LCSP-360 synthetic semantic regression; not a real government instrument",
+  "provisions": [
+    {
+      "locator": "SEM-001",
+      "content": "Definitions. A covered service stores customer-created records and offers them to customers through a digital interface. The operator is the entity controlling that service. A portable copy contains all customer-created records in an interoperable machine-readable format. These definitions apply to SEM-002 through SEM-007."
+    },
+    {
+      "locator": "SEM-002",
+      "content": "Direct duty. The operator of a covered service must provide a portable copy to a requesting customer within seven calendar days after receiving the request."
+    },
+    {
+      "locator": "SEM-003",
+      "content": "Prohibition. The operator must not impose commercial charges or technical obstacles intended to prevent a customer moving their customer-created records to another service. The narrowly limited security exception in SEM-007 applies."
+    },
+    {
+      "locator": "SEM-004",
+      "content": "Conditional remedy. If failure to perform SEM-002 causes a customer documented financial loss, the operator must compensate that customer for the documented loss within thirty calendar days after receiving notice of that loss. Maintaining a compensation policy alone does not perform this payment duty."
+    },
+    {
+      "locator": "SEM-005",
+      "content": "Transition. This instrument takes effect on 1 January 2026. For covered services already operating before that date, the duties in SEM-002 and SEM-003 become applicable on 1 July 2026 after a six-month transition. For services first operating on or after 1 January 2026, those duties apply immediately on first operation."
+    },
+    {
+      "locator": "SEM-006",
+      "content": "Incorporation. When an operator delegates fulfilment of export requests to an external export provider, that provider must perform the portable-copy duty in SEM-002, with the same seven-day period and the definitions in SEM-001. Delegation does not remove the operator's own duty. This provision incorporates the operative duty rather than merely referring to its citation."
+    },
+    {
+      "locator": "SEM-007",
+      "content": "Limited exception. The operator may temporarily block a transfer prohibited from obstruction by SEM-003 only while a documented, specific security threat makes that transfer unsafe. The block must be proportionate to that threat and end when the threat ends. This exception does not remove or delay the portable-copy duty in SEM-002."
+    }
+  ]
+}

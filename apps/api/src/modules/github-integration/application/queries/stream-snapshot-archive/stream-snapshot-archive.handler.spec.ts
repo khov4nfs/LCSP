@@ -18,6 +18,7 @@ import {
   GITHUB_CREDENTIAL_ERROR_CODES,
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SCAN_JOB_STATUSES,
+  REPOSITORY_SCAN_TRIGGER_SOURCES,
   REPOSITORY_SNAPSHOT_STATUSES,
   type GitHubArchiveRedirectValidationStatus,
 } from "@lcsp/contracts/github-integration";
@@ -38,8 +39,11 @@ import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
 
 type ScanJobFixture = {
   id: string;
+  assessmentId: string;
   snapshotId: string;
   status: RepositoryScanJobStatus;
+  triggerSource: string;
+  idempotencyKey: string;
 };
 
 describe("StreamSnapshotArchiveHandler", () => {
@@ -55,8 +59,11 @@ describe("StreamSnapshotArchiveHandler", () => {
 
   const scanJob: ScanJobFixture = {
     id: "scan-job-1",
+    assessmentId: "assessment-1",
     snapshotId: "snapshot-1",
     status: REPOSITORY_SCAN_JOB_STATUSES.queued,
+    triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
+    idempotencyKey: "manual:scan-job-1",
   };
 
   const connection = {
@@ -91,6 +98,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     archiveError?: Error;
     cacheHit?: SnapshotArchiveCacheHit | null;
     claimCount?: number;
+    hydration?: boolean;
   }) {
     const hasOption = <K extends keyof NonNullable<typeof options>>(
       key: K,
@@ -173,6 +181,17 @@ describe("StreamSnapshotArchiveHandler", () => {
       get: cacheGetMock,
       capture: cacheCaptureMock,
     } as unknown as SnapshotArchiveCache;
+    const hydrationLifecycle = {
+      isHydrationTicket: (ticket: ScanJobFixture) =>
+        options?.hydration === true ||
+        ticket.idempotencyKey.startsWith("runtime-hydration:"),
+      claim: jest
+        .fn<(...args: unknown[]) => Promise<void>>()
+        .mockResolvedValue(undefined),
+      finalizeDelivery: jest
+        .fn<(...args: unknown[]) => Promise<void>>()
+        .mockResolvedValue(undefined),
+    };
 
     return {
       handler: new StreamSnapshotArchiveHandler(
@@ -180,12 +199,14 @@ describe("StreamSnapshotArchiveHandler", () => {
         snapshotArchiveCache,
         credentialResolver,
         { downloadArchive: downloadRepositoryArchiveMock },
+        hydrationLifecycle as never,
       ),
       downloadRepositoryArchiveMock,
       resolveForConnection,
       cacheGetMock,
       cacheCaptureMock,
       claimScanJobMock,
+      hydrationLifecycle,
     };
   }
   it("streams the pinned repository archive when scope is valid", async () => {
@@ -225,6 +246,113 @@ describe("StreamSnapshotArchiveHandler", () => {
       commitSha: "a".repeat(40),
     });
     expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+  });
+
+  it("claims a runtime-hydration ticket but leaves success finalization to HTTP delivery", async () => {
+    const hydrationTicket = {
+      ...scanJob,
+      status: REPOSITORY_SCAN_JOB_STATUSES.queued,
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+      idempotencyKey: "runtime-hydration:assessment-1:snapshot-1",
+    };
+    const { handler, hydrationLifecycle } = buildHandler({
+      scanJob: hydrationTicket,
+    });
+
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery(
+        "snapshot-1",
+        hydrationTicket.id,
+        "corr-hydration",
+      ),
+    );
+
+    expect(hydrationLifecycle.claim).toHaveBeenCalledWith(
+      hydrationTicket.id,
+      hydrationTicket.assessmentId,
+      "snapshot-1",
+      REPOSITORY_SCAN_JOB_STATUSES.queued,
+    );
+    expect(result.hydrationDeliveryTicketId).toBe(hydrationTicket.id);
+    expect(hydrationLifecycle.finalizeDelivery).not.toHaveBeenCalled();
+  });
+
+  it("reuses successful hydration tickets for future pinned archive reads", async () => {
+    const hydrationTicket = {
+      ...scanJob,
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+      idempotencyKey: "runtime-hydration:assessment-1:snapshot-1",
+    };
+    const { handler, hydrationLifecycle } = buildHandler({
+      scanJob: hydrationTicket,
+    });
+
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery(
+        "snapshot-1",
+        hydrationTicket.id,
+        "corr-reuse",
+      ),
+    );
+
+    expect(result.hydrationDeliveryTicketId).toBeUndefined();
+    expect(hydrationLifecycle.claim).not.toHaveBeenCalled();
+  });
+
+  it("allows a failed hydration ticket to be retried", async () => {
+    const hydrationTicket = {
+      ...scanJob,
+      status: REPOSITORY_SCAN_JOB_STATUSES.failed,
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+      idempotencyKey: "runtime-hydration:assessment-1:snapshot-1",
+    };
+    const { handler, hydrationLifecycle } = buildHandler({
+      scanJob: hydrationTicket,
+    });
+
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery(
+        "snapshot-1",
+        hydrationTicket.id,
+        "corr-retry",
+      ),
+    );
+
+    expect(hydrationLifecycle.claim).toHaveBeenCalledWith(
+      hydrationTicket.id,
+      hydrationTicket.assessmentId,
+      "snapshot-1",
+      REPOSITORY_SCAN_JOB_STATUSES.failed,
+    );
+    expect(result.hydrationDeliveryTicketId).toBe(hydrationTicket.id);
+  });
+
+  it("terminalizes a claimed hydration attempt when archive acquisition fails", async () => {
+    const hydrationTicket = {
+      ...scanJob,
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+      idempotencyKey: "runtime-hydration:assessment-1:snapshot-1",
+    };
+    const { handler, hydrationLifecycle } = buildHandler({
+      scanJob: hydrationTicket,
+      archiveError: new Error("provider failure"),
+    });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          hydrationTicket.id,
+          "corr-failed",
+        ),
+      ),
+    ).rejects.toBeInstanceOf(HttpException);
+    expect(hydrationLifecycle.finalizeDelivery).toHaveBeenCalledWith({
+      ticketId: hydrationTicket.id,
+      snapshotId: "snapshot-1",
+      outcome: REPOSITORY_SCAN_JOB_STATUSES.failed,
+    });
   });
 
   it("rejects snapshot and scan job mismatch", async () => {

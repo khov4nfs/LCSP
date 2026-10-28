@@ -1,291 +1,152 @@
+"use client";
+
 import Link from "next/link";
-import { ExternalLinkIcon, FileDownIcon, ScaleIcon } from "lucide-react";
-import { resolveMessage } from "@lcsp/i18n";
 import {
-  LEGAL_RISK_LEVELS,
-  type LegalRiskLevel,
+  LEGAL_SOURCE_ERROR_CODES,
+  type ActiveLegalLibrary,
 } from "@lcsp/contracts/legal-source";
+import type { MessageKey } from "@lcsp/i18n";
 
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { appLocale } from "@/lib/locale";
-import {
-  getLegalDocument,
-  legalDocumentChunks,
-  legalDocuments,
-  type LegalDocument,
-} from "../../config/legal-documents";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ApiRequestError } from "@/lib/api/api-request";
+import { useActiveLegalLibraryQuery } from "@/lib/api/legal-source-queries";
+import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
 
-type LegalDocumentCopy = {
-  title: string;
-  reference: string;
-  issuedOn: string;
-  effectiveOn: string;
-  authority: string;
-};
+const t = (key: string) => resolveAppMessage(key as MessageKey);
 
 export function LegalLibraryPage() {
-  return (
-    <main className="flex flex-1 flex-col px-4 py-6 text-foreground lg:px-6">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-2">
-          <h1 className="font-heading text-2xl font-semibold">
-            {resolveMessage(appLocale, "pages.legalLibrary.pageTitle")}
-          </h1>
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            {resolveMessage(appLocale, "pages.legalLibrary.pageDescription")}
-          </p>
-        </header>
+  const library = useActiveLegalLibraryQuery();
+  if (library.isPending) return <Skeleton className="h-72 w-full" />;
+  if (library.isError) {
+    if (
+      library.error instanceof ApiRequestError &&
+      library.error.problemCode ===
+        LEGAL_SOURCE_ERROR_CODES.activeLegalSourceNotFound
+    ) {
+      return <LegalLibraryEmptyState />;
+    }
+    return (
+      <Alert variant="destructive">
+        <AlertDescription className="flex items-center justify-between gap-3">
+          <span>{t("pages.legalLibrary.loadFailed")}</span>
+          <Button variant="outline" onClick={() => void library.refetch()}>
+            {t("pages.legalLibrary.tryAgain")}
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          {legalDocuments.map((document) => (
-            <LegalDocumentCard key={document.id} document={document} />
-          ))}
-        </section>
-
-        <LegalRiskTable />
-      </div>
-    </main>
-  );
+  return <LegalLibraryContent library={library.data} />;
 }
 
-function LegalRiskTable() {
+function LegalLibraryContent({ library }: { library: ActiveLegalLibrary }) {
+  if (library.documents.length === 0) return <LegalLibraryEmptyState />;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {resolveMessage(appLocale, "pages.legalLibrary.riskTableTitle")}
-        </CardTitle>
-        <CardDescription>
-          {resolveMessage(
-            appLocale,
-            "pages.legalLibrary.riskTableDescription",
+    <div className="flex flex-col gap-6 pb-12">
+      <header className="flex flex-col gap-2">
+        <p className="text-sm font-medium text-primary">
+          {formatAppMessage(
+            "pages.legalLibrary.activeVersionLabel" as MessageKey,
+            {
+              version: library.version,
+            },
           )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                {resolveMessage(appLocale, "pages.legalLibrary.chunkIdLabel")}
-              </TableHead>
-              <TableHead>
-                {resolveMessage(appLocale, "pages.legalLibrary.documentLabel")}
-              </TableHead>
-              <TableHead>
-                {resolveMessage(appLocale, "pages.legalLibrary.locatorLabel")}
-              </TableHead>
-              <TableHead>
-                {resolveMessage(appLocale, "pages.legalLibrary.riskLevelLabel")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {legalDocumentChunks.map((chunk) => {
-              const document = getLegalDocument(chunk.documentId);
-
-              if (!document) {
-                return null;
-              }
-
-              return (
-                <TableRow key={chunk.id}>
-                  <TableCell className="font-mono text-xs">{chunk.id}</TableCell>
-                  <TableCell>
-                    <Link
-                      className="font-medium hover:underline"
-                      href={`/laws/${document.id}`}
-                    >
-                      {getLegalDocumentCopy(document).title}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {chunk.pageStart}-{chunk.pageEnd}
-                  </TableCell>
-                  <TableCell>
-                    <RiskLevelBadge riskLevel={chunk.riskLevel} />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-          <TableCaption>
-            {resolveMessage(appLocale, "pages.legalLibrary.riskTableDisclaimer")}
-          </TableCaption>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-}
-
-function RiskLevelBadge({ riskLevel }: { riskLevel: LegalRiskLevel }) {
-  const variant =
-    riskLevel === LEGAL_RISK_LEVELS.high
-      ? "destructive"
-      : riskLevel === LEGAL_RISK_LEVELS.medium
-        ? "secondary"
-        : "outline";
-
-  return (
-    <Badge variant={variant}>
-      {getRiskLevelLabel(riskLevel)}
-    </Badge>
-  );
-}
-
-function getRiskLevelLabel(riskLevel: LegalRiskLevel): string {
-  if (riskLevel === LEGAL_RISK_LEVELS.high) {
-    return resolveMessage(appLocale, "pages.legalLibrary.riskLevels.HIGH");
-  }
-
-  if (riskLevel === LEGAL_RISK_LEVELS.medium) {
-    return resolveMessage(appLocale, "pages.legalLibrary.riskLevels.MEDIUM");
-  }
-
-  return resolveMessage(appLocale, "pages.legalLibrary.riskLevels.LOW");
-}
-
-function LegalDocumentCard({ document }: { document: LegalDocument }) {
-  const copy = getLegalDocumentCopy(document);
-  const fileHref = `/laws/${document.id}/file`;
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <ScaleIcon className="mt-0.5 size-5 text-primary" aria-hidden="true" />
-          <div className="flex flex-col gap-1">
-            <CardTitle>{copy.title}</CardTitle>
-            <CardDescription>
-              {resolveMessage(
-                appLocale,
-                "pages.legalLibrary.documentReferenceLabel",
-              )}: {copy.reference}
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-2 text-sm">
-        <MetadataRow
-          label={resolveMessage(appLocale, "pages.legalLibrary.issuedOnLabel")}
-          value={copy.issuedOn}
-        />
-        <MetadataRow
-          label={resolveMessage(appLocale, "pages.legalLibrary.effectiveOnLabel")}
-          value={copy.effectiveOn}
-        />
-        <MetadataRow
-          label={resolveMessage(appLocale, "pages.legalLibrary.authorityLabel")}
-          value={copy.authority}
-        />
-      </CardContent>
-      <CardFooter className="flex flex-wrap gap-2">
-        <Button
-          render={<Link href={`/laws/${document.id}`} />}
-          nativeButton={false}
-        >
-          {resolveMessage(appLocale, "pages.legalLibrary.readDocument")}
-        </Button>
-        <Button
-          render={<a href={fileHref} download />}
-          nativeButton={false}
-          variant="outline"
-        >
-          <FileDownIcon data-icon="inline-start" aria-hidden="true" />
-          {resolveMessage(appLocale, "pages.legalLibrary.downloadDocument")}
-        </Button>
-        <Button
-          render={
-            <a
-              href={document.officialSourceUrl}
-              target="_blank"
-              rel="noreferrer"
-            />
-          }
-          nativeButton={false}
-          variant="ghost"
-        >
-          <ExternalLinkIcon data-icon="inline-start" aria-hidden="true" />
-          {resolveMessage(appLocale, "pages.legalLibrary.openOfficialSource")}
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function MetadataRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[10rem_1fr] gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+        </p>
+        <h1 className="text-3xl font-semibold">
+          {t("pages.legalLibrary.pageTitle")}
+        </h1>
+        <p className="max-w-3xl text-muted-foreground">
+          {t("pages.legalLibrary.pageDescription")}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {t("pages.legalLibrary.sourceNameLabel")}: {library.sourceName}
+        </p>
+      </header>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {library.documents.map((document) => (
+          <Card key={document.id} className="h-full">
+            <CardHeader>
+              <CardTitle>{document.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground">
+                    {t("pages.legalLibrary.sourceEffectStatusLabel")}
+                  </dt>
+                  <dd>{document.sourceEffectStatus}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">
+                    {t("pages.legalLibrary.effectiveDateLabel")}
+                  </dt>
+                  <dd>{document.effectiveDate ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">
+                    {t("pages.legalLibrary.chunkCountLabel")}
+                  </dt>
+                  <dd>{document.chunkCount}</dd>
+                </div>
+              </dl>
+              <div className="mt-auto flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="default"
+                  nativeButton={false}
+                  render={
+                    <Link href={`/laws/${encodeURIComponent(document.id)}`} />
+                  }
+                >
+                  {t("pages.legalLibrary.readDocument")}
+                </Button>
+                {httpsUrl(document.sourceUrl) ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    nativeButton={false}
+                    render={
+                      <a
+                        href={httpsUrl(document.sourceUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                      />
+                    }
+                  >
+                    {t("pages.legalLibrary.openOfficialSource")}
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
 
-function getLegalDocumentCopy(document: LegalDocument): LegalDocumentCopy {
-  if (document.messageKey === "aiLaw") {
-    return {
-      title: resolveMessage(
-        appLocale,
-        "pages.legalLibrary.documents.aiLaw.title",
-      ),
-      reference: resolveMessage(
-        appLocale,
-        "pages.legalLibrary.documents.aiLaw.reference",
-      ),
-      issuedOn: resolveMessage(
-        appLocale,
-        "pages.legalLibrary.documents.aiLaw.issuedOn",
-      ),
-      effectiveOn: resolveMessage(
-        appLocale,
-        "pages.legalLibrary.documents.aiLaw.effectiveOn",
-      ),
-      authority: resolveMessage(
-        appLocale,
-        "pages.legalLibrary.documents.aiLaw.authority",
-      ),
-    };
-  }
+function LegalLibraryEmptyState() {
+  return (
+    <section className="rounded-xl border border-dashed p-8 text-center">
+      <h1 className="text-xl font-semibold">
+        {t("pages.legalLibrary.emptyTitle")}
+      </h1>
+      <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
+        {t("pages.legalLibrary.emptyDescription")}
+      </p>
+    </section>
+  );
+}
 
-  return {
-    title: resolveMessage(
-      appLocale,
-      "pages.legalLibrary.documents.digitalTechnologyIndustryLaw.title",
-    ),
-    reference: resolveMessage(
-      appLocale,
-      "pages.legalLibrary.documents.digitalTechnologyIndustryLaw.reference",
-    ),
-    issuedOn: resolveMessage(
-      appLocale,
-      "pages.legalLibrary.documents.digitalTechnologyIndustryLaw.issuedOn",
-    ),
-    effectiveOn: resolveMessage(
-      appLocale,
-      "pages.legalLibrary.documents.digitalTechnologyIndustryLaw.effectiveOn",
-    ),
-    authority: resolveMessage(
-      appLocale,
-      "pages.legalLibrary.documents.digitalTechnologyIndustryLaw.authority",
-    ),
-  };
+function httpsUrl(value: string): string | undefined {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ? parsed.toString() : undefined;
+  } catch {
+    return undefined;
+  }
 }

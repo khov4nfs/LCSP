@@ -1,5 +1,0 @@
-{
-  "deletedGeneratedV1Source": "deepagents/.mda/build",
-  "deletedStaleRouteTypes": "apps/web/.next/dev/types",
-  "reason": "generated ignored V1 source copies and obsolete route validators; no checkpoints or customer workspace data"
-}

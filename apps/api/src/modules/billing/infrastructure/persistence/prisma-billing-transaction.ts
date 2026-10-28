@@ -272,10 +272,16 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
             ).count === 1,
         },
         usage: {
-          findByInvocation: (userId, invocationId) =>
-            tx.llmUsageEvent.findUnique({
-              where: { userId_invocationId: { userId, invocationId } },
-            }),
+          update: (id, data) =>
+            tx.llmUsageEvent.update({ where: { id }, data }),
+          findByInvocation: (userId, invocationId, runId) =>
+            userId === null
+              ? tx.llmUsageEvent.findFirst({
+                  where: { userId: null, runId, invocationId },
+                })
+              : tx.llmUsageEvent.findUnique({
+                  where: { userId_invocationId: { userId, invocationId } },
+                }),
           findByProviderResponse: (provider, providerResponseId) =>
             tx.llmUsageEvent.findUnique({
               where: {

@@ -3,7 +3,9 @@
     "preparation": {
       "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       "legalSourceVersion": "2026.10",
+      "activeRuleSetVersionId": null,
       "canStart": true,
+      "canReplace": false,
       "refusalReason": null,
       "currentRun": null
     },

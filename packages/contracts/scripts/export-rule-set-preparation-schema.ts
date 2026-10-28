@@ -3,13 +3,17 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { z } from "zod";
 
 import { complianceRuleSetPacketSchema } from "../src/compliance-rule-set/schemas.ts";
+import { directDraftSubmissionSchema } from "../src/compliance-rule-set/direct-draft.ts";
 
 // Shape guidance only; the API still owns integrity checks and relation refinements.
 const schema = {
   title: "ComplianceRuleSetToolInput",
   type: "object",
   properties: {
-    packet: z.toJSONSchema(complianceRuleSetPacketSchema, { target: "draft-7" }),
+    packet: z.toJSONSchema(complianceRuleSetPacketSchema, {
+      target: "draft-7",
+      io: "input",
+    }),
   },
   required: ["packet"],
   additionalProperties: false,
@@ -26,4 +30,11 @@ if (process.argv.includes("--check")) {
   );
 } else {
   writeFileSync(output, JSON.stringify(schema, null, 2) + "\n");
+}
+const directSchema = z.toJSONSchema(directDraftSubmissionSchema, { target: "draft-7", io: "input" });
+const directOutput = new URL("../../../deepagents/rule_set_preparation/direct-draft.schema.json", import.meta.url);
+if (process.argv.includes("--check")) {
+  assert.deepEqual(JSON.parse(readFileSync(directOutput, "utf8")), directSchema, "Direct draft tool schema is stale");
+} else {
+  writeFileSync(directOutput, JSON.stringify(directSchema, null, 2) + "\n");
 }

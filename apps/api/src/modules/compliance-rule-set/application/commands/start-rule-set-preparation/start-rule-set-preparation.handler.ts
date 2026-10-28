@@ -16,7 +16,10 @@ import {
 } from "@lcsp/contracts/outbox";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client";
+import {
+  AgentExecutionState as PrismaAgentExecutionState,
+  PreparationExecutionContract,
+} from "@prisma/client";
 
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -40,6 +43,27 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     private readonly outboxRepository: OutboxRepository,
   ) {}
 
+  /**
+   * Business purpose: Queue one paid Preparation for an active Legal Source Version with stable retry and replay identity.
+   *
+   * Business rules:
+   * - A start key can create only one run and may be replayed only for the same source version.
+   * - Only an ACTIVE Legal Source Version may produce a shared Rule Set.
+   * - Run creation and its outbox request are one transaction, preventing an unqueued or duplicate preparation.
+   *
+   * Execution flow:
+   * 1. Return an existing matching idempotent run if the key has already been used.
+   * 2. Load and verify the requested source is active.
+   * 3. Create a QUEUED DIRECT_DRAFT_V1 run and enqueue its preparation request atomically.
+   * 4. If a unique-key race occurs, reload and return the winning same-source run.
+   *
+   * Failure cases:
+   * - Missing sources return not found; inactive sources return preparation-not-allowed.
+   * - Reusing a key for another source returns idempotency conflict; other persistence/outbox failures propagate.
+   *
+   * Side effects:
+   * - Creates the preparation run and outbox event and stores their linked IDs in one transaction.
+   */
   async execute(
     input: StartRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationRun> {
@@ -88,6 +112,8 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
         const run = await tx.ruleSetPreparationRun.create({
           data: {
             idempotencyKey,
+            executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
+            targetDate: new Date(),
             legalSourceVersionId: source.id,
             requestedBy: input.requestedBy,
             correlationId: input.correlationId,

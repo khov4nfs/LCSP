@@ -1,8 +1,13 @@
-import type { EffectiveRuntimeModel } from "@lcsp/contracts/billing";
+import type {
+  ModelAttemptStatus,
+  EffectiveRuntimeModel,
+} from "@lcsp/contracts/billing";
 
 export type LlmUsageRecordInput = {
-  userId: string;
-  assessmentId: string;
+  userId: string | null;
+  assessmentId?: string;
+  attemptStatus?: ModelAttemptStatus;
+  failureClass?: string;
   runId: string;
   invocationId: string;
   agentRole: string;
@@ -11,6 +16,10 @@ export type LlmUsageRecordInput = {
   effectiveRuntimeModel?: EffectiveRuntimeModel;
   providerResponseId?: string;
   inputTokens?: bigint;
+  inputTokensIncludingCache?: bigint;
+  cacheWrite5mTokens?: bigint;
+  cacheWrite1hTokens?: bigint;
+  visibleOutputTokens?: bigint;
   cachedInputTokens?: bigint;
   cacheWriteTokens?: bigint;
   outputTokens?: bigint;

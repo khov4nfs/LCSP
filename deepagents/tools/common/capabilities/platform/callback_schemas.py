@@ -29,7 +29,10 @@ class SettledUsagePayload(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
-    assessmentId: str
+    assessmentId: Optional[str] = None
+    preparationRunId: Optional[str] = None
+    attemptStatus: Optional[str] = None
+    failureClass: Optional[str] = None
     runId: str
     invocationId: str
     agentRole: str
@@ -38,6 +41,10 @@ class SettledUsagePayload(BaseModel):
     providerResponseId: Optional[str] = None
     effectiveRuntimeModel: Optional[Dict[str, str]] = None
     inputTokens: Optional[str] = None
+    inputTokensIncludingCache: Optional[str] = None
+    cacheWrite5mTokens: Optional[str] = None
+    cacheWrite1hTokens: Optional[str] = None
+    visibleOutputTokens: Optional[str] = None
     cachedInputTokens: Optional[str] = None
     cacheWriteTokens: Optional[str] = None
     outputTokens: Optional[str] = None

@@ -10,11 +10,23 @@
     "noEmit": false,
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["./**/*.ts"],
+  "include": [
+    "./**/*.ts",
+    "./support/compliance-rule-set-stack.mjs",
+    "./support/live-evaluation-controls.mjs"
+  ],
   "references": [
-    { "path": "../packages/contracts" },
-    { "path": "../packages/i18n" },
-    { "path": "../apps/api" },
-    { "path": "../apps/web" }
+    {
+      "path": "../packages/contracts"
+    },
+    {
+      "path": "../packages/i18n"
+    },
+    {
+      "path": "../apps/api"
+    },
+    {
+      "path": "../apps/web"
+    }
   ]
 }

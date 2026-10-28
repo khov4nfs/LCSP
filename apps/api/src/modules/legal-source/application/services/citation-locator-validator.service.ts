@@ -16,6 +16,26 @@ export interface CitationLocatorRef {
 export class CitationLocatorValidatorService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Business purpose: Ensure every submitted legal citation points to a locator in the currently active source version.
+   *
+   * Business rules:
+   * - At least one complete citation is required, and each referenced source version must be ACTIVE.
+   * - The document identifier and locator must match a stored chunk in that exact version.
+   * - A chunk recorded as REPEALED cannot support a citation.
+   *
+   * Execution flow:
+   * 1. Reject an empty reference list or any reference missing its version, document, or locator.
+   * 2. For each reference, verify the active version and then locate the exact stored chunk.
+   * 3. Reject repealed chunks; return only after every reference passes.
+   *
+   * Failure cases:
+   * - Invalid, inactive, missing, or unresolved citations raise `citationUnresolved` with HTTP 422.
+   * - Repealed citations raise `citationRepealed` with HTTP 422.
+   *
+   * Side effects:
+   * - None beyond read-only Prisma lookups; the method does not modify citation or source state.
+   */
   async validateAll(refs: CitationLocatorRef[]): Promise<void> {
     if (!Array.isArray(refs) || refs.length === 0) {
       throw problemException(
@@ -55,6 +75,7 @@ export class CitationLocatorValidatorService {
           documentId: ref.documentId,
           locator: ref.locator,
         },
+        select: { legalEffectStatus: true },
       });
 
       if (!chunk) {
@@ -65,7 +86,7 @@ export class CitationLocatorValidatorService {
         );
       }
 
-      if (chunk.legalStatus === "REPEALED") {
+      if (chunk.legalEffectStatus === "REPEALED") {
         throw problemException(
           LEGAL_SOURCE_ERROR_CODES.citationRepealed,
           "citation-locator-validation",

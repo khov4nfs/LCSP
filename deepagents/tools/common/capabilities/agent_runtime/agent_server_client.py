@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Mapping
 from uuid import UUID, uuid5
+from urllib.parse import urlsplit
 
 import httpx
 from langgraph_sdk import get_sync_client
@@ -487,6 +488,24 @@ def reconcile_stale_agent_runs(*, server_url: str | None = None) -> int:
 
 
 def _agent_server_process_started_at(server_url: str) -> datetime:
+    """Business purpose: Establish the safe cutoff used to distinguish current Agent Server runs from stale persisted runs.
+
+    Business rules:
+    - The Agent Server process start metric is authoritative when available.
+    - The generation timestamp fallback is accepted only for the exact launcher-owned loopback server in a non-production runtime and only when it is not in the future.
+    - Production or remote servers without the metric cannot use a local launcher timestamp.
+
+    Execution flow:
+    1. Request `/metrics` and require a successful HTTP response.
+    2. Parse `process_start_time_seconds` when the server exposes it.
+    3. Otherwise validate the guarded local generation URL and timestamp fallback.
+
+    Failure cases:
+    - HTTP, network, or metrics parsing failures propagate; missing metrics without an eligible fallback raises RuntimeError.
+
+    Side effects:
+    - Performs one read-only HTTP request to the Agent Server metrics endpoint; it does not change run state.
+    """
     response = httpx.get(f"{server_url}/metrics", timeout=2.0)
     response.raise_for_status()
     prefix = "process_start_time_seconds "
@@ -494,6 +513,13 @@ def _agent_server_process_started_at(server_url: str) -> datetime:
         if line.startswith(prefix):
             timestamp = float(line.removeprefix(prefix).strip())
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    # Older dev servers omit process metrics; the owning launcher supplies a safe pre-spawn cutoff.
+    generation = _parse_datetime(os.getenv("LCSP_AGENT_SERVER_GENERATION_STARTED_AT"))
+    production = any(os.getenv(key, "").strip().lower() == "production" for key in ("NODE_ENV", "LCSP_AGENT_RUNTIME_MODE"))
+    if (not production and urlsplit(server_url).hostname in {"127.0.0.1", "localhost", "::1"}
+            and server_url == os.getenv("LCSP_AGENT_SERVER_GENERATION_URL")
+            and generation is not None and generation <= datetime.now(timezone.utc)):
+        return generation
     raise RuntimeError("Agent Server metrics did not expose process_start_time_seconds")
 
 

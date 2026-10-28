@@ -263,10 +263,31 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
 
+      # Python/API parity tests run the API's TypeScript domain code through `pnpm exec tsx`.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Node dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Build runtime packages and Prisma client
+        working-directory: .
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
+        run: |
+          pnpm run build:runtime-packages
+          pnpm --filter @lcsp/api prisma:generate
 
       - name: Validate LangGraph Agent Runtime config
         env:
           OPENAI_API_KEY: ci-import-only
+          # The default route is Mirai, whose key is never inherited from another provider.
+          MIRAI_API_KEY: ci-import-only
           LANGSMITH_TRACING: "false"
           LANGCHAIN_TRACING_V2: "false"
         run: |

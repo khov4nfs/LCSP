@@ -23,7 +23,24 @@ _NOT_ACTIVE = "ASSESSMENT_NOT_ACTIVE"
 
 
 def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
-    """Hydrate the pinned snapshot into the assessment's thread sandbox (deterministic runtime)."""
+    """Business purpose: Mount the Assessment's pinned source on its durable Root thread for native investigation.
+
+    Business rules:
+    - Hydrate only the API-issued snapshot/job/commit for this Assessment and server-owned thread.
+    - Source and runtime identity metadata are read-only; writes are limited to the existing agent scratch subtree.
+    - Graph lookup is an investigation aid indexed from this same hydrated source, not a legal authority.
+
+    Execution flow:
+    1. Resolve the thread sandbox and hydrate its pinned repository with source-view limitations.
+    2. Ensure the source graph index is current and activate the repository backend for nested native tools.
+    3. Return the file-only backend with its repository-write boundary enabled.
+
+    Failure cases:
+    - Missing or mismatched pins, hydration and indexing failures propagate before model investigation begins.
+
+    Side effects:
+    - Materializes the guarded source view and graph index in the thread sandbox; invokes no model or decision write.
+    """
     from tools.common.capabilities.platform.codebase_memory import ensure_codebase_memory_index
     from tools.common.capabilities.platform.repository_sandbox import (
         activate_repository_backend,
@@ -45,7 +62,7 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
     # The Root's graph tools query the Codebase Memory index of the hydrated snapshot; index it
     # before the Root starts (reused when current) so a run never silently lacks the graph.
     ensure_codebase_memory_index(thread_backend)
-    return RuntimeRepositoryFilesystemBackend(), activate_repository_backend(thread_backend)
+    return RuntimeRepositoryFilesystemBackend(read_only_repository=True), activate_repository_backend(thread_backend)
 
 
 @contextlib.contextmanager

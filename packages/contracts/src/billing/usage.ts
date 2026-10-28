@@ -1,8 +1,13 @@
+import type { ModelAttemptStatus } from "./usage-analytics.ts";
 import type { EffectiveRuntimeModel } from "./runtime-model.ts";
 
 /** Provider-reported token dimensions; omitted when the provider reported nothing. */
 export type ProviderReportedTokenDimensions = {
   inputTokens?: string;
+  inputTokensIncludingCache?: string;
+  cacheWrite5mTokens?: string;
+  cacheWrite1hTokens?: string;
+  visibleOutputTokens?: string;
   cachedInputTokens?: string;
   cacheWriteTokens?: string;
   outputTokens?: string;
@@ -12,7 +17,10 @@ export type ProviderReportedTokenDimensions = {
 
 /** Worker-to-API telemetry payload. It carries no price, charge or reservation. */
 export type LlmUsageReport = ProviderReportedTokenDimensions & {
-  assessmentId: string;
+  assessmentId?: string;
+  preparationRunId?: string;
+  attemptStatus?: ModelAttemptStatus;
+  failureClass?: string;
   runId: string;
   agentRole: string;
   provider: string;

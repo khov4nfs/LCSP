@@ -1,4 +1,6 @@
 import type { MessageKey } from "@lcsp/i18n";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -14,12 +16,14 @@ import {
 import { resolveAppMessage } from "@/lib/i18n";
 import { formatLocaleTimestamp } from "@/features/workspace/utils/assessment-runtime-formatter";
 import type { ComplianceRuleSetActiveCardProps } from "../../types/compliance-rule-sets.types";
+import { RuleSetPreparationAction } from "./rule-set-preparation-action";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
 /** The one shared rule set every new assessment pins: observability only, never an action. */
 export function ComplianceRuleSetActiveCard({
   ruleSet,
+  availability,
 }: ComplianceRuleSetActiveCardProps) {
   const facts = ruleSet
     ? [
@@ -41,9 +45,16 @@ export function ComplianceRuleSetActiveCard({
       <CardHeader>
         <CardTitle>{t("pages.complianceRuleSets.active")}</CardTitle>
         <CardDescription>
-          {ruleSet
-            ? ruleSet.version
-            : t("pages.complianceRuleSets.unavailable")}
+          {ruleSet ? (
+            <span className="flex flex-wrap items-center gap-2">
+              <span>{ruleSet.version}</span>
+              <Badge variant="outline">
+                {t(`pages.complianceRuleSets.states.${ruleSet.lifecycleState}`)}
+              </Badge>
+            </span>
+          ) : (
+            t("pages.complianceRuleSets.unavailable")
+          )}
         </CardDescription>
       </CardHeader>
       {ruleSet ? (
@@ -75,6 +86,18 @@ export function ComplianceRuleSetActiveCard({
               </div>
             ))}
           </dl>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <Link
+              className="text-sm font-medium text-primary underline underline-offset-4"
+              href={`/admin/compliance-rule-sets/${ruleSet.ruleSetVersionId}`}
+            >
+              {t("pages.complianceRuleSets.viewResult")}
+            </Link>
+            <RuleSetPreparationAction
+              availability={availability}
+              replaceActive
+            />
+          </div>
         </CardContent>
       ) : null}
     </Card>

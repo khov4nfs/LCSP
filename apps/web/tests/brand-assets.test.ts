@@ -3,6 +3,8 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const logoComponentPath = new URL(
   "../src/components/atoms/lcsp-logo.tsx",
@@ -33,6 +35,19 @@ const appRootPath = new URL("../src/app", import.meta.url);
 const brandAssetPath = new URL("../public/brand", import.meta.url);
 const webSourcePath = new URL("../src", import.meta.url);
 const webPublicPath = new URL("../public", import.meta.url);
+
+test("shared logo keeps Next Image rendering under the Node ESM loader", async (t) => {
+  const errors: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => errors.push(args));
+  const { LCSPLogo } = await import("../src/components/atoms/lcsp-logo.tsx");
+  const markup = renderToStaticMarkup(createElement(LCSPLogo));
+
+  assert.equal((markup.match(/data-nimg="1"/g) ?? []).length, 2);
+  assert.match(markup, /src="\/brand\/lcsp-lockup-light\.svg"/);
+  assert.match(markup, /src="\/brand\/lcsp-lockup-dark\.svg"/);
+  assert.doesNotMatch(markup, /\sunoptimized[\s=>]/);
+  assert.deepEqual(errors, []);
+});
 
 test("shared brand component renders approved mark and lockup assets", async () => {
   const [componentSource, typeSource] = await Promise.all([

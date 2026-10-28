@@ -1,0 +1,74 @@
+{
+  "emitted_at": "2026-10-24T00:00:00.000Z",
+  "canonical_assessments": [],
+  "canonical_events": [],
+  "agent_stream_events": [
+    {
+      "eventId": "file-event-1",
+      "sequence": 1,
+      "clientSequence": 1,
+      "emittedAt": "2026-10-24T00:00:00.000Z",
+      "assessmentId": null,
+      "boundaryType": "RULE_SET_PREPARATION",
+      "boundaryId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "preparationRunId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "runId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "correlationId": "file-progress-browser",
+      "eventType": "CUSTOM_PROGRESS",
+      "source": null,
+      "agentName": "rule-set-preparation",
+      "subagentName": null,
+      "namespace": [],
+      "nodeName": null,
+      "messageId": null,
+      "toolName": null,
+      "toolCallId": null,
+      "status": "RUNNING",
+      "text": null,
+      "data": {
+        "review_frontier": {
+          "progress": {
+            "total": 10,
+            "pending": 2,
+            "inReview": 1,
+            "blocked": 1,
+            "reviewedWithClaims": 4,
+            "reviewedNoClaims": 2,
+            "persistedClaims": 7
+          }
+        }
+      }
+    },
+    {
+      "eventId": "file-event-2",
+      "sequence": 2,
+      "clientSequence": 2,
+      "emittedAt": "2026-10-24T00:00:00.000Z",
+      "assessmentId": null,
+      "boundaryType": "RULE_SET_PREPARATION",
+      "boundaryId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "preparationRunId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "runId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "correlationId": "file-progress-browser",
+      "eventType": "CUSTOM_PROGRESS",
+      "source": null,
+      "agentName": "rule-set-preparation",
+      "subagentName": null,
+      "namespace": [],
+      "nodeName": null,
+      "messageId": null,
+      "toolName": null,
+      "toolCallId": null,
+      "status": "RUNNING",
+      "text": null,
+      "data": {
+        "activity_kind": "CLAIM_FILE_COMMITTED",
+        "file": "luat-134/dieu-5.json",
+        "committedNodes": ["node-a", "node-b"],
+        "rejected": {
+          "d5-k3-duty": ["Source support requires correction"]
+        }
+      }
+    }
+  ]
+}

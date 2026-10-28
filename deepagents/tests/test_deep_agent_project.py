@@ -93,6 +93,7 @@ LIVE_BOUNDARIES = {
     "ocr_quality_requested",
     "reviewed_legal_source_input_requested",
     "legal_chunk_build_requested",
+    "managed_document_ingest_requested",
     "vbpl_effected_chunk_set_requested",
     "chunk_integrity_requested",
     "legal_retrieval_index_requested",

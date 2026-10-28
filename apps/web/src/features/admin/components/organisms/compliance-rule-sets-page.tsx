@@ -42,13 +42,22 @@ export function ComplianceRuleSetsPage() {
         title={t("pages.complianceRuleSets.title")}
         description={t("pages.complianceRuleSets.description")}
       />
-      <ComplianceRuleSetActiveCard ruleSet={active} />
+      <ComplianceRuleSetActiveCard
+        ruleSet={active}
+        availability={history.data.preparation}
+      />
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">
           {t("pages.complianceRuleSets.preparations")}
         </h2>
-        <RuleSetPreparationList preparations={history.data.preparations} />
-        <RuleSetPreparationAction availability={history.data.preparation} />
+        <RuleSetPreparationList
+          preparations={history.data.preparations}
+          availability={history.data.preparation}
+          ruleSets={history.data.ruleSets}
+        />
+        {!active ? (
+          <RuleSetPreparationAction availability={history.data.preparation} />
+        ) : null}
       </section>
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">

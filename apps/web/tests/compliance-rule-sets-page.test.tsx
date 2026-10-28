@@ -5,6 +5,7 @@ import {
   buttons,
   byText,
   click,
+  installFakeEventSource,
   installFetch,
   render,
   settle,
@@ -12,11 +13,14 @@ import {
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  AGENT_EXECUTION_STATES,
+  ARTIFACT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
+import {
   complianceRuleSetHistorySchema,
   RULE_SET_PREPARATION_FAILURE_REASONS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
-import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { setAppLocale } from "../src/lib/locale.ts";
 import { ComplianceRuleSetsPage } from "../src/features/admin/components/organisms/compliance-rule-sets-page.tsx";
 
@@ -25,6 +29,7 @@ setAppLocale("en");
 const SOURCE_V1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const SOURCE_V2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const RULE_SET_V1 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const RULE_SET_OLD = "10101010-1010-4010-8010-101010101010";
 const RUN_OK = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const RUN_FAILED = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const RUN_CANCEL = "99999999-9999-4999-8999-999999999999";
@@ -33,8 +38,10 @@ const history = complianceRuleSetHistorySchema.parse({
   preparation: {
     legalSourceVersionId: SOURCE_V2,
     legalSourceVersion: "2026.11",
-    canStart: true,
-    refusalReason: null,
+    activeRuleSetVersionId: RULE_SET_V1,
+    canStart: false,
+    canReplace: true,
+    refusalReason: RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
     currentRun: {
       preparationRunId: RUN_FAILED,
       legalSourceVersionId: SOURCE_V2,
@@ -49,12 +56,25 @@ const history = complianceRuleSetHistorySchema.parse({
       legalSourceVersionId: SOURCE_V1,
       legalSourceVersion: "2026.10",
       ruleSetDigest: "f".repeat(64),
-      lifecycleState: "ACTIVE",
+      lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
       activatedAt: "2026-10-11T10:00:00.000Z",
       supersededAt: null,
       createdAt: "2026-10-11T09:55:00.000Z",
       legalRequirementCount: 37,
       assessmentRuleCount: 62,
+    },
+    {
+      ruleSetVersionId: RULE_SET_OLD,
+      version: "2026.09.p1",
+      legalSourceVersionId: SOURCE_V1,
+      legalSourceVersion: "2026.09",
+      ruleSetDigest: "e".repeat(64),
+      lifecycleState: ARTIFACT_LIFECYCLE_STATES.SUPERSEDED,
+      activatedAt: "2026-10-01T10:00:00.000Z",
+      supersededAt: "2026-10-11T10:00:00.000Z",
+      createdAt: "2026-10-01T09:55:00.000Z",
+      legalRequirementCount: 31,
+      assessmentRuleCount: 51,
     },
   ],
   preparations: [
@@ -62,7 +82,7 @@ const history = complianceRuleSetHistorySchema.parse({
       preparationRunId: RUN_FAILED,
       legalSourceVersionId: SOURCE_V2,
       legalSourceVersion: "2026.11",
-      executionState: "FAILED",
+      executionState: AGENT_EXECUTION_STATES.FAILED,
       ruleSetVersionId: null,
       failureReason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
       attempt: 1,
@@ -75,7 +95,7 @@ const history = complianceRuleSetHistorySchema.parse({
       preparationRunId: RUN_OK,
       legalSourceVersionId: SOURCE_V1,
       legalSourceVersion: "2026.10",
-      executionState: "SUCCEEDED",
+      executionState: AGENT_EXECUTION_STATES.SUCCEEDED,
       ruleSetVersionId: RULE_SET_V1,
       failureReason: null,
       attempt: 1,
@@ -113,18 +133,25 @@ test("Compliance Rule Sets shows Prepare and canonical Retry after a failed prep
     assert.match(text, /62/);
     assert.match(text, /f{64}/);
     assert.match(text, /No rule set|Rule Set Preparation/);
-    // Prepare is available for the current source; Retry remains scoped to the latest failed run.
+    // An ACTIVE rule set never blocks improvement: an explicit "Prepare new version" is offered next
+    // to "View result". Retry remains scoped to the latest failed run.
     assert.equal(
       page.querySelectorAll("form, select, [role='combobox']").length,
       0,
     );
+    assert.equal(byText(page, "button", "Prepare rule set"), null);
     const prepare = byText<HTMLButtonElement>(
       page,
       "button",
-      "Prepare rule set",
+      "Prepare new version",
     );
     assert.ok(prepare);
     assert.equal(prepare.disabled, false);
+    assert.ok(
+      page.querySelector(
+        `[data-compliance-rule-set-active] a[href='/admin/compliance-rule-sets/${RULE_SET_V1}']`,
+      ),
+    );
     assert.equal(byText(page, "button", "Cancel preparation"), null);
     const retry = buttons(page).filter((button) =>
       /Retry failed Rule Set Preparation/.test(button.textContent ?? ""),
@@ -176,7 +203,9 @@ const clean = complianceRuleSetHistorySchema.parse({
   preparation: {
     legalSourceVersionId: SOURCE_V1,
     legalSourceVersion: "2026.10",
+    activeRuleSetVersionId: null,
     canStart: true,
+    canReplace: false,
     refusalReason: null,
     currentRun: null,
   },
@@ -255,7 +284,9 @@ test("preparing after three failures displays Attempt 4 and exposes Cancel while
     ...failedThreeTimes,
     preparation: {
       ...failedThreeTimes.preparation,
+      activeRuleSetVersionId: null,
       canStart: false,
+      canReplace: false,
       refusalReason:
         RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
       currentRun: attemptFour,
@@ -367,7 +398,9 @@ test("Prepare sends no source/content and refreshes the running server state", a
         ...clean,
         preparation: {
           ...clean.preparation,
+          activeRuleSetVersionId: null,
           canStart: false,
+          canReplace: false,
           refusalReason:
             RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
           currentRun: run,
@@ -398,7 +431,11 @@ test("Prepare sends no source/content and refreshes the running server state", a
     const posts = stub.calls.filter((call) => call.method === "POST");
     assert.equal(posts.length, 1);
     assert.equal(posts[0].url, "/api/admin/compliance-rule-sets/prepare");
-    assert.equal(posts[0].body, null);
+    // Admin supplies no content; a first preparation carries no replacement intent and names only the
+    // version on screen.
+    assert.deepEqual(JSON.parse(String(posts[0].body ?? "{}")), {
+      legalSourceVersionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
     assert.ok(stub.calls.filter((call) => call.method === "GET").length >= 2);
   } finally {
     release();
@@ -411,7 +448,9 @@ test("a RUNNING preparation disables a second start", async () => {
     ...clean,
     preparation: {
       ...clean.preparation,
+      activeRuleSetVersionId: null,
       canStart: false,
+      canReplace: false,
       refusalReason:
         RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
       currentRun: {
@@ -441,7 +480,9 @@ test("a compatible ACTIVE rule set shows success metadata and hides Prepare", as
     ...history,
     preparation: {
       ...clean.preparation,
+      activeRuleSetVersionId: null,
       canStart: false,
+      canReplace: false,
       refusalReason:
         RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
     },
@@ -466,7 +507,9 @@ test("an unavailable source cannot start preparation", async () => {
     preparation: {
       legalSourceVersionId: null,
       legalSourceVersion: null,
+      activeRuleSetVersionId: null,
       canStart: false,
+      canReplace: false,
       refusalReason:
         RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ELIGIBLE,
       currentRun: null,
@@ -493,7 +536,9 @@ function cancellableHistory(state: "QUEUED" | "RUNNING") {
     ...clean,
     preparation: {
       ...clean.preparation,
+      activeRuleSetVersionId: null,
       canStart: false,
+      canReplace: false,
       refusalReason:
         RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
       currentRun: run,
@@ -550,7 +595,9 @@ test("Admin cancellation confirms, sends only the preparation ID, and settles th
     ...cancellableHistory("RUNNING"),
     preparation: {
       ...cancellableHistory("RUNNING").preparation,
+      activeRuleSetVersionId: null,
       canStart: true,
+      canReplace: false,
       refusalReason: null,
       currentRun: {
         preparationRunId: RUN_CANCEL,
@@ -631,6 +678,216 @@ test("Admin cancellation confirms, sends only the preparation ID, and settles th
     );
   } finally {
     release();
+    stub.restore();
+  }
+});
+
+const viewHref = (id: string) => `/admin/compliance-rule-sets/${id}`;
+
+test("View result is offered for the active version, a succeeded run and a superseded version", async () => {
+  const stub = installFetch({ "GET /api/admin/compliance-rule-sets": history });
+  try {
+    const rendered = page();
+    await settle();
+    const links = [...rendered.querySelectorAll("a")].map((link) =>
+      link.getAttribute("href"),
+    );
+    // Active card + SUCCEEDED run + history row of v1; the superseded version stays inspectable too.
+    assert.ok(
+      links.filter((href) => href === viewHref(RULE_SET_V1)).length >= 2,
+    );
+    assert.ok(links.includes(viewHref(RULE_SET_OLD)));
+    assert.match(rendered.textContent ?? "", /Superseded/);
+  } finally {
+    stub.restore();
+  }
+});
+
+test("an explicit replacement sends replaceActive, keeps the active version in use and shows the running state", async () => {
+  const run = {
+    preparationRunId: RUN_OK,
+    legalSourceVersionId: SOURCE_V2,
+    executionState: AGENT_EXECUTION_STATES.QUEUED,
+    ruleSetVersionId: null,
+  };
+  const routes: Record<string, unknown> = {
+    "GET /api/admin/compliance-rule-sets": history,
+    "POST /api/admin/compliance-rule-sets/prepare": run,
+  };
+  const stub = installFetch(routes);
+  try {
+    const rendered = page();
+    await settle();
+    click(byText(rendered, "button", "Prepare new version"));
+    await settle();
+    // The confirm dialog explains that the current version stays active until the new one activates.
+    assert.match(
+      document.body.textContent ?? "",
+      /stays in use until the new version validates/,
+    );
+    const confirm = buttons(document.body).filter(
+      (button) => button.textContent === "Prepare new version",
+    );
+    click(confirm[confirm.length - 1]);
+    routes["GET /api/admin/compliance-rule-sets"] = {
+      ...history,
+      preparation: {
+        ...history.preparation,
+        canStart: false,
+        canReplace: false,
+        refusalReason:
+          RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
+        currentRun: run,
+      },
+      preparations: [
+        {
+          ...history.preparations[0],
+          preparationRunId: RUN_OK,
+          legalSourceVersionId: SOURCE_V2,
+          executionState: AGENT_EXECUTION_STATES.RUNNING,
+          failureReason: null,
+          retryable: false,
+          completedAt: null,
+        },
+        ...history.preparations.slice(1),
+      ],
+    };
+    await settle(12);
+    const posts = stub.calls.filter((call) => call.method === "POST");
+    assert.equal(posts.length, 1);
+    assert.deepEqual(JSON.parse(String(posts[0].body)), {
+      replaceActive: true,
+      legalSourceVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    });
+    const text = rendered.textContent ?? "";
+    assert.match(text, /2026\.10\.p1/); // the active version is still shown as ACTIVE
+    assert.match(text, /replacing active version/i);
+    assert.equal(
+      byText<HTMLButtonElement>(rendered, "button", "Preparing rule set…")
+        ?.disabled,
+      true,
+    );
+  } finally {
+    stub.restore();
+  }
+});
+
+const terminalHistory = (executionState: string) => ({
+  ...history,
+  preparation: { ...history.preparation, currentRun: null },
+  preparations: [
+    {
+      ...history.preparations[0],
+      executionState,
+      failureReason:
+        executionState === AGENT_EXECUTION_STATES.FAILED
+          ? RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION
+          : null,
+      retryable: executionState === AGENT_EXECUTION_STATES.FAILED,
+    },
+    ...history.preparations.slice(1),
+  ],
+});
+
+test("a terminal preparation settles: no Cancel, no live indicator, stream closed, history kept", async () => {
+  for (const state of [
+    AGENT_EXECUTION_STATES.FAILED,
+    AGENT_EXECUTION_STATES.CANCELLED,
+    AGENT_EXECUTION_STATES.SUCCEEDED,
+  ]) {
+    const stream = installFakeEventSource();
+    const stub = installFetch({
+      "GET /api/admin/compliance-rule-sets": terminalHistory(state),
+    });
+    try {
+      const rendered = page();
+      await settle();
+      const text = rendered.textContent ?? "";
+      assert.equal(
+        byText(rendered, "button", "Cancel preparation"),
+        null,
+        state,
+      );
+      assert.doesNotMatch(text, /Live|Reconnecting/, state);
+      assert.equal(
+        rendered.querySelectorAll(".animate-pulse").length,
+        0,
+        state,
+      );
+      assert.ok(
+        stream.instances.length >= 1,
+        "the activity history is still requested",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1700));
+      assert.ok(
+        stream.instances.every((source) => source.closed),
+        `${state}: the stream closes once the run is terminal`,
+      );
+    } finally {
+      stub.restore();
+      stream.restore();
+      document.body.innerHTML = "";
+    }
+  }
+});
+
+test("a running preparation keeps Cancel and the live stream open", async () => {
+  const stream = installFakeEventSource();
+  const running = terminalHistory(AGENT_EXECUTION_STATES.RUNNING);
+  const stub = installFetch({
+    "GET /api/admin/compliance-rule-sets": {
+      ...running,
+      preparation: {
+        ...running.preparation,
+        canStart: false,
+        canReplace: false,
+        refusalReason:
+          RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
+      },
+    },
+  });
+  try {
+    const rendered = page();
+    await settle();
+    stream.instances[0]?.open();
+    await settle();
+    assert.ok(byText(rendered, "button", "Cancel preparation"));
+    assert.match(rendered.textContent ?? "", /Live/);
+    await new Promise((resolve) => setTimeout(resolve, 1700));
+    assert.equal(
+      stream.instances.some((source) => source.closed),
+      false,
+    );
+  } finally {
+    stub.restore();
+    stream.restore();
+  }
+});
+
+test("a failed replacement leaves the active version untouched and stays retryable", async () => {
+  const stub = installFetch({
+    "GET /api/admin/compliance-rule-sets": terminalHistory(
+      AGENT_EXECUTION_STATES.FAILED,
+    ),
+  });
+  try {
+    const rendered = page();
+    await settle();
+    const text = rendered.textContent ?? "";
+    assert.match(text, /No rule set was submitted/);
+    assert.equal(
+      buttons(rendered).filter((button) =>
+        /Retry failed Rule Set Preparation/.test(button.textContent ?? ""),
+      ).length,
+      1,
+    );
+    assert.ok(rendered.querySelector("[data-compliance-rule-set-active]"));
+    assert.match(
+      rendered.querySelector("[data-compliance-rule-set-active]")
+        ?.textContent ?? "",
+      /2026\.10\.p1/,
+    );
+  } finally {
     stub.restore();
   }
 });

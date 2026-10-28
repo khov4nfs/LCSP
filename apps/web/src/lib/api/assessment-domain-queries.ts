@@ -8,6 +8,7 @@ import {
   assessmentHumanRequestsResultSchema,
   assessmentProvenanceArtifactSchema,
   assessmentRepositorySetupSchema,
+  reconcileOrphanedAssessmentResultSchema,
   answerAssessmentHumanRequestSchema,
   answerAssessmentHumanRequestResultSchema,
   type AnswerAssessmentHumanRequest,
@@ -31,6 +32,76 @@ export function useAssessmentDetailQuery(id: string) {
         assessmentDetailSchema,
       ),
     enabled: Boolean(id),
+  });
+}
+
+/**
+ * Business purpose: Coordinate owner-requested cancellation recovery for never-started
+ *   orphaned Assessment setup.
+ *
+ * Business rules:
+ * - The backend owns orphan eligibility; refresh detail, events and human requests only after
+ *   acknowledged reconciliation.
+ *
+ * Execution flow:
+ * 1. Register the reconciliation mutation and successful-cache invalidation.
+ *
+ * Failure cases:
+ * - Rejected requests remain mutation errors and do not fabricate a cancelled Assessment.
+ *
+ * Side effects:
+ * - Registers a mutation with post-success refetch behavior.
+ */
+export function useReconcileOrphanedAssessment(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Send the owner’s scoped Assessment reconciliation request.
+     *
+     * Business rules:
+     * - Encode the Assessment ID and require reconcileOrphanedAssessmentResultSchema.
+     *
+     * Execution flow:
+     * 1. POST the canonical reconcile-orphaned BFF request.
+     *
+     * Failure cases:
+     * - The shared client rejects ownership/state conflicts, invalid responses and network
+     *   failures.
+     *
+     * Side effects:
+     * - One upstream reconciliation command; the server owns any cancellation.
+     */
+    mutationFn: () =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/reconcile-orphaned`,
+        reconcileOrphanedAssessmentResultSchema,
+        { method: "POST" },
+      ),
+    /**
+     * Business purpose: Refresh the Assessment projections affected by acknowledged
+     *   reconciliation.
+     *
+     * Business rules:
+     * - Invalidate this Assessment’s detail, event and human-request keys together.
+     *
+     * Execution flow:
+     * 1. Await the three cache invalidations in parallel.
+     *
+     * Failure cases:
+     * - Invalidation failures propagate; no local lifecycle result is invented.
+     *
+     * Side effects:
+     * - Marks those query projections stale and refetches active subscriptions.
+     */
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: assessmentDomainKeys.detail(id) }),
+        client.invalidateQueries({ queryKey: assessmentDomainKeys.events(id) }),
+        client.invalidateQueries({
+          queryKey: assessmentDomainKeys.requests(id),
+        }),
+      ]);
+    },
   });
 }
 export function useHumanRequestsQuery(id: string) {

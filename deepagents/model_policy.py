@@ -39,14 +39,15 @@ from langsmith_bootstrap import disable_langsmith_tracing_by_default
 
 disable_langsmith_tracing_by_default()
 
-from langchain.chat_models import init_chat_model
+from anthropic_stream_usage import init_chat_model
 
-from model_routes_config import APX_PROTOCOLS, PROTOCOLS, read_model_routes
+from model_routes_config import DUAL_PROTOCOL_PROVIDERS, DUAL_PROTOCOLS, PROTOCOLS, read_model_routes
 from provider_credentials import (
     apx_base_url,
     credential_init_kwargs,
     inception_base_url,
     llm_provider_timeout_seconds,
+    mirai_base_url,
 )
 
 ROUTES_FILE_ENV = "LCSP_MODEL_ROUTES_FILE"
@@ -78,6 +79,10 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         lambda: {
             "base_url": inception_base_url(),
             "use_responses_api": False,
+            # Inception supports OpenAI stream_options.include_usage. LangChain
+            # disables stream usage by default for custom base URLs, so opt in
+            # explicitly or successful streamed completions lose provider usage.
+            "stream_usage": True,
             "timeout": llm_provider_timeout_seconds(),
         },
     ),
@@ -86,6 +91,16 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         "anthropic_compatible_messages",
         lambda: {
             "base_url": apx_base_url(),
+            "timeout": llm_provider_timeout_seconds(),
+        },
+    ),
+    "miraiapi": (
+        "openai",
+        "openai_compatible_chat_completions",
+        lambda: {
+            "base_url": mirai_base_url(),
+            "use_responses_api": False,
+            "stream_usage": True,
             "timeout": llm_provider_timeout_seconds(),
         },
     ),
@@ -130,20 +145,34 @@ def canonical_provider(provider: str) -> str:
 
 
 def provider_client(provider: str, protocol: str | None = None) -> str:
-    """Return non-secret telemetry describing the provider client."""
+    """Return non-secret telemetry describing the provider client.
+
+    Business purpose: Describe the native/compatible transport selected for a validated provider and protocol without exposing secrets.
+
+    Business rules:
+    - Provider identity remains distinct from wire protocol; dual-protocol providers accept only their supported transports.
+
+    Execution flow:
+    1. Validate the provider, choose its default or explicit protocol, then return the matching non-secret client descriptor.
+
+    Failure cases:
+    - Unsupported providers, protocols or provider/protocol combinations raise RuntimeError.
+
+    Side effects:
+    - None: returns telemetry metadata without credentials, client initialization or inference.
+    """
     provider = canonical_provider(provider)
     protocol = _PROVIDERS[provider][0] if protocol is None else protocol
     if protocol not in PROTOCOLS:
         raise RuntimeError(
             f"unsupported model protocol {protocol!r}; supported: {', '.join(sorted(PROTOCOLS))}"
         )
-    if provider == "apx":
-        if protocol not in APX_PROTOCOLS:
+    if provider in DUAL_PROTOCOL_PROVIDERS:
+        if protocol not in DUAL_PROTOCOLS:
             raise RuntimeError(
-                f"unsupported APX protocol {protocol!r}; supported: {', '.join(sorted(APX_PROTOCOLS))}"
+                f"unsupported {provider.upper()} protocol {protocol!r}; supported: {', '.join(sorted(DUAL_PROTOCOLS))}"
             )
-        if protocol == "openai":
-            return "openai_compatible_chat_completions"
+        return "openai_compatible_chat_completions" if protocol == "openai" else "anthropic_compatible_messages"
     elif protocol != _PROVIDERS[provider][0]:
         raise RuntimeError(
             f"unsupported protocol {protocol!r} for provider {provider!r}"
@@ -154,24 +183,41 @@ def provider_client(provider: str, protocol: str | None = None) -> str:
 def provider_init_kwargs(
     provider: str, protocol: str | None = None
 ) -> dict[str, object]:
-    """Return transport-only constructor kwargs for one provider (no model facts)."""
+    """Return transport-only constructor kwargs for one provider (no model facts).
+
+    Business purpose: Build transport options for the chosen provider/protocol without inventing model capabilities.
+
+    Business rules:
+    - Validate provider/protocol compatibility; proxy URLs, timeouts and streaming options follow the existing transport policy.
+
+    Execution flow:
+    1. Resolve the default/explicit protocol, validate compatibility, then assemble proxy options or copy the native provider's constructor options.
+
+    Failure cases:
+    - Unsupported providers/protocols raise RuntimeError; endpoint or timeout configuration failures propagate.
+
+    Side effects:
+    - Reads transport configuration and returns constructor options; makes no model request or credential rotation.
+    """
     provider = canonical_provider(provider)
     protocol = _PROVIDERS[provider][0] if protocol is None else protocol
     if protocol not in PROTOCOLS:
         raise RuntimeError(
             f"unsupported model protocol {protocol!r}; supported: {', '.join(sorted(PROTOCOLS))}"
         )
-    if provider == "apx":
-        if protocol not in APX_PROTOCOLS:
+    if provider in DUAL_PROTOCOL_PROVIDERS:
+        if protocol not in DUAL_PROTOCOLS:
             raise RuntimeError(
-                f"unsupported APX protocol {protocol!r}; supported: {', '.join(sorted(APX_PROTOCOLS))}"
+                f"unsupported {provider.upper()} protocol {protocol!r}; supported: {', '.join(sorted(DUAL_PROTOCOLS))}"
             )
         kwargs: dict[str, object] = {
-            "base_url": apx_base_url(protocol),
+            "base_url": apx_base_url(protocol) if provider == "apx" else mirai_base_url(protocol),
             "timeout": llm_provider_timeout_seconds(),
         }
         if protocol == "openai":
             kwargs["use_responses_api"] = False
+            if provider == "miraiapi":
+                kwargs["stream_usage"] = True
         return kwargs
     if protocol != _PROVIDERS[provider][0]:
         raise RuntimeError(

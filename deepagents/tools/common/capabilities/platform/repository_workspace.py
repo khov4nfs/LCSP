@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import hashlib
 import shutil
 import tarfile
 import tempfile
@@ -14,10 +15,23 @@ DEFAULT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 DEFAULT_MAX_MEMBER_COUNT = 20_000
 DEFAULT_MAX_PATH_DEPTH = 20
 DEFAULT_MAX_EXPANSION_RATIO = 100
+FILE_SIZE_LIMIT = "FILE_SIZE_LIMIT"
+UNSUPPORTED_ENTRY_TYPE = "UNSUPPORTED_ENTRY_TYPE"
 
 
 class ArchiveMaterializationError(RuntimeError):
     """Raised when a repository snapshot archive cannot be materialized safely."""
+
+
+@dataclass(frozen=True)
+class SkippedArchiveEntry:
+    """A source entry excluded from the runtime view by an archive safety guard."""
+
+    path: str
+    reason: str
+    size_bytes: int
+    sha256: str | None = None
+    limit_bytes: int | None = None
 
 
 @dataclass(frozen=True)
@@ -31,6 +45,7 @@ class MaterializationResult:
     extracted_files: int
     skipped_files: int
     coverage_limited: bool
+    skipped_entries: tuple[SkippedArchiveEntry, ...] = ()
 
 
 class RepositoryWorkspace:
@@ -100,20 +115,24 @@ class RepositoryWorkspace:
         archive_stream: BinaryIO | bytes,
         snapshot_id: str | None = None,
     ) -> MaterializationResult:
-        """Safely extract a gzip tar snapshot into the repository workspace.
+        """Business purpose:
+        Provide a bounded source view of an immutable customer snapshot and disclose every omitted entry.
 
-        Args:
-            job_id: Scan job used to isolate the temporary directory.
-            archive_stream: Snapshot archive bytes or seekable binary stream.
-            snapshot_id: Optional immutable snapshot identifier for provenance.
+        Business rules:
+        - Paths, archive expansion, total size and member counts must pass the configured safety guards.
+        - Links, devices and oversized files are excluded; exclusion never proves a control absent.
+        - Oversized regular files retain their source hash without being written into the workspace.
 
-        Returns:
-            Extraction counts, size, workspace path, and coverage-limit status.
+        Execution flow:
+        1. Preflight the archive structure and aggregate resource limits.
+        2. Extract permitted files and record each excluded entry with its reason and available hash.
+        3. Return the workspace, extraction counts and explicit coverage limitations.
 
-        Raises:
-            ArchiveMaterializationError: If archive structure or resource usage
-                violates a safety limit.
-            tarfile.TarError: If the snapshot is not a readable gzip tar archive.
+        Failure cases:
+        - Unsafe paths, resource violations or unreadable entries fail extraction and remove its workspace.
+
+        Side effects:
+        - Creates isolated temporary source files; never follows archive links or modifies the source snapshot.
         """
         workspace_path = self.create(job_id)
         archive_file = self._ensure_binary_stream(archive_stream)
@@ -137,6 +156,7 @@ class RepositoryWorkspace:
                 extracted_files = 0
                 skipped_files = 0
                 coverage_limited = False
+                skipped_entries = []
                 member_count = 0
 
                 for member in members:
@@ -152,24 +172,36 @@ class RepositoryWorkspace:
                         )
                         continue
 
+                    target_path = self._safe_member_path(workspace_path, member.name)
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+
                     if member.issym() or member.islnk() or member.isdev():
                         # Never materialize a link or device: following one could
                         # read or write outside the workspace. The link target is
                         # normally a regular file in the same archive anyway.
                         skipped_files += 1
                         coverage_limited = True
+                        skipped_entries.append(SkippedArchiveEntry(member.name, UNSUPPORTED_ENTRY_TYPE, member.size))
                         continue
 
                     if not member.isfile():
+                        skipped_files += 1
+                        coverage_limited = True
+                        skipped_entries.append(SkippedArchiveEntry(member.name, UNSUPPORTED_ENTRY_TYPE, member.size))
                         continue
 
                     if member.size > self._max_file_size_bytes:
                         skipped_files += 1
                         coverage_limited = True
+                        extracted = archive.extractfile(member)
+                        if extracted is None:
+                            raise ArchiveMaterializationError(f"unable to read archive entry: {member.name!r}")
+                        with extracted:
+                            digest = hashlib.file_digest(extracted, "sha256").hexdigest()
+                        skipped_entries.append(SkippedArchiveEntry(
+                            member.name, FILE_SIZE_LIMIT, member.size, digest, self._max_file_size_bytes,
+                        ))
                         continue
-
-                    target_path = self._safe_member_path(workspace_path, member.name)
-                    target_path.parent.mkdir(parents=True, exist_ok=True)
 
                     extracted = archive.extractfile(member)
                     if extracted is None:
@@ -190,6 +222,7 @@ class RepositoryWorkspace:
                     extracted_files=extracted_files,
                     skipped_files=skipped_files,
                     coverage_limited=coverage_limited,
+                    skipped_entries=tuple(skipped_entries),
                 )
         except Exception:
             self.cleanup(job_id)

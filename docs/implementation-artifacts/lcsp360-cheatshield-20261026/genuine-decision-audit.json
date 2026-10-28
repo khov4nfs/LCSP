@@ -1,0 +1,4250 @@
+{
+  "assessmentId": "14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+  "executionId": "144cc556-1a8b-4785-bad6-c41aeb3c5904",
+  "threadId": "0dc89d04-eeef-40c4-bee3-9335df18b182",
+  "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+  "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+  "caseRevision": 1,
+  "checkpointId": "1f1d15af-4152-6268-84f2-0d0288b95caa",
+  "reviewVerdict": "FAIL",
+  "evidence": [
+    {
+      "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+      "contentSha256": "sha256:2a986a75ad03f58b8b8b299b7a9baeb46b6dfba3b505766f92cba27f9c21fee4",
+      "payload": {
+        "path": "README.md",
+        "endLine": 30,
+        "startLine": 1
+      },
+      "createdAt": "2026-10-26T09:54:27.285000+00:00"
+    },
+    {
+      "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+      "contentSha256": "sha256:d1734536c9a432c52355717fda1e585957b0bc7cd010d24eedc72002daa6be3c",
+      "payload": {
+        "path": "main.py",
+        "endLine": 30,
+        "startLine": 1
+      },
+      "createdAt": "2026-10-26T09:54:27.325000+00:00"
+    }
+  ],
+  "facts": [
+    {
+      "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+      "caseRevision": 1,
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "This is an AI-based online cheating prevention system (proctoring solution) that monitors exam candidates through real-time video and audio analysis. The system uses YOLOv5 for object detection (detecting phones/books), MTCNN for face detection, and YAMNet for audio detection (speech/whispering). It enforces exam rules through system controls (fullscreen mode, shortcut blocking), tracks violations with timestamps, and logs violations to a logs/ directory for post-exam review. The system is designed for academic integrity enforcement in online examinations.",
+      "createdAt": "2026-10-26T09:54:29.361000+00:00"
+    }
+  ],
+  "acceptedDecisions": [
+    {
+      "decisionId": "b5c540e3-3f99-4fc9-88e0-2de950ae2dbc",
+      "assessmentRuleId": "art16-cl1-transparency-labeling",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of AI transparency features: (1) no user-facing disclosure of AI interaction in the main.py or module files; (2) no machine-readable technical markings on outputs; (3) no display labeling distinguishing AI-generated content. The violation alert system (alert_view) only shows warnings about detected violations, not AI system transparency information.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_2375810572626286635d198a"
+          }
+        ],
+        "rationale": "This is an AI-based online cheating prevention system that uses AI models (YOLOv5, MTCNN, YAMNet) for monitoring exam candidates. The system processes biometric data (video, facial images, audio) in real-time and produces monitoring outputs. As an AI system deployed to end users (examinees and proctors), it falls under transparency and labeling requirements.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art16-cl1-transparency-labeling",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art16-cl1-transparency"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "applicabilityBasis": [
+          {
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system is an AI system for academic proctoring, with clear use case purpose, deployment context (online exams), and involves AI-driven biometric monitoring which carries inherent risk.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+                "caseRevision": 1
+              }
+            ],
+            "legalRequirementId": "art16-cl1-transparency"
+          }
+        ],
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:54:59.978000+00:00"
+    },
+    {
+      "decisionId": "330f4a42-f6d0-422a-8e5e-855789f8602a",
+      "assessmentRuleId": "art3-cl1-pte-security",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implemented protective measures against intrusions, model poisoning, adversarial attacks, vulnerability exploitation, or data leakage. No safeguards ensuring confidentiality, integrity, or availability of the AI models, algorithms, or biometric data infrastructure. Basic system controls in main.py and modules.py do not address AI-specific security threats.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_a5e24a21979bbc158f4c3693"
+          }
+        ],
+        "rationale": "This AI proctoring system processes sensitive biometric data (video, facial images, audio) for exam monitoring. As an AI system deployed to monitor users, it is subject to security protection requirements.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl1-pte-security",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl1-pte-security"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:55:10.929000+00:00"
+    },
+    {
+      "decisionId": "c65553c7-1c28-4097-a4de-51b2592c3c5b",
+      "assessmentRuleId": "art21-cl1-dpia-record-establish-storage-submission",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no DPIA records for the biometric data processing. No documentation, assessment reports, or storage records exist in the codebase, supporting files, or configuration.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_cd0150f26b132faa2df5ba39"
+          }
+        ],
+        "rationale": "This AI proctoring system processes personal data (video, facial images, audio) of examinees. As a non-government organization deploying an AI system that processes personal data, it must establish and maintain DPIA records. The exception for government authorities does not apply.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art21-cl1-dpia-record-establish-storage-submission",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art21-cl1-dpia-record-establish-storage-submission-duty"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "applicabilityBasis": [
+          {
+            "kind": "EXCEPTION",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The system is deployed for academic examinations, not by a government authority exercising official powers. The exception for competent state authorities does not apply.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+                "caseRevision": 1
+              }
+            ],
+            "legalRequirementId": "art21-cl1-dpia-record-establish-storage-submission-duty"
+          }
+        ],
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:55:27.107000+00:00"
+    },
+    {
+      "decisionId": "e0e0937f-d88d-4148-b349-57e3ae741181",
+      "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent withdrawal or processing restriction mechanisms. The EndTestDialog uses password-based test termination, not user data subject rights. No request handling infrastructure exists in main.py or modules.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_509e6f951da6bb4971842427"
+          }
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees (video, facial images, audio). As a data controller/processor, it must implement mechanisms to receive and honor data subject requests for consent withdrawal or processing restriction.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art10-cl3-controller-implementation"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "applicabilityBasis": [
+          {
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The rule applies to personal data controllers and processors. This system is deployed as a proctoring service that processes examinee data, meeting this scope.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+                "caseRevision": 1
+              }
+            ],
+            "legalRequirementId": "art10-cl3-controller-implementation"
+          }
+        ],
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:55:37.762000+00:00"
+    },
+    {
+      "decisionId": "21af8f86-c4e6-4dbc-8b50-94039eb08063",
+      "assessmentRuleId": "art31-cl4pta-biometric-access-monitoring-assessment",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no biometric-specific access controls or infringement monitoring. The face detection module (face_detection.py) uses MTCNN for detection but lacks access restriction mechanisms, audit trails for biometric data access, or infringement detection for the collected facial data.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_8fd6701a235e29b8be5bab69"
+          }
+        ],
+        "rationale": "This AI proctoring system collects and processes biometric data (facial images via MTCNN) for exam monitoring. As an organization processing biometric data, specific protection measures are required.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art31-cl4pta-biometric-access-monitoring-assessment",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art31cl4pta-biometric-security-measures"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:55:47.831000+00:00"
+    },
+    {
+      "decisionId": "8b973f47-0070-4392-bb2d-bcd383a24ff9",
+      "assessmentRuleId": "art13-cl2-correction-assessment",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of data correction mechanisms. No infrastructure exists for data subjects to request corrections to their video, audio, or facial recognition data.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_544bc96c62da41807ab8bb1f"
+          }
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Data subjects have the right to request correction of their personal data.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art13-cl2-correction-assessment",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art13-cl2-controller-correction-duty"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:55:57.802000+00:00"
+    },
+    {
+      "decisionId": "91b7e9ca-19e3-4c04-9269-56f92481e06e",
+      "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent information disclosure. No notices or disclosures about data processing purposes, scope, or conditions exist in the UI (main.py) or supporting files.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_032512680f6a99fb4040a66b"
+          }
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Data subjects must be informed about the data processing when consent is collected.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl2-valid-consent-info-duty"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:56:01.427000+00:00"
+    },
+    {
+      "decisionId": "d4804bb7-5706-4a83-9c53-08a35cde0f13",
+      "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of purpose-specific consent collection or validity period management. No consent infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_65329be5e0a2067310ca5870"
+          }
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Consent must be collected per-purpose with validity periods.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-principles-duty"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:56:06.209000+00:00"
+    },
+    {
+      "decisionId": "7e1cd8d5-19fa-4c63-816f-d3cd5f351e4f",
+      "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent mechanisms at all, hence no compliance with consent prohibitions. No UI or infrastructure for consent collection exists.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_d36a72798575869f7449b623"
+          }
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Consent must comply with legal prohibitions (no bundled consent, no pre-ticked boxes, etc.).",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-prohibitions"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:56:09.406000+00:00"
+    },
+    {
+      "decisionId": "4f8c1526-df22-40b3-8ba7-d8e096ba7d22",
+      "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent expression forms. No consent collection UI or record-keeping infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_e8b13dfac27dffbdd96a9165"
+          }
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Express consent must be collected through appropriate forms.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl3-consent-form-duty"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:56:12.364000+00:00"
+    },
+    {
+      "decisionId": "0f9b2ca5-3690-48dd-a945-68bb7f05497b",
+      "assessmentRuleId": "art28-cl8-pt-b-refusestorage-rule",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "NOT_APPLICABLE",
+      "compliance": null,
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [],
+        "rationale": "This AI proctoring system is designed for academic integrity enforcement in online examinations, not for advertising purposes. The rule applies to organizations using personal data for advertising based on behavior, targeting, or personalization. This system's use case is proctoring, not advertising.",
+        "compliance": null,
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "NOT_APPLICABLE",
+        "assessmentRuleId": "art28-cl8-pt-b-refusestorage-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art28-cl8-pt-b-refusestorage"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "applicabilityBasis": [
+          {
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The system is an AI-based online cheating prevention system for academic exams, not an advertising service. It does not use personal data for advertising based on behavior, targeting, or personalization.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+                "caseRevision": 1
+              }
+            ],
+            "legalRequirementId": "art28-cl8-pt-b-refusestorage"
+          }
+        ],
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:56:44.565000+00:00"
+    },
+    {
+      "decisionId": "003fd5be-06b9-4d86-93e3-fd73c7370a7d",
+      "assessmentRuleId": "art16-cl2a-notify-mark-label",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no notification or technical marking mechanisms for AI systems. No user notification infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_bea82436a4bdfa557df3aa75"
+          }
+        ],
+        "rationale": "This AI proctoring system is an AI system that processes biometric data. It must notify users about the AI system and mark content appropriately.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art16-cl2a-notify-mark-label",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art16-cl2a-notify-mark-label"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:56:59.883000+00:00"
+    },
+    {
+      "decisionId": "39100e71-dcb8-403e-8b0a-9a56f41cf4ab",
+      "assessmentRuleId": "art16-cl2b-provide-info",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of AI system information disclosure. No provisions for purpose, scope, use conditions, or limitations are documented in the UI.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_2de6af09b9ed34392e318af5"
+          }
+        ],
+        "rationale": "This AI proctoring system is an AI system deployed to users. Users must be informed about the purpose, scope, and conditions of the AI system.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art16-cl2b-provide-info",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art16-cl2b-provide-info"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:07.035000+00:00"
+    },
+    {
+      "decisionId": "42799272-7d17-4152-b317-5ca116c20792",
+      "assessmentRuleId": "art3-cl1-ptc-human-oversight",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no human oversight or intervention mechanisms for the AI monitoring system. No mechanisms exist for human review or override of AI decisions.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_28642fbaf03cd51b1c29b76a"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Human oversight and intervention mechanisms are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl1-ptc-human-oversight",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl1-ptc-human-oversight"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:14.149000+00:00"
+    },
+    {
+      "decisionId": "30044e43-4db8-4d52-a1c0-06f2354ee04e",
+      "assessmentRuleId": "art3-cl1-ptb-quality-assurance",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documented quality assurance or reliability measures for the AI models. No validation, testing protocols, or performance monitoring infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_84f8c3e596e16ab100ddca09"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models (YOLOv5, MTCNN, YAMNet) for monitoring. Quality assurance and reliability measures are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl1-ptb-quality-assurance",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl1-ptb-quality-assurance"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:18.361000+00:00"
+    },
+    {
+      "decisionId": "46e126ca-25e3-48dd-a1e0-42658dc22bbf",
+      "assessmentRuleId": "ar-c12-dpia",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no DPIA documentation that could be used to substitute or integrate into risk classification records. No DPIA records exist in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_bfd5751d92d6edfd52c6e281"
+          }
+        ],
+        "rationale": "This AI proctoring system uses personal data (video, audio, facial data) for exam monitoring. The system is an AI system that uses personal data, meeting the applicability condition.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "ar-c12-dpia",
+        "legalContextRefs": [
+          {
+            "legalContextId": "c12-dpia"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "applicabilityBasis": [
+          {
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system uses personal data (video, facial images, audio) for exam monitoring as confirmed by the use case description.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+                "caseRevision": 1
+              }
+            ],
+            "legalRequirementId": "c12-dpia"
+          },
+          {
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "NOT_ESTABLISHED",
+            "rationale": "The qualifier states using DPIA reduces administrative costs. This is not established in the repository as there is no evidence of DPIA usage or administrative cost analysis.",
+            "references": [],
+            "legalRequirementId": "c12-dpia"
+          }
+        ],
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:31.007000+00:00"
+    },
+    {
+      "decisionId": "d32c37f5-e328-4d07-a468-86a70dd5deb8",
+      "assessmentRuleId": "art3-cl3-pta-social-benefit",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documentation of social benefit assessment or negative-impact mitigation planning for the biometric monitoring system. No such planning exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_696b1089037e4a0f5d230249"
+          }
+        ],
+        "rationale": "This AI proctoring system processes biometric data of examinees. Social benefit assessment and negative-impact mitigation planning are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl3-pta-social-benefit",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl3-pta-social-benefit"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:34.817000+00:00"
+    },
+    {
+      "decisionId": "bc37260c-f455-4e03-9b91-93b9712389e9",
+      "assessmentRuleId": "art3-cl2-pta-human-rights",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no human rights review measures for the biometric monitoring system. No human rights impact assessments or review mechanisms exist in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_d4c364a012e4faae019bd0ba"
+          }
+        ],
+        "rationale": "This AI proctoring system processes biometric data of examinees. Human rights review measures are required for AI systems that process personal data.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl2-pta-human-rights",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl2-pta-human-rights"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:38.322000+00:00"
+    },
+    {
+      "decisionId": "552cbf35-f0b9-42b3-9137-8cd01adc52f0",
+      "assessmentRuleId": "art3-cl2-ptb-fairness",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no bias identification or mitigation measures for the object detection, face detection, or audio detection models. No fairness testing or bias mitigation infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_71a28680b6e1f10b1bd1574d"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Bias identification and mitigation measures are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl2-ptb-fairness",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl2-ptb-fairness"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:41.780000+00:00"
+    },
+    {
+      "decisionId": "e595b75f-1661-4aa4-88ea-63e7e42d0418",
+      "assessmentRuleId": "art3-cl2-ptc-transparency",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no user transparency or disclosure mechanisms about the AI system. No information about how the AI system works, its purpose, or limitations is provided to users.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_de24caa5a2039c7141ac2dba"
+          }
+        ],
+        "rationale": "This AI proctoring system processes biometric data of examinees. User transparency and disclosure about the AI system are required.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl2-ptc-transparency",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl2-ptc-transparency"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:53.661000+00:00"
+    },
+    {
+      "decisionId": "39d8287f-6b15-4093-bc22-c277e2aec4d9",
+      "assessmentRuleId": "art3-cl2-ptd-explainability",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no AI explainability measures or accountability allocation mechanisms. No documentation or mechanisms exist for explaining AI decisions or assigning accountability.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_89a50c71ab459ebe17d7f43d"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Explainability and accountability allocation measures are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl2-ptd-explainability",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl2-ptd-explainability"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:57:57.081000+00:00"
+    },
+    {
+      "decisionId": "49f77573-e2bd-4c3a-8441-a45a5709ef8f",
+      "assessmentRuleId": "art3-cl1-pta-risk-prevention",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documented safety-by-design risk identification or prevention planning. No risk identification or mitigation documentation exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_f873dfe4ea955abd7fa50e2a"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Safety-by-design risk identification and prevention planning are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl1-pta-risk-prevention",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl1-pta-safety-by-design"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:58:04.277000+00:00"
+    },
+    {
+      "decisionId": "e611dff6-d0a2-4772-85e8-6a18311c1215",
+      "assessmentRuleId": "art3-cl1-ptd-resilience",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no AI resilience, error handling, or contingency planning specifically for AI model failures or detection errors. Basic error handling in main.py does not address AI model resilience.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ],
+            "criterionId": "criterion_f621b85c6991c9013886d36a"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Resilience, error handling, and contingency planning are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl1-ptd-resilience",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl1-ptd-resilience"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T09:59:09.654000+00:00"
+    },
+    {
+      "decisionId": "893d4629-15fc-4584-bde6-49953333909d",
+      "assessmentRuleId": "art3-cl3-ptc-sustainability",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documentation or consideration of AI lifecycle environmental or energy sustainability. No such planning exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_08760f0fd32028da1637ebce"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Environmental and energy sustainability considerations are required for AI systems.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art3-cl3-ptc-sustainability",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art3-cl3-ptc-sustainability"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T10:00:37.828000+00:00"
+    },
+    {
+      "decisionId": "7a354e73-68b3-4eed-a1e3-6b4eb0da5a69",
+      "assessmentRuleId": "ar-c12-rec",
+      "decisionRevision": 1,
+      "caseRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no risk classification records (hồ sơ phân loại rủi ro) established before putting the AI system into use. No documentation or records exist in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "criterionId": "criterion_82be1370748059a876b640a9"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Providers of medium or high risk AI systems must establish risk classification records before deployment.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "ar-c12-rec",
+        "legalContextRefs": [
+          {
+            "legalContextId": "c12-rec"
+          }
+        ],
+        "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "applicabilityBasis": [
+          {
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system is an AI system deployed for proctoring exams involving biometric monitoring, which falls under medium or high risk categories under AI regulations.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+                "caseRevision": 1
+              }
+            ],
+            "legalRequirementId": "c12-rec"
+          }
+        ],
+        "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "createdAt": "2026-10-26T16:29:40.064000+00:00"
+    }
+  ],
+  "nativeSubmissions": [
+    {
+      "toolCallId": "call_caf2cc5bf0744fe19e1d9af8",
+      "modelMessageId": "lc_run--01a177a2-5a82-7283-9301-9218a1b815c8",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art16-cl1-transparency-labeling",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art16-cl1-transparency"
+        ],
+        "rationale": "This is an AI-based online cheating prevention system that uses AI models (YOLOv5, MTCNN, YAMNet) for monitoring exam candidates. The system processes biometric data (video, facial images, audio) in real-time and produces monitoring outputs. As an AI system deployed to end users (examinees and proctors), it falls under transparency and labeling requirements.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art16-cl1-transparency",
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system is an AI system for academic proctoring, with clear use case purpose, deployment context (online exams), and involves AI-driven biometric monitoring which carries inherent risk.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_2375810572626286635d198a",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of AI transparency features: (1) no user-facing disclosure of AI interaction in the main.py or module files; (2) no machine-readable technical markings on outputs; (3) no display labeling distinguishing AI-generated content. The violation alert system (alert_view) only shows warnings about detected violations, not AI system transparency information.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "b5c540e3-3f99-4fc9-88e0-2de950ae2dbc",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_5bd4939949b14608bdf0eeb5",
+      "modelMessageId": "lc_run--01a177a2-7def-7cc2-883a-a2c7079f5bfb",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl1-pte-security",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl1-pte-security"
+        ],
+        "rationale": "This AI system processes sensitive biometric data (video, facial images, audio) for exam proctoring. The repository shows basic system controls but lacks documented AI security measures for the AI models, inference pipeline, or biometric data protection.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art3-cl1-pte-security",
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system is an AI system handling biometric data for academic proctoring, requiring security measures.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_a5e24a21979bbc158f4c3693",
+            "outcome": "NOT_MET",
+            "rationale": "Repository shows no AI-specific security measures for model inference, biometric data protection, or secure data pipeline. No security protocols, access controls, or encryption documented for the AI components.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DECISION_VALIDATION_FAILED",
+        "retryable": false,
+        "failures": [
+          "UNKNOWN_APPLICABILITY_ELEMENT:art3-cl1-pte-security:APPLICABILITY_CONDITION:0"
+        ],
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_99466ee3c52e4b7dad7a475b",
+      "modelMessageId": "lc_run--01a177a2-9849-72c0-8330-8db61a4756e6",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl1-pte-security",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl1-pte-security"
+        ],
+        "rationale": "This AI proctoring system processes sensitive biometric data (video, facial images, audio) for exam monitoring. As an AI system deployed to monitor users, it is subject to security protection requirements.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_a5e24a21979bbc158f4c3693",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implemented protective measures against intrusions, model poisoning, adversarial attacks, vulnerability exploitation, or data leakage. No safeguards ensuring confidentiality, integrity, or availability of the AI models, algorithms, or biometric data infrastructure. Basic system controls in main.py and modules.py do not address AI-specific security threats.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "330f4a42-f6d0-422a-8e5e-855789f8602a",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_a8ff3f9395ed498d95f2be30",
+      "modelMessageId": "lc_run--01a177a2-a892-7ad1-83cc-45510d3e5c64",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art21-cl1-dpia-record-establish-storage-submission",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art21-cl1-dpia-record-establish-storage-submission-duty"
+        ],
+        "rationale": "This AI proctoring system processes biometric personal data (video, facial images, audio recordings) for exam monitoring. Processing of such sensitive data requires a Data Protection Impact Assessment (DPIA) to be established, stored, and submitted to the competent authority.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art21-cl1-dpia-record-establish-storage-submission-duty",
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system processes personal data including biometric data through AI-based video and audio monitoring of examinees, which constitutes processing that requires DPIA.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_cd0150f26b132faa2df5ba39",
+            "outcome": "NOT_MET",
+            "rationale": "Repository contains no evidence of DPIA records for biometric data processing. No documentation, assessment reports, or submission records exist in the codebase or supporting files.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DECISION_VALIDATION_FAILED",
+        "retryable": false,
+        "failures": [
+          "UNKNOWN_APPLICABILITY_ELEMENT:art21-cl1-dpia-record-establish-storage-submission-duty:APPLICABILITY_CONDITION:0"
+        ],
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_42ead346e7234172a5594069",
+      "modelMessageId": "lc_run--01a177a2-c342-7e60-8b92-a2ecad06fd26",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art21-cl1-dpia-record-establish-storage-submission",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art21-cl1-dpia-record-establish-storage-submission-duty"
+        ],
+        "rationale": "This AI proctoring system processes personal data (video, facial images, audio) of examinees. As a non-government organization deploying an AI system that processes personal data, it must establish and maintain DPIA records. The exception for government authorities does not apply.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art21-cl1-dpia-record-establish-storage-submission-duty",
+            "kind": "EXCEPTION",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The system is deployed for academic examinations, not by a government authority exercising official powers. The exception for competent state authorities does not apply.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_cd0150f26b132faa2df5ba39",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no DPIA records for the biometric data processing. No documentation, assessment reports, or storage records exist in the codebase, supporting files, or configuration.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "c65553c7-1c28-4097-a4de-51b2592c3c5b",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_eef0c93174a747f9979ee91e",
+      "modelMessageId": "lc_run--01a177a2-e7c8-7c90-adb2-44b98d200ea8",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art10-cl3-withdrawal-restriction-implementation",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art10-cl3-controller-implementation"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Data subjects have the right to withdraw consent and request restriction of processing. The system must implement mechanisms to receive and honor such requests.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art10-cl3-controller-implementation",
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system processes personal data of examinees (video, audio, facial data) as part of academic proctoring services. As a data controller/processor, it must implement withdrawal and restriction mechanisms.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_509e6f951da6bb4971842427",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent withdrawal mechanisms. The EndTestDialog uses a password for test termination, not for user consent withdrawal. No data subject request handling infrastructure exists in main.py or modules.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DECISION_VALIDATION_FAILED",
+        "retryable": false,
+        "failures": [
+          "UNKNOWN_APPLICABILITY_ELEMENT:art10-cl3-controller-implementation:APPLICABILITY_CONDITION:0"
+        ],
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_f2de93fc1543441da75e1a73",
+      "modelMessageId": "lc_run--01a177a3-01d6-7223-954c-ca54fd434426",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art10-cl3-withdrawal-restriction-implementation",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art10-cl3-controller-implementation"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees (video, facial images, audio). As a data controller/processor, it must implement mechanisms to receive and honor data subject requests for consent withdrawal or processing restriction.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art10-cl3-controller-implementation",
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The rule applies to personal data controllers and processors. This system is deployed as a proctoring service that processes examinee data, meeting this scope.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_509e6f951da6bb4971842427",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent withdrawal or processing restriction mechanisms. The EndTestDialog uses password-based test termination, not user data subject rights. No request handling infrastructure exists in main.py or modules.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "e0e0937f-d88d-4148-b349-57e3ae741181",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_300f6da9a8384a31a646da35",
+      "modelMessageId": "lc_run--01a177a3-117d-7341-bbaf-f6056341c78f",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art31-cl4pta-biometric-access-monitoring-assessment",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art31cl4pta-biometric-security-measures"
+        ],
+        "rationale": "This AI proctoring system collects and processes biometric data (facial images via MTCNN) for exam monitoring. Biometric data requires specific protection measures and access monitoring.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art31cl4pta-biometric-security-measures",
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system processes biometric data (facial images) through MTCNN face detection. Biometric data protection requirements apply to such processing.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_8fd6701a235e29b8be5bab69",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no biometric-specific access controls or infringement monitoring. The face detection module (face_detection.py) uses MTCNN for detection but lacks access restriction mechanisms, audit trails for biometric data access, or infringement detection for the collected facial data.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DECISION_VALIDATION_FAILED",
+        "retryable": false,
+        "failures": [
+          "UNKNOWN_APPLICABILITY_ELEMENT:art31cl4pta-biometric-security-measures:QUALIFIER:0"
+        ],
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_1288ef4963b04c68aac1609e",
+      "modelMessageId": "lc_run--01a177a3-2b83-7393-b88f-09785d402c57",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art31-cl4pta-biometric-access-monitoring-assessment",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art31cl4pta-biometric-security-measures"
+        ],
+        "rationale": "This AI proctoring system collects and processes biometric data (facial images via MTCNN) for exam monitoring. As an organization processing biometric data, specific protection measures are required.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_8fd6701a235e29b8be5bab69",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no biometric-specific access controls or infringement monitoring. The face detection module (face_detection.py) uses MTCNN for detection but lacks access restriction mechanisms, audit trails for biometric data access, or infringement detection for the collected facial data.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "21af8f86-c4e6-4dbc-8b50-94039eb08063",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_85c7b799edf04c2a8b49d3c8",
+      "modelMessageId": "lc_run--01a177a3-38c0-7252-b8e9-c5b4cd1d272c",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art13-cl2-correction-assessment",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art13-cl2-controller-correction-duty"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Data subjects have the right to request correction of their personal data.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_544bc96c62da41807ab8bb1f",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of data correction mechanisms. No infrastructure exists for data subjects to request corrections to their video, audio, or facial recognition data.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "8b973f47-0070-4392-bb2d-bcd383a24ff9",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_a311cd2c67f24dee98cc378b",
+      "modelMessageId": "lc_run--01a177a3-5fe0-77e0-9f83-4d8810efc72f",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art9-cl2-consent-info-disclosure-rule",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art9-cl2-valid-consent-info-duty"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Data subjects must be informed about the data processing when consent is collected.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_032512680f6a99fb4040a66b",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent information disclosure. No notices or disclosures about data processing purposes, scope, or conditions exist in the UI (main.py) or supporting files.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "91b7e9ca-19e3-4c04-9269-56f92481e06e",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_541ba7cfb4f1427eb51a6e5a",
+      "modelMessageId": "lc_run--01a177a3-6de0-7122-b6ed-d9570fe53ca7",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art9-cl4-consent-principles-duty-rule",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art9-cl4-consent-principles-duty"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Consent must be collected per-purpose with validity periods.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_65329be5e0a2067310ca5870",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of purpose-specific consent collection or validity period management. No consent infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "d4804bb7-5706-4a83-9c53-08a35cde0f13",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_3ec72342f6fe4af59ed3d17c",
+      "modelMessageId": "lc_run--01a177a3-80d5-7f82-ac27-0653d2380ee6",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art9-cl4-consent-prohibitions-rule",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art9-cl4-consent-prohibitions"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Consent must comply with legal prohibitions (no bundled consent, no pre-ticked boxes, etc.).",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_d36a72798575869f7449b623",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent mechanisms at all, hence no compliance with consent prohibitions. No UI or infrastructure for consent collection exists.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "7e1cd8d5-19fa-4c63-816f-d3cd5f351e4f",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_a5903a9b89cd4f22b554c947",
+      "modelMessageId": "lc_run--01a177a3-8d12-7ee0-bb5b-a8dbf9cf80c1",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art9-cl3-consent-form-record-rule",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art9-cl3-consent-form-duty"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Express consent must be collected through appropriate forms.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_e8b13dfac27dffbdd96a9165",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of consent expression forms. No consent collection UI or record-keeping infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "4f8c1526-df22-40b3-8ba7-d8e096ba7d22",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_0325bbd8ce354d43a5820e6b",
+      "modelMessageId": "lc_run--01a177a3-9899-7b70-be11-d58afb096bb7",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl4-protection-measures",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl4-protection-measures"
+        ],
+        "rationale": "This AI proctoring system processes personal data of examinees. Technical measures to protect personal data are required.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_160d5d085439cacbe96c5a76",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no specific technical measures for personal data protection. The system processes video/audio/biometric data without documented protection mechanisms like encryption, access controls, or anonymization.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DOMAIN_REQUEST_INVALID",
+        "retryable": false,
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_a3acff58803743f4b9c64165",
+      "modelMessageId": "lc_run--01a177a3-bdf7-7ca3-9aad-b999b459596f",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art28-cl8-pt-b-refusestorage-rule",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art28-cl8-pt-b-refusestorage"
+        ],
+        "rationale": "This AI proctoring system processes personal data. Data subjects should have mechanisms to refuse storage or request deletion.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_4ad9ae824541114de0fdcfa2",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of refusal-sharing mechanisms, retention period management, or deletion infrastructure for data subjects.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DECISION_VALIDATION_FAILED",
+        "retryable": false,
+        "failures": [
+          "APPLICABILITY_BASIS_REQUIRED:art28-cl8-pt-b-refusestorage-rule"
+        ],
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_3c4e193d9c134497a9d18132",
+      "modelMessageId": "lc_run--01a177a3-efed-7b41-b219-463e00dc3527",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art28-cl8-pt-b-refusestorage-rule",
+        "applicability": "NOT_APPLICABLE",
+        "legal_context_ids": [
+          "art28-cl8-pt-b-refusestorage"
+        ],
+        "rationale": "This AI proctoring system is designed for academic integrity enforcement in online examinations, not for advertising purposes. The rule applies to organizations using personal data for advertising based on behavior, targeting, or personalization. This system's use case is proctoring, not advertising.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art28-cl8-pt-b-refusestorage",
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The system is an AI-based online cheating prevention system for academic exams, not an advertising service. It does not use personal data for advertising based on behavior, targeting, or personalization.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [],
+        "compliance": "None"
+      },
+      "result": {
+        "ok": false,
+        "code": "INVALID_TOOL_ARGUMENTS",
+        "retryable": false,
+        "problems": [
+          "compliance: Input should be 'COMPLIANT' or 'NON_COMPLIANT'"
+        ],
+        "hint": "Correct the listed arguments (cite evidence or reload context first when one is missing) and call the tool again."
+      }
+    },
+    {
+      "toolCallId": "call_faa19969af464cac8489ee26",
+      "modelMessageId": "lc_run--01a177a3-fd88-7b90-8dce-fac2f532a8d0",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art28-cl8-pt-b-refusestorage-rule",
+        "applicability": "NOT_APPLICABLE",
+        "legal_context_ids": [
+          "art28-cl8-pt-b-refusestorage"
+        ],
+        "rationale": "This AI proctoring system is designed for academic integrity enforcement in online examinations, not for advertising purposes. The rule applies to organizations using personal data for advertising based on behavior, targeting, or personalization. This system's use case is proctoring, not advertising.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art28-cl8-pt-b-refusestorage",
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The system is an AI-based online cheating prevention system for academic exams, not an advertising service. It does not use personal data for advertising based on behavior, targeting, or personalization.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": [],
+        "compliance": "None"
+      },
+      "result": {
+        "ok": false,
+        "code": "INVALID_TOOL_ARGUMENTS",
+        "retryable": false,
+        "problems": [
+          "compliance: Input should be 'COMPLIANT' or 'NON_COMPLIANT'"
+        ],
+        "hint": "Correct the listed arguments (cite evidence or reload context first when one is missing) and call the tool again."
+      }
+    },
+    {
+      "toolCallId": "call_71e6400aaa274e73b4754b51",
+      "modelMessageId": "lc_run--01a177a4-084f-73d0-a9dc-40414447b11d",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art28-cl8-pt-b-refusestorage-rule",
+        "applicability": "NOT_APPLICABLE",
+        "legal_context_ids": [
+          "art28-cl8-pt-b-refusestorage"
+        ],
+        "rationale": "This AI proctoring system is designed for academic integrity enforcement in online examinations, not for advertising purposes. The rule applies to organizations using personal data for advertising based on behavior, targeting, or personalization. This system's use case is proctoring, not advertising.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "art28-cl8-pt-b-refusestorage",
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The system is an AI-based online cheating prevention system for academic exams, not an advertising service. It does not use personal data for advertising based on behavior, targeting, or personalization.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          }
+        ],
+        "criteria": []
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "0f9b2ca5-3690-48dd-a945-68bb7f05497b",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_fd220792356b48bea2282f30",
+      "modelMessageId": "lc_run--01a177a4-385c-78e3-bf9f-46dc25bb28a8",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art16-cl2a-notify-mark-label",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art16-cl2a-notify-mark-label"
+        ],
+        "rationale": "This AI proctoring system is an AI system that processes biometric data. It must notify users about the AI system and mark content appropriately.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_bea82436a4bdfa557df3aa75",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no notification or technical marking mechanisms for AI systems. No user notification infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "003fd5be-06b9-4d86-93e3-fd73c7370a7d",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_14de488b4716412d88885d68",
+      "modelMessageId": "lc_run--01a177a4-5231-7992-8b0d-10a3bd5149c8",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art16-cl2b-provide-info",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art16-cl2b-provide-info"
+        ],
+        "rationale": "This AI proctoring system is an AI system deployed to users. Users must be informed about the purpose, scope, and conditions of the AI system.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_2de6af09b9ed34392e318af5",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no implementation of AI system information disclosure. No provisions for purpose, scope, use conditions, or limitations are documented in the UI.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "39100e71-dcb8-403e-8b0a-9a56f41cf4ab",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_19f2a5fe64b44dd0b8be971e",
+      "modelMessageId": "lc_run--01a177a4-6e2e-70c2-b7bc-41dd55c29c6c",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl1-ptc-human-oversight",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl1-ptc-human-oversight"
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Human oversight and intervention mechanisms are required for AI systems.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_28642fbaf03cd51b1c29b76a",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no human oversight or intervention mechanisms for the AI monitoring system. No mechanisms exist for human review or override of AI decisions.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "42799272-7d17-4152-b317-5ca116c20792",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_c08488626e7a4912abb26ab0",
+      "modelMessageId": "lc_run--01a177a4-8a13-7fc0-a805-d4e554bc2bbb",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl1-ptb-quality-assurance",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl1-ptb-quality-assurance"
+        ],
+        "rationale": "This AI proctoring system uses AI models (YOLOv5, MTCNN, YAMNet) for monitoring. Quality assurance and reliability measures are required for AI systems.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_84f8c3e596e16ab100ddca09",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documented quality assurance or reliability measures for the AI models. No validation, testing protocols, or performance monitoring infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "30044e43-4db8-4d52-a1c0-06f2354ee04e",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_51df94bcfc944f26bd6c8e6b",
+      "modelMessageId": "lc_run--01a177a4-9a5c-7d31-8594-35f2e82adb22",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "ar-c12-dpia",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "c12-dpia"
+        ],
+        "rationale": "This AI proctoring system processes personal data including biometric data. A Data Protection Impact Assessment (DPIA) is required for processing operations that pose high risks to data subjects' rights.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_bfd5751d92d6edfd52c6e281",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no DPIA documentation for biometric data processing. No assessment reports, impact analyses, or supporting records exist in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DECISION_VALIDATION_FAILED",
+        "retryable": false,
+        "failures": [
+          "APPLICABILITY_BASIS_REQUIRED:ar-c12-dpia"
+        ],
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_178d10670aba4ec69250ac28",
+      "modelMessageId": "lc_run--01a177a4-b665-7fa3-a12e-552e783e2dba",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "ar-c12-dpia",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "c12-dpia"
+        ],
+        "rationale": "This AI proctoring system uses personal data (video, audio, facial data) for exam monitoring. The system is an AI system that uses personal data, meeting the applicability condition.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [
+          {
+            "legal_requirement_id": "c12-dpia",
+            "kind": "APPLICABILITY_CONDITION",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The system uses personal data (video, facial images, audio) for exam monitoring as confirmed by the use case description.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+              }
+            ]
+          },
+          {
+            "legal_requirement_id": "c12-dpia",
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "NOT_ESTABLISHED",
+            "rationale": "The qualifier states using DPIA reduces administrative costs. This is not established in the repository as there is no evidence of DPIA usage or administrative cost analysis.",
+            "references": []
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "criterion_bfd5751d92d6edfd52c6e281",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no DPIA documentation that could be used to substitute or integrate into risk classification records. No DPIA records exist in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "46e126ca-25e3-48dd-a1e0-42658dc22bbf",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_df5fbdeeff664991a53ed9f5",
+      "modelMessageId": "lc_run--01a177a4-cbea-71d3-8e51-728475416fa8",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl3-pta-social-benefit",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl3-pta-social-benefit"
+        ],
+        "rationale": "This AI proctoring system processes biometric data of examinees. Social benefit assessment and negative-impact mitigation planning are required for AI systems.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_696b1089037e4a0f5d230249",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documentation of social benefit assessment or negative-impact mitigation planning for the biometric monitoring system. No such planning exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "d32c37f5-e328-4d07-a468-86a70dd5deb8",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_d98832c4d608465f8a023e8f",
+      "modelMessageId": "lc_run--01a177a4-dabe-7503-af54-4f6b19b9efcc",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl2-pta-human-rights",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl2-pta-human-rights"
+        ],
+        "rationale": "This AI proctoring system processes biometric data of examinees. Human rights review measures are required for AI systems that process personal data.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_d4c364a012e4faae019bd0ba",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no human rights review measures for the biometric monitoring system. No human rights impact assessments or review mechanisms exist in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "bc37260c-f455-4e03-9b91-93b9712389e9",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_1c7678c0a14d4b75a0a74f36",
+      "modelMessageId": "lc_run--01a177a4-e86c-76f0-80a7-01564318de53",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl2-ptb-fairness",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl2-ptb-fairness"
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Bias identification and mitigation measures are required for AI systems.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_71a28680b6e1f10b1bd1574d",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no bias identification or mitigation measures for the object detection, face detection, or audio detection models. No fairness testing or bias mitigation infrastructure exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "552cbf35-f0b9-42b3-9137-8cd01adc52f0",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_cdda3a38e61c49359519ea6e",
+      "modelMessageId": "lc_run--01a177a4-f605-7212-ba3d-962838f03180",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl2-ptc-transparency",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl2-ptc-transparency"
+        ],
+        "rationale": "This AI proctoring system processes biometric data of examinees. User transparency and disclosure about the AI system are required.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_de24caa5a2039c7141ac2dba",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no user transparency or disclosure mechanisms about the AI system. No information about how the AI system works, its purpose, or limitations is provided to users.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "e595b75f-1661-4aa4-88ea-63e7e42d0418",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_1aee2380262a44dc85952153",
+      "modelMessageId": "lc_run--01a177a5-2456-7aa1-99f8-1fc0e77b7759",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl2-ptd-explainability",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl2-ptd-explainability"
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Explainability and accountability allocation measures are required for AI systems.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_89a50c71ab459ebe17d7f43d",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no AI explainability measures or accountability allocation mechanisms. No documentation or mechanisms exist for explaining AI decisions or assigning accountability.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "39d8287f-6b15-4093-bc22-c277e2aec4d9",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_5cd9203a45be48f3acbc9964",
+      "modelMessageId": "lc_run--01a177a5-3815-7943-9478-bb6d6a78e7b7",
+      "model": "mercury-2.5",
+      "arguments": {
+        "assessment_rule_id": "art3-cl1-pta-risk-prevention",
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl1-pta-safety-by-design"
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Safety-by-design risk identification and prevention planning are required for AI systems.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ],
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "criterion_id": "criterion_f873dfe4ea955abd7fa50e2a",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documented safety-by-design risk identification or prevention planning. No risk identification or mitigation documentation exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "49f77573-e2bd-4c3a-8441-a45a5709ef8f",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_2689609",
+      "modelMessageId": "lc_run--01a177a5-ba64-7783-aa9b-8832e0ed3f91",
+      "model": "gemini-3.5-flash-lite",
+      "arguments": {
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "criterion_id": "criterion_f621b85c6991c9013886d36a",
+            "rationale": "Repository inspection reveals no AI resilience, error handling, or contingency planning specifically for AI model failures or detection errors. Basic error handling in main.py does not address AI model resilience.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "e02e5e79-c26f-5fba-a280-cced8a421aa1"
+              }
+            ]
+          }
+        ],
+        "legal_context_ids": [
+          "art3-cl1-ptd-resilience"
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicability_basis": [],
+        "assessment_rule_id": "art3-cl1-ptd-resilience",
+        "rationale": "This AI proctoring system uses AI models for monitoring. Resilience, error handling, and contingency planning are required for AI systems.",
+        "applicability": "APPLICABLE",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ]
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "e611dff6-d0a2-4772-85e8-6a18311c1215",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_2070706",
+      "modelMessageId": "lc_run--01a177a6-57cc-7d33-a561-10ffc6d42ab8",
+      "model": "gemini-3.5-flash-lite",
+      "arguments": {
+        "compliance": "NON_COMPLIANT",
+        "applicability_basis": [],
+        "applicability": "APPLICABLE",
+        "legal_context_ids": [
+          "art3-cl3-sustainability"
+        ],
+        "assessment_rule_id": "art3-cl3-ptc-sustainability",
+        "criteria": [
+          {
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ],
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no documentation or consideration of AI lifecycle environmental or energy sustainability. No such planning exists in the codebase.",
+            "criterion_id": "criterion_08760f0fd32028da1637ebce"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Environmental and energy sustainability considerations are required for AI systems.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134"
+          }
+        ]
+      },
+      "result": {
+        "ok": false,
+        "code": "ASSESSMENT_DECISION_VALIDATION_FAILED",
+        "retryable": false,
+        "failures": [
+          "UNKNOWN_LEGAL_CONTEXT:art3-cl3-sustainability"
+        ],
+        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
+      }
+    },
+    {
+      "toolCallId": "call_2497709",
+      "modelMessageId": "lc_run--01a177a7-69d9-7953-844e-c7ae86a24b20",
+      "model": "gemini-3.5-flash-lite",
+      "arguments": {
+        "references": [
+          {
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "type": "CONFIRMED_FACT"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Environmental and energy sustainability considerations are required for AI systems.",
+        "legal_context_ids": [
+          "art3-cl3-ptc-sustainability"
+        ],
+        "assessment_rule_id": "art3-cl3-ptc-sustainability",
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT",
+        "applicability_basis": [],
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "criterion_id": "criterion_08760f0fd32028da1637ebce",
+            "rationale": "Repository inspection reveals no documentation or consideration of AI lifecycle environmental or energy sustainability. No such planning exists in the codebase.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728"
+              }
+            ]
+          }
+        ]
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "893d4629-15fc-4584-bde6-49953333909d",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    },
+    {
+      "toolCallId": "call_2484683",
+      "modelMessageId": "lc_run--01a1790a-5ec1-7b00-acc0-0bc506d5fe3b",
+      "model": "gemini-3.5-flash-lite",
+      "arguments": {
+        "applicability": "APPLICABLE",
+        "references": [
+          {
+            "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+            "type": "CONFIRMED_FACT"
+          }
+        ],
+        "legal_context_ids": [
+          "c12-rec"
+        ],
+        "applicability_basis": [
+          {
+            "finding": "ESTABLISHED",
+            "references": [
+              {
+                "id": "f99ac5b1-d69e-5195-99e0-c3dc209d2134",
+                "type": "CONFIRMED_FACT"
+              }
+            ],
+            "index": 0,
+            "kind": "QUALIFIER",
+            "rationale": "The system is an AI system deployed for proctoring exams involving biometric monitoring, which falls under medium or high risk categories under AI regulations.",
+            "legal_requirement_id": "c12-rec"
+          }
+        ],
+        "rationale": "This AI proctoring system uses AI models for monitoring. Providers of medium or high risk AI systems must establish risk classification records before deployment.",
+        "criteria": [
+          {
+            "criterion_id": "criterion_82be1370748059a876b640a9",
+            "outcome": "NOT_MET",
+            "rationale": "Repository inspection reveals no risk classification records (hồ sơ phân loại rủi ro) established before putting the AI system into use. No documentation or records exist in the codebase.",
+            "references": [
+              {
+                "id": "cfe2423c-4c50-512b-9df1-dd83327a2728",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "assessment_rule_id": "ar-c12-rec"
+      },
+      "result": {
+        "ok": true,
+        "decisionId": "7a354e73-68b3-4eed-a1e3-6b4eb0da5a69",
+        "decisionRevision": 1,
+        "replayed": false
+      }
+    }
+  ],
+  "latestDecisionPinnedLegalContext": [
+    {
+      "assessmentRuleId": "ar-c12-rec",
+      "criteria": [
+        {
+          "statement": "LegalRequirement: c12-rec\nProposition: Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình phải lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng.\nApplicability mode: UNCONDITIONAL\nRepository proof boundary for 1f159589b206b0c86e557bf52923ff49bba448bd3e7339631fc331aa4645722e: Sự tồn tại của hồ sơ phân loại rủi ro được lập đối với hệ thống trí tuệ nhân tạo trước khi đưa vào sử dụng, được lưu trữ trong kho dữ liệu/hồ sơ của nhà cung cấp.\nExternal fulfillment is not established by repository inspection: Việc thực tế lập hồ sơ trước khi đưa hệ thống vào sử dụng diễn ra chủ yếu ngoài phạm vi kiểm soát của kho lưu trữ dữ liệu phần mềm của tổ chức.\nOperative proposition 1:\nActor: Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình\nModality: DUTY\nAction: lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng\nOperative source: [\"nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat\",\"art-12::cl-1\",\"sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c\"]\nOperative source: [\"luat-so-134-2025-qh15-luat-tri-tue-nhan-tao\",\"art-10::cl-1\",\"sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85\"]\nQualifier 1: Nghĩa vụ lập hồ sơ phân loại rủi ro được thực hiện theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\nSource binding: [\"nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat\",\"art-12::cl-1\",\"sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c\"]\nSource binding: [\"luat-so-134-2025-qh15-luat-tri-tue-nhan-tao\",\"art-10::cl-1\",\"sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85\"]",
+          "criterionId": "criterion_82be1370748059a876b640a9",
+          "investigationFocus": "Kiểm tra hồ sơ phân loại rủi ro trong kho lưu trữ của nhà cung cấp: xác định sự tồn tại, tính hoàn chỉnh về thành phần và tính cập nhật trước ngày đưa hệ thống vào sử dụng.",
+          "legalRequirementIds": [
+            "c12-rec"
+          ]
+        }
+      ],
+      "legalRequirementId": "c12-rec",
+      "proposition": "Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình phải lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng.",
+      "applicabilityConditions": [],
+      "qualifiers": [
+        "Nghĩa vụ lập hồ sơ phân loại rủi ro được thực hiện theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo."
+      ],
+      "exceptions": [],
+      "operativePropositions": [
+        {
+          "actor": "Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình",
+          "action": "lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-12::cl-1",
+              "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+              "contentSha256": "sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c"
+            },
+            {
+              "locator": "art-10::cl-1",
+              "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+              "contentSha256": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85"
+            }
+          ]
+        }
+      ],
+      "legalSourceVersionId": "ea43540c-513e-4b76-969a-8415f06696f2",
+      "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+      "locator": "art-12::cl-1",
+      "contentSha256": "sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c"
+    },
+    {
+      "assessmentRuleId": "ar-c12-rec",
+      "criteria": [
+        {
+          "statement": "LegalRequirement: c12-rec\nProposition: Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình phải lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng.\nApplicability mode: UNCONDITIONAL\nRepository proof boundary for 1f159589b206b0c86e557bf52923ff49bba448bd3e7339631fc331aa4645722e: Sự tồn tại của hồ sơ phân loại rủi ro được lập đối với hệ thống trí tuệ nhân tạo trước khi đưa vào sử dụng, được lưu trữ trong kho dữ liệu/hồ sơ của nhà cung cấp.\nExternal fulfillment is not established by repository inspection: Việc thực tế lập hồ sơ trước khi đưa hệ thống vào sử dụng diễn ra chủ yếu ngoài phạm vi kiểm soát của kho lưu trữ dữ liệu phần mềm của tổ chức.\nOperative proposition 1:\nActor: Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình\nModality: DUTY\nAction: lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng\nOperative source: [\"nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat\",\"art-12::cl-1\",\"sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c\"]\nOperative source: [\"luat-so-134-2025-qh15-luat-tri-tue-nhan-tao\",\"art-10::cl-1\",\"sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85\"]\nQualifier 1: Nghĩa vụ lập hồ sơ phân loại rủi ro được thực hiện theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\nSource binding: [\"nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat\",\"art-12::cl-1\",\"sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c\"]\nSource binding: [\"luat-so-134-2025-qh15-luat-tri-tue-nhan-tao\",\"art-10::cl-1\",\"sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85\"]",
+          "criterionId": "criterion_82be1370748059a876b640a9",
+          "investigationFocus": "Kiểm tra hồ sơ phân loại rủi ro trong kho lưu trữ của nhà cung cấp: xác định sự tồn tại, tính hoàn chỉnh về thành phần và tính cập nhật trước ngày đưa hệ thống vào sử dụng.",
+          "legalRequirementIds": [
+            "c12-rec"
+          ]
+        }
+      ],
+      "legalRequirementId": "c12-rec",
+      "proposition": "Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình phải lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng.",
+      "applicabilityConditions": [],
+      "qualifiers": [
+        "Nghĩa vụ lập hồ sơ phân loại rủi ro được thực hiện theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo."
+      ],
+      "exceptions": [],
+      "operativePropositions": [
+        {
+          "actor": "Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao hoặc rủi ro trung bình",
+          "action": "lập hồ sơ phân loại rủi ro đối với hệ thống trước khi đưa hệ thống vào sử dụng",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-12::cl-1",
+              "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+              "contentSha256": "sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c"
+            },
+            {
+              "locator": "art-10::cl-1",
+              "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+              "contentSha256": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85"
+            }
+          ]
+        }
+      ],
+      "legalSourceVersionId": "ea43540c-513e-4b76-969a-8415f06696f2",
+      "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+      "locator": "art-10::cl-1",
+      "contentSha256": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85"
+    }
+  ],
+  "latestDecisionPinnedSource": [
+    {
+      "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+      "locator": "art-10::cl-1",
+      "content": "1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử dụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ phân loại kèm theo.",
+      "contentSha256": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85"
+    },
+    {
+      "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+      "locator": "art-12::cl-1",
+      "content": "1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo có rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống vào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.",
+      "contentSha256": "sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c"
+    }
+  ],
+  "usageReceiptIdentities": [
+    {
+      "invocationId": "f7a78bb3-78ae-4e99-8760-b7f0856dd704",
+      "providerResponseId": null,
+      "provider": "MIRAIAPI",
+      "model": "claude-sonnet-5",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicAuthenticationError",
+      "occurredAt": "2026-10-26T09:53:59.514000"
+    },
+    {
+      "invocationId": "992aede9-708f-4dad-86c1-45cc7b59d6ca",
+      "providerResponseId": "lc_run--01a177a1-9bf1-72d3-9f8c-9d6f3ac304b5",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:02.301000"
+    },
+    {
+      "invocationId": "85373149-5442-4a7c-baa8-4b876f729a18",
+      "providerResponseId": "lc_run--01a177a1-a9ed-7a01-b067-fdb2782578cc",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:05.878000"
+    },
+    {
+      "invocationId": "5e1e6277-fce1-4635-8666-9c3b21a30986",
+      "providerResponseId": "lc_run--01a177a1-b386-7bc1-8c40-095125b675b5",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:08.322000"
+    },
+    {
+      "invocationId": "80e9f202-a691-4913-a033-2b0ccf3b3354",
+      "providerResponseId": "lc_run--01a177a1-c0dd-7cc3-83bd-ef9d294be960",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:11.752000"
+    },
+    {
+      "invocationId": "7f9190fd-4e96-4b52-8552-7fc62ec88082",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIStatusError",
+      "occurredAt": "2026-10-26T09:54:13.602000"
+    },
+    {
+      "invocationId": "081c2f2e-3858-409e-9586-5c061841cac3",
+      "providerResponseId": "lc_run--01a177a1-cb47-72e2-b2ff-7522efbb1a76",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:14.412000"
+    },
+    {
+      "invocationId": "a486c37c-f056-4771-a8ad-1b4bfc9356c9",
+      "providerResponseId": "lc_run--01a177a1-db09-7502-b838-14bae3b6026d",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:18.450000"
+    },
+    {
+      "invocationId": "1e0b0313-62be-4ef6-bcf4-a1c55e6e11c6",
+      "providerResponseId": "lc_run--01a177a1-e722-7281-8f64-efb3835a9924",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:21.543000"
+    },
+    {
+      "invocationId": "0cc825a7-fed7-40e9-b764-2a8adeaf7d37",
+      "providerResponseId": "lc_run--01a177a1-f598-7291-afe4-69c80ed20d01",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:25.231000"
+    },
+    {
+      "invocationId": "245947d0-6ede-4a31-bbdc-35d8703c3b94",
+      "providerResponseId": "lc_run--01a177a1-fe49-7842-b646-12917cb93b6e",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:27.476000"
+    },
+    {
+      "invocationId": "e6c3b309-e84e-4b80-92cf-be163abfe9a3",
+      "providerResponseId": "lc_run--01a177a2-063c-76c2-ae74-46a1deb6d775",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:29.511000"
+    },
+    {
+      "invocationId": "5e547583-6751-4953-8899-b3514f00e00e",
+      "providerResponseId": "lc_run--01a177a2-0eb8-7892-a3ab-8cb9278cf96a",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:31.671000"
+    },
+    {
+      "invocationId": "79045561-474f-4573-896a-ffa35c14ef63",
+      "providerResponseId": "lc_run--01a177a2-1eb7-7dd3-9c92-566f9d83869f",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:35.775000"
+    },
+    {
+      "invocationId": "09a613d1-fa15-45bd-aab5-470bcfae008b",
+      "providerResponseId": "lc_run--01a177a2-3e6b-7f41-ae6d-d8a0a29ba375",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:43.885000"
+    },
+    {
+      "invocationId": "353df488-f8b4-4ce5-9d12-cdd2cecc82b8",
+      "providerResponseId": "lc_run--01a177a2-5a82-7283-9301-9218a1b815c8",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:54:51.082000"
+    },
+    {
+      "invocationId": "705b857a-d388-4faf-b41b-bc087657d380",
+      "providerResponseId": "lc_run--01a177a2-7def-7cc2-883a-a2c7079f5bfb",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:00.143000"
+    },
+    {
+      "invocationId": "6c8e67f7-934f-4b6c-abfd-9c9076f7034e",
+      "providerResponseId": "lc_run--01a177a2-8c32-7160-b43e-51fd5a2750de",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:03.806000"
+    },
+    {
+      "invocationId": "1e4ee15a-e9e7-4839-8977-2c10a0b92a25",
+      "providerResponseId": "lc_run--01a177a2-9849-72c0-8330-8db61a4756e6",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:06.900000"
+    },
+    {
+      "invocationId": "454c4731-872c-477e-b0e8-0206d4d2159c",
+      "providerResponseId": "lc_run--01a177a2-a892-7ad1-83cc-45510d3e5c64",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:11.068000"
+    },
+    {
+      "invocationId": "d346faa2-881b-47ff-99b5-db132b85bd6b",
+      "providerResponseId": "lc_run--01a177a2-b7cc-7051-835b-a6fa00583389",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:14.970000"
+    },
+    {
+      "invocationId": "b05e575f-9abd-4d22-b956-79b897d5e6a6",
+      "providerResponseId": "lc_run--01a177a2-c342-7e60-8b92-a2ecad06fd26",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:17.896000"
+    },
+    {
+      "invocationId": "f0ea1d59-f287-4094-b9d9-671514e7f9d0",
+      "providerResponseId": "lc_run--01a177a2-e7c8-7c90-adb2-44b98d200ea8",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:27.252000"
+    },
+    {
+      "invocationId": "ed2fccb8-31d3-4d28-8825-3b3f9c0031e7",
+      "providerResponseId": "lc_run--01a177a2-f648-7d92-b285-ac56653959fc",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:30.967000"
+    },
+    {
+      "invocationId": "f7703ef5-1cac-49c0-bc60-9f10ddca7fb8",
+      "providerResponseId": "lc_run--01a177a3-01d6-7223-954c-ca54fd434426",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:33.919000"
+    },
+    {
+      "invocationId": "6ab073a7-f36d-459f-9c8b-52b6969b70fb",
+      "providerResponseId": "lc_run--01a177a3-117d-7341-bbaf-f6056341c78f",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:37.924000"
+    },
+    {
+      "invocationId": "e581014f-2ec9-4bd0-97fa-d0553d7d53cd",
+      "providerResponseId": "lc_run--01a177a3-1fad-79e3-a69c-ee400063baca",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:41.555000"
+    },
+    {
+      "invocationId": "31b478d6-21e2-403c-8b76-31ffcde5a487",
+      "providerResponseId": "lc_run--01a177a3-2b83-7393-b88f-09785d402c57",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:44.587000"
+    },
+    {
+      "invocationId": "e1fe666e-bbb7-4393-9992-45f8c6605926",
+      "providerResponseId": "lc_run--01a177a3-38c0-7252-b8e9-c5b4cd1d272c",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:47.981000"
+    },
+    {
+      "invocationId": "abe0b8c0-f5c8-4a0b-9290-3bb84da49e53",
+      "providerResponseId": "lc_run--01a177a3-5fe0-77e0-9f83-4d8810efc72f",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:55:57.973000"
+    },
+    {
+      "invocationId": "cf2b6410-7b08-4bb4-b964-05cc15707f09",
+      "providerResponseId": "lc_run--01a177a3-6de0-7122-b6ed-d9570fe53ca7",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:01.580000"
+    },
+    {
+      "invocationId": "c4c09f99-bcc3-4326-8756-2c4ecc1c875f",
+      "providerResponseId": "lc_run--01a177a3-80d5-7f82-ac27-0653d2380ee6",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:06.344000"
+    },
+    {
+      "invocationId": "67955d45-f464-435c-a373-55bc0e0e833d",
+      "providerResponseId": "lc_run--01a177a3-8d12-7ee0-bb5b-a8dbf9cf80c1",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:09.566000"
+    },
+    {
+      "invocationId": "f28c812c-655b-448d-863f-77d6fe76b595",
+      "providerResponseId": "lc_run--01a177a3-9899-7b70-be11-d58afb096bb7",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:12.512000"
+    },
+    {
+      "invocationId": "7d773e6a-bb87-4bf6-8448-6538b6200391",
+      "providerResponseId": "lc_run--01a177a3-aea3-75c1-92ff-a3f6a6d09e01",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:18.152000"
+    },
+    {
+      "invocationId": "1aacbf3e-a58c-4ba1-8557-e813bcd33529",
+      "providerResponseId": "lc_run--01a177a3-bdf7-7ca3-9aad-b999b459596f",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:22.075000"
+    },
+    {
+      "invocationId": "e811b650-713a-4735-be8c-771c961de300",
+      "providerResponseId": "lc_run--01a177a3-cad9-7f63-b6f3-e5cd52091cce",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:25.381000"
+    },
+    {
+      "invocationId": "c2f8f299-ff01-43dd-8206-5ae1d0fcf681",
+      "providerResponseId": "lc_run--01a177a3-efed-7b41-b219-463e00dc3527",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:34.872000"
+    },
+    {
+      "invocationId": "ea1da15c-6d79-4987-b55e-55e438de7641",
+      "providerResponseId": "lc_run--01a177a3-fd88-7b90-8dce-fac2f532a8d0",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:38.351000"
+    },
+    {
+      "invocationId": "530f4874-3b14-4e76-af74-257c58febf40",
+      "providerResponseId": "lc_run--01a177a4-084f-73d0-a9dc-40414447b11d",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:41.108000"
+    },
+    {
+      "invocationId": "50a83eb7-c442-4ec5-abc1-fbae5012a2f7",
+      "providerResponseId": "lc_run--01a177a4-1664-73f3-bf41-18b0a58e63d7",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:44.717000"
+    },
+    {
+      "invocationId": "c944f41a-e5b7-47bf-b271-aca663428ab6",
+      "providerResponseId": "lc_run--01a177a4-210e-7cc0-8c63-43fbc6d7f7e5",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:47.446000"
+    },
+    {
+      "invocationId": "531ee8ce-b4ab-4a66-8ea6-b1929a91b480",
+      "providerResponseId": "lc_run--01a177a4-385c-78e3-bf9f-46dc25bb28a8",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:56:53.418000"
+    },
+    {
+      "invocationId": "21209f9b-5b3e-47d0-9c2a-ba8ec6b40c80",
+      "providerResponseId": "lc_run--01a177a4-5231-7992-8b0d-10a3bd5149c8",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:00.026000"
+    },
+    {
+      "invocationId": "9b480e6f-abac-41e1-a343-73b151a5667e",
+      "providerResponseId": "lc_run--01a177a4-6e2e-70c2-b7bc-41dd55c29c6c",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:07.189000"
+    },
+    {
+      "invocationId": "8d7c4b0f-bde7-411e-a01a-71dfb7d0592c",
+      "providerResponseId": "lc_run--01a177a4-8a13-7fc0-a805-d4e554bc2bbb",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:14.327000"
+    },
+    {
+      "invocationId": "f9100f94-b9fa-4111-afa9-019170abd020",
+      "providerResponseId": "lc_run--01a177a4-9a5c-7d31-8594-35f2e82adb22",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:18.501000"
+    },
+    {
+      "invocationId": "75754898-90b4-40a9-bb70-3cfbbde94660",
+      "providerResponseId": "lc_run--01a177a4-a6a7-7fb0-964a-16f0ad270663",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:21.646000"
+    },
+    {
+      "invocationId": "8b4c1876-0b1d-431a-8de5-629af4ef1b6a",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "OpenAIConnectionError",
+      "occurredAt": "2026-10-26T09:57:25.255000"
+    },
+    {
+      "invocationId": "050f25c7-aad2-4cba-81a6-79fd7c50f81a",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "OpenAIConnectionError",
+      "occurredAt": "2026-10-26T09:57:25.465000"
+    },
+    {
+      "invocationId": "1b5bc6dc-cda1-48f9-9add-33e68e518e1e",
+      "providerResponseId": "lc_run--01a177a4-b665-7fa3-a12e-552e783e2dba",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:25.670000"
+    },
+    {
+      "invocationId": "60c8be8f-7843-401d-978b-44cbfb50022b",
+      "providerResponseId": "lc_run--01a177a4-cbea-71d3-8e51-728475416fa8",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:31.187000"
+    },
+    {
+      "invocationId": "58f8db1d-8af3-4408-8230-03786197df8d",
+      "providerResponseId": "lc_run--01a177a4-dabe-7503-af54-4f6b19b9efcc",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:34.977000"
+    },
+    {
+      "invocationId": "a3670463-2765-4b70-ad8c-858bb23b95f4",
+      "providerResponseId": "lc_run--01a177a4-e86c-76f0-80a7-01564318de53",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:38.482000"
+    },
+    {
+      "invocationId": "ee45e98d-133b-4372-bf0d-b362ae377818",
+      "providerResponseId": "lc_run--01a177a4-f605-7212-ba3d-962838f03180",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:41.962000"
+    },
+    {
+      "invocationId": "34e51b9f-2dca-46c4-bcb0-c61b42b0684e",
+      "providerResponseId": "lc_run--01a177a5-2456-7aa1-99f8-1fc0e77b7759",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:53.816000"
+    },
+    {
+      "invocationId": "138db77f-f1c8-4dfb-b1e9-9b75e8129d74",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:57:57.228000"
+    },
+    {
+      "invocationId": "8ebcfd3d-1c25-46af-8a4e-0fdfb71441fc",
+      "providerResponseId": "lc_run--01a177a5-3815-7943-9478-bb6d6a78e7b7",
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:57:58.878000"
+    },
+    {
+      "invocationId": "e5b43251-e7c0-4f54-9cc2-6739f717897c",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:04.462000"
+    },
+    {
+      "invocationId": "cd1ead8d-5992-4c44-addb-3761d1d2ab4f",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:06.145000"
+    },
+    {
+      "invocationId": "5dbdd2f1-2590-49a5-aebf-993200779dfb",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:07.940000"
+    },
+    {
+      "invocationId": "c993b45c-cf39-4e15-b87d-ea7b4668d4a5",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:10.456000"
+    },
+    {
+      "invocationId": "dbcd9bf7-1e0e-47ef-a1b2-e9824107130e",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:13.220000"
+    },
+    {
+      "invocationId": "48e6ef1b-a4a2-419a-b809-6f5577acaa15",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:15.291000"
+    },
+    {
+      "invocationId": "454a9638-fc6e-4124-bdfb-bb1f9c225ea2",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:17.283000"
+    },
+    {
+      "invocationId": "9f163ed3-ccbd-43f6-bf91-c1b6d9dbf94f",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:19.502000"
+    },
+    {
+      "invocationId": "af7bb070-b2b1-4800-9ae7-d53843d05413",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:21.560000"
+    },
+    {
+      "invocationId": "47b5813e-e413-46f3-b1e6-064cfc20c667",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:23.774000"
+    },
+    {
+      "invocationId": "f7942830-0f66-484a-be96-1e870ee32a39",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:26.327000"
+    },
+    {
+      "invocationId": "baa85f2d-0c28-4690-ae1e-93d43a50817a",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:28.185000"
+    },
+    {
+      "invocationId": "34609910-485f-43b1-b214-6927264a62e6",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T09:58:30.192000"
+    },
+    {
+      "invocationId": "a3a940a8-1984-43bd-8866-7b9f1f484a22",
+      "providerResponseId": "lc_run--01a177a5-ba64-7783-aa9b-8832e0ed3f91",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:58:32.239000"
+    },
+    {
+      "invocationId": "c5887d61-bc34-47f9-b235-bf1886ccba80",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleRateLimitError",
+      "occurredAt": "2026-10-26T09:59:09.832000"
+    },
+    {
+      "invocationId": "3e812806-a0ae-40fe-867f-4c2638f37743",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAuthenticationError",
+      "occurredAt": "2026-10-26T09:59:10.984000"
+    },
+    {
+      "invocationId": "1ee864cb-055c-40a0-847b-1192648dd3fc",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAuthenticationError",
+      "occurredAt": "2026-10-26T09:59:11.709000"
+    },
+    {
+      "invocationId": "37de2b0c-d9d1-4aeb-9f3e-2ddf549e66da",
+      "providerResponseId": "lc_run--01a177a6-57cc-7d33-a561-10ffc6d42ab8",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:59:12.505000"
+    },
+    {
+      "invocationId": "a204ef92-4095-4b4b-a580-f9dbc0445d92",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleRateLimitError",
+      "occurredAt": "2026-10-26T09:59:52.118000"
+    },
+    {
+      "invocationId": "8aa707a5-1edc-4b7a-8ddd-0f2060d04745",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAuthenticationError",
+      "occurredAt": "2026-10-26T09:59:53.459000"
+    },
+    {
+      "invocationId": "7dd5508c-52a0-42d4-a3fe-dcff4d102c0f",
+      "providerResponseId": "lc_run--01a177a6-fae2-77e0-b6f6-f27037a49fb8",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T09:59:54.282000"
+    },
+    {
+      "invocationId": "cba321cb-47d0-4f4f-8274-97bd88259c11",
+      "providerResponseId": "lc_run--01a177a7-69d9-7953-844e-c7ae86a24b20",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T10:00:22.695000"
+    },
+    {
+      "invocationId": "38c28e61-f574-423f-b308-22323bf13210",
+      "providerResponseId": "lc_run--01a177a7-a59c-7ff3-a17b-763c33765900",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T10:00:37.979000"
+    },
+    {
+      "invocationId": "9496875d-86f7-4621-a9e8-27c0fc3223f1",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleRateLimitError",
+      "occurredAt": "2026-10-26T10:01:04.376000"
+    },
+    {
+      "invocationId": "bfbe7315-5caa-45f6-b2bf-73579ce1a76d",
+      "providerResponseId": "lc_run--01a177a8-1049-74f0-ad90-3aac9e358d06",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T10:01:05.290000"
+    },
+    {
+      "invocationId": "1d6e44d6-64d8-4778-9f26-88a25cf6312f",
+      "providerResponseId": "lc_run--01a177a8-5c6d-7812-b3ef-49999fbb6caf",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T10:01:24.789000"
+    },
+    {
+      "invocationId": "cdfde047-5d66-4feb-b454-c374066249a7",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleRateLimitError",
+      "occurredAt": "2026-10-26T10:01:37.304000"
+    },
+    {
+      "invocationId": "b0f61234-c967-4473-b4a9-7400d59143c2",
+      "providerResponseId": "lc_run--01a177a8-914a-7482-aac8-d974f869eac5",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T10:01:38.325000"
+    },
+    {
+      "invocationId": "df11dcbd-a348-4042-800a-8c825149bb87",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "STARTED",
+      "status": "UNAVAILABLE",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T10:02:10.423000"
+    },
+    {
+      "invocationId": "ea2be3c4-5e24-4ba1-a4cd-e9b7d779a6fa",
+      "providerResponseId": null,
+      "provider": "MIRAIAPI",
+      "model": "claude-sonnet-5",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicAuthenticationError",
+      "occurredAt": "2026-10-26T16:25:05.222000"
+    },
+    {
+      "invocationId": "dd25b9dd-0dfe-48cb-8499-a1c8805313a4",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:07.373000"
+    },
+    {
+      "invocationId": "23f3149d-68f4-4389-82b9-d3d07be250fa",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:09.582000"
+    },
+    {
+      "invocationId": "1244717e-225c-432f-9afd-2c4e60bffabf",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:11.873000"
+    },
+    {
+      "invocationId": "8fa5ba21-e32f-4f20-bcbe-c421784fe773",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:14.029000"
+    },
+    {
+      "invocationId": "a2563251-88a6-4f0e-a4cb-14ed10c2448f",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:16.166000"
+    },
+    {
+      "invocationId": "b8d961e1-337b-43e0-b6dd-c467332a9f9d",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:18.272000"
+    },
+    {
+      "invocationId": "96f109eb-2060-4960-baa3-01f10418d2e0",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:20.668000"
+    },
+    {
+      "invocationId": "01770ef6-cdeb-49b4-932e-0b458a68fb92",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:23.121000"
+    },
+    {
+      "invocationId": "738051d9-e9e9-4b59-9998-c80f18187003",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:25.744000"
+    },
+    {
+      "invocationId": "aac201da-40a5-47dd-bb34-7c1e8ca01428",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:27.809000"
+    },
+    {
+      "invocationId": "2bc3d77e-2029-492c-92bd-e82aa1c48ba5",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:29.899000"
+    },
+    {
+      "invocationId": "4b19ec92-af72-40e3-b74e-e4e13f0b9b81",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:32.761000"
+    },
+    {
+      "invocationId": "8da97b35-0f35-4fb8-93e0-0ffd7fc99910",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:34.797000"
+    },
+    {
+      "invocationId": "2ae0b21d-60a2-4f25-8dc8-381e4f7f1fb0",
+      "providerResponseId": null,
+      "provider": "INCEPTION",
+      "model": "mercury-2.5",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "APIError",
+      "occurredAt": "2026-10-26T16:25:36.923000"
+    },
+    {
+      "invocationId": "1f44da18-7d5d-4bc9-a231-1a8d1cb18110",
+      "providerResponseId": "lc_run--01a17908-23a2-76b0-a0b9-8eb4ea124223",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T16:25:38.909000"
+    },
+    {
+      "invocationId": "262c999d-5b75-457a-9eed-7d6b28deea99",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleRateLimitError",
+      "occurredAt": "2026-10-26T16:28:01.328000"
+    },
+    {
+      "invocationId": "530965ce-48e5-45d4-9be5-11766024a12d",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAuthenticationError",
+      "occurredAt": "2026-10-26T16:28:02.813000"
+    },
+    {
+      "invocationId": "02ac0c86-b5ca-41f7-bd2b-a74680ed2ca4",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAuthenticationError",
+      "occurredAt": "2026-10-26T16:28:03.916000"
+    },
+    {
+      "invocationId": "f0572714-621f-4925-9c07-c41967f67259",
+      "providerResponseId": "lc_run--01a1790a-5ec1-7b00-acc0-0bc506d5fe3b",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T16:28:05.053000"
+    },
+    {
+      "invocationId": "75de08d4-a1ee-4d8b-91fc-5ff4c477fb77",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAPIError",
+      "occurredAt": "2026-10-26T16:29:40.298000"
+    },
+    {
+      "invocationId": "7d0fd52a-377d-4bf5-a93b-45067f2cabb7",
+      "providerResponseId": "lc_run--01a1790c-f0ad-7ab1-873f-6aa69758dc3c",
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "COMPLETED",
+      "status": "SETTLED",
+      "failureClass": null,
+      "occurredAt": "2026-10-26T16:30:53.498000"
+    },
+    {
+      "invocationId": "45f3b04e-4c2b-4ada-a68e-27478d2fc8b7",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAPIError",
+      "occurredAt": "2026-10-26T16:33:19.808000"
+    },
+    {
+      "invocationId": "1a235132-589f-43b4-b690-d3bb2ce726c3",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleRateLimitError",
+      "occurredAt": "2026-10-26T16:33:22.416000"
+    },
+    {
+      "invocationId": "fc99c2bf-d966-4f2b-ae72-c422fc7940f3",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAuthenticationError",
+      "occurredAt": "2026-10-26T16:33:23.729000"
+    },
+    {
+      "invocationId": "83995e47-c148-4428-9db7-032da746239d",
+      "providerResponseId": null,
+      "provider": "GOOGLE_GENAI",
+      "model": "gemini-3.5-flash-lite",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "status": "UNAVAILABLE",
+      "failureClass": "GoogleAPIError",
+      "occurredAt": "2026-10-26T16:33:24.582000"
+    },
+    {
+      "invocationId": "35d7f0bc-574b-4327-a25b-d5cef26038b1",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:31.600000"
+    },
+    {
+      "invocationId": "7f61068e-5679-4173-a6e4-0e62326ba37f",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:34.105000"
+    },
+    {
+      "invocationId": "bf046b6b-86bb-46c0-be85-a699be51171e",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:35.329000"
+    },
+    {
+      "invocationId": "70b03b12-0d34-4470-8c68-80670faea8cc",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:36.602000"
+    },
+    {
+      "invocationId": "df6b5bc1-5cd6-4adc-887f-04736de62aca",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:38.015000"
+    },
+    {
+      "invocationId": "9c973e82-f2cd-4e6d-ad6d-6cd079c121e9",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:39.624000"
+    },
+    {
+      "invocationId": "a80a0d82-c293-4fcc-90dd-b2483d93c8c3",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:41.757000"
+    },
+    {
+      "invocationId": "55031b21-c93b-4209-aa6d-830a7922658d",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:43.209000"
+    },
+    {
+      "invocationId": "f9ad2d32-1fd5-4394-9d8a-06d04f9b25f1",
+      "providerResponseId": null,
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "attemptStatus": "FAILED",
+      "status": "UNAVAILABLE",
+      "failureClass": "AnthropicRateLimitError",
+      "occurredAt": "2026-10-26T16:33:44.726000"
+    }
+  ],
+  "qualifications": [
+    "Native model/tool provenance proves these are genuine submissions, not that their legal reasoning is correct.",
+    "No one-to-one mapping from individual decisions to physical provider charges was established."
+  ]
+}

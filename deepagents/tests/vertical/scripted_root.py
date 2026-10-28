@@ -11,12 +11,13 @@ modes: full | complete | resume
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any, Callable
 
 from deepagents.backends import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
 
 from assessment_root.client import AssessmentRuntimeClient
 from assessment_root.researcher import RESEARCHER_NAME
@@ -86,7 +87,8 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
                     "legal_context_ids": [{"ER-RET": "LR-RET", "ER-XREF": "LR-XREF"}[rule]],
                     "references": refs,
                     "criteria": [
-                        {"criterion_id": "C-1", "outcome": outcome, "rationale": "Based on the cited source.", "references": refs}
+                        {"criterion_id": criterion, "outcome": outcome, "rationale": "Based on the cited source.", "references": refs}
+                        for criterion in next(r for r in captured["rule_set"]["assessmentRules"] if r["assessmentRuleId"] == rule)["criterionIds"]
                     ],
                     "compliance": "COMPLIANT" if outcome == "MET" else "NON_COMPLIANT",
                 }
@@ -98,6 +100,13 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
                     "legal_context_ids": ["LR-DEF"],
                     "references": [{"type": "CONFIRMED_FACT", "id": fact["use_case"]}],
                 }
+            requirement = {"ER-RET": "LR-RET", "ER-XREF": "LR-XREF", "ER-DEF": "LR-DEF"}[rule]
+            args["applicability_basis"] = [{
+                "legal_requirement_id": requirement, "kind": "APPLICABILITY_CONDITION", "index": 0,
+                "finding": "ESTABLISHED" if applicable else "REFUTED",
+                "rationale": "The accepted fixture evidence establishes the scripted applicability finding.",
+                "references": args["references"],
+            }]
             return _call("submit_rule_decision", args, key)
 
         return step
@@ -170,15 +179,16 @@ def main() -> int:
         ]
     model = DynamicScriptedModel(responses=[], steps=steps)
     client = AssessmentRuntimeClient(base, key)
-    result = run_assessment_root(
-        client,
-        assessment_id,
-        backend_factory=lambda claim, context: (FilesystemBackend(root_dir=repo_dir, virtual_mode=True), None),
-        model=model,
-        # A fresh in-memory checkpointer per process models a restart: only server state survives.
-        checkpointer=InMemorySaver(),
-        governance=(),
-    )
+    with PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
+        saver.setup()
+        result = run_assessment_root(
+            client,
+            assessment_id,
+            backend_factory=lambda claim, context: (FilesystemBackend(root_dir=repo_dir, virtual_mode=True), None),
+            model=model,
+            checkpointer=saver,
+            governance=(),
+        )
     print(json.dumps({"result": result, "captured": captured, "remainingSteps": len(model.steps)}))
     return 0
 

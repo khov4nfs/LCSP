@@ -59,8 +59,8 @@ def fixture_input() -> tuple[dict, dict]:
 
 
 def verify_stack(stack, access: dict) -> None:
-    accepted = staging.accepted_images()
     manifest = stack.manifest
+    accepted = staging.accepted_images(manifest["imageEvidence"])
     require(manifest["runId"] == stack.run_id and manifest["network"] == stack.prefix,
             "owned manifest identity mismatch")
     require(stack.docker("info", "--format", "{{.ID}}") == manifest["daemonId"], "Docker daemon changed")
@@ -222,7 +222,7 @@ def run(stack, access: dict) -> dict:
             "productionDeployment": False, "releaseEligible": False}
 
 
-def self_check() -> None:
+def self_check(image_evidence: str | Path) -> None:
     fixture, pin = fixture_input()
     raw = (ROOT / "deepagents/tests/fixtures/compliance_rule_set_context" / pin["sourceFile"]).read_bytes()
     for mutated in (raw + b"x", raw.replace(b"7 days", b"9 days")):
@@ -243,7 +243,7 @@ def self_check() -> None:
     sql = seed_sql(str(uuid4()), "test'fixture", fixture, pin)
     assert "test''fixture" in sql and sql.startswith("BEGIN;") and sql.endswith("COMMIT;")
     assert '"ComplianceRuleSetVersion"' not in sql and '"RuleSetPreparationRun"' not in sql and "ACTIVE" not in sql
-    assert len(staging.accepted_images()) == 4
+    assert len(staging.accepted_images(image_evidence)) == 4
     accepted = {role: "sha256:" + "a" * 64 for role in ("api", "web", "worker", "server")}
     run_id = "a" * 16
     prefix = f"lcsp-release-staging-{run_id}"
@@ -253,13 +253,15 @@ def self_check() -> None:
             "State": {"Running": True}}
     access = {"runId": run_id, "api": "http://localhost:1", "web": "http://localhost:2", "agentServer": "http://localhost:3"}
     fake = SimpleNamespace(run_id=run_id, prefix=prefix, manifest={"runId": run_id, "network": prefix,
+                           "imageEvidence": image_evidence,
                            "images": images, "resources": resources, "daemonId": "owned"},
                            docker=Mock(return_value="owned"),
                            inspect=Mock(side_effect=lambda name: {**info, "Name": "/" + name,
                                         "Image": resources[name.removeprefix(prefix + "-")]}),
                            url=lambda role, port: access[{"api": "api", "web": "web", "server": "agentServer"}[role]])
-    with patch.object(staging, "accepted_images", return_value=accepted):
+    with patch.object(staging, "accepted_images", return_value=accepted) as accepted_images_check:
         verify_stack(fake, access)
+        accepted_images_check.assert_called_once_with(image_evidence)
         for mutate, restore in (
             (lambda: fake.docker.configure_mock(return_value="foreign"), lambda: fake.docker.configure_mock(return_value="owned")),
             (lambda: info["State"].update(Running=False), lambda: info["State"].update(Running=True)),
@@ -293,9 +295,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_id", nargs="?")
     parser.add_argument("--self-check", action="store_true")
+    parser.add_argument("--image-evidence", help="repository-relative accepted release image evidence directory")
     args = parser.parse_args()
     if args.self_check:
-        self_check()
+        self_check(args.image_evidence)
         return 0
     require(bool(args.run_id), "owned staging run ID required")
     stack = staging.Stack(args.run_id)

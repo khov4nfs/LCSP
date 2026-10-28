@@ -1,0 +1,335 @@
+{
+  "preparationRunId": "630eed1a-1577-4ca7-84bc-4ba17df911f1",
+  "databaseTimeZone": "UTC",
+  "sourceReceiptSha256": "e79b28bcdd0a416c3c3c24e6b133a636ca7a01e75dfee3689f92885172459a79",
+  "observedInvocationReceipts": 2281,
+  "completedInvocationReceipts": 2265,
+  "failedAttemptReceipts": 15,
+  "unknownOutcomeReceipts": 1,
+  "duplicateInvocationIds": 0,
+  "duplicateProviderResponseIds": 0,
+  "uniqueProviderResponseIds": 2265,
+  "tokenTotals": {
+    "inputTokens": {
+      "knownSum": 12499429,
+      "knownReceipts": 2265,
+      "unknownReceipts": 16
+    },
+    "cachedInputTokens": {
+      "knownSum": 133912421,
+      "knownReceipts": 2265,
+      "unknownReceipts": 16
+    },
+    "inputTokensIncludingCache": {
+      "knownSum": 146411850,
+      "knownReceipts": 2265,
+      "unknownReceipts": 16
+    },
+    "outputTokens": {
+      "knownSum": 9056266,
+      "knownReceipts": 2265,
+      "unknownReceipts": 16
+    },
+    "reasoningTokens": {
+      "knownSum": 8833545,
+      "knownReceipts": 2265,
+      "unknownReceipts": 16
+    },
+    "visibleOutputTokens": {
+      "knownSum": 0,
+      "knownReceipts": 0,
+      "unknownReceipts": 2281
+    },
+    "totalTokens": {
+      "knownSum": 155468116,
+      "knownReceipts": 2265,
+      "unknownReceipts": 16
+    },
+    "cacheWriteTokens": {
+      "knownSum": 0,
+      "knownReceipts": 0,
+      "unknownReceipts": 2281
+    },
+    "cacheWrite5mTokens": {
+      "knownSum": 0,
+      "knownReceipts": 0,
+      "unknownReceipts": 2281
+    },
+    "cacheWrite1hTokens": {
+      "knownSum": 0,
+      "knownReceipts": 0,
+      "unknownReceipts": 2281
+    }
+  },
+  "providerGroups": [
+    {
+      "provider": "INCEPTION",
+      "model": "mercury-3",
+      "receiptStatus": "SETTLED",
+      "attemptStatus": "COMPLETED",
+      "count": 2265
+    },
+    {
+      "provider": "INCEPTION",
+      "model": "mercury-3",
+      "receiptStatus": "UNAVAILABLE",
+      "attemptStatus": "FAILED",
+      "count": 15
+    },
+    {
+      "provider": "INCEPTION",
+      "model": "mercury-3",
+      "receiptStatus": "UNAVAILABLE",
+      "attemptStatus": "OUTCOME_UNKNOWN",
+      "count": 1
+    }
+  ],
+  "failureClasses": {
+    "APIStatusError": 13,
+    "OpenAIConnectionError": 1,
+    "OpenAIRateLimitError": 2
+  },
+  "resumeRequests": [
+    {
+      "correlationId": "5244aefd-4220-4bb7-a949-aa928f477666",
+      "createdAt": "2026-10-25T08:50:45.800000",
+      "id": "outbox:ce43c144e8a8ac866e228513b6ea705b590ca9b61c8ad330664a00a498006db6",
+      "nextRequestAt": "2026-10-25T16:38:01.020000",
+      "observedReceipts": 230,
+      "completedReceipts": 229,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "77006d59-6c0e-4fee-ab3a-c2bb9e711f1a",
+      "createdAt": "2026-10-25T16:38:01.020000",
+      "id": "outbox:0622fe64c86ab928b36249de602cbbbf239f30bbc6e01d73e68e8fbdba8ac087",
+      "nextRequestAt": "2026-10-25T17:21:40.833000",
+      "observedReceipts": 221,
+      "completedReceipts": 219,
+      "failedReceipts": 1,
+      "unknownOutcomes": 1,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "2f57554f-4357-4a74-a2a4-1d04cc0e31ba",
+      "createdAt": "2026-10-25T17:21:40.833000",
+      "id": "outbox:3aff8a859ade8370536a15f15656f7da0ea653dd49079aa10278111bedefb66d",
+      "nextRequestAt": "2026-10-25T18:21:57.081000",
+      "observedReceipts": 292,
+      "completedReceipts": 291,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "dbc605a9-303e-4ef7-bf69-0a5d9ad59a21",
+      "createdAt": "2026-10-25T18:21:57.081000",
+      "id": "outbox:f8f5b080d0b4a98d862619603bb2e84b7fa3dc337fb0facf80695636b336ca49",
+      "nextRequestAt": "2026-10-25T18:28:36.278000",
+      "observedReceipts": 17,
+      "completedReceipts": 16,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "a0e32666-6561-4621-aee1-31fda3ed3956",
+      "createdAt": "2026-10-25T18:28:36.278000",
+      "id": "outbox:f5f2260a05eb4f779eb0779df49f9b0fac693a8c7759622a096400fe7741ab8e",
+      "nextRequestAt": "2026-10-25T18:38:34.677000",
+      "observedReceipts": 56,
+      "completedReceipts": 55,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "69dc3f7a-7370-44b3-9670-c9ba4a7c0ce8",
+      "createdAt": "2026-10-25T18:38:34.677000",
+      "id": "outbox:5addb2cd5200c7e2c3ad84ead354d8cc22f12f6ef382ccff82a8c90bf6709540",
+      "nextRequestAt": "2026-10-25T19:47:18.953000",
+      "observedReceipts": 347,
+      "completedReceipts": 345,
+      "failedReceipts": 2,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "8bd36e86-3579-45d2-8577-87fd61dae042",
+      "createdAt": "2026-10-25T19:47:18.953000",
+      "id": "outbox:94af03fc014480d690e25a078355bc3bc03ec6513211f790f09da91f326613f4",
+      "nextRequestAt": "2026-10-25T20:16:13.217000",
+      "observedReceipts": 110,
+      "completedReceipts": 109,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "7c88c8b6-0bf3-4d3a-b974-fb67fef621b7",
+      "createdAt": "2026-10-25T20:16:13.217000",
+      "id": "outbox:f77bca64dbb11ff5dcc52a5b387950f4fec985378717086ad82b156162a1773e",
+      "nextRequestAt": "2026-10-25T20:59:31.690000",
+      "observedReceipts": 169,
+      "completedReceipts": 168,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "a128327c-dacf-4079-b313-c4fab152d2ab",
+      "createdAt": "2026-10-25T20:59:31.690000",
+      "id": "outbox:ba6d45b08c313c55171032eee1bc59c521d11ec0123a5ef76d80618732b974db",
+      "nextRequestAt": "2026-10-25T21:16:34.284000",
+      "observedReceipts": 73,
+      "completedReceipts": 72,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "0df9ca8d-f834-4faa-9890-691b474353c8",
+      "createdAt": "2026-10-25T21:16:34.284000",
+      "id": "outbox:3d47d6b321969c5b65cc8eb6c65dedc2ac5b7daa434f214ba3ba27eb0e5d1693",
+      "nextRequestAt": "2026-10-25T21:58:59.651000",
+      "observedReceipts": 263,
+      "completedReceipts": 262,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "91def6b4-0029-4791-a148-0471d36607e2",
+      "createdAt": "2026-10-25T21:58:59.651000",
+      "id": "outbox:f90a4410a4e4937457c0a3a8509a715daae678179f58f7a89b03981bf4fa756c",
+      "nextRequestAt": "2026-10-25T22:33:29.474000",
+      "observedReceipts": 255,
+      "completedReceipts": 254,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "ae4c48d2-4e04-4d6f-a2d6-531efe9769e3",
+      "createdAt": "2026-10-25T22:33:29.474000",
+      "id": "outbox:e3062ff967c8b4e7b75b7a6e779454b12b7579ecda3ab366baf501eb48b8809b",
+      "nextRequestAt": "2026-10-25T23:00:38.464000",
+      "observedReceipts": 212,
+      "completedReceipts": 210,
+      "failedReceipts": 2,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "d6a52ea9-607f-4527-a2ee-ccaaa65d4c05",
+      "createdAt": "2026-10-25T23:00:38.464000",
+      "id": "outbox:e140ed57d040dff16104ebcf4774f77402ca8eae8e11ec045b5e3aeb64cabf16",
+      "nextRequestAt": "2026-10-25T23:33:09.072000",
+      "observedReceipts": 34,
+      "completedReceipts": 33,
+      "failedReceipts": 1,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    },
+    {
+      "correlationId": "0dc11206-c503-4865-b990-8fec0d1db88d",
+      "createdAt": "2026-10-25T23:33:09.072000",
+      "id": "outbox:37614a45befbdbc629b959dfbc041b2e14de454d330481e65f87f50a682e675c",
+      "nextRequestAt": null,
+      "observedReceipts": 2,
+      "completedReceipts": 2,
+      "failedReceipts": 0,
+      "unknownOutcomes": 0,
+      "association": "ENQUEUE_TIME_WINDOW_ONLY_NOT_EXECUTION_ID"
+    }
+  ],
+  "historicalInputLimitComparison": {
+    "reviewerReportedLimit": 100000000,
+    "knownInputIncludingCache": 146411850,
+    "knownExcess": 46411850,
+    "approvedEnvelope": "NOT_PROVEN"
+  },
+  "financialEvidence": {
+    "reservationReceipts": 0,
+    "pricingReceipts": 0,
+    "providerCostReceipts": 0,
+    "chargedReceipts": 0,
+    "status": "NOT_PROVEN"
+  },
+  "qualifications": [
+    "Completed invocation receipts are not a proven count of logical model calls or all physical network attempts.",
+    "Unique provider response IDs detect retained duplicate receipts; they do not establish retry completeness.",
+    "Reasoning tokens are an output breakdown, not additional tokens to add to output or total.",
+    "Missing failure usage is unknown exposure, not a measured zero charge.",
+    "Resume request IDs and correlations are durable; timestamp windows cannot reconstruct missing execution IDs or late-response attribution.",
+    "SETTLED identifies a durable usage receipt; without pricing/reservation evidence it does not prove financial settlement.",
+    "A reviewer-reported historical ceiling is compared retrospectively; this command creates no new execution limit or approval."
+  ],
+  "journalEvidence": [
+    {
+      "path": "tmp/lcsp-storage/usage-recovery.sqlite3",
+      "exists": true,
+      "matchingRunRows": 0,
+      "tables": [
+        "sqlite_sequence",
+        "usage_recovery"
+      ],
+      "groups": []
+    }
+  ],
+  "gates": {
+    "retainedReceiptIntegrity": "PASS",
+    "physicalAttemptCompleteness": "NOT_PROVEN",
+    "approvedAdmissionEnvelope": "NOT_PROVEN",
+    "providerChargeReconciliation": "NOT_PROVEN",
+    "financialGate": "BLOCKED"
+  },
+  "archivedJournalSearch": {
+    "journalsInspected": 26,
+    "matchingRunRows": 0,
+    "matchingEnvelopeFingerprints": 0,
+    "scope": "Existing usage journal plus retained lcsp360-final cache SQLite journals; no provider account statement was available"
+  },
+  "continuation20261026": {
+    "preparationRunId": "630eed1a-1577-4ca7-84bc-4ba17df911f1",
+    "verified": {
+      "sourceReceiptSha256": "e79b28bcdd0a416c3c3c24e6b133a636ca7a01e75dfee3689f92885172459a79",
+      "matchesRetainedReceipt": true,
+      "invocations": 2281,
+      "completed": 2265,
+      "failed": 15,
+      "outcomeUnknown": 1,
+      "requestResumeMarkers": 14,
+      "reservationsLinked": 0,
+      "routingPolicySnapshot": {
+        "id": "64f3dbdb-c497-44cf-8cd0-b9d14b97d196",
+        "role": "rule-set-preparation",
+        "provider": "INCEPTION",
+        "model": "mercury-3",
+        "policyVersion": "cfg-786c5a3ae0fe2e9c"
+      },
+      "activeJournalMatchingRunRows": 0
+    },
+    "derived": {
+      "knownInput": 146411850,
+      "knownOutput": 9056266,
+      "knownTotal": 155468116,
+      "knownInputOverReviewerReported100Million": 46411850,
+      "requestAssociation": "TIMESTAMP_WINDOWS_ONLY"
+    },
+    "unresolved": [
+      "Original approved execution envelope",
+      "Complete provider-side physical requests/retries",
+      "Provider billing, invoices and credits matched to retained attempts",
+      "Historical cumulative budget enforcement across resumes"
+    ],
+    "notProvableFromRetainedEvidence": [
+      "Exact request/resume-to-invocation mapping without retained per-attempt execution identities",
+      "A routing-policy snapshot is not an approval, admission envelope or charged-credit identity",
+      "Unknown attempt usage and charge amounts"
+    ],
+    "financialGate": "BLOCKED"
+  }
+}

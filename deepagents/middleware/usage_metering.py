@@ -21,10 +21,14 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
+from langchain_core.exceptions import ModelError
 
 from middleware.token_fallback import model_protocol, model_provider
-from middleware.usage_recovery import enqueue_usage
+from middleware.usage_recovery import enqueue_usage, record_usage_evidence, drain
+from middleware.paid_admission import RunAdmission, prepare_admitted_request
+from middleware.failure_policy import PaidAdmissionError
 from model_policy import (
+    ResolvedModelConfig,
     attach_model_route,
     config_snapshot,
     distinct_runtime_identities,
@@ -68,10 +72,80 @@ class ModelIdentityMismatch(RuntimeError):
 _active_agent_role: ContextVar[str | None] = ContextVar(
     "active_agent_role", default=None
 )
+_active_model_operation_type: ContextVar[str | None] = ContextVar(
+    "active_model_operation_type", default=None
+)
 # One logical agent step. Retries, credential rotation and provider fallback of
 # the same step share it, so the live stream shows one row per step instead of
 # folding every model call of a run into a single ever-growing row.
 _active_model_step_id = active_model_step
+_active_provider_route_ordinal: ContextVar[int | None] = ContextVar(
+    "active_provider_route_ordinal", default=None
+)
+_active_credential_slot_safe_id: ContextVar[str | None] = ContextVar(
+    "active_credential_slot_safe_id", default=None
+)
+
+
+@contextmanager
+def provider_attempt_context(
+    *, route_ordinal: int | None = None, credential_slot_safe_id: str | None = None
+) -> Iterator[None]:
+    """Business purpose: Attach safe route and credential-slot lineage to one provider attempt.
+
+    Business rules:
+    - Only supplied route/slot values override the current context; restore enclosing values on every exit.
+    Execution flow:
+    1. Activate supplied attempt metadata.
+    2. Yield the attempt scope and restore its context tokens when it ends.
+    Failure cases:
+    - Exceptions from the attempt propagate after context restoration; no credential value is recorded.
+    Side effects:
+    - Temporarily changes context-local routing metadata; no provider or journal operation.
+    """
+    route_token = _active_provider_route_ordinal.set(route_ordinal) if route_ordinal is not None else None
+    slot_token = _active_credential_slot_safe_id.set(credential_slot_safe_id) if credential_slot_safe_id else None
+    try:
+        yield
+    finally:
+        if slot_token is not None:
+            _active_credential_slot_safe_id.reset(slot_token)
+        if route_token is not None:
+            _active_provider_route_ordinal.reset(route_token)
+
+
+def _active_logical_invocation_id() -> str | None:
+    """Business purpose: Retrieve the logical invocation shared by retries and fallback within the current model step.
+
+    Business rules:
+    - Only a string invocation_id from the active step summary is a usable logical identity.
+    Execution flow:
+    1. Read the active step summary and return its logical invocation ID when valid.
+    Failure cases:
+    - Missing summary or non-string identity returns None rather than fabricating an invocation.
+    Side effects:
+    - Pure context read; no model call or usage record is created.
+    """
+    summary = active_model_step_summary.get()
+    invocation_id = summary.get("invocation_id") if summary else None
+    return invocation_id if isinstance(invocation_id, str) else None
+
+
+def _active_metered_invocation_id() -> str | None:
+    """Business purpose: Retrieve the physical settlement identity associated with the current model-step summary.
+
+    Business rules:
+    - Only a string settlement_invocation_id is accepted; it remains distinct from logical invocation identity.
+    Execution flow:
+    1. Read the active summary and return its settlement invocation ID when present.
+    Failure cases:
+    - Absent or invalid settlement identity returns None; no logical ID is substituted.
+    Side effects:
+    - Pure context read; no usage mutation.
+    """
+    summary = active_model_step_summary.get()
+    invocation_id = summary.get("settlement_invocation_id") if summary else None
+    return invocation_id if isinstance(invocation_id, str) else None
 
 
 @dataclass
@@ -85,7 +159,11 @@ class AgentRunState:
     run_id: str
     agent_role: str
     assessment_id: str | None = None
+    preparation_run_id: str | None = None
     api_client: WorkerApiClient | None = None
+    admission: RunAdmission | None = None
+    bounded: bool = False
+    _attempt_times: dict[str, str] = field(default_factory=dict, init=False)
     _disabled_provider_routes: set[str] = field(default_factory=set, init=False)
     _sticky_provider_routes: set[str] = field(default_factory=set, init=False)
 
@@ -105,81 +183,97 @@ class AgentRunState:
             and provider.strip().lower() in self._disabled_provider_routes
         )
 
-    def record(
-        self,
-        response: Any,
-        model: Any,
-        invocation_id: str,
-        *,
-        agent_role: str | None = None,
-    ) -> None:
-        """Report provider-reported token usage; best effort, never fails the run.
+    def record_attempt(self, model, invocation_id: str, status: str, *, agent_role=None, response=None, error=None):
+        """Commit physical attempt evidence before dispatch; never persist prompts or error text.
 
-        Nothing is posted when the provider returned no usage numbers (no invented
-        counts) or when the run has no assessment to attribute usage to.
+        Business purpose: Durably record observed provider-attempt status and numeric usage without storing prompts or error text.
+
+        Business rules:
+        - Record only an assessment/preparation run or an explicitly configured journal scope.
+        - Preserve one initial occurrence time per invocation, canonical runtime identity and provider-reported usage; unavailable usage stays absent.
+        Execution flow:
+        1. Resolve attempt time, provider/model identity and numeric usage.
+        2. Commit attempt evidence and enqueue API delivery in the existing recovery journal.
+        3. Try delivery when an API client is attached, retaining journal evidence on delivery failure.
+        Failure cases:
+        - Durable commit failure raises ModelError to stop model replay; delivery failure logs only its error class and remains recoverable.
+        Side effects:
+        - Writes usage/evidence journal records, may deliver usage to the API and caches first-attempt timestamps.
         """
-        if self.api_client is None or not self.assessment_id:
+        if not (self.assessment_id or self.preparation_run_id or hasattr(self, "store")):
             return
-        usage = extract_provider_usage(response, model)
-        if usage is None:
-            return
-        provider, model_name = provider_identity(model, response)
+        started = self._attempt_times.setdefault(invocation_id, datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+        provider, name = provider_identity(model, response)
+        values = extract_provider_usage(response, model) or {} if response is not None else {}
         payload = SettledUsagePayload(
-            assessmentId=self.assessment_id,
-            runId=self.run_id,
-            invocationId=invocation_id,
-            agentRole=agent_role or self.agent_role,
-            providerResponseId=usage.pop("providerResponseId", None),
-            provider=provider,
-            model=model_name,
-            effectiveRuntimeModel=effective_runtime_model(
-                agent_role or self.agent_role,
-                provider,
-                model_name,
-                model_protocol(model),
-            ),
-            occurredAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            **usage,
-        )
+            assessmentId=self.assessment_id, preparationRunId=self.preparation_run_id,
+            runId=self.run_id, invocationId=invocation_id, agentRole=agent_role or self.agent_role,
+            provider=provider, model=name, attemptStatus=status,
+            failureClass=type(error).__name__ if error is not None else None,
+            effectiveRuntimeModel=effective_runtime_model(agent_role or self.agent_role, provider, name, model_protocol(model), model_route_config(model)),
+            occurredAt=started, **values)
+        path = getattr(self, "store", None) or resolve_usage_recovery_store_path()
         try:
-            self.api_client.post_settled_usage(payload)
-        except Exception as error:
-            # Usage is telemetry: the provider already answered, so failing (and
-            # replaying) the model call would only duplicate work.
-            logger.warning(
-                "MODEL_USAGE_DELIVERY_FAILED",
-                invocation_id=invocation_id,
-                error_type=type(error).__name__,
-            )
-            self._enqueue_for_recovery(payload, invocation_id)
+            record_usage_evidence(path, f"attempt:{self.run_id}:{invocation_id}:{status}", {
+                "event": "MODEL_ATTEMPT", **payload.model_dump(mode="json", exclude_none=True)})
+            if self.api_client is not None:
+                enqueue_usage(path, payload)
+        except Exception as commit_error:
+            raise ModelError("Durable usage commit failed; stop without replaying the model") from commit_error
+        if self.api_client is not None:
+            try:
+                drain(path, self.api_client)
+            except Exception as delivery_error:
+                logger.warning("MODEL_USAGE_DELIVERY_FAILED", invocation_id=invocation_id, error_type=type(delivery_error).__name__)
 
-    @staticmethod
-    def _enqueue_for_recovery(payload: SettledUsagePayload, invocation_id: str) -> None:
-        """Keep undelivered usage durable for the background drain; never raises."""
-        try:
-            enqueue_usage(resolve_usage_recovery_store_path(), payload)
-        except Exception as error:  # noqa: BLE001 - telemetry never fails the model call
-            logger.error(
-                "MODEL_USAGE_RECOVERY_ENQUEUE_FAILED",
-                invocation_id=invocation_id,
-                error_type=type(error).__name__,
-            )
+    def record(self, response, model, invocation_id: str, *, agent_role: str | None = None) -> None:
+        """Business purpose: Record a completed provider response through the same durable attempt path.
+
+        Business rules:
+        - Completion retains the supplied physical invocation ID and active agent role; only reported numeric usage is recorded.
+        Execution flow:
+        1. Delegate the response to record_attempt with COMPLETED status.
+        Failure cases:
+        - Durability failures propagate from the shared path; missing usage is not replaced with estimated usage.
+        Side effects:
+        - May write the recovery journal and deliver completed usage to the API.
+        """
+        self.record_attempt(model, invocation_id, "COMPLETED", agent_role=agent_role, response=response)
 
 
 _active_state: ContextVar[AgentRunState | None] = ContextVar(
     "active_agent_run_state", default=None
 )
+_bounded_scope: ContextVar[AgentRunState | None] = ContextVar("bounded_inference_scope", default=None)
 
 
 @contextmanager
 def activate_agent_run_state(
     state: AgentRunState | None,
 ) -> Iterator[AgentRunState | None]:
+    """Business purpose: Keep one run's usage identity and admission scope intact across nested agent work.
+
+    Business rules:
+    - An enclosing bounded scope cannot be removed, switched to another run or given a different admission object.
+    Execution flow:
+    1. Verify the enclosing bounded scope.
+    2. Activate the run state and its bound scope.
+    3. Restore both contexts when nested work exits.
+    Failure cases:
+    - Changing a bounded run/admission raises BOUNDED_SCOPE_CHANGED before activation; body errors propagate after restoration.
+    Side effects:
+    - Temporarily mutates context-local state only; no journal reset or model dispatch.
+    """
+    parent = _bounded_scope.get()
+    if parent is not None and (state is None or state.run_id != parent.run_id or state.admission is not parent.admission):
+        raise PaidAdmissionError("BOUNDED_SCOPE_CHANGED", parent.run_id)
+    bounded_token = _bounded_scope.set(state if state and (state.bounded or state.admission) else parent)
     token = _active_state.set(state)
     try:
         yield state
     finally:
         _active_state.reset(token)
+        _bounded_scope.reset(bounded_token)
 
 
 def active_agent_run_state() -> AgentRunState | None:
@@ -455,10 +549,62 @@ def active_agent_role() -> str | None:
 
 
 @contextmanager
+def activate_model_operation(operation_type: str) -> Iterator[str]:
+    """Classify one logical model operation without retaining model input/output.
+
+    Business purpose: Classify a logical model operation for usage and progress observability.
+
+    Business rules:
+    - Keep only the operation type in context; no model input/output is retained.
+    Execution flow:
+    1. Activate the operation type for the scope.
+    2. Restore the enclosing operation when the scope exits.
+    Failure cases:
+    - Body exceptions propagate after context restoration; operation classification cannot approve inference.
+    Side effects:
+    - Temporarily changes context metadata only.
+    """
+    token = _active_model_operation_type.set(operation_type)
+    try:
+        yield operation_type
+    finally:
+        _active_model_operation_type.reset(token)
+
+
+def active_model_operation() -> str | None:
+    """Business purpose: Expose the operation classification attached to the current model scope.
+
+    Business rules:
+    - Return the current context value without inferring a classification when none exists.
+    Execution flow:
+    1. Read and return the active model operation.
+    Failure cases:
+    - An unclassified scope returns None; no external failure or fallback is introduced.
+    Side effects:
+    - Pure context read.
+    """
+    return _active_model_operation_type.get()
+
+
+@contextmanager
 def activate_model_step(step_id: str | None = None) -> Iterator[str]:
+    """Business purpose: Give one logical model step a stable identity shared by its retries and provider fallback.
+
+    Business rules:
+    - Use the supplied step ID or allocate one; start a fresh logical invocation/provider summary within the nested scope.
+    Execution flow:
+    1. Activate the step ID and initialize its logical invocation summary.
+    2. Yield the step identity and restore both enclosing contexts on exit.
+    Failure cases:
+    - Exceptions propagate after restoration; a step identity is not evidence that any provider attempt succeeded.
+    Side effects:
+    - Creates UUID identities and temporary context-local summary state; no provider request or durable usage write.
+    """
     resolved = step_id or str(uuid4())
     token = _active_model_step_id.set(resolved)
-    summary_token = active_model_step_summary.set({"providers": []})
+    summary_token = active_model_step_summary.set(
+        {"providers": [], "invocation_id": str(uuid4())}
+    )
     try:
         yield resolved
     finally:
@@ -473,12 +619,16 @@ def active_model_step_id() -> str | None:
 class _ModelCallTelemetry:
     """Emit safe progress around one blocking provider call."""
 
-    def __init__(self, model: Any) -> None:
+    def __init__(self, model: Any, *, invocation_id: str | None = None) -> None:
         self.provider, self.model_name = provider_identity(model)
         self.protocol = model_protocol(model) or "unknown"
         self.timeout_seconds = llm_provider_timeout_seconds()
         self.model_step_id = active_model_step_id() or str(uuid4())
+        self.invocation_id = _active_logical_invocation_id() or invocation_id
+        self.settlement_invocation_id = invocation_id
+        self.logical_invocation_id = _active_logical_invocation_id()
         self.agent_role = active_agent_role()
+        self.operation_type = active_model_operation()
         self._started_at = time.monotonic()
         self._stop = Event()
         self._context = copy_context()
@@ -486,7 +636,9 @@ class _ModelCallTelemetry:
         # Each billed call is one provider-route attempt of the same logical step.
         self._summary = active_model_step_summary.get()
         note_model_step("provider_attempts")
+        self.attempt_ordinal = self._summary.get("provider_attempts") if self._summary else None
         if self._summary is not None:
+            self._summary["settlement_invocation_id"] = self.settlement_invocation_id
             self._summary["provider"] = self.provider.lower()
             self._summary["protocol"] = self.protocol
             self._summary["model"] = self.model_name
@@ -494,13 +646,28 @@ class _ModelCallTelemetry:
                 self._summary["providers"].append(self.provider.lower())
 
     def routing_summary(self) -> dict[str, Any]:
-        """Scalar routing metadata of the logical step; never a list of transitions."""
+        """Scalar routing metadata of the logical step; never a list of transitions.
+
+        Business purpose: Expose scalar retry/fallback lineage for the current logical model step.
+
+        Business rules:
+        - Keep provider attempts, credential rotations, route ordinal and safe slot identity distinct; never expose credentials or a transition payload list.
+        Execution flow:
+        1. Read the step's attempt/rotation counters and captured route context.
+        2. Return scalar routing and fallback indicators.
+        Failure cases:
+        - Absent counters use the current attempt's default of one; this summary alone cannot reconcile missing physical ledger rows.
+        Side effects:
+        - Read-only telemetry projection.
+        """
         summary = self._summary or {}
         provider_attempts = summary.get("provider_attempts", 1)
         return {
             "provider_attempts": provider_attempts,
             "credential_attempts": provider_attempts + summary.get("credential_rotations", 0),
             "fallback_used": provider_attempts > 1,
+            "route_ordinal": self._context.get(_active_provider_route_ordinal),
+            "credential_slot_safe_id": self._context.get(_active_credential_slot_safe_id),
         }
 
     def start(self) -> None:
@@ -543,12 +710,31 @@ class _ModelCallTelemetry:
             data_extra=extra,
         )
 
-    def fail(self, error: BaseException) -> None:
+    def fail(self, error: BaseException, *, record_attempt: bool = True) -> None:
         # A failed route attempt is infrastructure: stop the heartbeat only. The one
         # logical failure is published by the step owner if every route fails.
+        """Business purpose: Stop telemetry for a failed provider route without prematurely failing the whole logical step.
+
+        Business rules:
+        - A failed route may still be followed by fallback; the step owner publishes terminal failure only after exhaustion.
+        - Suppressed/cancelled attempts do not publish ordinary provider-error activity.
+        Execution flow:
+        1. Stop and briefly join the heartbeat.
+        2. Publish a safe attempt failure only when requested and the error is an Exception.
+        Failure cases:
+        - Provider errors are classified without logging their text; no automatic retry or usage settlement occurs here.
+        Side effects:
+        - Stops the heartbeat thread and may publish failed-attempt progress metadata.
+        """
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=0.25)
+        if record_attempt and isinstance(error, Exception):
+            _publish_provider_attempt_failure(
+                error, provider=self.provider.lower(), protocol=self.protocol,
+                model=self.model_name, model_step_id=self.model_step_id,
+                invocation_id=self.invocation_id, attempt_ordinal=self.attempt_ordinal,
+            )
 
     def cancel(self) -> None:
         self._finish("MODEL_CALL_CANCELLED", status="STOPPED", text="Model step interrupted")
@@ -561,12 +747,27 @@ class _ModelCallTelemetry:
         text: str,
         data_extra: dict[str, Any] | None = None,
     ) -> None:
+        """Business purpose: Publish a terminal model-call telemetry event with consistent elapsed time and invocation identity.
+
+        Business rules:
+        - Stop heartbeat before terminal publication; captured invocation identity overrides additional event fields.
+        Execution flow:
+        1. Stop and join heartbeat activity.
+        2. Merge base timing/identity with supplied terminal metadata.
+        3. Emit the final event in the captured context.
+        Failure cases:
+        - Publication failures propagate; this helper does not turn an unrecorded outcome into successful usage settlement.
+        Side effects:
+        - Stops telemetry thread activity and publishes an agent stream event.
+        """
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=0.25)
         data = self._data(elapsed_seconds=self._elapsed_seconds())
         if data_extra:
             data.update(data_extra)
+        if self.invocation_id:
+            data["invocation_id"] = self.invocation_id
         self._emit(event_type, status=status, text=text, data=data)
 
     def _heartbeat(self) -> None:
@@ -589,6 +790,18 @@ class _ModelCallTelemetry:
         return max(0, int(time.monotonic() - self._started_at))
 
     def _data(self, *, elapsed_seconds: int) -> dict[str, Any]:
+        """Business purpose: Project safe model-call identity and timing for customer-visible progress.
+
+        Business rules:
+        - Include logical and physical settlement IDs separately when known; omit prompt content, response content and credentials.
+        Execution flow:
+        1. Build provider/protocol/model, timeout and elapsed-time fields.
+        2. Add available invocation, agent-role and operation identities.
+        Failure cases:
+        - Unrecognized optional context is omitted; no provider success or billing result is inferred.
+        Side effects:
+        - Pure telemetry payload construction.
+        """
         data: dict[str, Any] = {
             "provider": self.provider.lower(),
             "protocol": self.protocol,
@@ -597,8 +810,16 @@ class _ModelCallTelemetry:
             "elapsed_seconds": elapsed_seconds,
             "model_step_id": self.model_step_id,
         }
+        if self.invocation_id:
+            data["invocation_id"] = self.invocation_id
+        if self.logical_invocation_id:
+            data["logical_invocation_id"] = self.logical_invocation_id
+        if self.settlement_invocation_id:
+            data["settlement_invocation_id"] = self.settlement_invocation_id
         if self.agent_role:
             data["agent_role"] = self.agent_role
+        if self.operation_type:
+            data["operation_type"] = self.operation_type
         return data
 
     def _emit(self, event_type: str, **fields: Any) -> None:
@@ -691,38 +912,163 @@ def _is_timeout_error(error: BaseException) -> bool:
 def _publish_terminal_model_failure(
     step_id: str, agent_role: str | None, error: BaseException
 ) -> None:
-    """One logical failure per model step, after every route was exhausted."""
+    """One logical failure per model step, after every route was exhausted.
+
+    Business purpose: Publish one logical model failure after configured retry/fallback paths are exhausted.
+
+    Business rules:
+    - Only a started logical step emits a terminal event; timeout and other failures retain safe route-attempt summaries.
+    Execution flow:
+    1. Read the active step's started state and attempt lineage.
+    2. Classify timeout, retryability and fallback eligibility.
+    3. Publish the terminal failure with bounded provider identities and last-attempt diagnostics.
+    Failure cases:
+    - An absent/unstarted summary emits no event; the original exception remains owned by the caller.
+    Side effects:
+    - Publishes a terminal agent stream event without persisting prompt/error text or replaying inference.
+    """
     summary = active_model_step_summary.get()
     if not summary or not summary.get("started"):
         return
     attempts = summary.get("provider_attempts", 1)
     timeout = _is_timeout_error(error)
+    from middleware.failure_policy import error_status, retry_model_error
+    from middleware.provider_fallback import provider_fallback_failure
+
     publish_agent_stream_event(
         "MODEL_CALL_TIMEOUT" if timeout else "MODEL_CALL_FAILED",
         status="FAILED",
         text="model call timed out" if timeout else "model call failed",
         data={
             "model_step_id": step_id,
+            **({"invocation_id": summary["invocation_id"]} if isinstance(summary.get("invocation_id"), str) else {}),
             **({"agent_role": agent_role} if agent_role else {}),
             "provider": summary.get("provider"),
             "protocol": summary.get("protocol"),
             "model": summary.get("model"),
+            "operation_type": active_model_operation(),
             "error_type": type(error).__name__,
+            "http_status": error_status(error),
+            "retryability": "RETRYABLE" if retry_model_error(error) else "NOT_RETRYABLE",
+            "fallback_eligibility": provider_fallback_failure(error),
             "provider_attempts": attempts,
             "credential_attempts": attempts + summary.get("credential_rotations", 0),
             "providers_attempted": list(summary.get("providers", []))[:8],
+            "attempt_ordinal": summary.get("last_attempt_ordinal"),
+            "route_ordinal": summary.get("last_route_ordinal"),
+            "credential_slot_safe_id": summary.get("last_credential_slot_safe_id"),
+            "last_attempt_error_class": summary.get("last_error_class"),
+            "last_attempt_http_status": summary.get("last_http_status"),
+            "last_attempt_retryability": summary.get("last_retryability"),
+            "last_attempt_fallback_eligibility": summary.get(
+                "last_fallback_eligibility"
+            ),
         },
     )
+
+
+def _safe_provider_error_code(error: BaseException) -> str | None:
+    """Business purpose: Recover a provider's safe machine error code for observability without leaking error bodies.
+
+    Business rules:
+    - Accept only one-to-eighty ASCII letters, digits, underscore, dot or hyphen; inspect causal errors without cycling.
+    Execution flow:
+    1. Walk the error/cause chain and inspect top-level or nested code/type fields.
+    2. Return the first safe scalar code or None.
+    Failure cases:
+    - Unsafe values and cyclic or exhausted chains yield no code; raw provider messages are never returned.
+    Side effects:
+    - Read-only error classification.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        values = [getattr(current, key, None) for key in ("error_code", "code", "type")]
+        body = getattr(current, "body", None)
+        nested = body.get("error") if isinstance(body, dict) else None
+        if isinstance(nested, dict):
+            values.extend(nested.get(key) for key in ("code", "type"))
+        for value in values:
+            if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", value):
+                return value
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def _publish_provider_attempt_failure(
+    error: BaseException, *, provider: str, protocol: str, model: str,
+    model_step_id: str, invocation_id: str | None, attempt_ordinal: int | None,
+) -> None:
+    """Business purpose: Record safe failure lineage for an individual provider attempt while fallback remains possible.
+
+    Business rules:
+    - Preserve route/slot and logical-step identity, class/status, retryability and fallback eligibility without error text.
+    Execution flow:
+    1. Classify the attempt failure and construct its safe metadata.
+    2. Update the active step's last-attempt summary.
+    3. Publish durable failed-attempt progress.
+    Failure cases:
+    - Unrecognized optional codes or identities stay absent; publication failure propagates and never triggers a provider retry itself.
+    Side effects:
+    - Mutates the context-local step summary and publishes a durable activity event.
+    """
+    from middleware.failure_policy import error_status, retry_model_error
+    from middleware.provider_fallback import provider_fallback_failure
+
+    data = {
+        "provider": provider, "protocol": protocol, "model": model,
+        "model_step_id": model_step_id, "attempt_ordinal": attempt_ordinal,
+        "route_ordinal": _active_provider_route_ordinal.get(),
+        "credential_slot_safe_id": _active_credential_slot_safe_id.get(),
+        "error_class": type(error).__name__, "http_status": error_status(error),
+        "provider_error_code": _safe_provider_error_code(error),
+        "operation_type": active_model_operation(),
+        "retryability": "RETRYABLE" if retry_model_error(error) else "NOT_RETRYABLE",
+        "fallback_eligibility": provider_fallback_failure(error),
+    }
+    if invocation_id:
+        data["invocation_id"] = invocation_id
+    summary = active_model_step_summary.get()
+    if summary is not None:
+        summary.update(
+            {
+                "last_attempt_ordinal": attempt_ordinal,
+                "last_route_ordinal": data["route_ordinal"],
+                "last_credential_slot_safe_id": data["credential_slot_safe_id"],
+                "last_error_class": data["error_class"],
+                "last_http_status": data["http_status"],
+                "last_retryability": data["retryability"],
+                "last_fallback_eligibility": data["fallback_eligibility"],
+            }
+        )
+    publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={
+        **data, "durability": "DURABLE", "activity_kind": "MODEL_PROVIDER_ATTEMPT_FAILED",
+    })
 
 
 class AgentRoleMiddleware(AgentMiddleware):
     """Attach the canonical policy role to every model call of one agent."""
 
-    def __init__(self, agent_role: str):
+    def __init__(self, agent_role: str, *, operation_type: str = "AGENT_MODEL"):
         self.agent_role = agent_role
+        self.operation_type = operation_type
 
     def wrap_model_call(self, request, handler):
-        with activate_agent_role(self.agent_role), activate_model_step() as step_id:
+        """Business purpose: Scope a synchronous logical model call to its policy role, operation and step identity.
+
+        Business rules:
+        - All downstream retries/fallback share this logical scope; the role owner publishes terminal failure only if the handler fails.
+        Execution flow:
+        1. Activate role, operation and a logical model step.
+        2. Invoke the downstream handler and return its response.
+        3. On exception, publish terminal step failure and rethrow.
+        Failure cases:
+        - The handler's exception remains a failure after safe telemetry; no fallback success is fabricated.
+        Side effects:
+        - Changes temporary contexts and may publish terminal failure; downstream middleware owns provider calls and usage.
+        """
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
             try:
                 return handler(request)
             except Exception as error:
@@ -730,7 +1076,20 @@ class AgentRoleMiddleware(AgentMiddleware):
                 raise
 
     async def awrap_model_call(self, request, handler):
-        with activate_agent_role(self.agent_role), activate_model_step() as step_id:
+        """Business purpose: Scope an asynchronous logical model call to its policy role, operation and step identity.
+
+        Business rules:
+        - Keep one logical scope across awaited retry/fallback work and restore enclosing contexts on exit.
+        Execution flow:
+        1. Activate role, operation and model-step context.
+        2. Await the handler.
+        3. Publish terminal step failure on exception and propagate it.
+        Failure cases:
+        - Handler exceptions are not converted to successful responses; context restoration follows scope exit.
+        Side effects:
+        - Changes temporary contexts and may publish terminal failure; downstream middleware owns inference and settlement.
+        """
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
             try:
                 return await handler(request)
             except Exception as error:
@@ -777,23 +1136,109 @@ class UsageMeteringMiddleware(AgentMiddleware):
                     agent_role=active_agent_role(), answers=response_shape(response))
 
     def _record(self, response, model, invocation_id: str) -> None:
+        """Business purpose: Commit provider-reported response usage and reconcile any attached run admission.
+
+        Business rules:
+        - Use the active run state and physical invocation ID; attached admission reconciliation is attempted even if recording raises.
+        Execution flow:
+        1. Locate the current run state.
+        2. Record its completed response and, in finally, settle admission using normalized reported usage.
+        Failure cases:
+        - Journal/API recording or admission errors propagate; absent usage retains admission's unknown exposure rather than estimated tokens.
+        Side effects:
+        - May persist/deliver usage and settle the admission journal; no model dispatch occurs.
+        """
         state = active_agent_run_state()
         if state is not None:
-            state.record(response, model, invocation_id, agent_role=active_agent_role())
+            try:
+                state.record(response, model, invocation_id, agent_role=active_agent_role())
+            finally:
+                if state.admission is not None:
+                    state.admission.settle(invocation_id, extract_provider_usage(response, model))
+
+    @staticmethod
+    def _admit(request, invocation_id):
+        """Business purpose: Record and authorize the physical provider attempt before downstream model dispatch.
+
+        Business rules:
+        - Bounded scopes require their own unchanged run admission; losing that scope fails closed.
+        - STARTED attempt evidence must be durably recorded before the handler can run.
+        Execution flow:
+        1. Validate and prepare any bounded admitted request.
+        2. Mark its reserved attempt IN_FLIGHT.
+        3. Commit STARTED evidence for the active run and return the request.
+        Failure cases:
+        - Missing/mismatched admission raises MISSING_RUN_BUDGET; policy denial or journal durability failure prevents dispatch.
+        Side effects:
+        - May reserve/transition admission state and persist/deliver STARTED usage evidence; does not call the model.
+        """
+        state = active_agent_run_state()
+        if state is not None and (state.bounded or state.admission is not None):
+            if state.admission is None or state.admission.run_id != state.run_id:
+                raise PaidAdmissionError("MISSING_RUN_BUDGET", state.run_id, invocation_id)
+            request = prepare_admitted_request(state.admission, request, invocation_id, active_agent_role() or state.agent_role)
+            state.admission.transition(invocation_id, "IN_FLIGHT")
+        elif _bounded_scope.get() is not None:
+            raise PaidAdmissionError("MISSING_RUN_BUDGET", _bounded_scope.get().run_id, invocation_id)
+        if state is not None:
+            state.record_attempt(request.model, invocation_id, "STARTED", agent_role=active_agent_role())
+        return request
+
+    @staticmethod
+    def _unknown(invocation_id, model, error):
+        """Business purpose: Preserve exposure and observable failure when a physical provider attempt has no accepted response.
+
+        Business rules:
+        - An attached admission becomes outcome-unknown; a direct integer HTTP 4xx/5xx classifies the observed attempt FAILED, otherwise OUTCOME_UNKNOWN.
+        Execution flow:
+        1. Find the current run state.
+        2. Retain unknown admission exposure.
+        3. Commit safe attempt status and error class under the same physical invocation ID.
+        Failure cases:
+        - No active run produces no usage write; journal or admission failures propagate without assuming zero provider charge.
+        Side effects:
+        - Updates admission state and writes/delivers usage evidence; no provider replay.
+        """
+        state = active_agent_run_state()
+        if state is not None:
+            if state.admission is not None:
+                state.admission.transition(invocation_id, "OUTCOME_UNKNOWN")
+            code = getattr(error, "status_code", None)
+            status = "FAILED" if type(code) is int and 400 <= code <= 599 else "OUTCOME_UNKNOWN"
+            state.record_attempt(model, invocation_id, status, agent_role=active_agent_role(), error=error)
 
     def wrap_model_call(self, request, handler):
+        """Business purpose: Govern one synchronous downstream provider attempt and durably record its actual response or unknown outcome.
+
+        Business rules:
+        - Validate configured identity/context and honor execution control before dispatch.
+        - Each physical attempt gets a fresh settlement ID; late responses still use that ID for recording and reconciliation.
+        Execution flow:
+        1. Prepare/admit the request and start safe heartbeat telemetry.
+        2. Invoke through the cancellable boundary and record reported usage.
+        3. On failure preserve unknown exposure and cancellation/failure telemetry; on success publish response shape and completion.
+        Failure cases:
+        - Admission, provider, control or durability failures propagate; cancellation emits STOPPED and never fabricates a completed response.
+        Side effects:
+        - May dispatch a real model, persist/deliver usage, settle admission and publish telemetry; prompt/response content stays out of usage payloads.
+        """
         request, model = self._prepare(request)
+        # Each answered attempt must survive the API's settlement idempotency key.
         invocation_id = str(uuid4())
-        telemetry = _ModelCallTelemetry(model)
+        request = self._admit(request, invocation_id)
+        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
             response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
             self._record(response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            telemetry.fail(error)
+            self._unknown(invocation_id, model, error)
+            from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
-            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+            cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
+            telemetry.fail(error, record_attempt=not cancelled)
+            if cancelled:
                 telemetry.cancel()
             raise
         self._log_response(response, model)
@@ -801,9 +1246,23 @@ class UsageMeteringMiddleware(AgentMiddleware):
         return response
 
     async def awrap_model_call(self, request, handler):
+        """Business purpose: Govern one asynchronous downstream provider attempt with durable usage and cancellation-safe observability.
+
+        Business rules:
+        - Use a fresh physical settlement ID and the configured identity/context guards; blocking journal work runs outside the async cancellation loop.
+        Execution flow:
+        1. Prepare the request and admit/record STARTED in a worker thread.
+        2. Await cancellable inference and record response usage in a worker thread.
+        3. Preserve unknown exposure and failure/cancellation telemetry or publish successful completion.
+        Failure cases:
+        - Admission, provider, control and durability errors propagate; late responses retain their original settlement identity.
+        Side effects:
+        - May dispatch a real model, write/deliver usage and admission records, and publish telemetry without retaining prompt contents.
+        """
         request, model = self._prepare(request)
         invocation_id = str(uuid4())
-        telemetry = _ModelCallTelemetry(model)
+        request = await asyncio.to_thread(self._admit, request, invocation_id)
+        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
             response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
@@ -812,9 +1271,12 @@ class UsageMeteringMiddleware(AgentMiddleware):
             await asyncio.to_thread(self._record, response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            telemetry.fail(error)
+            await asyncio.to_thread(self._unknown, invocation_id, model, error)
+            from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
-            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+            cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
+            telemetry.fail(error, record_attempt=not cancelled)
+            if cancelled:
                 telemetry.cancel()
             raise
         self._log_response(response, model)
@@ -829,20 +1291,36 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
 
 def effective_runtime_model(
-    role: str, provider: str, model: str, protocol: str | None = None
+    role: str, provider: str, model: str, protocol: str | None = None,
+    route: ResolvedModelConfig | None = None,
 ) -> dict[str, str] | None:
     """Audit identity of the route that actually answered, scoped to the agent role.
 
-    The role's own route wins when it matches the used model; otherwise the configured
-    route for that provider/model (a fallback route) is hashed with the same role.
-    Unconfigured models report no identity rather than an invented one.
+    Attached route options are authoritative, including when several inference
+    policies share a physical model. Untagged clients use role/unique identity lookup.
+    Mismatched or unconfigured identities remain unknown.
+
+    Business purpose: Identify the route that actually answered for usage audit, including role-specific route options.
+
+    Business rules:
+    - An attached route is authoritative; untagged clients may use role or unique configured identity lookup.
+    - Provider, model and optional protocol must match a configured route; unknown identities stay unknown.
+    Execution flow:
+    1. Compare the attached/role route with the observed identity.
+    2. Resolve an untagged matching route when needed and return its role-free configuration snapshot.
+    Failure cases:
+    - Mismatched attached route or unconfigured identity returns None; no provider alias or route is invented.
+    Side effects:
+    - Read-only model-policy lookup; no inference or usage persistence.
     """
     canonical = provider.lower()  # inverse of provider_identity()'s UPPER ledger form; no aliasing
-    config = resolve_role(role)
+    config = route or resolve_role(role)
     if (
         (config.provider, config.model) != (canonical, model)
         or (protocol is not None and config.protocol != protocol)
     ):
+        if route is not None:
+            return None
         config = route_for_model(canonical, model, protocol)
     if config is None:
         return None
@@ -872,10 +1350,30 @@ def provider_identity(model: Any, response: Any | None = None) -> tuple[str, str
 
 
 def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
-    """Normalize LangChain/provider numeric usage without inferring missing fields."""
+    """Normalize LangChain/provider numeric usage without inferring missing fields.
+
+    Business purpose: Normalize numeric provider usage into canonical accounting buckets without estimating absent fields.
+
+    Business rules:
+    - Respect provider/protocol-specific inclusive input semantics and cache buckets; reasoning remains an output breakdown.
+    - Raw Google candidate output is visible output and needs a reported reasoning bucket to establish combined output.
+    Execution flow:
+    1. Select reported usage metadata and read supported numeric aliases.
+    2. Normalize cached/noncached input and output/reasoning fields when their reported buckets establish them.
+    3. Attach a known provider response identity and return available values only.
+    Failure cases:
+    - Absent metadata or unusable/contradictory buckets return None or omit unknown fields; negative derived uncached input rejects the usage.
+    Side effects:
+    - Pure response projection; does not persist usage or inspect hidden reasoning text.
+    """
     metadata = _usage_metadata(response)
     if not isinstance(metadata, dict):
         return None
+    messages = getattr(response, "result", None)
+    normalized = metadata is getattr(response, "usage_metadata", None) or (
+        isinstance(messages, (list, tuple))
+        and any(metadata is getattr(message, "usage_metadata", None) for message in messages)
+    )
 
     input_tokens = _number(
         metadata,
@@ -892,16 +1390,18 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
         "candidatesTokenCount",
         "outputTokenCount",
     )
-    if input_tokens is None or output_tokens is None:
-        return None
-
-    result: dict[str, Any] = {"outputTokens": str(output_tokens)}
+    result: dict[str, Any] = {}
+    if output_tokens is not None:
+        result["outputTokens"] = str(output_tokens)
     nested_input = metadata.get("input_token_details")
     nested_output = metadata.get("output_token_details")
     if isinstance(nested_input, dict):
         metadata = {**metadata, **nested_input}
     if isinstance(nested_output, dict):
         metadata = {**metadata, **nested_output}
+    cache_creation = metadata.get("cache_creation")
+    if isinstance(cache_creation, dict):
+        metadata = {**metadata, **cache_creation}
     optional = (
         (
             "cachedInputTokens",
@@ -927,25 +1427,44 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
             "reasoning_tokens",
             "reasoning",
             "thoughts_token_count",
+            "thoughtsTokenCount",
             "reasoningTokenCount",
         ),
+        ("cacheWrite5mTokens", "ephemeral_5m_input_tokens"),
+        ("cacheWrite1hTokens", "ephemeral_1h_input_tokens"),
         ("totalTokens", "total_tokens", "total_token_count", "totalTokenCount"),
     )
     for target, *keys in optional:
         value = _number(metadata, *keys)
         if value is not None:
             result[target] = str(value)
-    cached_input = int(result.get("cachedInputTokens", "0"))
-    cache_write = int(result.get("cacheWriteTokens", "0"))
     provider, _ = provider_identity(model, response)
-    # OpenAI prompt_tokens is a total that includes cached and cache-write
-    # slices. Convert it to the disjoint canonical uncached bucket. Other
-    # providers already expose input_tokens as the uncached dimension.
-    if provider in {"OPENAI", "GOOGLE_GENAI"}:
-        if cached_input + cache_write > input_tokens:
-            return None
-        input_tokens = max(input_tokens - cached_input - cache_write, 0)
-    result["inputTokens"] = str(input_tokens)
+    if input_tokens is not None:
+        inclusive = provider in {"OPENAI", "GOOGLE_GENAI", "INCEPTION"} or (model_protocol(model) in {"anthropic", "openai"} and normalized)
+        cached = result.get("cachedInputTokens")
+        written = result.get("cacheWriteTokens")
+        if inclusive:
+            result["inputTokensIncludingCache"] = str(input_tokens)
+            # No cache-creation bucket exists in OpenAI-compatible/Google token usage.
+            if model_protocol(model) in {"openai", "google_genai"} and written is None:
+                written = "0"  # These protocols have no separate cache-creation input bucket.
+            if cached is not None and written is not None:
+                uncached = input_tokens - int(cached) - int(written)
+                if uncached < 0:
+                    return None
+                result["inputTokens"] = str(uncached)
+        else:
+            result["inputTokens"] = str(input_tokens)
+            if cached is not None and written is not None:
+                result["inputTokensIncludingCache"] = str(input_tokens + int(cached) + int(written))
+    if not normalized and provider == "GOOGLE_GENAI" and "candidatesTokenCount" in metadata:
+        result["visibleOutputTokens"] = str(output_tokens) if output_tokens is not None else None
+        if output_tokens is not None and "reasoningTokens" in result:
+            result["outputTokens"] = str(output_tokens + int(result["reasoningTokens"]))
+        else:
+            result.pop("outputTokens", None)
+    if not result:
+        return None
     response_id = _response_identity(response)
     if response_id:
         result["providerResponseId"] = response_id
@@ -1023,11 +1542,25 @@ def provider_usage_telemetry(response: Any) -> dict[str, Any] | None:
 
 
 def _usage_metadata(response: Any, *, include_root: bool = True) -> dict[str, Any] | None:
+    """Business purpose: Select the first available usage dictionary from supported model response locations.
+
+    Business rules:
+    - Prefer normalized response usage, then supported metadata and message usage; include raw root dictionaries only when requested.
+    Execution flow:
+    1. Collect candidate response and message usage locations in precedence order.
+    2. Return the first dictionary or None.
+    Failure cases:
+    - Missing/non-dictionary candidates are skipped; an empty first dictionary is retained and does not justify inferred tokens.
+    Side effects:
+    - Read-only response metadata inspection; no logging or settlement occurs.
+    """
     candidates = [getattr(response, "usage_metadata", None)]
     response_metadata = getattr(response, "response_metadata", None)
     if isinstance(response_metadata, dict):
         candidates.extend(
             [
+                response_metadata.get("usage_metadata"),
+                response_metadata.get("usageMetadata"),
                 response_metadata.get("token_usage"),
                 response_metadata.get("usage"),
                 *([response_metadata] if include_root else []),

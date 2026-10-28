@@ -1,0 +1,11 @@
+{
+  "title": "Synthetic claim discovery instrument - diagnostic only",
+  "articles": [
+    "Article 1 — Context\nThis instrument describes the record-sharing programme for participating services. This description supplies context and imposes no independent duty.",
+    "Article 2 — Direct duty\nA participating service must retain a receipt for each record transfer.",
+    "Article 3 — Mixed provision\nReceipt retention supports programme transparency. A participating service must configure access to receipts for the record subject. This access duty does not apply to receipts subject to a valid confidentiality order. The access duty begins on 1 January 2031.",
+    "Article 4 — Referenced definition\nThe duty in Article 2 applies to each record transfer as defined in Article 6.",
+    "Article 5 — Temporal condition\nFor transfers initiated before 1 January 2031, receipt retention continues until 31 December 2031.",
+    "Article 6 — Definition\nA record transfer means delivery of a record by a participating service to another participating service."
+  ]
+}

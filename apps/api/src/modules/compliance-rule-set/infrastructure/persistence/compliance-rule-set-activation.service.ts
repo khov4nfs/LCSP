@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { validateFrozenInventory } from "../../domain/claim-inventory.js";
+import { frozenInventoryForRun } from "./preparation-inventory.persistence.js";
 
 import {
   AUDIT_ACTOR_TYPES,
@@ -21,6 +23,7 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   Prisma,
+  ClaimPreparationPhase,
   AgentExecutionState as PrismaAgentExecutionState,
   ArtifactLifecycleState as PrismaArtifactLifecycleState,
   RuleSetPreparationFailureReason as PrismaRuleSetPreparationFailureReason,
@@ -37,6 +40,7 @@ import {
   type LegalSourceChunkSnapshot,
 } from "../../domain/compliance-rule-set-integrity.validator.js";
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
+import { writeSemanticGraph } from "./semantic-graph.persistence.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
 
@@ -123,15 +127,42 @@ export class ComplianceRuleSetActivation {
     return null;
   }
 
+  /**
+   * Business purpose: Atomically record one submitted Rule Set validation outcome and activate it only when all gates pass.
+   *
+   * Business rules:
+   * - The Preparation row lock serializes submission with cancellation, inventory reopening, and other publication attempts.
+   * - A matching activation record is replayed; the same idempotency key with different run/request digest conflicts.
+   * - A clean packet must still match the frozen inventory, persisted direct draft, and SUBMISSION_READY phase after locking.
+   * - A failed packet is recorded as INVALID and cannot supersede the current ACTIVE version; a passing packet becomes ACTIVE and supersedes the prior version.
+   *
+   * Execution flow:
+   * 1. Lock and load the Preparation, then return a matching committed replay if one exists.
+   * 2. Require a running, unconsumed run and recheck frozen inventory, draft, and phase before publication.
+   * 3. Acquire the shared activation lock, create the version and passing child records where applicable, and settle the run.
+   * 4. Persist the activation record, outbox event, and audit decision in the same transaction, then return the submission result.
+   *
+   * Failure cases:
+   * - Missing or terminal/consumed runs and conflicting replays return typed problems. Existing validation failures, including stale inventory/draft failures, are recorded as INVALID/FAILED; a clean packet that fails the post-lock inventory/draft/phase recheck is rejected as a concurrency conflict.
+   * - Database, outbox, child-write, and audit failures abort the transaction so lifecycle and evidence records cannot partially commit.
+   *
+   * Side effects:
+   * - Writes the Rule Set version, Preparation lifecycle, activation record, outbox and audit transactionally. Child records and the active-pointer change occur only for a passing submission.
+   */
   async commit(
     tx: Prisma.TransactionClient,
     ctx: SubmitContext,
     actorId: string,
   ): Promise<ComplianceRuleSetSubmitResult> {
     const [preparation] = await tx.$queryRaw<
-      Array<{ executionState: PrismaAgentExecutionState }>
+      Array<{
+        executionState: PrismaAgentExecutionState;
+        claimInventoryRevision: number;
+        claimPhase: ClaimPreparationPhase;
+        executionContract: import("@prisma/client").PreparationExecutionContract;
+      }>
     >(
-      Prisma.sql`SELECT "executionState" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
     );
     if (!preparation) {
       throw problemException(
@@ -157,6 +188,35 @@ export class ComplianceRuleSetActivation {
         { status: HttpStatus.CONFLICT },
       );
     }
+
+    // Reopening and publication serialize on the same row; a pre-lock validation cannot publish stale claims.
+    const inventoryGaps = validateFrozenInventory(
+      ctx.packet,
+      await frozenInventoryForRun(
+        tx,
+        ctx.runId,
+        preparation.claimInventoryRevision,
+      ),
+      preparation.claimInventoryRevision,
+    );
+    if (
+      ctx.failures.length === 0 &&
+      (inventoryGaps.length ||
+        !(await matchesPersistedDirectDraft(
+          tx,
+          { id: ctx.runId, ...preparation },
+          ctx.packet,
+        )) ||
+        preparation.claimPhase !== ClaimPreparationPhase.SUBMISSION_READY)
+    )
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+        ctx.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: { gaps: inventoryGaps.map((g) => g.code).join(",") },
+        },
+      );
 
     // Cancel and publication serialize on the preparation row; only one can become terminal.
     await acquireComplianceRuleSetActivationLock(tx);
@@ -210,6 +270,7 @@ export class ComplianceRuleSetActivation {
       data: valid
         ? {
             executionState: PrismaAgentExecutionState.SUCCEEDED,
+            claimPhase: ClaimPreparationPhase.COMPLETION,
             completedAt: now,
           }
         : {
@@ -308,12 +369,38 @@ export class ComplianceRuleSetActivation {
     });
   }
 
+  /**
+   * Business purpose: Persist the validated legal graph, Requirements, AssessmentRules, and their provenance beneath a passing Rule Set version.
+   *
+   * Business rules:
+   * - Every source reference must resolve through the server-validated chunk map; missing resolution aborts the surrounding activation transaction.
+   * - Requirement and claim bindings, source provenance, AssessmentRule parents, and context relations preserve the submitted packet's validated structure and source digest.
+   * - Child records are written only for a passing version; this method does not interpret legal meaning or change submitted statements.
+   *
+   * Execution flow:
+   * 1. Require and persist the validated semantic claim graph.
+   * 2. Create Requirement rows, claim bindings, and deduplicated source-provenance rows.
+   * 3. Create AssessmentRule rows with linked source-chunk fingerprints and Requirement links.
+   * 4. Persist directed context relations to Requirement rows or validated source chunks.
+   *
+   * Failure cases:
+   * - A missing semantic graph or unresolved source claim throws, causing the enclosing activation transaction to roll back.
+   * - Database constraint or child-write failures propagate and prevent partial publication.
+   *
+   * Side effects:
+   * - Creates semantic graph, Requirement, claim binding, provenance, AssessmentRule, Requirement-link, and context-relation rows in the caller's transaction.
+   */
   private async writeChildren(
     tx: Prisma.TransactionClient,
     ruleSetVersionId: string,
     ctx: SubmitContext,
   ): Promise<void> {
     const { packet, resolved, legalSource } = ctx;
+    if (!packet.semanticGraph)
+      throw new Error(
+        "Validated new Rule Set must have a semantic claim graph",
+      );
+    await writeSemanticGraph(tx, ruleSetVersionId, packet.semanticGraph);
     const ruleRowId = new Map(
       packet.legalRequirements.map((rule) => [
         rule.legalRequirementId,
@@ -332,8 +419,11 @@ export class ComplianceRuleSetActivation {
         id: ruleRowId.get(rule.legalRequirementId)!,
         ruleSetVersionId,
         legalRequirementId: rule.legalRequirementId,
+        applicabilityMode: rule.applicabilityMode,
         title: rule.title,
         proposition: rule.proposition,
+        operativePropositions: rule.operativePropositions,
+        semanticContext: rule.semanticContext,
         applicabilityConditions: rule.applicabilityConditions,
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,
@@ -343,6 +433,17 @@ export class ComplianceRuleSetActivation {
         contentDigest: sha256Hex(canonicalJson(rule)),
         ordinal,
       })),
+    });
+
+    await tx.legalRequirementClaimBinding.createMany({
+      data: packet.legalRequirements.flatMap((rule) =>
+        (rule.claimBindings ?? []).map((binding, ordinal) => ({
+          ...binding,
+          ordinal,
+          ruleSetVersionId,
+          legalRequirementRowId: ruleRowId.get(rule.legalRequirementId)!,
+        })),
+      ),
     });
 
     await tx.legalRequirementProvenance.createMany({
@@ -362,6 +463,8 @@ export class ComplianceRuleSetActivation {
               locator: chunk.locator,
               contentSha256: chunk.contentSha256,
               sourceEffectStatus: chunk.sourceEffectStatus,
+              legalEffectStatus: chunk.legalEffectStatus,
+              legalStatusSourceRef: chunk.legalStatusSourceRef,
               ordinal,
             },
           ];
@@ -442,3 +545,4 @@ export class ComplianceRuleSetActivation {
     }
   }
 }
+import { matchesPersistedDirectDraft } from "./preparation-inventory.persistence.js";

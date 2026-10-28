@@ -1,0 +1,231 @@
+{
+  "outcome": "READY",
+  "attempt": 1,
+  "extraction": {
+    "tool": "managed-document-ingest:pypdf",
+    "toolVersion": "1.1.0",
+    "structureProfile": "ARTICLES",
+    "pageCount": 3,
+    "textSha256": "sha256:a3c9ddf17c52ca2d90ce06f40c9d4dfdfae371737e4010da6a32b16ba4f874a6",
+    "characterCount": 4615,
+    "frontMatterCharacters": 0,
+    "pages": [
+      "Chapter I\nArticle 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.\nArticle 2. Export and portability\n1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\n",
+      "The implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request.\n2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies.\nArticle 3. Remedy and exception\n1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty.\n2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1).\nChapter II\nArticle 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\n",
+      "For covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation.\nArticle 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty.\nArticle 6. Context and separate configuration duties\n1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission.\n2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher.\nArticle 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty.\nArticle 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.\n"
+    ],
+    "gaps": []
+  },
+  "chunks": [
+    {
+      "locator": "chap-i",
+      "content": "Chapter I",
+      "contentSha256": "sha256:e9bb4a2354ecf6a95f1b4d9a8d0a44960c86288deff44b070cf286c6997125c4",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": ""
+      },
+      "pageStart": 1,
+      "pageEnd": 1
+    },
+    {
+      "locator": "art-1",
+      "content": "Article 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.",
+      "contentSha256": "sha256:afc91a893b69fb957221aa9c86b2d1b162d4b38e09969425a8b05bcd555ddd31",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": "",
+        "articleNumber": "1",
+        "articleTitle": "Definitions"
+      },
+      "pageStart": 1,
+      "pageEnd": 1
+    },
+    {
+      "locator": "art-2",
+      "content": "Article 2. Export and portability",
+      "contentSha256": "sha256:74bf9c43aa6f160b42931c41b1e27867cbb8ae941b315d6bd049fb120eab82d4",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": "",
+        "articleNumber": "2",
+        "articleTitle": "Export and portability"
+      },
+      "pageStart": 1,
+      "pageEnd": 1
+    },
+    {
+      "locator": "art-2::cl-1",
+      "content": "1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\nThe implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request.",
+      "contentSha256": "sha256:eca1e8f61d620cda42a1b2a054fc2e15278610b57f5cd41267cdfde20662782a",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": "",
+        "articleNumber": "2",
+        "articleTitle": "Export and portability",
+        "clauseNumber": "1"
+      },
+      "pageStart": 1,
+      "pageEnd": 2
+    },
+    {
+      "locator": "art-2::cl-2",
+      "content": "2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies.",
+      "contentSha256": "sha256:4027f9c83eee394e5d27a1dc9d1181eca63afcb7c4a3ee0204990c9f1d4ac8d5",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": "",
+        "articleNumber": "2",
+        "articleTitle": "Export and portability",
+        "clauseNumber": "2"
+      },
+      "pageStart": 2,
+      "pageEnd": 2
+    },
+    {
+      "locator": "art-3",
+      "content": "Article 3. Remedy and exception",
+      "contentSha256": "sha256:2afa68fd73f5bb0a9ec077a207e91331345cb605a1532e900f16619d4074b3f5",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": "",
+        "articleNumber": "3",
+        "articleTitle": "Remedy and exception"
+      },
+      "pageStart": 2,
+      "pageEnd": 2
+    },
+    {
+      "locator": "art-3::cl-1",
+      "content": "1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty.",
+      "contentSha256": "sha256:e77f9a4c320343b98d91c5de842f5bc16f7e019eb5e107faaf744c0aa86c25bd",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": "",
+        "articleNumber": "3",
+        "articleTitle": "Remedy and exception",
+        "clauseNumber": "1"
+      },
+      "pageStart": 2,
+      "pageEnd": 2
+    },
+    {
+      "locator": "art-3::cl-2",
+      "content": "2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1).",
+      "contentSha256": "sha256:9c770f3c0a3734d9eef448fb58c6bdeded259e03ee980a1ba490c2df2da4fe87",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": "",
+        "articleNumber": "3",
+        "articleTitle": "Remedy and exception",
+        "clauseNumber": "2"
+      },
+      "pageStart": 2,
+      "pageEnd": 2
+    },
+    {
+      "locator": "chap-ii",
+      "content": "Chapter II",
+      "contentSha256": "sha256:b0f19d99e23e221666f9c1899a55ca2e3b52cb6fe2f066293e5fdff0105f1fb0",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": ""
+      },
+      "pageStart": 2,
+      "pageEnd": 2
+    },
+    {
+      "locator": "art-4",
+      "content": "Article 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\nFor covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation.",
+      "contentSha256": "sha256:493b37953f7643b09aa48452edf49da9379d20a4f805188a72aec70bb40b28ab",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": "",
+        "articleNumber": "4",
+        "articleTitle": "Temporal transition"
+      },
+      "pageStart": 2,
+      "pageEnd": 3
+    },
+    {
+      "locator": "art-5",
+      "content": "Article 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty.",
+      "contentSha256": "sha256:8ca9212e981f0bef503ecdac349d1a57991ccd38c88effeb8c713cf610dea11d",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": "",
+        "articleNumber": "5",
+        "articleTitle": "Incorporated duties"
+      },
+      "pageStart": 3,
+      "pageEnd": 3
+    },
+    {
+      "locator": "art-6",
+      "content": "Article 6. Context and separate configuration duties",
+      "contentSha256": "sha256:16ae464938d35f2226455fa4ea36ab1bee2a4d9322816132d032985059e2d21b",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": "",
+        "articleNumber": "6",
+        "articleTitle": "Context and separate configuration duties"
+      },
+      "pageStart": 3,
+      "pageEnd": 3
+    },
+    {
+      "locator": "art-6::cl-1",
+      "content": "1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission.",
+      "contentSha256": "sha256:59e08bb080c38146ab33de5a1f488316d146068de93aeffbb755a6ee407c675f",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": "",
+        "articleNumber": "6",
+        "articleTitle": "Context and separate configuration duties",
+        "clauseNumber": "1"
+      },
+      "pageStart": 3,
+      "pageEnd": 3
+    },
+    {
+      "locator": "art-6::cl-2",
+      "content": "2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher.",
+      "contentSha256": "sha256:996dc6b8e5009c37aacbfb42d11a2004326e4d258430c5b0785f79ed206055da",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": "",
+        "articleNumber": "6",
+        "articleTitle": "Context and separate configuration duties",
+        "clauseNumber": "2"
+      },
+      "pageStart": 3,
+      "pageEnd": 3
+    },
+    {
+      "locator": "art-7",
+      "content": "Article 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty.",
+      "contentSha256": "sha256:5998be4f91a57f7534d3dfb8d5018303975b01123022c12f1ae899ca8711ce10",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": "",
+        "articleNumber": "7",
+        "articleTitle": "Delegated fulfillment and direction"
+      },
+      "pageStart": 3,
+      "pageEnd": 3
+    },
+    {
+      "locator": "art-8",
+      "content": "Article 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.",
+      "contentSha256": "sha256:26028ffcbd77e30996a3df12b94f1ee8deee92841a4c52fb81dd63a72ee97c70",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": "",
+        "articleNumber": "8",
+        "articleTitle": "Conditional permission and evidence"
+      },
+      "pageStart": 3,
+      "pageEnd": 3
+    }
+  ]
+}
