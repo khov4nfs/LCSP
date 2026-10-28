@@ -87,5 +87,7 @@ Assert-Launcher ($preflight[0].Extent.StartOffset -lt $hostsChange[0].Extent.Sta
 $source = Get-Content -LiteralPath $LauncherPath -Raw
 Assert-Launcher ($source.Contains('Test-Path $PrivateEnvFile')) "Missing private env file is not rejected."
 
+# The intentional native-failure fixture must not become the CI step exit code.
+$global:LASTEXITCODE = 0
 Write-Output "PASS: PowerShell syntax, literal Compose arguments, private env preflight, Docker errors and Linux-container requirement."
 Write-Output "Windows Docker Desktop smoke: NOT_VERIFIED - ENVIRONMENT_UNAVAILABLE (these checks mock Docker)."
