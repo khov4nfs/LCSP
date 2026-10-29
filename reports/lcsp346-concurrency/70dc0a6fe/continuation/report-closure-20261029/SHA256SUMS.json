@@ -1,6 +1,6 @@
 {
   "implementationSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
-  "capturedAt": "2026-10-29T10:17:27.921046+00:00",
+  "capturedAt": "2026-10-29T10:26:28.569433+00:00",
   "files": [
     {
       "path": "report-closure-all-branches-ruleset.json",
@@ -28,9 +28,24 @@
       "sha256": "58be87f6a895beb8120699a89b2164a511d18c3869cca7af37b84aadc8fcfd2e"
     },
     {
+      "path": "report-closure-final-production-preflight.json",
+      "bytes": 15541,
+      "sha256": "c52f1386c1d0df2ba94dd7f5779727149488b572ec9a74b01ce39fcde96b4a07"
+    },
+    {
+      "path": "report-closure-final-release-state.json",
+      "bytes": 15248,
+      "sha256": "3e96c74ddef425e9d2ac3376761be4bb61da33f0900fac8cfda6cddf8b789497"
+    },
+    {
       "path": "report-closure-head-check-runs.json",
       "bytes": 128574,
       "sha256": "66a5ab49f3bc30d43ebad17ed4f6e54d71ace3f45f369e03813fec62cfd8dc1f"
+    },
+    {
+      "path": "report-closure-jira-receipt.json",
+      "bytes": 492,
+      "sha256": "118c664674e61200b0217f7d782113f84b7cc8297fd51e8afb460fa0aac81cea"
     },
     {
       "path": "report-closure-pr-baseline.json",
@@ -46,6 +61,11 @@
       "path": "report-closure-review-request-before.json",
       "bytes": 34,
       "sha256": "6a93186c5a91906d298930653d2e6e7351096fc5e18c159f6403c72a54c66748"
+    },
+    {
+      "path": "report-closure-review-request-receipt.json",
+      "bytes": 114,
+      "sha256": "c949c2120c9902eb8a11e347bc0cd257a33830ac3333602644c24efa3fe783dc"
     },
     {
       "path": "report-closure-reviews-protection.json",
@@ -74,13 +94,13 @@
     },
     {
       "path": "report-closure-verification.json",
-      "bytes": 1172,
-      "sha256": "d4e2f5712366160744043f24fa2107ff2a822cef0564c37eb0ac678afe567389"
+      "bytes": 1364,
+      "sha256": "cd8d0e2051e4447f171570f3def3f939b7f23ccdcf6f2525c0916c942c4a4248"
     },
     {
       "path": "verify_report_closure.py",
-      "bytes": 3639,
-      "sha256": "5bf1cb8a5ae5be18dec84e27353a823932eed52f87349eb45201767a92626c5f"
+      "bytes": 5347,
+      "sha256": "701690368f465e64451d88cbd68b0f7887d2b014f69aab77b93563b957ad20cf"
     }
   ]
 }

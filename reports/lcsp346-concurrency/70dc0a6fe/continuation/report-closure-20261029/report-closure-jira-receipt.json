@@ -1,0 +1,14 @@
+{
+  "issue": "LCSP-346",
+  "url": "https://minhpnq1807.atlassian.net/browse/LCSP-346",
+  "status": "In Review",
+  "updatedAt": "2026-10-29T17:19:59.996+0700",
+  "closureCommentId": "10758",
+  "closureCommentUrl": "https://minhpnq1807.atlassian.net/browse/LCSP-346?focusedCommentId=10758",
+  "releaseConditionsOpen": 2,
+  "closureDescriptionConfirmed": true,
+  "reportGate": "BLOCKED",
+  "reviewGate": "BLOCKED",
+  "alternativeEvidenceAcceptance": "NOT_GRANTED",
+  "transitionToDone": false
+}

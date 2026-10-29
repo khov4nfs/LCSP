@@ -53,7 +53,7 @@ The final two commits affect harnesses only. [File hashes](recovery-44dba336f/re
 
 ## E. Tests and exact-head CI
 
-**36 successful checks; zero failed/pending at capture**, all at `44dba336f`. [Check metadata and URLs](recovery-44dba336f/recovery-44dba33-check-runs.json). The historical 43-success/4-skip result is not substituted for this revision.
+**All required contexts pass at `44dba336f`.** The final closure refresh has **39 successful exact-head check-run records covering 30 distinct check names**, with no failed/pending run; repeat workflows/metadata checks are retained. [Final check metadata and URLs](report-closure-20261029/report-closure-final-release-state.json). The [earlier 36-success capture](recovery-44dba336f/recovery-44dba33-check-runs.json) and historical 43-success/4-skip result remain separate observations.
 
 | Local suite                                        | Result                                                                                                                   |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -84,7 +84,7 @@ Earlier failures remain failures: the first live batch incorrectly produced thre
 
 ## F. Production deployment
 
-Closure recheck: 36 current successful check names / 38 successful exact-head check-run records, including repeat Jira checks; all three required contexts are green. The branch is zero commits behind develop. The active develop ruleset requires **one approval**, stale approval dismissal and resolved review threads. There are **zero reviews and zero review threads**, with reviewer `khov4nfs` requested. No approval or merge is claimed. [Ruleset](report-closure-20261029/report-closure-develop-ruleset.json), [review/merge state](report-closure-20261029/report-closure-reviews-protection.json), [CI](report-closure-20261029/report-closure-head-check-runs.json). The legacy branch-protection endpoint returned 404; repository rulesets, rather than that endpoint, provide the active requirements.
+Closure recheck: all three required contexts are green; the final refresh has 39 successful exact-head check-run records / 30 distinct check names. The earlier rollup's 36 rows included duplicate check names, not 36 distinct names. The branch is zero commits behind develop. The active develop ruleset requires **one approval**, stale approval dismissal and resolved review threads. There are **zero reviews and zero review threads**, with reviewer `khov4nfs` requested. The normal request was reissued successfully; no approval or merge is claimed. [Ruleset](report-closure-20261029/report-closure-develop-ruleset.json), [final review/CI state](report-closure-20261029/report-closure-final-release-state.json), [request receipt](report-closure-20261029/report-closure-review-request-receipt.json), [review package](https://github.com/khov4nfs/LCSP/pull/440#issuecomment-6494022632). The legacy branch-protection endpoint returned 404; repository rulesets, rather than that endpoint, provide the active requirements.
 
 Preflight: clean feature HEAD `70dc0a6fe40c618bdf47d532f9baa5230e52faf1`, old image `sha256:c4b9c49555981880f203d6a9cc77bc71f0aae6d3b750ac43c912c7f1e61e4de1`, zero active leases/native runs, empty Root queue. `.env.pm2`/PM2 configuration hashes were captured. **136 migrations applied, zero incomplete; no migration ran.**
 
@@ -95,6 +95,8 @@ Setup failures remain in evidence: missing host `uv` was resolved using pinned *
 Final image **`sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5`**, revision **`44dba336f332d566d3fee9fc0d32642a402d024e`**. API/Web/Agent health **200**; Web build `EJSKcxwfCMRL3Znem1qXx`. Runtime restarted **08:00:49**. Configuration fingerprints remain unchanged. Disk: **2.0 GiB available, 95% used**; capacity was not increased. [Final observation](recovery-44dba336f/recovery-final-production-observation.json.gz), [built identity/steps/effective settings](recovery-44dba336f/recovery-effective-runtime-identity.json).
 
 Closure resource preflight at **10:07:17 UTC** confirms the same clean deployed revision/image and health 200, **zero artifacts created since the 08:00:49 deployment**, zero leases and zero running native runs. Disk: **2,132,709,376 bytes free (95% used)**; memory available **4,903,325,696 bytes**. Seven persistent sandboxes remain running with configured 2 GiB limits; no deletion/cleanup occurred. Four active/idle client DB connections were observed against max 100, plus five background processes. All 11 Docker images were active. [Read-only preflight](report-closure-20261029/report-closure-production-preflight.json). No new deployment was necessary because implementation HEAD is unchanged.
+
+Final read-only refresh at **10:23:56 UTC** confirms unchanged HEAD/image, health 200, zero post-deployment reports, zero leases and Root queue ready/unacked **0/0**. Disk free **2,132,660,224 bytes (95% used)**; available memory **4,912,496,640 bytes**. The initial refresh command used a nonexistent virtualenv path and exited before the diagnostic; discovery of the running process's actual `/srv/apps/LCSP/.venv/bin/python` resolved it without production changes. [Final preflight](report-closure-20261029/report-closure-final-production-preflight.json), [attempt history and gate receipt](report-closure-20261029/report-closure-final-release-state.json).
 
 ## G. Real execution matrix
 
@@ -170,7 +172,7 @@ Fresh screenshots: [A active](recovery-44dba336f/screenshots/recovery-A-concurre
 | --------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | IMPLEMENTATION              | PASS    | Original bounded architecture retained; semantic/replay and pricing defects repaired                                                              |
 | AUTOMATED_TESTS             | PASS    | Focused/broad tests, broker and actual API/DB/native verticals; explicit skips/setup history                                                      |
-| PR_CI                       | PASS    | Exact HEAD, 36 successful checks; normal review still required                                                                                    |
+| PR_CI                       | PASS    | Exact HEAD; all required contexts green, 39 successful check-run records / 30 names; normal review still required                                 |
 | PRODUCTION_DEPLOYMENT       | PASS    | Exact checkout/image/source, actual rebuild, health 200                                                                                           |
 | REAL_CONCURRENCY            | PASS    | 194.436 s Root overlap, 8.351 s model overlap, cap two and third-case handoff                                                                     |
 | STOP_CONTINUE               | PASS    | A Stop/B progress/canonical resume; no paused accepted writes                                                                                     |
@@ -188,5 +190,7 @@ Fresh screenshots: [A active](recovery-44dba336f/screenshots/recovery-A-concurre
 | OVERALL                     | BLOCKED | Fresh-report acceptance unexecuted and normal approval/merge outstanding                                                                          |
 
 Request normal review of this implementation and explicit release disposition. Do not merge automatically or transition Jira to Done. Replacing the original fresh-report requirement with a legitimate human-wait outcome requires an explicit acceptance decision; this report does not weaken it.
+
+Jira closure description and [comment 10758](https://minhpnq1807.atlassian.net/browse/LCSP-346?focusedCommentId=10758) were verified after publication: status remains **In Review**, with both release conditions unchecked and no alternative acceptance granted. [Jira receipt](report-closure-20261029/report-closure-jira-receipt.json).
 
 LCSP-364 handoff: [bounded concurrency documentation](https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/docs/developer/bounded-assessment-concurrency.md) covers fixed capacity, API lease/admission, broker/server/replica limits, available/missing metrics, host observations, provider/DB constraints and reusable fixtures. Sandbox **2 GiB each** is a configured limit, not measured per-Root RSS. LCSP-364 remains separate and dependent on LCSP-346; autoscaling was not implemented.

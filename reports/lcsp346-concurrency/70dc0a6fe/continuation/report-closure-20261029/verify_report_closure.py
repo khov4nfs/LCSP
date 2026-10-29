@@ -14,6 +14,10 @@ usage=load('report-closure-usage-status.json')
 ci=load('report-closure-head-check-runs.json')
 rollup=load('report-closure-current-ci.json')
 parity=load('report-closure-base-parity.json')
+final=load('report-closure-final-release-state.json')
+final_prod=load('report-closure-final-production-preflight.json')
+request=load('report-closure-review-request-receipt.json')
+jira=load('report-closure-jira-receipt.json')
 assert prod['head']==prod['sandboxImage']['revision']==pr['headRefOid']==review['headRefOid']==sha
 assert not prod['workingTree'] and all(prod[k]==200 for k in ['apiHealth','webHealth','agentHealth'])
 assert prod['postDeploymentReportCount']==0 and prod['activeLeaseCount']==0
@@ -34,6 +38,18 @@ assert probe['productionWrites']==0 and probe['providerFree'] and not probe['exp
 assert usage['providerRequestsMade']==usage['domainWrites']==0
 assert {r['status']:r['count'] for r in usage['postDeploymentUsageStates']}=={'SETTLED':64,'UNAVAILABLE':1}
 assert all(not x['isLCSP346RecoveryCase'] and x['occurredAt']<'2026-10-29T08:00:49Z' for x in usage['quarantinedJournalRecords'])
-result={'implementationSha':sha,'productionObservedAt':prod['observedAt'],'revalidation':'PASS','currentSuccessfulPRCheckNames':len(rollup),'successfulCheckRunRecords':len(ci['check_runs']),'requiredCheckContexts':[x['context'] for x in required['required_status_checks']],'behindDevelopCommits':0,'newProductionAssessmentsAttempted':0,'newRootExecutions':0,'newProviderCalls':0,'newTokens':0,'newUsageCostUsd':'0','postDeploymentArtifacts':0,'freshReportLifecycle':'BLOCKED: no eligible supported scenario or verified owned deployment context','freshAssessmentId':None,'freshRootId':None,'freshArtifactId':None,'completionGateInvokedForNewCase':False,'freshArtifactChecksum':None,'freshRenderDownloadAccessControl':'NOT_EXECUTED','requiredApprovals':1,'actualApprovals':0,'reviewThreads':0,'reviewApproval':'BLOCKED','merged':False,'mergeReady':False,'finalMergedDeployment':'NOT_EXECUTED: no merge','ownerAcceptanceDecision':'PENDING; no alternative evidence has been accepted','overall':'BLOCKED'}
+assert final_prod['head']==final_prod['sandboxImage']['revision']==final['implementationSha']==request['head']==sha
+assert not final_prod['workingTree'] and all(final_prod[k]==200 for k in ['apiHealth','webHealth','agentHealth'])
+assert final_prod['postDeploymentReportCount']==final_prod['activeLeaseCount']==0
+assert not [r for r in final_prod['nativeRunStates'] if r['status'] in ['running','pending']]
+assert all(r['head_sha']==sha and r['status']=='completed' and r['conclusion']=='success' for r in final['checkRuns'])
+assert final['successfulCheckRunRecords']==len(final['checkRuns'])
+assert final['distinctSuccessfulCheckNames']==len({r['name'] for r in final['checkRuns']})
+assert all(any(r['name']==name and r['conclusion']=='success' for r in final['checkRuns']) for name in final['requiredContexts'])
+assert request['requestedReviewers']==final['reviewState']['requestedReviewers']==['khov4nfs']
+assert not final['reviewState']['reviews'] and final['reviewState']['reviewDecision']=='REVIEW_REQUIRED'
+assert jira['status']=='In Review' and jira['releaseConditionsOpen']==2 and not jira['transitionToDone']
+assert jira['alternativeEvidenceAcceptance']=='NOT_GRANTED' and jira['closureDescriptionConfirmed']
+result={'implementationSha':sha,'productionObservedAt':final_prod['observedAt'],'revalidation':'PASS','currentDistinctSuccessfulPRCheckNames':final['distinctSuccessfulCheckNames'],'successfulCheckRunRecords':final['successfulCheckRunRecords'],'earlierPreflightSuccessfulRollupRows':len(rollup),'earlierPreflightCheckRunRecords':len(ci['check_runs']),'requiredCheckContexts':[x['context'] for x in required['required_status_checks']],'behindDevelopCommits':0,'newProductionAssessmentsAttempted':0,'newRootExecutions':0,'newProviderCalls':0,'newTokens':0,'newUsageCostUsd':'0','postDeploymentArtifacts':0,'freshReportLifecycle':'BLOCKED: no eligible supported scenario or verified owned deployment context','freshAssessmentId':None,'freshRootId':None,'freshArtifactId':None,'completionGateInvokedForNewCase':False,'freshArtifactChecksum':None,'freshRenderDownloadAccessControl':'NOT_EXECUTED','requiredApprovals':1,'actualApprovals':0,'reviewThreads':0,'reviewApproval':'BLOCKED','reviewRequestReissued':True,'jiraStatus':jira['status'],'jiraClosureCommentId':jira['closureCommentId'],'merged':False,'mergeReady':False,'finalMergedDeployment':'NOT_EXECUTED: no merge','ownerAcceptanceDecision':'PENDING; no alternative evidence has been accepted','overall':'BLOCKED'}
 (base/'report-closure-verification.json').write_text(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result,indent=2))
