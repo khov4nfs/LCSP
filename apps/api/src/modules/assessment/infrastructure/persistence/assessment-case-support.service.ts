@@ -165,7 +165,7 @@ export class AssessmentCaseSupport {
    * - Resolve the AssessmentRule and directly related legal-context targets only within the
    *   pinned Rule Set.
    * - Load cited facts and their supporting evidence only from this Assessment;
-   *   applicability-element counts come from linked LegalRequirements, never inferred legal
+   *   applicability-element and operative-scope counts come from linked LegalRequirements, never inferred legal
    *   categories.
    *
    * Execution flow:
@@ -205,6 +205,7 @@ export class AssessmentCaseSupport {
                 applicabilityConditions: true,
                 qualifiers: true,
                 exceptions: true,
+                operativePropositions: true,
               },
             },
           },
@@ -307,6 +308,9 @@ export class AssessmentCaseSupport {
                   ),
                   qualifiers: listLength(link.legalRequirement.qualifiers),
                   exceptions: listLength(link.legalRequirement.exceptions),
+                  operativeScopes: listLength(
+                    link.legalRequirement.operativePropositions,
+                  ),
                 },
               ]),
             ),

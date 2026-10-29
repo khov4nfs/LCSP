@@ -45,6 +45,8 @@ export interface DecisionValidationContext {
         applicabilityConditions: number;
         qualifiers: number;
         exceptions: number;
+        /** One actor/activity/scope assessment per source-authored operative proposition. */
+        operativeScopes?: number;
       }
     >;
   } | null;
@@ -230,6 +232,7 @@ type DeclaredElements = NonNullable<
 >["declaredElements"];
 
 const ELEMENT_COUNT_KEY = {
+  [RULE_DECISION_BASIS_KINDS.OPERATIVE_SCOPE]: "operativeScopes",
   [RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION]:
     "applicabilityConditions",
   [RULE_DECISION_BASIS_KINDS.QUALIFIER]: "qualifiers",
@@ -239,11 +242,13 @@ const ELEMENT_COUNT_KEY = {
 /**
  * Business purpose: Validate the legal-element basis behind submitted applicability findings.
  * Business rules:
- * - Findings name real source-declared conditions, qualifiers or exceptions; referenced
+ * - Findings name real source-declared operative scopes, conditions, qualifiers or exceptions; referenced
  *   established/refuted findings must support the overall applicability outcome.
+ * - Every operative scope needs an explicit ESTABLISHED finding for APPLICABLE; an unknown actor,
+ *   activity or inherited scope cannot be omitted because the duty has no separate condition list.
  * Execution flow:
- * 1. Scan entries, detect establishing/refuting conditions and compare their basis with the
- *   submitted APPLICABLE or NOT_APPLICABLE conclusion.
+ * 1. Validate source addresses and referenced findings, then check each required operative scope.
+ * 2. Compare establishing/refuting findings with the submitted applicability conclusion.
  * Failure cases:
  * - Invalid indices, absent references or contradictory findings emit failures.
  * Side effects:
@@ -262,7 +267,10 @@ function validateApplicabilityBasis(
   for (const entry of basis) {
     const ref = `${entry.legalRequirementId}:${entry.kind}:${entry.index}`;
     const counts = declared.get(entry.legalRequirementId);
-    if (!counts || entry.index >= counts[ELEMENT_COUNT_KEY[entry.kind]]) {
+    if (
+      !counts ||
+      entry.index >= (counts[ELEMENT_COUNT_KEY[entry.kind]] ?? 0)
+    ) {
       fail(
         DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_APPLICABILITY_ELEMENT,
         ref,
@@ -280,9 +288,12 @@ function validateApplicabilityBasis(
     }
     const isCondition =
       entry.kind === RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION;
+    const isOperativeScope =
+      entry.kind === RULE_DECISION_BASIS_KINDS.OPERATIVE_SCOPE;
     const isException = entry.kind === RULE_DECISION_BASIS_KINDS.EXCEPTION;
     if (
-      (isCondition && entry.finding === RULE_DECISION_BASIS_FINDINGS.REFUTED) ||
+      ((isCondition || isOperativeScope) &&
+        entry.finding === RULE_DECISION_BASIS_FINDINGS.REFUTED) ||
       (isException &&
         entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED)
     ) {
@@ -298,9 +309,23 @@ function validateApplicabilityBasis(
 
   let conditionCount = 0;
   let elementCount = 0;
-  for (const counts of declared.values()) {
+  let missingScope = false;
+  for (const [requirementId, counts] of declared) {
     conditionCount += counts.applicabilityConditions;
-    elementCount += counts.applicabilityConditions + counts.exceptions;
+    elementCount +=
+      counts.applicabilityConditions +
+      counts.exceptions +
+      (counts.operativeScopes ?? 0);
+    for (let index = 0; index < (counts.operativeScopes ?? 0); index++) {
+      const scope = basis.find(
+        (entry) =>
+          entry.legalRequirementId === requirementId &&
+          entry.kind === RULE_DECISION_BASIS_KINDS.OPERATIVE_SCOPE &&
+          entry.index === index,
+      );
+      if (scope?.finding !== RULE_DECISION_BASIS_FINDINGS.ESTABLISHED)
+        missingScope = true;
+    }
   }
   if (decision.applicability === RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE) {
     if (elementCount > 0 && !refuting) {
@@ -317,7 +342,7 @@ function validateApplicabilityBasis(
       decision.assessmentRuleId,
     );
   }
-  if (conditionCount > 0 && !establishing) {
+  if (missingScope || (conditionCount > 0 && !establishing)) {
     fail(
       DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_REQUIRED,
       decision.assessmentRuleId,

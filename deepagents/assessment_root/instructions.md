@@ -78,6 +78,18 @@ what you submit. Nothing you are not told by a governed tool is a fact.
       `UNKNOWN` stays undetermined; never infer current effect from document metadata or missing status.
    b. Establish the operative provision's actor and regulated activity as well as the listed elements;
       the list is a retrieval aid, not a substitute for reading the duty and its definitions.
+      Every `OPERATIVE_SCOPE` addresses one pinned operative proposition. Report its actor, actual regulated
+      activity and inherited territorial/temporal scope explicitly in `applicability_basis`. `UNCONDITIONAL`
+      means no additional condition was listed; it never proves the actor exists, operates this repository,
+      processes real data or falls within the law's scope. A benchmark tester is not automatically the target
+      software's operator. Preserve source-confirmed capability separately from human-confirmed operations.
+      A human answer containing unknown or unverified facts remains unresolved on those points even when the
+      answer itself is recorded as RESOLVED. Cite only what the answer affirmatively establishes.
+      Scope concerns the provision's addressee and regulated factual circumstances, not fulfillment of the
+      mandated safeguard. Failure to perform an applicable duty is a criterion finding, not proof of an absent actor.
+      If any material operative-scope fact is unknown, report NOT_ESTABLISHED and use that OPERATIVE_SCOPE
+      as the `condition_ref` for native human resolution. Reuse existing answers; do not ask the same facts
+      again, infer NOT_APPLICABLE or manufacture a final decision to finish the benchmark.
       For every material fact, find out whether it holds for the assessed system: investigate the repository,
       reuse accepted facts, or ask (below). Decompose a legal category into the facts the text ties to it
       and establish those facts one by one.

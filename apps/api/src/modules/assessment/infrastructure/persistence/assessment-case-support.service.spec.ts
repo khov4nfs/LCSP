@@ -70,7 +70,29 @@ describe("AssessmentCaseSupport decision provenance", () => {
         },
       ]);
     const tx = {
-      assessmentRule: { findUnique: () => Promise.resolve(null) },
+      assessmentRule: {
+        findUnique: () =>
+          Promise.resolve({
+            assessmentRuleId: "ER-1",
+            assessmentRuleVersion: "v1",
+            criteria: [],
+            legalRequirementLinks: [
+              {
+                legalRequirement: {
+                  id: "lr-row",
+                  legalRequirementId: "LR-1",
+                  operativePropositions: [
+                    { actor: "Source actor", action: "Source activity" },
+                  ],
+                  applicabilityConditions: [],
+                  qualifiers: [],
+                  exceptions: [],
+                },
+              },
+            ],
+          }),
+      },
+      legalRequirementContextRelation: { findMany: () => Promise.resolve([]) },
       assessmentCaseFact: { findMany: facts },
       assessmentEvidence: { findMany: evidence },
     } as unknown as Prisma.TransactionClient;
@@ -95,6 +117,12 @@ describe("AssessmentCaseSupport decision provenance", () => {
     expect(context.evidence.get(evidenceId)).toMatchObject({
       type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
       payload: {},
+    });
+    expect(context.rule?.declaredElements.get("LR-1")).toEqual({
+      applicabilityConditions: 0,
+      qualifiers: 0,
+      exceptions: 0,
+      operativeScopes: 1,
     });
   });
 });

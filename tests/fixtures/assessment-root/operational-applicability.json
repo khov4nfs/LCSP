@@ -1,0 +1,528 @@
+{
+  "origin": {
+    "implementationSha": "70dc0a6fe40c618bdf47d532f9baa5230e52faf1",
+    "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+    "caseRevision": 7,
+    "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161"
+  },
+  "benchmarkContext": "Public third-party repository used only for LCSP testing. Actual operator, deployment, Vietnamese data processing, transfers, demographics and automated loan decisions are unverified. The LCSP testing operator is not the operator of the target software.",
+  "historicalCases": [
+    {
+      "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+      "legalRequirementId": "art10-cl3-controller-implementation",
+      "operativePropositions": [
+        {
+          "actor": "Personal data controller and personal data controller and processor (bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân)",
+          "action": "receive and implement the data subject's request for withdrawal of consent or restriction of processing, and require the personal data processor to implement it, within the statutory time limit",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-10::cl-3",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:a86c2a71fd1e5c3e76fbfdcc8c6ed0f26280df65413a40b47f21b6c4349072d9"
+            }
+          ]
+        }
+      ],
+      "applicabilityConditions": [],
+      "qualifiers": [
+        "Implementation of the request does not apply to processing activities of personal data carried out before the time the data subject requests withdrawal of consent or restriction of processing."
+      ],
+      "exceptions": [],
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The reviewed source provides no mechanism by which a data subject may withdraw consent or request restriction of processing, and no corresponding handling or implementation logic: the upload flow only creates records and the prediction flow only evaluates them. There is therefore no reception or implementation of such requests.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                "caseRevision": 7
+              }
+            ],
+            "criterionId": "criterion_509e6f951da6bb4971842427"
+          }
+        ],
+        "rationale": "This is an unconditional duty on the personal-data controller and controller-and-processor to receive and implement data-subject requests for withdrawal of consent or restriction of processing. Because the system processes personal data and the operator is a controller/controller-and-processor, the duty applies. The qualifier (the duty does not apply to processing before the request) does not negate applicability.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+            "caseRevision": 7
+          }
+        ],
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art10-cl3-controller-implementation"
+          }
+        ],
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "criteria": [
+        {
+          "statement": "LegalRequirement: art10-cl3-controller-implementation\nProposition: The personal data controller and the personal data controller and processor receive and implement the data subject's request for withdrawal of consent or restriction of processing, and require the personal data processor to implement it, within the time limit prescribed by law.\nApplicability mode: UNCONDITIONAL\nOperative proposition 1:\nActor: Personal data controller and personal data controller and processor (bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân)\nModality: DUTY\nAction: receive and implement the data subject's request for withdrawal of consent or restriction of processing, and require the personal data processor to implement it, within the statutory time limit\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-10::cl-3\",\"sha256:a86c2a71fd1e5c3e76fbfdcc8c6ed0f26280df65413a40b47f21b6c4349072d9\"]\nQualifier 1: Implementation of the request does not apply to processing activities of personal data carried out before the time the data subject requests withdrawal of consent or restriction of processing.\nSemantic context 1: Data subject means the person whose personal data is reflected.\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-10::cl-3\",\"sha256:a86c2a71fd1e5c3e76fbfdcc8c6ed0f26280df65413a40b47f21b6c4349072d9\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-10::cl-4\",\"sha256:fc18c3272273f4c8767ae750a2ffd95f386b7c67d7ae98ccf8836b4c8c581ce1\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-5\",\"sha256:764f035ffcaf84e34ca612e6310de9612f6547afa74d703bb0e87a865f7ea721\"]",
+          "criterionId": "criterion_509e6f951da6bb4971842427",
+          "investigationFocus": "Examine repository records showing that requests for withdrawal of consent or restriction of processing from data subjects are received, implemented, and required of the processor within the time limits prescribed by law.",
+          "legalRequirementIds": ["art10-cl3-controller-implementation"]
+        }
+      ]
+    },
+    {
+      "assessmentRuleId": "art13-cl2-correction-assessment",
+      "legalRequirementId": "art13-cl2-controller-correction-duty",
+      "operativePropositions": [
+        {
+          "actor": "Data controller (bên kiểm soát dữ liệu cá nhân) and data controller and processor (bên kiểm soát và xử lý dữ liệu cá nhân)",
+          "action": "correct personal data after the data subject requests it or correct personal data as prescribed by law",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-13::cl-2",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:84a2b4eb5e492c65c1a3b7946301e8f409d5dae857b6646d2eeb075729e572fd"
+            }
+          ]
+        },
+        {
+          "actor": "Data controller (bên kiểm soát dữ liệu cá nhân) and data controller and processor (bên kiểm soát và xử lý dữ liệu cá nhân)",
+          "action": "require the data processor or a third party to correct the personal data of the data subject",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-13::cl-2",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:84a2b4eb5e492c65c1a3b7946301e8f409d5dae857b6646d2eeb075729e572fd"
+            }
+          ]
+        }
+      ],
+      "applicabilityConditions": [],
+      "qualifiers": [],
+      "exceptions": [],
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The reviewed source implements no correction functionality: records are created on upload (loan_app/views.py 40-65) and read for prediction, with no update/change path, no correction-request handling, and no audit history of corrected values. There is no evidence that personal data can be corrected on request or as prescribed by law, nor any mechanism to require processors/third parties to correct.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                "caseRevision": 7
+              }
+            ],
+            "criterionId": "criterion_544bc96c62da41807ab8bb1f"
+          }
+        ],
+        "rationale": "Unconditional duty on the data controller and controller-and-processor to correct personal data upon request or as prescribed by law and to require processors/third parties to correct. The operator is a controller/controller-and-processor because it decides purposes/means and directly processes personal data via the application, so the duty applies.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+            "caseRevision": 7
+          }
+        ],
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art13-cl2-correction-assessment",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art13-cl2-controller-correction-duty"
+          }
+        ],
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "criteria": [
+        {
+          "statement": "LegalRequirement: art13-cl2-controller-correction-duty\nProposition: The data controller and the data controller and processor shall correct personal data after the data subject requests it or shall correct personal data as prescribed by law.\nThe data controller and the data controller and processor shall require the data processor or a third party to correct the personal data of the data subject.\nApplicability mode: UNCONDITIONAL\nRepository proof boundary for 147775cf57607128539ab3c7c2a0b7204969b4cbc865c48ccdbee986b5e031d5: Correction operations reflected in the repository's personal-data records (e.g., update/change history or audit logs showing corrected values for data-subject records).\nExternal fulfillment is not established by repository inspection: Receipt of the data subject's correction request (originating outside the repository) and the forwarding of correction instructions to data processors or third parties.\nRepository proof boundary for f78775b2a3c6f06f735639235401d5a19588c8b650508e02e578a88673a5659a: Correction operations reflected in the repository's personal-data records (e.g., update/change history or audit logs showing corrected values for data-subject records).\nExternal fulfillment is not established by repository inspection: Receipt of the data subject's correction request (originating outside the repository) and the forwarding of correction instructions to data processors or third parties.\nOperative proposition 1:\nActor: Data controller (bên kiểm soát dữ liệu cá nhân) and data controller and processor (bên kiểm soát và xử lý dữ liệu cá nhân)\nModality: DUTY\nAction: correct personal data after the data subject requests it or correct personal data as prescribed by law\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-13::cl-2\",\"sha256:84a2b4eb5e492c65c1a3b7946301e8f409d5dae857b6646d2eeb075729e572fd\"]\nOperative proposition 2:\nActor: Data controller (bên kiểm soát dữ liệu cá nhân) and data controller and processor (bên kiểm soát và xử lý dữ liệu cá nhân)\nModality: DUTY\nAction: require the data processor or a third party to correct the personal data of the data subject\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-13::cl-2\",\"sha256:84a2b4eb5e492c65c1a3b7946301e8f409d5dae857b6646d2eeb075729e572fd\"]\nSemantic context 1: A data controller (bên kiểm soát dữ liệu cá nhân) is an agency, organization, or individual that decides on the purposes and means of personal-data processing.\nSemantic context 2: A data controller and processor (bên kiểm soát và xử lý dữ liệu cá nhân) is an agency, organization, or individual that decides on the purposes and means and directly processes personal data.\nSemantic context 3: A data processor (bên xử lý dữ liệu cá nhân) is an agency, organization, or individual that performs personal-data processing at the request of the data controller or the data controller and processor through a contract.\nSemantic context 4: A third party (bên thứ ba) is an organization or individual other than the data subject, the data controller, the data controller and processor, and the data processor, participating in personal-data processing as prescribed by law.\nSemantic context 5: A data subject (chủ thể dữ liệu cá nhân) is the person reflected by the personal data.\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-13::cl-2\",\"sha256:84a2b4eb5e492c65c1a3b7946301e8f409d5dae857b6646d2eeb075729e572fd\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-7\",\"sha256:6c19cd337b43d83ef771855e6087e520c9badf61c4029bf3cb560fbbd2a09c46\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-9\",\"sha256:d51bce06eacedf623a17917cf4a1d3826e040c086bc1cca9b6bbdfd790885949\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-8\",\"sha256:741dee0f6253547c5e7baef48b7e168acd799bffbfaff0b916d0d4c925ed1fa0\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-10\",\"sha256:8d3c281d91017a73742f1bb27ab449993129fa7f3240d169366bf2d39d9b1866\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-5\",\"sha256:764f035ffcaf84e34ca612e6310de9612f6547afa74d703bb0e87a865f7ea721\"]",
+          "criterionId": "criterion_544bc96c62da41807ab8bb1f",
+          "investigationFocus": "Inspect personal-data change history/audit records to verify that data records were corrected in response to data-subject requests or legal requirements; note that receipt of the request and instructions to processors/third parties occur outside the repository.",
+          "legalRequirementIds": ["art13-cl2-controller-correction-duty"]
+        }
+      ]
+    },
+    {
+      "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+      "legalRequirementId": "art9-cl2-valid-consent-info-duty",
+      "operativePropositions": [
+        {
+          "actor": "Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân",
+          "action": "Chỉ dựa vào sự đồng ý của chủ thể dữ liệu cá nhân khi sự đồng ý đó dựa trên sự tự nguyện và chủ thể biết rõ các thông tin quy định (loại dữ liệu và mục đích xử lý; bên kiểm soát hoặc bên kiểm soát và xử lý; quyền và nghĩa vụ của chủ thể)",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-9::cl-2::pt-a",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:35ef77a19018f1a1f075f29d67443623004afd57646a61fd30d53df374ae1197"
+            },
+            {
+              "locator": "art-9::cl-2",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:9fcc6f3038cb764cb8b3c2cf4cf1e322f312e4ff9b6db7dd85537cdb4d0afa46"
+            },
+            {
+              "locator": "art-9::cl-2::pt-b",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:abb4ae67a5c5ce392629e3d69640845ac2071b812940815b0abd0668ebd21cb3"
+            },
+            {
+              "locator": "art-9::cl-2::pt-c",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:e95fff499719959f90fb73f34043ffe6fcae17e71f5e3c6dba0fa88dbc3f73a3"
+            }
+          ]
+        }
+      ],
+      "applicabilityConditions": [],
+      "qualifiers": [],
+      "exceptions": [],
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The CSV upload view (loan_app/views.py 40-65) directly creates WalletInfo records from the uploaded file without any step disclosing the categories of data processed, processing purposes, controller identity, or the data subject's rights and obligations, and no consent-solicitation or notification record exists in the reviewed source. The system therefore does not ensure that any consent is informed and voluntary as required.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                "caseRevision": 7
+              }
+            ],
+            "criterionId": "criterion_032512680f6a99fb4040a66b"
+          }
+        ],
+        "rationale": "The rule imposes an unconditional duty on personal-data controllers/controller-and-processors. The assessed system collects and processes personal data (name, wallet number, address, gender, balance, age, occupation) uploaded via CSV and stored as WalletInfo records, so the operator acts as a controller/controller-and-processor and the duty applies.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+            "caseRevision": 7
+          }
+        ],
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl2-valid-consent-info-duty"
+          }
+        ],
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "criteria": [
+        {
+          "statement": "LegalRequirement: art9-cl2-valid-consent-info-duty\nProposition: Bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân chỉ được dựa vào sự đồng ý của chủ thể dữ liệu cá nhân khi sự đồng ý đó dựa trên sự tự nguyện và chủ thể dữ liệu cá nhân biết rõ: a) loại dữ liệu cá nhân được xử lý và mục đích xử lý dữ liệu cá nhân; b) bên kiểm soát dữ liệu cá nhân hoặc bên kiểm soát và xử lý dữ liệu cá nhân; c) các quyền, nghĩa vụ của chủ thể dữ liệu cá nhân.\nApplicability mode: UNCONDITIONAL\nRepository proof boundary for 3ddeca1d411e020100097155d5d31e85c5fd58a66f8474c3fa6f54800840a978: Hồ sơ/kỹ thuật ghi nhận việc cung cấp thông tin cho chủ thể dữ liệu khi xin sự đồng ý (loại dữ liệu và mục đích xử lý; danh tính bên kiểm soát hoặc bên kiểm soát và xử lý; quyền và nghĩa vụ của chủ thể) có thể được kiểm chứng từ dữ liệu lưu trữ (ví dụ mẫu đồng ý, thông báo, nhật ký).\nExternal fulfillment is not established by repository inspection: Tính tự nguyện thực tế của sự đồng ý phụ thuộc vào trạng thái chủ quan của chủ thể dữ liệu và hoàn cảnh cụ thể, không thể xác định chỉ từ bản ghi lưu trữ.\nOperative proposition 1:\nActor: Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân\nModality: DUTY\nAction: Chỉ dựa vào sự đồng ý của chủ thể dữ liệu cá nhân khi sự đồng ý đó dựa trên sự tự nguyện và chủ thể biết rõ các thông tin quy định (loại dữ liệu và mục đích xử lý; bên kiểm soát hoặc bên kiểm soát và xử lý; quyền và nghĩa vụ của chủ thể)\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2::pt-a\",\"sha256:35ef77a19018f1a1f075f29d67443623004afd57646a61fd30d53df374ae1197\"]\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2\",\"sha256:9fcc6f3038cb764cb8b3c2cf4cf1e322f312e4ff9b6db7dd85537cdb4d0afa46\"]\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2::pt-b\",\"sha256:abb4ae67a5c5ce392629e3d69640845ac2071b812940815b0abd0668ebd21cb3\"]\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2::pt-c\",\"sha256:e95fff499719959f90fb73f34043ffe6fcae17e71f5e3c6dba0fa88dbc3f73a3\"]\nSemantic context 1: Chủ thể dữ liệu cá nhân là người được dữ liệu cá nhân phản ánh.\nSemantic context 2: Bên kiểm soát dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích và phương tiện xử lý dữ liệu cá nhân.\nSemantic context 3: Bên kiểm soát và xử lý dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích, phương tiện và trực tiếp xử lý dữ liệu cá nhân.\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2::pt-a\",\"sha256:35ef77a19018f1a1f075f29d67443623004afd57646a61fd30d53df374ae1197\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2\",\"sha256:9fcc6f3038cb764cb8b3c2cf4cf1e322f312e4ff9b6db7dd85537cdb4d0afa46\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2::pt-b\",\"sha256:abb4ae67a5c5ce392629e3d69640845ac2071b812940815b0abd0668ebd21cb3\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-2::pt-c\",\"sha256:e95fff499719959f90fb73f34043ffe6fcae17e71f5e3c6dba0fa88dbc3f73a3\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-5\",\"sha256:764f035ffcaf84e34ca612e6310de9612f6547afa74d703bb0e87a865f7ea721\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-7\",\"sha256:6c19cd337b43d83ef771855e6087e520c9badf61c4029bf3cb560fbbd2a09c46\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-9\",\"sha256:d51bce06eacedf623a17917cf4a1d3826e040c086bc1cca9b6bbdfd790885949\"]",
+          "criterionId": "criterion_032512680f6a99fb4040a66b",
+          "investigationFocus": "Verify that consent solicitation records disclose the categories of personal data processed and processing purposes; the personal data controller or controller-and-processor identity; and the data subject's rights and obligations, supporting voluntary informed consent.",
+          "legalRequirementIds": ["art9-cl2-valid-consent-info-duty"]
+        }
+      ]
+    },
+    {
+      "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+      "legalRequirementId": "art9-cl3-consent-form-duty",
+      "operativePropositions": [
+        {
+          "actor": "Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân",
+          "action": "Bảo đảm sự đồng ý của chủ thể dữ liệu cá nhân được thể hiện bằng phương thức rõ ràng, cụ thể, có thể in, sao chép bằng văn bản, bao gồm cả dưới dạng điện tử hoặc định dạng kiểm chứng được",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-9::cl-3",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:32e68d3e164bca400b108f71c053440edafe83bc98a63f434b0be40afc66c117"
+            }
+          ]
+        }
+      ],
+      "applicabilityConditions": [],
+      "qualifiers": [],
+      "exceptions": [],
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The system contains no consent-solicitation mechanism and stores no consent record in any written, electronic, or verifiable form; personal data is ingested directly from CSV upload into WalletInfo without any consent record. Thus it cannot be shown that any consent is expressed in the required clear, specific, written/printable/verifiable format.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                "caseRevision": 7
+              }
+            ],
+            "criterionId": "criterion_e8b13dfac27dffbdd96a9165"
+          }
+        ],
+        "rationale": "Unconditional duty on controllers/controller-and-processors. The system processes personal data via CSV upload into WalletInfo records, so the operator is a controller/controller-and-processor and the duty to ensure consent is expressed in a clear, specific, written/printable/verifiable form applies.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+            "caseRevision": 7
+          }
+        ],
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl3-consent-form-duty"
+          }
+        ],
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "criteria": [
+        {
+          "statement": "LegalRequirement: art9-cl3-consent-form-duty\nProposition: Bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân phải bảo đảm sự đồng ý của chủ thể dữ liệu cá nhân được thể hiện bằng phương thức rõ ràng, cụ thể, có thể in, sao chép bằng văn bản, bao gồm cả dưới dạng điện tử hoặc định dạng kiểm chứng được.\nApplicability mode: UNCONDITIONAL\nRepository proof boundary for f9bcbdd95ef65616242782be5fab478a685380ebe8489fbe3409aba3ed33f041: Bản ghi sự đồng ý (văn bản, điện tử hoặc định dạng kiểm chứng được) tồn tại ở dạng rõ ràng, cụ thể, có thể in và sao chép, có thể kiểm chứng từ dữ liệu lưu trữ.\nExternal fulfillment is not established by repository inspection: Việc chủ thể dữ liệu thực tế thể hiện sự đồng ý rõ ràng, cụ thể là hành vi của con người bên ngoài hệ thống lưu trữ.\nOperative proposition 1:\nActor: Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân\nModality: DUTY\nAction: Bảo đảm sự đồng ý của chủ thể dữ liệu cá nhân được thể hiện bằng phương thức rõ ràng, cụ thể, có thể in, sao chép bằng văn bản, bao gồm cả dưới dạng điện tử hoặc định dạng kiểm chứng được\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-3\",\"sha256:32e68d3e164bca400b108f71c053440edafe83bc98a63f434b0be40afc66c117\"]\nSemantic context 1: Chủ thể dữ liệu cá nhân là người được dữ liệu cá nhân phản ánh.\nSemantic context 2: Bên kiểm soát dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích và phương tiện xử lý dữ liệu cá nhân.\nSemantic context 3: Bên kiểm soát và xử lý dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích, phương tiện và trực tiếp xử lý dữ liệu cá nhân.\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-3\",\"sha256:32e68d3e164bca400b108f71c053440edafe83bc98a63f434b0be40afc66c117\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-5\",\"sha256:764f035ffcaf84e34ca612e6310de9612f6547afa74d703bb0e87a865f7ea721\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-7\",\"sha256:6c19cd337b43d83ef771855e6087e520c9badf61c4029bf3cb560fbbd2a09c46\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-9\",\"sha256:d51bce06eacedf623a17917cf4a1d3826e040c086bc1cca9b6bbdfd790885949\"]",
+          "criterionId": "criterion_e8b13dfac27dffbdd96a9165",
+          "investigationFocus": "Inspect stored consent records: consent must be represented in a clear, specific, written (including electronic or verifiable) format that supports printing/copying, with a record of the data subject's expression.",
+          "legalRequirementIds": ["art9-cl3-consent-form-duty"]
+        }
+      ]
+    },
+    {
+      "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+      "legalRequirementId": "art9-cl4-consent-principles-duty",
+      "operativePropositions": [
+        {
+          "actor": "Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân",
+          "action": "Bảo đảm sự đồng ý của chủ thể dữ liệu cá nhân được thể hiện đối với từng mục đích",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-9::cl-4::pt-a",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:84b244094bbdb112865eb4e67a279978888154b23e9f5c998d642972fa5ef461"
+            },
+            {
+              "locator": "art-9::cl-4",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f"
+            }
+          ]
+        },
+        {
+          "actor": "Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân",
+          "action": "Tuân thủ phạm vi hiệu lực của sự đồng ý (sự đồng ý có hiệu lực cho đến khi chủ thể thay đổi sự đồng ý đó hoặc theo quy định của pháp luật)",
+          "modality": "DUTY",
+          "sourceRefs": [
+            {
+              "locator": "art-9::cl-4::pt-c",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:15e5e03228085b0afd9083f387ef7eec7a8b75ef203c0c6aab585c9ed5928fff"
+            },
+            {
+              "locator": "art-9::cl-4",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f"
+            }
+          ]
+        }
+      ],
+      "applicabilityConditions": [],
+      "qualifiers": [],
+      "exceptions": [],
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The upload flow (views.py lines 40-65) directly creates WalletInfo records from the uploaded CSV without capturing any per-purpose consent expression, consent timestamp, or consent-validity tracking, and no mechanism records a change or withdrawal of consent. The only data-entry path into the system therefore lacks any consent step.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+              }
+            ],
+            "criterionId": "criterion_65329be5e0a2067310ca5870"
+          }
+        ],
+        "rationale": "The assessed system processes personal data (name, wallet number, address, gender, balance, age, occupation) collected via CSV upload and stored in the WalletInfo model, making its operator a personal-data controller under the PDP Law, so the consent-principles duty applies.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          }
+        ],
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-principles-duty"
+          }
+        ],
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "criteria": [
+        {
+          "statement": "LegalRequirement: art9-cl4-consent-principles-duty\nProposition: Bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân phải bảo đảm sự đồng ý của chủ thể dữ liệu cá nhân được thể hiện đối với từng mục đích.\nBên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân phải tuân thủ phạm vi hiệu lực của sự đồng ý: sự đồng ý có hiệu lực cho đến khi chủ thể dữ liệu cá nhân thay đổi sự đồng ý đó hoặc theo quy định của pháp luật.\nApplicability mode: UNCONDITIONAL\nRepository proof boundary for 7d3147d3ccc5ee4191abfc9769e204eb9b511ffbb8d90f418e14cff8b545c055: Cấu hình và bản ghi sự đồng ý cho phép kiểm chứng: sự đồng ý tách biệt cho từng mục đích; xử lý chỉ trong phạm vi hiệu lực của sự đồng ý (mốc thời gian so với yêu cầu thay đổi).\nExternal fulfillment is not established by repository inspection: Việc chủ thể dữ liệu thực tế thể hiện sự đồng ý cho từng mục đích và quyết định thay đổi sự đồng ý là hành vi của con người bên ngoài hệ thống lưu trữ.\nRepository proof boundary for 4ca34c02b8b39a1c3cfd6d827d6545c77618a841c0ce7f5050a9f6228e7755dd: Cấu hình và bản ghi sự đồng ý cho phép kiểm chứng: sự đồng ý tách biệt cho từng mục đích; xử lý chỉ trong phạm vi hiệu lực của sự đồng ý (mốc thời gian so với yêu cầu thay đổi).\nExternal fulfillment is not established by repository inspection: Việc chủ thể dữ liệu thực tế thể hiện sự đồng ý cho từng mục đích và quyết định thay đổi sự đồng ý là hành vi của con người bên ngoài hệ thống lưu trữ.\nOperative proposition 1:\nActor: Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân\nModality: DUTY\nAction: Bảo đảm sự đồng ý của chủ thể dữ liệu cá nhân được thể hiện đối với từng mục đích\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-a\",\"sha256:84b244094bbdb112865eb4e67a279978888154b23e9f5c998d642972fa5ef461\"]\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4\",\"sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f\"]\nOperative proposition 2:\nActor: Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân\nModality: DUTY\nAction: Tuân thủ phạm vi hiệu lực của sự đồng ý (sự đồng ý có hiệu lực cho đến khi chủ thể thay đổi sự đồng ý đó hoặc theo quy định của pháp luật)\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-c\",\"sha256:15e5e03228085b0afd9083f387ef7eec7a8b75ef203c0c6aab585c9ed5928fff\"]\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4\",\"sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f\"]\nSemantic context 1: Chủ thể dữ liệu cá nhân là người được dữ liệu cá nhân phản ánh.\nSemantic context 2: Bên kiểm soát dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích và phương tiện xử lý dữ liệu cá nhân.\nSemantic context 3: Bên kiểm soát và xử lý dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích, phương tiện và trực tiếp xử lý dữ liệu cá nhân.\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-a\",\"sha256:84b244094bbdb112865eb4e67a279978888154b23e9f5c998d642972fa5ef461\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4\",\"sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-c\",\"sha256:15e5e03228085b0afd9083f387ef7eec7a8b75ef203c0c6aab585c9ed5928fff\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-5\",\"sha256:764f035ffcaf84e34ca612e6310de9612f6547afa74d703bb0e87a865f7ea721\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-7\",\"sha256:6c19cd337b43d83ef771855e6087e520c9badf61c4029bf3cb560fbbd2a09c46\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-9\",\"sha256:d51bce06eacedf623a17917cf4a1d3826e040c086bc1cca9b6bbdfd790885949\"]",
+          "criterionId": "criterion_65329be5e0a2067310ca5870",
+          "investigationFocus": "Inspect consent configuration and records for separate consent per processing purpose and adherence to the consent validity period until the data subject changes consent or as prescribed by law.",
+          "legalRequirementIds": ["art9-cl4-consent-principles-duty"]
+        }
+      ]
+    },
+    {
+      "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+      "legalRequirementId": "art9-cl4-consent-prohibitions",
+      "operativePropositions": [
+        {
+          "actor": "Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân",
+          "action": "Không được kèm theo điều kiện bắt buộc phải đồng ý với các mục đích khác với nội dung thỏa thuận",
+          "modality": "PROHIBITION",
+          "sourceRefs": [
+            {
+              "locator": "art-9::cl-4::pt-b",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:07ebdde29276093a655ff4e7f857c9e5c81be510bd1e0d8af7a0276a917e019b"
+            },
+            {
+              "locator": "art-9::cl-4",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f"
+            }
+          ]
+        },
+        {
+          "actor": "Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân",
+          "action": "Không được coi sự im lặng hoặc không phản hồi là sự đồng ý",
+          "modality": "PROHIBITION",
+          "sourceRefs": [
+            {
+              "locator": "art-9::cl-4::pt-d",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:df48f1e5e7dcc08a3e2f522b5d09453dff67b0102d9fe595996d599405a6cb66"
+            },
+            {
+              "locator": "art-9::cl-4",
+              "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+              "contentSha256": "sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f"
+            }
+          ]
+        }
+      ],
+      "applicabilityConditions": [],
+      "qualifiers": [],
+      "exceptions": [],
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "MET",
+            "rationale": "The reviewed upload flow (loan_app/views.py 40-65) contains no consent-solicitation component: there is no consent form, checkbox, bundled-consent clause, or logic treating silence/non-response as consent, and the accepted fact confirms personal data is ingested directly from CSV upload. None of the prohibited practices is implemented in the system.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                "caseRevision": 7
+              }
+            ],
+            "criterionId": "criterion_d36a72798575869f7449b623"
+          }
+        ],
+        "rationale": "The rule's prohibitions apply unconditionally to personal-data controllers/controller-and-processors. The system processes personal data via CSV upload into WalletInfo records, so the operator is a controller/controller-and-processor and the prohibitions apply.",
+        "compliance": "COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+            "caseRevision": 7
+          }
+        ],
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-prohibitions"
+          }
+        ],
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1"
+      },
+      "criteria": [
+        {
+          "statement": "LegalRequirement: art9-cl4-consent-prohibitions\nProposition: Bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân không được kèm theo điều kiện bắt buộc phải đồng ý với các mục đích khác với nội dung thỏa thuận.\nBên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân không được coi sự im lặng hoặc không phản hồi là sự đồng ý.\nApplicability mode: UNCONDITIONAL\nRepository proof boundary for 3956cab9396966e2bb1bf67b5eecbe742c895f68c90de2f43bb196fff8377e3c: Cấu hình và bản ghi sự đồng ý cho phép kiểm chứng: không có điều khoản ràng buộc đồng ý với mục đích khác nội dung thỏa thuận; không mặc định coi sự im lặng/không phản hồi là đồng ý (ví dụ không có hộp được đánh dấu sẵn).\nExternal fulfillment is not established by repository inspection: Việc xác định điều kiện kèm theo có thực sự 'bắt buộc' đối với chủ thể dữ liệu phụ thuộc vào hoàn cảnh thương mại/đàm phán bên ngoài.\nRepository proof boundary for 562aa62ba2fe578849be35d688400cd087245a4cce5dbfffe7187297edfd5e31: Cấu hình và bản ghi sự đồng ý cho phép kiểm chứng: không có điều khoản ràng buộc đồng ý với mục đích khác nội dung thỏa thuận; không mặc định coi sự im lặng/không phản hồi là đồng ý (ví dụ không có hộp được đánh dấu sẵn).\nExternal fulfillment is not established by repository inspection: Việc xác định điều kiện kèm theo có thực sự 'bắt buộc' đối với chủ thể dữ liệu phụ thuộc vào hoàn cảnh thương mại/đàm phán bên ngoài.\nOperative proposition 1:\nActor: Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân\nModality: PROHIBITION\nAction: Không được kèm theo điều kiện bắt buộc phải đồng ý với các mục đích khác với nội dung thỏa thuận\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-b\",\"sha256:07ebdde29276093a655ff4e7f857c9e5c81be510bd1e0d8af7a0276a917e019b\"]\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4\",\"sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f\"]\nOperative proposition 2:\nActor: Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân\nModality: PROHIBITION\nAction: Không được coi sự im lặng hoặc không phản hồi là sự đồng ý\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-d\",\"sha256:df48f1e5e7dcc08a3e2f522b5d09453dff67b0102d9fe595996d599405a6cb66\"]\nOperative source: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4\",\"sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f\"]\nSemantic context 1: Chủ thể dữ liệu cá nhân là người được dữ liệu cá nhân phản ánh.\nSemantic context 2: Bên kiểm soát dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích và phương tiện xử lý dữ liệu cá nhân.\nSemantic context 3: Bên kiểm soát và xử lý dữ liệu cá nhân là cơ quan, tổ chức, cá nhân quyết định mục đích, phương tiện và trực tiếp xử lý dữ liệu cá nhân.\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-b\",\"sha256:07ebdde29276093a655ff4e7f857c9e5c81be510bd1e0d8af7a0276a917e019b\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4\",\"sha256:9b091fc45bb94b545b0df8eedb881a32592632073ab80f2d93e78670c0570e7f\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-9::cl-4::pt-d\",\"sha256:df48f1e5e7dcc08a3e2f522b5d09453dff67b0102d9fe595996d599405a6cb66\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-5\",\"sha256:764f035ffcaf84e34ca612e6310de9612f6547afa74d703bb0e87a865f7ea721\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-7\",\"sha256:6c19cd337b43d83ef771855e6087e520c9badf61c4029bf3cb560fbbd2a09c46\"]\nSource binding: [\"luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan\",\"art-2::cl-9\",\"sha256:d51bce06eacedf623a17917cf4a1d3826e040c086bc1cca9b6bbdfd790885949\"]",
+          "criterionId": "criterion_d36a72798575869f7449b623",
+          "investigationFocus": "Inspect consent configuration and records for absence of mandatory bundling with purposes other than the agreed content and that silence/non-response is never treated as consent.",
+          "legalRequirementIds": ["art9-cl4-consent-prohibitions"]
+        }
+      ]
+    }
+  ]
+}
