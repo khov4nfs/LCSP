@@ -1,0 +1,423 @@
+{
+  "observedAt": "2026-10-29T10:07:17.762873+00:00",
+  "head": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "branch": "feat/LCSP-346-bounded-assessment-concurrency",
+  "workingTree": "",
+  "deploymentTime": "2026-10-29T08:00:49Z",
+  "memory": "total        used        free      shared  buff/cache   available\nMem:      8327135232  3423809536  1228439552   351346688  4528267264  4903325696\nSwap:     2147479552   931766272  1215713280",
+  "disk": "Filesystem       1B-blocks        Used  Available Use% Mounted on\n/dev/vda1      42155278336 37858557952 2132709376  95% /",
+  "diskInodes": "Filesystem      Inodes  IUsed   IFree IUse% Mounted on\n/dev/vda1      2621440 858717 1762723   33% /",
+  "preservedFileHashes": {
+    ".env.pm2": "130b397dc63725e28efe1450d41305504acf00163ba2c609226abb91b12a49a3",
+    "ecosystem.config.cjs": "f7bd66c32afcefb813ac7486d6adeb0a27e12dc7b92c16f7c7795be75fda98af"
+  },
+  "assessments": [
+    {
+      "id": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "ownerId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+      "name": "LCSP-346 P1 Credit scoring 70dc0a6fe",
+      "lifecycleState": "BLOCKED",
+      "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+      "executionState": "INTERRUPTED",
+      "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+      "checkpointId": "1f1d3478-30c4-6198-8333-60646ff27ae4",
+      "leaseExpiresAt": null,
+      "caseRevision": 7,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+      "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161"
+    },
+    {
+      "id": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "name": "LCSP-346 Recovery Queue 44dba336f",
+      "lifecycleState": "PAUSED",
+      "currentExecutionId": "ca4fbfa3-33bd-4576-9150-89c61be16215",
+      "executionState": "PAUSED",
+      "threadId": "887baa46-f185-4a9c-87a3-3386c9b31082",
+      "checkpointId": "1f1d3708-c940-699f-812f-d1ded0b5db8b",
+      "leaseExpiresAt": null,
+      "caseRevision": 0,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "3cae5ade-e708-4e30-9a85-46cffe2b1ca6",
+      "repositoryCommit": "8578abdfc80e02e7c0dad8a1a478fecc174db7bc"
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "ownerId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+      "name": "LCSP-346 Recovery Credit 44dba336f",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "currentExecutionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+      "executionState": "INTERRUPTED",
+      "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+      "checkpointId": "1f1d370b-cd15-6d29-81f8-9e8ca57d47c9",
+      "leaseExpiresAt": null,
+      "caseRevision": 2,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "4e31e8c3-f5c0-4e57-a27e-a08a9ace0055",
+      "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161"
+    },
+    {
+      "id": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "name": "Essay Grading System",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "currentExecutionId": "092b8818-7b97-4e4e-9b0a-f591f1c92c66",
+      "executionState": "INTERRUPTED",
+      "threadId": "46f79d79-1670-419b-80d8-624424962ccd",
+      "checkpointId": "1f1d34a4-447b-6941-b44a-faff35fc01ad",
+      "leaseExpiresAt": null,
+      "caseRevision": 21,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "97868302-b676-40bb-9e4c-f37fd28f0ecf",
+      "repositoryCommit": "8c4c0ecaf2bd462f294d4928fc1c0aab00f574be"
+    },
+    {
+      "id": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "name": "AI-Driven Essay Grading System",
+      "lifecycleState": "COMPLETE",
+      "currentExecutionId": "f421dcca-4353-413e-9110-17c140659e2e",
+      "executionState": "SUCCEEDED",
+      "threadId": "30197668-3f10-47fd-87ad-c34e654fc6bc",
+      "checkpointId": "1f1d2d80-62ca-62b9-96da-30bb06898be6",
+      "leaseExpiresAt": null,
+      "caseRevision": 6,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "769c69ca-1b5e-4653-990f-6b9995bba11a",
+      "repositoryCommit": "ad756ce0d60c94f49e8b581639caa9d20f22cd05"
+    },
+    {
+      "id": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "name": "LCSP-346 P1 Proctoring 70dc0a6fe",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "currentExecutionId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+      "executionState": "INTERRUPTED",
+      "threadId": "665548a2-14a9-4c2c-a3ce-45502e39f996",
+      "checkpointId": "1f1d359d-7154-67a2-857f-fde53067c6ef",
+      "leaseExpiresAt": null,
+      "caseRevision": 10,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "56a114ef-b1c2-4935-aae4-d901832afb70",
+      "repositoryCommit": "9ddb361e4cd52aafe4e1d0763f57005a607efae6"
+    },
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "name": "LCSP-346 Recovery Proctoring 44dba336f",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "currentExecutionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+      "executionState": "INTERRUPTED",
+      "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+      "checkpointId": "1f1d3711-e7cd-69e3-820d-8cd82bbddf9f",
+      "leaseExpiresAt": null,
+      "caseRevision": 0,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "b23017a6-48a5-43c4-802c-d087614be6f2",
+      "repositoryCommit": "9ddb361e4cd52aafe4e1d0763f57005a607efae6"
+    }
+  ],
+  "postDeploymentReportCount": 0,
+  "testAccountReports": [
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "artifactId": "56c3c8c6-b697-51ff-abff-cb79ff352401",
+      "kind": "FINAL_REPORT",
+      "lifecycleState": "ACTIVE",
+      "createdAt": "2026-10-29 03:10:21.955000+00:00",
+      "activatedAt": "2026-10-29 03:10:21.979000+00:00",
+      "contentSha256": "sha256:b1a8fe7b01371c8c42b97f74f2b09f7402b4b6f42882de9e18421a6c8dc8fdd9",
+      "sizeBytes": 1580143,
+      "caseRevision": 6,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "769c69ca-1b5e-4653-990f-6b9995bba11a",
+      "repositoryCommit": "ad756ce0d60c94f49e8b581639caa9d20f22cd05"
+    },
+    {
+      "assessmentId": "43c4b233-8632-4dba-952a-41d04cbcc3cd",
+      "artifactId": "54176a70-3e11-54d3-8307-b00c5a769c32",
+      "kind": "FINAL_REPORT",
+      "lifecycleState": "ACTIVE",
+      "createdAt": "2026-10-27 17:57:56.832000+00:00",
+      "activatedAt": "2026-10-27 17:57:56.842000+00:00",
+      "contentSha256": "sha256:8c0c8ed292da8494d90e584b97fd393fa829834729be2bd5cc49d645d5f703e3",
+      "sizeBytes": 1792931,
+      "caseRevision": 5,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "6c14e386-8cfb-41a2-9d24-f5ac16c9d006",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81"
+    },
+    {
+      "assessmentId": "3343efe1-d18f-42ba-8db1-ec65d6792721",
+      "artifactId": "81a8e33c-8f79-563a-bc9f-080c8d3e55af",
+      "kind": "FINAL_REPORT",
+      "lifecycleState": "ACTIVE",
+      "createdAt": "2026-10-27 15:33:59.682000+00:00",
+      "activatedAt": "2026-10-27 15:33:59.689000+00:00",
+      "contentSha256": "sha256:27e48883fa2ae4bf409b9096641faa6841f7282fdc358c8972fb6106f4602f6c",
+      "sizeBytes": 1822949,
+      "caseRevision": 31,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "4f74f7f3-3af5-4825-a889-e4b8331ee584",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81"
+    },
+    {
+      "assessmentId": "14a6d06e-e021-442e-a29e-0b5406e2b8fa",
+      "artifactId": "abbac41c-1746-5665-a8c9-7ec6be246644",
+      "kind": "FINAL_REPORT",
+      "lifecycleState": "ACTIVE",
+      "createdAt": "2026-10-27 12:02:32.092000+00:00",
+      "activatedAt": "2026-10-27 12:02:32.109000+00:00",
+      "contentSha256": "sha256:a7fd2602901777561b02b3fe13b4308b4640004286bc5d72fcccfcb32696bf13",
+      "sizeBytes": 1763911,
+      "caseRevision": 14,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "repositorySnapshotId": "a2469b6b-d6d3-47a5-b1ac-0d65b3a351e3",
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81"
+    }
+  ],
+  "activeLeaseCount": 0,
+  "outboxStates": [
+    {
+      "status": "FAILED",
+      "count": 51
+    }
+  ],
+  "coverage": [
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "resolutionState": "PENDING",
+      "count": 220
+    },
+    {
+      "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "resolutionState": "PENDING",
+      "count": 237
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "resolutionState": "WAITING_FOR_INPUT",
+      "count": 5
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "resolutionState": "RESOLVED",
+      "count": 19
+    },
+    {
+      "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "resolutionState": "WAITING_FOR_INPUT",
+      "count": 1
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "resolutionState": "INVALIDATED",
+      "count": 69
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "resolutionState": "INVESTIGATING",
+      "count": 9
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "resolutionState": "RESOLVED",
+      "count": 150
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "resolutionState": "PENDING",
+      "count": 8
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "resolutionState": "RESOLVED",
+      "count": 6
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "resolutionState": "PENDING",
+      "count": 232
+    },
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "resolutionState": "RESOLVED",
+      "count": 243
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "resolutionState": "WAITING_FOR_INPUT",
+      "count": 7
+    },
+    {
+      "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "resolutionState": "PENDING",
+      "count": 242
+    },
+    {
+      "assessmentId": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+      "resolutionState": "PENDING",
+      "count": 243
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "resolutionState": "WAITING_FOR_INPUT",
+      "count": 3
+    },
+    {
+      "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "resolutionState": "WAITING_FOR_INPUT",
+      "count": 6
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "resolutionState": "INVESTIGATING",
+      "count": 1
+    }
+  ],
+  "connections": [
+    {
+      "datname": null,
+      "state": null,
+      "count": 5
+    },
+    {
+      "datname": "lcsp360_cheatshield_acceptance_20261026",
+      "state": "idle",
+      "count": 2
+    },
+    {
+      "datname": "lcsp_dev",
+      "state": "active",
+      "count": 1
+    },
+    {
+      "datname": "lcsp_dev",
+      "state": "idle",
+      "count": 1
+    }
+  ],
+  "maxConnections": "100",
+  "newestTestAssessment": [
+    {
+      "id": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+      "createdAt": "2026-10-29 08:03:01.603000",
+      "lifecycleState": "PAUSED"
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "createdAt": "2026-10-29 08:02:57.588000",
+      "lifecycleState": "WAITING_FOR_HUMAN"
+    },
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "createdAt": "2026-10-29 08:02:13.022000",
+      "lifecycleState": "WAITING_FOR_HUMAN"
+    },
+    {
+      "id": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "createdAt": "2026-10-28 17:42:35.247000",
+      "lifecycleState": "WAITING_FOR_HUMAN"
+    },
+    {
+      "id": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "createdAt": "2026-10-28 17:42:35.246000",
+      "lifecycleState": "BLOCKED"
+    }
+  ],
+  "nativeRunStates": [
+    {
+      "status": "success",
+      "count": 37
+    },
+    {
+      "status": "error",
+      "count": 2
+    }
+  ],
+  "usageDeliveryStates": [
+    {
+      "kind": "EVIDENCE",
+      "state": "RECORDED",
+      "count": 10612
+    },
+    {
+      "kind": "USAGE",
+      "state": "DELIVERED",
+      "count": 10611
+    },
+    {
+      "kind": "USAGE",
+      "state": "POISON",
+      "count": 1
+    }
+  ],
+  "admissionAttemptStates": {
+    "status": "SEPARATE_STORE_NOT_YET_INSPECTED"
+  },
+  "admissionEnvironmentKeys": [],
+  "containers": [
+    {
+      "name": "lcsp-repository-sandbox-128336cb2577ff9d7c54d3d4",
+      "image": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+      "createdAt": "2026-10-29T08:08:53.159371352Z",
+      "state": "running",
+      "memoryLimitBytes": 2147483648
+    },
+    {
+      "name": "lcsp-repository-sandbox-b08cb7af0221e75e76ac3b4a",
+      "image": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+      "createdAt": "2026-10-29T08:05:41.575217152Z",
+      "state": "running",
+      "memoryLimitBytes": 2147483648
+    },
+    {
+      "name": "lcsp-repository-sandbox-459c9ad2434e48b5a772b2b9",
+      "image": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+      "createdAt": "2026-10-29T08:05:41.56906755Z",
+      "state": "running",
+      "memoryLimitBytes": 2147483648
+    },
+    {
+      "name": "lcsp-repository-sandbox-8d7ee0090b8cad54285bb7a0",
+      "image": "sha256:c4b9c49555981880f203d6a9cc77bc71f0aae6d3b750ac43c912c7f1e61e4de1",
+      "createdAt": "2026-10-28T18:00:37.870886239Z",
+      "state": "running",
+      "memoryLimitBytes": 2147483648
+    },
+    {
+      "name": "lcsp-repository-sandbox-894103a7d87d375a399c01aa",
+      "image": "sha256:c4b9c49555981880f203d6a9cc77bc71f0aae6d3b750ac43c912c7f1e61e4de1",
+      "createdAt": "2026-10-28T18:00:37.818739698Z",
+      "state": "running",
+      "memoryLimitBytes": 2147483648
+    },
+    {
+      "name": "lcsp-repository-sandbox-1bc3f1a18e7985921159e8f5",
+      "image": "sha256:dd63af9ce9070fde0af9336c9ad5d22e2b615d5ceeb46c470e6388cf2e02355e",
+      "createdAt": "2026-10-28T13:13:58.515736324Z",
+      "state": "running",
+      "memoryLimitBytes": 2147483648
+    },
+    {
+      "name": "lcsp-repository-sandbox-fe1824551457fb974bb8fc00",
+      "image": "sha256:dd63af9ce9070fde0af9336c9ad5d22e2b615d5ceeb46c470e6388cf2e02355e",
+      "createdAt": "2026-10-28T10:09:47.884602338Z",
+      "state": "running",
+      "memoryLimitBytes": 2147483648
+    }
+  ],
+  "dockerDisk": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          11        11        7.8GB     0B (0%)\nContainers      15        15        2.335MB   0B (0%)\nLocal Volumes   3         3         1.111GB   0B (0%)\nBuild Cache     42        16        5.161GB   280.8MB",
+  "sandboxImage": {
+    "id": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+    "revision": "44dba336f332d566d3fee9fc0d32642a402d024e"
+  },
+  "brokerQueues": [
+    "lcsp.agent_runtime.boundary.assessment_root_requested.retry.2000ms\t0\t0\t0",
+    "lcsp.agent_runtime.boundary.assessment_root_requested\t0\t0\t1"
+  ],
+  "apiHealth": 200,
+  "agentHealth": 200,
+  "webHealth": 200
+}

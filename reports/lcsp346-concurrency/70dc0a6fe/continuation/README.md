@@ -6,6 +6,8 @@ Local implementation / remote PR / VPS HEAD: **`44dba336f332d566d3fee9fc0d32642a
 
 The [previous 03:52 UTC A–K checkpoint](history-20261029-0352.md), [original implementation report](../README.md) and [previous PR evidence](https://github.com/khov4nfs/LCSP/pull/440#issuecomment-6487480325) remain historical evidence, including semantic FAIL and UNPRICED results. All times below are **October 29, 2026 UTC**; add seven hours for Vietnam time.
 
+**Latest release-closure recheck:** PR/production remain at the same SHA, with zero post-deployment artifacts and no independent approval. The proposed synthetic scenario was not executed because production has no supported enforced scenario boundary, and verified context for an actual owned controlled deployment is still missing. [Closure evidence and explicit unexecuted gates](report-closure-20261029/report-closure-verification.json).
+
 ## A. Final implementation
 
 The existing bounded architecture is preserved: one bridge/Root consumer, 15 boundary consumers sharing channel credit, bounded submissions, copied execution contexts, delivery-local settlement and API leases. Effective workers / prefetch / Agent Server capacity remain **2 / 2 / 2**. Researcher concurrency remains **one**. No scheduler, autoscaling, multi-repository execution, rule-selection scope or retired authority was added.
@@ -82,6 +84,8 @@ Earlier failures remain failures: the first live batch incorrectly produced thre
 
 ## F. Production deployment
 
+Closure recheck: 36 current successful check names / 38 successful exact-head check-run records, including repeat Jira checks; all three required contexts are green. The branch is zero commits behind develop. The active develop ruleset requires **one approval**, stale approval dismissal and resolved review threads. There are **zero reviews and zero review threads**, with reviewer `khov4nfs` requested. No approval or merge is claimed. [Ruleset](report-closure-20261029/report-closure-develop-ruleset.json), [review/merge state](report-closure-20261029/report-closure-reviews-protection.json), [CI](report-closure-20261029/report-closure-head-check-runs.json). The legacy branch-protection endpoint returned 404; repository rulesets, rather than that endpoint, provide the active requirements.
+
 Preflight: clean feature HEAD `70dc0a6fe40c618bdf47d532f9baa5230e52faf1`, old image `sha256:c4b9c49555981880f203d6a9cc77bc71f0aae6d3b750ac43c912c7f1e61e4de1`, zero active leases/native runs, empty Root queue. `.env.pm2`/PM2 configuration hashes were captured. **136 migrations applied, zero incomplete; no migration ran.**
 
 Safe fetch and normal **fast-forward pull** installed the exact pushed revision. Frozen-lock sandbox image, inexact host virtualenv sync (preserving unmanaged extras), wheel/bytecode, shared packages, API and Web were rebuilt. Only affected LCSP services restarted. Existing build directories and old image were preserved; no unrelated cache/image/data cleanup occurred.
@@ -89,6 +93,8 @@ Safe fetch and normal **fast-forward pull** installed the exact pushed revision.
 Setup failures remain in evidence: missing host `uv` was resolved using pinned **uv 0.10.6** extracted from the rebuilt image into the owned build folder; one helper initialization error made no further change. Prisma initially lacked `DATABASE_URL`; the build passed through the existing `.env.pm2` loader without modifying it. [Initial attempt](recovery-44dba336f/recovery-deployment-44dba33.log), [helper failure](recovery-44dba336f/recovery-deployment-44dba33-resumed.log), [runtime/API setup](recovery-44dba336f/recovery-deployment-44dba33-resumed-2.log), [completed build/activation](recovery-44dba336f/recovery-deployment-44dba33-api-retried.log).
 
 Final image **`sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5`**, revision **`44dba336f332d566d3fee9fc0d32642a402d024e`**. API/Web/Agent health **200**; Web build `EJSKcxwfCMRL3Znem1qXx`. Runtime restarted **08:00:49**. Configuration fingerprints remain unchanged. Disk: **2.0 GiB available, 95% used**; capacity was not increased. [Final observation](recovery-44dba336f/recovery-final-production-observation.json.gz), [built identity/steps/effective settings](recovery-44dba336f/recovery-effective-runtime-identity.json).
+
+Closure resource preflight at **10:07:17 UTC** confirms the same clean deployed revision/image and health 200, **zero artifacts created since the 08:00:49 deployment**, zero leases and zero running native runs. Disk: **2,132,709,376 bytes free (95% used)**; memory available **4,903,325,696 bytes**. Seven persistent sandboxes remain running with configured 2 GiB limits; no deletion/cleanup occurred. Four active/idle client DB connections were observed against max 100, plus five background processes. All 11 Docker images were active. [Read-only preflight](report-closure-20261029/report-closure-production-preflight.json). No new deployment was necessary because implementation HEAD is unchanged.
 
 ## G. Real execution matrix
 
@@ -109,6 +115,8 @@ A/B publication-to-worker waits: **1.143 / 1.154 seconds**; publication-to-nativ
 C initially had no execution ID, lease or usage. Stop A admitted C; Continue A then waited behind B/C with broker **ready 1 / unacked 2**. Stop C admitted A. C was deliberately paused after admission proof to avoid further paid work, not labelled complete.
 
 Original full IDs were rechecked: `db6266b2-4e16-4ced-8595-7ffe9e33f3ab` is now revision 10 after a **user-triggered 05:25 continuation**, WAITING_FOR_HUMAN / 84 invocations; `ce1d9e22-5460-4a16-b53f-d646a942478d` remains COMPLETE with report; `bcf4d105-1f2a-48c9-8251-1197d34d38f1` remains WAITING_FOR_HUMAN / 717 invocations. Original credit `06ad978f-0ada-46f9-b648-e2c86aee37c1` remains BLOCKED / HUMAN_FACT_UNRESOLVABLE, 41 invocations. [Storage evidence](recovery-44dba336f/recovery-original-cases-final-status.json). The original third-case delay was the intentional cap two; later waits are human dependencies. No unrelated controls were used.
+
+**Closure-phase execution ledger:** zero new Assessments, Root executions, provider calls or reports; no additional metered usage. The original human waits/blocker/paused cases are unchanged. Fresh-report IDs/checksum/render/download/access-control results are absent, not PASS. The newly verified full report-workflow prerequisites and candidate disposition are in [scenario eligibility](report-closure-20261029/report-closure-scenario-eligibility.md).
 
 ## H. Stop/Continue, HITL and streams
 
@@ -136,9 +144,19 @@ All **125 historical usage snapshots, 31 decision records, repository pins and a
 
 **Security follow-up resolved for the documented credential.** The affected local development PostgreSQL password was rotated **06:44:20 UTC**. Private comparison found no production-process credential match; new authentication passes, old password is rejected, dependent local DSNs updated atomically, unrelated environment/production config preserved. [Rotation](recovery-44dba336f/local-credential-rotation.json), [scope](recovery-44dba336f/credential-scope-check.json). No claim of unrelated provider/SMTP/Git rotation. Published logs are sanitized/scanned; screenshot pixels reviewed.
 
+Closure usage inspection confirms only the earlier 64 SETTLED / 1 UNAVAILABLE post-deployment attempts, with unchanged case totals. The usage-only journal has no inference-admission tables: the first read-only diagnostic incorrectly queried one and failed; the corrected preflight records this limitation. No new provider readiness/admission request was attempted. One global quarantined usage row predates deployment (October 23) and is outside these recovery cases; it was preserved, not treated as a new LCSP-346 regression. [Usage scope and zero added calls](report-closure-20261029/report-closure-usage-status.json).
+
 ## J. Reports and evidence
 
 **Fresh production report generation remains BLOCKED / unexecuted.** A/B legitimately require facts unavailable to the benchmark assessor. No false facts or report artifacts were created to force completion. Real API/PostgreSQL/native Root report contracts pass with a scripted model.
+
+### Eligible scenario and exact owner decision
+
+Production supports ordinary customer factual answers, not an enforced hypothetical test-world boundary. Known answers become accepted `HUMAN_PROVIDED` facts; the authority set is only HUMAN_PROVIDED/EVIDENCE_CITED. Fact, Root and report schemas have no scenario discriminator, and the Assessment name/description is not projected as a frozen Root scenario scope. Labels can survive in referenced statements/narratives, but no mandatory report field prevents a hypothetical from being represented as an actual operational conclusion. A free-text/name marker would be an unenforced workaround, so it was not used. [Pinned source findings](report-closure-20261029/report-closure-source-contracts.json), [provider-free contract probe](report-closure-20261029/report-closure-contract-probe.json).
+
+A real controlled execution with independently supported facts can use the normal workflow: owned/operator-authorized context, genuine repository/deployment pin, verified actual purpose/use/data/territory/sharing and safeguards, with unknowns preserved. All 243 rules still require current validated decisions, no open human blocker and a successful Completion Gate before the native Root may submit a report. No candidate with those verified facts has been supplied. [Minimum conditions, proposed scenario rejection and capture plan](report-closure-20261029/report-closure-scenario-eligibility.md).
+
+**Project-owner decision required, not granted:** retain the fresh-report condition and provide verified context for an actual owned controlled deployment, or explicitly accept the named alternative evidence (native production concurrency/control proof + real API/DB/scripted report contracts + existing-report preservation) while recording that fresh actual production completion remains unproven and why the residual risk is accepted. Any alternative must be attributed/dated in Jira and this PR before changing the gate. It cannot waive required independent approval. The pending question, green CI and elapsed time are not acceptance.
 
 On the new build, the existing completed grading artifact `56c3c8c6-b697-51ff-abff-cb79ff352401` still renders/downloads: **243 findings, 1,580,143 bytes**, SHA-256 **`b1a8fe7b01371c8c42b97f74f2b09f7402b4b6f42882de9e18421a6c8dc8fdd9`**, unchanged pins, foreign download 404. This is preservation/read compatibility, not fresh generation or legal certification. [Report check](recovery-44dba336f/recovery-preserved-report-and-browser-timeline.json), [243 rendered DOM findings](recovery-44dba336f/recovery-rendered-report-verification.json). The initial screenshot caught loading; [that attempt is retained](recovery-44dba336f/screenshots/recovery-report-loading-attempt.png), and the report screenshot below was recaptured after render verification.
 
@@ -164,6 +182,9 @@ Fresh screenshots: [A active](recovery-44dba336f/screenshots/recovery-A-concurre
 | REPORT_LIFECYCLE            | BLOCKED | Contracts/read preservation pass; fresh production report creation remains unexecuted                                                             |
 | SECURITY_FOLLOW_UP          | PASS    | Affected local credential rotated, old rejected, no production match                                                                              |
 | SCOPE_PRESERVATION          | PASS    | Research one/full pinned set; no LCSP-345/347/364 implementation or historical rewrite                                                            |
+| REVIEW_APPROVAL             | BLOCKED | One required approval, zero received; current reviewer request remains pending                                                                    |
+| PR_MERGED                   | BLOCKED | PR is open/unmerged; normal protected merge cannot proceed                                                                                        |
+| FINAL_MERGED_DEPLOYMENT     | BLOCKED | Not executed because no merge/release has been approved                                                                                           |
 | OVERALL                     | BLOCKED | Fresh-report acceptance unexecuted and normal approval/merge outstanding                                                                          |
 
 Request normal review of this implementation and explicit release disposition. Do not merge automatically or transition Jira to Done. Replacing the original fresh-report requirement with a legitimate human-wait outcome requires an explicit acceptance decision; this report does not weaken it.

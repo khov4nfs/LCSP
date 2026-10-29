@@ -1,0 +1,86 @@
+{
+  "implementationSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "capturedAt": "2026-10-29T10:17:27.921046+00:00",
+  "files": [
+    {
+      "path": "report-closure-all-branches-ruleset.json",
+      "bytes": 592,
+      "sha256": "df969e73e7019f0491feb215e33484dfb7ac4d9bfac531ce267ae94fe54d9fa6"
+    },
+    {
+      "path": "report-closure-base-parity.json",
+      "bytes": 184,
+      "sha256": "29490cd42f8866df69aaca2b0a8edfae78f2c1b66f55c576f860c55b0359193c"
+    },
+    {
+      "path": "report-closure-contract-probe.json",
+      "bytes": 1012,
+      "sha256": "674458713ebafdccc316f771054a04872a0a45d077d578d4f6534c62d610b684"
+    },
+    {
+      "path": "report-closure-current-ci.json",
+      "bytes": 4687,
+      "sha256": "9050a76c486f08b2d9d9dcbef4aacae2bdcf60c2330970e824d1b88c37dcbf83"
+    },
+    {
+      "path": "report-closure-develop-ruleset.json",
+      "bytes": 1235,
+      "sha256": "58be87f6a895beb8120699a89b2164a511d18c3869cca7af37b84aadc8fcfd2e"
+    },
+    {
+      "path": "report-closure-head-check-runs.json",
+      "bytes": 128574,
+      "sha256": "66a5ab49f3bc30d43ebad17ed4f6e54d71ace3f45f369e03813fec62cfd8dc1f"
+    },
+    {
+      "path": "report-closure-pr-baseline.json",
+      "bytes": 27278,
+      "sha256": "f3ef41f584e02d8d46c3b56e1621c4ff92364a2950b898a517cd4d279fc35133"
+    },
+    {
+      "path": "report-closure-production-preflight.json",
+      "bytes": 15541,
+      "sha256": "4bf97a7f68a268937560d82352fcc2a4bde631b1d2a66b37f4ca8226bb3cd3db"
+    },
+    {
+      "path": "report-closure-review-request-before.json",
+      "bytes": 34,
+      "sha256": "6a93186c5a91906d298930653d2e6e7351096fc5e18c159f6403c72a54c66748"
+    },
+    {
+      "path": "report-closure-reviews-protection.json",
+      "bytes": 477,
+      "sha256": "7a220feefac632fa4bedeaf5634a655d1366918b50b28fecd97212756daf79e7"
+    },
+    {
+      "path": "report-closure-rulesets.json",
+      "bytes": 1261,
+      "sha256": "45ad4c8f01f7c906752df855dee654b91c060ee12f00d7bcaa5f5a93e17c6fd4"
+    },
+    {
+      "path": "report-closure-scenario-eligibility.md",
+      "bytes": 7297,
+      "sha256": "18571249ca8820186734978fd2ded7d5a7469c350bf856474c1a5b3e76c350a6"
+    },
+    {
+      "path": "report-closure-source-contracts.json",
+      "bytes": 3588,
+      "sha256": "7cd3e090150f2e7c45a2c3ce8b1f037df364b1d949aef702632a342ba1c5579f"
+    },
+    {
+      "path": "report-closure-usage-status.json",
+      "bytes": 1725,
+      "sha256": "42f883866bb581f38f5e340133d321e4387a33c8027f10f06e7ec8c503989642"
+    },
+    {
+      "path": "report-closure-verification.json",
+      "bytes": 1172,
+      "sha256": "d4e2f5712366160744043f24fa2107ff2a822cef0564c37eb0ac678afe567389"
+    },
+    {
+      "path": "verify_report_closure.py",
+      "bytes": 3639,
+      "sha256": "5bf1cb8a5ae5be18dec84e27353a823932eed52f87349eb45201767a92626c5f"
+    }
+  ]
+}

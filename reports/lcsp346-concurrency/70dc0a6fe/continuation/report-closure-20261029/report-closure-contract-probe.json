@@ -1,0 +1,51 @@
+{
+  "providerFree": true,
+  "productionWrites": 0,
+  "contractShapes": {
+    "fact": [
+      "factId",
+      "assessmentId",
+      "caseRevision",
+      "kind",
+      "authority",
+      "state",
+      "statement",
+      "evidenceIds",
+      "createdAt"
+    ],
+    "root": [
+      "assessmentId",
+      "threadId",
+      "lifecycleState",
+      "lifecycleRevision",
+      "caseRevision",
+      "ruleSetVersionId",
+      "repositorySnapshotId",
+      "repositoryScanJobId",
+      "repositoryCommit",
+      "decisionScopeId",
+      "coverage",
+      "facts",
+      "evidence",
+      "openHumanRequestIds",
+      "responseLanguage"
+    ],
+    "report": [
+      "schemaVersion",
+      "artifactId",
+      "assessmentId",
+      "kind",
+      "pins",
+      "caseRevision",
+      "decisionFingerprint",
+      "summary",
+      "findings",
+      "provenance"
+    ]
+  },
+  "factAuthorities": {
+    "EVIDENCE_CITED": "EVIDENCE_CITED",
+    "HUMAN_PROVIDED": "HUMAN_PROVIDED"
+  },
+  "explicitScenarioBoundaryPresent": false
+}

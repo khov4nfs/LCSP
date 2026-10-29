@@ -1,0 +1,48 @@
+{
+  "observedAt": "2026-10-29T10:14:03.913391+00:00",
+  "implementationSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "files": [
+    {
+      "path": "apps/api/src/modules/assessment/application/queries/get-root-context/get-root-context.handler.ts",
+      "sha256": "bfdff7ed9b6831f2b928b748b352b0fbe4ea012c6ef58b97c5e687824be06ab2",
+      "sourceUrl": "https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/apps/api/src/modules/assessment/application/queries/get-root-context/get-root-context.handler.ts"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/commands/answer-human-request/answer-human-request.handler.ts",
+      "sha256": "94e140d9864918c81bf780b58a0e2b883ee0481b5eac048a3f1a70671cd7e314",
+      "sourceUrl": "https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/apps/api/src/modules/assessment/application/commands/answer-human-request/answer-human-request.handler.ts"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/commands/accept-assessment-fact/accept-assessment-fact.handler.ts",
+      "sha256": "140851dbec0a8f7d2b1702f3d5f4027de4383d98d9102e2bc13ab19990c8189c",
+      "sourceUrl": "https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/apps/api/src/modules/assessment/application/commands/accept-assessment-fact/accept-assessment-fact.handler.ts"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts",
+      "sha256": "c64e72980130262c1550e86365d8c026dc83de646e6a5eeb8c875dc497c9e0cd",
+      "sourceUrl": "https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.ts",
+      "sha256": "8583c199630f9e68350d8085ac8c4f098768f9d4fc8955dab229762b47d48ea3",
+      "sourceUrl": "https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/apps/api/src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.ts"
+    },
+    {
+      "path": "packages/contracts/src/assessment-domain/schemas.ts",
+      "sha256": "318e0987ead035288c7e935098333008a62628abfc9ce6318208dd0f8bf4ee86",
+      "sourceUrl": "https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/packages/contracts/src/assessment-domain/schemas.ts"
+    },
+    {
+      "path": "packages/contracts/src/assessment-domain/constants.ts",
+      "sha256": "d3069a9ad330282096ccf9ded718592de6f8f02f9eed7db8ef070c69e4a021ee",
+      "sourceUrl": "https://github.com/khov4nfs/LCSP/blob/44dba336f332d566d3fee9fc0d32642a402d024e/packages/contracts/src/assessment-domain/constants.ts"
+    }
+  ],
+  "findings": [
+    "Root context projects pins, facts/evidence and open request IDs; no assessment description or scenario scope is projected.",
+    "Known human answers persist as HUMAN_PROVIDED accepted facts. Unknown answers keep OPEN and create no fact.",
+    "Fact/root/report contracts contain no enforced controlled-synthetic or hypothetical scenario discriminator.",
+    "Report narrative and referenced fact statements can retain labels, but there is no mandatory whole-report test-scenario classification.",
+    "Completion requires the full pinned rule coverage, valid current decisions, provenance, no human blockers, an active Root and governed finalization."
+  ]
+}

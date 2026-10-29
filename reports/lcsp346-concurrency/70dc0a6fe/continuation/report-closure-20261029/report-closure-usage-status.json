@@ -1,0 +1,62 @@
+{
+  "observedAt": "2026-10-29T10:10:50.660147+00:00",
+  "providerRequestsMade": 0,
+  "domainWrites": 0,
+  "postDeploymentUsageStates": [
+    {
+      "status": "SETTLED",
+      "count": 64
+    },
+    {
+      "status": "UNAVAILABLE",
+      "count": 1
+    }
+  ],
+  "targetUsageSummary": [
+    {
+      "assessmentId": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+      "status": "SETTLED",
+      "count": 14,
+      "inputTokens": "106944",
+      "cachedInputTokens": "610553",
+      "outputTokens": "7773",
+      "totalTokens": "725270"
+    },
+    {
+      "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "status": "SETTLED",
+      "count": 25,
+      "inputTokens": "468279",
+      "cachedInputTokens": "1555784",
+      "outputTokens": "33733",
+      "totalTokens": "2057796"
+    },
+    {
+      "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "status": "UNAVAILABLE",
+      "count": 1,
+      "inputTokens": null,
+      "cachedInputTokens": null,
+      "outputTokens": null,
+      "totalTokens": null
+    },
+    {
+      "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "status": "SETTLED",
+      "count": 25,
+      "inputTokens": "144401",
+      "cachedInputTokens": "1485754",
+      "outputTokens": "16743",
+      "totalTokens": "1646898"
+    }
+  ],
+  "quarantinedJournalRecords": [
+    {
+      "journalRecordId": 3316,
+      "isLCSP346RecoveryCase": false,
+      "occurredAt": "2026-10-23T10:02:46.558135Z",
+      "reasonCode": "HTTP_403:BILLING_OWNERSHIP_MISMATCH"
+    }
+  ],
+  "admissionReadiness": "NO_ACTIVE_ROOTS_OR_NEW_PAID_RUN; no new budget, reservation, credential probe or admission was invoked. Absence of inference tables in the usage-only journal is not a paid-admission PASS."
+}
