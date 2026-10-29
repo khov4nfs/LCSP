@@ -108,8 +108,7 @@ export class PrismaSessionRepository implements SessionRepository {
               batchId: session.candidateMfaEnrollment.batchId,
               enrolledAt: session.candidateMfaEnrollment.enrolledAt,
             }
-          : ((existingMeta.candidateMfaEnrollment as Prisma.InputJsonObject) ??
-            null),
+          : (existingMeta.candidateMfaEnrollment ?? null),
       } satisfies Prisma.InputJsonObject;
       if (existing) {
         // An MFA/reauth write from a stale entity must never un-revoke a session.

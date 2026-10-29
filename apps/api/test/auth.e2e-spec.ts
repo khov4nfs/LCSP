@@ -1275,7 +1275,10 @@ describe("Auth workspace (e2e)", () => {
         code: s2.recovery_codes[0],
       })
       .expect(403);
-    assert.equal(problemCode(candidateCodeBlocked), AUTH_ERROR_CODES.mfaInvalid);
+    assert.equal(
+      problemCode(candidateCodeBlocked),
+      AUTH_ERROR_CODES.mfaInvalid,
+    );
 
     // Old recovery code is still usable while rotation is pending candidate OTP
     await httpRequest(app)
