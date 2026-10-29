@@ -137,6 +137,23 @@ export const OFFICIAL_REFERENCE_PRICES: readonly OfficialReferencePrice[] = [
     output: "0.75",
   }),
   price(
+    "INCEPTION",
+    "mercury-3",
+    ["INCEPTION"],
+    { input: "0.10", cached: "0.01", output: "0.35" },
+    [],
+    {
+      version: "inception:mercury-3:launch:2026-10-29",
+      sourceUrl: "https://www.inceptionlabs.ai/models",
+      evidenceSha256:
+        "4376daa672a532eb1ed4617e8989b54250fb572f5feae4bafdd7f1e7fc7638f6",
+      // Observed launch promotion; do not infer its start/end or retroactively price older calls.
+      recordedAt: "2026-10-29T06:03:04.588Z",
+      verifiedAt: "2026-10-29T06:03:04.588Z",
+      applicableFrom: "2026-10-29T06:03:04.588Z",
+    },
+  ),
+  price(
     "OPENAI",
     "gpt-6-astra",
     ["OPENAI"],

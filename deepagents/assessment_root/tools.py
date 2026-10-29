@@ -274,10 +274,15 @@ class CriterionDecisionArgs(_Args):
 
 class ApplicabilityBasisArgs(_Args):
     legal_requirement_id: str = Field(description="LegalRequirement that states the element.")
-    kind: Literal["APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
+    kind: Literal["OPERATIVE_SCOPE", "APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
     index: int = Field(ge=0, description="Position of the element in that list, as returned by get_assessment_rule.")
     finding: Literal["ESTABLISHED", "REFUTED", "NOT_ESTABLISHED"] = Field(
-        description="What the accepted evidence/facts show about this element. NOT_ESTABLISHED when they do not settle it."
+        description=(
+            "ESTABLISHED requires affirmative support for the element. REFUTED requires an affirmative counterfact "
+            "that makes the element false; absence of proof, unknown operations or an unverified deployment are "
+            "NOT_ESTABLISHED, never REFUTED. A fact about the benchmark tester does not establish who operates "
+            "the assessed software or that no operator exists."
+        )
     )
     rationale: str = Field(min_length=1, description="Why the cited evidence/facts bear on THIS element of THIS rule.")
     references: list[DecisionReference] = Field(
@@ -287,7 +292,7 @@ class ApplicabilityBasisArgs(_Args):
 
 class ConditionRefArgs(_Args):
     legal_requirement_id: str
-    kind: Literal["APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
+    kind: Literal["OPERATIVE_SCOPE", "APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
     index: int = Field(ge=0)
 
 
@@ -309,9 +314,11 @@ class SubmitDecisionArgs(_Args):
     applicability_basis: list[ApplicabilityBasisArgs] = Field(
         default_factory=list,
         description=(
-            "Element-by-element findings for the applicability conditions, qualifiers and exceptions the linked "
+            "Findings for every OPERATIVE_SCOPE (actor, regulated activity and inherited legal scope), plus the conditions, qualifiers and exceptions the linked "
             "requirements state. NOT_APPLICABLE needs an ESTABLISHED exception or a REFUTED condition, with references; "
-            "APPLICABLE needs an ESTABLISHED condition and no refuting element. NOT_ESTABLISHED never supports either."
+            "APPLICABLE needs every operative scope ESTABLISHED and no refuting element. UNCONDITIONAL never establishes an actor or deployment. "
+            "Technical capability does not establish actual operations. Unknown operations do not establish their absence. "
+            "NOT_ESTABLISHED never supports either verdict; keep the assessment unresolved instead."
         ),
     )
     criteria: list[CriterionDecisionArgs] = Field(
@@ -404,19 +411,28 @@ def _applicability_elements(requirements: list[dict[str, Any]]) -> list[dict[str
 
     Business rules:
     - Preserve each linked requirement, element kind and original zero-based position; do not infer applicability.
+    - Operative scope exposes the pinned actor/action rather than treating UNCONDITIONAL as proof of an operator.
     Execution flow:
-    1. Enumerate the configured source element lists for every linked legal requirement.
+    1. Enumerate the configured source element lists and operative propositions for each linked requirement.
     2. Return their exact text together with requirement, kind and index.
     Failure cases:
     - Absent element lists produce no entries; malformed required identities propagate to the caller.
     Side effects:
     - Pure projection; no facts, applicability findings or decisions are persisted.
     """
-    return [
+    listed = [
         {"legalRequirementId": requirement["legalRequirementId"], "kind": kind, "index": index, "text": text}
         for requirement in requirements
         for kind, key in _ELEMENT_LISTS
         for index, text in enumerate(requirement.get(key) or [])
+    ]
+    return listed + [
+        {"legalRequirementId": requirement["legalRequirementId"], "kind": "OPERATIVE_SCOPE", "index": index,
+         "text": (f"Actor: {operative['actor']}\nOperative provision: {operative['action']}\n"
+                  "Establish the addressee and regulated factual scope, not fulfillment of this duty; assess fulfillment in criteria."),
+         "sourceRefs": operative.get("sourceRefs", [])}
+        for requirement in requirements
+        for index, operative in enumerate(requirement.get("operativePropositions") or [])
     ]
 
 
