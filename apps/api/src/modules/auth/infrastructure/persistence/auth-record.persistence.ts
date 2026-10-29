@@ -91,6 +91,8 @@ export async function invalidateSessionProofsInTx(
         'sensitiveActionVerifiedAt', NULL,
         'passwordReauthenticatedAt', NULL,
         'candidateMfaEnrollment', NULL,
+        'mfaRotationInitiator', NULL,
+        'mfaRotationGenerationId', NULL,
         'mfaGenerationId', ${nextGenerationId}::text
       ),
       "updatedAt" = (NOW() AT TIME ZONE 'UTC')

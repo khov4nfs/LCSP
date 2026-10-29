@@ -22,6 +22,7 @@ import type {
 } from "../../application/ports/persistence/mfa-lifecycle.persistence.ts";
 import type { MfaRecoveryCodeCreateInput } from "../../application/ports/persistence/mfa.repository.ts";
 import { AuthAuditService } from "../../application/services/auth/auth-audit.service.ts";
+import type { CandidateMfaEnrollment } from "../../domain/entities/session.entity.ts";
 import {
   AUTH_RECORD_TYPES,
   authRecordDateMetadata,
@@ -100,8 +101,9 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
           return { ok: false, code: AUTH_ERROR_CODES.reauthRequired };
         }
 
-        // Another session cannot concurrently rotate the same account
-        const pendingRotation = await tx.authRecord.findFirst({
+        // Only an eligible, unrevoked, unexpired session with matching generation
+        // and fresh candidate rotation TTL can hold an active pending rotation.
+        const pendingRotations = await tx.authRecord.findMany({
           where: {
             userId: input.userId,
             type: AUTH_RECORD_TYPES.session,
@@ -111,8 +113,47 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             },
           },
         });
-        if (pendingRotation && pendingRotation.id !== input.sessionId) {
+
+        const activePendingOther = pendingRotations.find((rec) => {
+          if (rec.id === input.sessionId) return false;
+          if (rec.revokedAt !== null) return false;
+          if (!rec.expiresAt || rec.expiresAt.getTime() <= input.now) return false;
+          const meta = authRecordMetadata(rec.metadata);
+          if (Number(meta.accessVersion ?? 0) !== user.accessVersion) return false;
+          if (meta.mfaGenerationId !== user.mfaGenerationId) return false;
+          const candidate = meta.candidateMfaEnrollment as
+            | CandidateMfaEnrollment
+            | undefined;
+          if (
+            candidate?.enrolledAt &&
+            !isSensitiveActionVerificationFresh(candidate.enrolledAt, input.now)
+          ) {
+            return false;
+          }
+          return true;
+        });
+
+        if (activePendingOther) {
           return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+        }
+
+        // Atomically clear stale or superseded rotation markers on other sessions
+        const staleSessions = pendingRotations.filter(
+          (rec) => rec.id !== input.sessionId,
+        );
+        for (const stale of staleSessions) {
+          const staleMeta = authRecordMetadata(stale.metadata);
+          await tx.authRecord.update({
+            where: { id: stale.id },
+            data: {
+              metadata: {
+                ...staleMeta,
+                candidateMfaEnrollment: null,
+                mfaRotationInitiator: null,
+                mfaRotationGenerationId: null,
+              },
+            },
+          });
         }
 
         const candidateGenerationId = crypto.randomUUID();
@@ -426,12 +467,19 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             input.userId,
             input.candidate.generationId,
           );
-          // Session that proved candidate secret becomes verified on new generation
+          // Session that proved candidate secret becomes verified on new generation,
+          // but sensitive/password proofs are strictly NOT resurrected from old generation S1.
+          const freshSession = await tx.authRecord.findUniqueOrThrow({
+            where: { id: input.sessionId },
+          });
+          const freshMeta = authRecordMetadata(freshSession.metadata);
           await tx.authRecord.update({
             where: { id: input.sessionId },
             data: {
               metadata: {
-                ...authRecordMetadata(session.metadata),
+                ...freshMeta,
+                passwordReauthenticatedAt: null,
+                sensitiveActionVerifiedAt: null,
                 mfaVerifiedAt: new Date(input.now).toISOString(),
                 mfaGenerationId: input.candidate.generationId,
                 candidateMfaEnrollment: null,
