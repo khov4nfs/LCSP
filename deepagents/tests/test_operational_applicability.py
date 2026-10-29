@@ -21,6 +21,22 @@ CASES = FIXTURE["historicalCases"]
 HUMAN = "12345678-1234-4234-8234-123456789abc"
 
 
+def test_live_probe_trace_exports_rejection_codes_without_private_tool_content(tmp_path):
+    from langchain_core.messages import ToolMessage
+    from vertical.operational_applicability_probe import ProbeTrace
+
+    path = tmp_path / "tool-outcomes.jsonl"
+    trace = ProbeTrace(path)
+    trace.on_tool_start({"name":"submit_rule_decision"}, "private model input", run_id="one")
+    trace.on_tool_end(ToolMessage(content=json.dumps({"ok":False,"code":"REJECTED",
+                      "failures":["CASE_REVISION_STALE"],"private":"do not export"}), tool_call_id="call"), run_id="one")
+    row = json.loads(path.read_text())
+    assert row["tool"] == "submit_rule_decision" and row["code"] == "REJECTED"
+    assert row["failures"] == ["CASE_REVISION_STALE"]
+    assert set(row) == {"at", "tool", "ok", "code", "failures"}
+    assert "private model input" not in path.read_text() and "do not export" not in path.read_text()
+
+
 class OperativeClient(FakeClient):
     def __init__(self, row):
         super().__init__()

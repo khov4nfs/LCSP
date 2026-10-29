@@ -17,6 +17,31 @@ import time
 import shutil
 import uuid
 
+from langchain_core.callbacks import BaseCallbackHandler
+
+
+class ProbeTrace(BaseCallbackHandler):
+    """Record tool names and scalar rejection codes, never prompts, reasoning or source bodies."""
+
+    def __init__(self, path):
+        self.path = path
+        self.names = {}
+
+    def on_tool_start(self, serialized, input_str, *, run_id, **kwargs):
+        self.names[str(run_id)] = (serialized or {}).get("name") or kwargs.get("name")
+
+    def on_tool_end(self, output, *, run_id, **kwargs):
+        try:
+            payload = json.loads(getattr(output, "content", output))
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        row = {"at":time.time(), "tool":self.names.pop(str(run_id), None),
+               **{key:payload[key] for key in ["ok", "code", "failures"] if key in payload}}
+        with self.path.open("a") as stream:
+            stream.write(json.dumps(row)+"\n")
+
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "deepagents"))
 sys.path.insert(0, str(ROOT / "deepagents/tests"))
@@ -102,7 +127,9 @@ def main():
                         "A verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers. "
                         "It decides purposes and means and directly processes their personal data, including names, addresses and financial records. "
                         "It relies on consent for this processing; verified data-subject consent, correction, withdrawal and restriction requests exist and apply after the law took effect. The customer confirms that the six evaluated consent, correction and withdrawal "
-                        "safeguards have not been implemented in any external system or policy. These facts are supplied by the authorized operator."
+                        "safeguards have not been implemented in any external system or policy. The operator confirms it provides no consent information or consent records, "
+                        "does not honor the verified correction/withdrawal requests, bundles unrelated marketing purposes without separate choice, "
+                        "and treats silence as consent. These facts are supplied by the authorized operator."
                     )
 
             def context(self):
@@ -111,7 +138,9 @@ def main():
                     if record["authority"] == "EVIDENCE_CITED":
                         context["facts"].append({**record, "evidenceIds":[e["evidenceId"] for e in data["evidence"] if e["type"] == "REPOSITORY_SOURCE"]})
                 context.update({k:row["decision"][k] for k in ["repositoryCommit", "repositorySnapshotId", "ruleSetVersionId"]})
-                context["evidence"] = data["evidence"] + self.new_evidence
+                # The positive scenario replaces historical unknown-operation answers with explicit
+                # synthetic operation facts. Retaining both would create a contradictory control.
+                context["evidence"] = [e for e in data["evidence"] if args.mode == "unknown" or e["type"] != "HUMAN_ANSWER"] + self.new_evidence
                 context["facts"].extend(self.new_facts)
                 current = [packet for packet in self.accepted if packet["caseRevision"] == self.case_revision]
                 if current:
@@ -206,8 +235,8 @@ def main():
         try:
             with activate_agent_run_state(state):
                 output = graph.invoke({"messages":[{"role":"user", "content":"Investigate this assessment using the current pinned rule, source and accepted facts. Reconsider historical decisions at the current revision."}]},
-                    {"configurable":{"thread_id":run.thread_id}}, durability="sync")
-        except Exception as error:
+                    {"configurable":{"thread_id":run.thread_id}, "callbacks":[ProbeTrace(directory / "tool-outcomes.jsonl")]}, durability="sync")
+        except (Exception, KeyboardInterrupt) as error:
             failure = {"type":type(error).__name__, "admissionReason":getattr(error, "reason", None)}
         usage = recover_usage(usage_path, run_id)
         result = {"case":name,"mode":args.mode,"candidateSha":candidate,"fixtureApiOnly":True,
@@ -222,6 +251,8 @@ def main():
         (directory / "result.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
         results.append(result)
         print(json.dumps({"case":name,"mode":args.mode,"expectedBehaviorObserved":result["expectedBehaviorObserved"],"physicalAttempts":usage.get("admission",{}).get("admittedAttempts"),"failure":failure}),flush=True)
+        if failure and failure["type"] == "KeyboardInterrupt":
+            break
     summary = {"candidateSha":candidate,"fixtureApiOnly":True,"mode":args.mode,"cases":results,
                "allExpectedBehaviorObserved":bool(results) and all(r["expectedBehaviorObserved"] for r in results)}
     (args.out / "summary.json").write_text(json.dumps(summary,ensure_ascii=False,indent=2)+"\n")
