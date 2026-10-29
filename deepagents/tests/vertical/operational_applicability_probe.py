@@ -56,9 +56,12 @@ def main():
     parser.add_argument("--repository", type=Path, required=True, help="Read-only public checkout at the captured repository commit")
     parser.add_argument("--mode", choices=["unknown", "confirmed"], required=True)
     parser.add_argument("--case", default="all")
+    parser.add_argument("--resume-confirmed", action="store_true", help="After an unknown native interrupt, supply a new synthetic confirmed fact on the same checkpoint")
     args = parser.parse_args()
     if not args.live:
         parser.error("--live is required; this evaluator makes real provider calls")
+    if args.resume_confirmed and args.mode != "unknown":
+        parser.error("--resume-confirmed starts from --mode unknown")
     args.out.mkdir(parents=True, exist_ok=False)
     from dotenv import dotenv_values
     for key, value in dotenv_values(ROOT / ".env").items():
@@ -68,6 +71,7 @@ def main():
     from assessment_root.client import AssessmentApiError
     from assessment_root.tools import RootRun
     from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
     from middleware.paid_admission import TokenPolicy, UnrestrictedRunBudget, fingerprint, request_identity
     from middleware.usage_metering import activate_agent_run_state
     from model_policy import load_model_routes, resolve_agent_model, build_model, DEFAULT_ROUTES_FILE, ROUTES_FILE_ENV
@@ -99,6 +103,14 @@ def main():
             )
 
     results = []
+    positive_statement = (
+        "A verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers. "
+        "It decides purposes and means and directly processes their personal data, including names, addresses and financial records. "
+        "It relies on consent for this processing; verified data-subject consent, correction, withdrawal and restriction requests exist and apply after the law took effect. "
+        "The operator confirms it provides no consent information or consent records, does not honor the verified correction/withdrawal requests, "
+        "bundles unrelated marketing purposes without separate choice, and treats silence as consent. "
+        "None of these safeguards is implemented in an external system or policy. These facts are supplied by the authorized operator."
+    )
     for row in CASES:
         if args.case not in ["all", row["assessmentRuleId"]]:
             continue
@@ -114,6 +126,7 @@ def main():
                 self.new_facts = []
                 self.rejections = []
                 self.case_revision = 8
+                self.resumed_fact = None
                 self.rule_set_override["ruleSetVersionId"] = row["decision"]["ruleSetVersionId"]
                 self.rule_set_override["assessmentRules"][0]["concept"] = name
                 self.rule_set_override["legalRequirements"][0].update(
@@ -123,17 +136,13 @@ def main():
                              for source in sources if source["legalRequirementId"] == row["legalRequirementId"]],
                 )
                 if args.mode == "confirmed":
-                    self.statement = (
-                        "A verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers. "
-                        "It decides purposes and means and directly processes their personal data, including names, addresses and financial records. "
-                        "It relies on consent for this processing; verified data-subject consent, correction, withdrawal and restriction requests exist and apply after the law took effect. The customer confirms that the six evaluated consent, correction and withdrawal "
-                        "safeguards have not been implemented in any external system or policy. The operator confirms it provides no consent information or consent records, "
-                        "does not honor the verified correction/withdrawal requests, bundles unrelated marketing purposes without separate choice, "
-                        "and treats silence as consent. These facts are supplied by the authorized operator."
-                    )
+                    self.statement = positive_statement
 
             def context(self):
                 context = super().context()
+                context["facts"][0]["caseRevision"] = 8
+                if self.resumed_fact:
+                    context["facts"].append(self.resumed_fact)
                 for record in data["facts"]:
                     if record["authority"] == "EVIDENCE_CITED":
                         context["facts"].append({**record, "evidenceIds":[e["evidenceId"] for e in data["evidence"] if e["type"] == "REPOSITORY_SOURCE"]})
@@ -232,10 +241,26 @@ def main():
         graph = create_assessment_root_agent(run=run, model=resolve_agent_model("assessment-root"), checkpointer=InMemorySaver(), graph_tools=[])
         failure = None
         output = {}
+        native_resume = None
+        config = {"configurable":{"thread_id":run.thread_id}, "callbacks":[run.trace, ProbeTrace(directory / "tool-outcomes.jsonl")]}
         try:
             with activate_agent_run_state(state):
                 output = graph.invoke({"messages":[{"role":"user", "content":"Investigate this assessment using the current pinned rule, source and accepted facts. Reconsider historical decisions at the current revision."}]},
-                    {"configurable":{"thread_id":run.thread_id}, "callbacks":[ProbeTrace(directory / "tool-outcomes.jsonl")]}, durability="sync")
+                    config, durability="sync")
+                if args.resume_confirmed and output.get("__interrupt__"):
+                    checkpoint = graph.get_state(config).config["configurable"]["checkpoint_id"]
+                    native_resume = {"fromCheckpointId":checkpoint, "initialDecisionCount":len(client.accepted),
+                                     "initialCaseRevision":client.case_revision, "initialHumanRequestCount":len(client.open_requests)}
+                    client.case_revision += 1
+                    client.resumed_fact = {"factId":str(uuid.uuid4()), "caseRevision":client.case_revision,
+                        "kind":"FACT", "authority":"HUMAN_PROVIDED", "state":"ACCEPTED", "evidenceIds":[],
+                        "statement":"New confirmed information resolving the earlier unknown operational facts: " + positive_statement}
+                    client.open_requests = []
+                    run.adopt_context(client.context())
+                    output = graph.invoke(Command(resume={item.id:{"resolved":True} for item in output["__interrupt__"]}), config, durability="sync")
+                    native_resume.update({"finalCaseRevision":client.case_revision, "newHumanFactId":client.resumed_fact["factId"],
+                        "oldUnknownFactPreserved":client.context()["facts"][0]["caseRevision"] == 8,
+                        "canonicalCheckpointPreserved":any(s.config["configurable"]["checkpoint_id"] == checkpoint for s in graph.get_state_history(config))})
         except (Exception, KeyboardInterrupt) as error:
             failure = {"type":type(error).__name__, "admissionReason":getattr(error, "reason", None)}
         usage = recover_usage(usage_path, run_id)
@@ -244,10 +269,15 @@ def main():
                   "acceptedDecisions":client.accepted,"newEvidence":client.new_evidence,"newFacts":client.new_facts,"validationRejections":client.rejections,
                   "nativeInterrupted":bool(output.get("__interrupt__")), "openRequestIds":client.open_requests,
                   "requests":[body for kind, body in client.calls if kind == "human"],
-                  "fixtureLifecycle":client.lifecycle_state,"failure":failure,"usage":usage}
-        result["expectedBehaviorObserved"] = (not failure and not client.accepted and bool(output.get("__interrupt__"))) if args.mode == "unknown" else (
+                  "fixtureLifecycle":client.lifecycle_state,"failure":failure,"usage":usage,"nativeResume":native_resume}
+        result["expectedBehaviorObserved"] = (not failure and not client.accepted and bool(output.get("__interrupt__"))) if args.mode == "unknown" and not args.resume_confirmed else (
             not failure and bool(client.accepted) and all(d["applicability"] == "APPLICABLE" for d in client.accepted)
         )
+        if args.resume_confirmed:
+            result["syntheticOperationalFacts"] = True
+            result["expectedBehaviorObserved"] = bool(result["expectedBehaviorObserved"] and native_resume
+                and native_resume["initialDecisionCount"] == 0 and native_resume.get("canonicalCheckpointPreserved")
+                and native_resume.get("oldUnknownFactPreserved") and not output.get("__interrupt__"))
         (directory / "result.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
         results.append(result)
         print(json.dumps({"case":name,"mode":args.mode,"expectedBehaviorObserved":result["expectedBehaviorObserved"],"physicalAttempts":usage.get("admission",{}).get("admittedAttempts"),"failure":failure}),flush=True)
