@@ -27,6 +27,12 @@ function docker {
     if ($args[0] -eq "info" -and $args -contains "--format") {
         Write-Output $script:DockerOs
     }
+    if ($args[0] -eq "ps") {
+        Write-Output $script:ContainerNames
+    }
+    if ($args[0] -eq "volume") {
+        Write-Output $script:VolumeNames
+    }
 }
 
 $PrivateEnvFile = "C:\LCSP workspace & (test)\common\.env"
@@ -75,6 +81,54 @@ try {
 Assert-Launcher ($ErrorActionPreference -eq "Stop") "Docker checks leaked error preferences."
 Assert-Launcher $PSNativeCommandUseErrorActionPreference "Docker checks leaked native error preferences."
 
+$script:DockerExit = 0
+$script:ContainerNames = @()
+$script:VolumeNames = @()
+$privateTestDir = Join-Path ([System.IO.Path]::GetTempPath()) ("lcsp-infra-secrets-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $privateTestDir | Out-Null
+$PrivateEnvFile = Join-Path $privateTestDir ".env"
+try {
+    Ensure-PrivateEnv
+    Assert-Launcher (Test-Path -LiteralPath $PrivateEnvFile) "Missing private configuration was not generated."
+    $values = @{}
+    foreach ($line in (Get-Content -LiteralPath $PrivateEnvFile)) {
+        $parts = $line.Split('=', 2)
+        Assert-Launcher ($parts.Count -eq 2) "Generated configuration has an invalid line."
+        $values[$parts[0]] = $parts[1]
+    }
+    Assert-Launcher ($values.Count -eq 3) "Generated configuration has the wrong number of passwords."
+    foreach ($key in @("LCSP_LOCAL_POSTGRES_PASSWORD", "LCSP_LOCAL_RABBITMQ_PASSWORD", "LCSP_LOCAL_REDIS_PASSWORD")) {
+        Assert-Launcher ($values[$key] -cmatch '^[a-f0-9]{64}$') "Generated configuration has an invalid password."
+    }
+    Assert-Launcher (@($values.Values | Select-Object -Unique).Count -eq 3) "Generated passwords are not independent."
+    $original = Get-Content -LiteralPath $PrivateEnvFile -Raw
+    $script:VolumeNames = @("old_fogewise-postgres-data")
+    Ensure-PrivateEnv
+    Assert-Launcher ((Get-Content -LiteralPath $PrivateEnvFile -Raw) -ceq $original) "Existing passwords were replaced."
+
+    Remove-Item -LiteralPath $PrivateEnvFile
+    try {
+        Ensure-PrivateEnv
+        throw "Existing Fogewise data volume was ignored."
+    } catch {
+        Assert-Launcher ($_.Exception.Message -match "Restore the original private passwords") "Volume recovery guidance was lost."
+    }
+    Assert-Launcher (-not (Test-Path -LiteralPath $PrivateEnvFile)) "A new password file was created for old data."
+    $script:VolumeNames = @()
+    $script:ContainerNames = @("fogewise-rabbitmq")
+    try {
+        Ensure-PrivateEnv
+        throw "Existing Fogewise container was ignored."
+    } catch {
+        Assert-Launcher ($_.Exception.Message -match "Restore the original private passwords") "Container recovery guidance was lost."
+    }
+    Assert-Launcher (-not (Test-Path -LiteralPath $PrivateEnvFile)) "A new password file was created for an old container."
+}
+finally {
+    if (Test-Path -LiteralPath $PrivateEnvFile) { Remove-Item -LiteralPath $PrivateEnvFile }
+    Remove-Item -LiteralPath $privateTestDir
+}
+
 $commands = @($ast.FindAll({ param($node)
     $node -is [System.Management.Automation.Language.CommandAst]
 }, $true))
@@ -85,7 +139,7 @@ $hostsChange = @($commands | Where-Object { $_.GetCommandName() -eq "Ensure-Host
 Assert-Launcher ($preflight.Count -eq 1 -and $hostsChange.Count -eq 1) "Private configuration preflight is missing."
 Assert-Launcher ($preflight[0].Extent.StartOffset -lt $hostsChange[0].Extent.StartOffset) "Hosts change precedes configuration validation."
 $source = Get-Content -LiteralPath $LauncherPath -Raw
-Assert-Launcher ($source.Contains('Test-Path $PrivateEnvFile')) "Missing private env file is not rejected."
+Assert-Launcher ($source.Contains('Ensure-PrivateEnv')) "Missing private env bootstrap is absent."
 
 # The intentional native-failure fixture must not become the CI step exit code.
 $global:LASTEXITCODE = 0

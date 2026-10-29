@@ -54,6 +54,8 @@ tmp/
 /lcsp-python-workers/output/*
 test-results/
 playwright-report/
+# Generated candidate image gate receipts are kept locally or uploaded by CI.
+/reports/release-images/
 .pnpm-store/
 .billing/
 
