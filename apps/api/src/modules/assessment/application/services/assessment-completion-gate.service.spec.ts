@@ -46,6 +46,7 @@ const legalRequirementId = "LR-1";
 const criterionId = "C-1";
 
 type Fixture = {
+  operativeScopes?: number;
   controlState: string;
   assessment: {
     lifecycleState: string;
@@ -303,7 +304,17 @@ function createFixture() {
           assessmentRuleVersion,
           criterionIds: new Set([criterionId]),
           legalContextIds: new Set([legalRequirementId]),
-          declaredElements: new Map(),
+          declaredElements: new Map([
+            [
+              legalRequirementId,
+              {
+                applicabilityConditions: 0,
+                qualifiers: 0,
+                exceptions: 0,
+                operativeScopes: fixture.operativeScopes ?? 0,
+              },
+            ],
+          ]),
         },
         evidence: new Map(
           fixture.evidence.map((item) => [
@@ -338,6 +349,16 @@ function createFixture() {
 }
 
 describe("AssessmentCompletionGate", () => {
+  it("does not build a report snapshot from a historical decision missing operative scope", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.operativeScopes = 1;
+    const result = await gate.inspectInTx(transaction, assessmentId);
+    expect(result.snapshot).toBeNull();
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
+      reference: assessmentRuleId,
+    });
+  });
   it("refuses finalization while the current Root has a pending Stop", async () => {
     const { fixture, gate, transaction } = createFixture();
     fixture.controlState = Controls.stopRequested;

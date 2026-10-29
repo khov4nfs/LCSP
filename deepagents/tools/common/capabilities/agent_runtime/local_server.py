@@ -852,6 +852,19 @@ def _now() -> str:
 
 
 def _run_worker_count() -> int:
+    """Business purpose: Keep live and restart-restored graph execution within boundary capacity.
+
+    Business rules:
+    - The Agent Server job override may lower capacity but cannot bypass the boundary worker cap.
+    Execution flow:
+    1. Validate server capacity and return the smaller of server and boundary capacity.
+    Failure cases:
+    - Invalid server or boundary capacity rejects startup before accepting work.
+    Side effects:
+    - Read-only configuration lookup; does not change persisted run requests.
+    """
+    from tools.common.capabilities.agent_runtime.rabbitmq_consumer import _executor_worker_count
+
     raw = os.environ.get("LCSP_AGENT_RUNTIME_JOBS_PER_WORKER", "8").strip()
     try:
         value = int(raw)
@@ -863,7 +876,7 @@ def _run_worker_count() -> int:
         raise RuntimeError(
             "LCSP_AGENT_RUNTIME_JOBS_PER_WORKER must be between 1 and 64"
         )
-    return value
+    return min(value, _executor_worker_count())
 
 
 def _production_mode() -> bool:

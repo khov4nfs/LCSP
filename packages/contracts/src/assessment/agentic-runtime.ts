@@ -133,9 +133,11 @@ export type RuleDecisionReferenceType =
 /**
  * Which source-stated element of a pinned LegalRequirement an applicability finding is about. The
  * element lists are authored from the legal source by Rule Set Preparation; this contract names
- * only the three list kinds, never any legal role, category or term.
+ * source addresses, never any legal role, category or term. OPERATIVE_SCOPE addresses an
+ * operative proposition's actor/activity and inherited scope, including unconditional duties.
  */
 export const RULE_DECISION_BASIS_KINDS = {
+  OPERATIVE_SCOPE: "OPERATIVE_SCOPE",
   APPLICABILITY_CONDITION: "APPLICABILITY_CONDITION",
   QUALIFIER: "QUALIFIER",
   EXCEPTION: "EXCEPTION",

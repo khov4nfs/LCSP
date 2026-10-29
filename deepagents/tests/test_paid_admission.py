@@ -380,6 +380,46 @@ def test_parallel_threads_cannot_over_admit_and_runs_are_isolated(tmp_path):
     assert snapshot(other)["admittedAttempts"] == 1
 
 
+def test_independent_assessments_overlap_without_cross_admission_or_usage(tmp_path):
+    from threading import Barrier
+    from middleware.usage_metering import activate_model_step, active_agent_run_state, active_model_step_id
+
+    model = native()
+    states = [state_for(tmp_path, model, run_id=f"root-{key}", maximum_calls=1) for key in ["A", "B"]]
+    for index, state in enumerate(states):
+        state.assessment_id = f"assessment-{index}"
+    barrier = Barrier(2)
+    steps = []
+
+    def work(state):
+        def handler(_request):
+            assert active_agent_run_state() is state
+            steps.append((state.run_id, active_model_step_id()))
+            barrier.wait(timeout=5)
+            if state is states[0]:
+                state.disable_provider_route("apx")
+            assert not states[1].provider_route_disabled("apx")
+            return answer()
+        with activate_model_step():
+            invoke(state, model, handler)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(work, states))
+    reports = [snapshot(state) for state in states]
+    assert len({step for _, step in steps}) == 2
+    assert all(step for _, step in steps)
+    assert len({report["attempts"][0]["attempt_id"] for report in reports}) == 2
+    for state, report in zip(states, reports):
+        assert report["runId"] == state.run_id
+        assert report["admittedAttempts"] == 1
+        assert report["unresolvedAttempts"] == 0
+        assert report["inputExposure"] == 13 and report["outputExposure"] == 3
+        assert report["knownActualChargeNanoUSD"] == policy_for(model).charge(10, 2, 1, 3, 1)
+        with pytest.raises(PaidAdmissionError, match="CALL_LIMIT"):
+            invoke(state, model)
+        assert snapshot(state)["admittedAttempts"] == 1
+
+
 def _process_attempt(path, raw_budget, identity, attempt):
     budget = RunBudget.model_validate(raw_budget)
     admission = RunAdmission(path, budget, fingerprint(budget.model_dump(mode="json")))

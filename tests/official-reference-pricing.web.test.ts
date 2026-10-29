@@ -130,3 +130,41 @@ test("decimal formatter trims adversarial zero tails in a bounded scan", () => {
     `${value.toString().slice(0, -18)}.000000000000000001`,
   );
 });
+
+test("Mercury 3 uses the captured launch rate after observation without inventing historical cost", () => {
+  const entry = OFFICIAL_REFERENCE_PRICES.find((p) => p.model === "mercury-3")!;
+  const observed = new Date(entry.applicableFrom);
+  const counted = {
+    ...usage,
+    inputTokensIncludingCache: "2000000",
+    cachedInputTokens: "1000000",
+  };
+  assert.equal(
+    estimate(
+      "INCEPTION",
+      "mercury-3",
+      new Date(observed.getTime() - 1),
+      counted,
+    ).status,
+    "UNPRICED",
+  );
+  const result = estimate("INCEPTION", "mercury-3", observed, counted);
+  assert.equal(result.status, "COMPLETE");
+  assert.equal(result.estimatedCostUsd, "0.46");
+  assert.equal(result.priceVersionId, "inception:mercury-3:launch:2026-10-29");
+  assert.equal(result.ratesPerMillion?.cached, "0.01");
+  assert.equal(result.sourceUrl, "https://www.inceptionlabs.ai/models");
+  assert.equal(
+    estimate("UNKNOWN_GATEWAY", "mercury-3", observed, counted).status,
+    "UNPRICED",
+  );
+  const unknown = estimate("INCEPTION", "mercury-3", observed, {});
+  assert.equal(unknown.status, "UNKNOWN");
+  assert.equal(unknown.estimatedCostUsd, null);
+  const partial = estimate("INCEPTION", "mercury-3", observed, {
+    outputTokens: "1000000",
+  });
+  assert.equal(partial.status, "PARTIAL");
+  assert.equal(partial.knownCostUsd, "0.35");
+  assert.equal(partial.estimatedCostUsd, null);
+});

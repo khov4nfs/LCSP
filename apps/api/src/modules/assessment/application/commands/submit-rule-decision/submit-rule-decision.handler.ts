@@ -44,6 +44,24 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
     private readonly audit: AuditWriterService,
   ) {}
 
+  /**
+   * Business purpose: Accept one Root-authored rule decision only when its current case and source authority validate.
+   *
+   * Business rules:
+   * - The leased Root owns the semantic finding; pins, source-addressed scope, references and revisions must validate.
+   * - Exact native replays retain their original identity but cannot bypass current validation or revive invalidated work.
+   *
+   * Execution flow:
+   * 1. Authorize and lock the case, then verify replay identity and current validation context.
+   * 2. Return an eligible replay, or compare revisions and atomically persist the next decision and coverage.
+   * 3. Append domain and audit records for a newly accepted effect.
+   *
+   * Failure cases:
+   * - Invalid authority, conflicting idempotency, stale revisions or unsupported references reject without partial writes.
+   *
+   * Side effects:
+   * - New decisions supersede prior accepted records and update coverage/events/audit in one transaction; valid replays write nothing.
+   */
   async execute(
     input: SubmitRuleDecisionCommand,
   ): Promise<SubmitRuleDecisionResult> {
@@ -85,11 +103,8 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
             { status: HttpStatus.CONFLICT },
           );
         }
-        return {
-          decisionId: replay.decisionId,
-          decisionRevision: replay.decisionRevision,
-          replayed: true,
-        };
+        // A stored effect is still historical truth, but must satisfy current pins and validation
+        // before native replay presents it as a currently supported decision.
       }
 
       const coverage = await this.support.requireCoverage(
@@ -119,6 +134,14 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
             },
           },
         );
+      }
+
+      if (replay) {
+        return {
+          decisionId: replay.decisionId,
+          decisionRevision: replay.decisionRevision,
+          replayed: true,
+        };
       }
 
       const previous = await tx.assessmentRuleDecision.findFirst({

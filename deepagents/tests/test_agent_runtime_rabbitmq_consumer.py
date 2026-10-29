@@ -48,6 +48,7 @@ class FakeChannel:
         self.consumed = []
         self.deleted = []
         self.confirmed = False
+        self.qos = []
         self.publish_result = True
         self.is_open = True
 
@@ -73,8 +74,8 @@ class FakeChannel:
     def queue_bind(self, **kwargs):
         self.bound.append(kwargs)
 
-    def basic_qos(self, **_kwargs):
-        pass
+    def basic_qos(self, **kwargs):
+        self.qos.append(kwargs)
 
     def basic_consume(self, **kwargs):
         self.consumed.append(kwargs)
@@ -524,11 +525,15 @@ def test_timeout_cancels_queued_dispatch_before_late_claim_or_side_effect(monkey
     assert channel.nacked == [("delivery-queued", False)]
 
 
-def test_default_boundary_worker_count_keeps_prefetch_one_from_starving(monkeypatch):
+def test_default_capacity_and_prefetch_match_without_overriding_a_worker_cap(monkeypatch):
     monkeypatch.delenv("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS", raising=False)
-
-    assert rabbitmq_consumer._executor_worker_count(1) > 1
-    assert rabbitmq_consumer._executor_worker_count(8) == 8
+    monkeypatch.delenv("LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH", raising=False)
+    assert rabbitmq_consumer._executor_worker_count() == 2
+    assert rabbitmq_consumer._prefetch_count(2) == 2
+    monkeypatch.setenv("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS", "1")
+    monkeypatch.setenv("LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH", "8")
+    assert rabbitmq_consumer._executor_worker_count() == 1
+    assert rabbitmq_consumer._prefetch_count(1) == 8
 
 
 def test_retryable_delivery_failure_republishes_to_retry_queue_without_blocking():
@@ -598,12 +603,14 @@ def test_configure_channel_declares_durable_retry_queue_back_to_original_queue()
         exchange="lcsp.events",
         bindings=bindings,
         prefetch_count=1,
+        worker_count=2,
         requeue_on_error=True,
         requeue_delay_seconds=2,
         fallback_max_redeliveries=3,
     )
 
     assert channel.confirmed is True
+    assert channel.qos == [{"prefetch_count": 1}, {"prefetch_count": 2, "global_qos": True}]
     assert {
         "queue": "lcsp.agent_runtime.test.test_boundary.retry.30000ms",
         "durable": True,
@@ -616,6 +623,7 @@ def test_configure_channel_declares_durable_retry_queue_back_to_original_queue()
     assert {declaration["queue"] for declaration in channel.declared} == {
         "lcsp.agent_runtime.test.test_boundary",
         "lcsp.agent_runtime.test.test_boundary.retry.30000ms",
+        "lcsp.agent_runtime.test.test_boundary.retry.2000ms",
     }
     assert channel.deleted == []
     assert channel.bound == [
@@ -645,6 +653,7 @@ def test_configure_channel_uses_bounded_fallback_for_empty_retry_schedule():
         exchange="lcsp.events",
         bindings=bindings,
         prefetch_count=1,
+        worker_count=2,
         requeue_on_error=True,
         requeue_delay_seconds=2,
         fallback_max_redeliveries=2,
