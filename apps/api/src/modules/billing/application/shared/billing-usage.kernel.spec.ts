@@ -321,3 +321,54 @@ describe("physical attempt reconciliation", () => {
     expect(rows[0].referenceCostSnapshot).toBe(snapshot);
   });
 });
+
+describe("Mercury 3 captured reference costs", () => {
+  it("reconciles interleaved physical attempts once without fabricating customer reservations or invoice costs", async () => {
+    const { record, rows } = harness();
+    const common = {
+      provider: "INCEPTION",
+      model: "mercury-3",
+      occurredAt: new Date("2026-10-29T06:04:00Z"),
+      inputTokens: 100n,
+      inputTokensIncludingCache: 1100n,
+      cachedInputTokens: 1000n,
+      cacheWriteTokens: 0n,
+      outputTokens: 200n,
+      reasoningTokens: 150n,
+    };
+    await Promise.all(
+      ["a", "b"].map(async (key) => {
+        const identity = {
+          ...common,
+          userId: `user-${key}`,
+          assessmentId: `assessment-${key}`,
+          runId: `root-${key}`,
+          invocationId: `physical-${key}`,
+        };
+        await record({
+          ...identity,
+          attemptStatus: MODEL_ATTEMPT_STATUSES.STARTED,
+        });
+        const completed = {
+          ...identity,
+          attemptStatus: MODEL_ATTEMPT_STATUSES.COMPLETED,
+          providerResponseId: `response-${key}`,
+        };
+        await record(completed);
+        await record(completed);
+      }),
+    );
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.referenceCostSnapshot).toMatchObject({
+        status: REFERENCE_COST_STATUSES.COMPLETE,
+        estimatedCostUsd: "0.00009",
+        canonicalModel: "mercury-3",
+        priceVersionId: "inception:mercury-3:launch:2026-10-29",
+      });
+      expect(row.reservationId).toBeUndefined();
+      expect(row.customerChargeVnd).toBeUndefined();
+      expect(row.providerCostCredits).toBeUndefined();
+    }
+  });
+});
