@@ -1,0 +1,1809 @@
+[
+  {
+    "sourceDirectory": "live-semantic-3f0335f-confirmed",
+    "case": "art10-cl3-withdrawal-restriction-implementation",
+    "mode": "confirmed",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 15,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art10-cl3-controller-implementation"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "Điều 10 khoản 3 Luật 91/2025/QH15 (EFFECTIVE) áp đặt nghĩa vụ vô điều kiện lên bên kiểm soát / bên kiểm soát và xử lý dữ liệu cá nhân: tiếp nhận, thực hiện và yêu cầu bên xử lý thực hiện yêu cầu rút lại sự đồng ý, hạn chế xử lý dữ liệu trong thời hạn pháp luật. Tác nhân (bên kiểm soát) được thiết lập: nhà điều hành được ủy quyền xác nhận một công ty được thành lập và đang hoạt động tại Việt Nam vận hành dịch vụ này trực tiếp cho khách hàng Việt Nam, quyết định mục đích và phương tiện xử lý, trực tiếp xử lý dữ liệu cá nhân (họ tên, địa chỉ, hồ sơ tài chính) dựa trên sự đồng ý; chủ thể dữ liệu là người được dữ liệu phản ánh (Điều 2 khoản 5). Bộ phận định tính (Điều 10 khoản 4) chỉ giới hạn phạm vi thực hiện nghĩa vụ đối với hoạt động xử lý sau thời điểm yêu cầu, không phủ nhận sự tồn tại của nghĩa vụ hay tác nhân; các yêu cầu rút lại đồng ý/hạn chế xử lý của chủ thể dữ liệu tồn tại và áp dụng sau khi luật có hiệu lực. Do đó quy định áp dụng.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_509e6f951da6bb4971842427",
+            "outcome": "NOT_MET",
+            "rationale": "Hệ thống không có cơ chế nào để tiếp nhận, thực hiện, hoặc yêu cầu bên xử lý thực hiện yêu cầu rút lại sự đồng ý hoặc hạn chế xử lý: các tuyến đường (loan_app/urls.py) chỉ phơi bày tải lên CSV khách hàng, tải lên lịch sử giao dịch và tính tần suất/dự đoán khoản vay; không có điểm cuối hoặc trình xử lý nào cho việc rút lại đồng ý/hạn chế xử lý trong views.py/models.py (tìm kiếm toàn bộ ảnh chụp không thấy xử lý withdraw/restrict/consent/correction/delete). Độc lập với điều đó, nhà điều hành được ủy quyền xác nhận rằng sáu biện pháp bảo vệ về đồng ý, chỉnh sửa và rút lại được đánh giá chưa được triển khai trong bất kỳ hệ thống hoặc chính sách bên ngoài nào. Do đó bên kiểm soát không tiếp nhận/thực hiện các yêu cầu này trong thời hạn pháp luật, nghĩa vụ không được đáp ứng.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art10-cl3-controller-implementation",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "Nhà điều hành được ủy quyền xác nhận một công ty được thành lập và đang hoạt động tại Việt Nam vận hành dịch vụ này trực tiếp cho khách hàng Việt Nam, quyết định mục đích và phương tiện xử lý, và trực tiếp xử lý dữ liệu cá nhân của họ (họ tên, địa chỉ, hồ sơ tài chính) dựa trên sự đồng ý. Điều này thiết lập rằng tác nhân là bên kiểm soát / bên kiểm soát và xử lý dữ liệu cá nhân mà Điều 10 khoản 3 điều chỉnh.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art10-cl3-controller-implementation",
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "Bộ phận định tính quy định việc thực hiện yêu cầu rút lại đồng ý/hạn chế xử lý không áp dụng cho hoạt động xử lý trước thời điểm yêu cầu, do đó chỉ giới hạn phạm vi tạm thời của việc thực hiện nghĩa vụ chứ không phủ nhận quy định áp dụng. Nhà điều hành xác nhận các yêu cầu rút lại đồng ý, chỉnh sửa và hạn chế xử lý của chủ thể dữ liệu tồn tại và áp dụng sau khi luật có hiệu lực.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art10-cl3-controller-implementation"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "Điều 10 khoản 3 Luật 91/2025/QH15 (EFFECTIVE) áp đặt nghĩa vụ vô điều kiện lên bên kiểm soát / bên kiểm soát và xử lý dữ liệu cá nhân: tiếp nhận, thực hiện và yêu cầu bên xử lý thực hiện yêu cầu rút lại sự đồng ý, hạn chế xử lý dữ liệu trong thời hạn pháp luật. Tác nhân (bên kiểm soát) được thiết lập: nhà điều hành được ủy quyền xác nhận một công ty được thành lập và đang hoạt động tại Việt Nam vận hành dịch vụ này trực tiếp cho khách hàng Việt Nam, quyết định mục đích và phương tiện xử lý, trực tiếp xử lý dữ liệu cá nhân (họ tên, địa chỉ, hồ sơ tài chính) dựa trên sự đồng ý; chủ thể dữ liệu là người được dữ liệu phản ánh (Điều 2 khoản 5). Bộ phận định tính (Điều 10 khoản 4) chỉ giới hạn phạm vi thực hiện nghĩa vụ đối với hoạt động xử lý sau thời điểm yêu cầu, không phủ nhận sự tồn tại của nghĩa vụ hay tác nhân; các yêu cầu rút lại đồng ý/hạn chế xử lý của chủ thể dữ liệu tồn tại và áp dụng sau khi luật có hiệu lực. Do đó quy định áp dụng.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_509e6f951da6bb4971842427",
+            "outcome": "NOT_MET",
+            "rationale": "Hệ thống không có cơ chế nào để tiếp nhận, thực hiện, hoặc yêu cầu bên xử lý thực hiện yêu cầu rút lại sự đồng ý hoặc hạn chế xử lý: các tuyến đường (loan_app/urls.py) chỉ phơi bày tải lên CSV khách hàng, tải lên lịch sử giao dịch và tính tần suất/dự đoán khoản vay; không có điểm cuối hoặc trình xử lý nào cho việc rút lại đồng ý/hạn chế xử lý trong views.py/models.py (tìm kiếm toàn bộ ảnh chụp không thấy xử lý withdraw/restrict/consent/correction/delete). Độc lập với điều đó, nhà điều hành được ủy quyền xác nhận rằng sáu biện pháp bảo vệ về đồng ý, chỉnh sửa và rút lại được đánh giá chưa được triển khai trong bất kỳ hệ thống hoặc chính sách bên ngoài nào. Do đó bên kiểm soát không tiếp nhận/thực hiện các yêu cầu này trong thời hạn pháp luật, nghĩa vụ không được đáp ứng.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art10-cl3-controller-implementation",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "Nhà điều hành được ủy quyền xác nhận một công ty được thành lập và đang hoạt động tại Việt Nam vận hành dịch vụ này trực tiếp cho khách hàng Việt Nam, quyết định mục đích và phương tiện xử lý, và trực tiếp xử lý dữ liệu cá nhân của họ (họ tên, địa chỉ, hồ sơ tài chính) dựa trên sự đồng ý. Điều này thiết lập rằng tác nhân là bên kiểm soát / bên kiểm soát và xử lý dữ liệu cá nhân mà Điều 10 khoản 3 điều chỉnh.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art10-cl3-controller-implementation",
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "Bộ phận định tính quy định việc thực hiện yêu cầu rút lại đồng ý/hạn chế xử lý không áp dụng cho hoạt động xử lý trước thời điểm yêu cầu, do đó chỉ giới hạn phạm vi tạm thời của việc thực hiện nghĩa vụ chứ không phủ nhận quy định áp dụng. Nhà điều hành xác nhận các yêu cầu rút lại đồng ý, chỉnh sửa và hạn chế xử lý của chủ thể dữ liệu tồn tại và áp dụng sau khi luật có hiệu lực.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-confirmed",
+    "case": "art13-cl2-correction-assessment",
+    "mode": "confirmed",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": false,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 9,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-confirmed",
+    "case": "art9-cl2-consent-info-disclosure-rule",
+    "mode": "confirmed",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 19,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl2-valid-consent-info-duty"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The accepted human-provided fact (CONFIRMED_FACT 12345678-1234-4234-8234-123456789abc) establishes that a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers. It decides the purposes and means of processing and directly processes their personal data (names, addresses, financial records), which matches the legal actor (controller under Art 2(7) / controller-and-processor under Art 2(9)) and the data-subject relationship (Art 2(5)). It relies on consent for this processing, with verified data-subject consent, correction, withdrawal and restriction requests existing and applying after the law took effect. Article 9 Clause 2 is EFFECTIVE (effective 01/01/2026), so the duty to rely on consent only when the data subject is informed of the specified information is in force for this operator. The operative scope is therefore established and the rule is applicable.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_032512680f6a99fb4040a66b",
+            "outcome": "NOT_MET",
+            "rationale": "The consent-information disclosure duty is not fulfilled. The repository implements no consent-solicitation information disclosure: the CSV upload flow (loan_app/views.py 40-65) collects and stores personal data (name, wallet no, address, gender, balance, age, occupation) via the WalletInfo model (loan_app/models.py 1-13) without disclosing the categories of data processed, processing purposes, controller identity, or data-subject rights/obligations, and the upload template (templates/upload_csv.html 1-25) contains no privacy notice or consent language. Searches for 'consent', 'privacy' and 'agree' across the repository returned no matches. Furthermore, the accepted human-provided fact confirms that the evaluated consent, correction and withdrawal safeguards have not been implemented in any external system or policy. Therefore the data subject is not informed of the information required by Article 9 Clause 2 points (a), (b) and (c) that the consent be valid.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "821a14dc-887e-501d-82f2-0c5218853b65"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "629701c7-2604-51cc-8ac9-78072f3448f5"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "4b4eb15d-46f5-561f-9957-fa186d8a2a8d"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl2-valid-consent-info-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The accepted human-provided fact establishes the addressee and regulated scope: a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers; it decides purposes and means and directly processes their personal data (names, addresses, financial records), i.e. a controller-and-processor (Art 2(9))/controller (Art 2(7)) processing personal data of data subjects (Art 2(5)). It relies on consent for this processing with verified consent/correction/withdrawal/restriction requests applying after the law took effect (Article 9 Clause 2, EFFECTIVE from 01/01/2026). This establishes the actor and regulated factual scope for the duty; fulfillment of the disclosure duty is assessed in the criterion.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-confirmed",
+    "case": "art9-cl3-consent-form-record-rule",
+    "mode": "confirmed",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 64,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl3-consent-form-duty"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The rule is UNCONDITIONAL and its operative scope is the personal data controller / controller-and-processor. The accepted human-confirmed FACT establishes that a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides the purposes and means of processing, and directly processes their personal data (names, addresses, financial records). This satisfies the statutory definitions in Điều 2 khoản 7 (controller) and 9 (controller-and-processor). The rule is therefore applicable.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_e8b13dfac27dffbdd96a9165",
+            "outcome": "NOT_MET",
+            "rationale": "No consent record exists in a clear, specific, written (including electronic or verifiable) format that supports printing/copying. The direct source evidence shows the only data model (WalletInfo) stores name, wallet number, address, gender, balance, age and occupation, with no consent field; the migration creates only that model; and the only write path (CSV upload into WalletInfo) contains no consent capture. The human-confirmed FACT explicitly confirms the six evaluated consent, correction and withdrawal safeguards have not been implemented in any external system or policy. Accordingly the mandated consent record is not maintained in any verifiable format.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "629701c7-2604-51cc-8ac9-78072f3448f5"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0adf7bf2-ed31-5bfb-9ee7-3d8009c28cf7"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "1b45ae44-85a5-5f38-b646-7b1b6a5413e9"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "4b4eb15d-46f5-561f-9957-fa186d8a2a8d"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "2bbf4967-88b3-5c23-a86f-de17abba7e2b"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "c0cfe43a-c61b-5694-9ce7-ab15ed1d279f"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl3-consent-form-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The accepted human-confirmed FACT states a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides the purposes and means of processing and directly processes their personal data (names, addresses, financial records). This satisfies the statutory controller / controller-and-processor definitions (Điều 2 khoản 7, 9) as the addressee of the duty.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "4c7952d2-99f4-5165-a8d1-bc02f6aaef7e"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "4e430e99-8f74-5f2b-b7df-f7736ca66baf"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "ef654753-6bba-5afd-b74a-7aa3dce1dc0f"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "b37b95c1-d00a-5cb3-8de0-6c409b398df6"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "f08e9f54-ce8c-5630-8cea-baab477fde73"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "ced6bcf9-a127-5e78-a7dc-c6ba15608eb0"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-confirmed",
+    "case": "art9-cl4-consent-principles-duty-rule",
+    "mode": "confirmed",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 20,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-principles-duty"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The rule is applicable. Both operative scopes address a data controller / data controller-and-processor (the entity that decides the purposes and means of personal-data processing, and directly processes it). The accepted human-provided fact (12345678-...abc) establishes that a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides the purposes and means, and directly processes their personal data (including names, addresses and financial records), relying on consent for that processing. This establishes the addressee (data controller/processor) and the regulated factual scope (processing of data subjects' personal data on the basis of consent). The rule has no applicability conditions, qualifiers or exceptions (UNCONDITIONAL), so applicability does not depend on any further predicate. The duty's fulfillment is assessed under the criterion.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_65329be5e0a2067310ca5870",
+            "outcome": "NOT_MET",
+            "rationale": "The assessed system implements no consent mechanism at all. The WalletInfo model contains no consent field or consent record, and its final schema (migration 0003) defines only name, wallet_no, address, gender, balance, age and occupation. The CSV upload handler (views.py lines 66-88) creates WalletInfo rows directly from uploaded rows with no consent capture, and the upload form (upload_csv.html) contains only a file input with no consent checkbox or agreement. Thus consent is not expressed separately for each processing purpose, and no mechanism records or enforces the validity scope of consent (consent effective until the data subject changes it or as prescribed by law). The accepted human-provided fact confirms that the six evaluated consent, correction and withdrawal safeguards are not implemented in any external system or policy. Accordingly, neither the pt (a) duty (consent expressed for each purpose) nor the pt (c) duty (respecting consent validity scope) is fulfilled.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "629701c7-2604-51cc-8ac9-78072f3448f5"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "78b52be5-e63b-58f1-8195-272d62dfee39"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "ec511387-08da-50e1-8a20-8ed8f6f3e622"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "926eaea3-4c4f-5aef-96b7-b6fdda771768"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl4-consent-principles-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The actor element is a data controller / data controller-and-processor (an entity deciding purposes and means of personal-data processing and directly processing it, per art 2 cl 7 and cl 9). The accepted human-provided fact establishes that a verified company operating in Vietnam runs this service live, decides purposes and means, and directly processes customers' personal data, so the required addressee exists and is engaged. This establishes the addressee and regulated scope; it does not itself establish fulfillment of the consent duty, which is assessed in the criterion.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art9-cl4-consent-principles-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "ESTABLISHED",
+            "rationale": "The actor element is the same data controller / data controller-and-processor, and the regulated factual circumstance is processing of data subjects' personal data on the basis of consent. The accepted human-provided fact establishes the operator processes real adult Vietnamese customers' personal data (names, addresses, financial records) and relies on consent for that processing, so the regulated scope is met. Fulfillment of the consent-validity duty is assessed separately in the criterion.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-confirmed",
+    "case": "art9-cl4-consent-prohibitions-rule",
+    "mode": "confirmed",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 33,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-prohibitions"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The operative proposition addresses the data controller and the controller-and-processor (bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân) and prohibits attaching mandatory consent conditions for purposes other than the agreed content and treating silence/non-response as consent. The accepted operator-confirmed FACT establishes that a verified company operating in Vietnam runs the service live for real adult Vietnamese customers, decides purposes and means, and directly processes their personal data (names, addresses, financial records), thereby qualifying as both controller and controller-and-processor under art-2 cl-7/cl-9; it also relies on consent for this processing. The rule is UNCONDITIONAL with no applicability conditions, qualifiers or exceptions. Accordingly both operative scopes are established, making the rule applicable.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_d36a72798575869f7449b623",
+            "outcome": "NOT_MET",
+            "rationale": "The system must not attach mandatory consent conditions for purposes other than the agreed content (pt-b) and must not treat silence/non-response as consent (pt-d). Direct repository evidence shows the system implements no consent mechanism at all: the upload form (templates/upload_csv.html lines 5–15) contains only a file input with no consent checkbox or opt-in, and the CSV upload view (loan_app/views.py lines 41–60) stores customer rows directly via WalletInfo with no consent collection or verification step; a repository-wide search for 'consent' and 'checkbox' returns no matches. Independently, the operator-confirmed FACT states the customer confirms the six evaluated consent, correction and withdrawal safeguards have not been implemented in any external system or policy. Because the system relies on consent for processing but implements none of the required consent safeguards, neither prohibition is satisfied; the criterion is not met.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b71acf32-06aa-5419-9833-45802231f720"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "1d9c013c-2e8c-5fe4-9350-8d74a652b1f1"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The accepted operator-confirmed FACT establishes that a verified company operating in Vietnam runs the service live for adult Vietnamese customers, decides purposes and means, and directly processes their personal data including names, addresses and financial records, which makes it a data controller and controller-and-processor under art-2 cl-7 and cl-9 — the addressee of the pt-b prohibition. The regulated factual scope is the processing of personal data of Vietnamese data subjects while relying on consent under art-9 cl-4.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "ESTABLISHED",
+            "rationale": "The same accepted operator-confirmed FACT establishes the actor and regulated activity for the pt-d prohibition (silence/non-response must not be treated as consent): a company operating in Vietnam decides purposes and means and directly processes personal data for real Vietnamese customers, relying on consent. Thus the addressee and scope are established.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "beaecccb-447b-5a95-90d8-a44687ac2cbf"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-unknown",
+    "case": "art10-cl3-withdrawal-restriction-implementation",
+    "mode": "unknown",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 17,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-unknown",
+    "case": "art13-cl2-correction-assessment",
+    "mode": "unknown",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 23,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-unknown",
+    "case": "art9-cl2-consent-info-disclosure-rule",
+    "mode": "unknown",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": false,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 19,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl2-valid-consent-info-duty"
+          }
+        ],
+        "applicability": "NOT_APPLICABLE",
+        "rationale": "The operative scope requires a personal data controller or controller-and-processor (Bên kiểm soát dữ liệu cá nhân; bên kiểm soát và xử lý dữ liệu cá nhân) actually operating the assessed system and processing personal data within the law's scope. At the current revision, the accepted human facts affirmatively establish that the repository is a public third-party project used only for LCSP testing; the LCSP testing operator is not the operator of the target software; and actual operator identity, deployment, and Vietnamese personal-data processing are unverified. Accordingly, no established regulated actor/activity exists for the assessed artifact, so the duty under the 9(2) does not attach.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+          }
+        ],
+        "criteria": [],
+        "compliance": null,
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl2-valid-consent-info-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The OPERATIVE_SCOPE actor is a personal data controller / controller-and-processor operating the assessed system. Accepted human facts affirmatively establish that the LCSP testing operator is not the operator of the target software, that the repository is a public benchmark used only for LCSP testing, and that actual operator identity, deployment, and Vietnamese personal-data processing are unverified. Thus no established regulated actor/activity exists for the assessed artifact within the law's territorial/regulated scope.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-unknown",
+    "case": "art9-cl3-consent-form-record-rule",
+    "mode": "unknown",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 16,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-unknown",
+    "case": "art9-cl4-consent-principles-duty-rule",
+    "mode": "unknown",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": false,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 23,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-principles-duty"
+          }
+        ],
+        "applicability": "NOT_APPLICABLE",
+        "rationale": "The rule's addressees are a Personal Data Controller / Personal Data Controller-and-Processor (an agency, organization, or individual deciding purpose and means of processing personal data) operating the assessed system. Accepted human-confirmed facts establish that the assessed repositories are public third-party GitHub projects selected exclusively for LCSP compliance-assessment testing; the LCSP testing operator is expressly NOT the operator of the target software; and no actual production operator, deployment, or Vietnamese personal-data processing is verified. Under the assessment invariants, software product identity and technical capability (code that stores personal data) never establish the legal identity or regulated operation of an actual operator, and the customer explicitly instructed not to infer Vietnamese legal applicability from the repository's intended functionality. Therefore no regulated Personal Data Controller/Processor addressee is established to operate the assessed system, and the operative actor scope is refuted; the consent-principles duty is not applicable.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "5a9b96e2-61f2-4a7c-a0f3-f4fa4425c2ad"
+          }
+        ],
+        "criteria": [],
+        "compliance": null,
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl4-consent-principles-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "Operative proposition 1 is addressed to a Personal Data Controller / Controller-and-Processor that operates the assessed system by deciding the purpose and means of processing personal data. Accepted human-confirmed facts establish the assessed repository is a public third-party GitHub project used only for LCSP compliance-assessment testing, that the LCSP testing operator is not the operator of the target software, and that no actual production operator or deployment is verified. Product identity and code capability do not establish a regulated operator, so this actor scope is refuted.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "5a9b96e2-61f2-4a7c-a0f3-f4fa4425c2ad"
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art9-cl4-consent-principles-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "REFUTED",
+            "rationale": "Operative proposition 2 is addressed to the same Personal Data Controller / Controller-and-Processor addressee. The same accepted human-confirmed facts refute that any regulated operator operates the assessed system in production processing personal data; the customer confirmed the LCSP testing operator is not the target software's operator and that deployment/operator/Vietnamese data processing are unverified. Therefore this actor scope is also refuted.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "ada62c6a-8efa-4447-98d9-d6d3e2ad7095"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-3f0335f-unknown",
+    "case": "art9-cl4-consent-prohibitions-rule",
+    "mode": "unknown",
+    "candidateSha": "3f0335f99298cd486dfc58a076aeea095b5f3c0d",
+    "expectedBehaviorObserved": false,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 21,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-prohibitions"
+          }
+        ],
+        "applicability": "NOT_APPLICABLE",
+        "rationale": "The operative scope of this rule requires an actor who is a controller of personal data (bên kiểm soát dữ liệu cá nhân) or controller-and-processor (bên kiểm soát và xử lý dữ liệu cá nhân) deciding the purpose and means of processing personal data. The accepted, human-confirmed fact establishes that the assessed artifact is a public third-party repository used only for LCSP testing, that the actual operator/deployment/Vietnamese personal-data processing are unverified, and that the LCSP testing operator is affirmatively NOT the operator of the target software. Accordingly, no controller of personal data operates the assessed system in the assessed context, so the consent prohibitions have no applicable addressee and the rule does not apply.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "ada62c6a-8efa-4447-98d9-d6d3e2ad7095"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "75d954ab-337f-4fe7-bc25-a9fc6abf5b77"
+          }
+        ],
+        "criteria": [],
+        "compliance": null,
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "REFUTED",
+            "rationale": "The operative actor is a controller/controller-and-processor of personal data operating the assessed system. The accepted human-confirmed fact states the repository is a public third-party artifact used only for LCSP testing and that the LCSP testing operator is not the operator of the target software, with no actual deployment or Vietnamese personal-data processing established. Therefore no controller of personal data operates the assessed system in the assessed context, refuting this operative scope.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "ada62c6a-8efa-4447-98d9-d6d3e2ad7095"
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "REFUTED",
+            "rationale": "The operative actor is a controller/controller-and-processor of personal data operating the assessed system. For the same reasons as the first operative scope, the accepted human-confirmed facts establish the repository is a benchmark artifact used only for LCSP testing with no actual operator, deployment, or Vietnamese personal-data processing; the LCSP testing operator is affirmatively not the operator of the target software. Thus no controller of personal data operates the assessed system, refuting this operative scope.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "f8bf3c64-8859-43ce-b7a3-1e9a4de4889a"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "75d954ab-337f-4fe7-bc25-a9fc6abf5b77"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "APPLICABILITY_BASIS_REQUIRED",
+        "ref": "art9-cl4-consent-prohibitions-rule"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-44dba33-native-resume",
+    "case": "art9-cl4-consent-prohibitions-rule",
+    "mode": "unknown",
+    "candidateSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 30,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 9,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-prohibitions"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The confirmed human fact affirmatively establishes the addressee: a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides the purposes and means of processing, and directly processes their personal data (names, addresses, financial records). This establishes the data controller / data controller-and-processor actor for both operative propositions (pt-b and pt-d) of Article 9(4). The rule is therefore applicable.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "23303abc-bac8-4ce2-9a5e-bc3eb8391ecb",
+            "caseRevision": 9
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_d36a72798575869f7449b623",
+            "outcome": "NOT_MET",
+            "rationale": "Article 9(4) prohibits a data controller from (pt-b) attaching mandatory conditions requiring consent for purposes other than the agreed content, and (pt-d) treating silence or non-response as consent. The confirmed operator fact states the operator bundles unrelated marketing purposes without separate choice, and treats silence as consent, while providing no consent information or consent records. This directly establishes both prohibitions are violated, so the criterion is not met.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "23303abc-bac8-4ce2-9a5e-bc3eb8391ecb",
+                "caseRevision": 9
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The confirmed human fact states a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides the purposes and means of processing personal data, and directly processes that data. This affirmatively establishes the addressee (data controller / controller-and-processor) for operative proposition pt-b (no mandatory bundling of consent with unrelated purposes).",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "23303abc-bac8-4ce2-9a5e-bc3eb8391ecb",
+                "caseRevision": 9
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "ESTABLISHED",
+            "rationale": "The same confirmed human fact establishes the operator as a data controller-and-processor deciding purposes/means and directly processing personal data of real Vietnamese customers. This affirmatively establishes the addressee for operative proposition pt-d (no treating silence/non-response as consent).",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "23303abc-bac8-4ce2-9a5e-bc3eb8391ecb",
+                "caseRevision": 9
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "3ea198bb-c6ae-59fb-83cc-e06ffdb3c0d7"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "fd018114-d6db-51ca-8a31-8b30b6b7d51d"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "1ffb930e-04b5-5a33-b679-4c4c2c3be451"
+      }
+    ],
+    "nativeResume": {
+      "fromCheckpointId": "1f1d36cf-cf7a-67b9-80d1-b10b3c797759",
+      "initialDecisionCount": 0,
+      "initialCaseRevision": 8,
+      "initialHumanRequestCount": 1,
+      "finalCaseRevision": 9,
+      "newHumanFactId": "23303abc-bac8-4ce2-9a5e-bc3eb8391ecb",
+      "oldUnknownFactPreserved": true,
+      "canonicalCheckpointPreserved": true
+    }
+  },
+  {
+    "sourceDirectory": "live-semantic-44dba33-unknown-principles",
+    "case": "art9-cl4-consent-principles-duty-rule",
+    "mode": "unknown",
+    "candidateSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 14,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-5e22e22-unknown-first",
+    "case": "art10-cl3-withdrawal-restriction-implementation",
+    "mode": "unknown",
+    "candidateSha": "5e22e22bb21fbc7afd77b4b7d8ff90eae05e458d",
+    "expectedBehaviorObserved": false,
+    "failure": {
+      "type": "PaidAdmissionError",
+      "admissionReason": "CALL_LIMIT"
+    },
+    "nativeInterrupted": false,
+    "physicalCalls": 12,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-906804a-confirmed-prohibitions",
+    "case": "art9-cl4-consent-prohibitions-rule",
+    "mode": "confirmed",
+    "candidateSha": "906804aa997d3926ec5e10dd31169e4afc44117c",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 16,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-prohibitions"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The rule prohibits personal-data controllers and controller-and-processors from attaching mandatory conditions requiring consent to purposes other than the agreed content (art 9.4.b) and from treating silence/non-response as consent (art 9.4.d). Both prohibitions apply to the addressee that decides purposes/means for processing personal data. The accepted human-provided operational fact establishes the assessed operator is a verified company established and operating in Vietnam that runs the service live for real adult Vietnamese customers, decides purposes and means, directly processes their personal data (including financial records), and relies on consent for that processing. The operator therefore falls within the operative scope of both prohibitions as a personal-data controller and controller-and-processor.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_d36a72798575869f7449b623",
+            "outcome": "NOT_MET",
+            "rationale": "The operative operator bundles unrelated marketing purposes without separate choice, which violates the prohibition in art 9.4.b against attaching mandatory consent conditions to purposes other than the agreed content. The operator also treats silence as consent, which violates the prohibition in art 9.4.d that silence/non-response must not be treated as consent. Both prohibited practices are directly confirmed by the accepted human-provided operational fact, so the criterion is not met.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The actor for prohibition art 9.4.b is the personal-data controller/controller-and-processor (art 2.7/.9). The accepted human fact establishes the operator is a verified company running the service live for real Vietnamese customers who decides purposes and means and directly processes their personal data, making it both controller and controller-and-processor.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art9-cl4-consent-prohibitions",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "ESTABLISHED",
+            "rationale": "The actor for prohibition art 9.4.d is the same personal-data controller/controller-and-processor. The accepted human fact establishes the same verified operator controls and processes customer personal data and relies on consent, placing it within the operative scope of this prohibition.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-906804a-unknown-principles",
+    "case": "art9-cl4-consent-principles-duty-rule",
+    "mode": "unknown",
+    "candidateSha": "906804aa997d3926ec5e10dd31169e4afc44117c",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 13,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-confirmed",
+    "case": "art10-cl3-withdrawal-restriction-implementation",
+    "mode": "confirmed",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 29,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art10-cl3-controller-implementation"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The rule imposes a duty on the personal data controller and the personal data controller and processor to receive and implement data-subject requests for withdrawal of consent or restriction of processing within the statutory time limit. Accepted human-confirmed facts establish that a verified company operating in Vietnam runs this service live for real adult Vietnamese customers, decides purposes and means, directly processes their personal data, and relies on consent; verified withdrawal and restriction requests exist and apply after the law took effect. This establishes the addressee (a personal data controller) and the regulated factual scope (real personal-data processing of Vietnamese data subjects). The temporal qualifier (Art.10 cl.4) limits implementation to processing after the request but does not remove the post-request duty, so it does not render the rule inapplicable. The rule is therefore applicable.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "821a14dc-887e-501d-82f2-0c5218853b65"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_509e6f951da6bb4971842427",
+            "outcome": "NOT_MET",
+            "rationale": "The repository implements no functionality to receive or implement data-subject requests for withdrawal of consent or restriction of processing. The only endpoints (urls.py lines 1-13) are upload_csv, transaction_history_csv, and calculate_transaction_frequencies; views.py (lines 40-65) only stores uploaded CSV customer records in the WalletInfo model and performs credit-scoring predictions rendered as HTML tables. Direct reading of every view and a full-repository grep for withdraw/consent/restriction/privacy found no request-handling code. The human-confirmed fact states the customer confirms the six evaluated consent, correction and withdrawal safeguards have not been implemented in any external system or policy. Therefore the duty to receive and implement such requests within the statutory time limit is not performed.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "821a14dc-887e-501d-82f2-0c5218853b65"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art10-cl3-controller-implementation",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "A human-confirmed fact establishes that a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides purposes and means, directly processes their personal data, and relies on consent. This affirmatively establishes the addressee (a personal data controller and controller-and-processor) and the regulated factual scope (real processing of Vietnamese data subjects' personal data) that Art.10 cl.3 addresses.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art10-cl3-controller-implementation",
+            "kind": "QUALIFIER",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "Art.10 cl.4 limits implementation of the request to processing carried out after the data subject's request. The confirmed fact states that withdrawal and restriction requests exist and apply after the law took effect, so the qualifier's premise (post-request processing) is present. The qualifier narrows the temporal scope of the implementation duty but does not negate the duty for post-request processing, so it does not make the rule inapplicable.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "19805578-1994-51e8-845e-c31894ecb3c9"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-confirmed",
+    "case": "art13-cl2-correction-assessment",
+    "mode": "confirmed",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 31,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art13-cl2-correction-assessment",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art13-cl2-controller-correction-duty"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The duty under Law 91/2025/QH15 Art.13 cl.2 applies to the data controller (bên kiểm soát) and data controller-and-processor (bên kiểm soát và xử lý). The accepted HUMAN_PROVIDED fact establishes that a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides purposes and means, and directly processes personal data (names, addresses, financial records). This affirmatively establishes the operative actor and regulated personal-data processing. No condition, qualifier, or exception is stated (UNCONDITIONAL), and none is refuted. The rule is therefore applicable.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_544bc96c62da41807ab8bb1f",
+            "outcome": "NOT_MET",
+            "rationale": "The duty requires corrections of personal data after a data-subject request or as prescribed by law, and requiring processors/third parties to correct data. The repository proof boundary requires correction operations reflected in the personal-data records (update/change history or audit logs). Direct inspection of the repository shows no correction mechanism: urls.py enumerates exactly three routes (upload_csv, transaction_history_csv, calculate_transaction_frequencies) with no correction/update endpoint; views.py (read in full) only creates WalletInfo records from CSV upload and computes/renders prediction results, with no update or audit logic; models.py defines only WalletInfo fields with no audit/change-history fields; forms.py defines WalletForm but no view uses it to update records; the templates provide only upload forms and result tables. Additionally, the accepted HUMAN_PROVIDED fact confirms the evaluated correction safeguards have not been implemented in any external system or policy. Therefore the correction duty is not fulfilled.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "2453820f-3237-5cd2-af2b-4c7f319ab296"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "629701c7-2604-51cc-8ac9-78072f3448f5"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b89129dd-3f6c-5b0b-9798-f96dad3985c2"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art13-cl2-controller-correction-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The operative provision addresses the data controller that decides purposes and means of processing. The HUMAN_PROVIDED fact affirmatively states a verified Vietnam company decides purposes and means for this service, establishing the data-controller addressee and its regulated scope.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art13-cl2-controller-correction-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "ESTABLISHED",
+            "rationale": "The operative provision also addresses the data controller-and-processor that decides purposes and means and directly processes personal data. The HUMAN_PROVIDED fact affirmatively states the verified Vietnam company directly processes customers' personal data, establishing this addressee and scope.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "aebe0696-5b4d-5588-997d-5ad06aa146cd"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-confirmed",
+    "case": "art9-cl2-consent-info-disclosure-rule",
+    "mode": "confirmed",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 70,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl2-valid-consent-info-duty"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The rule is UNCONDITIONAL: it states no applicability conditions, qualifiers, or exceptions. The sole operative scope element requires that the actor be a personal data controller or controller-and-processor that relies on consent to process personal data. The accepted FACT establishes a verified company in Vietnam runs this service live for real adult Vietnamese customers, decides purposes and means, directly processes their personal data, and relies on consent. This affirmatively establishes the actor and regulated activity, so the rule is APPLICABLE. On the merits, the accepted FACT confirms the six evaluated consent/correction/withdrawal safeguards (including the information-disclosure duty) are not implemented in any external system or policy, and the repository's data-collection interface and code contain no disclosure of data categories, purposes, controller identity, or data subject rights. The criterion is therefore NOT_MET and the rule is NON_COMPLIANT.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "7833e38b-f495-568b-ae59-721cbae38141"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "4b4eb15d-46f5-561f-9957-fa186d8a2a8d"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "629701c7-2604-51cc-8ac9-78072f3448f5"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "b89129dd-3f6c-5b0b-9798-f96dad3985c2"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "4ef58956-a11b-5951-9e9f-39c50b4010b5"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "75663dfd-2551-563a-9df1-7798070bfe88"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "2bbf4967-88b3-5c23-a86f-de17abba7e2b"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "54758bf4-9a32-5329-8906-a14cf42416cc"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "56b8c6fc-f11b-5d02-ad25-eddf7a832034"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "a0e2adb9-3b6d-54ae-aa41-75769baabb38"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "6052a186-3474-5210-9e8c-f79a5c38d81c"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "4bd32f8c-7bec-53a7-bfb9-322165b24593"
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_032512680f6a99fb4040a66b",
+            "outcome": "NOT_MET",
+            "rationale": "Art 9 cl 2 requires that valid consent is based on the data subject being clearly informed of (a) the categories of personal data processed and processing purposes, (b) the identity of the controller or controller-and-processor, and (c) the data subject's rights and obligations. The accepted HUMAN_PROVIDED FACT confirms that the six evaluated consent, correction and withdrawal safeguards (including this information-disclosure duty) have not been implemented in any external system or policy. Consistent with this, the assessed system's data-submission interface (templates/upload_csv.html) is a bare file-upload form with no disclosure of data categories, purposes, controller identity, or data subject rights, and the supporting code (loan_app/views.py, loan_app/urls.py, loan_app/models.py, loan_app/forms.py, loan_app/admin.py, loan_app/frequency.py) stores and processes customer fields (name, wallet_no, address, gender, balance, age, occupation) without any consent information-disclosure notice or mechanism; none of the templates (index/home/navbar/messages/cv_result/transaction_frequencies) contains such disclosure. Therefore the consent information-disclosure duty is not met.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "7833e38b-f495-568b-ae59-721cbae38141"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "4b4eb15d-46f5-561f-9957-fa186d8a2a8d"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "629701c7-2604-51cc-8ac9-78072f3448f5"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b89129dd-3f6c-5b0b-9798-f96dad3985c2"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "4ef58956-a11b-5951-9e9f-39c50b4010b5"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "75663dfd-2551-563a-9df1-7798070bfe88"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "2bbf4967-88b3-5c23-a86f-de17abba7e2b"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "54758bf4-9a32-5329-8906-a14cf42416cc"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "56b8c6fc-f11b-5d02-ad25-eddf7a832034"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "a0e2adb9-3b6d-54ae-aa41-75769baabb38"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "6052a186-3474-5210-9e8c-f79a5c38d81c"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "4bd32f8c-7bec-53a7-bfb9-322165b24593"
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl2-valid-consent-info-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The accepted HUMAN_PROVIDED FACT (caseRevision 8) states that a verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers, decides purposes and means, directly processes their personal data (names, addresses, financial records), and relies on consent for this processing. Under Art 2 cl 7 and cl 9 of Luật 91/2025/QH15, an entity that decides the purpose and means and directly processes personal data is a controller-and-processor, the addressee of the Art 9 cl 2 duty. The actor and regulated activity (relying on consent to process personal data) are therefore ESTABLISHED.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "fc51cefc-4842-5b5f-a4e8-115b57eae629"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "fc51cefc-4842-5b5f-a4e8-115b57eae629"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "bcef9ef8-c727-5a71-906f-0ef9dbe7a6fa"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "c5fbe954-81f4-5ccd-99f4-aa3ec016517f"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "7bfa8ef0-f541-57a7-8c77-0e480b534418"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "bcef9ef8-c727-5a71-906f-0ef9dbe7a6fa"
+      },
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "188a14b2-89a9-512d-8deb-989fbe241d7b"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-confirmed",
+    "case": "art9-cl3-consent-form-record-rule",
+    "mode": "confirmed",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 25,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl3-consent-form-duty"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The rule is applicable. The operative proposition (art 9 cl 3) addresses personal-data controllers and controller-and-processors. The current accepted fact (caseRevision 8) supplied by the authorized operator establishes that a verified Vietnamese company operates the service live for real adult Vietnamese customers, decides the purposes and means of processing, and directly processes their personal data (names, addresses, financial records), relying on consent. This satisfies the definitions of controller (art 2 cl 7) and controller-and-processor (art 2 cl 9), establishing the actor addressee and the regulated processing scope.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_e8b13dfac27dffbdd96a9165",
+            "outcome": "NOT_MET",
+            "rationale": "The duty requires consent to be expressed in a clear, specific, printable/copyable written form (including electronic or verifiable format), i.e., a verifiable consent record. The accepted operator-confirmed fact states that the six evaluated consent, correction and withdrawal safeguards have not been implemented in any external system or policy, which includes the consent-record safeguard. Corroborating repository inspection confirms no consent mechanism exists: the WalletInfo model and its migration define only personal-data fields (name, wallet_no, address, gender, balance, age, occupation) with no consent field; the upload template only provides CSV file-upload forms; the views only ingest CSV rows into WalletInfo and render prediction tables. Therefore no consent record exists in the required form, and the criterion is not met.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "4b4eb15d-46f5-561f-9957-fa186d8a2a8d"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "1b45ae44-85a5-5f38-b646-7b1b6a5413e9"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl3-consent-form-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "The accepted human-provided fact confirms a verified Vietnamese company runs this service live for real adult Vietnamese customers, decides purposes and means, and directly processes their personal data (including names, addresses and financial records), relying on consent for that processing. This establishes the addressee (controller / controller-and-processor per art 2 cl 7 and cl 9) and the regulated processing activity, so the operative scope is satisfied.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "c771b298-c9b1-51fd-8811-34f049b91983"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-confirmed",
+    "case": "art9-cl4-consent-principles-duty-rule",
+    "mode": "confirmed",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": false,
+    "physicalCalls": 15,
+    "acceptedDecisions": [
+      {
+        "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+        "assessmentRuleVersion": "v1",
+        "scopeId": "ASSESSMENT",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 8,
+        "legalContextRefs": [
+          {
+            "legalContextId": "art9-cl4-consent-principles-duty"
+          }
+        ],
+        "applicability": "APPLICABLE",
+        "rationale": "The operative duty addresses the data controller and the data controller+processor. The accepted HUMAN_PROVIDED FACT establishes that a verified company established and operating in Vietnam operates this service live for real adult Vietnamese customers, decides purposes and means, and directly processes their personal data (names, addresses, financial records) relying on consent. Under art.2 cl.7 such an entity is a data controller; under art.2 cl.9, one that directly processes is a data controller+processor. Both operative scopes are therefore established and the rule applies.",
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "12345678-1234-4234-8234-123456789abc",
+            "caseRevision": 8
+          }
+        ],
+        "criteria": [
+          {
+            "criterionId": "criterion_65329be5e0a2067310ca5870",
+            "outcome": "NOT_MET",
+            "rationale": "The repository implements no consent mechanism. The WalletInfo model stores personal data (name, wallet_no, address, gender, balance, age, occupation) with no consent field; the CSV upload view creates WalletInfo records directly without capturing or recording any consent, and no consent endpoint or consent checkbox/notice exists in the UI. There is therefore no support for consent being expressed separately for each processing purpose (art.9(4)(a)) nor for processing being confined to the consent validity scope until the data subject changes consent (art.9(4)(c)). The accepted HUMAN_PROVIDED FACT confirms the operator has not implemented the six evaluated consent/correction/withdrawal safeguards in any external system or policy. The duty is not fulfilled.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "c786b25c-76c9-57af-8fb1-b9bfae6f3d0c"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "821a14dc-887e-501d-82f2-0c5218853b65"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0189c525-5d7a-551e-8553-82d7880c1b75"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "5bd2ccab-d0e8-5531-ad88-b6f4b77a36e4"
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ],
+        "compliance": "NON_COMPLIANT",
+        "applicabilityBasis": [
+          {
+            "legalRequirementId": "art9-cl4-consent-principles-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 0,
+            "finding": "ESTABLISHED",
+            "rationale": "Art.2 cl.7 defines a data controller as the entity deciding purpose and means of processing. The accepted HUMAN_PROVIDED FACT states the assessed operator is a verified company operating in Vietnam that decides purposes and means and processes personal data of adult Vietnamese customers, relying on consent. This establishes that the addressee for the per-purpose consent duty exists and exercises the regulated activity.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          },
+          {
+            "legalRequirementId": "art9-cl4-consent-principles-duty",
+            "kind": "OPERATIVE_SCOPE",
+            "index": 1,
+            "finding": "ESTABLISHED",
+            "rationale": "Art.2 cl.9 defines a data controller+processor as the entity deciding purpose and means AND directly processing personal data. The accepted HUMAN_PROVIDED FACT states the assessed operator directly processes personal data (names, addresses, financial records) of adult Vietnamese customers. This establishes the addressee for the consent-validity-scope duty and its regulated activity.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "12345678-1234-4234-8234-123456789abc",
+                "caseRevision": 8
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validationRejections": [
+      {
+        "code": "SEARCH_COVERAGE_INCOMPLETE",
+        "ref": "483c9a7b-c798-5626-b00d-cb1c53b8f556"
+      }
+    ],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-confirmed",
+    "case": "art9-cl4-consent-prohibitions-rule",
+    "mode": "confirmed",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": false,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 21,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-unknown",
+    "case": "art10-cl3-withdrawal-restriction-implementation",
+    "mode": "unknown",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 23,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-unknown",
+    "case": "art13-cl2-correction-assessment",
+    "mode": "unknown",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 17,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-unknown",
+    "case": "art9-cl2-consent-info-disclosure-rule",
+    "mode": "unknown",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 12,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-unknown",
+    "case": "art9-cl3-consent-form-record-rule",
+    "mode": "unknown",
+    "candidateSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+    "expectedBehaviorObserved": true,
+    "failure": null,
+    "nativeInterrupted": true,
+    "physicalCalls": 20,
+    "acceptedDecisions": [],
+    "validationRejections": [],
+    "nativeResume": null
+  },
+  {
+    "sourceDirectory": "live-semantic-e8ffd5d-unknown",
+    "case": "art9-cl4-consent-principles-duty-rule",
+    "disposition": "Interrupted by operator after more than 100 paid attempts without native yield. Fixture omitted runner search callback; NO_SEARCH_ACTIVITY was diagnosed by the next traced attempt. No PASS.",
+    "attemptStatesAtCapture": {
+      "OUTCOME_UNKNOWN": 1,
+      "SETTLED": 148
+    }
+  }
+]

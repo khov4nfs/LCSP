@@ -1,0 +1,42 @@
+{
+  "candidateSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "earlierLiveProbeSha": "e8ffd5dc99371f4599a16bce30d4190b723a6c1d",
+  "productionSourceHashes": [
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/submit-rule-decision/submit-rule-decision.handler.ts",
+      "sha256": "d10667c0dbe4f2728a0f42bbab79245a3bac59bab28289562ae400c13a10e054",
+      "matchesLiveSemanticImplementation": true
+    },
+    {
+      "file": "apps/api/src/modules/assessment/domain/decision-validator.ts",
+      "sha256": "420615155912f21eded73b091963071b68fb0986f23493769dd6332a9163fb31",
+      "matchesLiveSemanticImplementation": true
+    },
+    {
+      "file": "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts",
+      "sha256": "4c1bfc54dcabc37d0a07d6bb3053b334867ca4a7457efd997b29fd36f8ba2089",
+      "matchesLiveSemanticImplementation": true
+    },
+    {
+      "file": "deepagents/assessment_root/instructions.md",
+      "sha256": "1ad9b71eb64ac7475a7114288b1369c9692494bc724cb4951ddc03bbb9e9120a",
+      "matchesLiveSemanticImplementation": true
+    },
+    {
+      "file": "deepagents/assessment_root/tools.py",
+      "sha256": "50474d08daf82df91f646b008e446cfc2d54ac9c0349f92ce41070485f90eb3d",
+      "matchesLiveSemanticImplementation": true
+    },
+    {
+      "file": "packages/contracts/src/assessment/agentic-runtime.ts",
+      "sha256": "c372b1755b09022ea2f1628df730d97e6c2efdddeed6b9c83354d4a3fd448267",
+      "matchesLiveSemanticImplementation": true
+    },
+    {
+      "file": "packages/contracts/src/billing/official-reference-pricing.ts",
+      "sha256": "d3057fcf0dd44593292cb41c8612fca1a872de5143511d2fd75fbcb235866e9b",
+      "matchesLiveSemanticImplementation": true
+    }
+  ],
+  "meaning": "Only test harness files changed after e8ffd5d; production implementation bytes are identical."
+}

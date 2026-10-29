@@ -1,0 +1,88 @@
+{
+  "implementationSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "observedAt": "2026-10-29T08:21:57.765937+00:00",
+  "maximumActualRoots": 2,
+  "rootOverlapSeconds": 194.436,
+  "actualLogicalModelOverlapSeconds": 8.351,
+  "rootTurns": {
+    "ecdf35c1-8487-4c3c-bd61-12666ee95ad7": [
+      {
+        "start": "2026-10-29T08:06:13.938Z",
+        "end": "2026-10-29T08:08:49.513Z"
+      },
+      {
+        "start": "2026-10-29T08:13:27.481Z",
+        "end": "2026-10-29T08:17:02.584Z"
+      }
+    ],
+    "9e3cd276-d157-48fd-bf62-be4fa67de6cd": [
+      {
+        "start": "2026-10-29T08:09:09.567Z",
+        "end": "2026-10-29T08:13:03.058Z"
+      }
+    ],
+    "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f": [
+      {
+        "start": "2026-10-29T08:06:40.678Z",
+        "end": "2026-10-29T08:14:33.082Z"
+      }
+    ]
+  },
+  "canonicalStoppedCheckpointInFinalAncestry": true,
+  "lateAcceptedWritesWhilePaused": 0,
+  "physicalAttempts": 65,
+  "logicalModelCalls": 64,
+  "successfulAttempts": 64,
+  "failedAttemptsWithUnknownUsage": 1,
+  "usageCallbackTransitionsDelivered": 130,
+  "usageByAccount": {
+    "A": {
+      "physicalAttempts": 25,
+      "settled": 25,
+      "unavailable": 0,
+      "inputTokens": 144401,
+      "cachedInputTokens": 1485754,
+      "outputTokens": 16743,
+      "reasoningTokens": 11184,
+      "totalTokens": 1646898,
+      "knownReferenceCostUsd": "0.03515769",
+      "referenceCostCompleteness": "COMPLETE"
+    },
+    "B": {
+      "physicalAttempts": 26,
+      "settled": 25,
+      "unavailable": 1,
+      "inputTokens": 468279,
+      "cachedInputTokens": 1555784,
+      "outputTokens": 33733,
+      "reasoningTokens": 23316,
+      "totalTokens": 2057796,
+      "knownReferenceCostUsd": "0.07419229",
+      "referenceCostCompleteness": "PARTIAL"
+    },
+    "C": {
+      "physicalAttempts": 14,
+      "settled": 14,
+      "unavailable": 0,
+      "inputTokens": 106944,
+      "cachedInputTokens": 610553,
+      "outputTokens": 7773,
+      "reasoningTokens": 5558,
+      "totalTokens": 725270,
+      "knownReferenceCostUsd": "0.01952048",
+      "referenceCostCompleteness": "COMPLETE"
+    }
+  },
+  "knownReferenceCostUsd": "0.12887046",
+  "overallReferenceCostCompleteness": "PARTIAL: one failed provider attempt supplies no usage; its price and route are known, its cost is unknown",
+  "pricingScope": "OFFICIAL_MODEL_PRICING reference estimate, not provider invoice or customer wallet charge",
+  "boundedFallbackAttempts": 2,
+  "crossAccountTimelineDenials": [
+    404,
+    404
+  ],
+  "freshReports": 0,
+  "freshAcceptedDecisions": 0,
+  "productionBenchmarkDisposition": "A/B valid native human waits with unresolved operational facts; C deliberately paused after capacity admission proof",
+  "reportLifecycleDisposition": "Provider-free real API/DB/Root report contracts pass and existing production report preserved; fresh production report generation remains unexecuted"
+}

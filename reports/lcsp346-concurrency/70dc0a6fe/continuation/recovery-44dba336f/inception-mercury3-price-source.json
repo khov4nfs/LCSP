@@ -1,0 +1,16 @@
+{
+  "sourceUrl": "https://www.inceptionlabs.ai/models",
+  "verifiedAt": "2026-10-29T06:03:04.588667Z",
+  "rawContentSha256": "4376daa672a532eb1ed4617e8989b54250fb572f5feae4bafdd7f1e7fc7638f6",
+  "model": "mercury-3",
+  "provider": "INCEPTION",
+  "ratesUsdPerMillion": {
+    "input": "0.10",
+    "cached": "0.01",
+    "output": "0.35"
+  },
+  "rateType": "PUBLISHED_LAUNCH_PROMOTION",
+  "effectiveDate": null,
+  "historicalBackfill": false,
+  "scope": "OFFICIAL_MODEL_PRICING reference estimate, not provider invoice or customer charge"
+}

@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: semantic oracle rejects false compliance: otp-format-only (no model execution)
+ok 1 - semantic oracle rejects false compliance: otp-format-only (no model execution)
+  ---
+  duration_ms: 1.69747
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: logging-without-persistence (no model execution)
+ok 2 - semantic oracle rejects false compliance: logging-without-persistence (no model execution)
+  ---
+  duration_ms: 0.205687
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: partial-safeguard (no model execution)
+ok 3 - semantic oracle rejects false compliance: partial-safeguard (no model execution)
+  ---
+  duration_ms: 0.144
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: applicability-unproven (no model execution)
+ok 4 - semantic oracle rejects false compliance: applicability-unproven (no model execution)
+  ---
+  duration_ms: 0.18547
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: applicability-refuted (no model execution)
+ok 5 - semantic oracle rejects false compliance: applicability-refuted (no model execution)
+  ---
+  duration_ms: 0.203101
+  type: 'test'
+  ...
+# Subtest: unknown applicability cannot pass as NOT_APPLICABLE or complete without a question
+ok 6 - unknown applicability cannot pass as NOT_APPLICABLE or complete without a question
+  ---
+  duration_ms: 0.413469
+  type: 'test'
+  ...
+# Subtest: partial control cannot pass when the unmet part is omitted
+ok 7 - partial control cannot pass when the unmet part is omitted
+  ---
+  duration_ms: 0.503203
+  type: 'test'
+  ...
+# Subtest: official reference mapping MIRAIAPI/claude-sonnet-5
+ok 8 - official reference mapping MIRAIAPI/claude-sonnet-5
+  ---
+  duration_ms: 0.985342
+  type: 'test'
+  ...
+# Subtest: official reference mapping APX/claude-sonnet-4-6-free
+ok 9 - official reference mapping APX/claude-sonnet-4-6-free
+  ---
+  duration_ms: 1.014511
+  type: 'test'
+  ...
+# Subtest: official reference mapping INCEPTION/mercury-2.5
+ok 10 - official reference mapping INCEPTION/mercury-2.5
+  ---
+  duration_ms: 0.093176
+  type: 'test'
+  ...
+# Subtest: official reference mapping GOOGLE_GENAI/gemini-3.5-flash-lite
+ok 11 - official reference mapping GOOGLE_GENAI/gemini-3.5-flash-lite
+  ---
+  duration_ms: 0.108461
+  type: 'test'
+  ...
+# Subtest: official reference mapping OPENAI/gpt-4o
+ok 12 - official reference mapping OPENAI/gpt-4o
+  ---
+  duration_ms: 0.065565
+  type: 'test'
+  ...
+# Subtest: cache read/write TTL buckets and reasoning are counted once
+ok 13 - cache read/write TTL buckets and reasoning are counted once
+  ---
+  duration_ms: 0.128794
+  type: 'test'
+  ...
+# Subtest: partial usage retains exact known subtotal, never presents a complete total
+ok 14 - partial usage retains exact known subtotal, never presents a complete total
+  ---
+  duration_ms: 0.192628
+  type: 'test'
+  ...
+# Subtest: version selection does not invent historical prices or mutate existing snapshots
+ok 15 - version selection does not invent historical prices or mutate existing snapshots
+  ---
+  duration_ms: 5.03569
+  type: 'test'
+  ...
+# Subtest: context tiers require measured inclusive input and exact precision survives large counts
+ok 16 - context tiers require measured inclusive input and exact precision survives large counts
+  ---
+  duration_ms: 0.38607
+  type: 'test'
+  ...
+# Subtest: decimal formatter trims adversarial zero tails in a bounded scan
+ok 17 - decimal formatter trims adversarial zero tails in a bounded scan
+  ---
+  duration_ms: 0.852516
+  type: 'test'
+  ...
+# Subtest: Mercury 3 uses the captured launch rate after observation without inventing historical cost
+ok 18 - Mercury 3 uses the captured launch rate after observation without inventing historical cost
+  ---
+  duration_ms: 0.180984
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 204.003657

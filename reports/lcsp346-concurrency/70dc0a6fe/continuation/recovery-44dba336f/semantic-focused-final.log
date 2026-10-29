@@ -1,0 +1,8 @@
+(node:435409) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Test Suites: 4 passed, 4 total
+Tests:       104 passed, 104 total
+Snapshots:   0 total
+Time:        1.195 s
+Ran all test suites within paths "src/modules/assessment/domain/operational-applicability.spec.ts", "src/modules/assessment/domain/decision-validator.spec.ts", "src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts", "src/modules/assessment/infrastructure/persistence/assessment-case-support.service.spec.ts".

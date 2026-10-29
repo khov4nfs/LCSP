@@ -1,0 +1,10 @@
+
+deepagents/tests/test_operational_applicability.py::test_live_probe_trace_exports_rejection_codes_without_private_tool_content PASSED [ 14%]
+deepagents/tests/test_operational_applicability.py::test_unconditional_duties_expose_real_operative_scope_and_allow_native_resolution[art10-cl3-withdrawal-restriction-implementation] PASSED [ 28%]
+deepagents/tests/test_operational_applicability.py::test_unconditional_duties_expose_real_operative_scope_and_allow_native_resolution[art13-cl2-correction-assessment] PASSED [ 42%]
+deepagents/tests/test_operational_applicability.py::test_unconditional_duties_expose_real_operative_scope_and_allow_native_resolution[art9-cl2-consent-info-disclosure-rule] PASSED [ 57%]
+deepagents/tests/test_operational_applicability.py::test_unconditional_duties_expose_real_operative_scope_and_allow_native_resolution[art9-cl3-consent-form-record-rule] PASSED [ 71%]
+deepagents/tests/test_operational_applicability.py::test_unconditional_duties_expose_real_operative_scope_and_allow_native_resolution[art9-cl4-consent-principles-duty-rule] PASSED [ 85%]
+deepagents/tests/test_operational_applicability.py::test_unconditional_duties_expose_real_operative_scope_and_allow_native_resolution[art9-cl4-consent-prohibitions-rule] PASSED [100%]
+
+============================== 7 passed in 2.40s ===============================

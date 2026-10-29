@@ -1,0 +1,310 @@
+﻿2026-10-29T07:11:50.8135710Z Current runner version: '2.338.0'
+2026-10-29T07:11:50.8163849Z ##[group]Runner Image Provisioner
+2026-10-29T07:11:50.8164920Z Hosted Compute Agent
+2026-10-29T07:11:50.8165532Z Version: 20261021.618
+2026-10-29T07:11:50.8166172Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-29T07:11:50.8166996Z Build Date: 2026-10-21T00:45:21Z
+2026-10-29T07:11:50.8167722Z Worker ID: {214374c1-e37e-4aed-9676-acd4ed6dd245}
+2026-10-29T07:11:50.8168749Z Region: centralus
+2026-10-29T07:11:50.8169318Z Cloud: Azure
+2026-10-29T07:11:50.8169844Z ##[endgroup]
+2026-10-29T07:11:50.8171597Z ##[group]Operating System
+2026-10-29T07:11:50.8172640Z Ubuntu
+2026-10-29T07:11:50.8173321Z 26.04.1
+2026-10-29T07:11:50.8173876Z LTS
+2026-10-29T07:11:50.8174412Z ##[endgroup]
+2026-10-29T07:11:50.8175039Z ##[group]Runner Image
+2026-10-29T07:11:50.8175713Z Image: ubuntu-26.04
+2026-10-29T07:11:50.8176374Z Version: 20261025.179.1
+2026-10-29T07:11:50.8177633Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261025.179/images/ubuntu/Ubuntu2604-Readme.md
+2026-10-29T07:11:50.8179249Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261025.179
+2026-10-29T07:11:50.8180317Z ##[endgroup]
+2026-10-29T07:11:50.8181611Z ##[group]GITHUB_TOKEN Permissions
+2026-10-29T07:11:50.8184133Z Contents: write
+2026-10-29T07:11:50.8184857Z Metadata: read
+2026-10-29T07:11:50.8185472Z PullRequests: read
+2026-10-29T07:11:50.8186162Z ##[endgroup]
+2026-10-29T07:11:50.8189217Z Secret source: Actions
+2026-10-29T07:11:50.8190252Z Cache mode: write
+2026-10-29T07:11:50.8191370Z Prepare workflow directory
+2026-10-29T07:11:50.8916509Z Prepare all required actions
+2026-10-29T07:11:50.8994555Z Getting action download info
+2026-10-29T07:11:51.1898199Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-29T07:11:51.3754556Z Download action repository 'pnpm/action-setup@v4' (SHA:b906affcce14559ad1aafd4ab0e942779e9f58b1)
+2026-10-29T07:11:51.9290709Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-29T07:11:52.1524914Z Complete job name: API checks
+2026-10-29T07:11:52.2577418Z ##[group]Run actions/checkout@v4
+2026-10-29T07:11:52.2578551Z with:
+2026-10-29T07:11:52.2579053Z   repository: khov4nfs/LCSP
+2026-10-29T07:11:52.2583305Z   token: ***
+2026-10-29T07:11:52.2583779Z   ssh-strict: true
+2026-10-29T07:11:52.2584241Z   ssh-user: git
+2026-10-29T07:11:52.2584709Z   persist-credentials: true
+2026-10-29T07:11:52.2585230Z   clean: true
+2026-10-29T07:11:52.2585707Z   sparse-checkout-cone-mode: true
+2026-10-29T07:11:52.2586280Z   fetch-depth: 1
+2026-10-29T07:11:52.2586737Z   fetch-tags: false
+2026-10-29T07:11:52.2587218Z   show-progress: true
+2026-10-29T07:11:52.2587692Z   lfs: false
+2026-10-29T07:11:52.2588141Z   submodules: false
+2026-10-29T07:11:52.2588639Z   set-safe-directory: true
+2026-10-29T07:11:52.2589168Z   allow-unsafe-pr-checkout: false
+2026-10-29T07:11:52.2590020Z ##[endgroup]
+2026-10-29T07:11:52.9367781Z Syncing repository: khov4nfs/LCSP
+2026-10-29T07:11:52.9371889Z ##[group]Getting Git version info
+2026-10-29T07:11:52.9377091Z Working directory is '/home/runner/work/LCSP/LCSP'
+2026-10-29T07:11:52.9380401Z [command]/usr/bin/git version
+2026-10-29T07:11:52.9388629Z git version 2.56.0
+2026-10-29T07:11:52.9414431Z ##[endgroup]
+2026-10-29T07:11:52.9435922Z Temporarily overriding HOME='/home/runner/work/_temp/3978142d-a8b6-4170-ab92-54f8115b48a7' before making global git config changes
+2026-10-29T07:11:52.9440797Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T07:11:52.9445169Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-29T07:11:52.9639171Z Deleting the contents of '/home/runner/work/LCSP/LCSP'
+2026-10-29T07:11:52.9645586Z ##[group]Initializing the repository
+2026-10-29T07:11:52.9651037Z [command]/usr/bin/git init /home/runner/work/LCSP/LCSP
+2026-10-29T07:11:52.9798553Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-29T07:11:52.9801790Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-29T07:11:52.9805166Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-29T07:11:52.9808063Z hint: call:
+2026-10-29T07:11:52.9809822Z hint:
+2026-10-29T07:11:52.9811888Z hint: 	git config --global init.defaultBranch <name>
+2026-10-29T07:11:52.9814609Z hint:
+2026-10-29T07:11:52.9816965Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-29T07:11:52.9820740Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-29T07:11:52.9823877Z hint:
+2026-10-29T07:11:52.9825009Z hint: 	git branch -m <name>
+2026-10-29T07:11:52.9826557Z hint:
+2026-10-29T07:11:52.9829151Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-29T07:11:52.9832635Z Initialized empty Git repository in /home/runner/work/LCSP/LCSP/.git/
+2026-10-29T07:11:52.9836745Z [command]/usr/bin/git remote add origin https://github.com/khov4nfs/LCSP
+2026-10-29T07:11:52.9896041Z ##[endgroup]
+2026-10-29T07:11:52.9899166Z ##[group]Disabling automatic garbage collection
+2026-10-29T07:11:52.9901615Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-29T07:11:52.9936248Z ##[endgroup]
+2026-10-29T07:11:52.9938698Z ##[group]Setting up auth
+2026-10-29T07:11:52.9945369Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T07:11:52.9987338Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T07:11:53.0553292Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T07:11:53.0593239Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T07:11:53.0893771Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T07:11:53.0937931Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T07:11:53.1219606Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-29T07:11:53.1260426Z ##[endgroup]
+2026-10-29T07:11:53.1263786Z ##[group]Fetching the repository
+2026-10-29T07:11:53.1274625Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +71a6d3d36dce38cdc2e4d755fd328751b864fe18:refs/remotes/pull/440/merge
+2026-10-29T07:11:53.8485276Z From https://github.com/khov4nfs/LCSP
+2026-10-29T07:11:53.8486341Z  * [new ref]         71a6d3d36dce38cdc2e4d755fd328751b864fe18 -> pull/440/merge
+2026-10-29T07:11:53.8490227Z ##[endgroup]
+2026-10-29T07:11:53.8490781Z ##[group]Determining the checkout info
+2026-10-29T07:11:53.8494362Z ##[endgroup]
+2026-10-29T07:11:53.8501770Z [command]/usr/bin/git sparse-checkout disable
+2026-10-29T07:11:53.8610628Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-29T07:11:53.8646934Z ##[group]Checking out the ref
+2026-10-29T07:11:53.8651272Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/440/merge
+2026-10-29T07:11:54.0784087Z Note: switching to 'refs/remotes/pull/440/merge'.
+2026-10-29T07:11:54.0784778Z 
+2026-10-29T07:11:54.0785212Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-29T07:11:54.0786233Z changes and commit them, and you can discard any commits you make in this
+2026-10-29T07:11:54.0787129Z state without impacting any branches by switching back to a branch.
+2026-10-29T07:11:54.0787677Z 
+2026-10-29T07:11:54.0788052Z If you want to create a new branch to retain commits you create, you may
+2026-10-29T07:11:54.0788855Z do so (now or later) by using -c with the switch command. Example:
+2026-10-29T07:11:54.0789800Z 
+2026-10-29T07:11:54.0790017Z   git switch -c <new-branch-name>
+2026-10-29T07:11:54.0790357Z 
+2026-10-29T07:11:54.0790587Z Or undo this operation with:
+2026-10-29T07:11:54.0790905Z 
+2026-10-29T07:11:54.0791100Z   git switch -
+2026-10-29T07:11:54.0791386Z 
+2026-10-29T07:11:54.0792224Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-29T07:11:54.0792845Z 
+2026-10-29T07:11:54.0793457Z HEAD is now at 71a6d3d Merge 3f0335f99298cd486dfc58a076aeea095b5f3c0d into 70ddc3c086678edabb6b7a9f6627685841afbafb
+2026-10-29T07:11:54.0802388Z ##[endgroup]
+2026-10-29T07:11:54.0854441Z [command]/usr/bin/git log -1 --format=%H
+2026-10-29T07:11:54.0882835Z 71a6d3d36dce38cdc2e4d755fd328751b864fe18
+2026-10-29T07:11:54.1149770Z ##[group]Run pnpm/action-setup@v4
+2026-10-29T07:11:54.1150156Z with:
+2026-10-29T07:11:54.1150431Z   dest: ~/setup-pnpm
+2026-10-29T07:11:54.1150703Z   run_install: null
+2026-10-29T07:11:54.1150964Z   cache: false
+2026-10-29T07:11:54.1151245Z   cache_dependency_path: pnpm-lock.yaml
+2026-10-29T07:11:54.1151621Z   package_json_file: package.json
+2026-10-29T07:11:54.1152254Z   standalone: false
+2026-10-29T07:11:54.1152578Z ##[endgroup]
+2026-10-29T07:11:54.2781785Z ##[group]Running self-installer...
+2026-10-29T07:11:54.7531488Z (node:2379) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T07:11:54.7533317Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T07:11:54.9378533Z Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-10-29T07:11:55.0778493Z Packages: +3
+2026-10-29T07:11:55.0779197Z +++
+2026-10-29T07:11:55.6331422Z Progress: resolved 9, reused 0, downloaded 3, added 3, done
+2026-10-29T07:11:55.6509151Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall$ node install.js
+2026-10-29T07:11:55.9532558Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall: Done
+2026-10-29T07:11:55.9538026Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall$ node install.js
+2026-10-29T07:11:56.0059258Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall: Done
+2026-10-29T07:11:57.1226466Z 
+2026-10-29T07:11:57.1227004Z dependencies:
+2026-10-29T07:11:57.1227486Z + pnpm 12.3.4 (12.16.1 is available)
+2026-10-29T07:11:57.1227836Z 
+2026-10-29T07:11:57.1252900Z Done in 2.6s
+2026-10-29T07:11:57.1945443Z ##[endgroup]
+2026-10-29T07:11:57.1946115Z Installation Completed!
+2026-10-29T07:11:57.2165910Z ##[group]Run actions/setup-node@v4
+2026-10-29T07:11:57.2166231Z with:
+2026-10-29T07:11:57.2166456Z   node-version: 22
+2026-10-29T07:11:57.2166675Z   cache: pnpm
+2026-10-29T07:11:57.2166887Z   always-auth: false
+2026-10-29T07:11:57.2167112Z   check-latest: false
+2026-10-29T07:11:57.2169639Z   token: ***
+2026-10-29T07:11:57.2169846Z env:
+2026-10-29T07:11:57.2170103Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:11:57.2170430Z ##[endgroup]
+2026-10-29T07:11:57.3692212Z (node:2412) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T07:11:57.3693545Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T07:11:57.3695143Z Found in cache @ /opt/hostedtoolcache/node/22.23.4/x64
+2026-10-29T07:11:57.3703278Z ##[group]Environment details
+2026-10-29T07:11:57.8183640Z node: v22.23.4
+2026-10-29T07:11:57.8184148Z npm: 10.9.9
+2026-10-29T07:11:57.8184504Z yarn: 1.22.22
+2026-10-29T07:11:57.8185616Z ##[endgroup]
+2026-10-29T07:11:57.8214201Z [command]/home/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+2026-10-29T07:11:57.8421799Z /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-29T07:11:58.0176363Z Cache hit for: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-29T07:11:58.0300660Z (node:2412) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T07:11:59.2518293Z Received 79691776 of 277919439 (28.7%), 76.0 MBs/sec
+2026-10-29T07:12:00.2526367Z Received 247463936 of 277919439 (89.0%), 117.9 MBs/sec
+2026-10-29T07:12:00.9773858Z Received 277919439 of 277919439 (100.0%), 97.2 MBs/sec
+2026-10-29T07:12:00.9775595Z Cache Size: ~265 MB (277919439 B)
+2026-10-29T07:12:00.9812547Z [command]/usr/bin/tar -xf /home/runner/work/_temp/b59520d0-21ca-4cc6-9023-52712c500a59/cache.tzst -P -C /home/runner/work/LCSP/LCSP --use-compress-program unzstd
+2026-10-29T07:12:04.2895500Z Cache restored successfully
+2026-10-29T07:12:04.3026752Z Cache restored from key: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-29T07:12:04.3340734Z ##[group]Run pnpm install --frozen-lockfile
+2026-10-29T07:12:04.3341166Z pnpm install --frozen-lockfile
+2026-10-29T07:12:04.3382695Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:04.3382973Z env:
+2026-10-29T07:12:04.3383269Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:04.3383595Z ##[endgroup]
+2026-10-29T07:12:04.3859920Z Scope: all 5 workspace projects
+2026-10-29T07:12:04.4520728Z ? Verifying lockfile against supply-chain policies (1310 entries)...
+2026-10-29T07:12:04.7035839Z Packages are hard linked from the content-addressable store to the virtual store.
+2026-10-29T07:12:04.7036980Z   Content-addressable store is at: /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-29T07:12:04.7037549Z   Virtual store is at:             node_modules/.pnpm
+2026-10-29T07:12:11.6853209Z ✓ Lockfile passes supply-chain policies (1310 entries in 7.2s)
+2026-10-29T07:12:11.6853878Z Lockfile is up to date, resolution step is skipped
+2026-10-29T07:12:11.7020174Z Packages: +1175
+2026-10-29T07:12:11.7021658Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-29T07:12:11.7915946Z Progress: resolved 1175, reused 1175, downloaded 0, added 1175, done
+2026-10-29T07:12:12.0715059Z . prepare$ husky
+2026-10-29T07:12:12.1673139Z . prepare: Done
+2026-10-29T07:12:12.1693760Z 
+2026-10-29T07:12:12.1694223Z devDependencies:
+2026-10-29T07:12:12.1694913Z + @lcsp/contracts link:packages/contracts
+2026-10-29T07:12:12.1695545Z + @lcsp/i18n link:packages/i18n
+2026-10-29T07:12:12.1696025Z + @lcsp/web link:apps/web
+2026-10-29T07:12:12.1696497Z + @playwright/test 1.63.0
+2026-10-29T07:12:12.1696951Z + @tanstack/ai 0.14.0
+2026-10-29T07:12:12.1697365Z + @types/node 22.20.0
+2026-10-29T07:12:12.1697759Z + dotenv 16.6.1
+2026-10-29T07:12:12.1698292Z + dotenv-expand 12.0.3
+2026-10-29T07:12:12.1698709Z + husky 9.1.7
+2026-10-29T07:12:12.1699072Z + likec4 1.59.2
+2026-10-29T07:12:12.1699453Z + prettier 3.9.4
+2026-10-29T07:12:12.1699859Z + tsx 4.23.1
+2026-10-29T07:12:12.1700317Z + typescript 5.9.3
+2026-10-29T07:12:12.1700560Z 
+2026-10-29T07:12:12.1735899Z Done in 7.8s using pnpm v12.3.4
+2026-10-29T07:12:12.2678048Z ##[group]Run pnpm run check:branch
+2026-10-29T07:12:12.2678413Z pnpm run check:branch
+2026-10-29T07:12:12.2708882Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:12.2709146Z env:
+2026-10-29T07:12:12.2709408Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:12.2709814Z   BRANCH_NAME: feat/LCSP-346-bounded-assessment-concurrency
+2026-10-29T07:12:12.2710165Z ##[endgroup]
+2026-10-29T07:12:12.2956879Z $ node scripts/check-branch-name.mjs
+2026-10-29T07:12:12.3375057Z ##[group]Run pnpm run check:imports
+2026-10-29T07:12:12.3375408Z pnpm run check:imports
+2026-10-29T07:12:12.3406003Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:12.3406257Z env:
+2026-10-29T07:12:12.3406521Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:12.3406850Z ##[endgroup]
+2026-10-29T07:12:12.3659113Z $ node scripts/check-import-policy.mjs
+2026-10-29T07:12:15.1786394Z Import policy check passed.
+2026-10-29T07:12:15.2019304Z ##[group]Run pnpm run build:runtime-packages
+2026-10-29T07:12:15.2019943Z pnpm run build:runtime-packages
+2026-10-29T07:12:15.2066505Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:15.2066992Z env:
+2026-10-29T07:12:15.2067453Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:15.2068036Z ##[endgroup]
+2026-10-29T07:12:15.2341912Z $ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build
+2026-10-29T07:12:15.2569497Z $ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force
+2026-10-29T07:12:18.9123786Z $ tsc -b tsconfig.json --force
+2026-10-29T07:12:22.9286888Z ##[group]Run pnpm --filter @lcsp/api prisma:generate
+2026-10-29T07:12:22.9287589Z pnpm --filter @lcsp/api prisma:generate
+2026-10-29T07:12:22.9328348Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:22.9328780Z env:
+2026-10-29T07:12:22.9329193Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:22.9330607Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-29T07:12:22.9331194Z ##[endgroup]
+2026-10-29T07:12:22.9649469Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
+2026-10-29T07:12:24.0738489Z Loaded Prisma config from prisma.config.ts.
+2026-10-29T07:12:24.0739196Z 
+2026-10-29T07:12:24.1573409Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-29T07:12:25.3599587Z 
+2026-10-29T07:12:25.3602138Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 738ms
+2026-10-29T07:12:25.3603322Z 
+2026-10-29T07:12:25.3603949Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-10-29T07:12:25.3604518Z 
+2026-10-29T07:12:25.3604528Z 
+2026-10-29T07:12:25.4101401Z ##[group]Run files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
+2026-10-29T07:12:25.4104961Z files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
+2026-10-29T07:12:25.4106597Z if [ -n "$files" ]; then
+2026-10-29T07:12:25.4107147Z   pnpm --dir apps/api exec eslint $files
+2026-10-29T07:12:25.4107692Z else
+2026-10-29T07:12:25.4108167Z   echo "No changed API TypeScript files to lint."
+2026-10-29T07:12:25.4108778Z fi
+2026-10-29T07:12:25.4154862Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:25.4155389Z env:
+2026-10-29T07:12:25.4155846Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:25.4161498Z   CHANGED_API_FILES: apps/api/src/modules/assessment/application/commands/submit-rule-decision/submit-rule-decision.handler.ts apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts apps/api/src/modules/assessment/domain/decision-validator.ts apps/api/src/modules/assessment/domain/operational-applicability.spec.ts apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.spec.ts apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts apps/api/src/modules/billing/application/shared/billing-usage.kernel.spec.ts apps/api/test/support/validate-operational-probe.ts packages/contracts/src/assessment/agentic-runtime.ts packages/contracts/src/billing/official-reference-pricing.ts
+2026-10-29T07:12:25.4167461Z ##[endgroup]
+2026-10-29T07:12:32.2167466Z 
+2026-10-29T07:12:32.2168352Z /home/runner/work/LCSP/LCSP/apps/api/test/support/validate-operational-probe.ts
+2026-10-29T07:12:32.2198181Z ##[error]   5:7   error    Unsafe assignment of an `any` value                                                                                       @typescript-eslint/no-unsafe-assignment
+2026-10-29T07:12:32.2207920Z ##[error]   6:49  error    Unsafe member access .decision on an `any` value                                                                          @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2210224Z ##[error]   7:7   error    Unsafe assignment of an `any` value                                                                                       @typescript-eslint/no-unsafe-assignment
+2026-10-29T07:12:32.2212450Z ##[error]   8:12  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2214312Z ##[error]   9:3   error    Unsafe assignment of an `any` value                                                                                       @typescript-eslint/no-unsafe-assignment
+2026-10-29T07:12:32.2216094Z ##[error]  10:14  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2218887Z ##[warning]  11:35  warning  Unsafe argument of type `any` assigned to a parameter of type `Iterable<string> | null | undefined`                       @typescript-eslint/no-unsafe-argument
+2026-10-29T07:12:32.2221026Z ##[error]  11:41  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2223571Z ##[warning]  12:38  warning  Unsafe argument of type `any` assigned to a parameter of type `Iterable<string> | null | undefined`                       @typescript-eslint/no-unsafe-argument
+2026-10-29T07:12:32.2225604Z ##[error]  12:44  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2227650Z ##[warning]  13:31  warning  Unsafe argument of type `any` assigned to a parameter of type `Iterable<readonly [unknown, unknown]> | null | undefined`  @typescript-eslint/no-unsafe-argument
+2026-10-29T07:12:32.2229612Z ##[error]  13:37  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2231688Z ##[warning]  15:18  warning  Unsafe argument of type `any` assigned to a parameter of type `Iterable<readonly [unknown, unknown]> | null | undefined`  @typescript-eslint/no-unsafe-argument
+2026-10-29T07:12:32.2233927Z ##[error]  15:24  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2235993Z ##[warning]  16:21  warning  Unsafe argument of type `any` assigned to a parameter of type `Iterable<readonly [unknown, unknown]> | null | undefined`  @typescript-eslint/no-unsafe-argument
+2026-10-29T07:12:32.2237935Z ##[error]  16:27  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
+2026-10-29T07:12:32.2239926Z ##[warning]  18:68  warning  Unsafe argument of type `any` assigned to a parameter of type `DecisionValidationContext`                                 @typescript-eslint/no-unsafe-argument
+2026-10-29T07:12:32.2241003Z 
+2026-10-29T07:12:32.2241409Z ✖ 17 problems (11 errors, 6 warnings)
+2026-10-29T07:12:32.2241624Z 
+2026-10-29T07:12:32.3191180Z ##[error]Process completed with exit code 1.
+2026-10-29T07:12:32.3291191Z Post job cleanup.
+2026-10-29T07:12:32.4880805Z Pruning is unnecessary.
+2026-10-29T07:12:32.5103293Z Post job cleanup.
+2026-10-29T07:12:32.6095267Z [command]/usr/bin/git version
+2026-10-29T07:12:32.6147274Z git version 2.56.0
+2026-10-29T07:12:32.6194312Z Temporarily overriding HOME='/home/runner/work/_temp/e200379c-aa38-4e3c-bdc0-818929720755' before making global git config changes
+2026-10-29T07:12:32.6196378Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T07:12:32.6203371Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-29T07:12:32.6258055Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T07:12:32.6313117Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T07:12:32.6764421Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T07:12:32.6804213Z http.https://github.com/.extraheader
+2026-10-29T07:12:32.6834865Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-29T07:12:32.6884822Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T07:12:32.7230901Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T07:12:32.7270700Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T07:12:32.7741468Z Cleaning up orphan processes
+2026-10-29T07:12:32.8131284Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

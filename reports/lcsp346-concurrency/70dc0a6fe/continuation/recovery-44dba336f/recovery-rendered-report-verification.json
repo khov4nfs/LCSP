@@ -1,0 +1,7 @@
+{
+  "observedAt": "2026-10-29T08:44:22.225Z",
+  "findingCount": 243,
+  "reportVisible": true,
+  "screenshot": "/home/khovan/.local/state/lcsp346/artifacts/recovery-preserved-completed-report.png",
+  "scope": "Historical report read compatibility on exact new deployment; no new report generation or independent semantic certification"
+}

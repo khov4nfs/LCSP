@@ -1,0 +1,75 @@
+{
+  "observedAt": "2026-10-29T08:23:39.999Z",
+  "urls": [
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "path": "/api/assessments/ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "query": ""
+    },
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "path": "/api/assessments/ecdf35c1-8487-4c3c-bd61-12666ee95ad7/human-requests",
+      "query": ""
+    },
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "path": "/api/assessments/ecdf35c1-8487-4c3c-bd61-12666ee95ad7/events",
+      "query": "?afterSequence=0&limit=500"
+    },
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "path": "/api/assessments/ecdf35c1-8487-4c3c-bd61-12666ee95ad7/repository-setup",
+      "query": ""
+    },
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "path": "/api/assessments/ecdf35c1-8487-4c3c-bd61-12666ee95ad7/runtime/control",
+      "query": ""
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "path": "/api/assessments/a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "query": ""
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "path": "/api/assessments/a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f/human-requests",
+      "query": ""
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "path": "/api/assessments/a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f/events",
+      "query": "?afterSequence=0&limit=500"
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "path": "/api/assessments/a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f/repository-setup",
+      "query": ""
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "path": "/api/assessments/a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f/events",
+      "query": "?afterSequence=73&limit=500"
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "path": "/api/assessments/a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f/events",
+      "query": "?afterSequence=73&limit=500"
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "path": "/api/assessments/a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f/runtime/control",
+      "query": ""
+    }
+  ],
+  "cross": [
+    {
+      "requestedAssessment": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "status": 404
+    },
+    {
+      "requestedAssessment": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "status": 404
+    }
+  ]
+}

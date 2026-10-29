@@ -1,0 +1,165 @@
+Running as unit: run-p428202-i408679.scope; invocation ID: ff41d5ffa9784da3892f0eb4600325e0
+(node:428202) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Nest] 428202  - 10/29/2026, 1:57:51 PM   ERROR [AssessmentTrackingLoader] Owner compliance summary database query failed for owner user-parity-28442056-a8cf-482a-9cd3-347efbcc4eff (correlationId: corr-sql-fail-1394d19c-8278-4b21-a676-884c46e10bf1): Simulated PostgreSQL timeout in compliance summary CTE
+Error: Simulated PostgreSQL timeout in compliance summary CTE
+    at Proxy.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:2871:15)
+    at AssessmentTrackingLoader.loadCustomerOverview (/home/khovan/Workplaces/LCSP/apps/api/src/modules/assessment/infrastructure/persistence/assessment-tracking.loader.ts:640:70)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:2883:5)
+[Nest] 428202  - 10/29/2026, 1:57:51 PM   ERROR [AssessmentTrackingLoader] Customer change feed database query failed for owner user-parity-28442056-a8cf-482a-9cd3-347efbcc4eff (correlationId: corr-change-fail-8909ab22-d76a-4a8c-aff7-57c59d580e6a): Simulated PostgreSQL connection failure in change feed CTE
+Error: Simulated PostgreSQL connection failure in change feed CTE
+    at Proxy.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:3008:17)
+    at AssessmentTrackingLoader.loadCustomerOverview (/home/khovan/Workplaces/LCSP/apps/api/src/modules/assessment/infrastructure/persistence/assessment-tracking.loader.ts:949:71)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:3025:5)
+[Nest] 428202  - 10/29/2026, 1:58:14 PM    WARN [LegalSourceActivatedConsumer] Rule Set Preparation not started for legal source e1062066-d841-492a-aca4-4a7b027a16e0: RULE_SET_PREPARATION_NOT_ALLOWED
+[Nest] 428202  - 10/29/2026, 1:58:14 PM    WARN [LegalSourceActivatedConsumer] Rule Set Preparation not started for legal source f5086092-06f0-4178-a066-2952e03c56c1: RULE_SET_PREPARATION_SOURCE_VERSION_NOT_FOUND
+[Nest] 428202  - 10/29/2026, 1:58:14 PM   ERROR [LegalSourceActivatedConsumer] Legal Source activation event has no legalSourceVersionId
+[Nest] 428202  - 10/29/2026, 1:58:14 PM   ERROR [LegalSourceActivatedConsumer] Legal Source activation event has no legalSourceVersionId
+(node:428202) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   DEBUG [StreamSnapshotArchiveHandler] Repository snapshot archive cache hit
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   DEBUG [StreamSnapshotArchiveHandler] Object(3) {
+  correlationId: 'corr-cache',
+  snapshotId: 'snapshot-1',
+  commitSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+}
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: CREDENTIAL_INVALID
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+  correlationId: 'corr-401',
+  snapshotId: 'snapshot-1',
+  scanJobId: 'job-1',
+  repositoryFullName: 'acme/repo',
+  githubStatus: 401
+}
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: ARCHIVE_REDIRECT_VALIDATION_FAILED
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+  correlationId: 'corr-redirect',
+  snapshotId: 'snapshot-1',
+  scanJobId: 'job-1',
+  repositoryFullName: 'acme/repo',
+  githubStatus: null
+}
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: PROVIDER_TIMEOUT
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+  correlationId: 'corr-transient',
+  snapshotId: 'snapshot-1',
+  scanJobId: 'job-1',
+  repositoryFullName: 'acme/repo',
+  githubStatus: null
+}
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: PROVIDER_RATE_LIMITED
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+  correlationId: 'corr-transient',
+  snapshotId: 'snapshot-1',
+  scanJobId: 'job-1',
+  repositoryFullName: 'acme/repo',
+  githubStatus: null
+}
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: PROVIDER_CLIENT_UNAVAILABLE
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+[Nest] 428202  - 10/29/2026, 2:02:03 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+  correlationId: 'corr-transient',
+  snapshotId: 'snapshot-1',
+  scanJobId: 'job-1',
+  repositoryFullName: 'acme/repo',
+  githubStatus: null
+}
+[Nest] 428202  - 10/29/2026, 2:02:15 PM   DEBUG [StreamSnapshotArchiveHandler] Repository snapshot archive cache hit
+[Nest] 428202  - 10/29/2026, 2:02:15 PM   DEBUG [StreamSnapshotArchiveHandler] Object(3) {
+  correlationId: 'corr-cache',
+  snapshotId: 'snapshot-1',
+  commitSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+}
+[Nest] 428202  - 10/29/2026, 2:02:15 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: github_repository_archive_unknown_failure
+[Nest] 428202  - 10/29/2026, 2:02:15 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+[Nest] 428202  - 10/29/2026, 2:02:15 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+  correlationId: 'corr-failed',
+  snapshotId: 'snapshot-1',
+  scanJobId: 'scan-job-1',
+  repositoryFullName: 'acme/example-repo',
+  githubStatus: null
+}
+[Nest] 428202  - 10/29/2026, 2:02:22 PM    WARN [AuditWriterService] Audit payload field redacted, truncated, or removed by sanitizer: passwordHash
+[Nest] 428202  - 10/29/2026, 2:02:22 PM    WARN [AuditWriterService] Audit payload field redacted, truncated, or removed by sanitizer: sessionToken
+[Nest] 428202  - 10/29/2026, 2:02:22 PM    WARN [AuditWriterService] Audit payload field redacted, truncated, or removed by sanitizer: statementValue
+[Nest] 428202  - 10/29/2026, 2:02:22 PM   ERROR [AuditWriterService] Failed to write audit event (eventType=auth.login.succeeded): db unavailable
+[Nest] 428202  - 10/29/2026, 2:02:22 PM   ERROR [AuditWriterService] Failed to write audit event (eventType=auth.login.succeeded): tx rolled back
+[Nest] 428202  - 10/29/2026, 2:02:30 PM   ERROR [RbacPreflightService] RBAC preflight evaluation failed (requiredRoles=CUSTOMER): db unavailable
+[Nest] 428202  - 10/29/2026, 2:02:30 PM   ERROR [RbacPreflightService] Failed to write authorization AuditEvent for worker preflight (requiredRoles=CUSTOMER): db down
+[Nest] 428202  - 10/29/2026, 2:02:32 PM   ERROR [RbacGuard] Failed to write authorization AuditEvent (decision=ALLOW): db down
+[Nest] 428202  - 10/29/2026, 2:02:35 PM   ERROR [PrismaDatabaseCredentialStore] {"message":"Credential store operation failed","operation":"provider_credential_envelope_update","errorClass":"Error"}
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: password
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: sessionToken
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: mfaSecret
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: providerKey
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: nonce
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: code
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: tokenHash
+[Nest] 428202  - 10/29/2026, 2:02:35 PM   ERROR [AuthAuditService] Failed to write auth audit event: db unavailable
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: sessionToken
+[Nest] 428202  - 10/29/2026, 2:02:35 PM   ERROR [AuthAuditService] Failed to write auth audit event in transaction: transaction-aborted
+[Nest] 428202  - 10/29/2026, 2:02:35 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: session_token
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [corr-401] POST /auth/sign-in 401 - {"ok":false,"problem":{"type":"auth/invalid-credentials","status":401,"code":"INVALID_CREDENTIALS","titleKey":"auth.errors.invalidCredentials.title","detailKey":"auth.errors.invalidCredentials.detail","requiredAction":"sign_in","correlationId":"corr-401"}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [d0d99b2e-0060-4219-93f0-9c808934fc00] GET /assessments/a/evidence-graph/overview 404 - {"message":"Technical evidence not found","error":"Not Found","statusCode":404}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [a4c407f5-e2b2-4a50-94e5-8ee6f9412a80] POST /users 400 - {"message":["email must be an email","password is too short"],"error":"Bad Request"}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM   ERROR [HttpExceptionFilter] Non-HTTP exception caught in HttpExceptionFilter (rpc): {}
+Error: rpc failure
+    at /home/khovan/Workplaces/LCSP/apps/api/src/platform/http/filters/http-exception.filter.spec.ts:133:20
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/expect@30.5.1/node_modules/expect/build/index.js:1824:9)
+    at Object.throwingMatcher [as toThrow] (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/expect@30.5.1/node_modules/expect/build/index.js:2235:93)
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/src/platform/http/filters/http-exception.filter.spec.ts:134:12)
+    at Promise.finally.completed (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1834:28)
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1774:10)
+    at _callCircusTest (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1167:40)
+    at _runTestInContext (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1103:3)
+    at runTestWithContext (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:996:5)
+    at _runTestsForDescribeBlockOnce (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1008:11)
+    at _runTestsForDescribeBlock (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+    at _runTestsForDescribeBlockOnce (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1003:11)
+    at _runTestsForDescribeBlock (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+    at run (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:789:3)
+    at runAndTransformResultsToJestFormat (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:2300:21)
+    at jestAdapter (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/runner.js:111:19)
+    at runTestInternal (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/index.js:247:16)
+    at runTest (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/index.js:315:7)
+[Nest] 428202  - 10/29/2026, 2:02:36 PM   ERROR [HttpExceptionFilter] [a0d0c5ff-5c63-4471-a31c-344e40e967e6] POST /provider-credentials 500 - Internal Server Error
+Error: credential_store_operation_failed
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/src/platform/http/filters/http-exception.filter.spec.ts:144:7)
+    at Promise.finally.completed (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1834:28)
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1774:10)
+    at _callCircusTest (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1167:40)
+    at _runTestInContext (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1103:3)
+    at runTestWithContext (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:996:5)
+    at _runTestsForDescribeBlockOnce (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1008:11)
+    at _runTestsForDescribeBlock (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+    at _runTestsForDescribeBlockOnce (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1003:11)
+    at _runTestsForDescribeBlock (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+    at run (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:789:3)
+    at runAndTransformResultsToJestFormat (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:2300:21)
+    at jestAdapter (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/runner.js:111:19)
+    at runTestInternal (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/index.js:247:16)
+    at runTest (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/index.js:315:7)
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [client-correlation-123] POST /auth/password-recovery/confirm 400 - {"ok":false,"problem":{"type":"request/validation-failed","status":400,"code":"VALIDATION_FAILED","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":""}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [guard-assigned-correlation-456] POST /auth/reauthenticate 400 - {"ok":false,"problem":{"type":"request/validation-failed","status":400,"code":"VALIDATION_FAILED","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":""}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [157721e6-7a15-4319-a969-6dd0cf71afdf] POST /auth/password-recovery/confirm 400 - {"ok":false,"problem":{"type":"request/validation-failed","status":400,"code":"VALIDATION_FAILED","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":""}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [corr-credentials] POST /auth/sign-in 401 - {"ok":false,"problem":{"type":"auth/invalid-credentials","status":401,"code":"INVALID_CREDENTIALS","titleKey":"auth.errors.invalidCredentials.title","detailKey":"auth.errors.invalidCredentials.detail","requiredAction":"sign_in","correlationId":"corr-credentials"}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 409 - {"ok":false,"problem":{"type":"problem/email-already-exists","status":409,"code":"EMAIL_ALREADY_EXISTS","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":"corr-override"}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 404 - {"ok":false,"problem":{"type":"auth/session-invalid","status":404,"code":"SESSION_INVALID","titleKey":"auth.errors.sessionInvalid.title","detailKey":"auth.errors.sessionInvalid.detail","requiredAction":"sign_in","correlationId":"corr-override"}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 403 - {"ok":false,"problem":{"type":"auth/account-suspended","status":403,"code":"ACCOUNT_SUSPENDED","titleKey":"auth.errors.authzStateGateBlocked.title","detailKey":"auth.errors.authzStateGateBlocked.detail","requiredAction":"contact_organization_owner","correlationId":"corr-override"}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 401 - {"ok":false,"problem":{"type":"auth/session-invalid","status":401,"code":"SESSION_INVALID","titleKey":"auth.errors.sessionInvalid.title","detailKey":"auth.errors.sessionInvalid.detail","requiredAction":"sign_in","correlationId":"corr-override"}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [corr-lock] POST /auth/sign-in 429 - {"ok":false,"problem":{"type":"auth/temporary-lock","status":429,"code":"TEMPORARY_LOCKED","titleKey":"auth.errors.temporaryLock.title","detailKey":"auth.errors.temporaryLock.detail","requiredAction":"wait_and_retry","correlationId":"corr-lock","meta":{"lockedUntil":"2026-10-24T16:30:00.000Z","retryAfterSeconds":30}}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HttpExceptionFilter] [req-correlation] POST /auth/reauthenticate 401 - {"ok":false,"problem":{"type":"auth/invalid-credentials","status":401,"code":"INVALID_CREDENTIALS","titleKey":"auth.errors.invalidCredentials.title","detailKey":"auth.errors.invalidCredentials.detail","requiredAction":"none","correlationId":""}}
+[Nest] 428202  - 10/29/2026, 2:02:36 PM    WARN [HTTP] POST /auth/sign-in 401 +0ms code=INVALID_CREDENTIALS requiredAction=sign_in correlationId=corr-401
+
+Test Suites: 14 skipped, 186 passed, 186 of 200 total
+Tests:       129 skipped, 1517 passed, 1646 total
+Snapshots:   0 total
+Time:        332.921 s
+Ran all test suites.

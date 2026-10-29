@@ -1,0 +1,20 @@
+{
+  "implementationSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "cases": [
+    {
+      "label": "A",
+      "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590"
+    },
+    {
+      "label": "B",
+      "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "ownerId": "d3f2f078-78f1-4480-8a8d-9e134a356da1"
+    },
+    {
+      "label": "C",
+      "assessmentId": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{"step": "create-owned-uv-extractor", "startedAt": "2026-10-29T07:55:14.319264+00:00"}
+{"step": "create-owned-uv-extractor", "startedAt": "2026-10-29T07:55:14.319264+00:00", "endedAt": "2026-10-29T07:55:14.656317+00:00", "exitCode": 0}
+{"step": "extract-pinned-uv", "startedAt": "2026-10-29T07:55:14.657665+00:00"}
+{"step": "extract-pinned-uv", "startedAt": "2026-10-29T07:55:14.657665+00:00", "endedAt": "2026-10-29T07:55:15.328577+00:00", "exitCode": 0}
+{"step": "remove-owned-stopped-extractor", "startedAt": "2026-10-29T07:55:15.329795+00:00"}
+{"step": "remove-owned-stopped-extractor", "startedAt": "2026-10-29T07:55:15.329795+00:00", "endedAt": "2026-10-29T07:55:15.496189+00:00", "exitCode": 0}
+{"step": "pinned-uv-version", "startedAt": "2026-10-29T07:55:15.497362+00:00"}
+{"step": "pinned-uv-version", "startedAt": "2026-10-29T07:55:15.497362+00:00", "endedAt": "2026-10-29T07:55:15.510779+00:00", "exitCode": 0}
+{"step": "host-frozen-sync", "startedAt": "2026-10-29T07:55:15.511741+00:00"}
+{"step": "host-frozen-sync", "startedAt": "2026-10-29T07:55:15.511741+00:00", "endedAt": "2026-10-29T07:55:16.078292+00:00", "exitCode": 0}
+{"step": "host-wheel", "startedAt": "2026-10-29T07:55:16.079287+00:00"}
+{"step": "host-wheel", "startedAt": "2026-10-29T07:55:16.079287+00:00", "endedAt": "2026-10-29T07:55:18.795520+00:00", "exitCode": 0}
+{"step": "host-bytecode", "startedAt": "2026-10-29T07:55:18.796643+00:00"}
+{"step": "host-bytecode", "startedAt": "2026-10-29T07:55:18.796643+00:00", "endedAt": "2026-10-29T07:55:19.005628+00:00", "exitCode": 0}
+{"step": "shared-packages", "startedAt": "2026-10-29T07:55:19.006802+00:00"}
+{"step": "shared-packages", "startedAt": "2026-10-29T07:55:19.006802+00:00", "endedAt": "2026-10-29T07:55:43.099193+00:00", "exitCode": 0}
+{"step": "api-build", "startedAt": "2026-10-29T07:55:43.100674+00:00"}
+{"step": "api-build", "startedAt": "2026-10-29T07:55:43.100674+00:00", "endedAt": "2026-10-29T07:56:09.687565+00:00", "exitCode": 1}
+Traceback (most recent call last):
+  File "<stdin>", line 33, in <module>
+  File "<stdin>", line 22, in run
+AssertionError: api-build failed; preserve logs and existing data

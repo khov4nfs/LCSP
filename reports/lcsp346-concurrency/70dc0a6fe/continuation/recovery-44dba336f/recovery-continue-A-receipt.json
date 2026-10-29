@@ -1,0 +1,92 @@
+{
+  "observedAt": "2026-10-29T08:11:48.873Z",
+  "before": [
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "runtime": {
+        "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+        "checkpointId": "1f1d36ff-7da9-6eca-80dd-2b0770fac2aa",
+        "currentExecutionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+        "executionState": "PAUSED",
+        "eventSequence": 30,
+        "startedAt": "2026-10-29T08:05:39.203Z",
+        "lastResumedAt": "2026-10-29T08:05:39.203Z",
+        "updatedAt": "2026-10-29T08:08:49.638Z"
+      },
+      "lifecycle": {
+        "state": "PAUSED",
+        "assessmentRevision": 3
+      },
+      "usage": {
+        "invocationCount": 11,
+        "inputTokens": 107951,
+        "outputTokens": 2801,
+        "totalTokens": 491579,
+        "partial": false
+      }
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "runtime": {
+        "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+        "checkpointId": null,
+        "currentExecutionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+        "executionState": "RUNNING",
+        "eventSequence": 51,
+        "startedAt": "2026-10-29T08:05:39.210Z",
+        "lastResumedAt": "2026-10-29T08:05:39.210Z",
+        "updatedAt": "2026-10-29T08:11:42.040Z"
+      },
+      "lifecycle": {
+        "state": "ACTIVE",
+        "assessmentRevision": 2
+      },
+      "usage": {
+        "invocationCount": 18,
+        "inputTokens": 186173,
+        "outputTokens": 20786,
+        "totalTokens": 1318291,
+        "partial": true
+      }
+    },
+    {
+      "id": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+      "runtime": {
+        "threadId": "887baa46-f185-4a9c-87a3-3386c9b31082",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+        "checkpointId": null,
+        "currentExecutionId": "ca4fbfa3-33bd-4576-9150-89c61be16215",
+        "executionState": "RUNNING",
+        "eventSequence": 28,
+        "startedAt": "2026-10-29T08:08:50.387Z",
+        "lastResumedAt": "2026-10-29T08:08:50.387Z",
+        "updatedAt": "2026-10-29T08:11:35.626Z"
+      },
+      "lifecycle": {
+        "state": "ACTIVE",
+        "assessmentRevision": 2
+      },
+      "usage": {
+        "invocationCount": 10,
+        "inputTokens": 40655,
+        "outputTokens": 2747,
+        "totalTokens": 352733,
+        "partial": false
+      }
+    }
+  ],
+  "requestedAt": "2026-10-29T08:11:48.874Z",
+  "response": {
+    "status": 201,
+    "data": {
+      "state": "RESUME_REQUESTED",
+      "targetRunId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+      "requestId": "5b08b7f4-1950-4fc6-89fb-30a1b44a3ae9"
+    }
+  }
+}

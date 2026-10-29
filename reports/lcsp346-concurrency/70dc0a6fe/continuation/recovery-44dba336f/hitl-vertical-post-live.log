@@ -1,0 +1,2 @@
+{"gate":"ASSESSMENT unresolvable human fact mechanics","checks":72,"result":"PASS","sameThread":"35b4e559-fcc0-4fac-aba2-cac5ee7978d2","checkpoint":"1f1d369b-4e33-65ab-801c-d42870cde437","crashThread":"5ffb73d4-abfb-4aaf-a5a1-761c61917c83","proof":"real migrated DB/API/PostgresSaver; scripted model; separate processes"}
+{"gate":"SEPARATE_CHECKPOINT_DATABASE","apiCheckpointTable":null,"nativeDatabase":"lcsp_assessment_lcsp346_recovery","result":"PASS","model":"SCRIPTED"}

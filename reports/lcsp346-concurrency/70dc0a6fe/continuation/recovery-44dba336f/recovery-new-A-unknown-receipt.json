@@ -1,0 +1,14 @@
+{
+  "observedAt": "2026-10-29T08:21:53.891Z",
+  "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+  "status": 200,
+  "result": {
+    "requestId": "c56d83bb-15b7-4d91-ab72-8ff5058328f3",
+    "requestRevision": 1,
+    "caseRevision": 0,
+    "status": "OPEN",
+    "factId": null,
+    "resumed": false,
+    "replayed": false
+  }
+}

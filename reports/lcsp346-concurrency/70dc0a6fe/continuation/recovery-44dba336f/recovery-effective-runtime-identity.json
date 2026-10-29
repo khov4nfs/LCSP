@@ -1,0 +1,157 @@
+{
+  "observedAt": "2026-10-29T08:30:51.166119+00:00",
+  "head": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "boundaryWorkers": 2,
+  "effectivePrefetch": 2,
+  "agentServerCapacity": 2,
+  "executableHashes": {
+    "apps/api/dist/src/modules/assessment/domain/decision-validator.js": "98dae98155965739aa31e7fb97b50deeb6103532b8e40992b0951d86126b3386",
+    "apps/api/dist/src/modules/assessment/application/commands/submit-rule-decision/submit-rule-decision.handler.js": "c63541f07cc638c61bb28ae93e049fed1c0f9e7691f63c51fa6fb5995df030df",
+    "packages/contracts/dist/billing/official-reference-pricing.js": "94c6439e0d7b9de8e9f6f51516c91562a7ecef74d7e3d44111c7264f168e825d",
+    "deepagents/assessment_root/tools.py": "50474d08daf82df91f646b008e446cfc2d54ac9c0349f92ce41070485f90eb3d",
+    "deepagents/assessment_root/instructions.md": "1ad9b71eb64ac7475a7114288b1369c9692494bc724cb4951ddc03bbb9e9120a",
+    "apps/web/.next/BUILD_ID": "0c881e566a2e422537852662684488da2d9b4ecb51401cfa9260fbb89411c713"
+  },
+  "webBuildId": "EJSKcxwfCMRL3Znem1qXx",
+  "deployment": {
+    "previousHead": "70dc0a6fe40c618bdf47d532f9baa5230e52faf1",
+    "targetHead": "44dba336f332d566d3fee9fc0d32642a402d024e",
+    "startedAt": "2026-10-29T07:51:29.473004+00:00",
+    "steps": [
+      {
+        "step": "stop-idle-runtime",
+        "startedAt": "2026-10-29T07:51:40.043272+00:00",
+        "endedAt": "2026-10-29T07:51:44.396913+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "fetch-pr",
+        "startedAt": "2026-10-29T07:51:44.397893+00:00",
+        "endedAt": "2026-10-29T07:51:46.815135+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "pull-pr-fast-forward",
+        "startedAt": "2026-10-29T07:51:46.821556+00:00",
+        "endedAt": "2026-10-29T07:51:58.204027+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "sandbox-image",
+        "startedAt": "2026-10-29T07:51:58.214098+00:00",
+        "endedAt": "2026-10-29T07:52:11.237630+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "create-owned-uv-extractor",
+        "startedAt": "2026-10-29T07:55:14.319264+00:00",
+        "endedAt": "2026-10-29T07:55:14.656317+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "extract-pinned-uv",
+        "startedAt": "2026-10-29T07:55:14.657665+00:00",
+        "endedAt": "2026-10-29T07:55:15.328577+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "remove-owned-stopped-extractor",
+        "startedAt": "2026-10-29T07:55:15.329795+00:00",
+        "endedAt": "2026-10-29T07:55:15.496189+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "pinned-uv-version",
+        "startedAt": "2026-10-29T07:55:15.497362+00:00",
+        "endedAt": "2026-10-29T07:55:15.510779+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "host-frozen-sync",
+        "startedAt": "2026-10-29T07:55:15.511741+00:00",
+        "endedAt": "2026-10-29T07:55:16.078292+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "host-wheel",
+        "startedAt": "2026-10-29T07:55:16.079287+00:00",
+        "endedAt": "2026-10-29T07:55:18.795520+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "host-bytecode",
+        "startedAt": "2026-10-29T07:55:18.796643+00:00",
+        "endedAt": "2026-10-29T07:55:19.005628+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "shared-packages",
+        "startedAt": "2026-10-29T07:55:19.006802+00:00",
+        "endedAt": "2026-10-29T07:55:43.099193+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "api-build",
+        "startedAt": "2026-10-29T07:55:43.100674+00:00",
+        "endedAt": "2026-10-29T07:56:09.687565+00:00",
+        "exitCode": 1
+      },
+      {
+        "step": "api-build-attempt2",
+        "startedAt": "2026-10-29T07:58:06.663980+00:00",
+        "endedAt": "2026-10-29T07:59:23.940918+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "stop-web-for-build",
+        "startedAt": "2026-10-29T07:59:23.942511+00:00",
+        "endedAt": "2026-10-29T07:59:39.381876+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "web-build",
+        "startedAt": "2026-10-29T07:59:39.382879+00:00",
+        "endedAt": "2026-10-29T08:00:46.362837+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "activate-image",
+        "startedAt": "2026-10-29T08:00:46.364980+00:00",
+        "endedAt": "2026-10-29T08:00:46.532343+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "restart-api",
+        "startedAt": "2026-10-29T08:00:46.534036+00:00",
+        "endedAt": "2026-10-29T08:00:47.747345+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "restart-web",
+        "startedAt": "2026-10-29T08:00:47.748875+00:00",
+        "endedAt": "2026-10-29T08:00:48.422958+00:00",
+        "exitCode": 0
+      },
+      {
+        "step": "restart-runtime",
+        "startedAt": "2026-10-29T08:00:48.424644+00:00",
+        "endedAt": "2026-10-29T08:00:49.043303+00:00",
+        "exitCode": 0
+      }
+    ],
+    "preservedFileHashes": {
+      ".env.pm2": "130b397dc63725e28efe1450d41305504acf00163ba2c609226abb91b12a49a3",
+      "ecosystem.config.cjs": "f7bd66c32afcefb813ac7486d6adeb0a27e12dc7b92c16f7c7795be75fda98af"
+    },
+    "setupRecovery": {
+      "cause": "Host uv binary unavailable",
+      "source": "The same pinned uv 0.10.6 in the successfully rebuilt runtime image"
+    },
+    "apiHealth": 200,
+    "webHealth": 200,
+    "agentHealth": 200,
+    "endedAt": "2026-10-29T08:01:12.730678+00:00",
+    "checkoutHead": "44dba336f332d566d3fee9fc0d32642a402d024e",
+    "workingTree": ""
+  }
+}

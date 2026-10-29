@@ -1,0 +1,90 @@
+{
+  "observedAt": "2026-10-29T08:34:36.514Z",
+  "cases": [
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "owner": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "lifecycle": {
+        "state": "WAITING_FOR_HUMAN",
+        "assessmentRevision": 5
+      },
+      "runtime": {
+        "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+        "checkpointId": "1f1d3711-e7cd-69e3-820d-8cd82bbddf9f",
+        "currentExecutionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+        "executionState": "INTERRUPTED",
+        "eventSequence": 83,
+        "startedAt": "2026-10-29T08:13:07.686Z",
+        "lastResumedAt": "2026-10-29T08:13:07.686Z",
+        "updatedAt": "2026-10-29T08:17:04.121Z"
+      },
+      "usage": {
+        "invocationCount": 25,
+        "inputTokens": 144401,
+        "outputTokens": 16743,
+        "totalTokens": 1646898,
+        "partial": false
+      },
+      "acceptedDecisionIds": []
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "owner": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+      "lifecycle": {
+        "state": "WAITING_FOR_HUMAN",
+        "assessmentRevision": 3
+      },
+      "runtime": {
+        "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+        "checkpointId": "1f1d370b-cd15-6d29-81f8-9e8ca57d47c9",
+        "currentExecutionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+        "executionState": "INTERRUPTED",
+        "eventSequence": 73,
+        "startedAt": "2026-10-29T08:05:39.210Z",
+        "lastResumedAt": "2026-10-29T08:05:39.210Z",
+        "updatedAt": "2026-10-29T08:14:34.165Z"
+      },
+      "usage": {
+        "invocationCount": 26,
+        "inputTokens": 468279,
+        "outputTokens": 33733,
+        "totalTokens": 2057796,
+        "partial": true
+      },
+      "acceptedDecisionIds": []
+    },
+    {
+      "id": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+      "owner": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "lifecycle": {
+        "state": "PAUSED",
+        "assessmentRevision": 3
+      },
+      "runtime": {
+        "threadId": "887baa46-f185-4a9c-87a3-3386c9b31082",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "9e3cd276-d157-48fd-bf62-be4fa67de6cd",
+        "checkpointId": "1f1d3708-c940-699f-812f-d1ded0b5db8b",
+        "currentExecutionId": "ca4fbfa3-33bd-4576-9150-89c61be16215",
+        "executionState": "PAUSED",
+        "eventSequence": 40,
+        "startedAt": "2026-10-29T08:08:50.387Z",
+        "lastResumedAt": "2026-10-29T08:08:50.387Z",
+        "updatedAt": "2026-10-29T08:13:06.283Z"
+      },
+      "usage": {
+        "invocationCount": 14,
+        "inputTokens": 106944,
+        "outputTokens": 7773,
+        "totalTokens": 725270,
+        "partial": false
+      },
+      "acceptedDecisionIds": []
+    }
+  ],
+  "usageLinks": []
+}

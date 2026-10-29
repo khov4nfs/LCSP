@@ -1,0 +1,1209 @@
+{
+  "observedAt": "2026-10-29T08:25:11.061Z",
+  "implementationSha": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "scope": "Read-only preservation of an existing report produced on the historical implementation; no fresh benchmark completion is claimed",
+  "artifact": {
+    "status": 200,
+    "sizeBytes": 1580143,
+    "sha256": "b1a8fe7b01371c8c42b97f74f2b09f7402b4b6f42882de9e18421a6c8dc8fdd9",
+    "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+    "artifactId": "56c3c8c6-b697-51ff-abff-cb79ff352401",
+    "pins": {
+      "repositoryCommit": "ad756ce0d60c94f49e8b581639caa9d20f22cd05",
+      "repositoryScanJobId": "d4dedac2-d790-4680-819d-bec4cb2112c2",
+      "repositorySnapshotId": "769c69ca-1b5e-4653-990f-6b9995bba11a",
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a"
+    },
+    "findingCount": 243
+  },
+  "crossAccountDownloadStatus": 404,
+  "streams": [
+    {
+      "id": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+      "status": 200,
+      "keys": [
+        "assessmentId",
+        "events",
+        "hasMore",
+        "nextAfterSequence"
+      ],
+      "events": [
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 1,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 2,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 3,
+          "eventType": "EXECUTION_STATE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 4,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 5,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 6,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b2-3afe-7a81-8671-e407f7ab5499"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 7,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 8,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b2-660e-7663-a966-20c89b4611bf"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 9,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b2-6783-70b1-927b-4ac89f6574e2"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 10,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b2-6912-70d0-a9e9-fe22b7708b30"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 11,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 12,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 13,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b2-e4bb-71b3-ae44-f3d3aefb93fb"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 14,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 15,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-3d5c-7ca2-8229-26a874c80456"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 16,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-3e93-7320-9862-18b122d50b1d"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 17,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 18,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-8bbe-7f30-871a-9aec132354b4"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 19,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 20,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-b74e-7d32-9075-df997190b33e"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 21,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-b8bc-75a1-b4cc-8dfe71cae9ae"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 22,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 23,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-ee9b-75f3-a1dd-a2266f1860a1"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 24,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 25,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-2072-7843-8319-4f884ec76e6f"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 26,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-21e3-77c1-8cfa-4b2092b67005"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 27,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-233e-7c90-ad33-a405563de490"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 28,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 29,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 30,
+          "eventType": "EXECUTION_STATE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 31,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 32,
+          "eventType": "EXECUTION_STATE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 33,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-9bd7-7c82-a98f-4d5f7d2ae5f0"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 34,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-9d3c-7233-be84-3cd3b3880699"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 35,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-9eb0-7880-bb07-3fd03e6cb43c"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 36,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-a013-7c80-bee2-3fd342e6ebea"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 37,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 38,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-d17d-7bd1-a29c-b94c08d789ce"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 39,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-d310-7a31-90fc-b407d10b6bd8"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 40,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-d508-73a1-aff2-498b4ff8c20f"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 41,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b8-d683-7161-8cc3-800e2d61323c"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 42,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 43,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-0786-7093-bf84-a2d0fabe128f"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 44,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 45,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-3ef9-7503-b6bf-6d261e8282e4"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 46,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-4072-7a72-b054-9d3d45a65a65"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 47,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-41bd-7451-8c54-e0911a47b5af"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 48,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 49,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-71d7-7830-a5c3-bcb1968f2f0c"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 50,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-7311-7ad3-989c-199c95fa9ec4"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 51,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-7458-7933-8607-2682e46e90cd"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 52,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 53,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-b957-72e3-a77b-6ed5ff59fa2d"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 54,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-ba92-7540-8100-aacaa0b8f678"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 55,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-bc03-7232-bfae-2622fca5941a"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 56,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 57,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-e99c-7f20-a8c1-b4c6be3da093"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 58,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-eafa-7262-91d0-9eb312721629"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 59,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b9-ec52-7380-97b8-cdde48976426"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 60,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 61,
+          "eventType": "EVIDENCE_ACCEPTED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 62,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 63,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 64,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186ba-82e4-7c91-8308-dcb349621242"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 65,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186ba-8443-7202-8b1b-6dc1ef93b319"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 66,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186ba-85be-7711-adbf-648a623f1b16"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 67,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186ba-86fe-7c92-9d0e-d0e4c5da0679"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 68,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 69,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186ba-bc72-7272-82c7-45323d95aa28"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 70,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 71,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186ba-fbac-79c1-a57e-9b5dc524b5da"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 72,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186ba-feb3-7202-9cfb-f660ef0f440c"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 73,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186bb-0158-73a0-aba7-626e7c1531a1"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 74,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 75,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186bb-5a19-70b1-bacc-f75a3498bf04"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 76,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186bb-5b68-7a51-b7c3-ab8b970d6d8e"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 77,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186bb-5cf8-7af1-93da-a1203eef0fba"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 78,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186bb-5e86-71e2-bf1b-f877e5998432"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 79,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 80,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 81,
+          "eventType": "HUMAN_RESOLUTION_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 82,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+          "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+          "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+          "sequence": 83,
+          "eventType": "EXECUTION_STATE_CHANGED"
+        }
+      ],
+      "foreignStatus": 404
+    },
+    {
+      "id": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+      "status": 200,
+      "keys": [
+        "assessmentId",
+        "events",
+        "hasMore",
+        "nextAfterSequence"
+      ],
+      "events": [
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 1,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 2,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 3,
+          "eventType": "EXECUTION_STATE_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 4,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 5,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 6,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b2-bc95-7253-a7cc-785b27e03653"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 7,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 8,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b2-f4e6-7d91-8b91-817ed97304b0"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 9,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-30e1-7402-aa06-1bbcd4d0144e"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 10,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-323c-7531-a31a-9f0f304d6416"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 11,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 12,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-5650-7b90-a214-dcec87f180e3"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 13,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-57ce-73f3-a8c5-445ee6e1c9f7"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 14,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-5966-7e40-b958-2b7ebc136521"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 15,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 16,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-90fb-7421-b321-2890ea440cec"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 17,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-9262-7a91-8558-9e0875c8ff57"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 18,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-93bd-7611-aee6-1fe105edf0c4"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 19,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b3-9551-73b0-90d5-756988822b43"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 20,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 21,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 22,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 23,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 24,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-740a-7001-bee0-b8dc637ff177"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 25,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-74ec-7652-87e8-ada4ac749645"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 26,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-75dd-73b1-9804-e0fa5264412c"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 27,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-76ad-7a32-b599-23235ef11e51"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 28,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-777c-75b3-9c0f-d59dda32921a"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 29,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-784d-7593-a9a3-d5a17a5803a1"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 30,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-797e-76a2-b89e-5b311ac0071e"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 31,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 32,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b4-8d78-73c1-b5c6-2b88a7c224d4"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 33,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 34,
+          "eventType": "EVIDENCE_ACCEPTED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 35,
+          "eventType": "EVIDENCE_ACCEPTED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 36,
+          "eventType": "EVIDENCE_ACCEPTED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 37,
+          "eventType": "EVIDENCE_ACCEPTED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 38,
+          "eventType": "EVIDENCE_ACCEPTED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 39,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 40,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 41,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 42,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b5-297b-7fa0-aaef-2f2b6d1e74db"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 43,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b5-2b0b-7482-b5f0-8ba1d6e1c772"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 44,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b5-2c9c-7382-8904-0e3a3089c536"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 45,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 46,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b5-5e2f-7993-a626-37ac272c009c"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 47,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b5-5fbb-7b32-98ad-29f58d2177ab"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 48,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 49,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 50,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 51,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 52,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b7-00bf-78e0-8e84-806fc3788be9"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 53,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b7-022d-7aa2-9a3c-0588c5fec4d4"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 54,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b7-073f-7580-aff9-8ec9793ccfad"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 55,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b7-0c37-7473-95a8-9eb86da6225e"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 56,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 57,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 58,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b7-8435-7002-a0b2-c7ba97384e76"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 59,
+          "eventType": "ACTIVITY_RECORDED",
+          "toolCallId": "01a186b7-85db-7170-94a2-e2512a65fb36"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 60,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 61,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 62,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 63,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 64,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 65,
+          "eventType": "ACTIVITY_RECORDED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 66,
+          "eventType": "HUMAN_RESOLUTION_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 67,
+          "eventType": "ASSESSMENT_LIFECYCLE_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 68,
+          "eventType": "HUMAN_RESOLUTION_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 69,
+          "eventType": "HUMAN_RESOLUTION_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 70,
+          "eventType": "HUMAN_RESOLUTION_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 71,
+          "eventType": "HUMAN_RESOLUTION_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 72,
+          "eventType": "HUMAN_RESOLUTION_CHANGED"
+        },
+        {
+          "assessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+          "executionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+          "threadId": "29dbfbcf-05ac-448e-9391-ddfc898fced6",
+          "sequence": 73,
+          "eventType": "EXECUTION_STATE_CHANGED"
+        }
+      ],
+      "foreignStatus": 404
+    }
+  ]
+}

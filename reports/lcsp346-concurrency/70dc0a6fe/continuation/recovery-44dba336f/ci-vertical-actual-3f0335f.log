@@ -1,0 +1,1137 @@
+﻿2026-10-29T07:11:01.5292783Z Current runner version: '2.338.0'
+2026-10-29T07:11:01.5319107Z ##[group]Runner Image Provisioner
+2026-10-29T07:11:01.5319975Z Hosted Compute Agent
+2026-10-29T07:11:01.5320675Z Version: 20261021.618
+2026-10-29T07:11:01.5321305Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-29T07:11:01.5322080Z Build Date: 2026-10-21T00:45:21Z
+2026-10-29T07:11:01.5322878Z Worker ID: {6ba01a40-ab18-419d-b6af-c370bdeaba8d}
+2026-10-29T07:11:01.5323568Z Region: westus2
+2026-10-29T07:11:01.5324180Z Cloud: Azure
+2026-10-29T07:11:01.5324708Z ##[endgroup]
+2026-10-29T07:11:01.5326588Z ##[group]Operating System
+2026-10-29T07:11:01.5327291Z Ubuntu
+2026-10-29T07:11:01.5327801Z 26.04.1
+2026-10-29T07:11:01.5328363Z LTS
+2026-10-29T07:11:01.5328876Z ##[endgroup]
+2026-10-29T07:11:01.5329399Z ##[group]Runner Image
+2026-10-29T07:11:01.5330146Z Image: ubuntu-26.04
+2026-10-29T07:11:01.5330708Z Version: 20261025.179.1
+2026-10-29T07:11:01.5332096Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261025.179/images/ubuntu/Ubuntu2604-Readme.md
+2026-10-29T07:11:01.5334099Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261025.179
+2026-10-29T07:11:01.5335268Z ##[endgroup]
+2026-10-29T07:11:01.5336920Z ##[group]GITHUB_TOKEN Permissions
+2026-10-29T07:11:01.5339007Z Contents: read
+2026-10-29T07:11:01.5339617Z Metadata: read
+2026-10-29T07:11:01.5340319Z PullRequests: read
+2026-10-29T07:11:01.5340903Z ##[endgroup]
+2026-10-29T07:11:01.5343105Z Secret source: Actions
+2026-10-29T07:11:01.5344155Z Cache mode: write
+2026-10-29T07:11:01.5344877Z Prepare workflow directory
+2026-10-29T07:11:01.5814657Z Prepare all required actions
+2026-10-29T07:11:01.5864112Z Getting action download info
+2026-10-29T07:11:01.9614196Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-29T07:11:02.0838101Z Download action repository 'pnpm/action-setup@v4' (SHA:b906affcce14559ad1aafd4ab0e942779e9f58b1)
+2026-10-29T07:11:02.3274485Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-29T07:11:02.3925898Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-29T07:11:02.4529717Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-29T07:11:02.7093057Z Complete job name: Assessment Root vertical
+2026-10-29T07:11:02.7880722Z ##[group]Checking docker version
+2026-10-29T07:11:02.7894848Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-10-29T07:11:02.8897337Z '1.54'
+2026-10-29T07:11:02.8913911Z Docker daemon API version: '1.54'
+2026-10-29T07:11:02.8915432Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-10-29T07:11:02.9125927Z '1.54'
+2026-10-29T07:11:02.9227779Z Docker client API version: '1.54'
+2026-10-29T07:11:02.9237064Z ##[endgroup]
+2026-10-29T07:11:02.9242123Z ##[group]Clean up resources from previous jobs
+2026-10-29T07:11:02.9249709Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=13de22"
+2026-10-29T07:11:02.9447159Z ##[command]/usr/bin/docker network prune --force --filter "label=13de22"
+2026-10-29T07:11:02.9621592Z ##[endgroup]
+2026-10-29T07:11:02.9622571Z ##[group]Create local container network
+2026-10-29T07:11:02.9634923Z ##[command]/usr/bin/docker network create --label 13de22 github_network_850416965c7a483a96dcfb53c725ad13
+2026-10-29T07:11:03.0148728Z 6380e0d40b223c5701b28f89c4bceaebcec6855edddc77bf2a4e12bab50f6393
+2026-10-29T07:11:03.0173679Z ##[endgroup]
+2026-10-29T07:11:03.0200192Z ##[group]Starting postgres service container
+2026-10-29T07:11:03.0222873Z ##[command]/usr/bin/docker pull postgres:16
+2026-10-29T07:11:03.8766321Z 16: Pulling from library/postgres
+2026-10-29T07:11:04.1427873Z 7ee6ed8de1c8: Pulling fs layer
+2026-10-29T07:11:04.1428702Z 879995175298: Pulling fs layer
+2026-10-29T07:11:04.1429407Z d89068781d71: Pulling fs layer
+2026-10-29T07:11:04.1430014Z 5c4d204f6daa: Pulling fs layer
+2026-10-29T07:11:04.1430650Z cea4f0db46a6: Pulling fs layer
+2026-10-29T07:11:04.1431765Z 3795839385bc: Pulling fs layer
+2026-10-29T07:11:04.1432358Z 9b1a18996a22: Pulling fs layer
+2026-10-29T07:11:04.1432789Z b355a8fcc1d3: Pulling fs layer
+2026-10-29T07:11:04.1433149Z 6fc242d221a6: Pulling fs layer
+2026-10-29T07:11:04.1433535Z d06edb2e3f43: Pulling fs layer
+2026-10-29T07:11:04.1433898Z 28d8a96df569: Pulling fs layer
+2026-10-29T07:11:04.1434292Z dc3e98153fd4: Pulling fs layer
+2026-10-29T07:11:04.1434643Z fbc84e711712: Pulling fs layer
+2026-10-29T07:11:04.1434977Z c60d02d02e9b: Pulling fs layer
+2026-10-29T07:11:04.3430927Z d06edb2e3f43: Download complete
+2026-10-29T07:11:04.3437860Z cea4f0db46a6: Download complete
+2026-10-29T07:11:04.4411003Z 28d8a96df569: Download complete
+2026-10-29T07:11:04.4423722Z b355a8fcc1d3: Download complete
+2026-10-29T07:11:04.4429710Z dc3e98153fd4: Download complete
+2026-10-29T07:11:04.4433394Z 7ee6ed8de1c8: Download complete
+2026-10-29T07:11:04.4439143Z 3795839385bc: Download complete
+2026-10-29T07:11:04.4442967Z 9b1a18996a22: Download complete
+2026-10-29T07:11:04.4446385Z c60d02d02e9b: Download complete
+2026-10-29T07:11:04.4449600Z 879995175298: Download complete
+2026-10-29T07:11:04.4453369Z d89068781d71: Download complete
+2026-10-29T07:11:04.5458962Z fbc84e711712: Download complete
+2026-10-29T07:11:04.5461313Z 6fc242d221a6: Download complete
+2026-10-29T07:11:04.6412367Z 52b2ca0eb4bf: Download complete
+2026-10-29T07:11:04.7419763Z 34abe417644f: Download complete
+2026-10-29T07:11:05.1412979Z 5c4d204f6daa: Download complete
+2026-10-29T07:11:05.5418862Z d06edb2e3f43: Pull complete
+2026-10-29T07:11:05.5597413Z 6fc242d221a6: Pull complete
+2026-10-29T07:11:05.6496821Z 3795839385bc: Pull complete
+2026-10-29T07:11:05.7468373Z cea4f0db46a6: Pull complete
+2026-10-29T07:11:05.8489936Z 9b1a18996a22: Pull complete
+2026-10-29T07:11:05.9510978Z 879995175298: Pull complete
+2026-10-29T07:11:05.9522680Z d89068781d71: Pull complete
+2026-10-29T07:11:05.9535469Z fbc84e711712: Pull complete
+2026-10-29T07:11:07.7416358Z 28d8a96df569: Pull complete
+2026-10-29T07:11:07.7445554Z b355a8fcc1d3: Pull complete
+2026-10-29T07:11:07.7465094Z dc3e98153fd4: Pull complete
+2026-10-29T07:11:07.7478347Z 7ee6ed8de1c8: Pull complete
+2026-10-29T07:11:07.7492979Z c60d02d02e9b: Pull complete
+2026-10-29T07:11:07.7504233Z 5c4d204f6daa: Pull complete
+2026-10-29T07:11:07.7650823Z Digest: sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+2026-10-29T07:11:07.7651984Z Status: Downloaded newer image for postgres:16
+2026-10-29T07:11:07.7676353Z docker.io/library/postgres:16
+2026-10-29T07:11:07.7765888Z ##[command]/usr/bin/docker create --name c353eb00e27446f988925d93215a13a8_postgres16_618cb4 --label 13de22 --network github_network_850416965c7a483a96dcfb53c725ad13 --network-alias postgres -p 55437:5432 --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5 -e "POSTGRES_USER=postgres" -e "POSTGRES_PASSWORD=postgres" -e "POSTGRES_DB=postgres" -e GITHUB_ACTIONS=true -e CI=true postgres:16
+2026-10-29T07:11:08.7625727Z f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:08.7653617Z ##[command]/usr/bin/docker start f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:08.9967063Z f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:09.0004343Z ##[command]/usr/bin/docker ps --all --filter id=f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-10-29T07:11:09.0331834Z f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3 Up Less than a second (health: starting)
+2026-10-29T07:11:09.0364819Z ##[command]/usr/bin/docker port f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:09.0533758Z 5432/tcp -> 0.0.0.0:55437
+2026-10-29T07:11:09.0534702Z 5432/tcp -> [::]:55437
+2026-10-29T07:11:09.0590171Z ##[endgroup]
+2026-10-29T07:11:09.0600271Z ##[group]Waiting for all services to be ready
+2026-10-29T07:11:09.0614137Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:09.0778125Z starting
+2026-10-29T07:11:09.0811258Z postgres service is starting, waiting 2 seconds before checking again.
+2026-10-29T07:11:11.0817083Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:11.0971705Z starting
+2026-10-29T07:11:11.0989664Z postgres service is starting, waiting 3 seconds before checking again.
+2026-10-29T07:11:14.8037466Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:14.8186623Z starting
+2026-10-29T07:11:14.8203858Z postgres service is starting, waiting 8 seconds before checking again.
+2026-10-29T07:11:23.4268104Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:11:23.4415622Z healthy
+2026-10-29T07:11:23.4436334Z postgres service is healthy.
+2026-10-29T07:11:23.4437125Z ##[endgroup]
+2026-10-29T07:11:23.4746828Z ##[group]Run actions/checkout@v4
+2026-10-29T07:11:23.4747439Z with:
+2026-10-29T07:11:23.4747678Z   repository: khov4nfs/LCSP
+2026-10-29T07:11:23.4750246Z   token: ***
+2026-10-29T07:11:23.4750472Z   ssh-strict: true
+2026-10-29T07:11:23.4750688Z   ssh-user: git
+2026-10-29T07:11:23.4750915Z   persist-credentials: true
+2026-10-29T07:11:23.4751162Z   clean: true
+2026-10-29T07:11:23.4751394Z   sparse-checkout-cone-mode: true
+2026-10-29T07:11:23.4751669Z   fetch-depth: 1
+2026-10-29T07:11:23.4751878Z   fetch-tags: false
+2026-10-29T07:11:23.4752094Z   show-progress: true
+2026-10-29T07:11:23.4752311Z   lfs: false
+2026-10-29T07:11:23.4752510Z   submodules: false
+2026-10-29T07:11:23.4752729Z   set-safe-directory: true
+2026-10-29T07:11:23.4753000Z   allow-unsafe-pr-checkout: false
+2026-10-29T07:11:23.4753445Z env:
+2026-10-29T07:11:23.4753653Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:11:23.4754179Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:11:23.4754546Z   NODE_ENV: test
+2026-10-29T07:11:23.4754763Z ##[endgroup]
+2026-10-29T07:11:23.7685915Z Syncing repository: khov4nfs/LCSP
+2026-10-29T07:11:23.7687876Z ##[group]Getting Git version info
+2026-10-29T07:11:23.7688448Z Working directory is '/home/runner/work/LCSP/LCSP'
+2026-10-29T07:11:23.7696831Z [command]/usr/bin/git version
+2026-10-29T07:11:23.7732331Z git version 2.56.0
+2026-10-29T07:11:23.7753935Z ##[endgroup]
+2026-10-29T07:11:23.7771518Z Temporarily overriding HOME='/home/runner/work/_temp/ad6d6786-97e6-4ab9-86da-da819563780c' before making global git config changes
+2026-10-29T07:11:23.7773080Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T07:11:23.7777787Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-29T07:11:23.7850222Z Deleting the contents of '/home/runner/work/LCSP/LCSP'
+2026-10-29T07:11:23.7854760Z ##[group]Initializing the repository
+2026-10-29T07:11:23.7860816Z [command]/usr/bin/git init /home/runner/work/LCSP/LCSP
+2026-10-29T07:11:23.7994853Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-29T07:11:23.7996125Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-29T07:11:23.7997022Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-29T07:11:23.7997718Z hint: call:
+2026-10-29T07:11:23.7998046Z hint:
+2026-10-29T07:11:23.7998507Z hint: 	git config --global init.defaultBranch <name>
+2026-10-29T07:11:23.7999067Z hint:
+2026-10-29T07:11:23.7999577Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-29T07:11:23.8000449Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-29T07:11:23.8001279Z hint:
+2026-10-29T07:11:23.8001489Z hint: 	git branch -m <name>
+2026-10-29T07:11:23.8001726Z hint:
+2026-10-29T07:11:23.8002052Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-29T07:11:23.8014774Z Initialized empty Git repository in /home/runner/work/LCSP/LCSP/.git/
+2026-10-29T07:11:23.8030014Z [command]/usr/bin/git remote add origin https://github.com/khov4nfs/LCSP
+2026-10-29T07:11:23.8086140Z ##[endgroup]
+2026-10-29T07:11:23.8086823Z ##[group]Disabling automatic garbage collection
+2026-10-29T07:11:23.8091955Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-29T07:11:23.8129215Z ##[endgroup]
+2026-10-29T07:11:23.8129823Z ##[group]Setting up auth
+2026-10-29T07:11:23.8139775Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T07:11:23.8184080Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T07:11:23.8689123Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T07:11:23.8724808Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T07:11:23.9006691Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T07:11:23.9044305Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T07:11:23.9327662Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-29T07:11:23.9370555Z ##[endgroup]
+2026-10-29T07:11:23.9371361Z ##[group]Fetching the repository
+2026-10-29T07:11:23.9381613Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +71a6d3d36dce38cdc2e4d755fd328751b864fe18:refs/remotes/pull/440/merge
+2026-10-29T07:11:25.2105003Z From https://github.com/khov4nfs/LCSP
+2026-10-29T07:11:25.2105758Z  * [new ref]         71a6d3d36dce38cdc2e4d755fd328751b864fe18 -> pull/440/merge
+2026-10-29T07:11:25.2110140Z ##[endgroup]
+2026-10-29T07:11:25.2110539Z ##[group]Determining the checkout info
+2026-10-29T07:11:25.2112415Z ##[endgroup]
+2026-10-29T07:11:25.2118042Z [command]/usr/bin/git sparse-checkout disable
+2026-10-29T07:11:25.2169761Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-29T07:11:25.2201634Z ##[group]Checking out the ref
+2026-10-29T07:11:25.2206251Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/440/merge
+2026-10-29T07:11:25.4276386Z Note: switching to 'refs/remotes/pull/440/merge'.
+2026-10-29T07:11:25.4276955Z 
+2026-10-29T07:11:25.4277355Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-29T07:11:25.4278071Z changes and commit them, and you can discard any commits you make in this
+2026-10-29T07:11:25.4278675Z state without impacting any branches by switching back to a branch.
+2026-10-29T07:11:25.4279016Z 
+2026-10-29T07:11:25.4279452Z If you want to create a new branch to retain commits you create, you may
+2026-10-29T07:11:25.4280150Z do so (now or later) by using -c with the switch command. Example:
+2026-10-29T07:11:25.4280560Z 
+2026-10-29T07:11:25.4280735Z   git switch -c <new-branch-name>
+2026-10-29T07:11:25.4281010Z 
+2026-10-29T07:11:25.4281188Z Or undo this operation with:
+2026-10-29T07:11:25.4281443Z 
+2026-10-29T07:11:25.4281596Z   git switch -
+2026-10-29T07:11:25.4281803Z 
+2026-10-29T07:11:25.4282143Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-29T07:11:25.4282712Z 
+2026-10-29T07:11:25.4283281Z HEAD is now at 71a6d3d Merge 3f0335f99298cd486dfc58a076aeea095b5f3c0d into 70ddc3c086678edabb6b7a9f6627685841afbafb
+2026-10-29T07:11:25.4291550Z ##[endgroup]
+2026-10-29T07:11:25.4343038Z [command]/usr/bin/git log -1 --format=%H
+2026-10-29T07:11:25.4370510Z 71a6d3d36dce38cdc2e4d755fd328751b864fe18
+2026-10-29T07:11:25.4634681Z ##[group]Run pnpm/action-setup@v4
+2026-10-29T07:11:25.4634985Z with:
+2026-10-29T07:11:25.4635193Z   dest: ~/setup-pnpm
+2026-10-29T07:11:25.4635415Z   run_install: null
+2026-10-29T07:11:25.4635844Z   cache: false
+2026-10-29T07:11:25.4636076Z   cache_dependency_path: pnpm-lock.yaml
+2026-10-29T07:11:25.4636378Z   package_json_file: package.json
+2026-10-29T07:11:25.4636635Z   standalone: false
+2026-10-29T07:11:25.4636847Z env:
+2026-10-29T07:11:25.4637045Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:11:25.4637694Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:11:25.4638031Z   NODE_ENV: test
+2026-10-29T07:11:25.4638242Z ##[endgroup]
+2026-10-29T07:11:25.6157812Z ##[group]Running self-installer...
+2026-10-29T07:11:26.1534254Z (node:3084) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T07:11:26.1536744Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T07:11:26.3200867Z Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-10-29T07:11:26.4616768Z Packages: +3
+2026-10-29T07:11:26.4617639Z +++
+2026-10-29T07:11:27.0392530Z Progress: resolved 9, reused 0, downloaded 3, added 3, done
+2026-10-29T07:11:27.0584857Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall$ node install.js
+2026-10-29T07:11:27.2927040Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall: Done
+2026-10-29T07:11:27.2931832Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall$ node install.js
+2026-10-29T07:11:27.3425441Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall: Done
+2026-10-29T07:11:28.4500534Z 
+2026-10-29T07:11:28.4501044Z dependencies:
+2026-10-29T07:11:28.4501362Z + pnpm 12.3.4 (12.16.1 is available)
+2026-10-29T07:11:28.4501894Z 
+2026-10-29T07:11:28.4524670Z Done in 2.6s
+2026-10-29T07:11:28.5190114Z ##[endgroup]
+2026-10-29T07:11:28.5190644Z Installation Completed!
+2026-10-29T07:11:28.5368052Z ##[group]Run actions/setup-node@v4
+2026-10-29T07:11:28.5368355Z with:
+2026-10-29T07:11:28.5368560Z   node-version: 22
+2026-10-29T07:11:28.5368779Z   cache: pnpm
+2026-10-29T07:11:28.5368994Z   always-auth: false
+2026-10-29T07:11:28.5369223Z   check-latest: false
+2026-10-29T07:11:28.5371697Z   token: ***
+2026-10-29T07:11:28.5371906Z env:
+2026-10-29T07:11:28.5372107Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:11:28.5372585Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:11:28.5372903Z   NODE_ENV: test
+2026-10-29T07:11:28.5373167Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:11:28.5373473Z ##[endgroup]
+2026-10-29T07:11:28.6839280Z Found in cache @ /opt/hostedtoolcache/node/22.23.4/x64
+2026-10-29T07:11:28.6840203Z (node:3115) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T07:11:28.6841067Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T07:11:28.6844168Z ##[group]Environment details
+2026-10-29T07:11:29.1044844Z node: v22.23.4
+2026-10-29T07:11:29.1045310Z npm: 10.9.9
+2026-10-29T07:11:29.1045878Z yarn: 1.22.22
+2026-10-29T07:11:29.1047207Z ##[endgroup]
+2026-10-29T07:11:29.1076925Z [command]/home/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+2026-10-29T07:11:29.1353265Z /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-29T07:11:29.4130245Z Cache hit for: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-29T07:11:29.4292091Z (node:3115) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T07:11:30.7848138Z Received 4194304 of 277919439 (1.5%), 4.0 MBs/sec
+2026-10-29T07:11:31.8165431Z Received 134217728 of 277919439 (48.3%), 63.0 MBs/sec
+2026-10-29T07:11:32.8164841Z Received 260046848 of 277919439 (93.6%), 81.8 MBs/sec
+2026-10-29T07:11:33.8162817Z Received 269530831 of 277919439 (97.0%), 63.8 MBs/sec
+2026-10-29T07:11:34.4436735Z Received 277919439 of 277919439 (100.0%), 56.9 MBs/sec
+2026-10-29T07:11:34.4437348Z Cache Size: ~265 MB (277919439 B)
+2026-10-29T07:11:34.4471622Z [command]/usr/bin/tar -xf /home/runner/work/_temp/321789fa-9028-477d-9afa-12359bf3ee3a/cache.tzst -P -C /home/runner/work/LCSP/LCSP --use-compress-program unzstd
+2026-10-29T07:11:37.7232992Z Cache restored successfully
+2026-10-29T07:11:37.7380480Z Cache restored from key: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-29T07:11:37.7711960Z ##[group]Run actions/setup-python@v5
+2026-10-29T07:11:37.7712283Z with:
+2026-10-29T07:11:37.7712504Z   python-version: 3.11
+2026-10-29T07:11:37.7712748Z   cache: pip
+2026-10-29T07:11:37.7713028Z   cache-dependency-path: deepagents/pyproject.toml
+2026-10-29T07:11:37.7713383Z   check-latest: false
+2026-10-29T07:11:37.7716192Z   token: ***
+2026-10-29T07:11:37.7716443Z   update-environment: true
+2026-10-29T07:11:37.7716710Z   allow-prereleases: false
+2026-10-29T07:11:37.7716967Z   freethreaded: false
+2026-10-29T07:11:37.7717197Z env:
+2026-10-29T07:11:37.7717406Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:11:37.7717844Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:11:37.7718174Z   NODE_ENV: test
+2026-10-29T07:11:37.7718445Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:11:37.7718759Z ##[endgroup]
+2026-10-29T07:11:37.9155842Z ##[group]Installed versions
+2026-10-29T07:11:37.9285168Z (node:3194) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T07:11:37.9286645Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T07:11:37.9287296Z Successfully set up CPython (3.11.17)
+2026-10-29T07:11:37.9287862Z ##[endgroup]
+2026-10-29T07:11:37.9693622Z [command]/opt/hostedtoolcache/Python/3.11.17/x64/bin/pip cache dir
+2026-10-29T07:11:38.3023881Z /home/runner/.cache/pip
+2026-10-29T07:11:38.6111159Z Cache hit for: setup-python-Linux-x64-26.04-Ubuntu-python-3.11.17-pip-cc2006c27ecede20e2456883d439e0176d0e15d2f397e52fdc12b619d34134cf
+2026-10-29T07:11:38.6224223Z (node:3194) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T07:11:39.9141908Z Received 8388608 of 245612248 (3.4%), 8.0 MBs/sec
+2026-10-29T07:11:40.9150320Z Received 134217728 of 245612248 (54.6%), 64.0 MBs/sec
+2026-10-29T07:11:41.6554845Z Received 245612248 of 245612248 (100.0%), 85.5 MBs/sec
+2026-10-29T07:11:41.6556121Z Cache Size: ~234 MB (245612248 B)
+2026-10-29T07:11:41.6696636Z [command]/usr/bin/tar -xf /home/runner/work/_temp/70aec98b-82f2-4d92-bbc9-f9e14858ec6e/cache.tzst -P -C /home/runner/work/LCSP/LCSP --use-compress-program unzstd
+2026-10-29T07:11:42.2071821Z Cache restored successfully
+2026-10-29T07:11:42.2185454Z Cache restored from key: setup-python-Linux-x64-26.04-Ubuntu-python-3.11.17-pip-cc2006c27ecede20e2456883d439e0176d0e15d2f397e52fdc12b619d34134cf
+2026-10-29T07:11:42.2404994Z ##[group]Run pnpm install --frozen-lockfile
+2026-10-29T07:11:42.2406237Z pnpm install --frozen-lockfile
+2026-10-29T07:11:42.2468518Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:11:42.2468817Z env:
+2026-10-29T07:11:42.2469040Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:11:42.2469614Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:11:42.2469966Z   NODE_ENV: test
+2026-10-29T07:11:42.2470262Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:11:42.2470676Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:42.2471149Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:11:42.2471600Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:42.2472997Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:42.2473856Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:42.2474621Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:11:42.2475210Z ##[endgroup]
+2026-10-29T07:11:42.2940413Z Scope: all 5 workspace projects
+2026-10-29T07:11:42.3674531Z ? Verifying lockfile against supply-chain policies (1310 entries)...
+2026-10-29T07:11:42.6456375Z Packages are hard linked from the content-addressable store to the virtual store.
+2026-10-29T07:11:42.6457639Z   Content-addressable store is at: /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-29T07:11:42.6458513Z   Virtual store is at:             node_modules/.pnpm
+2026-10-29T07:11:43.6460989Z Progress: resolved 541, reused 541, downloaded 0, added 534
+2026-10-29T07:11:50.6186741Z ✓ Lockfile passes supply-chain policies (1310 entries in 8.3s)
+2026-10-29T07:11:50.6187413Z Lockfile is up to date, resolution step is skipped
+2026-10-29T07:11:50.6355339Z Packages: +1175
+2026-10-29T07:11:50.6356785Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-29T07:11:50.7156224Z Progress: resolved 1175, reused 1175, downloaded 0, added 1175, done
+2026-10-29T07:11:50.9665197Z . prepare$ husky
+2026-10-29T07:11:51.0567500Z . prepare: Done
+2026-10-29T07:11:51.0582993Z 
+2026-10-29T07:11:51.0583401Z devDependencies:
+2026-10-29T07:11:51.0584383Z + @lcsp/contracts link:packages/contracts
+2026-10-29T07:11:51.0585253Z + @lcsp/i18n link:packages/i18n
+2026-10-29T07:11:51.0586288Z + @lcsp/web link:apps/web
+2026-10-29T07:11:51.0586818Z + @playwright/test 1.63.0
+2026-10-29T07:11:51.0605374Z + @tanstack/ai 0.14.0
+2026-10-29T07:11:51.0621362Z + @types/node 22.20.0
+2026-10-29T07:11:51.0621817Z + dotenv 16.6.1
+2026-10-29T07:11:51.0622289Z + dotenv-expand 12.0.3
+2026-10-29T07:11:51.0622712Z + husky 9.1.7
+2026-10-29T07:11:51.0623085Z + likec4 1.59.2
+2026-10-29T07:11:51.0623466Z + prettier 3.9.4
+2026-10-29T07:11:51.0623881Z + tsx 4.23.1
+2026-10-29T07:11:51.0624277Z + typescript 5.9.3
+2026-10-29T07:11:51.0624509Z 
+2026-10-29T07:11:51.0624831Z Done in 8.8s using pnpm v12.3.4
+2026-10-29T07:11:51.1370780Z ##[group]Run python -m pip install uv==0.10.6
+2026-10-29T07:11:51.1371209Z python -m pip install uv==0.10.6
+2026-10-29T07:11:51.1371548Z uv sync --frozen --extra dev
+2026-10-29T07:11:51.1402145Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:11:51.1402418Z env:
+2026-10-29T07:11:51.1402644Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:11:51.1403188Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:11:51.1403536Z   NODE_ENV: test
+2026-10-29T07:11:51.1403826Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:11:51.1404237Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:51.1404684Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:11:51.1405147Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:51.1406022Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:51.1406490Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:51.1406911Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:11:51.1407258Z ##[endgroup]
+2026-10-29T07:11:51.9788187Z Collecting uv==0.10.6
+2026-10-29T07:11:52.0211525Z   Downloading uv-0.10.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+2026-10-29T07:11:52.0352243Z Downloading uv-0.10.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (23.2 MB)
+2026-10-29T07:11:52.1611493Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.2/23.2 MB 212.5 MB/s  0:00:00
+2026-10-29T07:11:52.2226824Z Installing collected packages: uv
+2026-10-29T07:11:52.4653732Z Successfully installed uv-0.10.6
+2026-10-29T07:11:52.6039854Z Using CPython 3.11.17 interpreter at: /opt/hostedtoolcache/Python/3.11.17/x64/bin/python3.11
+2026-10-29T07:11:52.6040545Z Creating virtual environment at: .venv
+2026-10-29T07:11:52.6374635Z    Building lcsp-agent-runtime @ file:///home/runner/work/LCSP/LCSP/deepagents
+2026-10-29T07:11:52.6685207Z Downloading aiohttp (1.8MiB)
+2026-10-29T07:11:52.6686571Z Downloading hf-xet (4.3MiB)
+2026-10-29T07:11:52.6687728Z Downloading anthropic (1.1MiB)
+2026-10-29T07:11:52.6690988Z Downloading tokenizers (3.2MiB)
+2026-10-29T07:11:52.6694148Z Downloading numpy (16.1MiB)
+2026-10-29T07:11:52.6697118Z Downloading google-genai (1.1MiB)
+2026-10-29T07:11:52.6702409Z Downloading pydantic-core (2.0MiB)
+2026-10-29T07:11:52.6704122Z Downloading pygments (1.2MiB)
+2026-10-29T07:11:52.6707157Z Downloading botocore (11.9MiB)
+2026-10-29T07:11:52.6709709Z Downloading grpcio-tools (2.5MiB)
+2026-10-29T07:11:52.6711201Z Downloading openai (1.6MiB)
+2026-10-29T07:11:52.6713710Z Downloading beartype (1.3MiB)
+2026-10-29T07:11:52.6715333Z Downloading uvloop (3.6MiB)
+2026-10-29T07:11:52.6717820Z Downloading jsonschema-rs (3.7MiB)
+2026-10-29T07:11:52.6719163Z Downloading onnxruntime (18.3MiB)
+2026-10-29T07:11:52.6721062Z Downloading cryptography (4.5MiB)
+2026-10-29T07:11:52.6723630Z Downloading kubernetes (4.4MiB)
+2026-10-29T07:11:52.6725150Z Downloading zstandard (5.3MiB)
+2026-10-29T07:11:52.6783448Z Downloading chromadb (22.2MiB)
+2026-10-29T07:11:52.6784892Z Downloading grpcio (6.5MiB)
+2026-10-29T07:11:52.6788456Z Downloading psycopg-binary (4.9MiB)
+2026-10-29T07:11:52.6796396Z Downloading tiktoken (1.1MiB)
+2026-10-29T07:11:53.3556921Z  Downloaded tiktoken
+2026-10-29T07:11:53.6474693Z  Downloaded aiohttp
+2026-10-29T07:11:53.7029313Z  Downloaded pydantic-core
+2026-10-29T07:11:53.7377104Z  Downloaded pygments
+2026-10-29T07:11:53.7466265Z    Building forbiddenfruit==0.1.4
+2026-10-29T07:11:53.8225399Z  Downloaded grpcio-tools
+2026-10-29T07:11:53.8449182Z  Downloaded beartype
+2026-10-29T07:11:53.8991164Z  Downloaded tokenizers
+2026-10-29T07:11:53.9946380Z  Downloaded jsonschema-rs
+2026-10-29T07:11:54.0153797Z  Downloaded uvloop
+2026-10-29T07:11:54.0263850Z  Downloaded google-genai
+2026-10-29T07:11:54.0542145Z  Downloaded hf-xet
+2026-10-29T07:11:54.1627053Z  Downloaded psycopg-binary
+2026-10-29T07:11:54.1681433Z  Downloaded zstandard
+2026-10-29T07:11:54.1795856Z  Downloaded cryptography
+2026-10-29T07:11:54.2690936Z       Built lcsp-agent-runtime @ file:///home/runner/work/LCSP/LCSP/deepagents
+2026-10-29T07:11:54.2835875Z  Downloaded grpcio
+2026-10-29T07:11:54.3928842Z  Downloaded anthropic
+2026-10-29T07:11:54.5334318Z  Downloaded openai
+2026-10-29T07:11:54.7945199Z  Downloaded numpy
+2026-10-29T07:11:54.7955328Z  Downloaded chromadb
+2026-10-29T07:11:54.8272898Z  Downloaded kubernetes
+2026-10-29T07:11:54.8463406Z  Downloaded onnxruntime
+2026-10-29T07:11:54.8642169Z  Downloaded botocore
+2026-10-29T07:11:54.9014899Z       Built forbiddenfruit==0.1.4
+2026-10-29T07:11:54.9024282Z Prepared 194 packages in 2.28s
+2026-10-29T07:11:55.2288518Z Installed 194 packages in 326ms
+2026-10-29T07:11:55.2289713Z  + aiofile==3.12.3
+2026-10-29T07:11:55.2290127Z  + aiohappyeyeballs==2.7.1
+2026-10-29T07:11:55.2290563Z  + aiohttp==3.14.5
+2026-10-29T07:11:55.2290947Z  + aiosignal==1.4.0
+2026-10-29T07:11:55.2291374Z  + annotated-doc==0.0.5
+2026-10-29T07:11:55.2291917Z  + annotated-types==0.8.0
+2026-10-29T07:11:55.2292436Z  + anthropic==0.125.0
+2026-10-29T07:11:55.2292919Z  + anyio==4.14.2
+2026-10-29T07:11:55.2293339Z  + arize-phoenix-otel==0.17.1
+2026-10-29T07:11:55.2293804Z  + attrs==26.1.0
+2026-10-29T07:11:55.2294183Z  + authlib==1.9.1
+2026-10-29T07:11:55.2294593Z  + backports-tarfile==1.2.0
+2026-10-29T07:11:55.2295135Z  + bcrypt==5.0.0
+2026-10-29T07:11:55.2296021Z  + beartype==0.22.9
+2026-10-29T07:11:55.2296692Z  + blockbuster==1.5.27
+2026-10-29T07:11:55.2297594Z  + boto3==1.34.144
+2026-10-29T07:11:55.2298138Z  + botocore==1.34.162
+2026-10-29T07:11:55.2298701Z  + bracex==3.0.1
+2026-10-29T07:11:55.2299250Z  + build==1.5.0
+2026-10-29T07:11:55.2299788Z  + cachetools==7.2.0
+2026-10-29T07:11:55.2300340Z  + caio==0.12.4
+2026-10-29T07:11:55.2300882Z  + certifi==2026.10.19
+2026-10-29T07:11:55.2301442Z  + cffi==2.1.1
+2026-10-29T07:11:55.2302332Z  + charset-normalizer==3.4.9
+2026-10-29T07:11:55.2302987Z  + chromadb==1.5.9
+2026-10-29T07:11:55.2303583Z  + click==8.4.2
+2026-10-29T07:11:55.2304153Z  + cloudpickle==3.1.2
+2026-10-29T07:11:55.2304778Z  + croniter==6.2.4
+2026-10-29T07:11:55.2305384Z  + cryptography==50.0.0
+2026-10-29T07:11:55.2306274Z  + cyclopts==5.0.0
+2026-10-29T07:11:55.2306877Z  + deepagents==0.7.17
+2026-10-29T07:11:55.2307477Z  + distro==1.9.0
+2026-10-29T07:11:55.2308078Z  + dnspython==2.9.0
+2026-10-29T07:11:55.2308703Z  + docstring-parser==0.18.0
+2026-10-29T07:11:55.2309359Z  + durationpy==0.10
+2026-10-29T07:11:55.2309974Z  + email-validator==2.3.0
+2026-10-29T07:11:55.2310626Z  + exceptiongroup==1.3.1
+2026-10-29T07:11:55.2311253Z  + fastmcp==4.1.2
+2026-10-29T07:11:55.2311806Z  + fastmcp-slim==4.1.2
+2026-10-29T07:11:55.2312336Z  + filelock==4.2.1
+2026-10-29T07:11:55.2312834Z  + filetype==1.2.0
+2026-10-29T07:11:55.2313351Z  + flatbuffers==25.12.19
+2026-10-29T07:11:55.2313910Z  + forbiddenfruit==0.1.4
+2026-10-29T07:11:55.2314537Z  + frozenlist==1.8.0
+2026-10-29T07:11:55.2315091Z  + fsspec==2026.7.0
+2026-10-29T07:11:55.2315858Z  + google-auth==2.56.3
+2026-10-29T07:11:55.2316459Z  + google-genai==2.25.0
+2026-10-29T07:11:55.2317136Z  + googleapis-common-protos==1.75.1
+2026-10-29T07:11:55.2317806Z  + griffelib==2.3.0
+2026-10-29T07:11:55.2318358Z  + grpcio==1.80.0
+2026-10-29T07:11:55.2318967Z  + grpcio-health-checking==1.80.0
+2026-10-29T07:11:55.2319663Z  + grpcio-tools==1.80.0
+2026-10-29T07:11:55.2320237Z  + h11==0.16.0
+2026-10-29T07:11:55.2320758Z  + hf-xet==1.6.0
+2026-10-29T07:11:55.2321303Z  + httpcore==1.0.9
+2026-10-29T07:11:55.2321857Z  + httpcore2==2.12.0
+2026-10-29T07:11:55.2322422Z  + httptools==0.8.0
+2026-10-29T07:11:55.2322965Z  + httpx==0.28.1
+2026-10-29T07:11:55.2323504Z  + httpx2==2.12.0
+2026-10-29T07:11:55.2324060Z  + huggingface-hub==1.27.0
+2026-10-29T07:11:55.2324656Z  + idna==3.18
+2026-10-29T07:11:55.2325212Z  + importlib-metadata==9.0.1
+2026-10-29T07:11:55.2326114Z  + importlib-resources==7.1.0
+2026-10-29T07:11:55.2326752Z  + iniconfig==2.3.0
+2026-10-29T07:11:55.2327364Z  + jaraco-classes==3.4.0
+2026-10-29T07:11:55.2327963Z  + jaraco-context==6.1.2
+2026-10-29T07:11:55.2328772Z  + jaraco-functools==4.6.0
+2026-10-29T07:11:55.2329356Z  + jeepney==0.9.0
+2026-10-29T07:11:55.2329856Z  + jiter==0.16.0
+2026-10-29T07:11:55.2330376Z  + jmespath==1.1.0
+2026-10-29T07:11:55.2330937Z  + joserfc==1.7.5
+2026-10-29T07:11:55.2331488Z  + jsonpatch==1.33
+2026-10-29T07:11:55.2332038Z  + jsonpointer==3.1.1
+2026-10-29T07:11:55.2332742Z  + jsonref==1.1.0
+2026-10-29T07:11:55.2333292Z  + jsonschema==4.26.0
+2026-10-29T07:11:55.2333880Z  + jsonschema-path==0.5.0
+2026-10-29T07:11:55.2334480Z  + jsonschema-rs==0.44.1
+2026-10-29T07:11:55.2335152Z  + jsonschema-specifications==2025.9.1
+2026-10-29T07:11:55.2336284Z  + keyring==25.7.0
+2026-10-29T07:11:55.2340735Z  + kubernetes==36.0.3
+2026-10-29T07:11:55.2341490Z  + langchain==1.4.2
+2026-10-29T07:11:55.2342137Z  + langchain-anthropic==1.7.2
+2026-10-29T07:11:55.2342788Z  + langchain-core==1.6.4
+2026-10-29T07:11:55.2343511Z  + langchain-google-genai==4.4.0
+2026-10-29T07:11:55.2344231Z  + langchain-openai==1.6.0
+2026-10-29T07:11:55.2344970Z  + langchain-protocol==0.0.18
+2026-10-29T07:11:55.2345905Z  + langgraph==1.2.18
+2026-10-29T07:11:55.2346577Z  + langgraph-api==0.10.3
+2026-10-29T07:11:55.2347215Z  + langgraph-checkpoint==4.3.0
+2026-10-29T07:11:55.2347915Z  + langgraph-checkpoint-postgres==3.1.3
+2026-10-29T07:11:55.2348637Z  + langgraph-cli==0.4.31
+2026-10-29T07:11:55.2349284Z  + langgraph-prebuilt==1.1.0
+2026-10-29T07:11:55.2349977Z  + langgraph-runtime-inmem==0.30.3
+2026-10-29T07:11:55.2350671Z  + langgraph-sdk==0.4.10
+2026-10-29T07:11:55.2351290Z  + langsmith==0.14.0
+2026-10-29T07:11:55.2352197Z  + lcsp-agent-runtime==0.1.0 (from file:///home/runner/work/LCSP/LCSP/deepagents)
+2026-10-29T07:11:55.2353108Z  + markdown-it-py==4.2.0
+2026-10-29T07:11:55.2353695Z  + mcp==2.2.0
+2026-10-29T07:11:55.2354256Z  + mcp-types==2.2.0
+2026-10-29T07:11:55.2354852Z  + mdurl==0.1.2
+2026-10-29T07:11:55.2355441Z  + mmh3==5.2.1
+2026-10-29T07:11:55.2356630Z  + more-itertools==11.1.0
+2026-10-29T07:11:55.2357255Z  + multidict==6.9.1
+2026-10-29T07:11:55.2357827Z  + numpy==2.4.6
+2026-10-29T07:11:55.2358395Z  + oauthlib==4.0.0
+2026-10-29T07:11:55.2358925Z  + onnxruntime==1.28.0
+2026-10-29T07:11:55.2359423Z  + openai==3.3.1
+2026-10-29T07:11:55.2359803Z  + openapi-pydantic==0.6.0
+2026-10-29T07:11:55.2360259Z  + openinference-instrumentation==0.1.57
+2026-10-29T07:11:55.2360766Z  + openinference-semantic-conventions==0.1.32
+2026-10-29T07:11:55.2361251Z  + opentelemetry-api==1.45.1
+2026-10-29T07:11:55.2361736Z  + opentelemetry-exporter-http-transport==0.66b1
+2026-10-29T07:11:55.2362265Z  + opentelemetry-exporter-otlp==1.45.1
+2026-10-29T07:11:55.2362770Z  + opentelemetry-exporter-otlp-common==0.66b1
+2026-10-29T07:11:55.2363324Z  + opentelemetry-exporter-otlp-proto-common==1.45.1
+2026-10-29T07:11:55.2363889Z  + opentelemetry-exporter-otlp-proto-grpc==1.45.1
+2026-10-29T07:11:55.2364434Z  + opentelemetry-exporter-otlp-proto-http==1.45.1
+2026-10-29T07:11:55.2364936Z  + opentelemetry-proto==1.45.1
+2026-10-29T07:11:55.2365359Z  + opentelemetry-sdk==1.45.1
+2026-10-29T07:11:55.2366424Z  + opentelemetry-semantic-conventions==0.66b1
+2026-10-29T07:11:55.2367173Z  + orjson==3.11.9
+2026-10-29T07:11:55.2367626Z  + ormsgpack==1.12.2
+2026-10-29T07:11:55.2368027Z  + overrides==7.7.0
+2026-10-29T07:11:55.2368412Z  + packaging==26.3
+2026-10-29T07:11:55.2368724Z  + pathable==0.6.0
+2026-10-29T07:11:55.2368949Z  + pathspec==1.1.1
+2026-10-29T07:11:55.2369171Z  + pika==1.3.2
+2026-10-29T07:11:55.2369407Z  + platformdirs==4.11.12
+2026-10-29T07:11:55.2369662Z  + pluggy==1.6.0
+2026-10-29T07:11:55.2369887Z  + propcache==0.5.2
+2026-10-29T07:11:55.2370114Z  + protobuf==6.33.6
+2026-10-29T07:11:55.2370346Z  + psycopg==3.3.4
+2026-10-29T07:11:55.2370582Z  + psycopg-binary==3.3.4
+2026-10-29T07:11:55.2370842Z  + psycopg-pool==3.3.1
+2026-10-29T07:11:55.2371091Z  + py-key-value-aio==0.4.6
+2026-10-29T07:11:55.2371352Z  + pyasn1==0.6.4
+2026-10-29T07:11:55.2371580Z  + pyasn1-modules==0.4.2
+2026-10-29T07:11:55.2371837Z  + pybase64==1.5.0
+2026-10-29T07:11:55.2372070Z  + pycparser==3.0
+2026-10-29T07:11:55.2372309Z  + pydantic==2.13.5
+2026-10-29T07:11:55.4335977Z  + pydantic-core==2.46.5
+2026-10-29T07:11:55.4337372Z  + pydantic-settings==2.15.0
+2026-10-29T07:11:55.4337959Z  + pygments==2.20.0
+2026-10-29T07:11:55.4338419Z  + pyjwt==2.15.0
+2026-10-29T07:11:55.4338716Z  + pypdf==6.21.2
+2026-10-29T07:11:55.4339005Z  + pyperclip==1.11.0
+2026-10-29T07:11:55.4339315Z  + pypika==0.51.1
+2026-10-29T07:11:55.4339624Z  + pyproject-hooks==1.2.0
+2026-10-29T07:11:55.4339946Z  + pytest==9.0.3
+2026-10-29T07:11:55.4340249Z  + pytest-asyncio==1.4.0
+2026-10-29T07:11:55.4340568Z  + pytest-mock==3.14.0
+2026-10-29T07:11:55.4340929Z  + python-dateutil==2.9.0.post0
+2026-10-29T07:11:55.4341304Z  + python-dotenv==1.2.3
+2026-10-29T07:11:55.4341680Z  + python-multipart==0.0.32
+2026-10-29T07:11:55.4342089Z  + pyyaml==6.0.3
+2026-10-29T07:11:55.4342397Z  + referencing==0.37.0
+2026-10-29T07:11:55.4342700Z  + regex==2026.7.19
+2026-10-29T07:11:55.4343002Z  + requests==2.34.2
+2026-10-29T07:11:55.4343313Z  + requests-oauthlib==2.0.0
+2026-10-29T07:11:55.4343646Z  + requests-toolbelt==1.0.0
+2026-10-29T07:11:55.4343981Z  + rich==15.0.0
+2026-10-29T07:11:55.4344262Z  + rich-rst==2.1.0
+2026-10-29T07:11:55.4344561Z  + rpds-py==2026.6.3
+2026-10-29T07:11:55.4344864Z  + s3transfer==0.10.4
+2026-10-29T07:11:55.4345247Z  + secretstorage==3.5.0
+2026-10-29T07:11:55.4345820Z  + setuptools==84.1.0
+2026-10-29T07:11:55.4346254Z  + shellingham==1.5.4
+2026-10-29T07:11:55.4346556Z  + six==1.17.0
+2026-10-29T07:11:55.4346840Z  + sniffio==1.3.1
+2026-10-29T07:11:55.4347140Z  + sse-starlette==3.3.4
+2026-10-29T07:11:55.4347448Z  + starlette==1.6.0
+2026-10-29T07:11:55.4347741Z  + structlog==24.4.0
+2026-10-29T07:11:55.4348033Z  + tenacity==9.1.4
+2026-10-29T07:11:55.4348321Z  + tiktoken==0.8.0
+2026-10-29T07:11:55.4348610Z  + tokenizers==0.23.1
+2026-10-29T07:11:55.4348901Z  + tqdm==4.70.0
+2026-10-29T07:11:55.4349191Z  + truststore==0.10.4
+2026-10-29T07:11:55.4349705Z  + typer==0.27.1
+2026-10-29T07:11:55.4350048Z  + typing-extensions==4.16.0
+2026-10-29T07:11:55.4350400Z  + typing-inspection==0.4.3
+2026-10-29T07:11:55.4350737Z  + uncalled-for==0.4.0
+2026-10-29T07:11:55.4351047Z  + urllib3==2.8.0
+2026-10-29T07:11:55.4351342Z  + uuid-utils==0.17.0
+2026-10-29T07:11:55.4351639Z  + uvicorn==0.52.1
+2026-10-29T07:11:55.4351924Z  + uvloop==0.22.1
+2026-10-29T07:11:55.4352216Z  + watchfiles==1.2.0
+2026-10-29T07:11:55.4352518Z  + wcmatch==11.0.1
+2026-10-29T07:11:55.4352820Z  + websocket-client==1.9.0
+2026-10-29T07:11:55.4353177Z  + websockets==15.0.1
+2026-10-29T07:11:55.4353454Z  + wrapt==2.3.0
+2026-10-29T07:11:55.4353669Z  + xxhash==3.8.1
+2026-10-29T07:11:55.4353890Z  + yarl==1.25.1
+2026-10-29T07:11:55.4354101Z  + zipp==4.1.0
+2026-10-29T07:11:55.4354316Z  + zstandard==0.25.0
+2026-10-29T07:11:55.4571285Z ##[group]Run pnpm --filter @lcsp/api prisma:generate
+2026-10-29T07:11:55.4571751Z pnpm --filter @lcsp/api prisma:generate
+2026-10-29T07:11:55.4572109Z pnpm --filter @lcsp/contracts build
+2026-10-29T07:11:55.4572447Z pnpm --filter @lcsp/api build
+2026-10-29T07:11:55.4603046Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:11:55.4603317Z env:
+2026-10-29T07:11:55.4603526Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:11:55.4604062Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:11:55.4604403Z   NODE_ENV: test
+2026-10-29T07:11:55.4604681Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:11:55.4605070Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:55.4605809Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:11:55.4606296Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:55.4606743Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:55.4607149Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:11:55.4607559Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:11:55.4607913Z ##[endgroup]
+2026-10-29T07:11:55.5075204Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
+2026-10-29T07:11:56.5317109Z Loaded Prisma config from prisma.config.ts.
+2026-10-29T07:11:56.5317625Z 
+2026-10-29T07:11:56.5955516Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-29T07:11:57.8305928Z 
+2026-10-29T07:11:57.8307842Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 793ms
+2026-10-29T07:11:57.8308687Z 
+2026-10-29T07:11:57.8309073Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-10-29T07:11:57.8309447Z 
+2026-10-29T07:11:57.8309453Z 
+2026-10-29T07:11:57.9106802Z $ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force
+2026-10-29T07:12:02.0809155Z $ pnpm --dir ../.. run build:runtime-packages
+2026-10-29T07:12:02.1008908Z $ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build
+2026-10-29T07:12:02.2822920Z $ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force
+2026-10-29T07:12:05.5413661Z $ tsc -b tsconfig.json --force
+2026-10-29T07:12:08.9888295Z $ pnpm run prisma:generate && nest build
+2026-10-29T07:12:09.0077657Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
+2026-10-29T07:12:09.8295128Z Loaded Prisma config from prisma.config.ts.
+2026-10-29T07:12:09.8296155Z 
+2026-10-29T07:12:09.8911042Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-29T07:12:11.0550366Z ┌─────────────────────────────────────────────────────────┐
+2026-10-29T07:12:11.0551019Z │  Update available 7.8.0 -> 8.0.0-rc.28                  │
+2026-10-29T07:12:11.0551808Z │                                                         │
+2026-10-29T07:12:11.0552675Z │  This is a major update - please follow the guide at    │
+2026-10-29T07:12:11.0553612Z │  https://pris.ly/d/major-version-upgrade                │
+2026-10-29T07:12:11.0554776Z │                                                         │
+2026-10-29T07:12:11.0555480Z │  Run the following to update                            │
+2026-10-29T07:12:11.0556399Z │    npm i --save-dev prisma@latest                       │
+2026-10-29T07:12:11.0556892Z │    npm i @prisma/client@latest                          │
+2026-10-29T07:12:11.0557383Z └─────────────────────────────────────────────────────────┘
+2026-10-29T07:12:11.0557657Z 
+2026-10-29T07:12:11.0558728Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 718ms
+2026-10-29T07:12:11.0559491Z 
+2026-10-29T07:12:11.0560077Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-10-29T07:12:11.0560455Z 
+2026-10-29T07:12:11.0560467Z 
+2026-10-29T07:12:24.1921462Z ##[group]Run node tests/compliance-rule-set-persistence.mjs
+2026-10-29T07:12:24.1922284Z node tests/compliance-rule-set-persistence.mjs
+2026-10-29T07:12:24.1923018Z node tests/assessment-lifecycle-migrated-db.mjs
+2026-10-29T07:12:24.1954538Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:24.1954808Z env:
+2026-10-29T07:12:24.1955025Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:12:24.1955813Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:12:24.1956188Z   NODE_ENV: test
+2026-10-29T07:12:24.1956478Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:24.1956874Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:24.1957335Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:12:24.1957787Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:24.1958192Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:24.1958644Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:24.1959059Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:12:24.1959424Z ##[endgroup]
+2026-10-29T07:12:26.8555985Z PASS: 29 compliance rule set database guarantees on ***127.0.0.1:55437/lcsp_compliance_rule_set_persistence?schema=public
+2026-10-29T07:12:29.0499646Z prisma-generate: exit 0
+2026-10-29T07:12:31.4862860Z migrate-deploy: exit 0
+2026-10-29T07:12:33.0981217Z assessment-lifecycle-protocol: exit 0
+2026-10-29T07:12:33.0983296Z PASS: 17 migration constraint assertions; ordered migrate deploy and lifecycle protocol passed on ***127.0.0.1:55437/lcsp_api_w13_r2_repair?schema=public
+2026-10-29T07:12:33.1073543Z ##[group]Run PYTHONPATH=deepagents deepagents/.venv/bin/python tests/retired-authority-migration-check.py
+2026-10-29T07:12:33.1074372Z PYTHONPATH=deepagents deepagents/.venv/bin/python tests/retired-authority-migration-check.py
+2026-10-29T07:12:33.1106003Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:12:33.1106288Z env:
+2026-10-29T07:12:33.1106510Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:12:33.1107062Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:12:33.1107426Z   NODE_ENV: test
+2026-10-29T07:12:33.1107711Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:12:33.1108127Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:33.1108584Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:12:33.1109046Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:33.1109450Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:33.1109908Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:12:33.1110328Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:12:33.1110683Z ##[endgroup]
+2026-10-29T07:12:44.5517304Z PASS — clean install replays historical migrations through the RELEASE drop
+2026-10-29T07:12:47.7922207Z PASS — missing purge proof refuses the drop transaction without changing canonical state
+2026-10-29T07:12:55.1827508Z PASS — preflight is read-only
+2026-10-29T07:13:01.4048245Z PASS — unrelated existing sandboxes remain outside fixture erasure
+2026-10-29T07:13:01.4050981Z PASS — native Postgres checkpoints/blobs/writes, V1 sandbox/files/cache/logs erased; canonical and mixed V2 state preserved
+2026-10-29T07:13:01.4051738Z PASS — external erasure rerun is idempotent
+2026-10-29T07:13:01.4366043Z PASS — fixture-scoped purge evidence cannot authorize an ordinary release drop
+2026-10-29T07:13:04.4197975Z PASS — populated synthetic post-CUTOVER upgrade drops 29 V1 tables; canonical owner/Case/Root/accounting/corpus unchanged
+2026-10-29T07:13:04.4199300Z PASS — second Prisma deploy is a no-op
+2026-10-29T07:13:04.6633994Z Evidence directory: /home/runner/work/LCSP/LCSP/reports/retired-authority-migration/20261029071234_4179
+2026-10-29T07:13:04.7237818Z ##[group]Run actions/upload-artifact@v4
+2026-10-29T07:13:04.7238148Z with:
+2026-10-29T07:13:04.7238381Z   name: release-migration-proof
+2026-10-29T07:13:04.7238703Z   path: reports/retired-authority-migration/
+2026-10-29T07:13:04.7239052Z   if-no-files-found: ignore
+2026-10-29T07:13:04.7239307Z   retention-days: 7
+2026-10-29T07:13:04.7239538Z   compression-level: 6
+2026-10-29T07:13:04.7239778Z   overwrite: false
+2026-10-29T07:13:04.7240011Z   include-hidden-files: false
+2026-10-29T07:13:04.7240263Z env:
+2026-10-29T07:13:04.7240477Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:13:04.7240996Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:13:04.7241333Z   NODE_ENV: test
+2026-10-29T07:13:04.7241626Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:13:04.7242017Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:04.7242458Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:13:04.7242933Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:04.7243332Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:04.7243730Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:04.7244141Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:13:04.7244492Z ##[endgroup]
+2026-10-29T07:13:04.8985933Z (node:4954) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T07:13:04.8987631Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T07:13:04.9049351Z With the provided path, there will be 4 files uploaded
+2026-10-29T07:13:04.9053383Z Artifact name is valid!
+2026-10-29T07:13:04.9063082Z Root directory input is valid!
+2026-10-29T07:13:05.3379721Z Beginning upload of artifact content to blob storage
+2026-10-29T07:13:05.3617917Z (node:4954) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T07:13:05.7252145Z Uploaded bytes 2086
+2026-10-29T07:13:05.8224357Z Finished uploading artifact content to blob storage!
+2026-10-29T07:13:05.8226330Z SHA256 digest of uploaded artifact zip is b86e97f78d957ec656e98db36e67b44b623201ad296936318f48f9c9d0da38ee
+2026-10-29T07:13:05.8227470Z Finalizing artifact upload
+2026-10-29T07:13:06.3376758Z Artifact release-migration-proof.zip successfully finalized. Artifact ID 12879538131
+2026-10-29T07:13:06.3377973Z Artifact release-migration-proof has been successfully uploaded! Final size is 2086 bytes. Artifact ID is 12879538131
+2026-10-29T07:13:06.3384185Z Artifact download URL: https://github.com/khov4nfs/LCSP/actions/runs/40833765367/artifacts/12879538131
+2026-10-29T07:13:06.3529645Z ##[group]Run node --test tests/source-document-provenance.integration.mjs
+2026-10-29T07:13:06.3530238Z node --test tests/source-document-provenance.integration.mjs
+2026-10-29T07:13:06.3530703Z node tests/compliance-rule-set-vertical.mjs
+2026-10-29T07:13:06.3560702Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:13:06.3560974Z env:
+2026-10-29T07:13:06.3561377Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:13:06.3561905Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:13:06.3562252Z   NODE_ENV: test
+2026-10-29T07:13:06.3562546Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:13:06.3562964Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:06.3563450Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:13:06.3563903Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:06.3564307Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:06.3564748Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:13:06.3565156Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:13:06.3565809Z ##[endgroup]
+2026-10-29T07:13:06.4019250Z TAP version 13
+2026-10-29T07:13:22.2355911Z # Subtest: pinned source digest is independently verified and persisted instead of the fixture-name hash
+2026-10-29T07:13:22.2361310Z ok 1 - pinned source digest is independently verified and persisted instead of the fixture-name hash
+2026-10-29T07:13:22.2362377Z   ---
+2026-10-29T07:13:22.2362739Z   duration_ms: 15657.587246
+2026-10-29T07:13:22.2363027Z   type: 'test'
+2026-10-29T07:13:22.2363257Z   ...
+2026-10-29T07:13:22.7219701Z # Subtest: unfamiliar semantic control binds its actual source bytes
+2026-10-29T07:13:22.7224901Z ok 2 - unfamiliar semantic control binds its actual source bytes
+2026-10-29T07:13:22.7226364Z   ---
+2026-10-29T07:13:22.7227152Z   duration_ms: 489.033754
+2026-10-29T07:13:22.7227692Z   type: 'test'
+2026-10-29T07:13:22.7228050Z   ...
+2026-10-29T07:13:22.7351707Z # Subtest: canonical prefixed digest is stored once without a double prefix
+2026-10-29T07:13:22.7358185Z ok 3 - canonical prefixed digest is stored once without a double prefix
+2026-10-29T07:13:22.7358933Z   ---
+2026-10-29T07:13:22.7359353Z   duration_ms: 13.413439
+2026-10-29T07:13:22.7359839Z   type: 'test'
+2026-10-29T07:13:22.7360336Z   ...
+2026-10-29T07:13:22.7383953Z # Subtest: rejects absent authoritative digest before any source writes
+2026-10-29T07:13:22.7387428Z ok 4 - rejects absent authoritative digest before any source writes
+2026-10-29T07:13:22.7388161Z   ---
+2026-10-29T07:13:22.7389925Z   duration_ms: 3.294224
+2026-10-29T07:13:22.7390343Z   type: 'test'
+2026-10-29T07:13:22.7390615Z   ...
+2026-10-29T07:13:22.7402294Z # Subtest: rejects null authoritative digest before any source writes
+2026-10-29T07:13:22.7404431Z ok 5 - rejects null authoritative digest before any source writes
+2026-10-29T07:13:22.7405197Z   ---
+2026-10-29T07:13:22.7407720Z   duration_ms: 1.766445
+2026-10-29T07:13:22.7408225Z   type: 'test'
+2026-10-29T07:13:22.7408627Z   ...
+2026-10-29T07:13:22.7420140Z # Subtest: rejects empty authoritative digest before any source writes
+2026-10-29T07:13:22.7422823Z ok 6 - rejects empty authoritative digest before any source writes
+2026-10-29T07:13:22.7423583Z   ---
+2026-10-29T07:13:22.7425217Z   duration_ms: 1.648945
+2026-10-29T07:13:22.7425954Z   type: 'test'
+2026-10-29T07:13:22.7426374Z   ...
+2026-10-29T07:13:22.7441658Z # Subtest: rejects short authoritative digest before any source writes
+2026-10-29T07:13:22.7443943Z ok 7 - rejects short authoritative digest before any source writes
+2026-10-29T07:13:22.7447811Z   ---
+2026-10-29T07:13:22.7449091Z   duration_ms: 2.109562
+2026-10-29T07:13:22.7450587Z   type: 'test'
+2026-10-29T07:13:22.7450995Z   ...
+2026-10-29T07:13:22.7460886Z # Subtest: rejects nonhex authoritative digest before any source writes
+2026-10-29T07:13:22.7465123Z ok 8 - rejects nonhex authoritative digest before any source writes
+2026-10-29T07:13:22.7465993Z   ---
+2026-10-29T07:13:22.7466248Z   duration_ms: 1.762649
+2026-10-29T07:13:22.7466518Z   type: 'test'
+2026-10-29T07:13:22.7466751Z   ...
+2026-10-29T07:13:22.7479233Z # Subtest: rejects double prefix authoritative digest before any source writes
+2026-10-29T07:13:22.7480501Z ok 9 - rejects double prefix authoritative digest before any source writes
+2026-10-29T07:13:22.7481587Z   ---
+2026-10-29T07:13:22.7482352Z   duration_ms: 1.599753
+2026-10-29T07:13:22.7483309Z   type: 'test'
+2026-10-29T07:13:22.7483726Z   ...
+2026-10-29T07:13:22.7499674Z # Subtest: rejects a syntactically valid digest of different source bytes before writes
+2026-10-29T07:13:22.7501231Z ok 10 - rejects a syntactically valid digest of different source bytes before writes
+2026-10-29T07:13:22.7502085Z   ---
+2026-10-29T07:13:22.7502376Z   duration_ms: 2.043133
+2026-10-29T07:13:22.7502637Z   type: 'test'
+2026-10-29T07:13:22.7502864Z   ...
+2026-10-29T07:13:22.7538497Z # Subtest: rejects missing original source bytes before writes
+2026-10-29T07:13:22.7539405Z ok 11 - rejects missing original source bytes before writes
+2026-10-29T07:13:22.7540004Z   ---
+2026-10-29T07:13:22.7540376Z   duration_ms: 1.65669
+2026-10-29T07:13:22.7540757Z   type: 'test'
+2026-10-29T07:13:22.7540990Z   ...
+2026-10-29T07:13:26.5611900Z # Subtest: Root single fixture binds its original in-memory document bytes
+2026-10-29T07:13:26.5613363Z ok 12 - Root single fixture binds its original in-memory document bytes
+2026-10-29T07:13:26.5614180Z   ---
+2026-10-29T07:13:26.5614691Z   duration_ms: 3806.798187
+2026-10-29T07:13:26.5615253Z   type: 'test'
+2026-10-29T07:13:26.5615981Z   ...
+2026-10-29T07:13:29.8416335Z # Subtest: Root source-answerable fixture binds its original in-memory document bytes
+2026-10-29T07:13:29.8418098Z ok 13 - Root source-answerable fixture binds its original in-memory document bytes
+2026-10-29T07:13:29.8419330Z   ---
+2026-10-29T07:13:29.8419921Z   duration_ms: 3280.622542
+2026-10-29T07:13:29.8420393Z   type: 'test'
+2026-10-29T07:13:29.8420827Z   ...
+2026-10-29T07:13:33.1331846Z # Subtest: Root human fixture binds its original in-memory document bytes
+2026-10-29T07:13:33.1332969Z ok 14 - Root human fixture binds its original in-memory document bytes
+2026-10-29T07:13:33.1333648Z   ---
+2026-10-29T07:13:33.1334046Z   duration_ms: 3290.921261
+2026-10-29T07:13:33.1334499Z   type: 'test'
+2026-10-29T07:13:33.1334926Z   ...
+2026-10-29T07:13:36.2765119Z # Subtest: Root not-applicable fixture binds its original in-memory document bytes
+2026-10-29T07:13:36.2769420Z ok 15 - Root not-applicable fixture binds its original in-memory document bytes
+2026-10-29T07:13:36.2774979Z   ---
+2026-10-29T07:13:36.2775971Z   duration_ms: 3143.929257
+2026-10-29T07:13:36.2776710Z   type: 'test'
+2026-10-29T07:13:36.2777091Z   ...
+2026-10-29T07:13:39.4376313Z # Subtest: Root bounded-absence fixture binds its original in-memory document bytes
+2026-10-29T07:13:39.4387794Z ok 16 - Root bounded-absence fixture binds its original in-memory document bytes
+2026-10-29T07:13:39.4388472Z   ---
+2026-10-29T07:13:39.4388735Z   duration_ms: 3160.881075
+2026-10-29T07:13:39.4389016Z   type: 'test'
+2026-10-29T07:13:39.4389253Z   ...
+2026-10-29T07:13:42.8184264Z # Subtest: Root bounded-absence-gapped fixture binds its original in-memory document bytes
+2026-10-29T07:13:42.8185836Z ok 17 - Root bounded-absence-gapped fixture binds its original in-memory document bytes
+2026-10-29T07:13:42.8186557Z   ---
+2026-10-29T07:13:42.8186798Z   duration_ms: 3380.145182
+2026-10-29T07:13:42.8187084Z   type: 'test'
+2026-10-29T07:13:42.8187314Z   ...
+2026-10-29T07:13:46.2480790Z # Subtest: Root fallback-found fixture binds its original in-memory document bytes
+2026-10-29T07:13:46.2481934Z ok 18 - Root fallback-found fixture binds its original in-memory document bytes
+2026-10-29T07:13:46.2482579Z   ---
+2026-10-29T07:13:46.2483090Z   duration_ms: 3429.799548
+2026-10-29T07:13:46.2483650Z   type: 'test'
+2026-10-29T07:13:46.2484131Z   ...
+2026-10-29T07:13:49.5391996Z # Subtest: Root mixed fixture binds its original in-memory document bytes
+2026-10-29T07:13:49.5393265Z ok 19 - Root mixed fixture binds its original in-memory document bytes
+2026-10-29T07:13:49.5393780Z   ---
+2026-10-29T07:13:49.5394028Z   duration_ms: 3292.939518
+2026-10-29T07:13:49.5394319Z   type: 'test'
+2026-10-29T07:13:49.5394557Z   ...
+2026-10-29T07:13:49.5747443Z 1..19
+2026-10-29T07:13:49.5747997Z # tests 19
+2026-10-29T07:13:49.5748914Z # suites 0
+2026-10-29T07:13:49.5749329Z # pass 19
+2026-10-29T07:13:49.5749728Z # fail 0
+2026-10-29T07:13:49.5750133Z # cancelled 0
+2026-10-29T07:13:49.5750570Z # skipped 0
+2026-10-29T07:13:49.5750982Z # todo 0
+2026-10-29T07:13:49.5751574Z # duration_ms 43184.95517
+2026-10-29T07:14:51.0677043Z PASS: 77 COMPLIANCE_RULE_SET vertical checks (real API + PostgreSQL + Python agent; model scripted) on lcsp_compliance_rule_set_vertical
+2026-10-29T07:14:51.1223127Z ##[group]Run node tests/assessment-domain-vertical.mjs
+2026-10-29T07:14:51.1223629Z node tests/assessment-domain-vertical.mjs
+2026-10-29T07:14:51.1224020Z node tests/assessment-hitl-vertical.mjs
+2026-10-29T07:14:51.1224467Z node tests/assessment-hitl-vertical.mjs --unresolvable-only
+2026-10-29T07:14:51.1255348Z shell: /usr/bin/bash -e {0}
+2026-10-29T07:14:51.1255864Z env:
+2026-10-29T07:14:51.1256093Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:14:51.1256666Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:14:51.1257090Z   NODE_ENV: test
+2026-10-29T07:14:51.1257393Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:14:51.1257806Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:14:51.1258265Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:14:51.1258715Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:14:51.1259152Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:14:51.1259572Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:14:51.1260007Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:14:51.1260459Z   LCSP_TEST_CHECKPOINT_DATABASE: lcsp_assessment_checkpoint_vertical
+2026-10-29T07:14:51.1260844Z ##[endgroup]
+2026-10-29T07:15:10.7247198Z node:internal/modules/run_main:123
+2026-10-29T07:15:10.7248021Z     triggerUncaughtException(
+2026-10-29T07:15:10.7248810Z     ^
+2026-10-29T07:15:10.7249115Z 
+2026-10-29T07:15:10.7251420Z AssertionError [ERR_ASSERTION]: {"ok":false,"code":"ASSESSMENT_DECISION_VALIDATION_FAILED","retryable":false,"failures":["APPLICABILITY_BASIS_REQUIRED:ER-RET"],"hint":"Call get_assessment_context to reload server state, then correct and resubmit."}
+2026-10-29T07:15:10.7253772Z + actual - expected
+2026-10-29T07:15:10.7254106Z 
+2026-10-29T07:15:10.7254327Z   [
+2026-10-29T07:15:10.7254770Z +   false,
+2026-10-29T07:15:10.7255205Z +   undefined
+2026-10-29T07:15:10.7255787Z -   true,
+2026-10-29T07:15:10.7256232Z -   1
+2026-10-29T07:15:10.7256610Z   ]
+2026-10-29T07:15:10.7256862Z 
+2026-10-29T07:15:10.7257528Z     at eq (file:///home/runner/work/LCSP/LCSP/tests/assessment-domain-vertical.mjs:65:10)
+2026-10-29T07:15:10.7258700Z     at file:///home/runner/work/LCSP/LCSP/tests/assessment-domain-vertical.mjs:336:3
+2026-10-29T07:15:10.7259844Z     at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+2026-10-29T07:15:10.7260679Z   generatedMessage: false,
+2026-10-29T07:15:10.7261278Z   code: 'ERR_ASSERTION',
+2026-10-29T07:15:10.7261799Z   actual: [ false, undefined ],
+2026-10-29T07:15:10.7262338Z   expected: [ true, 1 ],
+2026-10-29T07:15:10.7262892Z   operator: 'deepStrictEqual',
+2026-10-29T07:15:10.7263387Z   diff: 'simple'
+2026-10-29T07:15:10.7263804Z }
+2026-10-29T07:15:10.7264023Z 
+2026-10-29T07:15:10.7264186Z Node.js v22.23.4
+2026-10-29T07:15:10.7379264Z ##[error]Process completed with exit code 1.
+2026-10-29T07:15:10.7448658Z ##[group]Run actions/upload-artifact@v4
+2026-10-29T07:15:10.7448990Z with:
+2026-10-29T07:15:10.7449237Z   name: release-assessment-deletion-proof
+2026-10-29T07:15:10.7449573Z   path: reports/assessment-deletion/
+2026-10-29T07:15:10.7449870Z   if-no-files-found: ignore
+2026-10-29T07:15:10.7450137Z   retention-days: 7
+2026-10-29T07:15:10.7450376Z   compression-level: 6
+2026-10-29T07:15:10.7450622Z   overwrite: false
+2026-10-29T07:15:10.7450870Z   include-hidden-files: false
+2026-10-29T07:15:10.7451136Z env:
+2026-10-29T07:15:10.7451346Z   LCSP_TEST_PG_PORT: 55437
+2026-10-29T07:15:10.7452070Z   DATABASE_URL: ***127.0.0.1:55437/postgres?schema=public
+2026-10-29T07:15:10.7452414Z   NODE_ENV: test
+2026-10-29T07:15:10.7452702Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-29T07:15:10.7453099Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:15:10.7453553Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-29T07:15:10.7454033Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:15:10.7454435Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:15:10.7454844Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-29T07:15:10.7455251Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-29T07:15:10.7455905Z ##[endgroup]
+2026-10-29T07:15:10.9289018Z (node:6325) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T07:15:10.9290546Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T07:15:10.9306135Z No files were found with the provided path: reports/assessment-deletion/. No artifacts will be uploaded.
+2026-10-29T07:15:10.9518938Z Post job cleanup.
+2026-10-29T07:15:11.1060650Z Pruning is unnecessary.
+2026-10-29T07:15:11.1241478Z Post job cleanup.
+2026-10-29T07:15:11.2255301Z [command]/usr/bin/git version
+2026-10-29T07:15:11.2300273Z git version 2.56.0
+2026-10-29T07:15:11.2342464Z Temporarily overriding HOME='/home/runner/work/_temp/88bf04f8-8842-45ff-88f9-f6ba180c1299' before making global git config changes
+2026-10-29T07:15:11.2343968Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T07:15:11.2348150Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-29T07:15:11.2389779Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T07:15:11.2428727Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T07:15:11.2741602Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T07:15:11.2772523Z http.https://github.com/.extraheader
+2026-10-29T07:15:11.2789013Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-29T07:15:11.2877837Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T07:15:11.3160673Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T07:15:11.3198842Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T07:15:11.3668961Z Print service container logs: c353eb00e27446f988925d93215a13a8_postgres16_618cb4
+2026-10-29T07:15:11.3673472Z ##[command]/usr/bin/docker logs --details f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:15:11.3817532Z  The files belonging to this database system will be owned by user "postgres".
+2026-10-29T07:15:11.3819327Z  initdb: warning: enabling "trust" authentication for local connections
+2026-10-29T07:15:11.3820083Z  This user must also own the server process.
+2026-10-29T07:15:11.3820663Z  
+2026-10-29T07:15:11.3821310Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-10-29T07:15:11.3822055Z  The default database encoding has accordingly been set to "UTF8".
+2026-10-29T07:15:11.3822789Z  The default text search configuration will be set to "english".
+2026-10-29T07:15:11.3823537Z  
+2026-10-29T07:15:11.3824011Z  Data page checksums are disabled.
+2026-10-29T07:15:11.3824510Z  
+2026-10-29T07:15:11.3825097Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-10-29T07:15:11.3826468Z  creating subdirectories ... ok
+2026-10-29T07:15:11.3827085Z  selecting dynamic shared memory implementation ... posix
+2026-10-29T07:15:11.3827782Z  selecting default max_connections ... 100
+2026-10-29T07:15:11.3828373Z  selecting default shared_buffers ... 128MB
+2026-10-29T07:15:11.3828933Z  selecting default time zone ... Etc/UTC
+2026-10-29T07:15:11.3829918Z  creating configuration files ... ok
+2026-10-29T07:15:11.3830438Z  running bootstrap script ... ok
+2026-10-29T07:15:11.3830980Z  performing post-bootstrap initialization ... ok
+2026-10-29T07:15:11.3831681Z  syncing data to disk ... ok
+2026-10-29T07:15:11.3832107Z  
+2026-10-29T07:15:11.3832424Z  
+2026-10-29T07:15:11.3832851Z  Success. You can now start the database server using:
+2026-10-29T07:15:11.3833626Z  
+2026-10-29T07:15:11.3834078Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-10-29T07:15:11.3834434Z  
+2026-10-29T07:15:11.3835113Z  waiting for server to start....2026-10-29 07:11:09.633 UTC [48] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T07:15:11.3836545Z  2026-10-29 07:11:09.634 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T07:15:11.3837213Z  2026-10-29 07:11:09.637 UTC [51] LOG:  database system was shut down at 2026-10-29 07:11:09 UTC
+2026-10-29T07:15:11.3837769Z  2026-10-29 07:11:09.641 UTC [48] LOG:  database system is ready to accept connections
+2026-10-29T07:15:11.3838188Z   done
+2026-10-29T07:15:11.3838395Z  server started
+2026-10-29T07:15:11.3838615Z  
+2026-10-29T07:15:11.3838962Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2026-10-29T07:15:11.3839390Z  
+2026-10-29T07:15:11.3839682Z  2026-10-29 07:11:09.751 UTC [48] LOG:  received fast shutdown request
+2026-10-29T07:15:11.3840240Z  waiting for server to shut down....2026-10-29 07:11:09.752 UTC [48] LOG:  aborting any active transactions
+2026-10-29T07:15:11.3840953Z  2026-10-29 07:11:09.754 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
+2026-10-29T07:15:11.3841510Z  2026-10-29 07:11:09.754 UTC [49] LOG:  shutting down
+2026-10-29T07:15:11.3841933Z  2026-10-29 07:11:09.754 UTC [49] LOG:  checkpoint starting: shutdown immediate
+2026-10-29T07:15:11.3842684Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-10-29T07:15:11.3843629Z  2026-10-29 07:11:09.874 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T07:15:11.3844363Z  2026-10-29 07:11:09.874 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-29T07:15:11.3844866Z  2026-10-29 07:11:09.874 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-10-29T07:15:11.3856033Z  2026-10-29 07:11:09.875 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T07:15:11.3857187Z  2026-10-29 07:11:09.877 UTC [62] LOG:  database system was shut down at 2026-10-29 07:11:09 UTC
+2026-10-29T07:15:11.3858033Z  2026-10-29 07:11:09.881 UTC [1] LOG:  database system is ready to accept connections
+2026-10-29T07:15:11.3859103Z  2026-10-29 07:12:26.822 UTC [128] ERROR:  duplicate key value violates unique constraint "ComplianceRuleSetVersion_single_active_idx"
+2026-10-29T07:15:11.3860188Z  2026-10-29 07:12:26.822 UTC [128] DETAIL:  Key ((true))=(t) already exists.
+2026-10-29T07:15:11.3861582Z  2026-10-29 07:12:26.822 UTC [128] STATEMENT:  UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='ACTIVE', "validationOutcome"='PASSED', "activatedAt"=now() WHERE id=$1
+2026-10-29T07:15:11.3863637Z  2026-10-29 07:12:26.824 UTC [128] ERROR:  new row for relation "ComplianceRuleSetVersion" violates check constraint "ComplianceRuleSetVersion_state_consistency_check"
+2026-10-29T07:15:11.3866158Z  2026-10-29 07:12:26.824 UTC [128] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000009, p-bad, 00000000-0000-4000-8000-000000000001, 00000000-0000-4000-8000-000000000005, ACTIVE, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, null, [], 2026-10-29 07:12:26.824, null, null, null).
+2026-10-29T07:15:11.3868188Z  2026-10-29 07:12:26.824 UTC [128] STATEMENT:  INSERT INTO "ComplianceRuleSetVersion"(id, version, "legalSourceVersionId", "preparationRunId", "lifecycleState", "ruleSetDigest")
+2026-10-29T07:15:11.3869051Z  	     SELECT $1,'p-bad',$2, r.id, 'ACTIVE', $3 FROM "RuleSetPreparationRun" r LIMIT 1
+2026-10-29T07:15:11.3869870Z  2026-10-29 07:12:26.824 UTC [128] ERROR:  new row for relation "ComplianceRuleSetVersion" violates check constraint "ComplianceRuleSetVersion_state_consistency_check"
+2026-10-29T07:15:11.3871479Z  2026-10-29 07:12:26.824 UTC [128] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000008, p-second, 00000000-0000-4000-8000-000000000001, 00000000-0000-4000-8000-000000000007, BUILDING, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, PASSED, [], 2026-10-29 07:12:26.821, null, null, null).
+2026-10-29T07:15:11.3872989Z  2026-10-29 07:12:26.824 UTC [128] STATEMENT:  UPDATE "ComplianceRuleSetVersion" SET "validationOutcome"='PASSED' WHERE id=$1
+2026-10-29T07:15:11.3873727Z  2026-10-29 07:12:26.826 UTC [128] ERROR:  compliance rule set validation result is immutable once recorded
+2026-10-29T07:15:11.3874411Z  2026-10-29 07:12:26.826 UTC [128] CONTEXT:  PL/pgSQL function lcsp_compliance_rule_set_guard() line 15 at RAISE
+2026-10-29T07:15:11.3875316Z  2026-10-29 07:12:26.826 UTC [128] STATEMENT:  UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='ACTIVE', "validationOutcome"='PASSED', "activatedAt"=now() WHERE id=$1
+2026-10-29T07:15:11.3876463Z  2026-10-29 07:12:26.827 UTC [128] ERROR:  illegal compliance rule set lifecycle transition ACTIVE -> BUILDING
+2026-10-29T07:15:11.3877150Z  2026-10-29 07:12:26.827 UTC [128] CONTEXT:  PL/pgSQL function lcsp_compliance_rule_set_guard() line 22 at RAISE
+2026-10-29T07:15:11.3877888Z  2026-10-29 07:12:26.827 UTC [128] STATEMENT:  UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='BUILDING' WHERE id=$1
+2026-10-29T07:15:11.3878547Z  2026-10-29 07:12:26.827 UTC [128] ERROR:  compliance rule set identity is immutable
+2026-10-29T07:15:11.3879138Z  2026-10-29 07:12:26.827 UTC [128] CONTEXT:  PL/pgSQL function lcsp_compliance_rule_set_guard() line 10 at RAISE
+2026-10-29T07:15:11.3879829Z  2026-10-29 07:12:26.827 UTC [128] STATEMENT:  UPDATE "ComplianceRuleSetVersion" SET "ruleSetDigest"=$2 WHERE id=$1
+2026-10-29T07:15:11.3880534Z  2026-10-29 07:12:26.828 UTC [128] ERROR:  compliance rule set versions are immutable history and cannot be deleted
+2026-10-29T07:15:11.3881218Z  2026-10-29 07:12:26.828 UTC [128] CONTEXT:  PL/pgSQL function lcsp_compliance_rule_set_guard() line 4 at RAISE
+2026-10-29T07:15:11.3881853Z  2026-10-29 07:12:26.828 UTC [128] STATEMENT:  DELETE FROM "ComplianceRuleSetVersion" WHERE id=$1
+2026-10-29T07:15:11.3882791Z  2026-10-29 07:12:26.829 UTC [128] ERROR:  new row for relation "LegalRequirement" violates check constraint "LegalRequirement_coverage_reason_check"
+2026-10-29T07:15:11.3884178Z  2026-10-29 07:12:26.829 UTC [128] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000012, 00000000-0000-4000-8000-000000000006, LR-X, t, p, [], [], [], t, NON_ASSESSABLE, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, 0, null, null, null).
+2026-10-29T07:15:11.3886229Z  2026-10-29 07:12:26.829 UTC [128] STATEMENT:  INSERT INTO "LegalRequirement"(id, "ruleSetVersionId", "legalRequirementId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "contentDigest", ordinal)
+2026-10-29T07:15:11.3887321Z  	     VALUES ($1,$2,'LR-X','t','p','[]','[]','[]',true,'NON_ASSESSABLE',$3,0)
+2026-10-29T07:15:11.3888037Z  2026-10-29 07:12:26.832 UTC [128] ERROR:  duplicate key value violates unique constraint "LegalRequirement_ruleSetVersionId_legalRequirementId_key"
+2026-10-29T07:15:11.3888971Z  2026-10-29 07:12:26.832 UTC [128] DETAIL:  Key ("ruleSetVersionId", "legalRequirementId")=(00000000-0000-4000-8000-000000000006, LR-1) already exists.
+2026-10-29T07:15:11.3890402Z  2026-10-29 07:12:26.832 UTC [128] STATEMENT:  INSERT INTO "LegalRequirement"(id, "ruleSetVersionId", "legalRequirementId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "contentDigest", ordinal)
+2026-10-29T07:15:11.3891500Z  	     VALUES ($1,$2,'LR-1','t','p','[]','[]','[]',false,'COVERED_BY_ASSESSMENT_RULES',$3,0)
+2026-10-29T07:15:11.3892035Z  2026-10-29 07:12:26.833 UTC [128] ERROR:  LegalRequirement rows are immutable once written
+2026-10-29T07:15:11.3892673Z  2026-10-29 07:12:26.833 UTC [128] CONTEXT:  PL/pgSQL function lcsp_compliance_rule_set_immutable() line 3 at RAISE
+2026-10-29T07:15:11.3893328Z  2026-10-29 07:12:26.833 UTC [128] STATEMENT:  UPDATE "LegalRequirement" SET title='x' WHERE id=$1
+2026-10-29T07:15:11.3893902Z  2026-10-29 07:12:26.833 UTC [128] ERROR:  LegalRequirement rows are immutable once written
+2026-10-29T07:15:11.3894533Z  2026-10-29 07:12:26.833 UTC [128] CONTEXT:  PL/pgSQL function lcsp_compliance_rule_set_immutable() line 3 at RAISE
+2026-10-29T07:15:11.3895171Z  2026-10-29 07:12:26.833 UTC [128] STATEMENT:  DELETE FROM "LegalRequirement" WHERE id=$1
+2026-10-29T07:15:11.3896372Z  2026-10-29 07:12:26.837 UTC [128] ERROR:  insert or update on table "AssessmentRuleLegalRequirement" violates foreign key constraint "AssessmentRuleLegalRequirement_legalRequirementRowId_ruleS_fkey"
+2026-10-29T07:15:11.3897721Z  2026-10-29 07:12:26.837 UTC [128] DETAIL:  Key (legalRequirementRowId, ruleSetVersionId)=(00000000-0000-4000-8000-000000000019, 00000000-0000-4000-8000-000000000006) is not present in table "LegalRequirement".
+2026-10-29T07:15:11.3898965Z  2026-10-29 07:12:26.837 UTC [128] STATEMENT:  INSERT INTO "AssessmentRuleLegalRequirement"("ruleSetVersionId","assessmentRuleRowId","legalRequirementRowId") VALUES ($1,$2,$3)
+2026-10-29T07:15:11.3900175Z  2026-10-29 07:12:26.839 UTC [128] ERROR:  insert or update on table "LegalRequirementProvenance" violates foreign key constraint "LegalRequirementProvenance_chunkId_legalSourceVersionId_fkey"
+2026-10-29T07:15:11.3901406Z  2026-10-29 07:12:26.839 UTC [128] DETAIL:  Key (chunkId, legalSourceVersionId)=(chunk-legalSource-b, 00000000-0000-4000-8000-000000000001) is not present in table "LegalDocumentChunk".
+2026-10-29T07:15:11.3902762Z  2026-10-29 07:12:26.839 UTC [128] STATEMENT:  INSERT INTO "LegalRequirementProvenance"(id,"ruleSetVersionId","legalRequirementRowId","legalSourceVersionId","chunkId","documentId",locator,"contentSha256","sourceEffectStatus",ordinal)
+2026-10-29T07:15:11.3903738Z  	     VALUES ($1,$2,$3,$4,$5,'doc-1','art-1::cl-1',$6,'IN_FORCE',1)
+2026-10-29T07:15:11.3904546Z  2026-10-29 07:12:26.841 UTC [128] ERROR:  new row for relation "LegalRequirementContextRelation" violates check constraint "LegalRequirementContextRelation_exactly_one_target_check"
+2026-10-29T07:15:11.3906541Z  2026-10-29 07:12:26.841 UTC [128] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000023, 00000000-0000-4000-8000-000000000006, REL-2, SCOPE, 00000000-0000-4000-8000-000000000013, null, null, 00000000-0000-4000-8000-000000000001, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, 0).
+2026-10-29T07:15:11.3908244Z  2026-10-29 07:12:26.841 UTC [128] STATEMENT:  INSERT INTO "LegalRequirementContextRelation"(id,"ruleSetVersionId","relationId",kind,"fromRuleId","legalSourceVersionId","relationDigest",ordinal)
+2026-10-29T07:15:11.3909052Z  	     VALUES ($1,$2,'REL-2','SCOPE',$3,$4,$5,0)
+2026-10-29T07:15:11.3909885Z  2026-10-29 07:12:26.842 UTC [128] ERROR:  insert or update on table "LegalRequirementContextRelation" violates foreign key constraint "LegalRequirementContextRelation_toRuleId_ruleSetVersionId_fkey"
+2026-10-29T07:15:11.3911168Z  2026-10-29 07:12:26.842 UTC [128] DETAIL:  Key (toRuleId, ruleSetVersionId)=(00000000-0000-4000-8000-000000000019, 00000000-0000-4000-8000-000000000006) is not present in table "LegalRequirement".
+2026-10-29T07:15:11.3912557Z  2026-10-29 07:12:26.842 UTC [128] STATEMENT:  INSERT INTO "LegalRequirementContextRelation"(id,"ruleSetVersionId","relationId",kind,"fromRuleId","toRuleId","legalSourceVersionId","relationDigest",ordinal)
+2026-10-29T07:15:11.3913411Z  	     VALUES ($1,$2,'REL-3','DEFINITION',$3,$4,$5,$6,0)
+2026-10-29T07:15:11.3914179Z  2026-10-29 07:12:26.842 UTC [128] ERROR:  new row for relation "ComplianceRuleSetActivationRecord" violates check constraint "ComplianceRuleSetActivationRecord_failures_check"
+2026-10-29T07:15:11.3916038Z  2026-10-29 07:12:26.842 UTC [128] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000025, 00000000-0000-4000-8000-000000000011, 00000000-0000-4000-8000-000000000010, k-1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, FAILED, [], null, null, c, 2026-10-29 07:12:26.842).
+2026-10-29T07:15:11.3917811Z  2026-10-29 07:12:26.842 UTC [128] STATEMENT:  INSERT INTO "ComplianceRuleSetActivationRecord"(id,"ruleSetVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
+2026-10-29T07:15:11.3918744Z  	     VALUES ($1,$2,$3,'k-1',$4,'FAILED','[]','c')
+2026-10-29T07:15:11.3919390Z  2026-10-29 07:12:26.844 UTC [128] ERROR:  duplicate key value violates unique constraint "ComplianceRuleSetActivationRecord_ruleSetVersionId_key"
+2026-10-29T07:15:11.3920239Z  2026-10-29 07:12:26.844 UTC [128] DETAIL:  Key ("ruleSetVersionId")=(00000000-0000-4000-8000-000000000011) already exists.
+2026-10-29T07:15:11.3921353Z  2026-10-29 07:12:26.844 UTC [128] STATEMENT:  INSERT INTO "ComplianceRuleSetActivationRecord"(id,"ruleSetVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
+2026-10-29T07:15:11.3922303Z  	     VALUES ($1,$2,$3,'k-3',$4,'FAILED','[{"code":"X"}]','c')
+2026-10-29T07:15:11.3923180Z  2026-10-29 07:12:26.845 UTC [128] ERROR:  update or delete on table "LegalSourceVersion" violates foreign key constraint "RuleSetPreparationRun_legalSourceVersionId_fkey" on table "RuleSetPreparationRun"
+2026-10-29T07:15:11.3924345Z  2026-10-29 07:12:26.845 UTC [128] DETAIL:  Key (id)=(00000000-0000-4000-8000-000000000001) is still referenced from table "RuleSetPreparationRun".
+2026-10-29T07:15:11.3925074Z  2026-10-29 07:12:26.845 UTC [128] STATEMENT:  DELETE FROM "LegalSourceVersion" WHERE id=$1
+2026-10-29T07:15:11.3926083Z  2026-10-29 07:12:26.845 UTC [128] ERROR:  new row for relation "RuleSetPreparationRun" violates check constraint "RuleSetPreparationRun_failure_reason_check"
+2026-10-29T07:15:11.3927490Z  2026-10-29 07:12:26.845 UTC [128] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000005, run-p-active, 00000000-0000-4000-8000-000000000001, svc, corr, FAILED, null, null, 2026-10-29 07:12:26.818, null, null, CLAIM_DISCOVERY, 1, null, f, null, CLAIM_INVENTORY_V1, null, null).
+2026-10-29T07:15:11.3928883Z  2026-10-29 07:12:26.845 UTC [128] STATEMENT:  UPDATE "RuleSetPreparationRun" SET "executionState"='FAILED' WHERE id=$1
+2026-10-29T07:15:11.3929789Z  2026-10-29 07:12:26.846 UTC [128] ERROR:  new row for relation "RuleSetPreparationRun" violates check constraint "RuleSetPreparationRun_failure_reason_check"
+2026-10-29T07:15:11.3931198Z  2026-10-29 07:12:26.846 UTC [128] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000005, run-p-active, 00000000-0000-4000-8000-000000000001, svc, corr, QUEUED, NO_SUBMISSION, null, 2026-10-29 07:12:26.818, null, null, CLAIM_DISCOVERY, 1, null, f, null, CLAIM_INVENTORY_V1, null, null).
+2026-10-29T07:15:11.3932501Z  2026-10-29 07:12:26.846 UTC [128] STATEMENT:  UPDATE "RuleSetPreparationRun" SET "failureReason"='NO_SUBMISSION' WHERE id=$1
+2026-10-29T07:15:11.3933326Z  2026-10-29 07:13:57.809 UTC [229] ERROR:  duplicate key value violates unique constraint "RuleSetPreparationRun_idempotencyKey_key"
+2026-10-29T07:15:11.3934240Z  2026-10-29 07:13:57.809 UTC [229] DETAIL:  Key ("idempotencyKey")=(rule-set-preparation:8aadbaa2-6418-4d4d-a51d-16b0f1544eca:attempt:1) already exists.
+2026-10-29T07:15:11.3939976Z  2026-10-29 07:13:57.809 UTC [229] STATEMENT:  INSERT INTO "public"."RuleSetPreparationRun" ("executionContract","targetDate","claimDiscoveryOnly","claimPhase","claimInventoryRevision","id","idempotencyKey","legalSourceVersionId","requestedBy","correlationId","executionState","createdAt") VALUES (CAST($1::text AS "public"."PreparationExecutionContract"),$2,$3,CAST($4::text AS "public"."ClaimPreparationPhase"),$5,$6,$7,$8,$9,$10,CAST($11::text AS "public"."AgentExecutionState"),$12) RETURNING "public"."RuleSetPreparationRun"."id", "public"."RuleSetPreparationRun"."executionContract"::text, "public"."RuleSetPreparationRun"."targetDate", "public"."RuleSetPreparationRun"."draftValidation", "public"."RuleSetPreparationRun"."reviewOperationId", "public"."RuleSetPreparationRun"."claimDiscoveryOnly", "public"."RuleSetPreparationRun"."claimPhase"::text, "public"."RuleSetPreparationRun"."claimInventoryRevision", "public"."RuleSetPreparationRun"."claimInventoryReopenReason", "public"."RuleSetPreparationRun"."idempotencyKey", "public"."RuleSetPreparationRun"."legalSourceVersionId", "public"."RuleSetPreparationRun"."requestedBy", "public"."RuleSetPreparationRun"."correlationId", "public"."RuleSetPreparationRun"."executionState"::text, "public"."RuleSetPreparationRun"."failureReason"::text, "public"."RuleSetPreparationRun"."outboxEventId", "public"."RuleSetPreparationRun"."createdAt", "public"."RuleSetPreparationRun"."startedAt", "public"."RuleSetPreparationRun"."completedAt"
+2026-10-29T07:15:11.3945695Z  2026-10-29 07:13:57.809 UTC [232] ERROR:  duplicate key value violates unique constraint "RuleSetPreparationRun_idempotencyKey_key"
+2026-10-29T07:15:11.3946615Z  2026-10-29 07:13:57.809 UTC [232] DETAIL:  Key ("idempotencyKey")=(rule-set-preparation:8aadbaa2-6418-4d4d-a51d-16b0f1544eca:attempt:1) already exists.
+2026-10-29T07:15:11.3952109Z  2026-10-29 07:13:57.809 UTC [232] STATEMENT:  INSERT INTO "public"."RuleSetPreparationRun" ("executionContract","targetDate","claimDiscoveryOnly","claimPhase","claimInventoryRevision","id","idempotencyKey","legalSourceVersionId","requestedBy","correlationId","executionState","createdAt") VALUES (CAST($1::text AS "public"."PreparationExecutionContract"),$2,$3,CAST($4::text AS "public"."ClaimPreparationPhase"),$5,$6,$7,$8,$9,$10,CAST($11::text AS "public"."AgentExecutionState"),$12) RETURNING "public"."RuleSetPreparationRun"."id", "public"."RuleSetPreparationRun"."executionContract"::text, "public"."RuleSetPreparationRun"."targetDate", "public"."RuleSetPreparationRun"."draftValidation", "public"."RuleSetPreparationRun"."reviewOperationId", "public"."RuleSetPreparationRun"."claimDiscoveryOnly", "public"."RuleSetPreparationRun"."claimPhase"::text, "public"."RuleSetPreparationRun"."claimInventoryRevision", "public"."RuleSetPreparationRun"."claimInventoryReopenReason", "public"."RuleSetPreparationRun"."idempotencyKey", "public"."RuleSetPreparationRun"."legalSourceVersionId", "public"."RuleSetPreparationRun"."requestedBy", "public"."RuleSetPreparationRun"."correlationId", "public"."RuleSetPreparationRun"."executionState"::text, "public"."RuleSetPreparationRun"."failureReason"::text, "public"."RuleSetPreparationRun"."outboxEventId", "public"."RuleSetPreparationRun"."createdAt", "public"."RuleSetPreparationRun"."startedAt", "public"."RuleSetPreparationRun"."completedAt"
+2026-10-29T07:15:11.3957907Z  2026-10-29 07:13:57.810 UTC [233] ERROR:  duplicate key value violates unique constraint "RuleSetPreparationRun_idempotencyKey_key"
+2026-10-29T07:15:11.3958822Z  2026-10-29 07:13:57.810 UTC [233] DETAIL:  Key ("idempotencyKey")=(rule-set-preparation:8aadbaa2-6418-4d4d-a51d-16b0f1544eca:attempt:1) already exists.
+2026-10-29T07:15:11.3964184Z  2026-10-29 07:13:57.810 UTC [233] STATEMENT:  INSERT INTO "public"."RuleSetPreparationRun" ("executionContract","targetDate","claimDiscoveryOnly","claimPhase","claimInventoryRevision","id","idempotencyKey","legalSourceVersionId","requestedBy","correlationId","executionState","createdAt") VALUES (CAST($1::text AS "public"."PreparationExecutionContract"),$2,$3,CAST($4::text AS "public"."ClaimPreparationPhase"),$5,$6,$7,$8,$9,$10,CAST($11::text AS "public"."AgentExecutionState"),$12) RETURNING "public"."RuleSetPreparationRun"."id", "public"."RuleSetPreparationRun"."executionContract"::text, "public"."RuleSetPreparationRun"."targetDate", "public"."RuleSetPreparationRun"."draftValidation", "public"."RuleSetPreparationRun"."reviewOperationId", "public"."RuleSetPreparationRun"."claimDiscoveryOnly", "public"."RuleSetPreparationRun"."claimPhase"::text, "public"."RuleSetPreparationRun"."claimInventoryRevision", "public"."RuleSetPreparationRun"."claimInventoryReopenReason", "public"."RuleSetPreparationRun"."idempotencyKey", "public"."RuleSetPreparationRun"."legalSourceVersionId", "public"."RuleSetPreparationRun"."requestedBy", "public"."RuleSetPreparationRun"."correlationId", "public"."RuleSetPreparationRun"."executionState"::text, "public"."RuleSetPreparationRun"."failureReason"::text, "public"."RuleSetPreparationRun"."outboxEventId", "public"."RuleSetPreparationRun"."createdAt", "public"."RuleSetPreparationRun"."startedAt", "public"."RuleSetPreparationRun"."completedAt"
+2026-10-29T07:15:11.3970036Z  2026-10-29 07:13:57.811 UTC [231] ERROR:  duplicate key value violates unique constraint "RuleSetPreparationRun_idempotencyKey_key"
+2026-10-29T07:15:11.3970960Z  2026-10-29 07:13:57.811 UTC [231] DETAIL:  Key ("idempotencyKey")=(rule-set-preparation:8aadbaa2-6418-4d4d-a51d-16b0f1544eca:attempt:1) already exists.
+2026-10-29T07:15:11.3976517Z  2026-10-29 07:13:57.811 UTC [231] STATEMENT:  INSERT INTO "public"."RuleSetPreparationRun" ("executionContract","targetDate","claimDiscoveryOnly","claimPhase","claimInventoryRevision","id","idempotencyKey","legalSourceVersionId","requestedBy","correlationId","executionState","createdAt") VALUES (CAST($1::text AS "public"."PreparationExecutionContract"),$2,$3,CAST($4::text AS "public"."ClaimPreparationPhase"),$5,$6,$7,$8,$9,$10,CAST($11::text AS "public"."AgentExecutionState"),$12) RETURNING "public"."RuleSetPreparationRun"."id", "public"."RuleSetPreparationRun"."executionContract"::text, "public"."RuleSetPreparationRun"."targetDate", "public"."RuleSetPreparationRun"."draftValidation", "public"."RuleSetPreparationRun"."reviewOperationId", "public"."RuleSetPreparationRun"."claimDiscoveryOnly", "public"."RuleSetPreparationRun"."claimPhase"::text, "public"."RuleSetPreparationRun"."claimInventoryRevision", "public"."RuleSetPreparationRun"."claimInventoryReopenReason", "public"."RuleSetPreparationRun"."idempotencyKey", "public"."RuleSetPreparationRun"."legalSourceVersionId", "public"."RuleSetPreparationRun"."requestedBy", "public"."RuleSetPreparationRun"."correlationId", "public"."RuleSetPreparationRun"."executionState"::text, "public"."RuleSetPreparationRun"."failureReason"::text, "public"."RuleSetPreparationRun"."outboxEventId", "public"."RuleSetPreparationRun"."createdAt", "public"."RuleSetPreparationRun"."startedAt", "public"."RuleSetPreparationRun"."completedAt"
+2026-10-29T07:15:11.3982145Z  2026-10-29 07:13:57.812 UTC [230] ERROR:  duplicate key value violates unique constraint "RuleSetPreparationRun_idempotencyKey_key"
+2026-10-29T07:15:11.3983051Z  2026-10-29 07:13:57.812 UTC [230] DETAIL:  Key ("idempotencyKey")=(rule-set-preparation:8aadbaa2-6418-4d4d-a51d-16b0f1544eca:attempt:1) already exists.
+2026-10-29T07:15:11.3988633Z  2026-10-29 07:13:57.812 UTC [230] STATEMENT:  INSERT INTO "public"."RuleSetPreparationRun" ("executionContract","targetDate","claimDiscoveryOnly","claimPhase","claimInventoryRevision","id","idempotencyKey","legalSourceVersionId","requestedBy","correlationId","executionState","createdAt") VALUES (CAST($1::text AS "public"."PreparationExecutionContract"),$2,$3,CAST($4::text AS "public"."ClaimPreparationPhase"),$5,$6,$7,$8,$9,$10,CAST($11::text AS "public"."AgentExecutionState"),$12) RETURNING "public"."RuleSetPreparationRun"."id", "public"."RuleSetPreparationRun"."executionContract"::text, "public"."RuleSetPreparationRun"."targetDate", "public"."RuleSetPreparationRun"."draftValidation", "public"."RuleSetPreparationRun"."reviewOperationId", "public"."RuleSetPreparationRun"."claimDiscoveryOnly", "public"."RuleSetPreparationRun"."claimPhase"::text, "public"."RuleSetPreparationRun"."claimInventoryRevision", "public"."RuleSetPreparationRun"."claimInventoryReopenReason", "public"."RuleSetPreparationRun"."idempotencyKey", "public"."RuleSetPreparationRun"."legalSourceVersionId", "public"."RuleSetPreparationRun"."requestedBy", "public"."RuleSetPreparationRun"."correlationId", "public"."RuleSetPreparationRun"."executionState"::text, "public"."RuleSetPreparationRun"."failureReason"::text, "public"."RuleSetPreparationRun"."outboxEventId", "public"."RuleSetPreparationRun"."createdAt", "public"."RuleSetPreparationRun"."startedAt", "public"."RuleSetPreparationRun"."completedAt"
+2026-10-29T07:15:11.3994687Z  2026-10-29 07:11:09.757 UTC [49] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.003 s; sync files=2, longest=0.001 s, average=0.001 s; distance=0 kB, estimate=0 kB; lsn=0/14F2AE8, redo lsn=0/14F2AE8
+2026-10-29T07:15:11.3996001Z  2026-10-29 07:11:09.761 UTC [48] LOG:  database system is shut down
+2026-10-29T07:15:11.3996360Z   done
+2026-10-29T07:15:11.3996570Z  server stopped
+2026-10-29T07:15:11.3996787Z  
+2026-10-29T07:15:11.3997056Z  PostgreSQL init process complete; ready for start up.
+2026-10-29T07:15:11.3997385Z  
+2026-10-29T07:15:11.4003118Z Stop and remove container: c353eb00e27446f988925d93215a13a8_postgres16_618cb4
+2026-10-29T07:15:11.4008289Z ##[command]/usr/bin/docker rm --force f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:15:11.5666309Z f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
+2026-10-29T07:15:11.5713074Z Remove container network: github_network_850416965c7a483a96dcfb53c725ad13
+2026-10-29T07:15:11.5718589Z ##[command]/usr/bin/docker network rm github_network_850416965c7a483a96dcfb53c725ad13
+2026-10-29T07:15:11.6492791Z github_network_850416965c7a483a96dcfb53c725ad13
+2026-10-29T07:15:11.6569707Z Cleaning up orphan processes
+2026-10-29T07:15:11.6958659Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/setup-python@v5, actions/upload-artifact@v4, pnpm/action-setup@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

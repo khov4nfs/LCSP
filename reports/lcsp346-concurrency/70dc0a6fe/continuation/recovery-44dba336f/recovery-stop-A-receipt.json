@@ -1,0 +1,20 @@
+{
+  "source": "Selected fields copied from the observed Playwright UI Stop receipt and same-call authenticated reads",
+  "requestedAt": "2026-10-29T08:08:43.503Z",
+  "observedAt": "2026-10-29T08:08:58.536Z",
+  "assessmentId": "ecdf35c1-8487-4c3c-bd61-12666ee95ad7",
+  "httpStatus": 201,
+  "requestId": "0309fab9-f631-4864-a907-043039452acc",
+  "executionId": "578a6aad-2aa3-42ac-a531-ec0dbe4e0afb",
+  "threadId": "7402b491-eb54-4a63-b405-57378da25d28",
+  "pausedCheckpointId": "1f1d36ff-7da9-6eca-80dd-2b0770fac2aa",
+  "pausedAt": "2026-10-29T08:08:49.638Z",
+  "beforeDecisionIds": [],
+  "pausedDecisionIds": [],
+  "observerAssessmentId": "a7ae7cbe-59a8-4372-b5ff-fa2ab97c615f",
+  "observerExecutionId": "c999cb54-1f5e-45b7-91bc-edcc49874978",
+  "observerStateBefore": "RUNNING",
+  "observerStateAfter": "RUNNING",
+  "observerInvocationCountBefore": 9,
+  "observerInvocationCountAfter": 10
+}

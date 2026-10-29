@@ -1,0 +1,39 @@
+Running as unit: run-p428442-i433116.scope; invocation ID: 6e2fbb8feea84d4584938f8c7e82395d
+(node:428442) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Nest] 428442  - 10/29/2026, 1:57:20 PM   ERROR [HttpExceptionFilter] [802ebdc3-834a-4cc2-aa09-472dd0625322] POST /auth/mfa/enroll 500 - Internal Server Error
+Error: test MFA audit failure
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/auth.e2e-spec.ts:442:30)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+[Nest] 428442  - 10/29/2026, 1:57:20 PM   ERROR [HTTP] POST /auth/mfa/enroll 500 +52ms code=INTERNAL_ERROR requiredAction=none correlationId=802ebdc3-834a-4cc2-aa09-472dd0625322
+[Nest] 428442  - 10/29/2026, 1:57:21 PM   ERROR [HttpExceptionFilter] [cef14caa-63e4-4e63-8414-af8affd3ae96] POST /auth/mfa/recovery-code/verify 500 - Internal Server Error
+Error: test MFA proof audit failure
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/auth.e2e-spec.ts:534:30)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+[Nest] 428442  - 10/29/2026, 1:57:21 PM   ERROR [HTTP] POST /auth/mfa/recovery-code/verify 500 +12ms code=INTERNAL_ERROR requiredAction=none correlationId=cef14caa-63e4-4e63-8414-af8affd3ae96
+[Nest] 428442  - 10/29/2026, 1:57:22 PM   ERROR [HttpExceptionFilter] [cfa59933-d76d-4ac6-af14-82df5dd22cf0] POST /auth/mfa/recovery-codes 500 - Internal Server Error
+Error: test MFA code audit failure
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/auth.e2e-spec.ts:648:30)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+[Nest] 428442  - 10/29/2026, 1:57:22 PM   ERROR [HTTP] POST /auth/mfa/recovery-codes 500 +46ms code=INTERNAL_ERROR requiredAction=none correlationId=cfa59933-d76d-4ac6-af14-82df5dd22cf0
+[Nest] 428442  - 10/29/2026, 1:57:26 PM   ERROR [HttpExceptionFilter] [d582c57c-9527-4b1f-9841-dcb7b8da80ab] POST /auth/mfa/verify-otp 500 - Internal Server Error
+Error: test OTP proof audit failure
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/auth.e2e-spec.ts:804:30)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+[Nest] 428442  - 10/29/2026, 1:57:26 PM   ERROR [HTTP] POST /auth/mfa/verify-otp 500 +16ms code=INTERNAL_ERROR requiredAction=none correlationId=d582c57c-9527-4b1f-9841-dcb7b8da80ab
+[Nest] 428442  - 10/29/2026, 1:57:34 PM   ERROR [HttpExceptionFilter] [15ea3f24-3289-4e83-aace-46d0f53f267b] POST /auth/mfa/enroll 500 - Internal Server Error
+Error: test MFA rotation audit failure
+    at Object.<anonymous> (/home/khovan/Workplaces/LCSP/apps/api/test/auth.e2e-spec.ts:1398:30)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+[Nest] 428442  - 10/29/2026, 1:57:34 PM   ERROR [HTTP] POST /auth/mfa/enroll 500 +61ms code=INTERNAL_ERROR requiredAction=none correlationId=15ea3f24-3289-4e83-aace-46d0f53f267b
+(node:428442) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(node:428442) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(node:428442) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(node:428442) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(node:428442) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+
+Test Suites: 4 skipped, 20 passed, 20 of 24 total
+Tests:       22 skipped, 175 passed, 197 total
+Snapshots:   0 total
+Time:        171.402 s
+Ran all test suites.
