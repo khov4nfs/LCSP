@@ -147,7 +147,7 @@ export function MfaVerifyForm({
 
   return (
     <AuthFormSurface
-      className="pt-[168px]"
+      className="pt-28 pb-16 sm:pt-32"
       data-figma-node={isRecoveryCode ? "926:31359" : "925:31355"}
     >
       <AuthHeading
@@ -218,17 +218,17 @@ function OtpForm({
         id="mfa-verify-form"
         onSubmit={onSubmit}
         noValidate
-        className="mt-[38px] flex flex-col"
+        className="mt-8 flex flex-col"
       >
-        <FieldGroup className="gap-[18px]">
+        <FieldGroup className="gap-5">
           <Field
             data-invalid={Boolean(otpError) || undefined}
             data-disabled={isSubmitting || isLocked || undefined}
-            className="gap-2"
+            className="items-center gap-3"
           >
             <FieldLabel
               htmlFor="otp"
-              className="text-xs font-medium text-foreground"
+              className="block w-full text-center text-xs font-semibold tracking-wide text-foreground uppercase"
             >
               {resolveMessage(appLocale, "pages.mfaVerify.otpLabel")}
             </FieldLabel>
@@ -241,7 +241,7 @@ function OtpForm({
                   maxLength={6}
                   pattern={REGEXP_ONLY_DIGITS}
                   autoComplete="one-time-code"
-                  containerClassName="justify-start gap-[14px]"
+                  containerClassName="justify-center gap-2 sm:gap-2.5"
                   disabled={isSubmitting || isLocked}
                   aria-invalid={Boolean(otpError)}
                   {...field}
@@ -261,14 +261,14 @@ function OtpForm({
               )}
             />
             {otpError ? (
-              <FieldError className="text-[11px] leading-normal">
+              <FieldError className="text-center text-xs leading-normal">
                 {resolveMessage(
                   appLocale,
                   otpError as Parameters<typeof resolveMessage>[1],
                 )}
               </FieldError>
             ) : (
-              <FieldDescription className="text-[11px] leading-normal text-muted-foreground">
+              <FieldDescription className="text-center text-xs leading-normal text-muted-foreground">
                 {resolveMessage(appLocale, "pages.mfaVerify.otpDescription")}
               </FieldDescription>
             )}
@@ -276,7 +276,7 @@ function OtpForm({
           <MfaErrorAlert error={error} />
         </FieldGroup>
         <AuthPrimaryButton
-          className="mt-[30px]"
+          className="mt-6"
           type="submit"
           form="mfa-verify-form"
           disabled={isSubmitting || isLocked}
@@ -297,11 +297,11 @@ function OtpForm({
           event.preventDefault();
           onSwitchMethod();
         }}
-        className="mt-[40px] self-center"
+        className="mt-6 self-center"
       >
         {resolveMessage(appLocale, "pages.mfaVerify.moreOptions")}
       </AuthInlineLink>
-      <AuthNote className="mt-[34px]">
+      <AuthNote className="mt-6">
         {resolveMessage(appLocale, "pages.mfaVerify.accessHelp")}
       </AuthNote>
     </>
@@ -331,9 +331,9 @@ function RecoveryCodeForm({
         id="mfa-recovery-code-verify-form"
         onSubmit={onSubmit}
         noValidate
-        className="mt-[38px] flex flex-col"
+        className="mt-8 flex flex-col"
       >
-        <FieldGroup className="gap-[18px]">
+        <FieldGroup className="gap-4">
           <Controller
             control={control}
             name="code"
@@ -397,11 +397,11 @@ function RecoveryCodeForm({
           event.preventDefault();
           onSwitchMethod();
         }}
-        className="mt-[22px] self-start"
+        className="mt-6 self-center"
       >
         {resolveMessage(appLocale, "pages.mfaVerify.useAuthenticator")}
       </AuthInlineLink>
-      <AuthNote className="mt-[34px]">
+      <AuthNote className="mt-6">
         {resolveMessage(appLocale, "pages.mfaVerify.recoveryCodeAccessHelp")}
       </AuthNote>
     </>

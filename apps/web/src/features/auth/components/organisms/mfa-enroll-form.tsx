@@ -17,8 +17,8 @@ import {
 } from "@lcsp/contracts/auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
-import { FormCard } from "@/components/organisms/form-card";
 import { appLocale } from "@/lib/locale";
 import {
   useAuthSettingsProfileQuery,
@@ -26,23 +26,27 @@ import {
   useMfaRecoveryCodeAccessMutation,
   usePasswordReauthMutation,
 } from "@/lib/api/auth-queries";
+import { API_OUTCOME_KINDS, API_REDIRECT_LOCATIONS } from "@/lib/api/outcome-kinds";
 import {
-  API_OUTCOME_KINDS,
-  API_REDIRECT_LOCATIONS,
-} from "@/lib/api/outcome-kinds";
+  AuthFormSurface,
+  AuthHeading,
+  AuthInlineLink,
+  AuthNote,
+  AuthPrimaryButton,
+} from "../molecules/auth-form-primitives";
 import { MfaQrPreview } from "../molecules/mfa-qr-preview";
 import type { MfaEnrollErrorState } from "../../types/mfa-enroll.types";
 
 export function MfaEnrollForm() {
   const router = useRouter();
-  const profileQuery = useAuthSettingsProfileQuery();
+  const [reauthOpen, setReauthOpen] = useState(false);
+  const profileQuery = useAuthSettingsProfileQuery({ enabled: reauthOpen });
   const enrollMutation = useMfaEnrollMutation();
   const recoveryCodeAccessMutation = useMfaRecoveryCodeAccessMutation();
   const reauthMutation = usePasswordReauthMutation();
   const [totpUri, setTotpUri] = useState<string | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState<MfaEnrollErrorState>(null);
-  const [reauthOpen, setReauthOpen] = useState(false);
   const [reauthError, setReauthError] = useState<{
     titleKey?: MessageKey;
     detailKey?: MessageKey;
@@ -210,89 +214,72 @@ export function MfaEnrollForm() {
 
   return (
     <>
-      <FormCard
-      eyebrow={resolveMessage(appLocale, "pages.mfaEnroll.formEyebrow")}
-      title={resolveMessage(appLocale, "pages.mfaEnroll.formTitle")}
-      description={resolveMessage(appLocale, "pages.mfaEnroll.formDescription")}
-      footer={
-        <>
-          <Button
-            className="w-full"
-            type="button"
-            onClick={handleEnroll}
-            disabled={enrollMutation.isPending}
-            aria-busy={enrollMutation.isPending}
-          >
-            {resolveMessage(
-              appLocale,
-              enrollMutation.isPending
-                ? "pages.mfaEnroll.submitting"
-                : "pages.mfaEnroll.submit",
-            )}
-          </Button>
-          <Button
-            render={<Link href={API_REDIRECT_LOCATIONS.mfaVerify} />}
-            variant="ghost"
-          >
-            {resolveMessage(appLocale, "pages.mfaEnroll.goToVerify")}
-          </Button>
-        </>
-      }
-      leading={
-        <p className="text-sm text-muted-foreground">
-          {resolveMessage(appLocale, "pages.mfaEnroll.accessHelp")}
-        </p>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>{resolveMessage(appLocale, error.titleKey)}</AlertTitle>
-            <AlertDescription>
-              {resolveMessage(appLocale, error.detailKey)}
-            </AlertDescription>
-          </Alert>
-        ) : null}
+      <AuthFormSurface
+        className={
+          totpUri
+            ? "max-w-md pt-16 pb-20 sm:pt-20"
+            : "pt-28 pb-16 sm:pt-32"
+        }
+      >
+        <AuthHeading
+          title={resolveMessage(appLocale, "pages.mfaEnroll.formTitle")}
+          description={resolveMessage(appLocale, "pages.mfaEnroll.formDescription")}
+        />
 
-        {totpUri ? (
-          <Alert>
-            <AlertTitle>
-              {resolveMessage(appLocale, "pages.mfaEnroll.successTitle")}
-            </AlertTitle>
-            <AlertDescription className="flex flex-col gap-3">
-              <p>
-                {resolveMessage(appLocale, "pages.mfaEnroll.successDetail")}
-              </p>
+        <div className="mt-8 flex flex-col gap-6">
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTitle>{resolveMessage(appLocale, error.titleKey)}</AlertTitle>
+              <AlertDescription>
+                {resolveMessage(appLocale, error.detailKey)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {totpUri ? (
+            <div className="flex flex-col gap-6 rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-sm">
+              <div className="text-center">
+                <h2 className="text-base font-semibold tracking-tight text-foreground">
+                  {resolveMessage(appLocale, "pages.mfaEnroll.successTitle")}
+                </h2>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  {resolveMessage(appLocale, "pages.mfaEnroll.successDetail")}
+                </p>
+              </div>
+
               <MfaQrPreview totpUri={totpUri} />
+
               {recoveryCodes.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="flex flex-col gap-4 border-t border-border/60 pt-5">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {recoveryCodes.map((code) => (
                       <code
                         key={code}
-                        className="rounded-md border bg-muted px-2 py-1 text-center font-mono text-sm"
+                        className="rounded-lg border border-border/60 bg-muted/60 px-3 py-2 text-center font-mono text-xs font-semibold tracking-wider text-foreground select-all"
                       >
                         {code}
                       </code>
                     ))}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-8 gap-1.5 px-3 text-xs"
                       onClick={handleCopyRecoveryCodes}
                     >
-                      <ClipboardCopyIcon />
+                      <ClipboardCopyIcon className="size-3.5" />
                       {resolveMessage(appLocale, "pages.mfaEnroll.copyCodes")}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-8 gap-1.5 px-3 text-xs"
                       onClick={handleDownloadRecoveryCodes}
                     >
-                      <DownloadIcon />
+                      <DownloadIcon className="size-3.5" />
                       {resolveMessage(
                         appLocale,
                         "pages.mfaEnroll.downloadCodes",
@@ -302,20 +289,56 @@ export function MfaEnrollForm() {
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-8 gap-1.5 px-3 text-xs"
                       onClick={handlePrintRecoveryCodes}
                     >
-                      <PrinterIcon />
+                      <PrinterIcon className="size-3.5" />
                       {resolveMessage(appLocale, "pages.mfaEnroll.printCodes")}
                     </Button>
                   </div>
                 </div>
               ) : null}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-      </div>
-    </FormCard>
-    <ConfirmAccessDialog
+
+              <Button
+                render={<Link href={API_REDIRECT_LOCATIONS.mfaVerify} />}
+                className="w-full"
+                nativeButton={false}
+              >
+                {resolveMessage(appLocale, "pages.mfaEnroll.goToVerify")}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <AuthPrimaryButton
+                type="button"
+                onClick={handleEnroll}
+                disabled={enrollMutation.isPending}
+                aria-busy={enrollMutation.isPending}
+              >
+                {enrollMutation.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : null}
+                {resolveMessage(
+                  appLocale,
+                  enrollMutation.isPending
+                    ? "pages.mfaEnroll.submitting"
+                    : "pages.mfaEnroll.submit",
+                )}
+              </AuthPrimaryButton>
+              <AuthInlineLink
+                href={API_REDIRECT_LOCATIONS.mfaVerify}
+                className="mt-2 self-center"
+              >
+                {resolveMessage(appLocale, "pages.mfaEnroll.goToVerify")}
+              </AuthInlineLink>
+              <AuthNote className="mt-4">
+                {resolveMessage(appLocale, "pages.mfaEnroll.accessHelp")}
+              </AuthNote>
+            </div>
+          )}
+        </div>
+      </AuthFormSurface>
+  <ConfirmAccessDialog
       open={reauthOpen}
       onOpenChange={(open) => {
         setReauthOpen(open);
