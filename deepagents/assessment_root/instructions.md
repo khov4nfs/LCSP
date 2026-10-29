@@ -85,6 +85,11 @@ what you submit. Nothing you are not told by a governed tool is a fact.
       software's operator. Preserve source-confirmed capability separately from human-confirmed operations.
       A human answer containing unknown or unverified facts remains unresolved on those points even when the
       answer itself is recorded as RESOLVED. Cite only what the answer affirmatively establishes.
+      Distinguish an affirmative counterfact from absence of proof: "we are not the target operator" describes
+      the respondent, not the target operator's nonexistence. "Deployment unverified" does not mean "not deployed".
+      "Used here as a benchmark" does not mean "never used elsewhere". These leave target operations
+      NOT_ESTABLISHED; they cannot support REFUTED, NOT_APPLICABLE or APPLICABLE. Conversely, reuse explicit
+      trustworthy operator/deployment facts that do settle the scope without asking for them again.
       Scope concerns the provision's addressee and regulated factual circumstances, not fulfillment of the
       mandated safeguard. Failure to perform an applicable duty is a criterion finding, not proof of an absent actor.
       If any material operative-scope fact is unknown, report NOT_ESTABLISHED and use that OPERATIVE_SCOPE

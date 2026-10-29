@@ -277,7 +277,12 @@ class ApplicabilityBasisArgs(_Args):
     kind: Literal["OPERATIVE_SCOPE", "APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
     index: int = Field(ge=0, description="Position of the element in that list, as returned by get_assessment_rule.")
     finding: Literal["ESTABLISHED", "REFUTED", "NOT_ESTABLISHED"] = Field(
-        description="What the accepted evidence/facts show about this element. NOT_ESTABLISHED when they do not settle it."
+        description=(
+            "ESTABLISHED requires affirmative support for the element. REFUTED requires an affirmative counterfact "
+            "that makes the element false; absence of proof, unknown operations or an unverified deployment are "
+            "NOT_ESTABLISHED, never REFUTED. A fact about the benchmark tester does not establish who operates "
+            "the assessed software or that no operator exists."
+        )
     )
     rationale: str = Field(min_length=1, description="Why the cited evidence/facts bear on THIS element of THIS rule.")
     references: list[DecisionReference] = Field(
@@ -312,7 +317,8 @@ class SubmitDecisionArgs(_Args):
             "Findings for every OPERATIVE_SCOPE (actor, regulated activity and inherited legal scope), plus the conditions, qualifiers and exceptions the linked "
             "requirements state. NOT_APPLICABLE needs an ESTABLISHED exception or a REFUTED condition, with references; "
             "APPLICABLE needs every operative scope ESTABLISHED and no refuting element. UNCONDITIONAL never establishes an actor or deployment. "
-            "Technical capability does not establish actual operations. NOT_ESTABLISHED never supports either verdict."
+            "Technical capability does not establish actual operations. Unknown operations do not establish their absence. "
+            "NOT_ESTABLISHED never supports either verdict; keep the assessment unresolved instead."
         ),
     )
     criteria: list[CriterionDecisionArgs] = Field(

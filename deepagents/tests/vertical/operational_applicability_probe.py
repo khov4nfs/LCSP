@@ -99,7 +99,6 @@ def main():
                 )
                 if args.mode == "confirmed":
                     self.statement = (
-                        "SYNTHETIC POSITIVE EVALUATION FACT, not an assertion about the public project: "
                         "A verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers. "
                         "It decides purposes and means and directly processes their personal data, including names, addresses and financial records. "
                         "It relies on consent for this processing; verified data-subject consent, correction, withdrawal and restriction requests exist and apply after the law took effect. The customer confirms that the six evaluated consent, correction and withdrawal "
@@ -114,6 +113,9 @@ def main():
                 context.update({k:row["decision"][k] for k in ["repositoryCommit", "repositorySnapshotId", "ruleSetVersionId"]})
                 context["evidence"] = data["evidence"] + self.new_evidence
                 context["facts"].extend(self.new_facts)
+                current = [packet for packet in self.accepted if packet["caseRevision"] == self.case_revision]
+                if current:
+                    context["coverage"][0].update(resolutionState="RESOLVED", currentDecisionId="fixture-accepted", decisionRevision=len(self.accepted))
                 return context
 
             def post_evidence(self, body):
@@ -142,8 +144,12 @@ def main():
                                    for s in corpus if all(w in s["content"].lower() for w in words)], "truncated":False}
 
             def rule_decisions(self, rule_id, revision=None):
-                return {"records":[{"decisionId":"historical-fixture", "decisionRevision":1,
-                                    "state":"INVALIDATED", "decision":row["decision"]}]}
+                records = [{"decisionId":"historical-fixture", "decisionRevision":1,
+                            "state":"INVALIDATED", "decision":row["decision"]}]
+                records.extend({"decisionId":f"fixture-{index}", "decisionRevision":index + 2,
+                                "state":"ACCEPTED" if packet["caseRevision"] == self.case_revision else "INVALIDATED",
+                                "decision":packet} for index, packet in enumerate(self.accepted))
+                return {"records":records}
 
             def post_decision(self, body):
                 context = self.context()
@@ -165,6 +171,8 @@ def main():
                 if failures:
                     self.rejections.extend(failures)
                     raise AssessmentApiError(422, "DECISION_VALIDATION_FAILED", {"failures":",".join(f["code"]+":"+f["ref"] for f in failures)})
+                if packet in self.accepted:
+                    return {"decisionId":"fixture-accepted", "decisionRevision":len(self.accepted), "replayed":True}
                 self.accepted.append(packet)
                 return super().post_decision(body)
 
@@ -203,6 +211,7 @@ def main():
             failure = {"type":type(error).__name__, "admissionReason":getattr(error, "reason", None)}
         usage = recover_usage(usage_path, run_id)
         result = {"case":name,"mode":args.mode,"candidateSha":candidate,"fixtureApiOnly":True,
+                  "syntheticOperationalFacts":args.mode == "confirmed",
                   "acceptedDecisions":client.accepted,"newEvidence":client.new_evidence,"newFacts":client.new_facts,"validationRejections":client.rejections,
                   "nativeInterrupted":bool(output.get("__interrupt__")), "openRequestIds":client.open_requests,
                   "requests":[body for kind, body in client.calls if kind == "human"],
