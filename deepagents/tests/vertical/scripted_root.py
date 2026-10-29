@@ -107,6 +107,14 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
                 "rationale": "The accepted fixture evidence establishes the scripted applicability finding.",
                 "references": args["references"],
             }]
+            if applicable:
+                detail = captured[f"scope_{rule}"]
+                args["applicability_basis"].extend({
+                    "legal_requirement_id": element["legalRequirementId"], "kind": "OPERATIVE_SCOPE",
+                    "index": element["index"], "finding": "ESTABLISHED",
+                    "rationale": "The synthetic notice-service fixture establishes its scripted operator and activity.",
+                    "references": args["references"],
+                } for element in detail["applicabilityElements"] if element["kind"] == "OPERATIVE_SCOPE")
             return _call("submit_rule_decision", args, key)
 
         return step
@@ -146,9 +154,11 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
             },
             "s9",
         ),
-        lambda m: (captured.__setitem__("rejected", last(m)), decide("ER-RET", applicable=True, outcome="MET", key="s10")(m))[1],
+        lambda m: (captured.__setitem__("rejected", last(m)), _call("get_assessment_rule", {"assessment_rule_id": "ER-RET"}, "scope-ret"))[1],
+        lambda m: (keep("scope_ER-RET", m), decide("ER-RET", applicable=True, outcome="MET", key="s10")(m))[1],
         lambda m: (captured.__setitem__("decision_ret", last(m)), _call("start_rule_investigation", {"assessment_rule_id": "ER-XREF"}, "s11"))[1],
-        decide("ER-XREF", applicable=True, outcome="NOT_MET", key="s12"),
+        lambda m: _call("get_assessment_rule", {"assessment_rule_id": "ER-XREF"}, "scope-xref"),
+        lambda m: (keep("scope_ER-XREF", m), decide("ER-XREF", applicable=True, outcome="NOT_MET", key="s12")(m))[1],
         lambda m: (captured.__setitem__("decision_xref", last(m)), _call("start_rule_investigation", {"assessment_rule_id": "ER-DEF"}, "s13"))[1],
         decide("ER-DEF", applicable=False, outcome=None, key="s14"),
         lambda m: (captured.__setitem__("decision_def", last(m)), AIMessage(content="All three rules decided."))[1],

@@ -286,6 +286,15 @@ jobs:
     if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     services:
+      rabbitmq:
+        image: rabbitmq:4-management
+        ports:
+          - 5679:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
       postgres:
         image: postgres:16
         env:
@@ -300,6 +309,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      LCSP_TEST_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5679
       LCSP_TEST_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55436/lcsp_worker_test
     defaults:
       run:

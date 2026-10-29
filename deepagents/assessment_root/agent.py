@@ -116,6 +116,7 @@ def create_assessment_root_agent(
     - Only the Root has governed fact, decision and human-resolution tools; its researcher returns read-only candidate findings.
     - Native planning state is checkpointed with the same graph; Root and delegated calls share governance, and each compaction call retains its investigator's own authority instructions.
     - The backend exposes the pinned repository read-only with a separate writable scratch area; invoke using run.thread_id.
+    - Native tool/research batches run one at a time until shared search and usage attribution is proven safe for parallel children; independent Roots have independent graphs.
 
     Execution flow:
     1. Resolve the configured model and default governance when callers do not supply them.
@@ -165,4 +166,4 @@ def create_assessment_root_agent(
             context_schema=LCSPRunContext,
             checkpointer=checkpointer,
             store=store,
-        ).with_config(agent_graph_config())
+        ).with_config(agent_graph_config({"max_concurrency": 1}))

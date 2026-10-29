@@ -9,9 +9,10 @@ import os
 import re
 import signal
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
+from contextvars import copy_context
 from dataclasses import dataclass, field
 from functools import partial
-from threading import Event, Lock, Timer
+from threading import BoundedSemaphore, Event, Lock, Timer
 from time import monotonic
 from typing import Any, Callable
 
@@ -53,13 +54,48 @@ DEFAULT_FALLBACK_MAX_REDELIVERIES = 3
 AGENT_RUNTIME_ATTEMPT_HEADER = "x-lcsp-agent-runtime-attempt"
 DEFAULT_API_READY_TIMEOUT_SECONDS = 60.0
 DEFAULT_API_READY_POLL_SECONDS = 0.5
-DEFAULT_BOUNDARY_WORKERS = 4
+DEFAULT_BOUNDARY_WORKERS = 2
 DEFAULT_BROKER_ACK_TIMEOUT_SECONDS = 1800.0
 DEFAULT_SETTLEMENT_MARGIN_SECONDS = 120.0
 BOUNDARY_TIMEOUT_REASON = "AGENT_RUNTIME_BOUNDARY_TIMEOUT"
 PROVIDER_TIMEOUT_REASON = "PROVIDER_TIMEOUT"
 SANDBOX_FAILURE_REASON = "REPOSITORY_SANDBOX_FAILURE"
 BOUNDARY_FAILURE_REASON = "AGENT_RUNTIME_BOUNDARY_FAILED"
+
+
+class BoundaryCapacityUnavailable(RuntimeError):
+    """The existing boundary workers still own all execution slots."""
+
+
+class BoundedBoundaryExecutor(ThreadPoolExecutor):
+    """Bound submitted work across broker connections, including timed-out workers."""
+
+    def __init__(self, max_workers: int, **kwargs: Any) -> None:
+        super().__init__(max_workers=max_workers, **kwargs)
+        self._slots = BoundedSemaphore(max_workers)
+
+    def submit(self, fn: Callable, /, *args: Any, **kwargs: Any) -> Future:
+        """Business purpose: Admit at most one delivery per available boundary worker.
+
+        Business rules:
+        - A disconnected or timed-out delivery retains capacity until its actual work ends.
+        - Each submission gets a separate Context so reused threads cannot retain delivery state.
+        Execution flow:
+        1. Reserve capacity without blocking the broker thread, submit isolated work, then release on completion.
+        Failure cases:
+        - Saturation raises BoundaryCapacityUnavailable; failed submission releases its reservation.
+        Side effects:
+        - Schedules bounded worker execution; performs no broker settlement or domain writes.
+        """
+        if not self._slots.acquire(blocking=False):
+            raise BoundaryCapacityUnavailable()
+        try:
+            future = super().submit(copy_context().run, fn, *args, **kwargs)
+        except BaseException:
+            self._slots.release()
+            raise
+        future.add_done_callback(lambda _completed: self._slots.release())
+        return future
 
 
 class BoundaryExecutionTimeout(NonRetryableAgentBoundaryError):
@@ -123,7 +159,18 @@ def boundary_bindings(
 
 
 def run_consumer() -> None:
-    """Run the RabbitMQ event bridge until interrupted."""
+    """Business purpose: Dispatch independent Assessments within the process's worker capacity.
+
+    Business rules:
+    - Broker credit and executor admission bound outstanding work; API leases retain execution authority.
+    - Reconnects reuse the same admission bound and old deliveries keep their original channel identity.
+    Execution flow:
+    1. Resolve capacity and dependencies, connect and consume, then reconnect or close on shutdown.
+    Failure cases:
+    - Invalid capacity fails before consumption; connection loss or shutdown requeues unsettled deliveries.
+    Side effects:
+    - Starts workers and broker consumers; only connection-thread callbacks settle their own deliveries.
+    """
     load_runtime_env()
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -143,8 +190,10 @@ def run_consumer() -> None:
 
     exchange = os.getenv("RABBITMQ_EXCHANGE", DEFAULT_EXCHANGE)
     queue_prefix = os.getenv("LCSP_AGENT_RUNTIME_RABBITMQ_QUEUE_PREFIX", DEFAULT_QUEUE_PREFIX)
-    prefetch_count = int(os.getenv("LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH", "1"))
-    worker_count = _executor_worker_count(prefetch_count)
+    worker_count = _executor_worker_count()
+    prefetch_count = _prefetch_count(worker_count)
+    LOGGER.info("Agent Runtime capacity workers=%s prefetch=%s channel_inflight_cap=%s",
+                worker_count, prefetch_count, worker_count)
     requeue_on_error = _read_bool("LCSP_AGENT_RUNTIME_RABBITMQ_REQUEUE_ON_ERROR", True)
     reconnect_delay_seconds = float(
         os.getenv(
@@ -213,7 +262,7 @@ def run_consumer() -> None:
     if stopping.is_set():
         return
 
-    with ThreadPoolExecutor(
+    with BoundedBoundaryExecutor(
         max_workers=worker_count,
         thread_name_prefix="lcsp-agent-runtime-boundary",
     ) as executor:
@@ -234,6 +283,7 @@ def run_consumer() -> None:
                     exchange=exchange,
                     bindings=bindings,
                     prefetch_count=prefetch_count,
+                    worker_count=worker_count,
                     requeue_on_error=requeue_on_error,
                     requeue_delay_seconds=requeue_delay_seconds,
                     fallback_max_redeliveries=fallback_max_redeliveries,
@@ -366,16 +416,30 @@ def _configure_channel(
     exchange: str,
     bindings: tuple[BoundaryBinding, ...],
     prefetch_count: int,
+    worker_count: int,
     requeue_on_error: bool,
     requeue_delay_seconds: float,
     fallback_max_redeliveries: int,
 ) -> None:
+    """Business purpose: Give each boundary bounded broker credit and durable redelivery.
+
+    Business rules:
+    - Per-consumer prefetch remains configurable; shared channel credit cannot exceed worker capacity.
+    - Saturated submissions use broker delay queues without spending a failure retry attempt.
+    Execution flow:
+    1. Configure both credit bounds, declare queues and register delivery callbacks.
+    Failure cases:
+    - Broker setup failures propagate before consumption; durable messages remain broker-owned.
+    Side effects:
+    - Declares broker topology and consumer subscriptions; starts no Root itself.
+    """
     channel.exchange_declare(
         exchange=exchange,
         exchange_type="topic",
         durable=True,
     )
     channel.basic_qos(prefetch_count=prefetch_count)
+    channel.basic_qos(prefetch_count=worker_count, global_qos=True)
     channel.confirm_delivery()
 
     for binding in bindings:
@@ -385,7 +449,7 @@ def _configure_channel(
             fallback_max_redeliveries=fallback_max_redeliveries,
         )
         channel.queue_declare(queue=binding.queue_name, durable=True)
-        for retry_delay_seconds in sorted(set(retry_delays_seconds)):
+        for retry_delay_seconds in sorted({DEFAULT_REQUEUE_DELAY_SECONDS, *retry_delays_seconds}):
             channel.queue_declare(
                 queue=_retry_queue_name(binding.queue_name, retry_delay_seconds),
                 durable=True,
@@ -431,23 +495,59 @@ def _delivery_handler(
     retry_delays_seconds: tuple[float, ...] = (),
     timeout_seconds: float | None = None,
 ) -> Callable[[Any, Any, Any, bytes], None]:
+    """Business purpose: Bind one boundary's deliveries to isolated execution and settlement.
+
+    Business rules:
+    - Submission never blocks broker I/O; a saturated executor defers work durably.
+    Execution flow:
+    1. Return a callback that submits work and attaches delivery-local timeout and completion guards.
+    Failure cases:
+    - Failed capacity publication requeues the original delivery without executing it.
+    Side effects:
+    - The returned callback schedules workers and broker settlement; construction is pure.
+    """
     def handle_delivery(
         channel: Any,
         method: Any,
         properties: Any,
         body: bytes,
     ) -> None:
+        """Business purpose: Admit or defer this delivery without blocking other Assessments.
+
+        Business rules:
+        - ACK only completed execution or confirmed durable deferral; retain one settlement guard per delivery.
+        Execution flow:
+        1. Submit work, or defer at capacity; attach the execution's timeout and completion callbacks.
+        Failure cases:
+        - Saturation preserves the original failure-attempt count; failed deferral requeues the delivery.
+        Side effects:
+        - May publish delayed work or schedule delivery-local ACK/NACK on the original connection.
+        """
         settlement_state = DeliverySettlementState(
             deadline=monotonic() + timeout_seconds if timeout_seconds else None
         )
-        future = executor.submit(
-            _dispatch_delivery,
-            boundary_name,
-            properties,
-            body,
-            timeout_seconds,
-            settlement_state,
-        )
+        try:
+            future = executor.submit(
+                _dispatch_delivery,
+                boundary_name,
+                properties,
+                body,
+                timeout_seconds,
+                settlement_state,
+            )
+        except BoundaryCapacityUnavailable:
+            confirmed = _publish_retry_delivery(
+                channel=channel,
+                retry_queue=_retry_queue_name(queue_name or boundary_name, DEFAULT_REQUEUE_DELAY_SECONDS),
+                properties=properties,
+                body=body,
+                attempt=_delivery_attempt(properties),
+            )
+            if confirmed:
+                channel.basic_ack(delivery_tag=method.delivery_tag)
+            else:
+                channel.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+            return
         if timeout_seconds is not None and timeout_seconds > 0:
             timer = Timer(
                 timeout_seconds,
@@ -913,17 +1013,49 @@ def _positive_float_env(name: str, default: float | None = None) -> float:
     return value
 
 
-def _executor_worker_count(prefetch_count: int) -> int:
+def _executor_worker_count() -> int:
+    """Business purpose: Resolve the authoritative process execution cap.
+
+    Business rules:
+    - Broker prefetch never increases the configured worker count.
+    Execution flow:
+    1. Parse the worker override or use the two-worker default.
+    Failure cases:
+    - Capacity outside the supported 1..64 range or a non-integer rejects startup.
+    Side effects:
+    - Read-only environment lookup.
+    """
     raw = os.getenv("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS")
     if raw is None:
-        return max(prefetch_count, DEFAULT_BOUNDARY_WORKERS)
+        return DEFAULT_BOUNDARY_WORKERS
     try:
         configured = int(raw)
     except ValueError as exc:
         raise RuntimeError("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS must be an integer") from exc
-    if configured <= 0:
-        raise RuntimeError("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS must be > 0")
-    return max(prefetch_count, configured)
+    if not 1 <= configured <= 64:
+        raise RuntimeError("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS must be between 1 and 64")
+    return configured
+
+
+def _prefetch_count(worker_count: int) -> int:
+    """Business purpose: Match default broker delivery credit to execution capacity.
+
+    Business rules:
+    - Preserve positive prefetch overrides; shared channel credit still enforces the worker cap.
+    Execution flow:
+    1. Parse the broker override or use worker capacity.
+    Failure cases:
+    - Zero (unlimited), negative, non-integer or out-of-range credit rejects startup.
+    Side effects:
+    - Read-only environment lookup.
+    """
+    try:
+        value = int(os.getenv("LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH", str(worker_count)))
+    except ValueError as error:
+        raise RuntimeError("LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH must be an integer") from error
+    if not 1 <= value <= 65535:
+        raise RuntimeError("LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH must be between 1 and 65535")
+    return value
 
 
 def _delay_milliseconds(delay_seconds: float) -> int:
