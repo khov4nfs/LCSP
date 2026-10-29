@@ -116,3 +116,79 @@ LCSP-346 acceptance matrix.
 
 Sanitized execution history and gate results belong in the PR conversation and
 `reports/lcsp346-concurrency/`. Failed and unexecuted scenarios must remain visible.
+
+## Acceptance recovery: operative scope and reference prices
+
+The six captured credit decisions accepted at case revision seven had no
+`applicabilityBasis`: each pinned requirement labelled its duty UNCONDITIONAL
+and had an empty condition list, although its operative propositions named
+regulated actors. Repository capabilities were promoted to actual operation in
+the Root's rationale. Human answers and checkpoint recovery retained the unknown
+operator/deployment context; answer normalization and report transformation were
+not the source of that inference.
+
+`OPERATIVE_SCOPE` now addresses each pinned operative proposition by requirement
+and index. The Root must establish the actor, actual regulated activity and
+inherited legal scope from the sources and accepted facts before an APPLICABLE
+decision. The same address anchors native human resolution when no separate
+condition exists. Unknowns support neither final applicability verdict. Code
+checks completeness, identity, provenance and finding consistency; it does not
+classify operators, interpret legal vocabulary or choose a verdict. Native
+idempotent replay and the Completion Gate use the same current validator, so
+historical acceptance cannot bypass the correction. Historical packets and
+completed artifacts remain immutable; no bulk status rewrite is a deployment step.
+
+The provider-free fixture `tests/fixtures/assessment-root/operational-applicability.json`
+contains all six captured failures. API tests reject their omitted/unknown scope,
+exercise explicit operational positive controls, current pins/revisions, replay
+and report gating. Native scripted tests verify the tool/checkpoint mechanism.
+The opt-in `deepagents/tests/vertical/operational_applicability_probe.py` separately
+executes real metered Root reasoning against pinned public source and the legal
+corpus through a fixture API and the actual API validator. Its output must never
+be presented as a real production Assessment or report. Real production evidence
+is recorded separately against the deployed revision in PR #440.
+
+Mercury 3 was absent from the official-reference registry even though Inception
+publishes its launch rates. The appended capture uses USD per million tokens:
+input 0.10, cached input 0.01, output 0.35, observed 2026-10-29 06:03:04.588 UTC.
+See [the developer's rate card](https://www.inceptionlabs.ai/models). The capture
+starts at observation; it does not invent an earlier effective date or a promotion
+end date. Reference prices estimate public model consumption, not provider invoices,
+free-credit eligibility or customer charges. Existing UNPRICED snapshots remain
+unchanged; absent usage/cost never becomes measured zero. Legacy null reservations
+are not synthesized: ordinary token telemetry and bounded evaluation admission
+remain distinct established contracts.
+
+## LCSP-364 handoff: adaptive admission and autoscaling
+
+LCSP-364 owns capacity changes. This PR keeps the verified single-host topology:
+one bridge, one Agent Server and process capacity two. Per-consumer credit two,
+shared channel credit two and lifetime executor admission bound outstanding work.
+One authoritative API lease and canonical thread per Assessment survive transport
+redelivery. Native human waits release the execution lease and server/broker slot;
+Continue rejoins bounded admission. No cap across multiple independent bridge or
+server replicas is claimed; adding replicas requires a global admission contract.
+
+Available observations include broker ready/unacknowledged counts and consumer
+credit, API live leases and expirations, native durable request state, Root
+BOUNDARY_STARTED/COMPLETED, checkpoint lineage, model/tool identities and usage
+journal transitions. Queue age, callback-to-worker latency, provider RPM/TPM and
+DB/checkpoint pool saturation are not complete metrics on this path. LCSP-364
+must instrument these before using them as control signals.
+
+Fogewise has four CPUs and approximately 8 GiB RAM. The prior two-active-Root
+snapshot had 3,484 MiB available memory and 2.5 GiB free disk. These host snapshots
+are not a per-Root RSS estimate or proof of capacity above two. Sandboxes are
+separate per canonical thread, with a configured 2 GiB memory ceiling in the recorded deployment; active versus idle sandbox RSS/CPU and shared image
+cost require measurement. Provider limits, DB limits and combined model demand
+remain independent admission constraints, not assumptions derived from CPU count.
+
+Reusable fixtures are `test_assessment_concurrency.py`,
+`test_assessment_concurrency_rabbitmq.py`, `test_paid_admission.py`, native Root
+control/reliability tests and the operative-scope semantic cases. Preserve worker
+one/two overlap barriers, slow A/short B/queued C, delivery-local settlement,
+reconnect/tag reuse, SIGTERM redelivery, retained timeout credit, isolated Contexts,
+canonical Stop/Continue, paid admission and usage deduplication. A future scaler
+must drain safely, preserve finite-backlog progress and prove global limits under
+replica loss; it must not introduce another Root/decision authority or mutate
+pinned repositories, Rule Sets or accepted outcomes.
