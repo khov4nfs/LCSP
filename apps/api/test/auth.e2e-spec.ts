@@ -1344,7 +1344,8 @@ describe("Auth workspace (e2e)", () => {
       .send({ method: "POST", path: "/auth/mfa/recovery-codes" })
       .expect(200);
     assert.equal(
-      successBody<{ reauth_required: boolean }>(sensitiveCheckA).reauth_required,
+      successBody<{ reauth_required: boolean }>(sensitiveCheckA)
+        .reauth_required,
       true,
     );
 
@@ -1904,9 +1905,9 @@ describe("Auth workspace (e2e)", () => {
       .get("/auth/sessions")
       .set("Authorization", `Bearer ${sessionA.session_token}`)
       .expect(200);
-    const sessionAId = successBody<AuthSessionsSuccess>(sessionsResA).sessions.find(
-      (s) => s.is_current,
-    )!.id;
+    const sessionAId = successBody<AuthSessionsSuccess>(
+      sessionsResA,
+    ).sessions.find((s) => s.is_current)!.id;
     await prisma.authRecord.update({
       where: { id: sessionAId },
       data: { expiresAt: new Date(Date.now() - 1000) },
@@ -1921,10 +1922,7 @@ describe("Auth workspace (e2e)", () => {
       .post("/auth/mfa/enroll")
       .set("Authorization", `Bearer ${sessionB.session_token}`)
       .expect(403);
-    assert.equal(
-      problemCode(passwordOnlyDenied),
-      AUTH_ERROR_CODES.mfaRequired,
-    );
+    assert.equal(problemCode(passwordOnlyDenied), AUTH_ERROR_CODES.mfaRequired);
 
     // 4b. Session B reauthenticates password but STILL has not verified S1 -> still denied
     await httpRequest(app)

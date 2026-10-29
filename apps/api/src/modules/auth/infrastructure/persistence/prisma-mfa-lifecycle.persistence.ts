@@ -117,13 +117,14 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         const activePendingOther = pendingRotations.find((rec) => {
           if (rec.id === input.sessionId) return false;
           if (rec.revokedAt !== null) return false;
-          if (!rec.expiresAt || rec.expiresAt.getTime() <= input.now) return false;
+          if (!rec.expiresAt || rec.expiresAt.getTime() <= input.now)
+            return false;
           const meta = authRecordMetadata(rec.metadata);
-          if (Number(meta.accessVersion ?? 0) !== user.accessVersion) return false;
+          if (Number(meta.accessVersion ?? 0) !== user.accessVersion)
+            return false;
           if (meta.mfaGenerationId !== user.mfaGenerationId) return false;
           const candidate = meta.candidateMfaEnrollment as
-            | CandidateMfaEnrollment
-            | undefined;
+            CandidateMfaEnrollment | undefined;
           if (
             candidate?.enrolledAt &&
             !isSensitiveActionVerificationFresh(candidate.enrolledAt, input.now)
