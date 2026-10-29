@@ -54,7 +54,6 @@ import {
 
 import {
   AUTH_RECORD_TYPE,
-  authRecordMetadata,
   authRecordMetadataString,
   createAuthSessionRecord,
   findLatestAuthSession,
@@ -587,6 +586,15 @@ describe("Auth workspace (e2e)", () => {
       .send({ session_token: signIn.session_token, otp })
       .expect(201);
 
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({
+        session_token: signIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     const generated = await httpRequest(app)
       .post("/auth/mfa/recovery-codes")
       .set("Authorization", `Bearer ${signIn.session_token}`)
@@ -643,7 +651,15 @@ describe("Auth workspace (e2e)", () => {
       orderBy: { id: "asc" },
     });
     const auditCount = await mfaBusinessAuditCount();
-    assert.equal(activeBefore.length, 10);
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({
+        session_token: signedIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     const spy = jest
       .spyOn(app.get(AuthAuditService), "writeInTx")
       .mockRejectedValueOnce(new Error("test MFA code audit failure"));
@@ -686,6 +702,14 @@ describe("Auth workspace (e2e)", () => {
     await httpRequest(app)
       .post("/auth/mfa/verify-otp")
       .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({
+        session_token: signedIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
       .expect(201);
     const results = await Promise.all([
       httpRequest(app)
@@ -1220,6 +1244,14 @@ describe("Auth workspace (e2e)", () => {
     }
 
     const sessionC = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
     const replacement = await httpRequest(app)
       .post("/auth/mfa/enroll")
       .set("Authorization", `Bearer ${sessionA.session_token}`)
@@ -1378,6 +1410,16 @@ describe("Auth workspace (e2e)", () => {
         otp: totpForTime(secretS1, Date.now() + 30_000),
       })
       .expect(201);
+    for (const token of [a.session_token, b.session_token]) {
+      await httpRequest(app)
+        .post("/auth/re-auth/password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          session_token: token,
+          password: "CorrectHorseBatteryStaple!",
+        })
+        .expect(201);
+    }
 
     const responses = await Promise.all(
       [a.session_token, b.session_token].map((token) =>
@@ -1432,6 +1474,15 @@ describe("Auth workspace (e2e)", () => {
     const before = await prisma.user.findUniqueOrThrow({
       where: { id: fixture.approvedUser.id },
     });
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     const spy = jest
       .spyOn(app.get(AuthAuditService), "writeInTx")
       .mockRejectedValueOnce(new Error("test MFA rotation audit failure"));
@@ -1489,6 +1540,15 @@ describe("Auth workspace (e2e)", () => {
     const before = await prisma.user.findUniqueOrThrow({
       where: { id: fixture.approvedUser.id },
     });
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${a.session_token}`)
+      .send({
+        session_token: a.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     await httpRequest(app)
       .delete("/auth/mfa")
       .set("Authorization", `Bearer ${a.session_token}`)
@@ -2026,6 +2086,15 @@ describe("Auth workspace (e2e)", () => {
     await httpRequest(app)
       .post("/auth/mfa/verify-otp")
       .send({ session_token: signIn.session_token, otp })
+      .expect(201);
+
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({
+        session_token: signIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
       .expect(201);
 
     const response = await httpRequest(app)

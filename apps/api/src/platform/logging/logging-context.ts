@@ -35,9 +35,11 @@ export async function eraseAssessmentLogs(
       "assessment_" + assessmentId,
     ),
   );
+  const repoRoot = path.resolve(getRepoRoot());
   for (const target of targets) {
     let current = path.resolve(target);
     while (true) {
+      if (current === repoRoot) break;
       try {
         if ((await fs.promises.lstat(current)).isSymbolicLink())
           throw new Error("Invalid assessment log erasure target");
