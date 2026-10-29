@@ -1,0 +1,397 @@
+[
+  {
+    "assessment": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+    "observedAt": "2026-10-29T03:36:13.085Z",
+    "runtime": {
+      "threadId": "665548a2-14a9-4c2c-a3ce-45502e39f996",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "checkpointId": "1f1d3477-ca95-6d4f-8333-c70a0b28593b",
+      "currentExecutionId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+      "executionState": "INTERRUPTED",
+      "eventSequence": 220,
+      "startedAt": "2026-10-29T03:14:56.345Z",
+      "lastResumedAt": "2026-10-29T03:14:56.345Z",
+      "updatedAt": "2026-10-29T03:19:01.807Z"
+    },
+    "lifecycle": {
+      "state": "WAITING_FOR_HUMAN",
+      "assessmentRevision": 7
+    },
+    "usage": {
+      "invocationCount": 54,
+      "inputTokens": 1242211,
+      "outputTokens": 96079,
+      "totalTokens": 4661661,
+      "partial": true
+    },
+    "caseRevision": 6,
+    "decisions": [],
+    "artifacts": [],
+    "otherTimelineStatus": 404,
+    "screenshot": "/home/khovan/.local/state/lcsp346/artifacts/A-final-human-wait.png"
+  },
+  {
+    "assessment": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+    "observedAt": "2026-10-29T03:36:13.181Z",
+    "runtime": {
+      "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "checkpointId": "1f1d3478-30c4-6198-8333-60646ff27ae4",
+      "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+      "executionState": "INTERRUPTED",
+      "eventSequence": 130,
+      "startedAt": "2026-10-29T03:19:02.343Z",
+      "lastResumedAt": "2026-10-29T03:19:02.343Z",
+      "updatedAt": "2026-10-29T03:19:17.460Z"
+    },
+    "lifecycle": {
+      "state": "BLOCKED",
+      "assessmentRevision": 8,
+      "blocker": {
+        "reason": "HUMAN_FACT_UNRESOLVABLE",
+        "reference": {
+          "humanResolutionRequestId": "68c2388e-b0f0-4daf-8436-4587aac1b071"
+        }
+      }
+    },
+    "usage": {
+      "invocationCount": 41,
+      "inputTokens": 683613,
+      "outputTokens": 82021,
+      "totalTokens": 4133154,
+      "partial": false
+    },
+    "caseRevision": 7,
+    "decisions": [
+      {
+        "decisionId": "9c694a98-aadf-412f-a1bf-df49c99dab65",
+        "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+        "scopeId": "ASSESSMENT",
+        "decisionRevision": 2,
+        "state": "ACCEPTED",
+        "decision": {
+          "assessmentRuleId": "art10-cl3-withdrawal-restriction-implementation",
+          "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "scopeId": "ASSESSMENT",
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+          "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+          "caseRevision": 7,
+          "legalContextRefs": [
+            {
+              "legalContextId": "art10-cl3-controller-implementation"
+            }
+          ],
+          "applicability": "APPLICABLE",
+          "rationale": "This is an unconditional duty on the personal-data controller and controller-and-processor to receive and implement data-subject requests for withdrawal of consent or restriction of processing. Because the system processes personal data and the operator is a controller/controller-and-processor, the duty applies. The qualifier (the duty does not apply to processing before the request) does not negate applicability.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+            },
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+              "caseRevision": 7
+            }
+          ],
+          "criteria": [
+            {
+              "criterionId": "criterion_509e6f951da6bb4971842427",
+              "outcome": "NOT_MET",
+              "rationale": "The reviewed source provides no mechanism by which a data subject may withdraw consent or request restriction of processing, and no corresponding handling or implementation logic: the upload flow only creates records and the prediction flow only evaluates them. There is therefore no reception or implementation of such requests.",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+                },
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                  "caseRevision": 7
+                }
+              ]
+            }
+          ],
+          "compliance": "NON_COMPLIANT"
+        },
+        "createdAt": "2026-10-29T03:13:53.850Z"
+      },
+      {
+        "decisionId": "711e70ef-2644-4fb1-bbe6-82c846c5dbc6",
+        "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "assessmentRuleId": "art13-cl2-correction-assessment",
+        "scopeId": "ASSESSMENT",
+        "decisionRevision": 2,
+        "state": "ACCEPTED",
+        "decision": {
+          "assessmentRuleId": "art13-cl2-correction-assessment",
+          "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "scopeId": "ASSESSMENT",
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+          "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+          "caseRevision": 7,
+          "legalContextRefs": [
+            {
+              "legalContextId": "art13-cl2-controller-correction-duty"
+            }
+          ],
+          "applicability": "APPLICABLE",
+          "rationale": "Unconditional duty on the data controller and controller-and-processor to correct personal data upon request or as prescribed by law and to require processors/third parties to correct. The operator is a controller/controller-and-processor because it decides purposes/means and directly processes personal data via the application, so the duty applies.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+            },
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+              "caseRevision": 7
+            }
+          ],
+          "criteria": [
+            {
+              "criterionId": "criterion_544bc96c62da41807ab8bb1f",
+              "outcome": "NOT_MET",
+              "rationale": "The reviewed source implements no correction functionality: records are created on upload (loan_app/views.py 40-65) and read for prediction, with no update/change path, no correction-request handling, and no audit history of corrected values. There is no evidence that personal data can be corrected on request or as prescribed by law, nor any mechanism to require processors/third parties to correct.",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+                },
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                  "caseRevision": 7
+                }
+              ]
+            }
+          ],
+          "compliance": "NON_COMPLIANT"
+        },
+        "createdAt": "2026-10-29T03:13:53.912Z"
+      },
+      {
+        "decisionId": "71ad1897-6de8-494f-af99-94cc6a234e50",
+        "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+        "scopeId": "ASSESSMENT",
+        "decisionRevision": 2,
+        "state": "ACCEPTED",
+        "decision": {
+          "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+          "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "scopeId": "ASSESSMENT",
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+          "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+          "caseRevision": 7,
+          "legalContextRefs": [
+            {
+              "legalContextId": "art9-cl2-valid-consent-info-duty"
+            }
+          ],
+          "applicability": "APPLICABLE",
+          "rationale": "The rule imposes an unconditional duty on personal-data controllers/controller-and-processors. The assessed system collects and processes personal data (name, wallet number, address, gender, balance, age, occupation) uploaded via CSV and stored as WalletInfo records, so the operator acts as a controller/controller-and-processor and the duty applies.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+            },
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+              "caseRevision": 7
+            }
+          ],
+          "criteria": [
+            {
+              "criterionId": "criterion_032512680f6a99fb4040a66b",
+              "outcome": "NOT_MET",
+              "rationale": "The CSV upload view (loan_app/views.py 40-65) directly creates WalletInfo records from the uploaded file without any step disclosing the categories of data processed, processing purposes, controller identity, or the data subject's rights and obligations, and no consent-solicitation or notification record exists in the reviewed source. The system therefore does not ensure that any consent is informed and voluntary as required.",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+                },
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                  "caseRevision": 7
+                }
+              ]
+            }
+          ],
+          "compliance": "NON_COMPLIANT"
+        },
+        "createdAt": "2026-10-29T03:13:51.819Z"
+      },
+      {
+        "decisionId": "ef9be725-0ce5-4d01-af0e-fc77bf7077da",
+        "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+        "scopeId": "ASSESSMENT",
+        "decisionRevision": 2,
+        "state": "ACCEPTED",
+        "decision": {
+          "assessmentRuleId": "art9-cl3-consent-form-record-rule",
+          "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "scopeId": "ASSESSMENT",
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+          "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+          "caseRevision": 7,
+          "legalContextRefs": [
+            {
+              "legalContextId": "art9-cl3-consent-form-duty"
+            }
+          ],
+          "applicability": "APPLICABLE",
+          "rationale": "Unconditional duty on controllers/controller-and-processors. The system processes personal data via CSV upload into WalletInfo records, so the operator is a controller/controller-and-processor and the duty to ensure consent is expressed in a clear, specific, written/printable/verifiable form applies.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+            },
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+              "caseRevision": 7
+            }
+          ],
+          "criteria": [
+            {
+              "criterionId": "criterion_e8b13dfac27dffbdd96a9165",
+              "outcome": "NOT_MET",
+              "rationale": "The system contains no consent-solicitation mechanism and stores no consent record in any written, electronic, or verifiable form; personal data is ingested directly from CSV upload into WalletInfo without any consent record. Thus it cannot be shown that any consent is expressed in the required clear, specific, written/printable/verifiable format.",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+                },
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                  "caseRevision": 7
+                }
+              ]
+            }
+          ],
+          "compliance": "NON_COMPLIANT"
+        },
+        "createdAt": "2026-10-29T03:13:52.491Z"
+      },
+      {
+        "decisionId": "2bee0e5d-8f4b-4bf8-b70e-d0ad4ab4cd9f",
+        "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+        "scopeId": "ASSESSMENT",
+        "decisionRevision": 2,
+        "state": "ACCEPTED",
+        "decision": {
+          "assessmentRuleId": "art9-cl4-consent-principles-duty-rule",
+          "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "scopeId": "ASSESSMENT",
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+          "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+          "caseRevision": 7,
+          "legalContextRefs": [
+            {
+              "legalContextId": "art9-cl4-consent-principles-duty"
+            }
+          ],
+          "applicability": "APPLICABLE",
+          "rationale": "The assessed system processes personal data (name, wallet number, address, gender, balance, age, occupation) collected via CSV upload and stored in the WalletInfo model, making its operator a personal-data controller under the PDP Law, so the consent-principles duty applies.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+            }
+          ],
+          "criteria": [
+            {
+              "criterionId": "criterion_65329be5e0a2067310ca5870",
+              "outcome": "NOT_MET",
+              "rationale": "The upload flow (views.py lines 40-65) directly creates WalletInfo records from the uploaded CSV without capturing any per-purpose consent expression, consent timestamp, or consent-validity tracking, and no mechanism records a change or withdrawal of consent. The only data-entry path into the system therefore lacks any consent step.",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+                },
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "b7352201-ce97-588a-b393-f713911b5590"
+                }
+              ]
+            }
+          ],
+          "compliance": "NON_COMPLIANT"
+        },
+        "createdAt": "2026-10-29T03:13:53.723Z"
+      },
+      {
+        "decisionId": "f63a901a-a491-4a4d-8c4c-28c9544562c0",
+        "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+        "scopeId": "ASSESSMENT",
+        "decisionRevision": 2,
+        "state": "ACCEPTED",
+        "decision": {
+          "assessmentRuleId": "art9-cl4-consent-prohibitions-rule",
+          "assessmentRuleVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "scopeId": "ASSESSMENT",
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+          "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+          "caseRevision": 7,
+          "legalContextRefs": [
+            {
+              "legalContextId": "art9-cl4-consent-prohibitions"
+            }
+          ],
+          "applicability": "APPLICABLE",
+          "rationale": "The rule's prohibitions apply unconditionally to personal-data controllers/controller-and-processors. The system processes personal data via CSV upload into WalletInfo records, so the operator is a controller/controller-and-processor and the prohibitions apply.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+            },
+            {
+              "type": "CONFIRMED_FACT",
+              "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+              "caseRevision": 7
+            }
+          ],
+          "criteria": [
+            {
+              "criterionId": "criterion_d36a72798575869f7449b623",
+              "outcome": "MET",
+              "rationale": "The reviewed upload flow (loan_app/views.py 40-65) contains no consent-solicitation component: there is no consent form, checkbox, bundled-consent clause, or logic treating silence/non-response as consent, and the accepted fact confirms personal data is ingested directly from CSV upload. None of the prohibited practices is implemented in the system.",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "e31606a5-17c2-5efb-9e42-45c0c5c5453e"
+                },
+                {
+                  "type": "CONFIRMED_FACT",
+                  "factId": "2e5cafd7-297c-5e14-a275-eb696fcc77b1",
+                  "caseRevision": 7
+                }
+              ]
+            }
+          ],
+          "compliance": "COMPLIANT"
+        },
+        "createdAt": "2026-10-29T03:13:53.411Z"
+      }
+    ],
+    "artifacts": [],
+    "otherTimelineStatus": 404,
+    "screenshot": "/home/khovan/.local/state/lcsp346/artifacts/B-final-blocked.png"
+  }
+]

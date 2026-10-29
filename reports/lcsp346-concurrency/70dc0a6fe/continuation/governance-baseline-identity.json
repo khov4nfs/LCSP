@@ -1,0 +1,36 @@
+{
+  "develop": "70ddc3c086678edabb6b7a9f6627685841afbafb",
+  "implementation": "70dc0a6fe40c618bdf47d532f9baa5230e52faf1",
+  "comparisons": [
+    {
+      "path": "deepagents/assessment_root/runner.py",
+      "developObject": "c12c0168d8b4429070d05e79c8c854e8062ab5af",
+      "implementationObject": "c12c0168d8b4429070d05e79c8c854e8062ab5af",
+      "identical": true
+    },
+    {
+      "path": "deepagents/assessment_root/tools.py",
+      "developObject": "badd22186ec2ad5bdfebd3822e9cdc60b4d1a9aa",
+      "implementationObject": "badd22186ec2ad5bdfebd3822e9cdc60b4d1a9aa",
+      "identical": true
+    },
+    {
+      "path": "apps/api/src/modules/assessment",
+      "developObject": "2daab9f5e2a0bf569b4e23682e47555205a17ccd",
+      "implementationObject": "2daab9f5e2a0bf569b4e23682e47555205a17ccd",
+      "identical": true
+    },
+    {
+      "path": "apps/api/src/modules/billing",
+      "developObject": "b2760bcd6b86ec9af0ae7806d9ea2e7529817384",
+      "implementationObject": "b2760bcd6b86ec9af0ae7806d9ea2e7529817384",
+      "identical": true
+    },
+    {
+      "path": "deepagents/assessment_root/instructions.md: legal/governance prefix before Delegating",
+      "identical": true,
+      "sha256": "d387c39519f99e246ca77fb1c2189f555ff01d722424139e283de60b493b6e1e"
+    }
+  ],
+  "limitation": "No extra paid baseline model run was launched; identity establishes unchanged governing code, not a stochastic model-output comparison."
+}

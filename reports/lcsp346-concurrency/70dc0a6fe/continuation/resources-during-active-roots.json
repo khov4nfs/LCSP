@@ -1,0 +1,19 @@
+{
+  "observedAt": "2026-10-29T02:57:01.717372+00:00",
+  "cpuCount": {
+    "status": 0,
+    "output": "4"
+  },
+  "memory": {
+    "status": 0,
+    "output": "total        used        free      shared  buff/cache   available\nMem:            7941        4456         800         246        3338        3484\nSwap:           2047         881        1166"
+  },
+  "disk": {
+    "status": 0,
+    "output": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/vda1        40G   35G  2.5G  94% /"
+  },
+  "ownedCacheSize": {
+    "status": 0,
+    "output": "34\t/tmp/lcsp346-70dc0a6fe/uv-cache"
+  }
+}

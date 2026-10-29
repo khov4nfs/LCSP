@@ -1,0 +1,105 @@
+{
+  "targets": [
+    {
+      "id": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "at": "2026-10-29T03:12:18.937Z",
+      "runtime": {
+        "threadId": "665548a2-14a9-4c2c-a3ce-45502e39f996",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+        "checkpointId": "1f1d3468-5abd-6e9c-81c2-f311b14fe3f1",
+        "currentExecutionId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+        "executionState": "PAUSED",
+        "eventSequence": 160,
+        "startedAt": "2026-10-29T03:10:22.961Z",
+        "lastResumedAt": "2026-10-29T03:10:22.961Z",
+        "updatedAt": "2026-10-29T03:12:07.232Z"
+      },
+      "lifecycle": {
+        "state": "PAUSED",
+        "assessmentRevision": 5
+      },
+      "usage": {
+        "invocationCount": 34,
+        "inputTokens": 608145,
+        "outputTokens": 42870,
+        "totalTokens": 2208940,
+        "partial": true
+      },
+      "control": {
+        "state": "STOPPED",
+        "targetRunId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+        "requestId": "d586d976-b912-4753-918a-b781b58e37e2"
+      },
+      "buttons": [
+        {
+          "action": "continue",
+          "disabled": false,
+          "text": "Continue assessment"
+        }
+      ],
+      "body": "                                           |\n| Completeness of recipient disclosure    | Not established                                         |\n\nOverall: ProctoAI has clearly implemented personal-data collection and external screenshot-upload functionality. The operator's complete sharing practices, including any transfers beyond those evident in the code, cannot be determined without operational and contractual evidence.\n\nContinuing the assessment.\n\nWorked for 1m 06s\n\nPaused. Continue when you're ready.\n\nContinue assessment\nLCSP-346 P1 Proctoring 70dc0a6fe\n\nPaused\n\nRepository\nshreeram312/AI-Proctored-System\n9ddb361\nCompliance rule set\nlcsp-360-official-eight-document-acceptance-corpus.v1.p1\n633 requirements · 243 assessment rules\nProgress\n0 / 243 evaluated\nUsage\n2.21M tokens\n34 invocations\nPartial usage: some usage is not reported yet\nReport\nNot ready\nView provenance\nRun details\nLifecycle\nPaused\nExecution state\nPaused\nRoot thread\n665548a2-14a9-4c2c-a3ce-45502e39f996\nExecution\n1fe90257-e296-48cb-a2d0-b1de79384092\nCheckpoint\n1f1d3468-5abd-6e9c-81c2-f311b14fe3f1\nConnection\nConnected"
+    },
+    {
+      "id": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "at": "2026-10-29T03:12:19.606Z",
+      "runtime": {
+        "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "checkpointId": "1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5",
+        "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+        "executionState": "RUNNING",
+        "eventSequence": 101,
+        "startedAt": "2026-10-29T03:12:07.847Z",
+        "lastResumedAt": "2026-10-29T03:12:07.847Z",
+        "updatedAt": "2026-10-29T03:12:18.930Z"
+      },
+      "lifecycle": {
+        "state": "ACTIVE",
+        "assessmentRevision": 4
+      },
+      "usage": {
+        "invocationCount": 30,
+        "inputTokens": 407819,
+        "outputTokens": 39966,
+        "totalTokens": 2935990,
+        "partial": false
+      },
+      "control": {
+        "state": "RUNNING",
+        "targetRunId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+        "requestId": null
+      },
+      "buttons": [
+        {
+          "action": "stop",
+          "disabled": false,
+          "text": "Stop"
+        }
+      ],
+      "body": "o not automatically conclude Vietnamese legal applicability, high-risk classification, personal-data processing, or cross-border transfer solely from repository names or intended functionality.\n\nContinue evaluating source-supported technical facts and applicable legal obligations, marking deployment-dependent conclusions as unresolved where required.\n\nDo not create additional human questions solely to restate information already answered.\n\nContinuing the assessment.\n\nWorking…\nTechnical details · 0 events\nNew activity · Jump to latest\n\nAssessment Root is working…\n\nStop\nLCSP-346 P1 Credit scoring 70dc0a6fe\n\nWorking\n\nRepository\nKowshik-18/credit_score_engine\n132b5d7\nCompliance rule set\nlcsp-360-official-eight-document-acceptance-corpus.v1.p1\n633 requirements · 243 assessment rules\nProgress\n0 / 243 evaluated\nUsage\n2.94M tokens\n30 invocations\nReport\nNot ready\nView provenance\nRun details\nLifecycle\nActive\nExecution state\nRunning\nRoot thread\nc5c87467-678e-4199-8b49-422b2c0d9029\nExecution\naca38bac-2091-4b24-8fc2-3a6de9f141d5\nCheckpoint\n1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5\nConnection\nConnected"
+    }
+  ],
+  "observer": {
+    "runtime": {
+      "threadId": "46f79d79-1670-419b-80d8-624424962ccd",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "checkpointId": "1f1d2ea4-b947-64d3-a046-d8b200dafa03",
+      "currentExecutionId": "092b8818-7b97-4e4e-9b0a-f591f1c92c66",
+      "executionState": "RUNNING",
+      "eventSequence": 1535,
+      "startedAt": "2026-10-29T02:29:37.954Z",
+      "lastResumedAt": "2026-10-29T02:29:37.954Z",
+      "updatedAt": "2026-10-29T03:11:46.784Z"
+    },
+    "usage": {
+      "invocationCount": 638,
+      "inputTokens": 17519549,
+      "outputTokens": 1224676,
+      "totalTokens": 72437379,
+      "partial": true
+    }
+  }
+}

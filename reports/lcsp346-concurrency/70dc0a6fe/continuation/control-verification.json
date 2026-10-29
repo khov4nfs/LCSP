@@ -1,0 +1,131 @@
+{
+  "implementationSha": "70dc0a6fe40c618bdf47d532f9baa5230e52faf1",
+  "observedAt": "2026-10-29T03:29:00.596836+00:00",
+  "controlAndIsolation": "PASS",
+  "crossAccountStopObserver": "PASS",
+  "canonicalStopCheckpointRestoration": "PASS",
+  "lateGovernedWritesWhilePaused": 0,
+  "acceptedDecisionsReplayedAfterStopB": 0,
+  "extraProviderCallsAfterContinueB": 0,
+  "physicalInvocations": 95,
+  "journalDeliveredTransitions": 190,
+  "tokenAttribution": "PASS",
+  "monetaryBilling": "BLOCKED: existing UNPRICED route and null reservations",
+  "semanticAcceptance": "FAIL: six renewed applicability decisions infer an actual controller from repository capabilities despite visible unknown operational context",
+  "completedBenchmarkReports": 0,
+  "cases": [
+    {
+      "account": "A",
+      "assessment": {
+        "id": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+        "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+        "name": "LCSP-346 P1 Proctoring 70dc0a6fe",
+        "createdAt": "2026-10-28T17:42:35.247000",
+        "lifecycleState": "WAITING_FOR_HUMAN",
+        "lifecycleRevision": 7,
+        "threadId": "665548a2-14a9-4c2c-a3ce-45502e39f996",
+        "currentExecutionId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+        "executionState": "INTERRUPTED",
+        "checkpointId": "1f1d3477-ca95-6d4f-8333-c70a0b28593b",
+        "leaseExpiresAt": null,
+        "startedAt": "2026-10-29T03:14:56.345000+00:00",
+        "lastResumedAt": "2026-10-29T03:14:56.345000+00:00",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "56a114ef-b1c2-4935-aae4-d901832afb70",
+        "repositoryScanJobId": "551c79dc-fe68-406b-b4df-ec45ab6c16e4",
+        "repositoryCommit": "9ddb361e4cd52aafe4e1d0763f57005a607efae6",
+        "caseRevision": 6
+      },
+      "stoppedCheckpoint": "1f1d3468-5abd-6e9c-81c2-f311b14fe3f1",
+      "stopAcknowledgedAt": "2026-10-29T03:12:07.233000+00:00",
+      "actualResumedAt": "2026-10-29T03:14:56.374000+00:00",
+      "pausedIntervalGovernedWrites": 0,
+      "stopCheckpointInFinalAncestry": true,
+      "rootTurns": [
+        {
+          "start": "2026-10-28T18:00:54.477Z",
+          "end": "2026-10-28T18:04:12.071Z"
+        },
+        {
+          "start": "2026-10-29T03:10:32.323Z",
+          "end": "2026-10-29T03:12:07.046Z"
+        },
+        {
+          "start": "2026-10-29T03:15:04.596Z",
+          "end": "2026-10-29T03:19:01.766Z"
+        }
+      ],
+      "usageCount": 54,
+      "usageStates": {
+        "SETTLED": 53,
+        "UNAVAILABLE": 1
+      },
+      "tokens": {
+        "inputTokens": 1242211,
+        "cachedInputTokens": 3323371,
+        "outputTokens": 96079,
+        "reasoningTokens": 67442,
+        "totalTokens": 4661661
+      }
+    },
+    {
+      "account": "B",
+      "assessment": {
+        "id": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+        "ownerId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+        "name": "LCSP-346 P1 Credit scoring 70dc0a6fe",
+        "createdAt": "2026-10-28T17:42:35.246000",
+        "lifecycleState": "BLOCKED",
+        "lifecycleRevision": 8,
+        "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+        "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+        "executionState": "INTERRUPTED",
+        "checkpointId": "1f1d3478-30c4-6198-8333-60646ff27ae4",
+        "leaseExpiresAt": null,
+        "startedAt": "2026-10-29T03:19:02.343000+00:00",
+        "lastResumedAt": "2026-10-29T03:19:02.343000+00:00",
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "repositorySnapshotId": "c2243ea7-53df-4674-bea7-16f74ce275ac",
+        "repositoryScanJobId": "fecbe2ad-cf18-4e21-a3f7-7ca7721ae211",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "caseRevision": 7
+      },
+      "stoppedCheckpoint": "1f1d346e-a13d-6052-8329-fc37f070ceb8",
+      "stopAcknowledgedAt": "2026-10-29T03:14:55.745000+00:00",
+      "actualResumedAt": "2026-10-29T03:19:02.421000+00:00",
+      "pausedIntervalGovernedWrites": 0,
+      "stopCheckpointInFinalAncestry": true,
+      "rootTurns": [
+        {
+          "start": "2026-10-28T18:01:16.100Z",
+          "end": "2026-10-28T18:05:11.935Z"
+        },
+        {
+          "start": "2026-10-29T03:12:16.679Z",
+          "end": "2026-10-29T03:14:55.674Z"
+        },
+        {
+          "start": "2026-10-29T03:19:11.721Z",
+          "end": "2026-10-29T03:19:17.391Z"
+        }
+      ],
+      "usageCount": 41,
+      "usageStates": {
+        "SETTLED": 41
+      },
+      "tokens": {
+        "inputTokens": 683613,
+        "cachedInputTokens": 3367520,
+        "outputTokens": 82021,
+        "reasoningTokens": 63145,
+        "totalTokens": 4133154
+      }
+    }
+  ],
+  "limitations": [
+    "Stop A was issued while the untouched grading Root was active; credit Root B acquired the freed slot after A paused.",
+    "Direct cross-account Stop proof uses credit Root B against the untouched Account A grading Root.",
+    "The first A harness wait timed out at 20 seconds; later native/API evidence proves its PAUSED outcome without a second Stop.",
+    "Unknown operational facts remain open or blocked; no final benchmark report is claimed."
+  ]
+}

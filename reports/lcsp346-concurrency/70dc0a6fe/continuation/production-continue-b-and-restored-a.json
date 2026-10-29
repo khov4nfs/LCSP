@@ -1,0 +1,38 @@
+{
+  "observedAt": "2026-10-29T03:15:31.977Z",
+  "aRestored": {
+    "runtime": {
+      "threadId": "665548a2-14a9-4c2c-a3ce-45502e39f996",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "checkpointId": "1f1d3468-5abd-6e9c-81c2-f311b14fe3f1",
+      "currentExecutionId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+      "executionState": "RUNNING",
+      "eventSequence": 179,
+      "startedAt": "2026-10-29T03:14:56.345Z",
+      "lastResumedAt": "2026-10-29T03:14:56.345Z",
+      "updatedAt": "2026-10-29T03:15:30.393Z"
+    },
+    "lifecycle": {
+      "state": "ACTIVE",
+      "assessmentRevision": 6
+    },
+    "usage": {
+      "invocationCount": 37,
+      "inputTokens": 734602,
+      "outputTokens": 46095,
+      "totalTokens": 2623113,
+      "partial": true
+    },
+    "screenshot": "/home/khovan/.local/state/lcsp346/artifacts/A-restored-while-B-paused.png"
+  },
+  "continueB": {
+    "requestedAt": "2026-10-29T03:15:31.053Z",
+    "status": 201,
+    "result": {
+      "state": "RESUME_REQUESTED",
+      "targetRunId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+      "requestId": "5958312d-5076-4f91-97d4-771f429a3745"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "observedAt": "2026-10-29T03:42:05.543Z",
+  "assessment": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+  "downloadPath": "/api/assessments/ce1d9e22-5460-4a16-b53f-d646a942478d/artifacts/56c3c8c6-b697-51ff-abff-cb79ff352401/download",
+  "reportHref": "/assessments/ce1d9e22-5460-4a16-b53f-d646a942478d/report",
+  "artifact": {
+    "status": 200,
+    "contentType": "application/json",
+    "sizeBytes": 1580143,
+    "sha256": "b1a8fe7b01371c8c42b97f74f2b09f7402b4b6f42882de9e18421a6c8dc8fdd9",
+    "keys": [
+      "artifactId",
+      "assessmentId",
+      "caseRevision",
+      "decisionFingerprint",
+      "findings",
+      "kind",
+      "pins",
+      "provenance",
+      "schemaVersion",
+      "summary"
+    ],
+    "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+    "pins": {
+      "repositoryCommit": "ad756ce0d60c94f49e8b581639caa9d20f22cd05",
+      "repositoryScanJobId": "d4dedac2-d790-4680-819d-bec4cb2112c2",
+      "repositorySnapshotId": "769c69ca-1b5e-4653-990f-6b9995bba11a",
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a"
+    },
+    "findingCount": 243
+  },
+  "crossAccountDownloadStatus": 404,
+  "reportFindingElements": 243,
+  "screenshots": [
+    "/home/khovan/.local/state/lcsp346/artifacts/observed-grading-complete.png",
+    "/home/khovan/.local/state/lcsp346/artifacts/observed-report-pins.png"
+  ],
+  "scope": "Additional read-only report-contract check of the user-specified completed grading case; no independent semantic certification and no claim that the two fresh benchmark cases completed."
+}

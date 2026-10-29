@@ -1,0 +1,32 @@
+{
+  "assessment": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+  "owner": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+  "lifecycle": {
+    "state": "COMPLETE",
+    "assessmentRevision": 8
+  },
+  "runtime": {
+    "threadId": "30197668-3f10-47fd-87ad-c34e654fc6bc",
+    "rootAgentVersion": "assessment-root-v2",
+    "checkpointNamespace": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+    "checkpointId": "1f1d2d80-62ca-62b9-96da-30bb06898be6",
+    "currentExecutionId": "f421dcca-4353-413e-9110-17c140659e2e",
+    "executionState": "SUCCEEDED",
+    "eventSequence": 1454,
+    "startedAt": "2026-10-29T02:30:29.797Z",
+    "lastResumedAt": "2026-10-29T02:30:29.797Z",
+    "updatedAt": "2026-10-29T03:10:22.397Z"
+  },
+  "artifact": {
+    "artifactId": "56c3c8c6-b697-51ff-abff-cb79ff352401",
+    "kind": "FINAL_REPORT",
+    "lifecycleState": "ACTIVE",
+    "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+    "repositorySnapshotId": "769c69ca-1b5e-4653-990f-6b9995bba11a",
+    "repositoryCommit": "ad756ce0d60c94f49e8b581639caa9d20f22cd05",
+    "caseRevision": 6,
+    "contentSha256": "b1a8fe7b01371c8c42b97f74f2b09f7402b4b6f42882de9e18421a6c8dc8fdd9",
+    "sizeBytes": 1580143,
+    "createdAt": "2026-10-29T03:10:21.955Z"
+  }
+}

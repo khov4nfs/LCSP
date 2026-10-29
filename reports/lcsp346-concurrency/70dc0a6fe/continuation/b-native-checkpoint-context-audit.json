@@ -1,0 +1,736 @@
+{
+  "observedAt": "2026-10-29T03:25:14.708846+00:00",
+  "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+  "checkpointId": "1f1d346e-a13d-6052-8329-fc37f070ceb8",
+  "channelNames": [
+    "_summarization_session_id",
+    "branch:to:RootRuntimeControl.after_model",
+    "todos",
+    "__pregel_tasks",
+    "_summarization_event"
+  ],
+  "nativeGraphStateReadOnly": true,
+  "fakeApiCalls": 0,
+  "messageValueType": "list",
+  "metadata": {
+    "step": 809,
+    "assessment_id": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+    "case_revision": 7,
+    "assessment_root_execution_id": "aca38bac-2091-4b24-8fc2-3a6de9f141d5"
+  },
+  "messageCount": 159,
+  "contextToolResults": [
+    {
+      "index": 2,
+      "name": "get_assessment_context",
+      "toolCallId": "call_95532cf45752a9ae",
+      "contentSha256": "43c327bd9c81a86763f5a9f2fa601dc496770ee71d61bf9016cecead6cd0baad",
+      "containsBenchmarkContext": false,
+      "containsUnknownOperator": false,
+      "containsDeploymentUnverified": false,
+      "containsNoActualVietnameseDataset": false
+    },
+    {
+      "index": 74,
+      "name": "get_assessment_context",
+      "toolCallId": "call_891c7872795fc987",
+      "contentSha256": "f210d52bc0322ae21f2fa19012c472ee8d2b85269acc15bbce192788e48e3bdc",
+      "containsBenchmarkContext": false,
+      "containsUnknownOperator": false,
+      "containsDeploymentUnverified": false,
+      "containsNoActualVietnameseDataset": false
+    },
+    {
+      "index": 96,
+      "name": "get_assessment_context",
+      "toolCallId": "call_93e9668dffde552d",
+      "contentSha256": "1d11126b7755fa521a2858ecbcc17f1e47766e7b2bc374d0eda3ff0b3ffb3a0a",
+      "containsBenchmarkContext": false,
+      "containsUnknownOperator": false,
+      "containsDeploymentUnverified": false,
+      "containsNoActualVietnameseDataset": false
+    },
+    {
+      "index": 118,
+      "name": "open_human_request",
+      "toolCallId": "call_ae553aa10077c58e",
+      "contentSha256": "33d1c1cbb7e289eacada1ba3379950106aa748e94ef788333d9b3e762bb14390",
+      "containsBenchmarkContext": true,
+      "containsUnknownOperator": true,
+      "containsDeploymentUnverified": true,
+      "containsNoActualVietnameseDataset": true
+    },
+    {
+      "index": 119,
+      "name": "open_human_request",
+      "toolCallId": "call_a6683d9704112fa6",
+      "contentSha256": "be6b469bc3d95603a94a29f0e8257917f5da7c37bb5069f01413e2473a640f83",
+      "containsBenchmarkContext": true,
+      "containsUnknownOperator": true,
+      "containsDeploymentUnverified": true,
+      "containsNoActualVietnameseDataset": true
+    },
+    {
+      "index": 120,
+      "name": "open_human_request",
+      "toolCallId": "call_be5b7bab28fe7edd",
+      "contentSha256": "f82b3941188ceafe5d139c3d1165f454ea6f3dc0c9d3f27f732aae3734799f76",
+      "containsBenchmarkContext": true,
+      "containsUnknownOperator": true,
+      "containsDeploymentUnverified": true,
+      "containsNoActualVietnameseDataset": true
+    },
+    {
+      "index": 121,
+      "name": "open_human_request",
+      "toolCallId": "call_9f8bb0c11c72f665",
+      "contentSha256": "99da1406e36783abb966fda1c62fca505c129717537b30e84c61363e3fa5c352",
+      "containsBenchmarkContext": true,
+      "containsUnknownOperator": true,
+      "containsDeploymentUnverified": true,
+      "containsNoActualVietnameseDataset": true
+    },
+    {
+      "index": 122,
+      "name": "open_human_request",
+      "toolCallId": "call_bc0f009510c92344",
+      "contentSha256": "82b5ce7b94b1411e2b4d920b747c1d4dc60bfb3ea39748480154af76093affec",
+      "containsBenchmarkContext": true,
+      "containsUnknownOperator": true,
+      "containsDeploymentUnverified": true,
+      "containsNoActualVietnameseDataset": true
+    },
+    {
+      "index": 124,
+      "name": "get_assessment_context",
+      "toolCallId": "call_b3d49a6420f6ab2e",
+      "contentSha256": "3c6229d48b0870a41d2fb84f6220961f48413640ba13e3c0a6b773ee056a2ac3",
+      "containsBenchmarkContext": true,
+      "containsUnknownOperator": true,
+      "containsDeploymentUnverified": true,
+      "containsNoActualVietnameseDataset": true
+    }
+  ],
+  "toolActionNames": [
+    {
+      "index": 1,
+      "name": "get_assessment_context",
+      "id": "call_95532cf45752a9ae"
+    },
+    {
+      "index": 1,
+      "name": "get_pinned_rule_set",
+      "id": "call_948996dec45c734c"
+    },
+    {
+      "index": 4,
+      "name": "get_pinned_rule_set",
+      "id": "call_b76d0a9b9c70ac54"
+    },
+    {
+      "index": 4,
+      "name": "get_pinned_rule_set",
+      "id": "call_bff524952bbb4b0a"
+    },
+    {
+      "index": 4,
+      "name": "get_pinned_rule_set",
+      "id": "call_8e489db0fafafb61"
+    },
+    {
+      "index": 8,
+      "name": "get_pinned_rule_set",
+      "id": "call_aa2c4ff32e5a6df3"
+    },
+    {
+      "index": 8,
+      "name": "ls",
+      "id": "call_b05d5586b138d17e"
+    },
+    {
+      "index": 11,
+      "name": "get_pinned_rule_set",
+      "id": "call_b6525ea1a2c757b3"
+    },
+    {
+      "index": 11,
+      "name": "get_repository_architecture",
+      "id": "call_a255344440e244d2"
+    },
+    {
+      "index": 11,
+      "name": "ls",
+      "id": "call_96a671c8e6055641"
+    },
+    {
+      "index": 11,
+      "name": "ls",
+      "id": "call_a4eb90109f734304"
+    },
+    {
+      "index": 16,
+      "name": "write_todos",
+      "id": "call_b3447506eea7eb22"
+    },
+    {
+      "index": 16,
+      "name": "read_file",
+      "id": "call_95f5979aab1ce09c"
+    },
+    {
+      "index": 19,
+      "name": "read_file",
+      "id": "call_aac352f5343faae5"
+    },
+    {
+      "index": 19,
+      "name": "read_file",
+      "id": "call_82b4d8d87b75d739"
+    },
+    {
+      "index": 19,
+      "name": "read_file",
+      "id": "call_bdc79a19a4074002"
+    },
+    {
+      "index": 19,
+      "name": "read_file",
+      "id": "call_a74831ab92159fc5"
+    },
+    {
+      "index": 24,
+      "name": "read_file",
+      "id": "call_8257ba235c212c3f"
+    },
+    {
+      "index": 24,
+      "name": "read_file",
+      "id": "call_a5171c981ffed52b"
+    },
+    {
+      "index": 24,
+      "name": "read_file",
+      "id": "call_96f21a5397f673fa"
+    },
+    {
+      "index": 24,
+      "name": "read_file",
+      "id": "call_903916473ba8df04"
+    },
+    {
+      "index": 24,
+      "name": "read_file",
+      "id": "call_8e026fea3a2ea3e9"
+    },
+    {
+      "index": 24,
+      "name": "read_file",
+      "id": "call_8173de9b3670727d"
+    },
+    {
+      "index": 24,
+      "name": "read_file",
+      "id": "call_a27e53c5e06f43eb"
+    },
+    {
+      "index": 32,
+      "name": "read_file",
+      "id": "call_82e6368ddfc28d38"
+    },
+    {
+      "index": 32,
+      "name": "ls",
+      "id": "call_bfda84eaf7c84e5e"
+    },
+    {
+      "index": 32,
+      "name": "read_file",
+      "id": "call_91f1c319b9326f36"
+    },
+    {
+      "index": 32,
+      "name": "read_file",
+      "id": "call_b60b7563592ea99e"
+    },
+    {
+      "index": 32,
+      "name": "read_file",
+      "id": "call_913eb58b5a8dc724"
+    },
+    {
+      "index": 32,
+      "name": "read_file",
+      "id": "call_b422fbd40ee61ba6"
+    },
+    {
+      "index": 39,
+      "name": "cite_repository_source",
+      "id": "call_b5bbbd69209f6644"
+    },
+    {
+      "index": 39,
+      "name": "cite_repository_source",
+      "id": "call_a287fbf50a9b97b8"
+    },
+    {
+      "index": 39,
+      "name": "cite_repository_source",
+      "id": "call_87da6f24bd859612"
+    },
+    {
+      "index": 39,
+      "name": "cite_repository_source",
+      "id": "call_af3168821e28d907"
+    },
+    {
+      "index": 39,
+      "name": "cite_repository_source",
+      "id": "call_b06290e6e966c238"
+    },
+    {
+      "index": 45,
+      "name": "accept_case_fact",
+      "id": "call_b6fd6d899c318bc6"
+    },
+    {
+      "index": 45,
+      "name": "accept_case_fact",
+      "id": "call_962ceed6a5f436bb"
+    },
+    {
+      "index": 48,
+      "name": "write_file",
+      "id": "call_81124f3ca8b32e0a"
+    },
+    {
+      "index": 48,
+      "name": "get_assessment_rule",
+      "id": "call_8e40f54c37727dfa"
+    },
+    {
+      "index": 48,
+      "name": "get_assessment_rule",
+      "id": "call_8d1d243af52b5e7f"
+    },
+    {
+      "index": 48,
+      "name": "get_assessment_rule",
+      "id": "call_8ddbd86eb3158564"
+    },
+    {
+      "index": 48,
+      "name": "get_assessment_rule",
+      "id": "call_bb5443753956213d"
+    },
+    {
+      "index": 54,
+      "name": "grep",
+      "id": "call_82f07ed2d5580af4"
+    },
+    {
+      "index": 54,
+      "name": "grep",
+      "id": "call_826b03dc43bc3507"
+    },
+    {
+      "index": 54,
+      "name": "grep",
+      "id": "call_9283d6d9a9d0e4be"
+    },
+    {
+      "index": 54,
+      "name": "grep",
+      "id": "call_82859f87000c5dbb"
+    },
+    {
+      "index": 54,
+      "name": "grep",
+      "id": "call_b4792b897347ecce"
+    },
+    {
+      "index": 54,
+      "name": "grep",
+      "id": "call_832fe6c718000193"
+    },
+    {
+      "index": 54,
+      "name": "grep",
+      "id": "call_825320254c76ddc6"
+    },
+    {
+      "index": 62,
+      "name": "record_search_coverage",
+      "id": "call_9d3b062c4473e449"
+    },
+    {
+      "index": 62,
+      "name": "grep",
+      "id": "call_b87f883b635d4676"
+    },
+    {
+      "index": 62,
+      "name": "grep",
+      "id": "call_b4089894edabe55e"
+    },
+    {
+      "index": 62,
+      "name": "grep",
+      "id": "call_824dcf716a4f1039"
+    },
+    {
+      "index": 62,
+      "name": "grep",
+      "id": "call_9c4dc06324ef761d"
+    },
+    {
+      "index": 62,
+      "name": "grep",
+      "id": "call_86061a4e1d267a59"
+    },
+    {
+      "index": 69,
+      "name": "start_rule_investigation",
+      "id": "call_b7e66d84feecb621"
+    },
+    {
+      "index": 71,
+      "name": "submit_rule_decision",
+      "id": "call_935fe212acc73019"
+    },
+    {
+      "index": 73,
+      "name": "get_assessment_context",
+      "id": "call_891c7872795fc987"
+    },
+    {
+      "index": 75,
+      "name": "submit_rule_decision",
+      "id": "call_83519345e9dba62d"
+    },
+    {
+      "index": 77,
+      "name": "submit_rule_decision",
+      "id": "call_892ca32e910fd4e1"
+    },
+    {
+      "index": 79,
+      "name": "submit_rule_decision",
+      "id": "call_85aa4b0c644f0f52"
+    },
+    {
+      "index": 81,
+      "name": "write_todos",
+      "id": "call_b9f5ba05e33cd716"
+    },
+    {
+      "index": 81,
+      "name": "get_assessment_rule",
+      "id": "call_8c475ff69bbbb70c"
+    },
+    {
+      "index": 81,
+      "name": "get_assessment_rule",
+      "id": "call_bd94752d80c3b20d"
+    },
+    {
+      "index": 81,
+      "name": "get_assessment_rule",
+      "id": "call_bba851ef9941fa00"
+    },
+    {
+      "index": 81,
+      "name": "get_assessment_rule",
+      "id": "call_a7d00a90433a3565"
+    },
+    {
+      "index": 81,
+      "name": "get_assessment_rule",
+      "id": "call_a12a5b787cacaf24"
+    },
+    {
+      "index": 81,
+      "name": "get_assessment_rule",
+      "id": "call_b0a4bcc65e146820"
+    },
+    {
+      "index": 81,
+      "name": "get_assessment_rule",
+      "id": "call_93123e35910a0506"
+    },
+    {
+      "index": 90,
+      "name": "record_search_coverage",
+      "id": "call_b40f4ee5aa9ebad4"
+    },
+    {
+      "index": 92,
+      "name": "submit_rule_decision",
+      "id": "call_a89b59b2d5c8f9bf"
+    },
+    {
+      "index": 92,
+      "name": "submit_rule_decision",
+      "id": "call_9fbaf1f7017f3967"
+    },
+    {
+      "index": 95,
+      "name": "get_assessment_context",
+      "id": "call_93e9668dffde552d"
+    },
+    {
+      "index": 97,
+      "name": "submit_rule_decision",
+      "id": "call_aeadd20d97a7680c"
+    },
+    {
+      "index": 97,
+      "name": "submit_rule_decision",
+      "id": "call_bcf78b56d68eb10f"
+    },
+    {
+      "index": 100,
+      "name": "submit_rule_decision",
+      "id": "call_b834feef37f2b058"
+    },
+    {
+      "index": 100,
+      "name": "submit_rule_decision",
+      "id": "call_8efd8b9129d348f9"
+    },
+    {
+      "index": 100,
+      "name": "submit_rule_decision",
+      "id": "call_b92c5d83e6b64560"
+    },
+    {
+      "index": 104,
+      "name": "submit_rule_decision",
+      "id": "call_b98831af61827480"
+    },
+    {
+      "index": 104,
+      "name": "submit_rule_decision",
+      "id": "call_962bd08b510e7963"
+    },
+    {
+      "index": 104,
+      "name": "submit_rule_decision",
+      "id": "call_a5cc5ba4162bffdd"
+    },
+    {
+      "index": 108,
+      "name": "get_assessment_rule",
+      "id": "call_a8a8f3eba4a0c9e5"
+    },
+    {
+      "index": 108,
+      "name": "get_assessment_rule",
+      "id": "call_b8b5cd007ab6a395"
+    },
+    {
+      "index": 108,
+      "name": "get_assessment_rule",
+      "id": "call_8e6c3e1f86fa6067"
+    },
+    {
+      "index": 112,
+      "name": "get_assessment_rule",
+      "id": "call_bdfa3b7fd4ce742e"
+    },
+    {
+      "index": 112,
+      "name": "get_assessment_rule",
+      "id": "call_9cace773ec586874"
+    },
+    {
+      "index": 112,
+      "name": "get_assessment_rule",
+      "id": "call_a02bc5268c945dcd"
+    },
+    {
+      "index": 112,
+      "name": "get_assessment_rule",
+      "id": "call_8840c59f42f2b480"
+    },
+    {
+      "index": 117,
+      "name": "open_human_request",
+      "id": "call_ae553aa10077c58e"
+    },
+    {
+      "index": 117,
+      "name": "open_human_request",
+      "id": "call_a6683d9704112fa6"
+    },
+    {
+      "index": 117,
+      "name": "open_human_request",
+      "id": "call_be5b7bab28fe7edd"
+    },
+    {
+      "index": 117,
+      "name": "open_human_request",
+      "id": "call_9f8bb0c11c72f665"
+    },
+    {
+      "index": 117,
+      "name": "open_human_request",
+      "id": "call_bc0f009510c92344"
+    },
+    {
+      "index": 123,
+      "name": "get_assessment_context",
+      "id": "call_b3d49a6420f6ab2e"
+    },
+    {
+      "index": 123,
+      "name": "get_pinned_rule_set",
+      "id": "call_9560b3e7213d0a7b"
+    },
+    {
+      "index": 126,
+      "name": "write_todos",
+      "id": "call_9d6edce363d2adb1"
+    },
+    {
+      "index": 126,
+      "name": "get_assessment_rule",
+      "id": "call_8021c1057f2ff7de"
+    },
+    {
+      "index": 126,
+      "name": "get_assessment_rule",
+      "id": "call_b38de25cb87fdf2d"
+    },
+    {
+      "index": 126,
+      "name": "get_assessment_rule",
+      "id": "call_8133ee3dc1515be1"
+    },
+    {
+      "index": 126,
+      "name": "get_assessment_rule",
+      "id": "call_98e9a6946a46ecad"
+    },
+    {
+      "index": 126,
+      "name": "get_assessment_rule",
+      "id": "call_b95dc396938a41a8"
+    },
+    {
+      "index": 133,
+      "name": "write_file",
+      "id": "call_a3fc28ff2a51b250"
+    },
+    {
+      "index": 133,
+      "name": "get_rule_decision",
+      "id": "call_a5dcbf266545d364"
+    },
+    {
+      "index": 133,
+      "name": "get_rule_decision",
+      "id": "call_90171c17a28a7565"
+    },
+    {
+      "index": 133,
+      "name": "get_rule_decision",
+      "id": "call_ba9e8d3fd24893e5"
+    },
+    {
+      "index": 133,
+      "name": "get_rule_decision",
+      "id": "call_a9d82a7073693261"
+    },
+    {
+      "index": 133,
+      "name": "get_rule_decision",
+      "id": "call_a416ca662433f0ca"
+    },
+    {
+      "index": 133,
+      "name": "get_rule_decision",
+      "id": "call_b8684c56d3143dff"
+    },
+    {
+      "index": 141,
+      "name": "submit_rule_decision",
+      "id": "call_8f73cb7f0b02f1a8"
+    },
+    {
+      "index": 141,
+      "name": "submit_rule_decision",
+      "id": "call_ae415092616308c9"
+    },
+    {
+      "index": 141,
+      "name": "submit_rule_decision",
+      "id": "call_a7c1ca406916556b"
+    },
+    {
+      "index": 141,
+      "name": "submit_rule_decision",
+      "id": "call_8a6ca07a5ae8af3d"
+    },
+    {
+      "index": 141,
+      "name": "submit_rule_decision",
+      "id": "call_ba54dfe39cd85808"
+    },
+    {
+      "index": 141,
+      "name": "submit_rule_decision",
+      "id": "call_a78d94e2b7eb95a6"
+    },
+    {
+      "index": 148,
+      "name": "get_pinned_rule_set",
+      "id": "call_a68e4264e85b2782"
+    },
+    {
+      "index": 150,
+      "name": "get_pinned_rule_set",
+      "id": "call_a35e9d2920416c6a"
+    },
+    {
+      "index": 152,
+      "name": "get_pinned_rule_set",
+      "id": "call_9fc5df34c3f158cb"
+    },
+    {
+      "index": 154,
+      "name": "get_pinned_rule_set",
+      "id": "call_b858906aa3cc29c2"
+    },
+    {
+      "index": 156,
+      "name": "write_file",
+      "id": "call_9e4251b52964aefa"
+    },
+    {
+      "index": 158,
+      "name": "report_human_fact_unresolvable",
+      "id": "call_87544d4cf359bcb4"
+    },
+    {
+      "index": 158,
+      "name": "report_human_fact_unresolvable",
+      "id": "call_ab6f5d685748dcfa"
+    },
+    {
+      "index": 158,
+      "name": "report_human_fact_unresolvable",
+      "id": "call_a54cfa0294f7cf5c"
+    },
+    {
+      "index": 158,
+      "name": "report_human_fact_unresolvable",
+      "id": "call_b08963b0a27a2621"
+    },
+    {
+      "index": 158,
+      "name": "report_human_fact_unresolvable",
+      "id": "call_98ea8788a8c2e628"
+    }
+  ]
+}

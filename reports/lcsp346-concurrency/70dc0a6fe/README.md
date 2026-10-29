@@ -1,5 +1,7 @@
 # LCSP-346 — production evidence for 70dc0a6fe
 
+**Later result:** [Continuation, real Stop/Continue and final acceptance checkpoint](continuation/README.md). The sections below preserve the earlier pre-control checkpoint.
+
 **Real, bounded, cross-account Root overlap is proven. Overall acceptance remains BLOCKED.** The initial turns reached native human interrupts. Customer replies are now recorded, and both native resumes are queued behind two other active Roots at the configured cap of two. Production Stop/Continue, complete Assessments/reports and monetary billing reconciliation remain outstanding. No unexecuted scenario is reported as PASS.
 
 Implementation PR: [#440](https://github.com/khov4nfs/LCSP/pull/440), Draft, unmerged, `REVIEW_REQUIRED`.

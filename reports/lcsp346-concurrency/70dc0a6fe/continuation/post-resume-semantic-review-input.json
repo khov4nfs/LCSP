@@ -1,0 +1,130 @@
+[
+  {
+    "id": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+    "at": "2026-10-29T03:19:08.075Z",
+    "runtime": {
+      "threadId": "665548a2-14a9-4c2c-a3ce-45502e39f996",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "checkpointId": "1f1d3477-ca95-6d4f-8333-c70a0b28593b",
+      "currentExecutionId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+      "executionState": "INTERRUPTED",
+      "eventSequence": 220,
+      "startedAt": "2026-10-29T03:14:56.345Z",
+      "lastResumedAt": "2026-10-29T03:14:56.345Z",
+      "updatedAt": "2026-10-29T03:19:01.807Z"
+    },
+    "usage": {
+      "invocationCount": 54,
+      "inputTokens": 1242211,
+      "outputTokens": 96079,
+      "totalTokens": 4661661,
+      "partial": true
+    },
+    "caseRevision": 6,
+    "decisions": [],
+    "openQuestions": [
+      {
+        "requestId": "a73ba3d7-926d-4c7a-a2af-71248c22757b",
+        "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system performed a risk-level classification of the system and documented it (for example, a risk-classification record or assessment), in line with the requirement to classify an AI system by risk before it is put into use?",
+        "unresolvedFact": "Whether the provider has performed and documented a risk-level classification of the ProctoAI AI system before putting it into use."
+      },
+      {
+        "requestId": "c28140ff-48dd-4ee7-835f-afced260269d",
+        "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system self-classified the system's risk level (high, medium, or low) according to Law 134 and Decree 142 before putting the system into use, and does it hold documentation of that self-classification?",
+        "unresolvedFact": "Whether the provider has performed and documented a self-classification of the ProctoAI system's risk level prior to use."
+      },
+      {
+        "requestId": "3a2249be-3689-44f3-a12a-5c5a13501c0a",
+        "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system established a risk-classification dossier for the system (reflecting the risk classification performed) before putting the system into use, and does it hold and store that dossier?",
+        "unresolvedFact": "Whether a risk-classification dossier for the ProctoAI system was established and stored by the provider before use."
+      },
+      {
+        "requestId": "62b83370-9765-45f3-bfd4-b97f4f676cf2",
+        "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system established and maintained risk-management measures for the system, and does it regularly review those measures when the system undergoes significant changes or new risks arise?",
+        "unresolvedFact": "Whether the provider has established and maintained risk-management measures for the ProctoAI system and regularly reviews them."
+      }
+    ]
+  },
+  {
+    "id": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+    "at": "2026-10-29T03:19:07.228Z",
+    "runtime": {
+      "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "checkpointId": "1f1d346e-a13d-6052-8329-fc37f070ceb8",
+      "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+      "executionState": "RUNNING",
+      "eventSequence": 122,
+      "startedAt": "2026-10-29T03:19:02.343Z",
+      "lastResumedAt": "2026-10-29T03:19:02.343Z",
+      "updatedAt": "2026-10-29T03:19:02.420Z"
+    },
+    "usage": {
+      "invocationCount": 41,
+      "inputTokens": 683613,
+      "outputTokens": 82021,
+      "totalTokens": 4133154,
+      "partial": false
+    },
+    "caseRevision": 7,
+    "decisions": [
+      {
+        "id": "9c694a98-aadf-412f-a1bf-df49c99dab65",
+        "rule": "art10-cl3-withdrawal-restriction-implementation",
+        "state": "ACCEPTED",
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT",
+        "rationale": "This is an unconditional duty on the personal-data controller and controller-and-processor to receive and implement data-subject requests for withdrawal of consent or restriction of processing. Because the system processes personal data and the operator is a controller/controller-and-processor, the duty applies. The qualifier (the duty does not apply to processing before the request) does not negate applicability."
+      },
+      {
+        "id": "711e70ef-2644-4fb1-bbe6-82c846c5dbc6",
+        "rule": "art13-cl2-correction-assessment",
+        "state": "ACCEPTED",
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT",
+        "rationale": "Unconditional duty on the data controller and controller-and-processor to correct personal data upon request or as prescribed by law and to require processors/third parties to correct. The operator is a controller/controller-and-processor because it decides purposes/means and directly processes personal data via the application, so the duty applies."
+      },
+      {
+        "id": "71ad1897-6de8-494f-af99-94cc6a234e50",
+        "rule": "art9-cl2-consent-info-disclosure-rule",
+        "state": "ACCEPTED",
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT",
+        "rationale": "The rule imposes an unconditional duty on personal-data controllers/controller-and-processors. The assessed system collects and processes personal data (name, wallet number, address, gender, balance, age, occupation) uploaded via CSV and stored as WalletInfo records, so the operator acts as a controller/controller-and-processor and the duty applies."
+      },
+      {
+        "id": "ef9be725-0ce5-4d01-af0e-fc77bf7077da",
+        "rule": "art9-cl3-consent-form-record-rule",
+        "state": "ACCEPTED",
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT",
+        "rationale": "Unconditional duty on controllers/controller-and-processors. The system processes personal data via CSV upload into WalletInfo records, so the operator is a controller/controller-and-processor and the duty to ensure consent is expressed in a clear, specific, written/printable/verifiable form applies."
+      },
+      {
+        "id": "2bee0e5d-8f4b-4bf8-b70e-d0ad4ab4cd9f",
+        "rule": "art9-cl4-consent-principles-duty-rule",
+        "state": "ACCEPTED",
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT",
+        "rationale": "The assessed system processes personal data (name, wallet number, address, gender, balance, age, occupation) collected via CSV upload and stored in the WalletInfo model, making its operator a personal-data controller under the PDP Law, so the consent-principles duty applies."
+      },
+      {
+        "id": "f63a901a-a491-4a4d-8c4c-28c9544562c0",
+        "rule": "art9-cl4-consent-prohibitions-rule",
+        "state": "ACCEPTED",
+        "caseRevision": 7,
+        "applicability": "APPLICABLE",
+        "compliance": "COMPLIANT",
+        "rationale": "The rule's prohibitions apply unconditionally to personal-data controllers/controller-and-processors. The system processes personal data via CSV upload into WalletInfo records, so the operator is a controller/controller-and-processor and the prohibitions apply."
+      }
+    ],
+    "openQuestions": []
+  }
+]

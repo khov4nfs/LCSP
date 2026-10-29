@@ -1,0 +1,123 @@
+{
+  "requestedAt": "2026-10-29T03:14:44.810Z",
+  "observedAt": "2026-10-29T03:14:59.724Z",
+  "targetId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+  "stopResponse": {
+    "state": "STOP_REQUESTED",
+    "targetRunId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+    "requestId": "bcf566d6-953b-494d-af01-c3aeb1c97342"
+  },
+  "before": {
+    "runtime": {
+      "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "checkpointId": "1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5",
+      "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+      "executionState": "RUNNING",
+      "eventSequence": 116,
+      "startedAt": "2026-10-29T03:12:07.847Z",
+      "lastResumedAt": "2026-10-29T03:12:07.847Z",
+      "updatedAt": "2026-10-29T03:14:17.033Z"
+    },
+    "usage": {
+      "invocationCount": 40,
+      "inputTokens": 682074,
+      "outputTokens": 77653,
+      "totalTokens": 3991705,
+      "partial": false
+    },
+    "decisionIds": [
+      "9c694a98-aadf-412f-a1bf-df49c99dab65",
+      "711e70ef-2644-4fb1-bbe6-82c846c5dbc6",
+      "71ad1897-6de8-494f-af99-94cc6a234e50",
+      "ef9be725-0ce5-4d01-af0e-fc77bf7077da",
+      "2bee0e5d-8f4b-4bf8-b70e-d0ad4ab4cd9f",
+      "f63a901a-a491-4a4d-8c4c-28c9544562c0"
+    ]
+  },
+  "paused": {
+    "lifecycle": {
+      "state": "PAUSED",
+      "assessmentRevision": 5
+    },
+    "runtime": {
+      "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "checkpointId": "1f1d346e-a13d-6052-8329-fc37f070ceb8",
+      "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+      "executionState": "PAUSED",
+      "eventSequence": 120,
+      "startedAt": "2026-10-29T03:12:07.847Z",
+      "lastResumedAt": "2026-10-29T03:12:07.847Z",
+      "updatedAt": "2026-10-29T03:14:55.742Z"
+    },
+    "usage": {
+      "invocationCount": 41,
+      "inputTokens": 683613,
+      "outputTokens": 82021,
+      "totalTokens": 4133154,
+      "partial": false
+    },
+    "decisionIds": [
+      "9c694a98-aadf-412f-a1bf-df49c99dab65",
+      "711e70ef-2644-4fb1-bbe6-82c846c5dbc6",
+      "71ad1897-6de8-494f-af99-94cc6a234e50",
+      "ef9be725-0ce5-4d01-af0e-fc77bf7077da",
+      "2bee0e5d-8f4b-4bf8-b70e-d0ad4ab4cd9f",
+      "f63a901a-a491-4a4d-8c4c-28c9544562c0"
+    ]
+  },
+  "observer": {
+    "assessment": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+    "owner": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+    "before": {
+      "runtime": {
+        "threadId": "46f79d79-1670-419b-80d8-624424962ccd",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+        "checkpointId": "1f1d2ea4-b947-64d3-a046-d8b200dafa03",
+        "currentExecutionId": "092b8818-7b97-4e4e-9b0a-f591f1c92c66",
+        "executionState": "RUNNING",
+        "eventSequence": 1552,
+        "startedAt": "2026-10-29T02:29:37.954Z",
+        "lastResumedAt": "2026-10-29T02:29:37.954Z",
+        "updatedAt": "2026-10-29T03:14:10.494Z"
+      },
+      "usage": {
+        "invocationCount": 650,
+        "inputTokens": 17799929,
+        "outputTokens": 1245703,
+        "totalTokens": 73923547,
+        "partial": true
+      }
+    },
+    "after": {
+      "runtime": {
+        "threadId": "46f79d79-1670-419b-80d8-624424962ccd",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+        "checkpointId": "1f1d2ea4-b947-64d3-a046-d8b200dafa03",
+        "currentExecutionId": "092b8818-7b97-4e4e-9b0a-f591f1c92c66",
+        "executionState": "RUNNING",
+        "eventSequence": 1552,
+        "startedAt": "2026-10-29T02:29:37.954Z",
+        "lastResumedAt": "2026-10-29T02:29:37.954Z",
+        "updatedAt": "2026-10-29T03:14:46.871Z"
+      },
+      "usage": {
+        "invocationCount": 651,
+        "inputTokens": 17799929,
+        "outputTokens": 1245703,
+        "totalTokens": 73923547,
+        "partial": true
+      }
+    },
+    "progressObserved": true
+  },
+  "screenshots": [
+    "/home/khovan/.local/state/lcsp346/artifacts/B-before-stop-2026-10-29T03-14-44.685Z.png",
+    "/home/khovan/.local/state/lcsp346/artifacts/B-paused-2026-10-29T03-14-44.685Z.png"
+  ]
+}

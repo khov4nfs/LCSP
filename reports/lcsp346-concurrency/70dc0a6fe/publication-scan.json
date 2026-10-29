@@ -1,6 +1,6 @@
 {
-  "scannedAt": "2026-10-29T02:48:22.564Z",
-  "scannedFiles": 33,
+  "scannedAt": "2026-10-29T03:54:16.893Z",
+  "scannedFiles": 70,
   "sanitizedLogs": 0,
   "findings": 0,
   "scope": "Exact environment secret-value and credential-pattern checks. Screenshot pixels require visual review."

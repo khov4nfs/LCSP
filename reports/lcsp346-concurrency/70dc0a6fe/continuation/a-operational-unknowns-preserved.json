@@ -1,0 +1,118 @@
+{
+  "submitted": [
+    {
+      "requestId": "a73ba3d7-926d-4c7a-a2af-71248c22757b",
+      "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system performed a risk-level classification of the system and documented it (for example, a risk-classification record or assessment), in line with the requirement to classify an AI system by risk before it is put into use?",
+      "at": "2026-10-29T03:28:46.593Z",
+      "status": 200,
+      "result": {
+        "requestId": "a73ba3d7-926d-4c7a-a2af-71248c22757b",
+        "requestRevision": 1,
+        "caseRevision": 6,
+        "status": "OPEN",
+        "factId": null,
+        "resumed": false,
+        "replayed": false
+      }
+    },
+    {
+      "requestId": "c28140ff-48dd-4ee7-835f-afced260269d",
+      "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system self-classified the system's risk level (high, medium, or low) according to Law 134 and Decree 142 before putting the system into use, and does it hold documentation of that self-classification?",
+      "at": "2026-10-29T03:28:47.680Z",
+      "status": 200,
+      "result": {
+        "requestId": "c28140ff-48dd-4ee7-835f-afced260269d",
+        "requestRevision": 1,
+        "caseRevision": 6,
+        "status": "OPEN",
+        "factId": null,
+        "resumed": false,
+        "replayed": false
+      }
+    },
+    {
+      "requestId": "3a2249be-3689-44f3-a12a-5c5a13501c0a",
+      "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system established a risk-classification dossier for the system (reflecting the risk classification performed) before putting the system into use, and does it hold and store that dossier?",
+      "at": "2026-10-29T03:28:49.737Z",
+      "status": 200,
+      "result": {
+        "requestId": "3a2249be-3689-44f3-a12a-5c5a13501c0a",
+        "requestRevision": 1,
+        "caseRevision": 6,
+        "status": "OPEN",
+        "factId": null,
+        "resumed": false,
+        "replayed": false
+      }
+    },
+    {
+      "requestId": "62b83370-9765-45f3-bfd4-b97f4f676cf2",
+      "question": "Has the entity that develops and provides the ProctoAI automated exam proctoring system established and maintained risk-management measures for the system, and does it regularly review those measures when the system undergoes significant changes or new risks arise?",
+      "at": "2026-10-29T03:28:51.904Z",
+      "status": 200,
+      "result": {
+        "requestId": "62b83370-9765-45f3-bfd4-b97f4f676cf2",
+        "requestRevision": 1,
+        "caseRevision": 6,
+        "status": "OPEN",
+        "factId": null,
+        "resumed": false,
+        "replayed": false
+      }
+    }
+  ],
+  "beforeCaseRevision": 6,
+  "afterCaseRevision": 6,
+  "requests": [
+    {
+      "requestId": "79f0936d-8fad-4b91-9715-6e02e3b6e813",
+      "status": "RESOLVED",
+      "revision": 1,
+      "doesNotKnow": false,
+      "answerCount": 1
+    },
+    {
+      "requestId": "3ebaf6e8-b6cc-4da0-b302-fa0e147250b7",
+      "status": "RESOLVED",
+      "revision": 1,
+      "doesNotKnow": false,
+      "answerCount": 1
+    },
+    {
+      "requestId": "1757079a-dac3-4428-bea2-1f5a31b9a2a7",
+      "status": "RESOLVED",
+      "revision": 1,
+      "doesNotKnow": false,
+      "answerCount": 1
+    },
+    {
+      "requestId": "a73ba3d7-926d-4c7a-a2af-71248c22757b",
+      "status": "OPEN",
+      "revision": 1,
+      "doesNotKnow": true,
+      "answerCount": 1
+    },
+    {
+      "requestId": "c28140ff-48dd-4ee7-835f-afced260269d",
+      "status": "OPEN",
+      "revision": 1,
+      "doesNotKnow": true,
+      "answerCount": 1
+    },
+    {
+      "requestId": "3a2249be-3689-44f3-a12a-5c5a13501c0a",
+      "status": "OPEN",
+      "revision": 1,
+      "doesNotKnow": true,
+      "answerCount": 1
+    },
+    {
+      "requestId": "62b83370-9765-45f3-bfd4-b97f4f676cf2",
+      "status": "OPEN",
+      "revision": 1,
+      "doesNotKnow": true,
+      "answerCount": 1
+    }
+  ],
+  "screenshot": "/home/khovan/.local/state/lcsp346/artifacts/A-unresolved-provider-facts.png"
+}

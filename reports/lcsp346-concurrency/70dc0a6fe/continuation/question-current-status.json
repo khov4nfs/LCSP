@@ -1,0 +1,361 @@
+{
+  "observedAt": "2026-10-29T03:52:27.530699+00:00",
+  "head": "70dc0a6fe40c618bdf47d532f9baa5230e52faf1",
+  "workingTree": "",
+  "processes": [
+    {
+      "role": "api",
+      "pid": 1795003,
+      "settings": {
+        "PORT": "8080"
+      }
+    },
+    {
+      "role": "runtime",
+      "pid": 1965547,
+      "settings": {
+        "PORT": "2024",
+        "LCSP_AGENT_RUNTIME_MODE": "production"
+      }
+    },
+    {
+      "role": "bridge",
+      "pid": 1965549,
+      "settings": {
+        "PORT": "2024",
+        "LCSP_AGENT_RUNTIME_MODE": "production"
+      }
+    }
+  ],
+  "assessments": [
+    {
+      "id": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "currentExecutionId": "092b8818-7b97-4e4e-9b0a-f591f1c92c66",
+      "executionState": "INTERRUPTED",
+      "threadId": "46f79d79-1670-419b-80d8-624424962ccd",
+      "checkpointId": "1f1d34a4-447b-6941-b44a-faff35fc01ad",
+      "startedAt": "2026-10-29T02:29:37.954000+00:00",
+      "lastResumedAt": "2026-10-29T02:29:37.954000+00:00",
+      "leaseExpiresAt": null,
+      "liveLease": null,
+      "invocationCount": 717
+    },
+    {
+      "id": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "ownerId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+      "lifecycleState": "BLOCKED",
+      "currentExecutionId": "aca38bac-2091-4b24-8fc2-3a6de9f141d5",
+      "executionState": "INTERRUPTED",
+      "threadId": "c5c87467-678e-4199-8b49-422b2c0d9029",
+      "checkpointId": "1f1d3478-30c4-6198-8333-60646ff27ae4",
+      "startedAt": "2026-10-29T03:19:02.343000+00:00",
+      "lastResumedAt": "2026-10-29T03:19:02.343000+00:00",
+      "leaseExpiresAt": null,
+      "liveLease": null,
+      "invocationCount": 41
+    },
+    {
+      "id": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "lifecycleState": "COMPLETE",
+      "currentExecutionId": "f421dcca-4353-413e-9110-17c140659e2e",
+      "executionState": "SUCCEEDED",
+      "threadId": "30197668-3f10-47fd-87ad-c34e654fc6bc",
+      "checkpointId": "1f1d2d80-62ca-62b9-96da-30bb06898be6",
+      "startedAt": "2026-10-29T02:30:29.797000+00:00",
+      "lastResumedAt": "2026-10-29T02:30:29.797000+00:00",
+      "leaseExpiresAt": null,
+      "liveLease": null,
+      "invocationCount": 466
+    },
+    {
+      "id": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "ownerId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "currentExecutionId": "1fe90257-e296-48cb-a2d0-b1de79384092",
+      "executionState": "INTERRUPTED",
+      "threadId": "665548a2-14a9-4c2c-a3ce-45502e39f996",
+      "checkpointId": "1f1d3477-ca95-6d4f-8333-c70a0b28593b",
+      "startedAt": "2026-10-29T03:14:56.345000+00:00",
+      "lastResumedAt": "2026-10-29T03:14:56.345000+00:00",
+      "leaseExpiresAt": null,
+      "liveLease": null,
+      "invocationCount": 54
+    }
+  ],
+  "activeLeaseCount": 0,
+  "recentRootBoundaries": [
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T10:10:09.497000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T10:10:09.492Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T10:11:46.152000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T10:11:46.149Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T10:14:32.904000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T10:14:32.900Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T10:14:42.574000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T10:14:42.572Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T10:17:37.635000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T10:17:37.633Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T12:47:14.971000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T12:47:14.959Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T12:50:52.020000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T12:50:52.018Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:00:17.363000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T13:00:17.358Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:00:59.719000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T13:00:59.718Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:01:58.919000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T13:01:58.916Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:03:41.814000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T13:03:41.812Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:04:42.163000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T13:04:42.161Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:12:38.281000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T13:12:38.278Z"
+    },
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "createdAt": "2026-10-28T13:14:11.990000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T13:14:11.984Z"
+    },
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "createdAt": "2026-10-28T13:17:00.916000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T13:17:00.913Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:17:19.832000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T13:17:19.831Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T13:25:55.019000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T13:25:55.016Z"
+    },
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "createdAt": "2026-10-28T13:26:04.449000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T13:26:04.446Z"
+    },
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "createdAt": "2026-10-28T14:01:08.661000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T14:01:08.659Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T14:01:17.038000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T14:01:17.035Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T14:03:28.574000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T14:03:28.570Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T14:06:05.149000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T14:06:05.146Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T14:21:33.858000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T14:21:33.855Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T15:41:18.720000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T15:41:18.718Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T15:42:40.614000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T15:42:40.611Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T15:48:01.043000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T15:48:01.039Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-28T16:11:56.352000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T16:11:56.349Z"
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "createdAt": "2026-10-28T18:00:54.481000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T18:00:54.477Z"
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "createdAt": "2026-10-28T18:01:16.105000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-28T18:01:16.100Z"
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "createdAt": "2026-10-28T18:04:12.138000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T18:04:12.071Z"
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "createdAt": "2026-10-28T18:05:11.937000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-28T18:05:11.935Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-29T02:29:47.128000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-29T02:29:47.124Z"
+    },
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "createdAt": "2026-10-29T02:30:37.859000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-29T02:30:37.853Z"
+    },
+    {
+      "assessmentId": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "createdAt": "2026-10-29T03:10:22.360000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-29T03:10:22.357Z"
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "createdAt": "2026-10-29T03:10:32.328000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-29T03:10:32.323Z"
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "createdAt": "2026-10-29T03:12:07.048000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-29T03:12:07.046Z"
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "createdAt": "2026-10-29T03:12:16.683000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-29T03:12:16.679Z"
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "createdAt": "2026-10-29T03:14:55.676000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-29T03:14:55.674Z"
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "createdAt": "2026-10-29T03:15:04.598000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-29T03:15:04.596Z"
+    },
+    {
+      "assessmentId": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+      "createdAt": "2026-10-29T03:19:01.769000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-29T03:19:01.766Z"
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "createdAt": "2026-10-29T03:19:11.723000",
+      "eventType": "BOUNDARY_STARTED",
+      "emittedAt": "2026-10-29T03:19:11.721Z"
+    },
+    {
+      "assessmentId": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+      "createdAt": "2026-10-29T03:19:17.394000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-29T03:19:17.391Z"
+    },
+    {
+      "assessmentId": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "createdAt": "2026-10-29T03:38:57.456000",
+      "eventType": "BOUNDARY_COMPLETED",
+      "emittedAt": "2026-10-29T03:38:57.454Z"
+    }
+  ],
+  "brokerVhost": "lcsp-sync-20261028",
+  "brokerConsumers": [
+    "lcsp.agent_runtime.boundary.assessment_root_requested\t<rabbit@f51e5b278b53.1786095599.1027229.0>\tctag1.f3f70805079549edadccdbc62adf3661\ttrue\t2\ttrue"
+  ],
+  "brokerChannels": [
+    "lcsp-sync-20261028\t<rabbit@f51e5b278b53.1786095599.1026279.0>\t2\t0\t1",
+    "lcsp-sync-20261028\t<rabbit@f51e5b278b53.1786095599.1027229.0>\t15\t0\t2"
+  ],
+  "brokerQueues": [
+    "lcsp.agent_runtime.boundary.assessment_root_requested.retry.2000ms\t0\t0\t0",
+    "lcsp.agent_runtime.boundary.assessment_root_requested\t0\t0\t1"
+  ]
+}
