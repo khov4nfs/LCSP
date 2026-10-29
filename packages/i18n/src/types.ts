@@ -1143,6 +1143,7 @@ export type PagesMessages = {
     submitting: string;
     accessHelp: string;
     recoveryCodeAccessHelp: string;
+    lostBothFactorsHelp: string;
     useRecovery: string;
     errors: {
       otpRequired: string;

@@ -1208,13 +1208,15 @@ export const enPages = {
     recoveryCodeDescription:
       "Enter one of your saved recovery codes to continue.",
     recoveryCodeLabel: "Recovery code",
-    recoveryCodePlaceholder: "ABCD-EFGH",
+    recoveryCodePlaceholder: "ABCD-EFGH-IJKL",
     recoveryCodeHelp: "Recovery codes are single-use.",
     recoveryCodeSubmit: "Verify recovery code",
     submit: "Verify and continue",
     submitting: "Verifying",
     accessHelp: "MFA protects access to your LCSP workspace.",
     recoveryCodeAccessHelp: "Each recovery code can only be used once.",
+    lostBothFactorsHelp:
+      "Lost both your authenticator and recovery codes? Contact your workspace administrator to reset your multi-factor authentication.",
     useRecovery: "Lost access to your authenticator? Recover access instead.",
     errors: {
       otpRequired: "Enter your verification code.",

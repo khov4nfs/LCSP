@@ -401,8 +401,13 @@ function RecoveryCodeForm({
       >
         {resolveMessage(appLocale, "pages.mfaVerify.useAuthenticator")}
       </AuthInlineLink>
-      <AuthNote className="mt-6">
-        {resolveMessage(appLocale, "pages.mfaVerify.recoveryCodeAccessHelp")}
+      <AuthNote className="mt-6 flex flex-col gap-1 text-center">
+        <span>
+          {resolveMessage(appLocale, "pages.mfaVerify.recoveryCodeAccessHelp")}
+        </span>
+        <span className="text-muted-foreground/80">
+          {resolveMessage(appLocale, "pages.mfaVerify.lostBothFactorsHelp")}
+        </span>
       </AuthNote>
     </>
   );

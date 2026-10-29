@@ -1214,13 +1214,15 @@ export const viPages = {
     recoveryCodeDescription:
       "Enter one of your saved recovery codes to continue.",
     recoveryCodeLabel: "Recovery code",
-    recoveryCodePlaceholder: "ABCD-EFGH",
+    recoveryCodePlaceholder: "ABCD-EFGH-IJKL",
     recoveryCodeHelp: "Recovery codes are single-use.",
     recoveryCodeSubmit: "Verify recovery code",
     submit: "Verify and continue",
     submitting: "Verifying",
     accessHelp: "MFA protects access to your LCSP workspace.",
     recoveryCodeAccessHelp: "Each recovery code can only be used once.",
+    lostBothFactorsHelp:
+      "Mất cả ứng dụng xác thực và mã dự phòng? Hãy liên hệ quản trị viên workspace để đặt lại xác thực đa yếu tố.",
     useRecovery: "Không dùng được ứng dụng xác thực? Khôi phục quyền truy cập.",
     errors: {
       otpRequired: "Nhập mã xác minh của bạn.",

@@ -109,7 +109,9 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     }
 
     const enrollment = await mfaEnrollments.findByUserId(session.userId);
-    const targetEncryptedSecret = enrollment?.encryptedSecret;
+    const candidate = session.candidateMfaEnrollment;
+    const targetEncryptedSecret =
+      candidate?.encryptedSecret ?? enrollment?.encryptedSecret;
     if (!targetEncryptedSecret) {
       throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
@@ -172,6 +174,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       now,
       correlationId,
       proof: { kind: MFA_PROOF_TYPES.otp, otp },
+      candidate,
     });
     if (!proofResult.ok) {
       if (proofResult.code === AUTH_ERROR_CODES.mfaInvalid) {
