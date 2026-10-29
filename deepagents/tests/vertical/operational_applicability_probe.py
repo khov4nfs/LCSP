@@ -43,7 +43,7 @@ def main():
     from assessment_root.client import AssessmentApiError
     from assessment_root.tools import RootRun
     from langgraph.checkpoint.memory import InMemorySaver
-    from middleware.paid_admission import TokenPolicy, TokenRunBudget, fingerprint, request_identity
+    from middleware.paid_admission import TokenPolicy, UnrestrictedRunBudget, fingerprint, request_identity
     from middleware.usage_metering import activate_agent_run_state
     from model_policy import load_model_routes, resolve_agent_model, build_model, DEFAULT_ROUTES_FILE, ROUTES_FILE_ENV
     from provider_credentials import provider_token_source
@@ -102,7 +102,7 @@ def main():
                         "SYNTHETIC POSITIVE EVALUATION FACT, not an assertion about the public project: "
                         "A verified company established and operating in Vietnam runs this service live for real adult Vietnamese customers. "
                         "It decides purposes and means and directly processes their personal data, including names, addresses and financial records. "
-                        "It relies on consent for this processing. The customer confirms that the six evaluated consent, correction and withdrawal "
+                        "It relies on consent for this processing; verified data-subject consent, correction, withdrawal and restriction requests exist and apply after the law took effect. The customer confirms that the six evaluated consent, correction and withdrawal "
                         "safeguards have not been implemented in any external system or policy. These facts are supplied by the authorized operator."
                     )
 
@@ -157,7 +157,7 @@ def main():
                     "evidence":[[e["evidenceId"], {**e, "repositoryCommit":context["repositoryCommit"]}] for e in context["evidence"]],
                     "facts":[[f["factId"], f] for f in context["facts"]],
                 }
-                check = subprocess.run(["pnpm", "exec", "tsx", "tests/support/validate-operational-probe.ts"], cwd=ROOT,
+                check = subprocess.run(["pnpm", "exec", "tsx", "apps/api/test/support/validate-operational-probe.ts"], cwd=ROOT,
                                        input=json.dumps({"decision":packet,"context":validation}), capture_output=True, text=True)
                 if check.returncode:
                     raise RuntimeError("Actual API decision validator adapter failed")
@@ -184,10 +184,11 @@ def main():
         run.adopt_context(client.context())
         # Pinned public capability evidence is already accepted in this captured fixture.
         run_id = "lcsp346-semantic-fixture-" + uuid.uuid4().hex
-        budget = TokenRunBudget(schema_version=3, run_id=run_id, candidate_sha=candidate,
+        budget = UnrestrictedRunBudget(schema_version=4, mode="UNRESTRICTED", paid_inference_approved=True,
+            approval_reference="User-authorized LCSP-346 semantic acceptance recovery; six captured fixtures only",
+            run_id=run_id, candidate_sha=candidate,
             model_routes_sha256=hashlib.sha256(route_file.read_bytes()).hexdigest(), credential_salt=salt,
-            valid_from=now - 1, expires_at=now + 7200, maximum_calls=12,
-            maximum_input_tokens=12_000_000, maximum_output_tokens=12 * 65536, policies=tuple(policies.values()))
+            valid_from=now - 1, policies=tuple(policies.values()))
         usage_path = str(directory / "usage.json")
         state = LiveUsage(run_id, usage_path, budget=budget, budget_fingerprint=fingerprint(budget.model_dump(mode="json")), bounded=True)
         state.agent_role = "assessment-root"
