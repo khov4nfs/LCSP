@@ -53,9 +53,9 @@ export function formatLocaleDateTimeWithYear(
   isoString: string | null | undefined,
   locale?: Locale,
 ): string {
-  if (!isoString) return "â€”";
+  if (!isoString) return "—";
   const date = new Date(isoString);
-  if (Number.isNaN(date.getTime())) return "â€”";
+  if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat(locale ?? appLocale, {
     dateStyle: "medium",
     timeStyle: "short",
