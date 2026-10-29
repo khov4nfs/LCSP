@@ -1,15 +1,15 @@
 
 deepagents/tests/test_assessment_concurrency.py::test_delivery_overlap_capacity_backpressure_and_out_of_order_settlement[1] PASSED [  0%]
 deepagents/tests/test_assessment_concurrency.py::test_delivery_overlap_capacity_backpressure_and_out_of_order_settlement[2] PASSED [  1%]
-deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[True] 
+deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[True]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:701 RabbitMQ connection closed before delivery settlement boundary=assessment_root_requested routing_key=command.root
 PASSED                                                                   [  2%]
-deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[False] 
+deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[False]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:701 RabbitMQ connection closed before delivery settlement boundary=assessment_root_requested routing_key=command.root
 PASSED                                                                   [  2%]
-deepagents/tests/test_assessment_concurrency.py::test_timeout_does_not_free_a_still_executing_worker_or_double_settle 
+deepagents/tests/test_assessment_concurrency.py::test_timeout_does_not_free_a_still_executing_worker_or_double_settle
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.root
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
@@ -30,7 +30,7 @@ deepagents/tests/test_assessment_concurrency.py::test_server_recovery_cannot_exc
 deepagents/tests/test_assessment_concurrency.py::test_server_recovery_cannot_exceed_the_boundary_worker_cap[4-2-2] PASSED [ 13%]
 deepagents/tests/test_assessment_concurrency.py::test_two_native_assessment_roots_overlap_with_separate_threads_and_pins PASSED [ 14%]
 deepagents/tests/test_assessment_concurrency.py::test_native_researcher_batch_runs_serially_without_accepting_candidates PASSED [ 14%]
-deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_real_broker_credit_overlap_backpressure_and_settlement[1] 
+deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_real_broker_credit_overlap_backpressure_and_settlement[1]
 -------------------------------- live log call ---------------------------------
 INFO     pika.adapters.utils.connection_workflow:connection_workflow.py:179 Pika version 1.3.2 connecting to ('127.0.0.1', 5679)
 INFO     pika.adapters.utils.io_services_utils:io_services_utils.py:345 Socket connected: <socket.socket fd=14, family=2, type=1, proto=6, laddr=('127.0.0.1', 51782), raddr=('127.0.0.1', 5679)>
@@ -52,7 +52,7 @@ INFO     pika.connection:connection.py:2086 Stack terminated due to ConnectionCl
 INFO     pika.adapters.utils.io_services_utils:io_services_utils.py:882 Closing transport socket and unlinking: state=3; <socket.socket fd=14, family=2, type=1, proto=6, laddr=('127.0.0.1', 51782), raddr=('127.0.0.1', 5679)>
 INFO     pika.adapters.blocking_connection:blocking_connection.py:525 User-initiated close: result=BlockingConnection__OnClosedArgs(connection=<SelectConnection CLOSED transport=None params=<URLParameters host=127.0.0.1 port=5679 virtual_host=/ ssl=False>>, error=ConnectionClosedByClient: (200) 'Normal shutdown')
 PASSED                                                                   [ 15%]
-deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_real_broker_credit_overlap_backpressure_and_settlement[2] 
+deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_real_broker_credit_overlap_backpressure_and_settlement[2]
 -------------------------------- live log call ---------------------------------
 INFO     pika.adapters.utils.connection_workflow:connection_workflow.py:179 Pika version 1.3.2 connecting to ('127.0.0.1', 5679)
 INFO     pika.adapters.utils.io_services_utils:io_services_utils.py:345 Socket connected: <socket.socket fd=14, family=2, type=1, proto=6, laddr=('127.0.0.1', 51790), raddr=('127.0.0.1', 5679)>
@@ -74,7 +74,7 @@ INFO     pika.connection:connection.py:2086 Stack terminated due to ConnectionCl
 INFO     pika.adapters.utils.io_services_utils:io_services_utils.py:882 Closing transport socket and unlinking: state=3; <socket.socket fd=14, family=2, type=1, proto=6, laddr=('127.0.0.1', 51790), raddr=('127.0.0.1', 5679)>
 INFO     pika.adapters.blocking_connection:blocking_connection.py:525 User-initiated close: result=BlockingConnection__OnClosedArgs(connection=<SelectConnection CLOSED transport=None params=<URLParameters host=127.0.0.1 port=5679 virtual_host=/ ssl=False>>, error=ConnectionClosedByClient: (200) 'Normal shutdown')
 PASSED                                                                   [ 16%]
-deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_sigterm_recovers_unacknowledged_delivery_on_the_real_broker 
+deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_sigterm_recovers_unacknowledged_delivery_on_the_real_broker
 -------------------------------- live log call ---------------------------------
 INFO     pika.adapters.utils.connection_workflow:connection_workflow.py:179 Pika version 1.3.2 connecting to ('127.0.0.1', 5679)
 INFO     pika.adapters.utils.io_services_utils:io_services_utils.py:345 Socket connected: <socket.socket fd=14, family=2, type=1, proto=6, laddr=('127.0.0.1', 51804), raddr=('127.0.0.1', 5679)>
@@ -99,11 +99,11 @@ deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_production_localh
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_production_localhost_preserves_server_owned_run_recovery[NODE_ENV] PASSED [ 18%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_dev_reconciliation_and_explicit_override_remain_enabled[False-None] PASSED [ 19%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_dev_reconciliation_and_explicit_override_remain_enabled[True-true] PASSED [ 19%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[assessment_root_requested] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[assessment_root_requested]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:989 Boundary deadline capped before broker ACK timeout boundary=assessment_root_requested requested=3600.0 effective=1680.0
 PASSED                                                                   [ 20%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[rule_set_preparation_requested] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[rule_set_preparation_requested]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:989 Boundary deadline capped before broker ACK timeout boundary=rule_set_preparation_requested requested=3600.0 effective=1680.0
 PASSED                                                                   [ 21%]
@@ -123,7 +123,7 @@ deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_remote_boundary_d
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_boundary_bindings_are_derived_from_manifest PASSED [ 30%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_invokes_boundary_and_acks PASSED [ 31%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_uses_payload_correlation_id PASSED [ 32%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_nacks_on_dispatch_failure 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_nacks_on_dispatch_failure
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 Traceback (most recent call last):
@@ -136,7 +136,7 @@ Traceback (most recent call last):
     raise RuntimeError("dispatch failed")
 RuntimeError: dispatch failed
 PASSED                                                                   [ 33%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_never_requeues_terminal_boundary_failure 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_never_requeues_terminal_boundary_failure
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 Traceback (most recent call last):
@@ -149,42 +149,42 @@ Traceback (most recent call last):
     raise rabbitmq_consumer.NonRetryableAgentBoundaryError("terminal")
 tools.common.capabilities.agent_runtime.boundary.NonRetryableAgentBoundaryError: terminal
 PASSED                                                                   [ 33%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_root_timeout_journals_failure 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_root_timeout_journals_failure
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=rule_set_preparation_requested routing_key=command.rule-set-preparation.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.1s deadline
 PASSED                                                                   [ 34%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_timeout_prevents_indefinite_unacked_slot 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_timeout_prevents_indefinite_unacked_slot
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.assessment.root.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
 PASSED                                                                   [ 35%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.assessment.root.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
 PASSED                                                                   [ 35%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timeout_cancels_queued_dispatch_before_late_claim_or_side_effect 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timeout_cancels_queued_dispatch_before_late_claim_or_side_effect
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.assessment.root.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
 PASSED                                                                   [ 36%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_default_capacity_and_prefetch_match_without_overriding_a_worker_cap PASSED [ 37%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retryable_delivery_failure_republishes_to_retry_queue_without_blocking 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retryable_delivery_failure_republishes_to_retry_queue_without_blocking
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 RuntimeError: retryable
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:839 Agent Runtime boundary retry scheduled boundary=test_boundary routing_key=event.test correlation_id=corr-1 attempt=1 max_attempts=1 delay_seconds=600 exception_type=RuntimeError
 PASSED                                                                   [ 38%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_declares_durable_retry_queue_back_to_original_queue 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_declares_durable_retry_queue_back_to_original_queue
 -------------------------------- live log call ---------------------------------
 INFO     lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:479 Bound Agent Runtime boundary queue=lcsp.agent_runtime.test.test_boundary routing_key=event.same boundary=test_boundary retry_delays=(30,)
 PASSED                                                                   [ 38%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_uses_bounded_fallback_for_empty_retry_schedule 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_uses_bounded_fallback_for_empty_retry_schedule
 -------------------------------- live log call ---------------------------------
 INFO     lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:479 Bound Agent Runtime boundary queue=lcsp.agent_runtime.test.default_boundary routing_key=event.default boundary=default_boundary retry_delays=(2, 2)
 PASSED                                                                   [ 39%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_attempt_header_increments_and_exhaustion_stops_requeue 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_attempt_header_increments_and_exhaustion_stops_requeue
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 RuntimeError: retryable
@@ -193,29 +193,29 @@ ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Run
 RuntimeError: retryable
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:864 Agent Runtime boundary retry exhausted boundary=test_boundary routing_key=event.test correlation_id=None attempt=2 max_attempts=2 exception_type=RuntimeError
 PASSED                                                                   [ 40%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_publish_not_confirmed_keeps_original_delivery_requeued 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_publish_not_confirmed_keeps_original_delivery_requeued
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 RuntimeError: retryable
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:839 Agent Runtime boundary retry scheduled boundary=test_boundary routing_key=event.test correlation_id=corr-4 attempt=1 max_attempts=1 delay_seconds=30 exception_type=RuntimeError
 PASSED                                                                   [ 40%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_a_closed_channel 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_a_closed_channel
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:806 RabbitMQ channel closed before delivery settlement boundary=test_boundary routing_key=event.test
 PASSED                                                                   [ 41%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_after_ack_loses_connection 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_after_ack_loses_connection
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:894 RabbitMQ channel closed while settling delivery boundary=test_boundary routing_key=event.test
 PASSED                                                                   [ 42%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_decode_message_rejects_non_object_payload PASSED [ 42%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_wait_for_api_ready_retries_until_health_ok PASSED [ 43%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_wait_for_api_ready_times_out_before_consuming PASSED [ 44%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 TypeError: invalid schema type
 PASSED                                                                   [ 45%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[True] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[True]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 TypeError: invalid schema type
@@ -224,29 +224,29 @@ The above exception was the direct cause of the following exception:
 
 RuntimeError: dispatch failed
 PASSED                                                                   [ 45%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[409-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[409-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: ASSESSMENT_HUMAN_REQUEST_INVALID: Callback failed with client error 409.
 PASSED                                                                   [ 46%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[404-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[404-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: ASSESSMENT_HUMAN_REQUEST_INVALID: Callback failed with client error 409.
 PASSED                                                                   [ 47%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[422-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[422-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: ASSESSMENT_HUMAN_REQUEST_INVALID: Callback failed with client error 409.
 PASSED                                                                   [ 47%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[None-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[None-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: Callback failed after 3 attempts with server error 503.
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:864 Agent Runtime boundary retry exhausted boundary=test_boundary routing_key=command.test correlation_id=None attempt=0 max_attempts=0 exception_type=WorkerCallbackError
 PASSED                                                                   [ 48%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_a_malformed_api_response_is_not_mistaken_for_a_rejection PASSED [ 49%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[401] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[401]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 google.genai.errors.ClientError: 401 None. {'error': {'code': 401, 'message': 'rejected'}}
@@ -255,7 +255,7 @@ The above exception was the direct cause of the following exception:
 
 langchain_google_genai.chat_models.GoogleAuthenticationError: credential rejected
 PASSED                                                                   [ 50%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[403] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[403]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 google.genai.errors.ClientError: 403 None. {'error': {'code': 403, 'message': 'rejected'}}
@@ -319,27 +319,27 @@ deepagents/tests/test_paid_admission.py::test_every_configured_route_uses_single
 deepagents/tests/test_paid_admission.py::test_every_configured_route_uses_single_attempt_and_native_output_cap[fallback1] PASSED [ 88%]
 deepagents/tests/test_paid_admission.py::test_every_configured_route_uses_single_attempt_and_native_output_cap[fallback-02_1] PASSED [ 88%]
 deepagents/tests/test_paid_admission.py::test_openai_gateway_normalization_counts_cache_buckets_once PASSED [ 89%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-primary] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-primary]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1025 HTTP Request: POST https://api.miraiapi.com/v1/messages "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 90%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1025 HTTP Request: POST https://api.inceptionlabs.ai/v1/chat/completions "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 90%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback-01] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback-01]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1025 HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 91%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-primary] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-primary]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST https://api.miraiapi.com/v1/messages "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 92%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST https://api.inceptionlabs.ai/v1/chat/completions "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 92%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback-01] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback-01]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 93%]

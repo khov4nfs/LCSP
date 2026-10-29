@@ -9,13 +9,13 @@
     },
     {
       "path": "ci-api-3f0335f.log",
-      "bytes": 26256,
-      "sha256": "58c8b6aca3f5e7a95ed525c02b06489005b3a2987d858fbacb643fe813299586"
+      "bytes": 26237,
+      "sha256": "1ff62bb853af8d689b38cd25f9ae1ed6fb195aca4e8bbab9075af9b9452b4d3c"
     },
     {
       "path": "ci-vertical-actual-3f0335f.log",
-      "bytes": 96922,
-      "sha256": "ce86628bb3c4b796dedd8b39ea86e7fae2ee385cfa6a5ab8fecad3893e8737a1"
+      "bytes": 96875,
+      "sha256": "30e87e70f74f7d2ca3c1e6157c6c05d115ce3d821f7e25fa73dcad109da18e5e"
     },
     {
       "path": "credential-index-isolated.log",
@@ -74,8 +74,8 @@
     },
     {
       "path": "recovery-broker-admission-tests.log",
-      "bytes": 46511,
-      "sha256": "125cd64b4f511f581f18c5e49f4b87d308146ca299e0e05ac7bdf3503936d7fc"
+      "bytes": 46476,
+      "sha256": "924a62276625efaf3d3cc5d822069717907d863b05cbb411511c295e9ddd9491"
     },
     {
       "path": "recovery-browser-refresh-isolation.json",
@@ -194,8 +194,8 @@
     },
     {
       "path": "recovery-python-clean.log",
-      "bytes": 341670,
-      "sha256": "5307c87b4bf176766ceed2a5575da4ca8a72e96427f6c9d47842007cceeaed4e"
+      "bytes": 341556,
+      "sha256": "1123582e87b1920d2b3ac4c84cf62fa7efaf6e651ec785f9b754e101c1109856"
     },
     {
       "path": "recovery-queue-and-first-progress.json",
@@ -302,5 +302,6 @@
       "bytes": 11697,
       "sha256": "8fb28b8b66362b6e51ef2c1702f00d219de71d854e116135f6b978d219510870"
     }
-  ]
+  ],
+  "normalization": "Terminal logs have ANSI/credential redaction and trailing whitespace normalization; commands, results, timestamps and failures are preserved."
 }

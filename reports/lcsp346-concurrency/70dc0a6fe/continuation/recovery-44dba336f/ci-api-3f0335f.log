@@ -102,22 +102,22 @@
 2026-10-29T07:11:53.8646934Z ##[group]Checking out the ref
 2026-10-29T07:11:53.8651272Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/440/merge
 2026-10-29T07:11:54.0784087Z Note: switching to 'refs/remotes/pull/440/merge'.
-2026-10-29T07:11:54.0784778Z 
+2026-10-29T07:11:54.0784778Z
 2026-10-29T07:11:54.0785212Z You are in 'detached HEAD' state. You can look around, make experimental
 2026-10-29T07:11:54.0786233Z changes and commit them, and you can discard any commits you make in this
 2026-10-29T07:11:54.0787129Z state without impacting any branches by switching back to a branch.
-2026-10-29T07:11:54.0787677Z 
+2026-10-29T07:11:54.0787677Z
 2026-10-29T07:11:54.0788052Z If you want to create a new branch to retain commits you create, you may
 2026-10-29T07:11:54.0788855Z do so (now or later) by using -c with the switch command. Example:
-2026-10-29T07:11:54.0789800Z 
+2026-10-29T07:11:54.0789800Z
 2026-10-29T07:11:54.0790017Z   git switch -c <new-branch-name>
-2026-10-29T07:11:54.0790357Z 
+2026-10-29T07:11:54.0790357Z
 2026-10-29T07:11:54.0790587Z Or undo this operation with:
-2026-10-29T07:11:54.0790905Z 
+2026-10-29T07:11:54.0790905Z
 2026-10-29T07:11:54.0791100Z   git switch -
-2026-10-29T07:11:54.0791386Z 
+2026-10-29T07:11:54.0791386Z
 2026-10-29T07:11:54.0792224Z Turn off this advice by setting config variable advice.detachedHead to false
-2026-10-29T07:11:54.0792845Z 
+2026-10-29T07:11:54.0792845Z
 2026-10-29T07:11:54.0793457Z HEAD is now at 71a6d3d Merge 3f0335f99298cd486dfc58a076aeea095b5f3c0d into 70ddc3c086678edabb6b7a9f6627685841afbafb
 2026-10-29T07:11:54.0802388Z ##[endgroup]
 2026-10-29T07:11:54.0854441Z [command]/usr/bin/git log -1 --format=%H
@@ -142,10 +142,10 @@
 2026-10-29T07:11:55.9532558Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall: Done
 2026-10-29T07:11:55.9538026Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall$ node install.js
 2026-10-29T07:11:56.0059258Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall: Done
-2026-10-29T07:11:57.1226466Z 
+2026-10-29T07:11:57.1226466Z
 2026-10-29T07:11:57.1227004Z dependencies:
 2026-10-29T07:11:57.1227486Z + pnpm 12.3.4 (12.16.1 is available)
-2026-10-29T07:11:57.1227836Z 
+2026-10-29T07:11:57.1227836Z
 2026-10-29T07:11:57.1252900Z Done in 2.6s
 2026-10-29T07:11:57.1945443Z ##[endgroup]
 2026-10-29T07:11:57.1946115Z Installation Completed!
@@ -196,7 +196,7 @@
 2026-10-29T07:12:11.7915946Z Progress: resolved 1175, reused 1175, downloaded 0, added 1175, done
 2026-10-29T07:12:12.0715059Z . prepare$ husky
 2026-10-29T07:12:12.1673139Z . prepare: Done
-2026-10-29T07:12:12.1693760Z 
+2026-10-29T07:12:12.1693760Z
 2026-10-29T07:12:12.1694223Z devDependencies:
 2026-10-29T07:12:12.1694913Z + @lcsp/contracts link:packages/contracts
 2026-10-29T07:12:12.1695545Z + @lcsp/i18n link:packages/i18n
@@ -211,7 +211,7 @@
 2026-10-29T07:12:12.1699453Z + prettier 3.9.4
 2026-10-29T07:12:12.1699859Z + tsx 4.23.1
 2026-10-29T07:12:12.1700317Z + typescript 5.9.3
-2026-10-29T07:12:12.1700560Z 
+2026-10-29T07:12:12.1700560Z
 2026-10-29T07:12:12.1735899Z Done in 7.8s using pnpm v12.3.4
 2026-10-29T07:12:12.2678048Z ##[group]Run pnpm run check:branch
 2026-10-29T07:12:12.2678413Z pnpm run check:branch
@@ -247,14 +247,14 @@
 2026-10-29T07:12:22.9331194Z ##[endgroup]
 2026-10-29T07:12:22.9649469Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
 2026-10-29T07:12:24.0738489Z Loaded Prisma config from prisma.config.ts.
-2026-10-29T07:12:24.0739196Z 
+2026-10-29T07:12:24.0739196Z
 2026-10-29T07:12:24.1573409Z Prisma schema loaded from prisma/schema.prisma.
-2026-10-29T07:12:25.3599587Z 
+2026-10-29T07:12:25.3599587Z
 2026-10-29T07:12:25.3602138Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 738ms
-2026-10-29T07:12:25.3603322Z 
+2026-10-29T07:12:25.3603322Z
 2026-10-29T07:12:25.3603949Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
-2026-10-29T07:12:25.3604518Z 
-2026-10-29T07:12:25.3604528Z 
+2026-10-29T07:12:25.3604518Z
+2026-10-29T07:12:25.3604528Z
 2026-10-29T07:12:25.4101401Z ##[group]Run files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
 2026-10-29T07:12:25.4104961Z files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
 2026-10-29T07:12:25.4106597Z if [ -n "$files" ]; then
@@ -267,7 +267,7 @@
 2026-10-29T07:12:25.4155846Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
 2026-10-29T07:12:25.4161498Z   CHANGED_API_FILES: apps/api/src/modules/assessment/application/commands/submit-rule-decision/submit-rule-decision.handler.ts apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts apps/api/src/modules/assessment/domain/decision-validator.ts apps/api/src/modules/assessment/domain/operational-applicability.spec.ts apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.spec.ts apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts apps/api/src/modules/billing/application/shared/billing-usage.kernel.spec.ts apps/api/test/support/validate-operational-probe.ts packages/contracts/src/assessment/agentic-runtime.ts packages/contracts/src/billing/official-reference-pricing.ts
 2026-10-29T07:12:25.4167461Z ##[endgroup]
-2026-10-29T07:12:32.2167466Z 
+2026-10-29T07:12:32.2167466Z
 2026-10-29T07:12:32.2168352Z /home/runner/work/LCSP/LCSP/apps/api/test/support/validate-operational-probe.ts
 2026-10-29T07:12:32.2198181Z ##[error]   5:7   error    Unsafe assignment of an `any` value                                                                                       @typescript-eslint/no-unsafe-assignment
 2026-10-29T07:12:32.2207920Z ##[error]   6:49  error    Unsafe member access .decision on an `any` value                                                                          @typescript-eslint/no-unsafe-member-access
@@ -286,9 +286,9 @@
 2026-10-29T07:12:32.2235993Z ##[warning]  16:21  warning  Unsafe argument of type `any` assigned to a parameter of type `Iterable<readonly [unknown, unknown]> | null | undefined`  @typescript-eslint/no-unsafe-argument
 2026-10-29T07:12:32.2237935Z ##[error]  16:27  error    Unsafe member access .context on an `any` value                                                                           @typescript-eslint/no-unsafe-member-access
 2026-10-29T07:12:32.2239926Z ##[warning]  18:68  warning  Unsafe argument of type `any` assigned to a parameter of type `DecisionValidationContext`                                 @typescript-eslint/no-unsafe-argument
-2026-10-29T07:12:32.2241003Z 
+2026-10-29T07:12:32.2241003Z
 2026-10-29T07:12:32.2241409Z ✖ 17 problems (11 errors, 6 warnings)
-2026-10-29T07:12:32.2241624Z 
+2026-10-29T07:12:32.2241624Z
 2026-10-29T07:12:32.3191180Z ##[error]Process completed with exit code 1.
 2026-10-29T07:12:32.3291191Z Post job cleanup.
 2026-10-29T07:12:32.4880805Z Pruning is unnecessary.

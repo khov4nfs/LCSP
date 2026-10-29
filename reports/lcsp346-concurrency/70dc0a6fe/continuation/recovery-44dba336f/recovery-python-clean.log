@@ -28,7 +28,7 @@ deepagents/tests/test_agent_run_budget.py::test_under_budget_request_is_unchange
 deepagents/tests/test_agent_run_budget.py::test_after_finalize_threshold_tools_are_withdrawn_and_answer_is_requested PASSED [  1%]
 deepagents/tests/test_agent_run_budget.py::test_hard_limit_is_terminal_and_never_retried PASSED [  1%]
 deepagents/tests/test_agent_run_budget.py::test_after_model_counts_calls_for_this_run PASSED [  1%]
-deepagents/tests/test_agent_run_budget.py::test_context_budget_trims_old_tool_results_and_keeps_the_newest 
+deepagents/tests/test_agent_run_budget.py::test_context_budget_trims_old_tool_results_and_keeps_the_newest
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=context_budget_tokens,estimated_input_tokens_after,estimated_input_tokens_before
 PASSED                                                                   [  1%]
@@ -46,11 +46,11 @@ deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_production_localh
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_production_localhost_preserves_server_owned_run_recovery[NODE_ENV] PASSED [  2%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_dev_reconciliation_and_explicit_override_remain_enabled[False-None] PASSED [  2%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_dev_reconciliation_and_explicit_override_remain_enabled[True-true] PASSED [  2%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[assessment_root_requested] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[assessment_root_requested]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:989 Boundary deadline capped before broker ACK timeout boundary=assessment_root_requested requested=3600.0 effective=1680.0
 PASSED                                                                   [  2%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[rule_set_preparation_requested] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configured_boundary_deadline_leaves_broker_settlement_margin[rule_set_preparation_requested]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:989 Boundary deadline capped before broker ACK timeout boundary=rule_set_preparation_requested requested=3600.0 effective=1680.0
 PASSED                                                                   [  2%]
@@ -70,7 +70,7 @@ deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_remote_boundary_d
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_boundary_bindings_are_derived_from_manifest PASSED [  2%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_invokes_boundary_and_acks PASSED [  3%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_uses_payload_correlation_id PASSED [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_nacks_on_dispatch_failure 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_nacks_on_dispatch_failure
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 Traceback (most recent call last):
@@ -83,7 +83,7 @@ Traceback (most recent call last):
     raise RuntimeError("dispatch failed")
 RuntimeError: dispatch failed
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_never_requeues_terminal_boundary_failure 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_handler_never_requeues_terminal_boundary_failure
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 Traceback (most recent call last):
@@ -96,42 +96,42 @@ Traceback (most recent call last):
     raise rabbitmq_consumer.NonRetryableAgentBoundaryError("terminal")
 tools.common.capabilities.agent_runtime.boundary.NonRetryableAgentBoundaryError: terminal
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_root_timeout_journals_failure 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_root_timeout_journals_failure
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=rule_set_preparation_requested routing_key=command.rule-set-preparation.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.1s deadline
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_timeout_prevents_indefinite_unacked_slot 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_timeout_prevents_indefinite_unacked_slot
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.assessment.root.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.assessment.root.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timeout_cancels_queued_dispatch_before_late_claim_or_side_effect 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_timeout_cancels_queued_dispatch_before_late_claim_or_side_effect
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.assessment.root.requested.v2
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
 PASSED                                                                   [  3%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_default_capacity_and_prefetch_match_without_overriding_a_worker_cap PASSED [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retryable_delivery_failure_republishes_to_retry_queue_without_blocking 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retryable_delivery_failure_republishes_to_retry_queue_without_blocking
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 RuntimeError: retryable
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:839 Agent Runtime boundary retry scheduled boundary=test_boundary routing_key=event.test correlation_id=corr-1 attempt=1 max_attempts=1 delay_seconds=600 exception_type=RuntimeError
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_declares_durable_retry_queue_back_to_original_queue 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_declares_durable_retry_queue_back_to_original_queue
 -------------------------------- live log call ---------------------------------
 INFO     lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:479 Bound Agent Runtime boundary queue=lcsp.agent_runtime.test.test_boundary routing_key=event.same boundary=test_boundary retry_delays=(30,)
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_uses_bounded_fallback_for_empty_retry_schedule 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_configure_channel_uses_bounded_fallback_for_empty_retry_schedule
 -------------------------------- live log call ---------------------------------
 INFO     lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:479 Bound Agent Runtime boundary queue=lcsp.agent_runtime.test.default_boundary routing_key=event.default boundary=default_boundary retry_delays=(2, 2)
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_attempt_header_increments_and_exhaustion_stops_requeue 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_attempt_header_increments_and_exhaustion_stops_requeue
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 RuntimeError: retryable
@@ -140,29 +140,29 @@ ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Run
 RuntimeError: retryable
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:864 Agent Runtime boundary retry exhausted boundary=test_boundary routing_key=event.test correlation_id=None attempt=2 max_attempts=2 exception_type=RuntimeError
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_publish_not_confirmed_keeps_original_delivery_requeued 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_retry_publish_not_confirmed_keeps_original_delivery_requeued
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 RuntimeError: retryable
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:839 Agent Runtime boundary retry scheduled boundary=test_boundary routing_key=event.test correlation_id=corr-4 attempt=1 max_attempts=1 delay_seconds=30 exception_type=RuntimeError
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_a_closed_channel 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_a_closed_channel
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:806 RabbitMQ channel closed before delivery settlement boundary=test_boundary routing_key=event.test
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_after_ack_loses_connection 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_delivery_settlement_does_not_nack_after_ack_loses_connection
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:894 RabbitMQ channel closed while settling delivery boundary=test_boundary routing_key=event.test
 PASSED                                                                   [  3%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_decode_message_rejects_non_object_payload PASSED [  3%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_wait_for_api_ready_retries_until_health_ok PASSED [  3%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_wait_for_api_ready_times_out_before_consuming PASSED [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 TypeError: invalid schema type
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[True] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_schema_type_failure_is_not_requeued[True]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=event.test
 TypeError: invalid schema type
@@ -171,29 +171,29 @@ The above exception was the direct cause of the following exception:
 
 RuntimeError: dispatch failed
 PASSED                                                                   [  3%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[409-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[409-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: ASSESSMENT_HUMAN_REQUEST_INVALID: Callback failed with client error 409.
 PASSED                                                                   [  4%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[404-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[404-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: ASSESSMENT_HUMAN_REQUEST_INVALID: Callback failed with client error 409.
 PASSED                                                                   [  4%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[422-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[422-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: ASSESSMENT_HUMAN_REQUEST_INVALID: Callback failed with client error 409.
 PASSED                                                                   [  4%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[None-False] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_rejected_api_callback_is_not_requeued[None-False]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 tools.common.capabilities.platform.api_client.WorkerCallbackError: Callback failed after 3 attempts with server error 503.
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:864 Agent Runtime boundary retry exhausted boundary=test_boundary routing_key=command.test correlation_id=None attempt=0 max_attempts=0 exception_type=WorkerCallbackError
 PASSED                                                                   [  4%]
 deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_a_malformed_api_response_is_not_mistaken_for_a_rejection PASSED [  4%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[401] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[401]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 google.genai.errors.ClientError: 401 None. {'error': {'code': 401, 'message': 'rejected'}}
@@ -202,7 +202,7 @@ The above exception was the direct cause of the following exception:
 
 langchain_google_genai.chat_models.GoogleAuthenticationError: credential rejected
 PASSED                                                                   [  4%]
-deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[403] 
+deepagents/tests/test_agent_runtime_rabbitmq_consumer.py::test_typed_auth_failure_escaping_every_route_is_not_requeued[403]
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=test_boundary routing_key=command.test
 google.genai.errors.ClientError: 403 None. {'error': {'code': 403, 'message': 'rejected'}}
@@ -253,7 +253,7 @@ deepagents/tests/test_anthropic_stream_usage.py::test_normalized_anthropic_usage
 deepagents/tests/test_api_client.py::test_t01_successful_callback PASSED [  6%]
 deepagents/tests/test_api_client.py::test_t02_5xx_response PASSED        [  6%]
 deepagents/tests/test_api_client.py::test_post_settled_usage_sends_provider_reported_fields_without_reservation PASSED [  6%]
-deepagents/tests/test_api_client.py::test_post_settled_usage_preserves_every_reported_token_bucket_on_wire 
+deepagents/tests/test_api_client.py::test_post_settled_usage_preserves_every_reported_token_bucket_on_wire
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=authToken,cache_token
 PASSED                                                                   [  6%]
@@ -291,15 +291,15 @@ deepagents/tests/test_api_client.py::test_get_official_source_snapshot_uses_quer
 deepagents/tests/test_apply_vbpl_effect_observations.py::test_applies_effect_observations_and_propagates_repealed_descendants PASSED [  8%]
 deepagents/tests/test_assessment_concurrency.py::test_delivery_overlap_capacity_backpressure_and_out_of_order_settlement[1] PASSED [  8%]
 deepagents/tests/test_assessment_concurrency.py::test_delivery_overlap_capacity_backpressure_and_out_of_order_settlement[2] PASSED [  8%]
-deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[True] 
+deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[True]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:701 RabbitMQ connection closed before delivery settlement boundary=assessment_root_requested routing_key=command.root
 PASSED                                                                   [  8%]
-deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[False] 
+deepagents/tests/test_assessment_concurrency.py::test_reconnect_and_reused_delivery_tag_cannot_cross_settle_or_grow_work[False]
 -------------------------------- live log call ---------------------------------
 WARNING  lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:701 RabbitMQ connection closed before delivery settlement boundary=assessment_root_requested routing_key=command.root
 PASSED                                                                   [  8%]
-deepagents/tests/test_assessment_concurrency.py::test_timeout_does_not_free_a_still_executing_worker_or_double_settle 
+deepagents/tests/test_assessment_concurrency.py::test_timeout_does_not_free_a_still_executing_worker_or_double_settle
 -------------------------------- live log call ---------------------------------
 ERROR    lcsp.agent_runtime.rabbitmq_consumer:rabbitmq_consumer.py:822 Agent Runtime boundary dispatch failed boundary=assessment_root_requested routing_key=command.root
 tools.common.capabilities.agent_runtime.rabbitmq_consumer.BoundaryExecutionTimeout: Agent Runtime boundary exceeded 0.0s deadline
@@ -325,7 +325,7 @@ deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_real_broker_credi
 deepagents/tests/test_assessment_concurrency_rabbitmq.py::test_sigterm_recovers_unacknowledged_delivery_on_the_real_broker SKIPPED [  9%]
 deepagents/tests/test_assessment_erasure.py::test_checkpoint_namespace_private_logs_and_runtime_state_erased_idempotently PASSED [  9%]
 deepagents/tests/test_assessment_erasure.py::test_running_execution_drains_before_erasure_and_pending_execution_is_cancelled PASSED [  9%]
-deepagents/tests/test_assessment_erasure.py::test_erasure_http_auth_schema_and_revoked_access 
+deepagents/tests/test_assessment_erasure.py::test_erasure_http_auth_schema_and_revoked_access
 -------------------------------- live log call ---------------------------------
 INFO     httpx2:_client.py:1085 HTTP Request: POST http://testserver/internal/assessment-erasure "HTTP/1.1 403 Forbidden"
 INFO     httpx2:_client.py:1085 HTTP Request: POST http://testserver/internal/assessment-erasure "HTTP/1.1 400 Bad Request"
@@ -448,7 +448,7 @@ deepagents/tests/test_authoring_memory.py::test_early_page_claim_is_still_availa
 deepagents/tests/test_authoring_memory.py::test_real_middleware_replay_reaches_authoring_without_a_reread_loop PASSED [ 14%]
 deepagents/tests/test_authoring_memory.py::test_full_scripted_convergence_through_the_real_middleware PASSED [ 14%]
 deepagents/tests/test_authoring_memory.py::test_an_unresolved_rejection_is_retained_until_a_corrected_call_succeeds PASSED [ 14%]
-deepagents/tests/test_authoring_recovery.py::test_a_model_that_keeps_making_mistakes_still_reaches_a_validated_submission 
+deepagents/tests/test_authoring_recovery.py::test_a_model_that_keeps_making_mistakes_still_reaches_a_validated_submission
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -539,7 +539,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_an_unresolved_rejection_outlives_history_compaction_and_the_correction_still_succeeds 
+deepagents/tests/test_authoring_recovery.py::test_an_unresolved_rejection_outlives_history_compaction_and_the_correction_still_succeeds
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -554,7 +554,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_an_unresolved_rejection_survives_a_rebuilt_agent_graph_a_summarized_transcript_and_a_provider_retry 
+deepagents/tests/test_authoring_recovery.py::test_an_unresolved_rejection_survives_a_rebuilt_agent_graph_a_summarized_transcript_and_a_provider_retry
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -563,7 +563,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
 deepagents/tests/test_authoring_recovery.py::test_the_preparation_graph_is_claim_once_so_an_agent_process_restart_has_no_checkpoint_to_resume PASSED [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_path_a_recovery_never_terminates_even_when_each_attempt_fixes_a_different_missing_argument 
+deepagents/tests/test_authoring_recovery.py::test_path_a_recovery_never_terminates_even_when_each_attempt_fixes_a_different_missing_argument
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -573,7 +573,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_path_b_the_same_invalid_call_repeated_with_an_unchanged_draft_is_stagnation 
+deepagents/tests/test_authoring_recovery.py::test_path_b_the_same_invalid_call_repeated_with_an_unchanged_draft_is_stagnation
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -584,7 +584,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_path_b_also_applies_to_a_repeated_call_to_a_tool_that_does_not_exist 
+deepagents/tests/test_authoring_recovery.py::test_path_b_also_applies_to_a_repeated_call_to_a_tool_that_does_not_exist
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
@@ -595,7 +595,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_feedback_for_an_identical_invalid_call_is_identical_every_time 
+deepagents/tests/test_authoring_recovery.py::test_feedback_for_an_identical_invalid_call_is_identical_every_time
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -604,7 +604,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_events_are_ordered_by_sequence_and_the_requirement_count_only_falls_through_an_explicit_removal 
+deepagents/tests/test_authoring_recovery.py::test_events_are_ordered_by_sequence_and_the_requirement_count_only_falls_through_an_explicit_removal
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -617,7 +617,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_recovery.py::test_the_model_always_sees_which_requirements_still_need_an_assessment_rule 
+deepagents/tests/test_authoring_recovery.py::test_the_model_always_sees_which_requirements_still_need_an_assessment_rule
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -634,7 +634,7 @@ deepagents/tests/test_authoring_rejection_envelope.py::test_field_paths_name_the
 deepagents/tests/test_authoring_rejection_envelope.py::test_the_envelope_is_complete_and_states_whether_the_draft_moved PASSED [ 15%]
 deepagents/tests/test_authoring_rejection_envelope.py::test_the_draft_fingerprint_moves_only_when_a_candidate_changes PASSED [ 15%]
 deepagents/tests/test_authoring_rejection_envelope.py::test_authoring_tool_contracts_reject_unknown_arguments_and_bind_identity PASSED [ 15%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[A-missing-required-argument] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[A-missing-required-argument]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -642,7 +642,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[B-wrong-type-list-as-string] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[B-wrong-type-list-as-string]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -650,7 +650,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 15%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[N-nested-list-shape] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[N-nested-list-shape]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -658,7 +658,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[unknown-argument] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[unknown-argument]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -666,7 +666,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[M-externally-supplied-inventory-revision] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[M-externally-supplied-inventory-revision]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -674,7 +674,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[duplicate-ids-in-list] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[duplicate-ids-in-list]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -682,7 +682,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[empty-text] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[empty-text]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -690,7 +690,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[I-no-operative-proposition] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[I-no-operative-proposition]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -698,7 +698,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[C-empty-applicability-list] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[C-empty-applicability-list]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -706,7 +706,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[D-unknown-claim-id] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[D-unknown-claim-id]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -714,7 +714,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[E-scope-in-qualifier-field] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[E-scope-in-qualifier-field]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -722,7 +722,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[F-context-as-operative] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[F-context-as-operative]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -730,7 +730,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[G-definition-as-applicability] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[G-definition-as-applicability]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -738,7 +738,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[H-scope-as-qualifier] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[H-scope-as-qualifier]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -746,7 +746,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[non-relevant-claim] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[non-relevant-claim]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -754,7 +754,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-missing-argument] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-missing-argument]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -763,7 +763,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-wrong-type] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-wrong-type]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -772,7 +772,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-empty-parent-list] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-empty-parent-list]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -781,7 +781,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-nested-list] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[assessment-nested-list]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -790,7 +790,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[J-unknown-parent-requirement] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[J-unknown-parent-requirement]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -799,7 +799,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[K-parent-is-non-assessable] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[K-parent-is-non-assessable]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -809,7 +809,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[O-invalid-enum] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[O-invalid-enum]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -818,7 +818,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[remove-missing-reason] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[remove-missing-reason]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -827,67 +827,67 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 16%]
-deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[remove-unknown-candidate] 
+deepagents/tests/test_authoring_tool_contract.py::test_reject_feedback_correct_progress[remove-unknown-candidate]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_unknown_tool_name_is_recorded_explained_and_resolved_by_the_next_valid_call 
--------------------------------- live log call ---------------------------------
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_unparseable_arguments_are_recorded_explained_and_resolved_by_the_next_valid_call_of_that_tool 
--------------------------------- live log call ---------------------------------
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_L_duplicate_mutation_is_idempotent_and_leaves_no_trace_in_the_draft_or_the_rejection_state 
--------------------------------- live log call ---------------------------------
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_a_requirement_without_binding_ids_takes_them_from_the_verified_closure 
--------------------------------- live log call ---------------------------------
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_incompatible_anchors_are_read_one_by_one_instead_of_rejected 
--------------------------------- live log call ---------------------------------
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_a_closure_read_of_an_unknown_or_non_operative_id_names_it_and_offers_real_anchors 
--------------------------------- live log call ---------------------------------
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
-INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_a_candidate_saved_with_stray_whitespace_is_removable_by_its_visible_id 
+deepagents/tests/test_authoring_tool_contract.py::test_unknown_tool_name_is_recorded_explained_and_resolved_by_the_next_valid_call
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+PASSED                                                                   [ 17%]
+deepagents/tests/test_authoring_tool_contract.py::test_unparseable_arguments_are_recorded_explained_and_resolved_by_the_next_valid_call_of_that_tool
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+PASSED                                                                   [ 17%]
+deepagents/tests/test_authoring_tool_contract.py::test_L_duplicate_mutation_is_idempotent_and_leaves_no_trace_in_the_draft_or_the_rejection_state
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_one_operative_claim_anchors_one_requirement 
+deepagents/tests/test_authoring_tool_contract.py::test_a_requirement_without_binding_ids_takes_them_from_the_verified_closure
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+PASSED                                                                   [ 17%]
+deepagents/tests/test_authoring_tool_contract.py::test_incompatible_anchors_are_read_one_by_one_instead_of_rejected
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+PASSED                                                                   [ 17%]
+deepagents/tests/test_authoring_tool_contract.py::test_a_closure_read_of_an_unknown_or_non_operative_id_names_it_and_offers_real_anchors
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+PASSED                                                                   [ 17%]
+deepagents/tests/test_authoring_tool_contract.py::test_a_candidate_saved_with_stray_whitespace_is_removable_by_its_visible_id
+-------------------------------- live log call ---------------------------------
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
+PASSED                                                                   [ 17%]
+deepagents/tests/test_authoring_tool_contract.py::test_one_operative_claim_anchors_one_requirement
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey,requirement_key
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 17%]
-deepagents/tests/test_authoring_tool_contract.py::test_native_argument_error_is_repaired_without_terminating_preparation 
+deepagents/tests/test_authoring_tool_contract.py::test_native_argument_error_is_repaired_without_terminating_preparation
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
@@ -917,7 +917,7 @@ deepagents/tests/test_authoring_working_set.py::test_compaction_never_drops_stat
 deepagents/tests/test_authoring_working_set.py::test_compaction_keeps_the_view_bounded_however_long_the_run PASSED [ 18%]
 deepagents/tests/test_authoring_working_set.py::test_restart_after_navigation_needs_no_reread_to_author_the_first_requirement PASSED [ 18%]
 deepagents/tests/test_authoring_working_set.py::test_context_size_is_bounded_and_the_whole_run_costs_less_than_before PASSED [ 18%]
-deepagents/tests/test_authoring_working_set.py::test_authoring_context_telemetry_is_emitted_on_change_without_source_text 
+deepagents/tests/test_authoring_working_set.py::test_authoring_context_telemetry_is_emitted_on_change_without_source_text
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -1283,7 +1283,7 @@ deepagents/tests/test_local_agent_runtime_cancel_resume.py::test_list_runs_retur
 deepagents/tests/test_local_agent_runtime_cancel_resume.py::test_cancel_run_sets_cancel_event_when_run_already_started PASSED [ 35%]
 deepagents/tests/test_local_agent_runtime_cancel_resume.py::test_cancel_run_marks_not_yet_started_run_interrupted_immediately PASSED [ 36%]
 deepagents/tests/test_local_agent_runtime_cancel_resume.py::test_execute_run_end_to_end_marks_interrupted_status_after_cancel PASSED [ 36%]
-deepagents/tests/test_local_agent_runtime_http_cancel_resume.py::test_cancel_mid_stream_then_resume_over_real_http 
+deepagents/tests/test_local_agent_runtime_http_cancel_resume.py::test_cancel_mid_stream_then_resume_over_real_http
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/threads/thread-http-check-1/runs "HTTP/1.1 200 OK"
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/threads/thread-http-check-1/runs/8f603a3b-e3dd-4572-ae01-a12b71be8fa5/cancel "HTTP/1.1 200 OK"
@@ -1313,7 +1313,7 @@ deepagents/tests/test_managed_document_ingest.py::TestExtraction::test_scanned_p
 deepagents/tests/test_managed_document_ingest.py::TestExtraction::test_scanned_pdf_ocr_failure_is_not_reported_ready PASSED [ 36%]
 deepagents/tests/test_managed_document_ingest.py::TestExtraction::test_pdf_text_layer_is_read PASSED [ 36%]
 deepagents/tests/test_managed_document_ingest.py::TestExtraction::test_a_pdf_without_a_text_layer_is_reported_not_guessed PASSED [ 36%]
-deepagents/tests/test_managed_document_ingest.py::TestExtraction::test_a_corrupt_pdf_is_an_extraction_failure 
+deepagents/tests/test_managed_document_ingest.py::TestExtraction::test_a_corrupt_pdf_is_an_extraction_failure
 -------------------------------- live log call ---------------------------------
 WARNING  pypdf._reader:_utils.py:542 EOF marker not found
 PASSED                                                                   [ 37%]
@@ -1333,7 +1333,7 @@ deepagents/tests/test_managed_document_ingest.py::TestBoundary::test_a_bad_comma
 deepagents/tests/test_managed_document_ingest.py::TestBoundary::test_a_stale_or_settled_delivery_is_skipped PASSED [ 37%]
 deepagents/tests/test_managed_document_ingest.py::TestBoundary::test_a_server_error_is_left_to_the_queue_to_redeliver PASSED [ 37%]
 deepagents/tests/test_managed_document_ingest.py::TestBoundary::test_a_rejected_request_is_terminal PASSED [ 37%]
-deepagents/tests/test_managed_document_ingest.py::TestBoundary::test_a_document_that_cannot_be_read_is_recorded_as_failed_not_lost 
+deepagents/tests/test_managed_document_ingest.py::TestBoundary::test_a_document_that_cannot_be_read_is_recorded_as_failed_not_lost
 -------------------------------- live log call ---------------------------------
 WARNING  pypdf._reader:_utils.py:542 EOF marker not found
 PASSED                                                                   [ 37%]
@@ -1880,27 +1880,27 @@ deepagents/tests/test_paid_admission.py::test_every_configured_route_uses_single
 deepagents/tests/test_paid_admission.py::test_every_configured_route_uses_single_attempt_and_native_output_cap[fallback1] PASSED [ 64%]
 deepagents/tests/test_paid_admission.py::test_every_configured_route_uses_single_attempt_and_native_output_cap[fallback-02_1] PASSED [ 64%]
 deepagents/tests/test_paid_admission.py::test_openai_gateway_normalization_counts_cache_buckets_once PASSED [ 64%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-primary] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-primary]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1025 HTTP Request: POST https://api.miraiapi.com/v1/messages "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 64%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1025 HTTP Request: POST https://api.inceptionlabs.ai/v1/chat/completions "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 64%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback-01] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[False-fallback-01]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1025 HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 64%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-primary] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-primary]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST https://api.miraiapi.com/v1/messages "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 64%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST https://api.inceptionlabs.ai/v1/chat/completions "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 64%]
-deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback-01] 
+deepagents/tests/test_paid_admission.py::test_native_sdk_error_sends_exactly_one_mock_http_request[True-fallback-01]
 -------------------------------- live log call ---------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 64%]
@@ -2025,7 +2025,7 @@ deepagents/tests/test_provider_schema_compatibility.py::test_gemini_provider_str
 deepagents/tests/test_provider_schema_compatibility.py::test_provider_facing_gemini_schema_does_not_mutate_canonical_schema PASSED [ 70%]
 deepagents/tests/test_provider_schema_compatibility.py::test_gemini_tool_schema_strips_unsupported_additional_properties PASSED [ 70%]
 deepagents/tests/test_provider_schema_compatibility.py::test_serialized_gemini_request_preserves_shared_packet_null_alternatives[False-middleware0] PASSED [ 70%]
-deepagents/tests/test_provider_schema_compatibility.py::test_serialized_gemini_request_preserves_shared_packet_null_alternatives[False-middleware1] 
+deepagents/tests/test_provider_schema_compatibility.py::test_serialized_gemini_request_preserves_shared_packet_null_alternatives[False-middleware1]
 -------------------------------- live log call ---------------------------------
 WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'additionalProperties' is not supported in schema, ignoring
 WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'additionalProperties' is not supported in schema, ignoring
@@ -2035,7 +2035,7 @@ WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'addi
 WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'additionalProperties' is not supported in schema, ignoring
 PASSED                                                                   [ 70%]
 deepagents/tests/test_provider_schema_compatibility.py::test_serialized_gemini_request_preserves_shared_packet_null_alternatives[True-middleware0] PASSED [ 70%]
-deepagents/tests/test_provider_schema_compatibility.py::test_serialized_gemini_request_preserves_shared_packet_null_alternatives[True-middleware1] 
+deepagents/tests/test_provider_schema_compatibility.py::test_serialized_gemini_request_preserves_shared_packet_null_alternatives[True-middleware1]
 -------------------------------- live log call ---------------------------------
 WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'additionalProperties' is not supported in schema, ignoring
 WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'additionalProperties' is not supported in schema, ignoring
@@ -2054,11 +2054,11 @@ deepagents/tests/test_rbac_client.py::test_check_reads_allow_decision_from_api_r
 deepagents/tests/test_rbac_client.py::test_check_denies_missing_or_non_allow_decision PASSED [ 71%]
 deepagents/tests/test_recorded_preparation_recovery.py::test_frontier_rehydrates_committed_evidence_and_counts_without_inference[1] PASSED [ 71%]
 deepagents/tests/test_recorded_preparation_recovery.py::test_frontier_rehydrates_committed_evidence_and_counts_without_inference[5] PASSED [ 71%]
-deepagents/tests/test_redaction.py::test_t01_dict_with_password_key_is_stripped 
+deepagents/tests/test_redaction.py::test_t01_dict_with_password_key_is_stripped
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=password
 PASSED                                                                   [ 71%]
-deepagents/tests/test_redaction.py::test_t02_nested_api_key_is_stripped_at_all_levels 
+deepagents/tests/test_redaction.py::test_t02_nested_api_key_is_stripped_at_all_levels
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=api_key
 PASSED                                                                   [ 71%]
@@ -2069,12 +2069,12 @@ deepagents/tests/test_redaction.py::test_t05_deeply_nested_dict_stops_at_max_dep
 deepagents/tests/test_redaction.py::test_t06_source_code_finding_is_removed PASSED [ 71%]
 deepagents/tests/test_redaction.py::test_t07_clean_dict_is_unchanged PASSED [ 71%]
 deepagents/tests/test_redaction.py::test_t08_safe_metadata_field_names_survive_key_redaction PASSED [ 71%]
-deepagents/tests/test_redaction.py::test_provider_attempt_safe_slot_survives_without_exempting_credentials 
+deepagents/tests/test_redaction.py::test_provider_attempt_safe_slot_survives_without_exempting_credentials
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=api_key,authorization,credential_value,raw_error_body
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_id
 PASSED                                                                   [ 72%]
-deepagents/tests/test_redaction.py::test_t09_secret_field_names_are_redacted_and_logged 
+deepagents/tests/test_redaction.py::test_t09_secret_field_names_are_redacted_and_logged
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=APX_API_KEY,GEMINI_API_KEY,WORKER_API_KEY,access_token,apiKey,api_key,auth,authToken,auth_token,bearerToken,bearer_token,client_secret,dbPassword,db_password,encryptionKey,gcpServiceAccountKey,githubToken,github_token,key,openaiKey,passwd,password,privateToken,private_key,pwd,secretKey,secret_key,session_token,signingKey,token,webhookSecret,x-api-key
 PASSED                                                                   [ 72%]
@@ -2083,7 +2083,7 @@ deepagents/tests/test_redaction.py::test_t11_public_sensitive_key_name_api_uses_
 deepagents/tests/test_redaction.py::test_t12_governed_billing_callback_survives_redaction_intact PASSED [ 72%]
 deepagents/tests/test_redaction.py::test_t13_settled_usage_counters_survive_redaction_intact PASSED [ 72%]
 deepagents/tests/test_redaction.py::test_t14_billing_invocation_authorization_metrics_survive_redaction_intact PASSED [ 72%]
-deepagents/tests/test_redaction.py::test_t15_counter_exemptions_do_not_weaken_credential_redaction 
+deepagents/tests/test_redaction.py::test_t15_counter_exemptions_do_not_weaken_credential_redaction
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=apiToken,idempotencyKeySecret,refreshTokens
 PASSED                                                                   [ 72%]
@@ -2093,7 +2093,7 @@ deepagents/tests/test_reference_only_claim_files.py::test_reference_only_target_
 deepagents/tests/test_reference_only_claim_files.py::test_reference_only_target_decisions_fixed_or_rejected[True] PASSED [ 72%]
 deepagents/tests/test_reference_only_claim_files.py::test_bridge_only_a_reviewed_b_effect_target_resolves_and_is_committed SKIPPED [ 72%]
 deepagents/tests/test_reporting/test_audit_export_worker.py::test_t01_valid_date_range_export_generated PASSED [ 72%]
-deepagents/tests/test_reporting/test_audit_export_worker.py::test_t02_all_event_payloads_redacted 
+deepagents/tests/test_reporting/test_audit_export_worker.py::test_t02_all_event_payloads_redacted
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=token
 PASSED                                                                   [ 72%]
@@ -2208,7 +2208,7 @@ deepagents/tests/test_response_localization.py::test_nested_structured_output_fi
 deepagents/tests/test_response_localization.py::test_nested_structured_output_choices_labels_and_criteria_single_transform PASSED [ 78%]
 deepagents/tests/test_response_localization.py::test_assessment_root_tools_persist_canonical_domain_data_without_locale_pollution PASSED [ 78%]
 deepagents/tests/test_response_localization.py::test_human_request_read_projection_same_thread_en_vi_switch PASSED [ 78%]
-deepagents/tests/test_response_localization.py::test_internal_project_locale_endpoint 
+deepagents/tests/test_response_localization.py::test_internal_project_locale_endpoint
 -------------------------------- live log call ---------------------------------
 INFO     httpx2:_client.py:1085 HTTP Request: POST http://testserver/internal/project-locale "HTTP/1.1 403 Forbidden"
 INFO     httpx2:_client.py:1085 HTTP Request: POST http://testserver/internal/project-locale "HTTP/1.1 403 Forbidden"
@@ -2220,7 +2220,7 @@ deepagents/tests/test_retained_authoring_rejection_failure.py::test_the_mutation
 deepagents/tests/test_retained_authoring_rejection_failure.py::test_the_requirement_count_dip_is_one_explicit_removal_not_an_artifact PASSED [ 78%]
 deepagents/tests/test_retained_authoring_rejection_failure.py::test_what_was_never_retained_is_declared_and_must_not_be_reconstructed PASSED [ 78%]
 deepagents/tests/test_retained_authoring_rejection_failure.py::test_the_model_route_that_authored_the_run_is_a_recorded_confound PASSED [ 78%]
-deepagents/tests/test_retained_authoring_rejection_failure.py::test_the_retained_outcome_order_replays_through_the_new_runtime_with_a_durable_envelope_for_every_rejection 
+deepagents/tests/test_retained_authoring_rejection_failure.py::test_the_retained_outcome_order_replays_through_the_new_runtime_with_a_durable_envelope_for_every_rejection
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -2261,7 +2261,7 @@ INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=repairKey
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 78%]
-deepagents/tests/test_retained_authoring_rejection_failure.py::test_the_retained_terminal_class_is_reproduced_with_a_synthetic_repeated_call_and_classified_as_stagnation 
+deepagents/tests/test_retained_authoring_rejection_failure.py::test_the_retained_terminal_class_is_reproduced_with_a_synthetic_repeated_call_and_classified_as_stagnation
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -2311,7 +2311,7 @@ deepagents/tests/test_reviewed_legal_source_input_consumer.py::test_consumer_dec
 deepagents/tests/test_reviewed_legal_source_input_consumer.py::test_consumer_rejects_missing_required_field PASSED [ 80%]
 deepagents/tests/test_root_live_eval_budget.py::test_live_eval_budget_and_authoritative_tool_output_capture PASSED [ 80%]
 deepagents/tests/test_root_live_eval_budget.py::test_native_root_terminal_response_is_not_failed_by_eval_budget PASSED [ 80%]
-deepagents/tests/test_root_live_eval_budget.py::test_budget_failure_resumes_native_pending_model_without_repeating_tool 
+deepagents/tests/test_root_live_eval_budget.py::test_budget_failure_resumes_native_pending_model_without_repeating_tool
 -------------------------------- live log call ---------------------------------
 WARNING  langchain_core.callbacks.manager:manager.py:341 Error in ReviewTrace.on_chat_model_start callback: RuntimeError('ASSESSMENT eval input-token budget exhausted')
 PASSED                                                                   [ 80%]
@@ -2332,7 +2332,7 @@ deepagents/tests/test_rule_set_preparation_agent.py::test_completion_claim_retur
 deepagents/tests/test_rule_set_preparation_agent.py::test_agent_ignoring_no_progress_feedback_fails_only_after_feedback[1] PASSED [ 81%]
 deepagents/tests/test_rule_set_preparation_agent.py::test_agent_ignoring_no_progress_feedback_fails_only_after_feedback[10] PASSED [ 81%]
 deepagents/tests/test_rule_set_preparation_agent.py::test_novelty_allows_changed_observations_and_state_advancement PASSED [ 81%]
-deepagents/tests/test_rule_set_preparation_agent.py::test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet 
+deepagents/tests/test_rule_set_preparation_agent.py::test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet
 -------------------------------- live log call ---------------------------------
 WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'exclusiveMinimum' is not supported in schema, ignoring
 WARNING  langchain_google_genai._function_utils:_function_utils.py:122 Key 'exclusiveMinimum' is not supported in schema, ignoring
@@ -2348,7 +2348,7 @@ deepagents/tests/test_rule_set_preparation_agent.py::test_source_block_claim_for
 deepagents/tests/test_rule_set_preparation_agent.py::test_source_block_claim_is_honored_when_the_pinned_source_is_really_broken PASSED [ 81%]
 deepagents/tests/test_rule_set_preparation_agent.py::test_refuted_source_block_does_not_end_the_run_and_the_packet_is_still_submitted PASSED [ 81%]
 deepagents/tests/test_rule_set_preparation_agent.py::test_incomplete_source_extraction_fails_before_model_invocation PASSED [ 81%]
-deepagents/tests/test_rule_set_preparation_agent.py::test_model_error_and_claim_failure_are_recorded 
+deepagents/tests/test_rule_set_preparation_agent.py::test_model_error_and_claim_failure_are_recorded
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
@@ -2402,41 +2402,41 @@ deepagents/tests/test_rule_set_preparation_eval_fixtures.py::RuleSetPreparationE
 deepagents/tests/test_rule_set_preparation_eval_fixtures.py::RuleSetPreparationEvalFixtureTest::test_reuses_exact_accepted_source_pins_hashes_and_text PASSED [ 84%]
 deepagents/tests/test_rule_set_preparation_eval_fixtures.py::RuleSetPreparationEvalFixtureTest::test_rubric_assigns_meaning_to_agent_and_keeps_acceptance_unproven PASSED [ 84%]
 deepagents/tests/test_rule_set_preparation_eval_fixtures.py::RuleSetPreparationEvalFixtureTest::test_valid_candidates_have_resolving_single_version_relationships PASSED [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[A-miraiapi-rotation] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[A-miraiapi-rotation]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[B-miraiapi-exhausted] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[B-miraiapi-exhausted]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[C-gemini] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[C-gemini]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[F-apx-last] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[F-apx-last]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[D-terminal-exhaustion] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[D-terminal-exhaustion]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[E-primary-success] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_preparation_uses_credential_pools_before_provider_fallback[E-primary-success]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_framework_summarization_uses_full_model_governance[fallback-success] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_framework_summarization_uses_full_model_governance[fallback-success]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
-deepagents/tests/test_rule_set_preparation_governance.py::test_framework_summarization_uses_full_model_governance[terminal-exhaustion] 
+deepagents/tests/test_rule_set_preparation_governance.py::test_framework_summarization_uses_full_model_governance[terminal-exhaustion]
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=credential_attempts
 PASSED                                                                   [ 84%]
@@ -2497,7 +2497,7 @@ deepagents/tests/test_system_event_dispatch_async.py::test_async_hook_runs_bound
 deepagents/tests/test_system_event_dispatch_async.py::test_cancelled_async_hook_signals_the_underlying_thread PASSED [ 87%]
 deepagents/tests/test_system_event_dispatch_async.py::test_boundary_deadline_reaches_sync_thread_without_remote_cancel PASSED [ 87%]
 deepagents/tests/test_system_event_dispatch_async.py::test_expired_queued_boundary_reports_timeout_without_starting_work PASSED [ 87%]
-deepagents/tests/test_system_event_dispatch_async.py::test_expired_queued_run_stops_when_api_is_still_starting 
+deepagents/tests/test_system_event_dispatch_async.py::test_expired_queued_run_stops_when_api_is_still_starting
 -------------------------------- live log call ---------------------------------
 WARNING  middleware.system_event_dispatch:system_event_dispatch.py:165 Unable to report expired queued Agent Runtime boundary assessment_root_requested: ConnectionError
 PASSED                                                                   [ 87%]
@@ -2699,28 +2699,28 @@ deepagents/tests/test_usage_metering.py::test_queued_usage_is_drained_later_exac
 deepagents/tests/test_usage_metering.py::test_still_failing_api_keeps_usage_pending_for_the_next_drain PASSED [ 97%]
 deepagents/tests/test_usage_metering.py::test_recovery_store_failure_prevents_provider_dispatch PASSED [ 97%]
 deepagents/tests/test_usage_metering.py::test_enqueue_is_idempotent_on_the_usage_recovery_key PASSED [ 97%]
-deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[400] 
+deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[400]
 -------------------------------- live log call ---------------------------------
 ERROR    middleware.usage_recovery:usage_recovery.py:184 Usage callback quarantined id=1 kind=USAGE reason=HTTP_400
 PASSED                                                                   [ 97%]
-deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[403] 
+deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[403]
 -------------------------------- live log call ---------------------------------
 ERROR    middleware.usage_recovery:usage_recovery.py:184 Usage callback quarantined id=1 kind=USAGE reason=HTTP_403
 PASSED                                                                   [ 97%]
-deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[404] 
+deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[404]
 -------------------------------- live log call ---------------------------------
 ERROR    middleware.usage_recovery:usage_recovery.py:184 Usage callback quarantined id=1 kind=USAGE reason=HTTP_404
 PASSED                                                                   [ 97%]
-deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[409] 
+deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[409]
 -------------------------------- live log call ---------------------------------
 ERROR    middleware.usage_recovery:usage_recovery.py:184 Usage callback quarantined id=1 kind=USAGE reason=HTTP_409
 PASSED                                                                   [ 97%]
-deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[422] 
+deepagents/tests/test_usage_metering.py::test_contract_rejected_usage_is_quarantined_once_not_retried_forever[422]
 -------------------------------- live log call ---------------------------------
 ERROR    middleware.usage_recovery:usage_recovery.py:184 Usage callback quarantined id=1 kind=USAGE reason=HTTP_422
 PASSED                                                                   [ 97%]
 deepagents/tests/test_usage_metering.py::test_server_errors_are_transient_and_stay_pending PASSED [ 97%]
-deepagents/tests/test_usage_metering.py::test_recovery_store_is_bounded 
+deepagents/tests/test_usage_metering.py::test_recovery_store_is_bounded
 -------------------------------- live log call ---------------------------------
 ERROR    middleware.usage_recovery:usage_recovery.py:253 Usage recovery store full; dropping key=usage:assessment-1:run-1:invocation-2
 ERROR    middleware.usage_recovery:usage_recovery.py:253 Usage recovery store full; dropping key=usage:assessment-1:run-1:invocation-3
@@ -2732,7 +2732,7 @@ deepagents/tests/test_usage_metering.py::test_usage_recovery_store_path_override
 deepagents/tests/test_usage_metering.py::test_consumer_starts_the_usage_recovery_worker_at_startup PASSED [ 97%]
 deepagents/tests/test_usage_metering.py::test_assessment_invocation_gets_a_usage_reporting_run_state PASSED [ 98%]
 deepagents/tests/test_usage_metering.py::test_non_assessment_invocation_has_a_state_without_usage_reporting PASSED [ 98%]
-deepagents/tests/test_usage_metering.py::test_corrupt_row_is_quarantined_and_does_not_block_later_rows 
+deepagents/tests/test_usage_metering.py::test_corrupt_row_is_quarantined_and_does_not_block_later_rows
 -------------------------------- live log call ---------------------------------
 ERROR    middleware.usage_recovery:usage_recovery.py:178 Usage callback quarantined id=1 reason=INVALID_PAYLOAD
 PASSED                                                                   [ 98%]
@@ -2745,11 +2745,11 @@ deepagents/tests/test_usage_telemetry.py::test_no_usage_metadata_means_no_usage_
 deepagents/tests/test_usage_telemetry.py::test_model_authored_text_cannot_inject_usage PASSED [ 98%]
 deepagents/tests/test_usage_telemetry.py::test_failed_attempt_has_no_usage_and_usage_attached_once PASSED [ 98%]
 deepagents/tests/test_usage_telemetry.py::test_completion_and_persisted_usage_share_the_successful_invocation PASSED [ 98%]
-deepagents/tests/test_usage_telemetry.py::test_usage_survives_stream_redaction_of_token_keys 
+deepagents/tests/test_usage_telemetry.py::test_usage_survives_stream_redaction_of_token_keys
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=api_key,reasoning_tokens
 PASSED                                                                   [ 98%]
-deepagents/tests/test_usage_telemetry.py::test_usage_key_is_trusted_only_on_the_model_call_completion_event 
+deepagents/tests/test_usage_telemetry.py::test_usage_key_is_trusted_only_on_the_model_call_completion_event
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=reasoning_tokens
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=reasoning_tokens
@@ -2761,7 +2761,7 @@ deepagents/tests/test_usage_telemetry.py::test_terminal_exhaustion_is_one_logica
 deepagents/tests/test_usage_telemetry.py::test_successful_completion_retains_safe_route_and_credential_slot PASSED [ 98%]
 deepagents/tests/test_usage_telemetry.py::test_failed_provider_attempts_share_identity_and_emit_only_safe_metadata PASSED [ 98%]
 deepagents/tests/test_usage_telemetry.py::test_safe_credential_slot_id_is_ordinal_and_stable_within_pool PASSED [ 99%]
-deepagents/tests/test_usage_telemetry.py::test_provider_attempt_survives_actual_stream_redaction 
+deepagents/tests/test_usage_telemetry.py::test_provider_attempt_survives_actual_stream_redaction
 -------------------------------- live log call ---------------------------------
 INFO     middleware.redaction:redaction.py:115 REDACTION_KEYS_STRIPPED redacted_keys=api_key,authorization,credential_value,raw_error_body
 PASSED                                                                   [ 99%]

@@ -198,22 +198,22 @@
 2026-10-29T07:11:25.2201634Z ##[group]Checking out the ref
 2026-10-29T07:11:25.2206251Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/440/merge
 2026-10-29T07:11:25.4276386Z Note: switching to 'refs/remotes/pull/440/merge'.
-2026-10-29T07:11:25.4276955Z 
+2026-10-29T07:11:25.4276955Z
 2026-10-29T07:11:25.4277355Z You are in 'detached HEAD' state. You can look around, make experimental
 2026-10-29T07:11:25.4278071Z changes and commit them, and you can discard any commits you make in this
 2026-10-29T07:11:25.4278675Z state without impacting any branches by switching back to a branch.
-2026-10-29T07:11:25.4279016Z 
+2026-10-29T07:11:25.4279016Z
 2026-10-29T07:11:25.4279452Z If you want to create a new branch to retain commits you create, you may
 2026-10-29T07:11:25.4280150Z do so (now or later) by using -c with the switch command. Example:
-2026-10-29T07:11:25.4280560Z 
+2026-10-29T07:11:25.4280560Z
 2026-10-29T07:11:25.4280735Z   git switch -c <new-branch-name>
-2026-10-29T07:11:25.4281010Z 
+2026-10-29T07:11:25.4281010Z
 2026-10-29T07:11:25.4281188Z Or undo this operation with:
-2026-10-29T07:11:25.4281443Z 
+2026-10-29T07:11:25.4281443Z
 2026-10-29T07:11:25.4281596Z   git switch -
-2026-10-29T07:11:25.4281803Z 
+2026-10-29T07:11:25.4281803Z
 2026-10-29T07:11:25.4282143Z Turn off this advice by setting config variable advice.detachedHead to false
-2026-10-29T07:11:25.4282712Z 
+2026-10-29T07:11:25.4282712Z
 2026-10-29T07:11:25.4283281Z HEAD is now at 71a6d3d Merge 3f0335f99298cd486dfc58a076aeea095b5f3c0d into 70ddc3c086678edabb6b7a9f6627685841afbafb
 2026-10-29T07:11:25.4291550Z ##[endgroup]
 2026-10-29T07:11:25.4343038Z [command]/usr/bin/git log -1 --format=%H
@@ -242,10 +242,10 @@
 2026-10-29T07:11:27.2927040Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall: Done
 2026-10-29T07:11:27.2931832Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall$ node install.js
 2026-10-29T07:11:27.3425441Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall: Done
-2026-10-29T07:11:28.4500534Z 
+2026-10-29T07:11:28.4500534Z
 2026-10-29T07:11:28.4501044Z dependencies:
 2026-10-29T07:11:28.4501362Z + pnpm 12.3.4 (12.16.1 is available)
-2026-10-29T07:11:28.4501894Z 
+2026-10-29T07:11:28.4501894Z
 2026-10-29T07:11:28.4524670Z Done in 2.6s
 2026-10-29T07:11:28.5190114Z ##[endgroup]
 2026-10-29T07:11:28.5190644Z Installation Completed!
@@ -343,7 +343,7 @@
 2026-10-29T07:11:50.7156224Z Progress: resolved 1175, reused 1175, downloaded 0, added 1175, done
 2026-10-29T07:11:50.9665197Z . prepare$ husky
 2026-10-29T07:11:51.0567500Z . prepare: Done
-2026-10-29T07:11:51.0582993Z 
+2026-10-29T07:11:51.0582993Z
 2026-10-29T07:11:51.0583401Z devDependencies:
 2026-10-29T07:11:51.0584383Z + @lcsp/contracts link:packages/contracts
 2026-10-29T07:11:51.0585253Z + @lcsp/i18n link:packages/i18n
@@ -358,7 +358,7 @@
 2026-10-29T07:11:51.0623466Z + prettier 3.9.4
 2026-10-29T07:11:51.0623881Z + tsx 4.23.1
 2026-10-29T07:11:51.0624277Z + typescript 5.9.3
-2026-10-29T07:11:51.0624509Z 
+2026-10-29T07:11:51.0624509Z
 2026-10-29T07:11:51.0624831Z Done in 8.8s using pnpm v12.3.4
 2026-10-29T07:11:51.1370780Z ##[group]Run python -m pip install uv==0.10.6
 2026-10-29T07:11:51.1371209Z python -m pip install uv==0.10.6
@@ -647,14 +647,14 @@
 2026-10-29T07:11:55.4607913Z ##[endgroup]
 2026-10-29T07:11:55.5075204Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
 2026-10-29T07:11:56.5317109Z Loaded Prisma config from prisma.config.ts.
-2026-10-29T07:11:56.5317625Z 
+2026-10-29T07:11:56.5317625Z
 2026-10-29T07:11:56.5955516Z Prisma schema loaded from prisma/schema.prisma.
-2026-10-29T07:11:57.8305928Z 
+2026-10-29T07:11:57.8305928Z
 2026-10-29T07:11:57.8307842Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 793ms
-2026-10-29T07:11:57.8308687Z 
+2026-10-29T07:11:57.8308687Z
 2026-10-29T07:11:57.8309073Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
-2026-10-29T07:11:57.8309447Z 
-2026-10-29T07:11:57.8309453Z 
+2026-10-29T07:11:57.8309447Z
+2026-10-29T07:11:57.8309453Z
 2026-10-29T07:11:57.9106802Z $ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force
 2026-10-29T07:12:02.0809155Z $ pnpm --dir ../.. run build:runtime-packages
 2026-10-29T07:12:02.1008908Z $ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build
@@ -663,7 +663,7 @@
 2026-10-29T07:12:08.9888295Z $ pnpm run prisma:generate && nest build
 2026-10-29T07:12:09.0077657Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
 2026-10-29T07:12:09.8295128Z Loaded Prisma config from prisma.config.ts.
-2026-10-29T07:12:09.8296155Z 
+2026-10-29T07:12:09.8296155Z
 2026-10-29T07:12:09.8911042Z Prisma schema loaded from prisma/schema.prisma.
 2026-10-29T07:12:11.0550366Z ┌─────────────────────────────────────────────────────────┐
 2026-10-29T07:12:11.0551019Z │  Update available 7.8.0 -> 8.0.0-rc.28                  │
@@ -675,12 +675,12 @@
 2026-10-29T07:12:11.0556399Z │    npm i --save-dev prisma@latest                       │
 2026-10-29T07:12:11.0556892Z │    npm i @prisma/client@latest                          │
 2026-10-29T07:12:11.0557383Z └─────────────────────────────────────────────────────────┘
-2026-10-29T07:12:11.0557657Z 
+2026-10-29T07:12:11.0557657Z
 2026-10-29T07:12:11.0558728Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 718ms
-2026-10-29T07:12:11.0559491Z 
+2026-10-29T07:12:11.0559491Z
 2026-10-29T07:12:11.0560077Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
-2026-10-29T07:12:11.0560455Z 
-2026-10-29T07:12:11.0560467Z 
+2026-10-29T07:12:11.0560455Z
+2026-10-29T07:12:11.0560467Z
 2026-10-29T07:12:24.1921462Z ##[group]Run node tests/compliance-rule-set-persistence.mjs
 2026-10-29T07:12:24.1922284Z node tests/compliance-rule-set-persistence.mjs
 2026-10-29T07:12:24.1923018Z node tests/assessment-lifecycle-migrated-db.mjs
@@ -924,17 +924,17 @@
 2026-10-29T07:15:10.7247198Z node:internal/modules/run_main:123
 2026-10-29T07:15:10.7248021Z     triggerUncaughtException(
 2026-10-29T07:15:10.7248810Z     ^
-2026-10-29T07:15:10.7249115Z 
+2026-10-29T07:15:10.7249115Z
 2026-10-29T07:15:10.7251420Z AssertionError [ERR_ASSERTION]: {"ok":false,"code":"ASSESSMENT_DECISION_VALIDATION_FAILED","retryable":false,"failures":["APPLICABILITY_BASIS_REQUIRED:ER-RET"],"hint":"Call get_assessment_context to reload server state, then correct and resubmit."}
 2026-10-29T07:15:10.7253772Z + actual - expected
-2026-10-29T07:15:10.7254106Z 
+2026-10-29T07:15:10.7254106Z
 2026-10-29T07:15:10.7254327Z   [
 2026-10-29T07:15:10.7254770Z +   false,
 2026-10-29T07:15:10.7255205Z +   undefined
 2026-10-29T07:15:10.7255787Z -   true,
 2026-10-29T07:15:10.7256232Z -   1
 2026-10-29T07:15:10.7256610Z   ]
-2026-10-29T07:15:10.7256862Z 
+2026-10-29T07:15:10.7256862Z
 2026-10-29T07:15:10.7257528Z     at eq (file:///home/runner/work/LCSP/LCSP/tests/assessment-domain-vertical.mjs:65:10)
 2026-10-29T07:15:10.7258700Z     at file:///home/runner/work/LCSP/LCSP/tests/assessment-domain-vertical.mjs:336:3
 2026-10-29T07:15:10.7259844Z     at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
@@ -945,7 +945,7 @@
 2026-10-29T07:15:10.7262892Z   operator: 'deepStrictEqual',
 2026-10-29T07:15:10.7263387Z   diff: 'simple'
 2026-10-29T07:15:10.7263804Z }
-2026-10-29T07:15:10.7264023Z 
+2026-10-29T07:15:10.7264023Z
 2026-10-29T07:15:10.7264186Z Node.js v22.23.4
 2026-10-29T07:15:10.7379264Z ##[error]Process completed with exit code 1.
 2026-10-29T07:15:10.7448658Z ##[group]Run actions/upload-artifact@v4
@@ -993,13 +993,13 @@
 2026-10-29T07:15:11.3817532Z  The files belonging to this database system will be owned by user "postgres".
 2026-10-29T07:15:11.3819327Z  initdb: warning: enabling "trust" authentication for local connections
 2026-10-29T07:15:11.3820083Z  This user must also own the server process.
-2026-10-29T07:15:11.3820663Z  
+2026-10-29T07:15:11.3820663Z
 2026-10-29T07:15:11.3821310Z  The database cluster will be initialized with locale "en_US.utf8".
 2026-10-29T07:15:11.3822055Z  The default database encoding has accordingly been set to "UTF8".
 2026-10-29T07:15:11.3822789Z  The default text search configuration will be set to "english".
-2026-10-29T07:15:11.3823537Z  
+2026-10-29T07:15:11.3823537Z
 2026-10-29T07:15:11.3824011Z  Data page checksums are disabled.
-2026-10-29T07:15:11.3824510Z  
+2026-10-29T07:15:11.3824510Z
 2026-10-29T07:15:11.3825097Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
 2026-10-29T07:15:11.3826468Z  creating subdirectories ... ok
 2026-10-29T07:15:11.3827085Z  selecting dynamic shared memory implementation ... posix
@@ -1010,21 +1010,21 @@
 2026-10-29T07:15:11.3830438Z  running bootstrap script ... ok
 2026-10-29T07:15:11.3830980Z  performing post-bootstrap initialization ... ok
 2026-10-29T07:15:11.3831681Z  syncing data to disk ... ok
-2026-10-29T07:15:11.3832107Z  
-2026-10-29T07:15:11.3832424Z  
+2026-10-29T07:15:11.3832107Z
+2026-10-29T07:15:11.3832424Z
 2026-10-29T07:15:11.3832851Z  Success. You can now start the database server using:
-2026-10-29T07:15:11.3833626Z  
+2026-10-29T07:15:11.3833626Z
 2026-10-29T07:15:11.3834078Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
-2026-10-29T07:15:11.3834434Z  
+2026-10-29T07:15:11.3834434Z
 2026-10-29T07:15:11.3835113Z  waiting for server to start....2026-10-29 07:11:09.633 UTC [48] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
 2026-10-29T07:15:11.3836545Z  2026-10-29 07:11:09.634 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
 2026-10-29T07:15:11.3837213Z  2026-10-29 07:11:09.637 UTC [51] LOG:  database system was shut down at 2026-10-29 07:11:09 UTC
 2026-10-29T07:15:11.3837769Z  2026-10-29 07:11:09.641 UTC [48] LOG:  database system is ready to accept connections
 2026-10-29T07:15:11.3838188Z   done
 2026-10-29T07:15:11.3838395Z  server started
-2026-10-29T07:15:11.3838615Z  
+2026-10-29T07:15:11.3838615Z
 2026-10-29T07:15:11.3838962Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
-2026-10-29T07:15:11.3839390Z  
+2026-10-29T07:15:11.3839390Z
 2026-10-29T07:15:11.3839682Z  2026-10-29 07:11:09.751 UTC [48] LOG:  received fast shutdown request
 2026-10-29T07:15:11.3840240Z  waiting for server to shut down....2026-10-29 07:11:09.752 UTC [48] LOG:  aborting any active transactions
 2026-10-29T07:15:11.3840953Z  2026-10-29 07:11:09.754 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
@@ -1124,9 +1124,9 @@
 2026-10-29T07:15:11.3996001Z  2026-10-29 07:11:09.761 UTC [48] LOG:  database system is shut down
 2026-10-29T07:15:11.3996360Z   done
 2026-10-29T07:15:11.3996570Z  server stopped
-2026-10-29T07:15:11.3996787Z  
+2026-10-29T07:15:11.3996787Z
 2026-10-29T07:15:11.3997056Z  PostgreSQL init process complete; ready for start up.
-2026-10-29T07:15:11.3997385Z  
+2026-10-29T07:15:11.3997385Z
 2026-10-29T07:15:11.4003118Z Stop and remove container: c353eb00e27446f988925d93215a13a8_postgres16_618cb4
 2026-10-29T07:15:11.4008289Z ##[command]/usr/bin/docker rm --force f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
 2026-10-29T07:15:11.5666309Z f14289d0a66e0f5523841ecdbc5677b7a858293884f5ffecdd2c13df363db5e3
