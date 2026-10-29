@@ -1,0 +1,1109 @@
+﻿2026-10-28T17:20:47.0481676Z Current runner version: '2.338.0'
+2026-10-28T17:20:47.0518984Z ##[group]Runner Image Provisioner
+2026-10-28T17:20:47.0520280Z Hosted Compute Agent
+2026-10-28T17:20:47.0521265Z Version: 20261021.618
+2026-10-28T17:20:47.0522230Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-28T17:20:47.0523334Z Build Date: 2026-10-21T00:45:21Z
+2026-10-28T17:20:47.0524412Z Worker ID: {89644350-01e4-4623-a3e7-8a08d1da5bab}
+2026-10-28T17:20:47.0525482Z Region: centralus
+2026-10-28T17:20:47.0526307Z Cloud: Azure
+2026-10-28T17:20:47.0527508Z ##[endgroup]
+2026-10-28T17:20:47.0530081Z ##[group]Operating System
+2026-10-28T17:20:47.0531139Z Ubuntu
+2026-10-28T17:20:47.0531934Z 26.04.1
+2026-10-28T17:20:47.0532721Z LTS
+2026-10-28T17:20:47.0533573Z ##[endgroup]
+2026-10-28T17:20:47.0534403Z ##[group]Runner Image
+2026-10-28T17:20:47.0535366Z Image: ubuntu-26.04
+2026-10-28T17:20:47.0536229Z Version: 20261025.179.1
+2026-10-28T17:20:47.0538510Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261025.179/images/ubuntu/Ubuntu2604-Readme.md
+2026-10-28T17:20:47.0540933Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261025.179
+2026-10-28T17:20:47.0542495Z ##[endgroup]
+2026-10-28T17:20:47.0544437Z ##[group]GITHUB_TOKEN Permissions
+2026-10-28T17:20:47.0547797Z Contents: read
+2026-10-28T17:20:47.0548760Z Metadata: read
+2026-10-28T17:20:47.0549584Z PullRequests: read
+2026-10-28T17:20:47.0550578Z ##[endgroup]
+2026-10-28T17:20:47.0553844Z Secret source: Actions
+2026-10-28T17:20:47.0555320Z Cache mode: write
+2026-10-28T17:20:47.0556587Z Prepare workflow directory
+2026-10-28T17:20:47.1011182Z Prepare all required actions
+2026-10-28T17:20:47.1063201Z Getting action download info
+2026-10-28T17:20:47.3449699Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-28T17:20:47.6893901Z Download action repository 'pnpm/action-setup@v4' (SHA:b906affcce14559ad1aafd4ab0e942779e9f58b1)
+2026-10-28T17:20:48.0698677Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-28T17:20:48.2360951Z Complete job name: API unit tests
+2026-10-28T17:20:48.3496180Z ##[group]Run actions/checkout@v4
+2026-10-28T17:20:48.3497577Z with:
+2026-10-28T17:20:48.3498288Z   repository: khov4nfs/LCSP
+2026-10-28T17:20:48.3506537Z   token: ***
+2026-10-28T17:20:48.3507241Z   ssh-strict: true
+2026-10-28T17:20:48.3507945Z   ssh-user: git
+2026-10-28T17:20:48.3508673Z   persist-credentials: true
+2026-10-28T17:20:48.3509467Z   clean: true
+2026-10-28T17:20:48.3510190Z   sparse-checkout-cone-mode: true
+2026-10-28T17:20:48.3511042Z   fetch-depth: 1
+2026-10-28T17:20:48.3511752Z   fetch-tags: false
+2026-10-28T17:20:48.3512492Z   show-progress: true
+2026-10-28T17:20:48.3513235Z   lfs: false
+2026-10-28T17:20:48.3513906Z   submodules: false
+2026-10-28T17:20:48.3514638Z   set-safe-directory: true
+2026-10-28T17:20:48.3515470Z   allow-unsafe-pr-checkout: false
+2026-10-28T17:20:48.3516669Z env:
+2026-10-28T17:20:48.3517363Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:20:48.3518274Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:20:48.3519267Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:20:48.3520184Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:20:48.3521767Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:20:48.3522824Z ##[endgroup]
+2026-10-28T17:20:49.0896792Z Syncing repository: khov4nfs/LCSP
+2026-10-28T17:20:49.0900710Z ##[group]Getting Git version info
+2026-10-28T17:20:49.0902691Z Working directory is '/home/runner/work/LCSP/LCSP'
+2026-10-28T17:20:49.0905640Z [command]/usr/bin/git version
+2026-10-28T17:20:49.0907696Z git version 2.56.0
+2026-10-28T17:20:49.0921213Z ##[endgroup]
+2026-10-28T17:20:49.0934317Z Temporarily overriding HOME='/home/runner/work/_temp/a092e33f-feb1-4484-9d1d-3b511dbee762' before making global git config changes
+2026-10-28T17:20:49.0939466Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T17:20:49.0943330Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-28T17:20:49.1378904Z Deleting the contents of '/home/runner/work/LCSP/LCSP'
+2026-10-28T17:20:49.1390675Z ##[group]Initializing the repository
+2026-10-28T17:20:49.1393918Z [command]/usr/bin/git init /home/runner/work/LCSP/LCSP
+2026-10-28T17:20:49.1477294Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-28T17:20:49.1480998Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-28T17:20:49.1485682Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-28T17:20:49.1488851Z hint: call:
+2026-10-28T17:20:49.1490486Z hint:
+2026-10-28T17:20:49.1492478Z hint: 	git config --global init.defaultBranch <name>
+2026-10-28T17:20:49.1494947Z hint:
+2026-10-28T17:20:49.1497343Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-28T17:20:49.1500788Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-28T17:20:49.1503583Z hint:
+2026-10-28T17:20:49.1505265Z hint: 	git branch -m <name>
+2026-10-28T17:20:49.1507226Z hint:
+2026-10-28T17:20:49.1509614Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-28T17:20:49.1751123Z Initialized empty Git repository in /home/runner/work/LCSP/LCSP/.git/
+2026-10-28T17:20:49.1768457Z [command]/usr/bin/git remote add origin https://github.com/khov4nfs/LCSP
+2026-10-28T17:20:49.1821177Z ##[endgroup]
+2026-10-28T17:20:49.1823943Z ##[group]Disabling automatic garbage collection
+2026-10-28T17:20:49.1826783Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-28T17:20:49.1858462Z ##[endgroup]
+2026-10-28T17:20:49.1861472Z ##[group]Setting up auth
+2026-10-28T17:20:49.1865219Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T17:20:49.1911883Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T17:20:49.2849756Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T17:20:49.2880297Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T17:20:49.3106021Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T17:20:49.3138292Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T17:20:49.3369295Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-28T17:20:49.3406756Z ##[endgroup]
+2026-10-28T17:20:49.3409310Z ##[group]Fetching the repository
+2026-10-28T17:20:49.3419314Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2:refs/remotes/pull/440/merge
+2026-10-28T17:20:51.7569145Z From https://github.com/khov4nfs/LCSP
+2026-10-28T17:20:51.7569714Z  * [new ref]         98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2 -> pull/440/merge
+2026-10-28T17:20:51.7572292Z ##[endgroup]
+2026-10-28T17:20:51.7572827Z ##[group]Determining the checkout info
+2026-10-28T17:20:51.7575280Z ##[endgroup]
+2026-10-28T17:20:51.7581380Z [command]/usr/bin/git sparse-checkout disable
+2026-10-28T17:20:51.7633713Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-28T17:20:51.7659451Z ##[group]Checking out the ref
+2026-10-28T17:20:51.7663743Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/440/merge
+2026-10-28T17:20:51.9135090Z Note: switching to 'refs/remotes/pull/440/merge'.
+2026-10-28T17:20:51.9135538Z 
+2026-10-28T17:20:51.9135894Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-28T17:20:51.9137014Z changes and commit them, and you can discard any commits you make in this
+2026-10-28T17:20:51.9138018Z state without impacting any branches by switching back to a branch.
+2026-10-28T17:20:51.9138476Z 
+2026-10-28T17:20:51.9138906Z If you want to create a new branch to retain commits you create, you may
+2026-10-28T17:20:51.9139598Z do so (now or later) by using -c with the switch command. Example:
+2026-10-28T17:20:51.9139992Z 
+2026-10-28T17:20:51.9140213Z   git switch -c <new-branch-name>
+2026-10-28T17:20:51.9140500Z 
+2026-10-28T17:20:51.9140684Z Or undo this operation with:
+2026-10-28T17:20:51.9140961Z 
+2026-10-28T17:20:51.9141118Z   git switch -
+2026-10-28T17:20:51.9141438Z 
+2026-10-28T17:20:51.9141819Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-28T17:20:51.9142351Z 
+2026-10-28T17:20:51.9142942Z HEAD is now at 98d8f6c Merge 70dc0a6fe40c618bdf47d532f9baa5230e52faf1 into 70ddc3c086678edabb6b7a9f6627685841afbafb
+2026-10-28T17:20:51.9151274Z ##[endgroup]
+2026-10-28T17:20:51.9193901Z [command]/usr/bin/git log -1 --format=%H
+2026-10-28T17:20:51.9217671Z 98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2
+2026-10-28T17:20:51.9435492Z ##[group]Run pnpm/action-setup@v4
+2026-10-28T17:20:51.9435789Z with:
+2026-10-28T17:20:51.9436016Z   dest: ~/setup-pnpm
+2026-10-28T17:20:51.9436247Z   run_install: null
+2026-10-28T17:20:51.9436607Z   cache: false
+2026-10-28T17:20:51.9436844Z   cache_dependency_path: pnpm-lock.yaml
+2026-10-28T17:20:51.9437133Z   package_json_file: package.json
+2026-10-28T17:20:51.9437413Z   standalone: false
+2026-10-28T17:20:51.9437622Z env:
+2026-10-28T17:20:51.9437835Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:20:51.9438103Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:20:51.9438381Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:20:51.9438661Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:20:51.9439379Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:20:51.9439707Z ##[endgroup]
+2026-10-28T17:20:52.0903588Z ##[group]Running self-installer...
+2026-10-28T17:20:52.4921382Z (node:2379) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-28T17:20:52.4923308Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:20:52.6967789Z Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-10-28T17:20:52.9178521Z Packages: +3
+2026-10-28T17:20:53.4530521Z +++
+2026-10-28T17:20:53.4531065Z Progress: resolved 9, reused 0, downloaded 3, added 3, done
+2026-10-28T17:20:53.4675199Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall$ node install.js
+2026-10-28T17:20:53.6945039Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall: Done
+2026-10-28T17:20:53.6950912Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall$ node install.js
+2026-10-28T17:20:53.7350354Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall: Done
+2026-10-28T17:20:54.7495471Z 
+2026-10-28T17:20:54.7496023Z dependencies:
+2026-10-28T17:20:54.7496646Z + pnpm 12.3.4 (12.16.1 is available)
+2026-10-28T17:20:54.7496966Z 
+2026-10-28T17:20:54.7527755Z Done in 2.4s
+2026-10-28T17:20:54.7958506Z ##[endgroup]
+2026-10-28T17:20:54.7959031Z Installation Completed!
+2026-10-28T17:20:54.8133654Z ##[group]Run actions/setup-node@v4
+2026-10-28T17:20:54.8133920Z with:
+2026-10-28T17:20:54.8134116Z   node-version: 22
+2026-10-28T17:20:54.8134319Z   cache: pnpm
+2026-10-28T17:20:54.8134516Z   always-auth: false
+2026-10-28T17:20:54.8134726Z   check-latest: false
+2026-10-28T17:20:54.8137678Z   token: ***
+2026-10-28T17:20:54.8137927Z env:
+2026-10-28T17:20:54.8138127Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:20:54.8138381Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:20:54.8138646Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:20:54.8138916Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:20:54.8139407Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:20:54.8139776Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:20:54.8140208Z ##[endgroup]
+2026-10-28T17:20:54.9647856Z (node:2410) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T17:20:54.9649086Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:20:54.9657855Z Found in cache @ /opt/hostedtoolcache/node/22.23.4/x64
+2026-10-28T17:20:54.9658576Z ##[group]Environment details
+2026-10-28T17:20:55.4319355Z node: v22.23.4
+2026-10-28T17:20:55.4319810Z npm: 10.9.9
+2026-10-28T17:20:55.4320146Z yarn: 1.22.22
+2026-10-28T17:20:55.4321209Z ##[endgroup]
+2026-10-28T17:20:55.4342640Z [command]/home/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+2026-10-28T17:20:55.4500084Z /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-28T17:20:55.5917500Z Cache hit for: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-28T17:20:55.6021868Z (node:2410) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-28T17:20:56.7805145Z Received 109051904 of 277919439 (39.2%), 103.9 MBs/sec
+2026-10-28T17:20:57.7804628Z Received 247463936 of 277919439 (89.0%), 117.9 MBs/sec
+2026-10-28T17:20:58.1007744Z Received 277919439 of 277919439 (100.0%), 114.3 MBs/sec
+2026-10-28T17:20:58.1009668Z Cache Size: ~265 MB (277919439 B)
+2026-10-28T17:20:58.1072430Z [command]/usr/bin/tar -xf /home/runner/work/_temp/024b7a23-cb88-4829-b665-ee377dfb923d/cache.tzst -P -C /home/runner/work/LCSP/LCSP --use-compress-program unzstd
+2026-10-28T17:21:00.1100688Z Cache restored successfully
+2026-10-28T17:21:00.1192603Z Cache restored from key: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-28T17:21:00.1370307Z ##[group]Run pnpm install --frozen-lockfile
+2026-10-28T17:21:00.1370764Z pnpm install --frozen-lockfile
+2026-10-28T17:21:00.1398537Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:00.1398815Z env:
+2026-10-28T17:21:00.1399030Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:21:00.1399306Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:21:00.1399585Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:21:00.1399867Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:21:00.1400590Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:21:00.1400983Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:00.1401292Z ##[endgroup]
+2026-10-28T17:21:00.1757283Z Scope: all 5 workspace projects
+2026-10-28T17:21:00.2538875Z ? Verifying lockfile against supply-chain policies (1310 entries)...
+2026-10-28T17:21:00.4238282Z Packages are hard linked from the content-addressable store to the virtual store.
+2026-10-28T17:21:00.4278339Z   Content-addressable store is at: /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-28T17:21:00.4279096Z   Virtual store is at:             node_modules/.pnpm
+2026-10-28T17:21:07.3203623Z ✓ Lockfile passes supply-chain policies (1310 entries in 7.1s)
+2026-10-28T17:21:07.3461459Z Lockfile is up to date, resolution step is skipped
+2026-10-28T17:21:07.3461865Z Packages: +1175
+2026-10-28T17:21:07.3462257Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-28T17:21:07.5552910Z Progress: resolved 1175, reused 1175, downloaded 0, added 1175, done
+2026-10-28T17:21:07.8079848Z . prepare$ husky
+2026-10-28T17:21:07.8741042Z . prepare: Done
+2026-10-28T17:21:07.8750281Z 
+2026-10-28T17:21:07.8751328Z devDependencies:
+2026-10-28T17:21:07.8752248Z + @lcsp/contracts link:packages/contracts
+2026-10-28T17:21:07.8753065Z + @lcsp/i18n link:packages/i18n
+2026-10-28T17:21:07.8753916Z + @lcsp/web link:apps/web
+2026-10-28T17:21:07.8754678Z + @playwright/test 1.63.0
+2026-10-28T17:21:07.8755321Z + @tanstack/ai 0.14.0
+2026-10-28T17:21:07.8755997Z + @types/node 22.20.0
+2026-10-28T17:21:07.8756767Z + dotenv 16.6.1
+2026-10-28T17:21:07.8757709Z + dotenv-expand 12.0.3
+2026-10-28T17:21:07.8758327Z + husky 9.1.7
+2026-10-28T17:21:07.8758827Z + likec4 1.59.2
+2026-10-28T17:21:07.8759395Z + prettier 3.9.4
+2026-10-28T17:21:07.8759993Z + tsx 4.23.1
+2026-10-28T17:21:07.8760560Z + typescript 5.9.3
+2026-10-28T17:21:07.8760937Z 
+2026-10-28T17:21:07.8781110Z Done in 7.7s using pnpm v12.3.4
+2026-10-28T17:21:07.9250537Z ##[group]Run pnpm --filter @lcsp/api prisma:generate
+2026-10-28T17:21:07.9251024Z pnpm --filter @lcsp/api prisma:generate
+2026-10-28T17:21:07.9270130Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:07.9270451Z env:
+2026-10-28T17:21:07.9270824Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:21:07.9271244Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:21:07.9271632Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:21:07.9271984Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:21:07.9272675Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:21:07.9273136Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:07.9273576Z ##[endgroup]
+2026-10-28T17:21:07.9499759Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
+2026-10-28T17:21:08.8806225Z Loaded Prisma config from prisma.config.ts.
+2026-10-28T17:21:08.8807191Z 
+2026-10-28T17:21:08.9482482Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-28T17:21:10.0523012Z 
+2026-10-28T17:21:10.0525151Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 674ms
+2026-10-28T17:21:10.0526125Z 
+2026-10-28T17:21:10.0526920Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-10-28T17:21:10.0527269Z 
+2026-10-28T17:21:10.0527276Z 
+2026-10-28T17:21:10.0946564Z ##[group]Run node apps/api/test/scripts/ensure-test-postgres.mjs
+2026-10-28T17:21:10.0947181Z node apps/api/test/scripts/ensure-test-postgres.mjs
+2026-10-28T17:21:10.0965439Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:10.0965698Z env:
+2026-10-28T17:21:10.0965906Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:21:10.0966180Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:21:10.0966670Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:21:10.0966952Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:21:10.0967557Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:21:10.0967931Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:10.0968233Z ##[endgroup]
+2026-10-28T17:21:16.8004525Z ##[group]Run pnpm --filter @lcsp/api exec prisma migrate deploy
+2026-10-28T17:21:16.8004993Z pnpm --filter @lcsp/api exec prisma migrate deploy
+2026-10-28T17:21:16.8023786Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:16.8024051Z env:
+2026-10-28T17:21:16.8024280Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:21:16.8024555Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:21:16.8024842Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:21:16.8025126Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:21:16.8025760Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:21:16.8026146Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:16.8026819Z ##[endgroup]
+2026-10-28T17:21:17.5333633Z Loaded Prisma config from prisma.config.ts.
+2026-10-28T17:21:17.5334068Z 
+2026-10-28T17:21:17.5907753Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-28T17:21:17.6019056Z Datasource "db": PostgreSQL database "lcsp_api_test", schema "public" at "127.0.0.1:55435"
+2026-10-28T17:21:17.6725065Z 
+2026-10-28T17:21:17.6725679Z 136 migrations found in prisma/migrations
+2026-10-28T17:21:17.6725967Z 
+2026-10-28T17:21:17.7451365Z Applying migration `20260709061200_init`
+2026-10-28T17:21:17.8351061Z Applying migration `20260709121753_audit_event_composite_indexes`
+2026-10-28T17:21:17.8423186Z Applying migration `20260709192021_add_oauth_state_and_identity`
+2026-10-28T17:21:17.8584625Z Applying migration `20260710060537_add_assessment_table`
+2026-10-28T17:21:17.8655586Z Applying migration `20260710112256_add_wizard_profile_table`
+2026-10-28T17:21:17.8740103Z Applying migration `20260710114431_add_audit_event_resource_fields`
+2026-10-28T17:21:17.8764888Z Applying migration `20260713000000_auth_invitation_expires_at`
+2026-10-28T17:21:17.8793166Z Applying migration `20260713080000_auth_membership_revoked_at`
+2026-10-28T17:21:17.8816610Z Applying migration `20260714081830_add_repository_connection`
+2026-10-28T17:21:17.8893531Z Applying migration `20260717150000_add_github_app_install_state`
+2026-10-28T17:21:17.8982157Z Applying migration `20260718090000_repository_connection_metadata_fields`
+2026-10-28T17:21:17.9093029Z Applying migration `20260718120000_add_repository_snapshot`
+2026-10-28T17:21:17.9202405Z Applying migration `20260718130000_add_repository_scan_job`
+2026-10-28T17:21:17.9323398Z Applying migration `20260719000000_add_technical_evidence_report`
+2026-10-28T17:21:17.9407605Z Applying migration `20260719010000_add_document_request_and_classification_result`
+2026-10-28T17:21:17.9534688Z Applying migration `20260725120000_add_document_url_blocked_reason`
+2026-10-28T17:21:17.9558382Z Applying migration `20260725120000_add_verified_profile`
+2026-10-28T17:21:17.9635160Z Applying migration `20260726014847_add_readiness_export`
+2026-10-28T17:21:17.9721129Z Applying migration `20260726064357_init_legal_rule_catalog`
+2026-10-28T17:21:18.0286902Z Applying migration `20260802153000_add_auth_user_email_policy_columns`
+2026-10-28T17:21:18.0327956Z Applying migration `20260803120000_add_oauth_link_state_context`
+2026-10-28T17:21:18.0369729Z Applying migration `20260804102000_add_auth_decision_log_context_columns`
+2026-10-28T17:21:18.0413993Z Applying migration `20260804120000_add_auth_decision_log_value_enums`
+2026-10-28T17:21:18.0627516Z Applying migration `20260804123000_add_sensitive_action_session_verification`
+2026-10-28T17:21:18.0655032Z Applying migration `20260804133000_add_mfa_recovery_codes`
+2026-10-28T17:21:18.0775819Z Applying migration `20260811114500_add_outbox_retry_schedule`
+2026-10-28T17:21:18.0833420Z Applying migration `20260811163000_add_targeted_reanalysis_request`
+2026-10-28T17:21:18.1126099Z Applying migration `20260811170000_add_targeted_reanalysis_scan_job`
+2026-10-28T17:21:18.1178340Z Applying migration `20260811190000_add_targeted_reanalysis_checkpoint`
+2026-10-28T17:21:18.1288921Z Applying migration `20260812000000_add_verified_profile_reconciliation_provenance`
+2026-10-28T17:21:18.1334731Z Applying migration `20260812001000_add_verified_profile_version`
+2026-10-28T17:21:18.1378092Z Applying migration `20260812002000_add_legal_retrieval_index`
+2026-10-28T17:21:18.1489529Z Applying migration `20260812003000_add_classification_review_request`
+2026-10-28T17:21:18.1612042Z Applying migration `20260812004000_add_legal_corpus_activation_tracking`
+2026-10-28T17:21:18.1669005Z Applying migration `20260812004000_add_legal_source_snapshot`
+2026-10-28T17:21:18.1791795Z Applying migration `20260813230000_add_auth_user_mfa_verified_at`
+2026-10-28T17:21:18.1819641Z Applying migration `20260813231000_add_assessment_status_enum`
+2026-10-28T17:21:18.1945517Z Applying migration `20260813232000_add_outbox_status_enum`
+2026-10-28T17:21:18.2082804Z Applying migration `20260813233000_add_evidence_acceptance_status_enum`
+2026-10-28T17:21:18.2585900Z Applying migration `20260813234000_add_wizard_profile_status_enum`
+2026-10-28T17:21:18.2691330Z Applying migration `20260813235000_add_repository_connection_status_enum`
+2026-10-28T17:21:18.2797935Z Applying migration `20260813235500_add_repository_scan_job_enums`
+2026-10-28T17:21:18.2952438Z Applying migration `20260813235900_add_assessment_runtime_event`
+2026-10-28T17:21:18.3069220Z Applying migration `20260814000000_add_repository_snapshot_status_enum`
+2026-10-28T17:21:18.3179523Z Applying migration `20260814000500_add_conflict_record_status_enum`
+2026-10-28T17:21:18.3276200Z Applying migration `20260814001000_reconcile_classification_verified_profile_schema`
+2026-10-28T17:21:18.3541673Z Applying migration `20260814001500_add_missing_legal_rule_match_table`
+2026-10-28T17:21:18.3633874Z Applying migration `20260814003000_convert_legal_rule_lifecycle_status_enum`
+2026-10-28T17:21:18.3969628Z Applying migration `20260815090000_add_conflict_explanation_basis`
+2026-10-28T17:21:18.3992891Z Applying migration `20260816044534_refactor_legal_rule`
+2026-10-28T17:21:18.4187471Z Applying migration `20260819000000_add_verified_profile_stale_and_version_unique`
+2026-10-28T17:21:18.4246770Z Applying migration `20260824120000_add_provider_credentials`
+2026-10-28T17:21:18.4374034Z Applying migration `20260824160000_allow_cli_repository_connections`
+2026-10-28T17:21:18.4397205Z Applying migration `20260825090000_drop_auth_invitation`
+2026-10-28T17:21:18.4464644Z Applying migration `20260825093000_drop_legacy_user`
+2026-10-28T17:21:18.4509644Z Applying migration `20260825163206_add_fk`
+2026-10-28T17:21:18.5525774Z Applying migration `20260825190000_add_gitlab_repository_provider`
+2026-10-28T17:21:18.5568911Z Applying migration `20260826090000_rbac_user_role_cleanup`
+2026-10-28T17:21:18.5699669Z Applying migration `20260826100000_add_active_provider_credential_flag`
+2026-10-28T17:21:18.5798243Z Applying migration `20260826113000_drop_auth_organization_membership_scope`
+2026-10-28T17:21:18.6520350Z Applying migration `20260826190000_role_only_rbac_drop_action`
+2026-10-28T17:21:18.6549669Z Applying migration `20260828170000_optimize_auth_erd`
+2026-10-28T17:21:18.7078898Z Applying migration `20260830120000_account_scope_provider_credentials`
+2026-10-28T17:21:18.7175682Z Applying migration `20260830120000_add_verified_agent_episode`
+2026-10-28T17:21:18.7302797Z Applying migration `20260830123000_harden_verified_agent_episode_validation_status`
+2026-10-28T17:21:18.7400365Z Applying migration `20260903120000_add_assessment_interview_thread`
+2026-10-28T17:21:18.7520861Z Applying migration `20260905100000_pin_interview_guidance_version`
+2026-10-28T17:21:18.7544380Z Applying migration `20260905150000_add_bitbucket_azure_devops_providers`
+2026-10-28T17:21:18.7603473Z Applying migration `20260908180000_add_interview_runtime_stage`
+2026-10-28T17:21:18.7625930Z Applying migration `20260910120000_add_engineering_not_applicable_enums`
+2026-10-28T17:21:18.7652902Z Applying migration `20260911030000_reconcile_assessment_runtime_stages`
+2026-10-28T17:21:18.7690318Z Applying migration `20260911090000_admin_account_lifecycle`
+2026-10-28T17:21:18.7918748Z Applying migration `20260911190000_retire_admin_role_mutation`
+2026-10-28T17:21:18.8009055Z Applying migration `20260912100000_add_corpus_preparation`
+2026-10-28T17:21:18.8121437Z Applying migration `20260912110000_harden_corpus_admin_commands`
+2026-10-28T17:21:18.8231855Z Applying migration `20260912120000_lcsp_310_billing_foundation`
+2026-10-28T17:21:18.9151173Z Applying migration `20260913100000_lcsp_311_billing_usage_dimensions`
+2026-10-28T17:21:18.9280315Z Applying migration `20260913120000_sepay_webhook_ingress`
+2026-10-28T17:21:18.9324023Z Applying migration `20260916090000_billing_reconciliation_state`
+2026-10-28T17:21:18.9365637Z Applying migration `20260916100000_lcsp_316_metering_reservation_groups`
+2026-10-28T17:21:18.9510037Z Applying migration `20260917100000_lcsp_316_invocation_capacity`
+2026-10-28T17:21:18.9607967Z Applying migration `20260918203000_drop_account_invitation`
+2026-10-28T17:21:18.9759581Z Applying migration `20260919160000_repair_runtime_model_policy_snapshot`
+2026-10-28T17:21:18.9808315Z Applying migration `20260920120000_lcsp_317_admin_billing_read_models`
+2026-10-28T17:21:18.9891425Z Applying migration `20260922120000_lcsp_336_decision_model_idempotency`
+2026-10-28T17:21:19.0081147Z Applying migration `20260924120000_drop_llm_usage_reservation_unique_index`
+2026-10-28T17:21:19.0109948Z Applying migration `20260925100000_billing_reservation_owner_context`
+2026-10-28T17:21:19.0211370Z Applying migration `20260925183000_billing_invocation_authorization_holds`
+2026-10-28T17:21:19.0265829Z Applying migration `20260926090000_assessment_ai_not_detected`
+2026-10-28T17:21:19.0290026Z Applying migration `20260927120000_assessment_pipeline_reconciliation`
+2026-10-28T17:21:19.0359643Z Applying migration `20260927180000_workflow_billing_pause`
+2026-10-28T17:21:19.0465754Z Applying migration `20260927183000_workflow_billing_pause_source`
+2026-10-28T17:21:19.0569359Z Applying migration `20260927190000_reservation_initial_amount`
+2026-10-28T17:21:19.0595934Z Applying migration `20260930090000_engineering_rule_assessment`
+2026-10-28T17:21:19.0723843Z Applying migration `20261003100000_assessment_runtime_control`
+2026-10-28T17:21:19.0819465Z Applying migration `20261005140000_assessment_canonical_persistence`
+2026-10-28T17:21:19.1153103Z Applying migration `20261006120000_legal_portfolio_expand`
+2026-10-28T17:21:19.2085912Z Applying migration `20261007120000_assessment_domain_expand`
+2026-10-28T17:21:19.3068101Z Applying migration `20261007160000_assessment_human_resolution`
+2026-10-28T17:21:19.3144700Z Applying migration `20261007190000_assessment_final_report`
+2026-10-28T17:21:19.3195332Z Applying migration `20261008090000_outbox_cancelled_status`
+2026-10-28T17:21:19.3227902Z Applying migration `20261008090100_legacy_migration_archive`
+2026-10-28T17:21:19.3788977Z Applying migration `20261008090200_legacy_reevaluation_kind`
+2026-10-28T17:21:19.3811236Z Applying migration `20261008090300_legacy_reevaluation_ledger`
+2026-10-28T17:21:19.3944911Z Applying migration `20261008160000_w7_drop_v1_authority`
+2026-10-28T17:21:19.5815925Z Applying migration `20261011120000_compliance_rule_set_terminology`
+2026-10-28T17:21:19.5908481Z Applying migration `20261012090000_canonical_physical_terminology`
+2026-10-28T17:21:19.6283576Z Applying migration `20261013100000_agent_stream_boundaries`
+2026-10-28T17:21:19.6400376Z Applying migration `20261013132644_re_generate_db`
+2026-10-28T17:21:19.6617866Z Applying migration `20261014090000_restore_human_request_resolved_fact_fk`
+2026-10-28T17:21:19.6693137Z Applying migration `20261014120000_legal_source_management`
+2026-10-28T17:21:19.6974360Z Applying migration `20261014150000_legal_provision_effect_status`
+2026-10-28T17:21:19.7016287Z Applying migration `20261016040000_rule_set_reactivation`
+2026-10-28T17:21:19.7177459Z Applying migration `20261016050000_rule_set_operative_propositions`
+2026-10-28T17:21:19.7203831Z Applying migration `20261016113000_legal_document_graph`
+2026-10-28T17:21:19.7562554Z Applying migration `20261016114000_semantic_claim_graph`
+2026-10-28T17:21:19.8203985Z Applying migration `20261017001000_preparation_claim_inventory`
+2026-10-28T17:21:19.8288303Z Applying migration `20261017030000_preparation_review_frontier`
+2026-10-28T17:21:19.8542957Z Applying migration `20261018070000_source_semantic_audit`
+2026-10-28T17:21:19.8638077Z Applying migration `20261018071000_semantic_context_relation`
+2026-10-28T17:21:19.8659366Z Applying migration `20261020140000_rule_set_no_operative_obligations`
+2026-10-28T17:21:19.8679238Z Applying migration `20261021190000_source_review_owner_wait`
+2026-10-28T17:21:19.8716998Z Applying migration `20261022170000_model_usage_reference_analytics`
+2026-10-28T17:21:19.8762124Z Applying migration `20261022173000_system_preparation_usage_scope`
+2026-10-28T17:21:19.8794577Z Applying migration `20261023180000_batch_source_review_frontier`
+2026-10-28T17:21:19.8834846Z Applying migration `20261024120000_file_claim_discovery`
+2026-10-28T17:21:19.8859923Z Applying migration `20261024120100_preparation_budget_pause`
+2026-10-28T17:21:19.8888280Z Applying migration `20261024130000_source_audit_declined`
+2026-10-28T17:21:19.8926925Z Applying migration `20261024130100_source_audit_declined_constraints`
+2026-10-28T17:21:19.8980644Z Applying migration `20261024140000_document_corpus_role`
+2026-10-28T17:21:19.9007599Z Applying migration `20261024150000_remove_semantic_auditor`
+2026-10-28T17:21:19.9260156Z Applying migration `20261024160000_authoring_draft`
+2026-10-28T17:21:19.9315236Z Applying migration `20261024220000_auth_mfa_proof_generation`
+2026-10-28T17:21:19.9397796Z Applying migration `20261025090000_authoring_draft_version`
+2026-10-28T17:21:19.9422210Z Applying migration `20261025150000_direct_rule_set_draft`
+2026-10-28T17:21:19.9462314Z Applying migration `20261025150100_direct_draft_validation`
+2026-10-28T17:21:19.9489134Z 
+2026-10-28T17:21:19.9513593Z The following migration(s) have been applied:
+2026-10-28T17:21:19.9514373Z 
+2026-10-28T17:21:19.9514813Z migrations/
+2026-10-28T17:21:19.9515565Z   └─ 20260709061200_init/
+2026-10-28T17:21:19.9516146Z     └─ migration.sql
+2026-10-28T17:21:19.9516953Z   └─ 20260709121753_audit_event_composite_indexes/
+2026-10-28T17:21:19.9517647Z     └─ migration.sql
+2026-10-28T17:21:19.9518262Z   └─ 20260709192021_add_oauth_state_and_identity/
+2026-10-28T17:21:19.9518880Z     └─ migration.sql
+2026-10-28T17:21:19.9519466Z   └─ 20260710060537_add_assessment_table/
+2026-10-28T17:21:19.9520049Z     └─ migration.sql
+2026-10-28T17:21:19.9520745Z   └─ 20260710112256_add_wizard_profile_table/
+2026-10-28T17:21:19.9521409Z     └─ migration.sql
+2026-10-28T17:21:19.9522069Z   └─ 20260710114431_add_audit_event_resource_fields/
+2026-10-28T17:21:19.9522764Z     └─ migration.sql
+2026-10-28T17:21:19.9523406Z   └─ 20260713000000_auth_invitation_expires_at/
+2026-10-28T17:21:19.9524080Z     └─ migration.sql
+2026-10-28T17:21:19.9524716Z   └─ 20260713080000_auth_membership_revoked_at/
+2026-10-28T17:21:19.9525440Z     └─ migration.sql
+2026-10-28T17:21:19.9526121Z   └─ 20260714081830_add_repository_connection/
+2026-10-28T17:21:19.9526918Z     └─ migration.sql
+2026-10-28T17:21:19.9527562Z   └─ 20260717150000_add_github_app_install_state/
+2026-10-28T17:21:19.9528276Z     └─ migration.sql
+2026-10-28T17:21:19.9529056Z   └─ 20260718090000_repository_connection_metadata_fields/
+2026-10-28T17:21:19.9529820Z     └─ migration.sql
+2026-10-28T17:21:19.9530473Z   └─ 20260718120000_add_repository_snapshot/
+2026-10-28T17:21:19.9531134Z     └─ migration.sql
+2026-10-28T17:21:19.9531705Z   └─ 20260718130000_add_repository_scan_job/
+2026-10-28T17:21:19.9532298Z     └─ migration.sql
+2026-10-28T17:21:19.9532932Z   └─ 20260719000000_add_technical_evidence_report/
+2026-10-28T17:21:19.9533614Z     └─ migration.sql
+2026-10-28T17:21:19.9534339Z   └─ 20260719010000_add_document_request_and_classification_result/
+2026-10-28T17:21:19.9534980Z     └─ migration.sql
+2026-10-28T17:21:19.9535545Z   └─ 20260725120000_add_document_url_blocked_reason/
+2026-10-28T17:21:19.9536141Z     └─ migration.sql
+2026-10-28T17:21:19.9536933Z   └─ 20260725120000_add_verified_profile/
+2026-10-28T17:21:19.9537521Z     └─ migration.sql
+2026-10-28T17:21:19.9538253Z   └─ 20260726014847_add_readiness_export/
+2026-10-28T17:21:19.9538725Z     └─ migration.sql
+2026-10-28T17:21:19.9539188Z   └─ 20260726064357_init_legal_rule_catalog/
+2026-10-28T17:21:19.9539657Z     └─ migration.sql
+2026-10-28T17:21:19.9540143Z   └─ 20260802153000_add_auth_user_email_policy_columns/
+2026-10-28T17:21:19.9540632Z     └─ migration.sql
+2026-10-28T17:21:19.9541081Z   └─ 20260803120000_add_oauth_link_state_context/
+2026-10-28T17:21:19.9541546Z     └─ migration.sql
+2026-10-28T17:21:19.9542037Z   └─ 20260804102000_add_auth_decision_log_context_columns/
+2026-10-28T17:21:19.9542546Z     └─ migration.sql
+2026-10-28T17:21:19.9543000Z   └─ 20260804120000_add_auth_decision_log_value_enums/
+2026-10-28T17:21:19.9543627Z     └─ migration.sql
+2026-10-28T17:21:19.9544192Z   └─ 20260804123000_add_sensitive_action_session_verification/
+2026-10-28T17:21:19.9544716Z     └─ migration.sql
+2026-10-28T17:21:19.9545174Z   └─ 20260804133000_add_mfa_recovery_codes/
+2026-10-28T17:21:19.9545609Z     └─ migration.sql
+2026-10-28T17:21:19.9546074Z   └─ 20260811114500_add_outbox_retry_schedule/
+2026-10-28T17:21:19.9547032Z     └─ migration.sql
+2026-10-28T17:21:19.9547755Z   └─ 20260811163000_add_targeted_reanalysis_request/
+2026-10-28T17:21:19.9548970Z     └─ migration.sql
+2026-10-28T17:21:19.9549658Z   └─ 20260811170000_add_targeted_reanalysis_scan_job/
+2026-10-28T17:21:19.9550266Z     └─ migration.sql
+2026-10-28T17:21:19.9550909Z   └─ 20260811190000_add_targeted_reanalysis_checkpoint/
+2026-10-28T17:21:19.9551554Z     └─ migration.sql
+2026-10-28T17:21:19.9552591Z   └─ 20260812000000_add_verified_profile_reconciliation_provenance/
+2026-10-28T17:21:19.9553294Z     └─ migration.sql
+2026-10-28T17:21:19.9553746Z   └─ 20260812001000_add_verified_profile_version/
+2026-10-28T17:21:19.9554087Z     └─ migration.sql
+2026-10-28T17:21:19.9554421Z   └─ 20260812002000_add_legal_retrieval_index/
+2026-10-28T17:21:19.9554762Z     └─ migration.sql
+2026-10-28T17:21:19.9555130Z   └─ 20260812003000_add_classification_review_request/
+2026-10-28T17:21:19.9555503Z     └─ migration.sql
+2026-10-28T17:21:19.9555884Z   └─ 20260812004000_add_legal_corpus_activation_tracking/
+2026-10-28T17:21:19.9556252Z     └─ migration.sql
+2026-10-28T17:21:19.9556870Z   └─ 20260812004000_add_legal_source_snapshot/
+2026-10-28T17:21:19.9557210Z     └─ migration.sql
+2026-10-28T17:21:19.9557574Z   └─ 20260813230000_add_auth_user_mfa_verified_at/
+2026-10-28T17:21:19.9557973Z     └─ migration.sql
+2026-10-28T17:21:19.9558318Z   └─ 20260813231000_add_assessment_status_enum/
+2026-10-28T17:21:19.9558674Z     └─ migration.sql
+2026-10-28T17:21:19.9558991Z   └─ 20260813232000_add_outbox_status_enum/
+2026-10-28T17:21:19.9559331Z     └─ migration.sql
+2026-10-28T17:21:19.9559701Z   └─ 20260813233000_add_evidence_acceptance_status_enum/
+2026-10-28T17:21:19.9560056Z     └─ migration.sql
+2026-10-28T17:21:19.9560396Z   └─ 20260813234000_add_wizard_profile_status_enum/
+2026-10-28T17:21:19.9560740Z     └─ migration.sql
+2026-10-28T17:21:19.9561115Z   └─ 20260813235000_add_repository_connection_status_enum/
+2026-10-28T17:21:19.9561493Z     └─ migration.sql
+2026-10-28T17:21:19.9561853Z   └─ 20260813235500_add_repository_scan_job_enums/
+2026-10-28T17:21:19.9562200Z     └─ migration.sql
+2026-10-28T17:21:19.9562559Z   └─ 20260813235900_add_assessment_runtime_event/
+2026-10-28T17:21:19.9562895Z     └─ migration.sql
+2026-10-28T17:21:19.9563259Z   └─ 20260814000000_add_repository_snapshot_status_enum/
+2026-10-28T17:21:19.9563606Z     └─ migration.sql
+2026-10-28T17:21:19.9563945Z   └─ 20260814000500_add_conflict_record_status_enum/
+2026-10-28T17:21:19.9564307Z     └─ migration.sql
+2026-10-28T17:21:19.9564747Z   └─ 20260814001000_reconcile_classification_verified_profile_schema/
+2026-10-28T17:21:19.9565171Z     └─ migration.sql
+2026-10-28T17:21:19.9565545Z   └─ 20260814001500_add_missing_legal_rule_match_table/
+2026-10-28T17:21:19.9565894Z     └─ migration.sql
+2026-10-28T17:21:19.9566295Z   └─ 20260814003000_convert_legal_rule_lifecycle_status_enum/
+2026-10-28T17:21:19.9567003Z     └─ migration.sql
+2026-10-28T17:21:19.9567534Z   └─ 20260815090000_add_conflict_explanation_basis/
+2026-10-28T17:21:19.9567889Z     └─ migration.sql
+2026-10-28T17:21:19.9568216Z   └─ 20260816044534_refactor_legal_rule/
+2026-10-28T17:21:19.9568549Z     └─ migration.sql
+2026-10-28T17:21:19.9568978Z   └─ 20260819000000_add_verified_profile_stale_and_version_unique/
+2026-10-28T17:21:19.9569377Z     └─ migration.sql
+2026-10-28T17:21:19.9569722Z   └─ 20260824120000_add_provider_credentials/
+2026-10-28T17:21:19.9570062Z     └─ migration.sql
+2026-10-28T17:21:19.9570449Z   └─ 20260824160000_allow_cli_repository_connections/
+2026-10-28T17:21:19.9570807Z     └─ migration.sql
+2026-10-28T17:21:19.9571124Z   └─ 20260825090000_drop_auth_invitation/
+2026-10-28T17:21:19.9571443Z     └─ migration.sql
+2026-10-28T17:21:19.9571771Z   └─ 20260825093000_drop_legacy_user/
+2026-10-28T17:21:19.9572061Z     └─ migration.sql
+2026-10-28T17:21:19.9572351Z   └─ 20260825163206_add_fk/
+2026-10-28T17:21:19.9572643Z     └─ migration.sql
+2026-10-28T17:21:19.9572999Z   └─ 20260825190000_add_gitlab_repository_provider/
+2026-10-28T17:21:19.9573347Z     └─ migration.sql
+2026-10-28T17:21:19.9573654Z   └─ 20260826090000_rbac_user_role_cleanup/
+2026-10-28T17:21:19.9573987Z     └─ migration.sql
+2026-10-28T17:21:19.9574337Z   └─ 20260826100000_add_active_provider_credential_flag/
+2026-10-28T17:21:19.9574687Z     └─ migration.sql
+2026-10-28T17:21:19.9575071Z   └─ 20260826113000_drop_auth_organization_membership_scope/
+2026-10-28T17:21:19.9575458Z     └─ migration.sql
+2026-10-28T17:21:19.9575902Z   └─ 20260826190000_role_only_rbac_drop_action/
+2026-10-28T17:21:19.9576247Z     └─ migration.sql
+2026-10-28T17:21:19.9576886Z   └─ 20260828170000_optimize_auth_erd/
+2026-10-28T17:21:19.9577203Z     └─ migration.sql
+2026-10-28T17:21:19.9577576Z   └─ 20260830120000_account_scope_provider_credentials/
+2026-10-28T17:21:19.9577932Z     └─ migration.sql
+2026-10-28T17:21:19.9578263Z   └─ 20260830120000_add_verified_agent_episode/
+2026-10-28T17:21:19.9578607Z     └─ migration.sql
+2026-10-28T17:21:19.9579029Z   └─ 20260830123000_harden_verified_agent_episode_validation_status/
+2026-10-28T17:21:19.9579398Z     └─ migration.sql
+2026-10-28T17:21:19.9579769Z   └─ 20260903120000_add_assessment_interview_thread/
+2026-10-28T17:21:19.9580081Z     └─ migration.sql
+2026-10-28T17:21:19.9580447Z   └─ 20260905100000_pin_interview_guidance_version/
+2026-10-28T17:21:19.9580765Z     └─ migration.sql
+2026-10-28T17:21:19.9581135Z   └─ 20260905150000_add_bitbucket_azure_devops_providers/
+2026-10-28T17:21:19.9581498Z     └─ migration.sql
+2026-10-28T17:21:19.9581869Z   └─ 20260908180000_add_interview_runtime_stage/
+2026-10-28T17:21:19.9582191Z     └─ migration.sql
+2026-10-28T17:21:19.9582543Z   └─ 20260910120000_add_engineering_not_applicable_enums/
+2026-10-28T17:21:19.9582913Z     └─ migration.sql
+2026-10-28T17:21:19.9583300Z   └─ 20260911030000_reconcile_assessment_runtime_stages/
+2026-10-28T17:21:19.9583654Z     └─ migration.sql
+2026-10-28T17:21:19.9583979Z   └─ 20260911090000_admin_account_lifecycle/
+2026-10-28T17:21:19.9584315Z     └─ migration.sql
+2026-10-28T17:21:19.9584679Z   └─ 20260911190000_retire_admin_role_mutation/
+2026-10-28T17:21:19.9585018Z     └─ migration.sql
+2026-10-28T17:21:19.9585342Z   └─ 20260912100000_add_corpus_preparation/
+2026-10-28T17:21:19.9585737Z     └─ migration.sql
+2026-10-28T17:21:19.9586067Z   └─ 20260912110000_harden_corpus_admin_commands/
+2026-10-28T17:21:19.9586767Z     └─ migration.sql
+2026-10-28T17:21:19.9587117Z   └─ 20260912120000_lcsp_310_billing_foundation/
+2026-10-28T17:21:19.9587430Z     └─ migration.sql
+2026-10-28T17:21:19.9587802Z   └─ 20260913100000_lcsp_311_billing_usage_dimensions/
+2026-10-28T17:21:19.9588170Z     └─ migration.sql
+2026-10-28T17:21:19.9588478Z   └─ 20260913120000_sepay_webhook_ingress/
+2026-10-28T17:21:19.9588792Z     └─ migration.sql
+2026-10-28T17:21:19.9589139Z   └─ 20260916090000_billing_reconciliation_state/
+2026-10-28T17:21:19.9589479Z     └─ migration.sql
+2026-10-28T17:21:19.9589845Z   └─ 20260916100000_lcsp_316_metering_reservation_groups/
+2026-10-28T17:21:19.9590237Z     └─ migration.sql
+2026-10-28T17:21:19.9590769Z   └─ 20260917100000_lcsp_316_invocation_capacity/
+2026-10-28T17:21:19.9591119Z     └─ migration.sql
+2026-10-28T17:21:19.9591425Z   └─ 20260918203000_drop_account_invitation/
+2026-10-28T17:21:19.9591809Z     └─ migration.sql
+2026-10-28T17:21:19.9592135Z   └─ 20260919160000_repair_runtime_model_policy_snapshot/
+2026-10-28T17:21:19.9592459Z     └─ migration.sql
+2026-10-28T17:21:19.9592773Z   └─ 20260920120000_lcsp_317_admin_billing_read_models/
+2026-10-28T17:21:19.9593138Z     └─ migration.sql
+2026-10-28T17:21:19.9593470Z   └─ 20260922120000_lcsp_336_decision_model_idempotency/
+2026-10-28T17:21:19.9593783Z     └─ migration.sql
+2026-10-28T17:21:19.9594121Z   └─ 20260924120000_drop_llm_usage_reservation_unique_index/
+2026-10-28T17:21:19.9594460Z     └─ migration.sql
+2026-10-28T17:21:19.9594779Z   └─ 20260925100000_billing_reservation_owner_context/
+2026-10-28T17:21:19.9595206Z     └─ migration.sql
+2026-10-28T17:21:19.9595579Z   └─ 20260925183000_billing_invocation_authorization_holds/
+2026-10-28T17:21:19.9595944Z     └─ migration.sql
+2026-10-28T17:21:19.9596294Z   └─ 20260926090000_assessment_ai_not_detected/
+2026-10-28T17:21:19.9596918Z     └─ migration.sql
+2026-10-28T17:21:19.9597436Z   └─ 20260927120000_assessment_pipeline_reconciliation/
+2026-10-28T17:21:19.9597795Z     └─ migration.sql
+2026-10-28T17:21:19.9598111Z   └─ 20260927180000_workflow_billing_pause/
+2026-10-28T17:21:19.9598440Z     └─ migration.sql
+2026-10-28T17:21:19.9598789Z   └─ 20260927183000_workflow_billing_pause_source/
+2026-10-28T17:21:19.9599297Z     └─ migration.sql
+2026-10-28T17:21:19.9599648Z   └─ 20260927190000_reservation_initial_amount/
+2026-10-28T17:21:19.9600001Z     └─ migration.sql
+2026-10-28T17:21:19.9600361Z   └─ 20260930090000_engineering_rule_assessment/
+2026-10-28T17:21:19.9600711Z     └─ migration.sql
+2026-10-28T17:21:19.9601048Z   └─ 20261003100000_assessment_runtime_control/
+2026-10-28T17:21:19.9601396Z     └─ migration.sql
+2026-10-28T17:21:19.9601773Z   └─ 20261005140000_assessment_canonical_persistence/
+2026-10-28T17:21:19.9602137Z     └─ migration.sql
+2026-10-28T17:21:19.9602470Z   └─ 20261006120000_legal_portfolio_expand/
+2026-10-28T17:21:19.9602797Z     └─ migration.sql
+2026-10-28T17:21:19.9603143Z   └─ 20261007120000_assessment_domain_expand/
+2026-10-28T17:21:19.9603482Z     └─ migration.sql
+2026-10-28T17:21:19.9603816Z   └─ 20261007160000_assessment_human_resolution/
+2026-10-28T17:21:19.9604148Z     └─ migration.sql
+2026-10-28T17:21:19.9604494Z   └─ 20261007190000_assessment_final_report/
+2026-10-28T17:21:19.9604841Z     └─ migration.sql
+2026-10-28T17:21:19.9605165Z   └─ 20261008090000_outbox_cancelled_status/
+2026-10-28T17:21:19.9605498Z     └─ migration.sql
+2026-10-28T17:21:19.9605819Z   └─ 20261008090100_legacy_migration_archive/
+2026-10-28T17:21:19.9606164Z     └─ migration.sql
+2026-10-28T17:21:19.9606693Z   └─ 20261008090200_legacy_reevaluation_kind/
+2026-10-28T17:21:19.9607090Z     └─ migration.sql
+2026-10-28T17:21:19.9607443Z   └─ 20261008090300_legacy_reevaluation_ledger/
+2026-10-28T17:21:19.9607795Z     └─ migration.sql
+2026-10-28T17:21:19.9608130Z   └─ 20261008160000_w7_drop_v1_authority/
+2026-10-28T17:21:19.9608452Z     └─ migration.sql
+2026-10-28T17:21:19.9608800Z   └─ 20261011120000_compliance_rule_set_terminology/
+2026-10-28T17:21:19.9609164Z     └─ migration.sql
+2026-10-28T17:21:19.9609530Z   └─ 20261012090000_canonical_physical_terminology/
+2026-10-28T17:21:19.9609875Z     └─ migration.sql
+2026-10-28T17:21:19.9610211Z   └─ 20261013100000_agent_stream_boundaries/
+2026-10-28T17:21:19.9610548Z     └─ migration.sql
+2026-10-28T17:21:19.9610884Z   └─ 20261013132644_re_generate_db/
+2026-10-28T17:21:19.9611190Z     └─ migration.sql
+2026-10-28T17:21:19.9611580Z   └─ 20261014090000_restore_human_request_resolved_fact_fk/
+2026-10-28T17:21:19.9611949Z     └─ migration.sql
+2026-10-28T17:21:19.9612295Z   └─ 20261014120000_legal_source_management/
+2026-10-28T17:21:19.9612638Z     └─ migration.sql
+2026-10-28T17:21:19.9612977Z   └─ 20261014150000_legal_provision_effect_status/
+2026-10-28T17:21:19.9613489Z     └─ migration.sql
+2026-10-28T17:21:19.9613906Z   └─ 20261016040000_rule_set_reactivation/
+2026-10-28T17:21:19.9614319Z     └─ migration.sql
+2026-10-28T17:21:19.9614685Z   └─ 20261016050000_rule_set_operative_propositions/
+2026-10-28T17:21:19.9615073Z     └─ migration.sql
+2026-10-28T17:21:19.9615392Z   └─ 20261016113000_legal_document_graph/
+2026-10-28T17:21:19.9615722Z     └─ migration.sql
+2026-10-28T17:21:19.9616047Z   └─ 20261016114000_semantic_claim_graph/
+2026-10-28T17:21:19.9616530Z     └─ migration.sql
+2026-10-28T17:21:19.9616968Z   └─ 20261017001000_preparation_claim_inventory/
+2026-10-28T17:21:19.9617282Z     └─ migration.sql
+2026-10-28T17:21:19.9617626Z   └─ 20261017030000_preparation_review_frontier/
+2026-10-28T17:21:19.9617964Z     └─ migration.sql
+2026-10-28T17:21:19.9618290Z   └─ 20261018070000_source_semantic_audit/
+2026-10-28T17:21:19.9618643Z     └─ migration.sql
+2026-10-28T17:21:19.9618972Z   └─ 20261018071000_semantic_context_relation/
+2026-10-28T17:21:19.9619309Z     └─ migration.sql
+2026-10-28T17:21:19.9619684Z   └─ 20261020140000_rule_set_no_operative_obligations/
+2026-10-28T17:21:19.9620035Z     └─ migration.sql
+2026-10-28T17:21:19.9620380Z   └─ 20261021190000_source_review_owner_wait/
+2026-10-28T17:21:19.9620721Z     └─ migration.sql
+2026-10-28T17:21:19.9621063Z   └─ 20261022170000_model_usage_reference_analytics/
+2026-10-28T17:21:19.9621410Z     └─ migration.sql
+2026-10-28T17:21:19.9621758Z   └─ 20261022173000_system_preparation_usage_scope/
+2026-10-28T17:21:19.9622265Z     └─ migration.sql
+2026-10-28T17:21:19.9622603Z   └─ 20261023180000_batch_source_review_frontier/
+2026-10-28T17:21:19.9622946Z     └─ migration.sql
+2026-10-28T17:21:19.9623276Z   └─ 20261024120000_file_claim_discovery/
+2026-10-28T17:21:19.9623618Z     └─ migration.sql
+2026-10-28T17:21:19.9623952Z   └─ 20261024120100_preparation_budget_pause/
+2026-10-28T17:21:19.9624299Z     └─ migration.sql
+2026-10-28T17:21:19.9624615Z   └─ 20261024130000_source_audit_declined/
+2026-10-28T17:21:19.9624937Z     └─ migration.sql
+2026-10-28T17:21:19.9625327Z   └─ 20261024130100_source_audit_declined_constraints/
+2026-10-28T17:21:19.9625681Z     └─ migration.sql
+2026-10-28T17:21:19.9626002Z   └─ 20261024140000_document_corpus_role/
+2026-10-28T17:21:19.9626325Z     └─ migration.sql
+2026-10-28T17:21:19.9626856Z   └─ 20261024150000_remove_semantic_auditor/
+2026-10-28T17:21:19.9627191Z     └─ migration.sql
+2026-10-28T17:21:19.9627517Z   └─ 20261024160000_authoring_draft/
+2026-10-28T17:21:19.9627882Z     └─ migration.sql
+2026-10-28T17:21:19.9628239Z   └─ 20261024220000_auth_mfa_proof_generation/
+2026-10-28T17:21:19.9628586Z     └─ migration.sql
+2026-10-28T17:21:19.9628932Z   └─ 20261025090000_authoring_draft_version/
+2026-10-28T17:21:19.9629260Z     └─ migration.sql
+2026-10-28T17:21:19.9629597Z   └─ 20261025150000_direct_rule_set_draft/
+2026-10-28T17:21:19.9629919Z     └─ migration.sql
+2026-10-28T17:21:19.9630243Z   └─ 20261025150100_direct_draft_validation/
+2026-10-28T17:21:19.9630564Z     └─ migration.sql
+2026-10-28T17:21:19.9630730Z 
+2026-10-28T17:21:19.9631084Z All migrations have been successfully applied.
+2026-10-28T17:21:19.9779406Z ##[group]Run pnpm --filter @lcsp/api test
+2026-10-28T17:21:19.9779763Z pnpm --filter @lcsp/api test
+2026-10-28T17:21:19.9798951Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:19.9799219Z env:
+2026-10-28T17:21:19.9799434Z   LCSP_TEST_POSTGRES_PORT: 55435
+2026-10-28T17:21:19.9799711Z   LCSP_TEST_POSTGRES_DB: lcsp_api_test
+2026-10-28T17:21:19.9800006Z   LCSP_TEST_POSTGRES_USER: postgres
+2026-10-28T17:21:19.9800298Z   LCSP_TEST_POSTGRES_PASSWORD: postgres
+2026-10-28T17:21:19.9800973Z   DATABASE_URL: ***127.0.0.1:55435/lcsp_api_test?schema=public
+2026-10-28T17:21:19.9801354Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:19.9801656Z ##[endgroup]
+2026-10-28T17:21:20.0032164Z $ node ../../scripts/with-check-memory.mjs pnpm run test:run
+2026-10-28T17:21:20.0500081Z $ pnpm --dir ../.. run build:runtime-packages && cross-env NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./jest.config.ts
+2026-10-28T17:21:20.0669995Z $ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build
+2026-10-28T17:21:20.0949361Z $ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force
+2026-10-28T17:21:23.4276200Z $ tsc -b tsconfig.json --force
+2026-10-28T17:21:28.8113433Z (node:3229) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:21:28.8127818Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:21:32.7975450Z [Nest] 3229  - 10/28/2026, 5:21:32 PM   ERROR [AssessmentTrackingLoader] Owner compliance summary database query failed for owner user-parity-6224468b-7bc4-48b7-8bef-2dd55ae401bf (correlationId: corr-sql-fail-28dc684f-63f4-4b5b-a322-d06683e754b4): Simulated PostgreSQL timeout in compliance summary CTE
+2026-10-28T17:21:32.7978666Z Error: Simulated PostgreSQL timeout in compliance summary CTE
+2026-10-28T17:21:32.7980358Z     at Proxy.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:2871:15)
+2026-10-28T17:21:32.7982481Z     at AssessmentTrackingLoader.loadCustomerOverview (/home/runner/work/LCSP/LCSP/apps/api/src/modules/assessment/infrastructure/persistence/assessment-tracking.loader.ts:640:70)
+2026-10-28T17:21:32.7984223Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:21:32.7985535Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:2883:5)
+2026-10-28T17:21:33.2900818Z [Nest] 3229  - 10/28/2026, 5:21:33 PM   ERROR [AssessmentTrackingLoader] Customer change feed database query failed for owner user-parity-6224468b-7bc4-48b7-8bef-2dd55ae401bf (correlationId: corr-change-fail-6e7e02be-56e5-4a84-9756-2a63a690e75d): Simulated PostgreSQL connection failure in change feed CTE
+2026-10-28T17:21:33.2903734Z Error: Simulated PostgreSQL connection failure in change feed CTE
+2026-10-28T17:21:33.2905144Z     at Proxy.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:3008:17)
+2026-10-28T17:21:33.2907429Z     at AssessmentTrackingLoader.loadCustomerOverview (/home/runner/work/LCSP/LCSP/apps/api/src/modules/assessment/infrastructure/persistence/assessment-tracking.loader.ts:949:71)
+2026-10-28T17:21:33.2909222Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:21:33.2910735Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/assessment-tracking-sql-parity.integration.spec.ts:3025:5)
+2026-10-28T17:21:33.3940299Z PASS test/assessment-tracking-sql-parity.integration.spec.ts (5.944 s)
+2026-10-28T17:21:33.8386737Z PASS src/modules/assessment/infrastructure/persistence/assessment-tracking.loader.spec.ts
+2026-10-28T17:21:35.3188398Z PASS src/platform/runtime-events/assessment-runtime-event.service.spec.ts
+2026-10-28T17:21:51.3560640Z PASS src/modules/compliance-rule-set/application/services/compliance-rule-set.service.integration.spec.ts (16.026 s)
+2026-10-28T17:21:53.1727690Z [Nest] 3229  - 10/28/2026, 5:21:53 PM   ERROR [LegalSourceActivatedConsumer] Legal Source activation event has no legalSourceVersionId
+2026-10-28T17:21:53.1729330Z [Nest] 3229  - 10/28/2026, 5:21:53 PM   ERROR [LegalSourceActivatedConsumer] Legal Source activation event has no legalSourceVersionId
+2026-10-28T17:21:53.2707237Z [Nest] 3229  - 10/28/2026, 5:21:53 PM    WARN [LegalSourceActivatedConsumer] Rule Set Preparation not started for legal source bc99fe6e-4d88-4046-b79f-4918c76fc902: RULE_SET_PREPARATION_NOT_ALLOWED
+2026-10-28T17:21:53.2709397Z [Nest] 3229  - 10/28/2026, 5:21:53 PM    WARN [LegalSourceActivatedConsumer] Rule Set Preparation not started for legal source bc57c982-21b6-49d1-a096-41229a73957e: RULE_SET_PREPARATION_SOURCE_VERSION_NOT_FOUND
+2026-10-28T17:21:56.4338373Z (node:3229) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+2026-10-28T17:22:00.4636048Z PASS src/modules/compliance-rule-set/application/services/rule-set-preparation-lifecycle.integration.spec.ts (8.048 s)
+2026-10-28T17:22:00.8008799Z PASS src/modules/assessment/infrastructure/persistence/assessment-provenance.loader.spec.ts
+2026-10-28T17:22:01.2364843Z PASS src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts
+2026-10-28T17:22:01.4423938Z PASS src/modules/assessment/domain/decision-validator.spec.ts
+2026-10-28T17:22:05.2935734Z PASS test/payment-reconciliation.integration.spec.ts
+2026-10-28T17:22:05.5758967Z PASS src/modules/assessment/infrastructure/persistence/assessment-detail.loader.spec.ts
+2026-10-28T17:22:12.3350429Z PASS src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.integration.spec.ts (6.75 s)
+2026-10-28T17:22:13.8051607Z PASS src/modules/compliance-rule-set/domain/semantic-claim-integrity.validator.spec.ts
+2026-10-28T17:22:14.1179263Z PASS src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts
+2026-10-28T17:22:14.8184689Z PASS src/modules/legal-source/domain/document-graph.spec.ts
+2026-10-28T17:22:15.2450733Z PASS src/modules/auth/application/commands/oauth-callback/oauth-callback.handler.spec.ts
+2026-10-28T17:22:16.2151795Z (node:3481) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:22:16.2152893Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:22:16.2158541Z PASS src/modules/compliance-rule-set/domain/claim-inventory.spec.ts
+2026-10-28T17:22:16.8671170Z [Nest] 3481  - 10/28/2026, 5:22:16 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: github_repository_archive_unknown_failure
+2026-10-28T17:22:16.8672968Z [Nest] 3481  - 10/28/2026, 5:22:16 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+2026-10-28T17:22:16.8674228Z [Nest] 3481  - 10/28/2026, 5:22:16 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+2026-10-28T17:22:16.8674891Z   correlationId: 'corr-failed',
+2026-10-28T17:22:16.8675263Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:16.8675612Z   scanJobId: 'scan-job-1',
+2026-10-28T17:22:16.8675997Z   repositoryFullName: 'acme/example-repo',
+2026-10-28T17:22:16.8676342Z   githubStatus: null
+2026-10-28T17:22:16.8676905Z }
+2026-10-28T17:22:16.8819541Z PASS src/modules/github-integration/application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.spec.ts
+2026-10-28T17:22:16.9625327Z [Nest] 3481  - 10/28/2026, 5:22:16 PM   DEBUG [StreamSnapshotArchiveHandler] Repository snapshot archive cache hit
+2026-10-28T17:22:16.9626595Z [Nest] 3481  - 10/28/2026, 5:22:16 PM   DEBUG [StreamSnapshotArchiveHandler] Object(3) {
+2026-10-28T17:22:16.9627510Z   correlationId: 'corr-cache',
+2026-10-28T17:22:16.9627883Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:16.9628331Z   commitSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+2026-10-28T17:22:16.9628698Z }
+2026-10-28T17:22:17.0342255Z PASS src/modules/github-integration/infrastructure/github/github-cli-repository.provider.spec.ts
+2026-10-28T17:22:17.7722927Z PASS src/platform/outbox/outbox-publisher.service.spec.ts
+2026-10-28T17:22:17.9793959Z PASS src/config/config.spec.ts
+2026-10-28T17:22:18.4203129Z PASS src/modules/legal-source/application/services/legal-source-corpus-role.integration.spec.ts
+2026-10-28T17:22:18.9014996Z PASS src/modules/assessment/presentation/http/assessment-provenance.controller.spec.ts
+2026-10-28T17:22:19.2951077Z PASS src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.spec.ts
+2026-10-28T17:22:23.0343376Z PASS test/billing-foundation.integration.spec.ts
+2026-10-28T17:22:23.2951579Z PASS src/modules/assessment/application/services/assessment-lifecycle-coordinator.service.spec.ts
+2026-10-28T17:22:23.4786012Z [Nest] 3481  - 10/28/2026, 5:22:23 PM   ERROR [HttpExceptionFilter] Non-HTTP exception caught in HttpExceptionFilter (rpc): {}
+2026-10-28T17:22:23.4787815Z Error: rpc failure
+2026-10-28T17:22:23.4788647Z     at /home/runner/work/LCSP/LCSP/apps/api/src/platform/http/filters/http-exception.filter.spec.ts:133:20
+2026-10-28T17:22:23.4790013Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/expect@30.5.1/node_modules/expect/build/index.js:1824:9)
+2026-10-28T17:22:23.4791611Z     at Object.throwingMatcher [as toThrow] (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/expect@30.5.1/node_modules/expect/build/index.js:2235:93)
+2026-10-28T17:22:23.4793251Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/src/platform/http/filters/http-exception.filter.spec.ts:134:12)
+2026-10-28T17:22:23.4795172Z     at Promise.finally.completed (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1834:28)
+2026-10-28T17:22:23.4799780Z     at new Promise (<anonymous>)
+2026-10-28T17:22:23.4800970Z     at callAsyncCircusFn (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1774:10)
+2026-10-28T17:22:23.4802722Z     at _callCircusTest (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1167:40)
+2026-10-28T17:22:23.4804036Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:22:23.4805576Z     at _runTestInContext (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1103:3)
+2026-10-28T17:22:23.4807283Z     at runTestWithContext (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:996:5)
+2026-10-28T17:22:23.4809169Z     at _runTestsForDescribeBlockOnce (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1008:11)
+2026-10-28T17:22:23.4811115Z     at _runTestsForDescribeBlock (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+2026-10-28T17:22:23.4812883Z     at _runTestsForDescribeBlockOnce (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1003:11)
+2026-10-28T17:22:23.4815191Z     at _runTestsForDescribeBlock (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+2026-10-28T17:22:23.4816267Z     at run (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:789:3)
+2026-10-28T17:22:23.4817882Z     at runAndTransformResultsToJestFormat (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:2300:21)
+2026-10-28T17:22:23.4819278Z     at jestAdapter (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/runner.js:111:19)
+2026-10-28T17:22:23.4820286Z     at runTestInternal (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/testWorker.js:247:16)
+2026-10-28T17:22:23.4821297Z     at runTest (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/testWorker.js:315:7)
+2026-10-28T17:22:23.4822712Z     at Object.worker (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/testWorker.js:479:12)
+2026-10-28T17:22:23.4824292Z [Nest] 3481  - 10/28/2026, 5:22:23 PM   ERROR [HttpExceptionFilter] [dfbbb2fd-e83a-47c2-8e66-78d59c398341] POST /provider-credentials 500 - Internal Server Error
+2026-10-28T17:22:23.4825248Z Error: credential_store_operation_failed
+2026-10-28T17:22:23.4825872Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/src/platform/http/filters/http-exception.filter.spec.ts:144:7)
+2026-10-28T17:22:23.4827387Z     at Promise.finally.completed (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1834:28)
+2026-10-28T17:22:23.4828625Z     at new Promise (<anonymous>)
+2026-10-28T17:22:23.4829828Z     at callAsyncCircusFn (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1774:10)
+2026-10-28T17:22:23.4831606Z     at _callCircusTest (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1167:40)
+2026-10-28T17:22:23.4832563Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:22:23.4833382Z     at _runTestInContext (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1103:3)
+2026-10-28T17:22:23.4834449Z     at runTestWithContext (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:996:5)
+2026-10-28T17:22:23.4835973Z     at _runTestsForDescribeBlockOnce (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1008:11)
+2026-10-28T17:22:23.4837303Z     at _runTestsForDescribeBlock (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+2026-10-28T17:22:23.4838469Z     at _runTestsForDescribeBlockOnce (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:1003:11)
+2026-10-28T17:22:23.4839622Z     at _runTestsForDescribeBlock (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:824:5)
+2026-10-28T17:22:23.4840674Z     at run (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:789:3)
+2026-10-28T17:22:23.4842336Z     at runAndTransformResultsToJestFormat (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/jestAdapterInit.js:2300:21)
+2026-10-28T17:22:23.4843573Z     at jestAdapter (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-circus@30.5.1_supports-color@8.1.1/node_modules/jest-circus/build/runner.js:111:19)
+2026-10-28T17:22:23.4844589Z     at runTestInternal (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/testWorker.js:247:16)
+2026-10-28T17:22:23.4845593Z     at runTest (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/testWorker.js:315:7)
+2026-10-28T17:22:23.4847107Z     at Object.worker (/home/runner/work/LCSP/LCSP/node_modules/.pnpm/jest-runner@30.5.1_supports-color@8.1.1/node_modules/jest-runner/build/testWorker.js:479:12)
+2026-10-28T17:22:23.4894864Z PASS src/platform/http/filters/http-exception.filter.spec.ts
+2026-10-28T17:22:23.5720789Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [corr-401] POST /auth/sign-in 401 - {"ok":false,"problem":{"type":"auth/invalid-credentials","status":401,"code":"INVALID_CREDENTIALS","titleKey":"auth.errors.invalidCredentials.title","detailKey":"auth.errors.invalidCredentials.detail","requiredAction":"sign_in","correlationId":"corr-401"}}
+2026-10-28T17:22:23.5739212Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [adf8028c-6771-4f6b-856a-140af7d16e9c] GET /assessments/a/evidence-graph/overview 404 - {"message":"Technical evidence not found","error":"Not Found","statusCode":404}
+2026-10-28T17:22:23.5769181Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [91da938b-0118-47cd-b54b-baed75ed0067] POST /users 400 - {"message":["email must be an email","password is too short"],"error":"Bad Request"}
+2026-10-28T17:22:23.5800653Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [client-correlation-123] POST /auth/password-recovery/confirm 400 - {"ok":false,"problem":{"type":"request/validation-failed","status":400,"code":"VALIDATION_FAILED","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":""}}
+2026-10-28T17:22:23.5805878Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [guard-assigned-correlation-456] POST /auth/reauthenticate 400 - {"ok":false,"problem":{"type":"request/validation-failed","status":400,"code":"VALIDATION_FAILED","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":""}}
+2026-10-28T17:22:23.5811713Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [82590052-42da-462a-9202-b626802dee0a] POST /auth/password-recovery/confirm 400 - {"ok":false,"problem":{"type":"request/validation-failed","status":400,"code":"VALIDATION_FAILED","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":""}}
+2026-10-28T17:22:23.5817511Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [corr-credentials] POST /auth/sign-in 401 - {"ok":false,"problem":{"type":"auth/invalid-credentials","status":401,"code":"INVALID_CREDENTIALS","titleKey":"auth.errors.invalidCredentials.title","detailKey":"auth.errors.invalidCredentials.detail","requiredAction":"sign_in","correlationId":"corr-credentials"}}
+2026-10-28T17:22:23.5836987Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 409 - {"ok":false,"problem":{"type":"problem/email-already-exists","status":409,"code":"EMAIL_ALREADY_EXISTS","titleKey":"auth.errors.validationFailed.title","detailKey":"auth.errors.validationFailed.detail","requiredAction":"none","correlationId":"corr-override"}}
+2026-10-28T17:22:23.5840455Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 404 - {"ok":false,"problem":{"type":"auth/session-invalid","status":404,"code":"SESSION_INVALID","titleKey":"auth.errors.sessionInvalid.title","detailKey":"auth.errors.sessionInvalid.detail","requiredAction":"sign_in","correlationId":"corr-override"}}
+2026-10-28T17:22:23.5843490Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 403 - {"ok":false,"problem":{"type":"auth/account-suspended","status":403,"code":"ACCOUNT_SUSPENDED","titleKey":"auth.errors.authzStateGateBlocked.title","detailKey":"auth.errors.authzStateGateBlocked.detail","requiredAction":"contact_organization_owner","correlationId":"corr-override"}}
+2026-10-28T17:22:23.5846632Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [corr-override] GET /auth/sessions 401 - {"ok":false,"problem":{"type":"auth/session-invalid","status":401,"code":"SESSION_INVALID","titleKey":"auth.errors.sessionInvalid.title","detailKey":"auth.errors.sessionInvalid.detail","requiredAction":"sign_in","correlationId":"corr-override"}}
+2026-10-28T17:22:23.5849745Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [corr-lock] POST /auth/sign-in 429 - {"ok":false,"problem":{"type":"auth/temporary-lock","status":429,"code":"TEMPORARY_LOCKED","titleKey":"auth.errors.temporaryLock.title","detailKey":"auth.errors.temporaryLock.detail","requiredAction":"wait_and_retry","correlationId":"corr-lock","meta":{"lockedUntil":"2026-10-24T16:30:00.000Z","retryAfterSeconds":30}}}
+2026-10-28T17:22:23.5852922Z [Nest] 3481  - 10/28/2026, 5:22:23 PM    WARN [HttpExceptionFilter] [req-correlation] POST /auth/reauthenticate 401 - {"ok":false,"problem":{"type":"auth/invalid-credentials","status":401,"code":"INVALID_CREDENTIALS","titleKey":"auth.errors.invalidCredentials.title","detailKey":"auth.errors.invalidCredentials.detail","requiredAction":"none","correlationId":""}}
+2026-10-28T17:22:23.8862722Z PASS src/modules/compliance-rule-set/domain/compliance-rule-set-integrity.validator.spec.ts
+2026-10-28T17:22:24.0994694Z PASS src/modules/legal-source/application/services/safe-url-fetcher.service.spec.ts
+2026-10-28T17:22:24.5038896Z PASS src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.conclude.handler.spec.ts
+2026-10-28T17:22:24.7784839Z PASS src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.handler.spec.ts
+2026-10-28T17:22:25.2566762Z PASS src/modules/assessment/presentation/http/assessment-tracking.controller.spec.ts
+2026-10-28T17:22:26.1501607Z PASS src/modules/compliance-rule-set/domain/semantic-fidelity-matrix.spec.ts
+2026-10-28T17:22:26.4652512Z PASS src/modules/billing/application/shared/billing-usage.kernel.spec.ts
+2026-10-28T17:22:26.6773835Z [Nest] 3481  - 10/28/2026, 5:22:26 PM   ERROR [RbacGuard] Failed to write authorization AuditEvent (decision=ALLOW): db down
+2026-10-28T17:22:26.6802465Z PASS src/platform/rbac/rbac.guard.spec.ts
+2026-10-28T17:22:39.4227590Z PASS test/billing-customer.e2e.spec.ts (12.738 s)
+2026-10-28T17:22:40.3526120Z (node:3737) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:22:40.3527692Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:22:40.3568385Z PASS src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.cli.spec.ts
+2026-10-28T17:22:40.7378558Z PASS src/modules/compliance-rule-set/application/commands/prepare-current-rule-set/prepare-current-rule-set.handler.spec.ts
+2026-10-28T17:22:41.5669637Z PASS src/modules/compliance-rule-set/presentation/http/compliance-rule-set-admin.controller.spec.ts
+2026-10-28T17:22:43.0090510Z PASS src/platform/rbac/rbac-context.loader.spec.ts
+2026-10-28T17:22:43.5402593Z PASS src/modules/compliance-rule-set/presentation/http/compliance-rule-set.controller.spec.ts
+2026-10-28T17:22:43.8485508Z PASS src/modules/admin/presentation/http/admin-validation.spec.ts
+2026-10-28T17:22:44.1135246Z PASS src/modules/github-integration/application/services/runtime-hydration-ticket-lifecycle.service.spec.ts
+2026-10-28T17:22:44.3859174Z PASS src/modules/admin/application/commands/admin-commands.spec.ts
+2026-10-28T17:22:44.6315728Z PASS src/platform/outbox/rabbitmq.client.spec.ts
+2026-10-28T17:22:44.9346940Z PASS src/modules/compliance-rule-set/domain/reference-only.spec.ts
+2026-10-28T17:22:45.2506355Z PASS src/modules/assessment/application/queries/get-root-context/get-root-context.handler.spec.ts
+2026-10-28T17:22:45.5578190Z PASS src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.spec.ts
+2026-10-28T17:22:45.8462034Z PASS src/platform/outbox/outbox.repository.spec.ts
+2026-10-28T17:22:46.1474367Z PASS src/modules/github-integration/application/commands/github-cli-connect.handlers.spec.ts
+2026-10-28T17:22:46.4794264Z PASS src/platform/outbox/outbox-dlq.service.spec.ts
+2026-10-28T17:22:46.7025862Z [Nest] 3737  - 10/28/2026, 5:22:46 PM   ERROR [AuditWriterService] Failed to write audit event (eventType=auth.login.succeeded): db unavailable
+2026-10-28T17:22:46.7066141Z [Nest] 3737  - 10/28/2026, 5:22:46 PM   ERROR [AuditWriterService] Failed to write audit event (eventType=auth.login.succeeded): tx rolled back
+2026-10-28T17:22:46.7142265Z PASS src/platform/audit/audit-writer.service.spec.ts
+2026-10-28T17:22:46.7999198Z [Nest] 3737  - 10/28/2026, 5:22:46 PM    WARN [AuditWriterService] Audit payload field redacted, truncated, or removed by sanitizer: passwordHash
+2026-10-28T17:22:46.8001613Z [Nest] 3737  - 10/28/2026, 5:22:46 PM    WARN [AuditWriterService] Audit payload field redacted, truncated, or removed by sanitizer: sessionToken
+2026-10-28T17:22:46.8004165Z [Nest] 3737  - 10/28/2026, 5:22:46 PM    WARN [AuditWriterService] Audit payload field redacted, truncated, or removed by sanitizer: statementValue
+2026-10-28T17:22:46.8053372Z PASS src/modules/github-integration/infrastructure/gitlab/gitlab-cli-repository.provider.spec.ts
+2026-10-28T17:22:46.9903104Z PASS src/common/pipes/zod-validation.pipe.spec.ts
+2026-10-28T17:22:47.3219415Z PASS src/modules/assessment/application/commands/create-assessment/create-assessment.handler.spec.ts
+2026-10-28T17:22:47.6746810Z PASS src/modules/compliance-rule-set/domain/operative-source-coverage.spec.ts
+2026-10-28T17:22:48.3045459Z PASS src/modules/billing/infrastructure/security/sepay-webhook-ingress.spec.ts
+2026-10-28T17:22:48.6163403Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: CREDENTIAL_INVALID
+2026-10-28T17:22:48.6164793Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+2026-10-28T17:22:48.6165820Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+2026-10-28T17:22:48.6166765Z   correlationId: 'corr-401',
+2026-10-28T17:22:48.6167198Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:48.6167587Z   scanJobId: 'job-1',
+2026-10-28T17:22:48.6167990Z   repositoryFullName: 'acme/repo',
+2026-10-28T17:22:48.6168411Z   githubStatus: 401
+2026-10-28T17:22:48.6204853Z }
+2026-10-28T17:22:48.6249411Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: ARCHIVE_REDIRECT_VALIDATION_FAILED
+2026-10-28T17:22:48.6251325Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+2026-10-28T17:22:48.6252433Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+2026-10-28T17:22:48.6252981Z   correlationId: 'corr-redirect',
+2026-10-28T17:22:48.6253367Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:48.6253761Z   scanJobId: 'job-1',
+2026-10-28T17:22:48.6254270Z   repositoryFullName: 'acme/repo',
+2026-10-28T17:22:48.6254805Z   githubStatus: null
+2026-10-28T17:22:48.6255140Z }
+2026-10-28T17:22:48.6267220Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: PROVIDER_TIMEOUT
+2026-10-28T17:22:48.6268779Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+2026-10-28T17:22:48.6269801Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+2026-10-28T17:22:48.6270344Z   correlationId: 'corr-transient',
+2026-10-28T17:22:48.6270746Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:48.6271250Z   scanJobId: 'job-1',
+2026-10-28T17:22:48.6272211Z   repositoryFullName: 'acme/repo',
+2026-10-28T17:22:48.6272714Z   githubStatus: null
+2026-10-28T17:22:48.6272961Z }
+2026-10-28T17:22:48.6282436Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: PROVIDER_RATE_LIMITED
+2026-10-28T17:22:48.6284009Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+2026-10-28T17:22:48.6285470Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+2026-10-28T17:22:48.6286238Z   correlationId: 'corr-transient',
+2026-10-28T17:22:48.6286839Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:48.6287167Z   scanJobId: 'job-1',
+2026-10-28T17:22:48.6287504Z   repositoryFullName: 'acme/repo',
+2026-10-28T17:22:48.6287846Z   githubStatus: null
+2026-10-28T17:22:48.6288103Z }
+2026-10-28T17:22:48.6296952Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] GitHub snapshot archive retrieval failed: PROVIDER_CLIENT_UNAVAILABLE
+2026-10-28T17:22:48.6298338Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] undefined
+2026-10-28T17:22:48.6299342Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   ERROR [StreamSnapshotArchiveHandler] Object(5) {
+2026-10-28T17:22:48.6300005Z   correlationId: 'corr-transient',
+2026-10-28T17:22:48.6300406Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:48.6300740Z   scanJobId: 'job-1',
+2026-10-28T17:22:48.6301080Z   repositoryFullName: 'acme/repo',
+2026-10-28T17:22:48.6301423Z   githubStatus: null
+2026-10-28T17:22:48.6301670Z }
+2026-10-28T17:22:48.6319877Z PASS src/modules/github-integration/application/queries/stream-snapshot-archive/stream-snapshot-archive.cli.spec.ts
+2026-10-28T17:22:48.7147049Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   DEBUG [StreamSnapshotArchiveHandler] Repository snapshot archive cache hit
+2026-10-28T17:22:48.7148934Z [Nest] 3737  - 10/28/2026, 5:22:48 PM   DEBUG [StreamSnapshotArchiveHandler] Object(3) {
+2026-10-28T17:22:48.7149894Z   correlationId: 'corr-cache',
+2026-10-28T17:22:48.7150493Z   snapshotId: 'snapshot-1',
+2026-10-28T17:22:48.7151730Z   commitSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+2026-10-28T17:22:48.7152389Z }
+2026-10-28T17:22:48.7861929Z PASS src/modules/github-integration/infrastructure/github/github-secure-archive-http.transport.spec.ts
+2026-10-28T17:22:49.1377046Z PASS src/modules/compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.handler.spec.ts
+2026-10-28T17:22:49.3801610Z PASS src/modules/auth/application/commands/oauth-start/oauth-start.handler.spec.ts
+2026-10-28T17:22:49.5288960Z PASS src/modules/github-integration/infrastructure/security/envelope-encryption.service.spec.ts
+2026-10-28T17:22:49.7535174Z PASS src/modules/auth/application/commands/record-mfa-recovery-code-access/record-mfa-recovery-code-access.handler.spec.ts
+2026-10-28T17:22:50.0274749Z PASS src/platform/runtime-events/assessment-runtime-control.service.spec.ts
+2026-10-28T17:22:50.3350728Z PASS src/modules/compliance-rule-set/domain/assessment-applicability-fidelity.spec.ts
+2026-10-28T17:22:50.6033195Z PASS src/modules/assessment/infrastructure/persistence/assessment-report.loader.spec.ts
+2026-10-28T17:22:50.9160416Z PASS src/modules/assessment/application/commands/delete-assessment/delete-assessment.handler.spec.ts
+2026-10-28T17:22:51.2765003Z PASS src/modules/compliance-rule-set/domain/assessment-qualifier-fidelity.spec.ts
+2026-10-28T17:22:51.4496958Z [Nest] 3737  - 10/28/2026, 5:22:51 PM   ERROR [AuthAuditService] Failed to write auth audit event: db unavailable
+2026-10-28T17:22:51.4538401Z [Nest] 3737  - 10/28/2026, 5:22:51 PM   ERROR [AuthAuditService] Failed to write auth audit event in transaction: transaction-aborted
+2026-10-28T17:22:51.4592348Z PASS src/modules/auth/application/services/auth/auth-audit.service.spec.ts
+2026-10-28T17:22:51.5441773Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: password
+2026-10-28T17:22:51.5443175Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: sessionToken
+2026-10-28T17:22:51.5444269Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: mfaSecret
+2026-10-28T17:22:51.5445360Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: providerKey
+2026-10-28T17:22:51.5446622Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: nonce
+2026-10-28T17:22:51.5447757Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: code
+2026-10-28T17:22:51.5448828Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: tokenHash
+2026-10-28T17:22:51.5449921Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: sessionToken
+2026-10-28T17:22:51.5451029Z [Nest] 3737  - 10/28/2026, 5:22:51 PM    WARN [AuthAuditService] Auth audit payload field removed by sanitizer: session_token
+2026-10-28T17:22:51.6948102Z PASS test/billing-customer.service.spec.ts
+2026-10-28T17:22:52.6610136Z (node:3753) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:22:52.6611326Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:22:52.6617601Z PASS src/modules/assessment/application/commands/publish-agent-stream-event/publish-agent-stream-event.handler.spec.ts
+2026-10-28T17:22:53.1729760Z PASS src/modules/assessment/presentation/http/assessment-domain.controller.spec.ts
+2026-10-28T17:27:19.7433388Z PASS src/modules/compliance-rule-set/domain/reference-dependencies.spec.ts (266.565 s)
+2026-10-28T17:27:19.7533231Z   ● Console
+2026-10-28T17:27:19.7533407Z 
+2026-10-28T17:27:19.7533528Z     console.log
+2026-10-28T17:27:19.7534358Z       {"STATE_SPACE_LIVENESS":"PASS","graphs":4165,"states":1085691,"transitions":1486154,"terminals":4165,"falseDeadlocks":0}
+2026-10-28T17:27:19.7535142Z 
+2026-10-28T17:27:19.7535832Z       at Object.<anonymous> (src/modules/compliance-rule-set/domain/reference-dependencies.spec.ts:47:13)
+2026-10-28T17:27:19.7536728Z 
+2026-10-28T17:27:20.0462790Z PASS src/modules/auth/infrastructure/persistence/prisma-session.repository.spec.ts
+2026-10-28T17:27:20.2260254Z PASS src/modules/github-integration/infrastructure/persistence/prisma-credential-authorization.resolver.spec.ts
+2026-10-28T17:27:20.4494905Z PASS src/modules/legal-source/application/services/official-source-snapshot.service.spec.ts
+2026-10-28T17:27:20.6709058Z PASS src/modules/legal-source/application/services/legal-source-document-effect.spec.ts
+2026-10-28T17:27:21.1967886Z PASS src/modules/audit/presentation/http/audit.controller.spec.ts
+2026-10-28T17:27:21.4885517Z PASS src/modules/assessment/application/queries/get-rule-decision/get-rule-decision.handler.spec.ts
+2026-10-28T17:27:21.6923871Z PASS src/modules/compliance-rule-set/domain/source-review-frontier.spec.ts
+2026-10-28T17:27:21.8946087Z PASS src/modules/billing/application/shared/billing-admin-reporting.spec.ts
+2026-10-28T17:27:22.5145665Z PASS src/http-body-parser.spec.ts
+2026-10-28T17:27:22.9120745Z PASS src/modules/assessment/presentation/http/assessment-human-resolution.controller.spec.ts
+2026-10-28T17:27:23.1569894Z PASS src/modules/compliance-rule-set/domain/legal-effect-projection.spec.ts
+2026-10-28T17:27:26.4788088Z PASS test/payment-reconciliation.rollback.spec.ts
+2026-10-28T17:27:26.6502973Z [Nest] 3753  - 10/28/2026, 5:27:26 PM   ERROR [PrismaDatabaseCredentialStore] {"message":"Credential store operation failed","operation":"provider_credential_envelope_update","errorClass":"Error"}
+2026-10-28T17:27:26.6551395Z PASS src/modules/github-integration/infrastructure/persistence/prisma-database-credential.store.spec.ts
+2026-10-28T17:27:29.7843394Z PASS test/assessment-delete-billing-retention.integration.spec.ts
+2026-10-28T17:27:30.0525306Z PASS src/modules/admin/application/queries/admin-queries.spec.ts
+2026-10-28T17:27:30.3122515Z PASS src/modules/compliance-rule-set/domain/compliance-rule-set-coverage.contract.spec.ts
+2026-10-28T17:27:30.6291776Z PASS src/modules/github-integration/presentation/http/internal-snapshot.controller.spec.ts
+2026-10-28T17:27:30.7876992Z PASS src/platform/storage/artifact-storage.service.spec.ts
+2026-10-28T17:27:31.0017406Z PASS src/modules/auth/infrastructure/persistence/prisma-auth-security.persistence.spec.ts
+2026-10-28T17:27:31.2724487Z PASS src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.linking.spec.ts
+2026-10-28T17:27:31.5062269Z [Nest] 3753  - 10/28/2026, 5:27:31 PM   ERROR [RbacPreflightService] RBAC preflight evaluation failed (requiredRoles=CUSTOMER): db unavailable
+2026-10-28T17:27:31.5072878Z [Nest] 3753  - 10/28/2026, 5:27:31 PM   ERROR [RbacPreflightService] Failed to write authorization AuditEvent for worker preflight (requiredRoles=CUSTOMER): db down
+2026-10-28T17:27:31.5091258Z PASS src/platform/rbac/rbac-preflight.service.spec.ts
+2026-10-28T17:27:34.7375382Z PASS test/sepay-webhook.rollback.spec.ts
+2026-10-28T17:27:35.0362574Z PASS src/modules/audit/application/queries/list-audit-events/list-audit-events.handler.spec.ts
+2026-10-28T17:27:35.3628693Z PASS src/modules/assessment/application/queries/get-assessment/get-assessment.handler.spec.ts
+2026-10-28T17:27:38.5449271Z PASS test/llm-usage-recording.integration.spec.ts
+2026-10-28T17:27:38.8775685Z PASS src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts
+2026-10-28T17:27:39.2212580Z PASS src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler-behavior.spec.ts
+2026-10-28T17:27:39.6531907Z PASS src/modules/assessment/presentation/http/internal-agent-stream.controller.spec.ts
+2026-10-28T17:27:40.1021294Z PASS src/modules/github-integration/application/commands/connect-assessment-repository/connect-assessment-repository.toctou.spec.ts
+2026-10-28T17:27:40.8097234Z (node:4233) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:27:40.8098415Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:27:40.8109504Z PASS src/modules/github-integration/application/commands/github-cli-connect.support.spec.ts
+2026-10-28T17:27:41.7757627Z PASS src/app.routes.spec.ts
+2026-10-28T17:27:41.9692719Z PASS src/modules/compliance-rule-set/domain/semantic-reference-binding.spec.ts
+2026-10-28T17:27:42.2564555Z PASS src/modules/audit/application/commands/export-audit-trail/export-audit-trail.handler.spec.ts
+2026-10-28T17:27:42.4972131Z PASS src/modules/compliance-rule-set/domain/source-completeness.spec.ts
+2026-10-28T17:27:42.7652026Z PASS src/modules/compliance-rule-set/infrastructure/persistence/stored-rule-set-integrity.spec.ts
+2026-10-28T17:27:42.9629614Z PASS src/modules/auth/application/commands/enroll-mfa/enroll-mfa.handler.spec.ts
+2026-10-28T17:27:43.0369990Z PASS src/platform/logging/dev-unsafe-trace.spec.ts
+2026-10-28T17:27:43.1083422Z PASS src/modules/github-integration/infrastructure/azure-devops/azure-devops-cli-repository.provider.spec.ts
+2026-10-28T17:27:43.2156189Z PASS src/platform/runtime-events/agent-stream-sanitizer.spec.ts
+2026-10-28T17:27:43.4750787Z PASS src/modules/billing/application/queries/get-admin-billing-export/get-admin-billing-export.handler.spec.ts
+2026-10-28T17:27:43.7892894Z PASS src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.spec.ts
+2026-10-28T17:27:43.8721701Z PASS src/modules/compliance-rule-set/domain/rule-set-preparation-ownership.architecture.spec.ts
+2026-10-28T17:27:43.9885221Z PASS src/modules/audit/infrastructure/storage/audit-export-storage.service.spec.ts
+2026-10-28T17:27:44.4074658Z PASS src/modules/assessment/application/queries/get-pinned-legal-source-text/get-pinned-legal-source-text.handler.spec.ts
+2026-10-28T17:27:44.4770600Z PASS src/modules/github-integration/infrastructure/bitbucket/bitbucket-cli-repository.provider.spec.ts
+2026-10-28T17:27:44.7140399Z PASS test/billing-usage.controller.spec.ts
+2026-10-28T17:27:44.8743831Z PASS src/platform/http/interceptors/response-transform.interceptor.spec.ts
+2026-10-28T17:27:44.9928631Z PASS src/modules/legal-source/application/services/document-media-type.spec.ts
+2026-10-28T17:27:45.3155559Z PASS src/modules/compliance-rule-set/application/commands/resume-rule-set-preparation/resume-rule-set-preparation.handler.spec.ts
+2026-10-28T17:27:45.5584611Z PASS src/platform/rbac/rbac-preflight.controller.spec.ts
+2026-10-28T17:27:45.8159592Z PASS src/platform/logging/logging-context.spec.ts
+2026-10-28T17:27:45.9373042Z PASS src/platform/audit/audit-sanitizer.spec.ts
+2026-10-28T17:27:46.2265883Z PASS src/modules/legal-source/presentation/http/legal-source.controller.spec.ts
+2026-10-28T17:27:46.4697912Z PASS src/modules/assessment/infrastructure/persistence/assessment-case-support.service.spec.ts
+2026-10-28T17:27:46.7943921Z PASS src/modules/assessment/application/commands/complete-repository-setup/complete-repository-setup.handler.spec.ts
+2026-10-28T17:27:47.0469438Z PASS src/modules/billing/infrastructure/persistence/prisma-billing-transaction.spec.ts
+2026-10-28T17:27:47.1823544Z PASS src/modules/github-integration/infrastructure/github/snapshot-archive-cache.spec.ts
+2026-10-28T17:27:47.5124502Z PASS src/modules/compliance-rule-set/application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.handler.spec.ts
+2026-10-28T17:27:47.8455968Z PASS src/modules/assessment/application/queries/search-pinned-legal-source/search-pinned-legal-source.handler.spec.ts
+2026-10-28T17:27:47.9303323Z PASS src/modules/github-integration/infrastructure/github/github-cli-runtime.validator.spec.ts
+2026-10-28T17:27:48.0098694Z PASS src/modules/github-integration/infrastructure/bitbucket/bitbucket-cli-runtime.validator.spec.ts
+2026-10-28T17:27:48.0869448Z PASS src/modules/github-integration/infrastructure/security/production-configured-key-encryption-key.provider.spec.ts
+2026-10-28T17:27:48.3295073Z PASS test/billing-customer.controller.spec.ts
+2026-10-28T17:27:48.4920819Z PASS src/platform/scan/repository-scan-staleness.spec.ts
+2026-10-28T17:27:48.6125647Z PASS src/platform/audit/foundational-event-contract.spec.ts
+2026-10-28T17:27:48.8589856Z PASS src/modules/assessment/presentation/http/workspace-runtime-events.controller.spec.ts
+2026-10-28T17:27:49.2232652Z PASS src/modules/legal-source/application/services/legal-source-structure.spec.ts
+2026-10-28T17:27:49.3540154Z PASS src/modules/compliance-rule-set/infrastructure/runtime/agent-server-preparation-control.spec.ts
+2026-10-28T17:27:49.6238180Z PASS src/modules/audit/application/queries/get-audit-export/get-audit-export.handler.spec.ts
+2026-10-28T17:27:50.0397503Z PASS src/modules/github-integration/infrastructure/persistence/prisma-repository-snapshot.repository.spec.ts
+2026-10-28T17:27:50.1755534Z PASS src/platform/audit/audit-event.entity.spec.ts
+2026-10-28T17:27:50.4344515Z PASS src/modules/audit/application/queries/get-audit-export-artifact/get-audit-export-artifact.handler.spec.ts
+2026-10-28T17:27:50.7292548Z PASS src/platform/outbox/outbox-dlq.controller.spec.ts
+2026-10-28T17:27:50.9691647Z PASS src/modules/billing/infrastructure/messaging/sepay-reconciliation-consumer.spec.ts
+2026-10-28T17:27:51.2193849Z PASS src/modules/auth/infrastructure/persistence/prisma-sign-up.persistence.spec.ts
+2026-10-28T17:27:51.5172757Z PASS src/modules/legal-source/application/services/citation-locator-validator.service.spec.ts
+2026-10-28T17:27:51.6418604Z PASS src/platform/outbox/outbox-message.entity.spec.ts
+2026-10-28T17:27:51.8290891Z PASS test/billing-payment.service.spec.ts
+2026-10-28T17:27:52.6517270Z (node:4249) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:27:52.6517934Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:27:52.6523118Z PASS src/modules/assessment/application/services/assessment-event-appender.service.spec.ts
+2026-10-28T17:27:52.9279816Z PASS src/modules/github-integration/application/queries/list-repository-connections/list-repository-connections.handler.spec.ts
+2026-10-28T17:27:53.1289853Z PASS src/modules/github-integration/application/security/credential-lease.spec.ts
+2026-10-28T17:27:53.3124448Z PASS test/billing-usage-error-mapping.spec.ts
+2026-10-28T17:27:53.3856216Z PASS src/modules/github-integration/infrastructure/gitlab/gitlab-cli-runtime.validator.spec.ts
+2026-10-28T17:27:53.4557711Z PASS src/modules/github-integration/infrastructure/azure-devops/azure-devops-cli-runtime.validator.spec.ts
+2026-10-28T17:27:53.8241918Z PASS src/modules/billing/presentation/http/sepay-webhook.controller.spec.ts
+2026-10-28T17:27:53.9689042Z PASS src/modules/github-integration/infrastructure/gitlab/gitlab-secure-archive-http.transport.spec.ts
+2026-10-28T17:27:54.2060498Z PASS src/modules/github-integration/presentation/http/github-integration.controller.spec.ts
+2026-10-28T17:27:54.2712201Z PASS src/modules/assessment/domain/entities/assessment.entity.spec.ts
+2026-10-28T17:27:54.3537694Z PASS src/modules/github-integration/infrastructure/persistence/provider-credential-migration.spec.ts
+2026-10-28T17:27:54.8203648Z PASS src/modules/admin/admin.module.spec.ts
+2026-10-28T17:27:55.1119908Z PASS src/modules/assessment/application/queries/list-assessments/list-assessments.handler.spec.ts
+2026-10-28T17:27:55.3626621Z PASS src/modules/legal-source/application/queries/get-active-legal-source/get-active-legal-source.handler.spec.ts
+2026-10-28T17:27:55.4207383Z PASS test/billing-pricing-migration.spec.ts
+2026-10-28T17:27:55.5729536Z PASS src/platform/logging/http-logger.middleware.spec.ts
+2026-10-28T17:27:55.6696795Z [Nest] 4249  - 10/28/2026, 5:27:55 PM    WARN [HTTP] POST /auth/sign-in 401 +0ms code=INVALID_CREDENTIALS requiredAction=sign_in correlationId=corr-401
+2026-10-28T17:27:55.6782781Z PASS test/billing-foundation.spec.ts
+2026-10-28T17:27:56.3460857Z PASS src/modules/auth/auth.module.spec.ts
+2026-10-28T17:27:56.5522969Z PASS src/modules/github-integration/infrastructure/persistence/prisma-github-integration.repository.spec.ts
+2026-10-28T17:27:56.7070667Z PASS src/modules/github-integration/infrastructure/persistence/prisma-active-provider-credential.resolver.spec.ts
+2026-10-28T17:27:57.5668961Z PASS test/billing-module.di.spec.ts
+2026-10-28T17:27:57.6322731Z PASS src/modules/auth/infrastructure/security/mfa-secret-encryption.spec.ts
+2026-10-28T17:27:57.6992255Z PASS src/modules/billing/domain/effective-runtime-model.spec.ts
+2026-10-28T17:27:57.7659266Z PASS src/modules/legal-source/application/services/managed-path-law-agnostic.spec.ts
+2026-10-28T17:27:57.8329822Z PASS test/effective-runtime-model.spec.ts
+2026-10-28T17:27:58.0409616Z PASS src/app.controller.spec.ts
+2026-10-28T17:27:58.1055251Z PASS src/modules/github-integration/infrastructure/repository-provider-availability.spec.ts
+2026-10-28T17:27:58.1679602Z PASS src/modules/github-integration/infrastructure/persistence/cli-repository-connection-migration.spec.ts
+2026-10-28T17:27:59.1059724Z PASS test/assessment-module.di.spec.ts
+2026-10-28T17:27:59.2640188Z PASS src/modules/github-integration/application/commands/connect-assessment-repository/connect-assessment-repository.problem-mapping.spec.ts
+2026-10-28T17:27:59.4154499Z PASS src/infrastructure/prisma/prisma-outbox-aggregate-mapper.spec.ts
+2026-10-28T17:27:59.5344500Z PASS src/modules/audit/application/services/audit/audit-redactor.service.spec.ts
+2026-10-28T17:27:59.6058641Z PASS src/modules/auth/infrastructure/security/security.utils.spec.ts
+2026-10-28T17:27:59.6712984Z PASS src/platform/runtime-events/runtime-summary-sanitizer.spec.ts
+2026-10-28T17:27:59.9005614Z PASS src/platform/audit/audit.module.spec.ts
+2026-10-28T17:27:59.9742705Z 
+2026-10-28T17:27:59.9747058Z Test Suites: 14 skipped, 185 passed, 185 of 199 total
+2026-10-28T17:27:59.9747491Z Tests:       129 skipped, 1479 passed, 1608 total
+2026-10-28T17:27:59.9747808Z Snapshots:   0 total
+2026-10-28T17:27:59.9748078Z Time:        393.018 s
+2026-10-28T17:27:59.9748313Z Ran all test suites.
+2026-10-28T17:28:00.0252702Z Post job cleanup.
+2026-10-28T17:28:00.1484032Z (node:4264) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T17:28:00.1485238Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:28:00.1488453Z Cache hit occurred on the primary key node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007, not saving cache.
+2026-10-28T17:28:00.1586742Z Post job cleanup.
+2026-10-28T17:28:00.3012029Z Pruning is unnecessary.
+2026-10-28T17:28:00.3218430Z Post job cleanup.
+2026-10-28T17:28:00.4168213Z [command]/usr/bin/git version
+2026-10-28T17:28:00.4220584Z git version 2.56.0
+2026-10-28T17:28:00.4268989Z Temporarily overriding HOME='/home/runner/work/_temp/167126ec-c8fc-4067-b285-7cdaefd56dcd' before making global git config changes
+2026-10-28T17:28:00.4270445Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T17:28:00.4275977Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-28T17:28:00.4326512Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T17:28:00.4370745Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T17:28:00.4707512Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T17:28:00.4736782Z http.https://github.com/.extraheader
+2026-10-28T17:28:00.4767805Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-28T17:28:00.4806124Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T17:28:00.5097941Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T17:28:00.5135584Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T17:28:00.5582708Z Cleaning up orphan processes
+2026-10-28T17:28:00.6016580Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

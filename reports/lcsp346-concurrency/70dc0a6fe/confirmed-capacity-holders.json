@@ -1,0 +1,62 @@
+[
+  {
+    "assessment": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+    "observedAt": "2026-10-29T02:46:40.545Z",
+    "owner": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+    "name": "AI-Driven Essay Grading System",
+    "lifecycle": {
+      "state": "ACTIVE",
+      "assessmentRevision": 6
+    },
+    "runtime": {
+      "threadId": "30197668-3f10-47fd-87ad-c34e654fc6bc",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "ce1d9e22-5460-4a16-b53f-d646a942478d",
+      "checkpointId": "1f1d2d80-62ca-62b9-96da-30bb06898be6",
+      "currentExecutionId": "f421dcca-4353-413e-9110-17c140659e2e",
+      "executionState": "RUNNING",
+      "eventSequence": 1158,
+      "startedAt": "2026-10-29T02:30:29.797Z",
+      "lastResumedAt": "2026-10-29T02:30:29.797Z",
+      "updatedAt": "2026-10-29T02:46:39.658Z"
+    },
+    "usage": {
+      "invocationCount": 386,
+      "inputTokens": 6731526,
+      "outputTokens": 616975,
+      "totalTokens": 42463588,
+      "partial": true
+    },
+    "screenshot": "/home/khovan/.local/state/lcsp346/artifacts/capacity-holder-1.png"
+  },
+  {
+    "assessment": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+    "observedAt": "2026-10-29T02:46:46.664Z",
+    "owner": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+    "name": "Essay Grading System",
+    "lifecycle": {
+      "state": "ACTIVE",
+      "assessmentRevision": 25
+    },
+    "runtime": {
+      "threadId": "46f79d79-1670-419b-80d8-624424962ccd",
+      "rootAgentVersion": "assessment-root-v2",
+      "checkpointNamespace": "bcf4d105-1f2a-48c9-8251-1197d34d38f1",
+      "checkpointId": "1f1d2ea4-b947-64d3-a046-d8b200dafa03",
+      "currentExecutionId": "092b8818-7b97-4e4e-9b0a-f591f1c92c66",
+      "executionState": "RUNNING",
+      "eventSequence": 1286,
+      "startedAt": "2026-10-29T02:29:37.954Z",
+      "lastResumedAt": "2026-10-29T02:29:37.954Z",
+      "updatedAt": "2026-10-29T02:46:42.837Z"
+    },
+    "usage": {
+      "invocationCount": 519,
+      "inputTokens": 14513166,
+      "outputTokens": 1027106,
+      "totalTokens": 59510671,
+      "partial": true
+    },
+    "screenshot": "/home/khovan/.local/state/lcsp346/artifacts/capacity-holder-2.png"
+  }
+]

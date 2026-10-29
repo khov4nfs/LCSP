@@ -1,0 +1,35 @@
+{
+  "observedAt": "2026-10-29T02:40:33.921980+00:00",
+  "activeLeases": [
+    {
+      "category": "OTHER_ASSESSMENT",
+      "executionState": "RUNNING",
+      "startedAt": "2026-10-29 02:30:29.797000+00:00",
+      "leaseExpiresAt": "2026-10-29 02:50:31.723000+00:00",
+      "lastUsageAt": "2026-10-29 02:40:27.696000",
+      "recentUsageCount": 24
+    },
+    {
+      "category": "OTHER_ASSESSMENT",
+      "executionState": "RUNNING",
+      "startedAt": "2026-10-29 02:29:37.954000+00:00",
+      "leaseExpiresAt": "2026-10-29 02:50:19.344000+00:00",
+      "lastUsageAt": "2026-10-29 02:40:15.061000",
+      "recentUsageCount": 24
+    }
+  ],
+  "nativeStatusCounts": [
+    {
+      "status": "error",
+      "count": 2
+    },
+    {
+      "status": "success",
+      "count": 26
+    },
+    {
+      "status": "running",
+      "count": 2
+    }
+  ]
+}

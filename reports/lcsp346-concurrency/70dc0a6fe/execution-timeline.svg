@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="460" viewBox="0 0 1200 460">
+<rect width="1200" height="460" fill="#f8fafc"/><g font-family="sans-serif" fill="#0f172a">
+<text x="28" y="40" font-size="23">LCSP-346: persisted production Root execution</text>
+<text x="28" y="68" font-size="14">Historical telemetry • Fogewise • 2026-10-28 UTC • implementation 70dc0a6fe</text>
+<text x="28" y="93" font-size="13">Generated from recorded events. This is not a live application screenshot.</text>
+<line x1="180.0" x2="180.0" y1="130" y2="330" stroke="#cbd5e1"/>
+<text x="152.0" y="355" font-size="13">18:00:30</text>
+<line x1="342.0" x2="342.0" y1="130" y2="330" stroke="#cbd5e1"/>
+<text x="314.0" y="355" font-size="13">18:01:30</text>
+<line x1="504.0" x2="504.0" y1="130" y2="330" stroke="#cbd5e1"/>
+<text x="476.0" y="355" font-size="13">18:02:30</text>
+<line x1="666.0" x2="666.0" y1="130" y2="330" stroke="#cbd5e1"/>
+<text x="638.0" y="355" font-size="13">18:03:30</text>
+<line x1="828.0" x2="828.0" y1="130" y2="330" stroke="#cbd5e1"/>
+<text x="800.0" y="355" font-size="13">18:04:30</text>
+<line x1="990.0" x2="990.0" y1="130" y2="330" stroke="#cbd5e1"/>
+<text x="962.0" y="355" font-size="13">18:05:30</text>
+<rect x="304.47" y="125" width="475.12170000000003" height="205" fill="#dcfce7" opacity="0.65"/>
+<text x="28" y="180" font-size="17">Account A</text>
+<rect x="246.0879" y="160" width="533.5038000000001" height="32" rx="4" fill="#2563eb"/>
+<text x="246.0879" y="150" font-size="13">18:00:54.477 → 18:04:12.071 (human interrupt)</text>
+<circle cx="252.58950000000002" cy="176" r="2" fill="white"/>
+<circle cx="265.2066" cy="176" r="2" fill="white"/>
+<circle cx="292.94100000000003" cy="176" r="2" fill="white"/>
+<circle cx="326.097" cy="176" r="2" fill="white"/>
+<circle cx="347.589" cy="176" r="2" fill="white"/>
+<circle cx="365.6979" cy="176" r="2" fill="white"/>
+<circle cx="382.6863" cy="176" r="2" fill="white"/>
+<circle cx="403.07400000000007" cy="176" r="2" fill="white"/>
+<circle cx="428.211" cy="176" r="2" fill="white"/>
+<circle cx="460.2816" cy="176" r="2" fill="white"/>
+<circle cx="488.37780000000004" cy="176" r="2" fill="white"/>
+<circle cx="507.2049" cy="176" r="2" fill="white"/>
+<circle cx="539.9235000000001" cy="176" r="2" fill="white"/>
+<circle cx="557.7543000000001" cy="176" r="2" fill="white"/>
+<circle cx="585.4617000000001" cy="176" r="2" fill="white"/>
+<circle cx="631.3644" cy="176" r="2" fill="white"/>
+<circle cx="680.5827" cy="176" r="2" fill="white"/>
+<circle cx="702.6282" cy="176" r="2" fill="white"/>
+<circle cx="736.8291" cy="176" r="2" fill="white"/>
+<circle cx="756.7443000000001" cy="176" r="2" fill="white"/>
+<circle cx="777.2832000000001" cy="176" r="2" fill="white"/>
+<text x="28" y="275" font-size="17">Account B</text>
+<rect x="304.47" y="255" width="636.7545" height="32" rx="4" fill="#7c3aed"/>
+<text x="304.47" y="245" font-size="13">18:01:16.100 → 18:05:11.935 (human interrupt)</text>
+<circle cx="309.2409" cy="271" r="2" fill="white"/>
+<circle cx="326.36969999999997" cy="271" r="2" fill="white"/>
+<circle cx="345.3615" cy="271" r="2" fill="white"/>
+<circle cx="357.57630000000006" cy="271" r="2" fill="white"/>
+<circle cx="395.3817" cy="271" r="2" fill="white"/>
+<circle cx="403.2765" cy="271" r="2" fill="white"/>
+<circle cx="416.2581" cy="271" r="2" fill="white"/>
+<circle cx="435.19320000000005" cy="271" r="2" fill="white"/>
+<circle cx="461.84760000000006" cy="271" r="2" fill="white"/>
+<circle cx="484.047" cy="271" r="2" fill="white"/>
+<circle cx="499.69620000000003" cy="271" r="2" fill="white"/>
+<circle cx="546.3792000000001" cy="271" r="2" fill="white"/>
+<circle cx="579.9726" cy="271" r="2" fill="white"/>
+<circle cx="601.767" cy="271" r="2" fill="white"/>
+<circle cx="619.02" cy="271" r="2" fill="white"/>
+<circle cx="626.0157" cy="271" r="2" fill="white"/>
+<circle cx="646.6059" cy="271" r="2" fill="white"/>
+<circle cx="662.4333" cy="271" r="2" fill="white"/>
+<circle cx="677.0133000000001" cy="271" r="2" fill="white"/>
+<circle cx="694.7793" cy="271" r="2" fill="white"/>
+<circle cx="748.188" cy="271" r="2" fill="white"/>
+<circle cx="790.2621" cy="271" r="2" fill="white"/>
+<circle cx="805.3119" cy="271" r="2" fill="white"/>
+<circle cx="822.8997" cy="271" r="2" fill="white"/>
+<circle cx="837.8118000000001" cy="271" r="2" fill="white"/>
+<circle cx="852.5457" cy="271" r="2" fill="white"/>
+<circle cx="865.989" cy="271" r="2" fill="white"/>
+<circle cx="880.2504" cy="271" r="2" fill="white"/>
+<circle cx="907.7904000000001" cy="271" r="2" fill="white"/>
+<circle cx="937.7955000000001" cy="271" r="2" fill="white"/>
+<text x="28" y="398" font-size="19">Actual Root overlap: 175.971 seconds</text>
+<text x="28" y="428" font-size="13">Dots: completed model steps. Distinct owners, executions, threads, pins and Docker sandboxes.</text>
+</g></svg>

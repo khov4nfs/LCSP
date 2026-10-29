@@ -1,0 +1,305 @@
+[
+  {
+    "assessment": "db6266b2-4e16-4ced-8595-7ffe9e33f3ab",
+    "observedAt": "2026-10-29T02:41:04.648Z",
+    "caseRevision": 6,
+    "requests": [
+      {
+        "assessmentRuleId": "ar-06-provider-classification",
+        "criterionIds": [
+          "criterion_8ae168409f9d5b2934496cac"
+        ],
+        "question": "What is the legal identity and organizational form of the entity that develops, operates, and provides the ProctoAI automated exam proctoring system, and is the system currently deployed and offered as a live service to end users (or is this still an internal/pre-release project)?",
+        "unresolvedFact": "The legal identity, organizational form (company/agency/institution/individual), and deployment status of the operator/provider of the proctoring system.",
+        "decisionImpact": [
+          "Whether the entity is an AI system provider subject to risk-classification duties (c05/c06/ar-06)",
+          "Whether provider duties under Article 17 apply",
+          "Whether deployer duties apply"
+        ],
+        "resolutionAttempts": [
+          "Searched the repository for operator identity, license, legal entity, or deployment documentation; none found",
+          "The repository contains only software source code and README describing the proctoring system"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "79f0936d-8fad-4b91-9715-6e02e3b6e813",
+        "requestRevision": 1,
+        "openedCaseRevision": 3,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2f9f-a4fe-646e-81a4-f05d307d11f8",
+        "resolvedFactId": "ab34504e-796b-4186-bbda-f880f7a19629",
+        "answers": [
+          {
+            "idempotencyKey": "99abf030-29bc-4b59-8162-f657b1a5e79a",
+            "requestDigest": "b9abb0de4a400c5febec556ac22be24467036e26dc9163ebe7e7a3c776911718",
+            "actorId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+            "answeredAt": "2026-10-29T02:32:30.201Z",
+            "caseRevision": 4,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "Finding as of 29 October 2026: The legal identity of the entity responsible for ProctoAI is unverified, and its status as a live, operational service is not established.\n\n### 1. Legal identity and organizational form\n\nThe source repository, [shreeram312/AI-Proctored-System](https://github.com/shreeram312/AI-Proctored-System?utm_source=chatgpt.com), is hosted under an individual GitHub account displaying the name Shreeram Mutukundu.&#x20;\n\n[image](https://www.google.com/s2/favicons?domain=https://github.com\\&sz=32)\n\nGitHub\n\n\n\nHowever, the public evidence does not establish:\n\n- Whether the developer operates as an individual, registered business, company, university project team, or another legal entity.\n- The registered legal name, jurisdiction, registration number, or business address of a responsible organization.\n- Which entity legally owns, operates, and provides ProctoAI to end users.\n- Whether any third party has assumed provider or operator responsibilities.\n\nLegal entity classification: Undetermined. GitHub ownership identifies a repository maintainer, not necessarily the legal provider or deployer.\n\n### 2. Deployment and operational status\n\nThere is evidence of a possible public deployment:\n\n- The repository lists [ai-proctored-system.vercel.app](https://ai-proctored-system.vercel.app/?utm_source=chatgpt.com) as its project website.\n- Its README documents working student, teacher, and AI-proctoring features.\n- It also describes several capabilities as future work and provides instructions for running the project locally.&#x20;\n\n  [image](https://www.google.com/s2/favicons?domain=https://github.com\\&sz=32)\n\n  GitHub\n\n\n\nI could not independently verify that the Vercel application is currently accessible and functioning. More importantly, a deployment URL alone does not establish that ProctoAI is being used for actual examinations, has active customers, or is offered as a production service.\n\nOperational classification: Unverified — potentially deployed as a demo/prototype, but neither production operation nor internal-only status is confirmed.\n\n### 3. Implication for the compliance audit\n\nThe assessment should retain “Undetermined” for the responsible legal role and “Not confirmed” for live production deployment.\n\nTo resolve these findings, the project owner or responsible enterprise needs to provide its legal registration or organizational identity, explain whether it develops/provides/deploys the system, and confirm the production URL, go-live date, customer or institutional use, and whether real examination candidates are currently processed.\n\nUntil that evidence is obtained, it would be inappropriate to classify ProctoAI definitively as either a commercial live service or an internal/pre-release project."
+          }
+        ]
+      },
+      {
+        "assessmentRuleId": "art14-cl1-assessment",
+        "criterionIds": [
+          "criterion_84aa6af9bf8233ba7c7ae785"
+        ],
+        "question": "In which economic sector does the entity operating the ProctoAI system primarily carry out its activities (for example, education/training, finance/banking/credit information, government/state administration, telecommunications/Internet services, or general software/IT services), and is the system used to process personal data of individuals located in Vietnam?",
+        "unresolvedFact": "The economic sector of the operating entity and whether it processes personal data of individuals in Vietnam through the system.",
+        "decisionImpact": [
+          "Whether information-system-owner / service-provider duties under the Cybersecurity Law apply",
+          "Whether sector-specific duties (finance/banking/credit info) apply",
+          "Whether the personal-data protection law duties apply"
+        ],
+        "resolutionAttempts": [
+          "Searched the repository for sector, operator identity, or jurisdiction information; none found",
+          "Repository is a generic proctoring software project without operator sector identification"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "3ebaf6e8-b6cc-4da0-b302-fa0e147250b7",
+        "requestRevision": 1,
+        "openedCaseRevision": 3,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2f9f-a4fe-646e-81a4-f05d307d11f8",
+        "resolvedFactId": "8b7855f8-fda3-4eb4-ad0c-e72f10ff2fd6",
+        "answers": [
+          {
+            "idempotencyKey": "19635e6f-ab2f-4d4f-8302-2552500c165d",
+            "requestDigest": "f9f32a696d3db8653274e8683b27717a7646845fe0fca1ac7041765ec060019e",
+            "actorId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+            "answeredAt": "2026-10-29T02:33:58.618Z",
+            "caseRevision": 5,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "## ProctoAI — Sector and Vietnam Personal Data Assessment\n\nAssessment as of 29 October 2026:\n\n| Question                                                                       | Finding                                       | Confidence                                         |\n| ------------------------------------------------------------------------------ | --------------------------------------------- | -------------------------------------------------- |\n| Primary economic sector of the operating entity                                | Undetermined                                  | Insufficient information about the legal operator  |\n| Sector most closely associated with the system's intended use                  | Education and training / examination services | High                                               |\n| Whether the system is designed to process personal data                        | Yes                                           | High                                               |\n| Whether it currently processes personal data of individuals located in Vietnam | Not confirmed                                 | Insufficient deployment and user-location evidence |\n\n### 1. Primary economic sector\n\nProctoAI is an automated examination proctoring application designed for teachers and students. Its documented functions include administering examinations, monitoring candidates through webcams, detecting potentially prohibited objects, and presenting incident logs to teachers.&#x20;\n\n[image](https://www.google.com/s2/favicons?domain=https://github.com\\&sz=32)\n\nGitHub\n\n\n\nThis establishes education/training as the intended application sector, but not the operating entity's primary registered economic activity.\n\nA software development business could operate ProctoAI as an IT service for educational institutions. Alternatively, a school, university, or training provider could operate it internally. The available repository documentation does not distinguish between these arrangements.\n\nRecommended audit entry: `Operator economic sector: Undetermined; intended application domain: Education/training (online examinations).`\n\n### 2. Processing personal data of individuals in Vietnam\n\nThe reviewed source code confirms that ProctoAI is designed to collect and process personal data, including:\n\n- User identity and account information: name, email address, password hash and user role, defined in [`backend/models/userModel.js`](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/backend/models/userModel.js?utm_source=chatgpt.com).\n- Examination monitoring records: username, email, exam ID, incident counts, screenshot URLs and detection timestamps, defined in [`backend/models/cheatingLogModel.js`](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/backend/models/cheatingLogModel.js?utm_source=chatgpt.com).\n- Webcam images: the frontend can capture candidate images and upload screenshots to Uploadcare following detected events, as implemented in [`WebCam.jsx`](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/frontend/src/views/student/Components/WebCam.jsx?utm_source=chatgpt.com).\n\nHowever, none of these code paths establishes the geographical location of actual users. I found no verified evidence that the system currently serves Vietnamese institutions, has candidates located in Vietnam, or processes their personal data in production.\n\nRecommended audit entry: `Vietnam-based individuals' personal data processed: Unknown / Not confirmed.`\n\nThis must not be interpreted as a confirmed No. If the system is deployed for candidates located in Vietnam, the relevant Vietnamese personal-data protection requirements need to be assessed, regardless of whether the operating entity is primarily an education provider or a software company.\n\n### 3. Information required to resolve both questions\n\nThe responsible operator should confirm its primary registered business activity, whether ProctoAI is used internally or supplied to educational customers, and whether any actual examination participants are located in Vietnam.\n\nFor the personal-data question, suitable evidence would include customer jurisdictions, deployment records, and privacy/data-flow documentation, preferably using aggregated information rather than disclosing individual candidates' records.\n\nOverall conclusion: ProctoAI's application domain is education/training, but the operator's primary economic sector remains undetermined. The software has personal-data processing functionality, while actual processing of data belonging to individuals located in Vietnam remains unverified."
+          }
+        ]
+      },
+      {
+        "assessmentRuleId": "art9-cl2-consent-info-disclosure-rule",
+        "criterionIds": [
+          "criterion_032512680f6a99fb4040a66b"
+        ],
+        "question": "Through the ProctoAI system, does the operator collect and process personal data of end users (such as student names, emails, and webcam images), and does the operator share or transfer any of that personal data to third parties (for example, cloud storage providers or other recipients) beyond what is visible in the software's own code?",
+        "unresolvedFact": "Whether the operator processes personal data of data subjects through the system and shares/discloses personal data to third parties in practice.",
+        "decisionImpact": [
+          "Whether data-controller duties (consent, disclosure, security) apply",
+          "Whether cross-border transfer/third-party disclosure duties apply",
+          "Whether the operator's processing practices establish compliance or non-compliance with consent duties"
+        ],
+        "resolutionAttempts": [
+          "The repository code shows webcam screenshot uploads to Uploadcare cloud storage and storage of user accounts, but actual operator disclosure/transfer practices are not observable from code",
+          "Searched for privacy policy, consent mechanisms, or disclosure records; none found in repository"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "1757079a-dac3-4428-bea2-1f5a31b9a2a7",
+        "requestRevision": 1,
+        "openedCaseRevision": 3,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2f9f-a4fe-646e-81a4-f05d307d11f8",
+        "resolvedFactId": "29a34c8c-581a-4207-ac62-e7f84aa7b595",
+        "answers": [
+          {
+            "idempotencyKey": "aecddf45-05a6-4d47-adb3-9259c8b7e837",
+            "requestDigest": "c45203f1396327b6da0ad4f93a7a9131b0e42b0974a5cff60015ca813e22e3d7",
+            "actorId": "2e723a25-b79c-4aac-a094-5771f3fbc590",
+            "answeredAt": "2026-10-29T02:35:18.127Z",
+            "caseRevision": 6,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "## ProctoAI — Personal Data Collection and Third-Party Transfers\n\nAssessment as of 29 October 2026: ProctoAI is designed to collect and process personal data, and its source code explicitly provides for transferring webcam screenshots to an external service, Uploadcare.\n\nHowever, the full extent of third-party sharing beyond the source code remains unknown. I cannot confirm that these processing activities are currently occurring in production or that the operator has disclosed every external recipient.\n\n### 1. Personal data collection and processing\n\n| Data category                             | Evidence from source code                       | Assessment                  |\n| ----------------------------------------- | ----------------------------------------------- | --------------------------- |\n| Student/teacher names and email addresses | `backend/models/userModel.js`                   | Confirmed in the data model |\n| Passwords and account roles               | Password hashing with bcrypt; role field        | Confirmed in the data model |\n| Exam participation identifiers            | `examId`, username and email in cheating logs   | Confirmed in the data model |\n| Webcam images                             | Browser-side screenshot capture in `WebCam.jsx` | Confirmed implementation    |\n| Monitoring results                        | Incident counts, screenshot URLs and timestamps | Confirmed implementation    |\n\nThe webcam component uses TensorFlow\\.js COCO-SSD to detect people and objects, then captures a screenshot when a relevant monitoring event is recorded.\n\nImportantly, the implementation detects people and objects; it does not establish operational facial identity recognition.\n\nSources: [User model](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/backend/models/userModel.js?utm_source=chatgpt.com), [cheating-log model](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/backend/models/cheatingLogModel.js?utm_source=chatgpt.com), [webcam implementation](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/frontend/src/views/student/Components/WebCam.jsx?utm_source=chatgpt.com).\n\n### 2. Third-party sharing and transfers\n\nCode-confirmed\n\nUploadcare — external screenshot storage\n\nThe webcam component calls `client.uploadFile(file)` and receives a CDN URL. This establishes an implemented mechanism for sending candidate screenshots from the browser to Uploadcare when incidents are detected. Actual production uploads have not been independently verified.\n\nConditional\n\nMongoDB — database storage\n\nThe backend connects through `process.env.MONGO_URL` and stores examination logs. Whether the database is self-hosted or operated by a third-party cloud provider cannot be determined without the deployment configuration.\n\n[Database connection code](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/backend/config/db.js?utm_source=chatgpt.com)\n\nCode-confirmed\n\nTeacher-facing access to candidate records\n\nThe backend provides an authenticated endpoint for retrieving examination cheating logs, including candidate identifiers and screenshot references. This is an intended disclosure within the application, but whether teachers belong to a separate legal organization is unknown.\n\n[Cheating-log controller](https://github.com/shreeram312/AI-Proctored-System/blob/9ddb361e4cd52aafe4e1d0763f57005a607efae6/backend/controllers/cheatingLogController.js?utm_source=chatgpt.com)\n\nUnverified\n\nOther external recipients and cross-border transfers\n\nThe inspected code does not establish whether personal data also reaches hosting providers, logging and monitoring services, subprocessors, educational customers, or overseas data centers.\n\n### 3. What cannot be concluded from the repository\n\nThe source code does not establish whether there are additional recipients beyond those visible in implementation, whether screenshots are accessible to other parties, where data is geographically stored, or whether onward sharing and international transfers occur.\n\nResolving those issues requires an operator-provided data-flow map, third-party processor/subprocessor register, hosting configuration, data-processing agreements, and retention/deletion policies, together with evidence of actual deployment.\n\n### Recommended compliance-audit conclusion\n\n| Audit field                             | Recommended entry                                       |\n| --------------------------------------- | ------------------------------------------------------- |\n| Personal data collection and processing | Confirmed in implementation; live processing unverified |\n| External third-party data transfers     | Confirmed mechanism — Uploadcare screenshot uploads     |\n| Other third-party disclosures           | Undetermined                                            |\n| International personal-data transfers   | Undetermined                                            |\n| Completeness of recipient disclosure    | Not established                                         |\n\nOverall: ProctoAI has clearly implemented personal-data collection and external screenshot-upload functionality. The operator's complete sharing practices, including any transfers beyond those evident in the code, cannot be determined without operational and contractual evidence."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "assessment": "06ad978f-0ada-46f9-b648-e2c86aee37c1",
+    "observedAt": "2026-10-29T02:41:04.648Z",
+    "caseRevision": 7,
+    "requests": [
+      {
+        "assessmentRuleId": "c05-provider-classification-rule",
+        "criterionIds": [
+          "criterion_79a366ac670df6035e1a8438"
+        ],
+        "question": "Is this credit-scoring application actually deployed and in use as a live service with real users, or is it only an academic/development project that has not been placed into operation or offered to anyone?",
+        "unresolvedFact": "Whether the AI-based system is actually placed into service (making its operator an AI system provider/deployer) or remains a non-deployed development/academic project.",
+        "decisionImpact": [
+          "Applies to the AI-system provider classification duty and deployer duties",
+          "Determines whether the operator is an AI system provider/deployer under the AI law and its implementing decree"
+        ],
+        "resolutionAttempts": [
+          "Repository README describes a student/academic credit-score project and contains no deployment configuration, hosting, or operational evidence",
+          "The repository alone cannot establish whether any real deployment or use has occurred"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "789b587e-fbfa-41bf-a066-dd795af32615",
+        "requestRevision": 1,
+        "openedCaseRevision": 2,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5",
+        "resolvedFactId": "cb52fcec-9a23-4207-8a6f-9642c3615138",
+        "answers": [
+          {
+            "idempotencyKey": "33fde16a-009f-4e93-8678-bfb3efab2934",
+            "requestDigest": "5baac53cd861c349cbe275891405e2b1df5e099c002cffde5f495ffdad4416f1",
+            "actorId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+            "answeredAt": "2026-10-29T02:36:05.558Z",
+            "caseRevision": 3,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nDeployment status: The README documents a machine-learning credit-scoring system and a demo interface. Actual live production deployment is unverified. For LCSP, this repository is used only as an assessment benchmark."
+          }
+        ]
+      },
+      {
+        "assessmentRuleId": "art27-cl1-pt-b-nocreditusage-rule",
+        "criterionIds": [
+          "criterion_00bbe4a47bcf310ee03a4fdc"
+        ],
+        "question": "What is the legal form and line of business of the operator of this system? In particular, does the operator conduct activities in the financial, banking, or credit-information sector (for example as a bank, lender, credit bureau, or financial technology company offering credit services)?",
+        "unresolvedFact": "The operator's legal identity and whether it operates in the financial/banking/credit-information sector.",
+        "decisionImpact": [
+          "Determines applicability of sector-specific credit-information prohibitions and duties",
+          "The repository provides no operator-identity or sector information"
+        ],
+        "resolutionAttempts": [
+          "Repository README lists contributors/supervisor but no organizational identity or sector",
+          "Source code shows a credit scoring/lending application but product purpose does not establish operator sector"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "382fd335-9a61-4d36-a516-5292a9c8fb58",
+        "requestRevision": 1,
+        "openedCaseRevision": 2,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5",
+        "resolvedFactId": "6dca8d75-5fdf-4a16-8a36-00fb7aa642ce",
+        "answers": [
+          {
+            "idempotencyKey": "f5f9fd98-5433-4ea7-a7d2-782bbdc68adc",
+            "requestDigest": "52416712e92d680a0a5b987ccea4578a115411ee1bc782a1c5950d3e61e35812",
+            "actorId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+            "answeredAt": "2026-10-29T02:36:06.924Z",
+            "caseRevision": 4,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nOperator/legal form: Unknown. The repository describes a credit-scoring project for Upay users, but this does not establish the identity or legal form of a real production operator.\n\nBusiness sector: Financial services / credit scoring / loan eligibility prediction."
+          }
+        ]
+      },
+      {
+        "assessmentRuleId": "art17-cl4-isp-abuse-control",
+        "criterionIds": [
+          "criterion_7e596da5c157f3c7b1bde81e"
+        ],
+        "question": "Is the operator of this system an Internet service provider enterprise or a telecommunications enterprise that provides Internet services to subscribers?",
+        "unresolvedFact": "Whether the operator is an Internet service provider / telecommunications enterprise.",
+        "decisionImpact": [
+          "Applies to ISP-specific cybersecurity duties such as malware-management and state-agency handling obligations",
+          "Repository gives no indication of the operator's network/service-provider status"
+        ],
+        "resolutionAttempts": [
+          "Repository contains only a Django web application and no telecommunications or ISP network/service evidence"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "5763d1b2-376d-44bc-bbb6-6a9311c9d1d4",
+        "requestRevision": 1,
+        "openedCaseRevision": 2,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5",
+        "resolvedFactId": "8760ffc2-abf5-4538-a5d1-1b03e4497e3c",
+        "answers": [
+          {
+            "idempotencyKey": "291a8b49-0ea3-43f4-8634-2ddd76ccc32e",
+            "requestDigest": "2abf413a852ce663cb73cf2c541ac7d8d0141e86cf8747a22f6e96d576f4af02",
+            "actorId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+            "answeredAt": "2026-10-29T02:36:10.214Z",
+            "caseRevision": 5,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nOperator/legal form: Unknown. The repository describes a credit-scoring project for Upay users, but this does not establish the identity or legal form of a real production operator.\n\nPreserve all unknown operational facts as UNRESOLVED. Do not convert missing information into negative assertions."
+          }
+        ]
+      },
+      {
+        "assessmentRuleId": "art28-cl2-transfer-rule",
+        "criterionIds": [
+          "criterion_6b1d53e8b7dfaf75f82c189e"
+        ],
+        "question": "Are any of the personal data collected by this system transferred or shared with third parties (including advertising or other service providers), or transferred to a recipient located outside Vietnam? If so, to whom and where?",
+        "unresolvedFact": "Whether any third-party sharing or cross-border transfer of personal data occurs in operation.",
+        "decisionImpact": [
+          "Applies to personal-data transfer and cross-border transfer duties/prohibitions",
+          "Affects numerous transfer-related rules"
+        ],
+        "resolutionAttempts": [
+          "Repository shows no network egress, external API integration, or transfer code",
+          "Local storage alone does not establish the absence of external sharing, which occurs in operation, so customer confirmation is required"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "9c63b88c-0573-4504-8e01-798848f561f5",
+        "requestRevision": 1,
+        "openedCaseRevision": 2,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5",
+        "resolvedFactId": "88d6376e-362d-433e-882a-75e7c2e724a4",
+        "answers": [
+          {
+            "idempotencyKey": "3c715394-b410-4bad-b7bc-377f4f47003b",
+            "requestDigest": "445912c494c52e6d9d8830dc0dbac3ef5475adcffb3582cc31535d127108f47a",
+            "actorId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+            "answeredAt": "2026-10-29T02:36:12.768Z",
+            "caseRevision": 6,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nThird-party/cross-border data sharing: Unknown for the target system's actual deployment.\n\nVietnamese personal data: Unknown for any actual deployment. No actual Vietnamese operational dataset has been supplied as assessment context."
+          }
+        ]
+      },
+      {
+        "assessmentRuleId": "ar-art24-stop-processing",
+        "criterionIds": [],
+        "question": "Are the data subjects whose personal data this system processes exclusively adults (for example, loan applicants), or does the processing also involve children or vulnerable persons (persons lacking or with limited civil-activity capacity, or persons with cognition or behavior-control difficulties)?",
+        "unresolvedFact": "Whether any of the processed personal data belongs to children or vulnerable persons.",
+        "decisionImpact": [
+          "Applies to the protected-group consent and stop-processing duties (Article 24)",
+          "Also affects other child/vulnerable-person rules",
+          "Bears on this condition stated in the legal text: Xử lý dữ liệu cá nhân của trẻ em, người bị mất hoặc hạn chế năng lực hành vi dân sự hoặc người có khó khăn trong nhận thức, làm chủ hành vi"
+        ],
+        "resolutionAttempts": [
+          "The system collects an age field and builds loan profiles, but the repository does not establish the age range or protected status of the actual data subjects",
+          "Bounded search found no child-specific or vulnerability handling code"
+        ],
+        "controlType": "FREE_TEXT",
+        "choices": [],
+        "requestId": "c315ad01-10c1-424a-96d5-fc4f8aada20b",
+        "requestRevision": 1,
+        "openedCaseRevision": 2,
+        "status": "RESOLVED",
+        "checkpointId": "1f1d2fa1-dc3f-66a3-8261-c2ac99e833f5",
+        "resolvedFactId": "e56e7744-c298-45de-be8a-3db14764917f",
+        "answers": [
+          {
+            "idempotencyKey": "3bc8a0ff-fc98-4cc6-8849-c97a40f9ae47",
+            "requestDigest": "fbd4a75d95a9c17a83bcc8a18a904edb4e2a5947763911f2a2c8d67d4b6300a5",
+            "actorId": "d3f2f078-78f1-4480-8a8d-9e134a356da1",
+            "answeredAt": "2026-10-29T02:36:40.975Z",
+            "caseRevision": 7,
+            "requestRevision": 1,
+            "doesNotKnow": false,
+            "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nChildren/vulnerable people: Unknown. The system concerns potential loan applicants, but no actual vulnerable population or deployment demographics have been established.\n\nPreserve all unknown operational facts as UNRESOLVED. Do not convert missing information into negative assertions.\n\nDo not automatically conclude Vietnamese legal applicability, high-risk classification, personal-data processing, or cross-border transfer solely from repository names or intended functionality.\n\nContinue evaluating source-supported technical facts and applicable legal obligations, marking deployment-dependent conclusions as unresolved where required.\n\nDo not create additional human questions solely to restate information already answered."
+          }
+        ]
+      }
+    ]
+  }
+]

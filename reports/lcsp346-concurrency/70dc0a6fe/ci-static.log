@@ -1,0 +1,605 @@
+﻿2026-10-28T17:20:47.1188383Z Current runner version: '2.338.0'
+2026-10-28T17:20:47.1214798Z ##[group]Runner Image Provisioner
+2026-10-28T17:20:47.1215734Z Hosted Compute Agent
+2026-10-28T17:20:47.1216391Z Version: 20261021.618
+2026-10-28T17:20:47.1217099Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-28T17:20:47.1217939Z Build Date: 2026-10-21T00:45:21Z
+2026-10-28T17:20:47.1218631Z Worker ID: {f18ad701-09ec-404d-b9e8-b7fe52bf760b}
+2026-10-28T17:20:47.1219351Z Region: northcentralus
+2026-10-28T17:20:47.1220038Z Cloud: Azure
+2026-10-28T17:20:47.1220583Z ##[endgroup]
+2026-10-28T17:20:47.1222206Z ##[group]Operating System
+2026-10-28T17:20:47.1223272Z Ubuntu
+2026-10-28T17:20:47.1223806Z 26.04.1
+2026-10-28T17:20:47.1224493Z LTS
+2026-10-28T17:20:47.1225017Z ##[endgroup]
+2026-10-28T17:20:47.1225611Z ##[group]Runner Image
+2026-10-28T17:20:47.1226247Z Image: ubuntu-26.04
+2026-10-28T17:20:47.1226809Z Version: 20261025.179.1
+2026-10-28T17:20:47.1228167Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261025.179/images/ubuntu/Ubuntu2604-Readme.md
+2026-10-28T17:20:47.1229745Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261025.179
+2026-10-28T17:20:47.1230753Z ##[endgroup]
+2026-10-28T17:20:47.1233097Z ##[group]GITHUB_TOKEN Permissions
+2026-10-28T17:20:47.1235601Z Contents: read
+2026-10-28T17:20:47.1236225Z Metadata: read
+2026-10-28T17:20:47.1237016Z PullRequests: read
+2026-10-28T17:20:47.1237748Z ##[endgroup]
+2026-10-28T17:20:47.1240064Z Secret source: Actions
+2026-10-28T17:20:47.1241504Z Cache mode: write
+2026-10-28T17:20:47.1243282Z Prepare workflow directory
+2026-10-28T17:20:47.1671136Z Prepare all required actions
+2026-10-28T17:20:47.1723228Z Getting action download info
+2026-10-28T17:20:47.4833104Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-28T17:20:47.6022138Z Download action repository 'pnpm/action-setup@v4' (SHA:b906affcce14559ad1aafd4ab0e942779e9f58b1)
+2026-10-28T17:20:47.9615061Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-28T17:20:48.1266413Z Complete job name: Workspace static checks
+2026-10-28T17:20:48.2295004Z ##[group]Run actions/checkout@v4
+2026-10-28T17:20:48.2296069Z with:
+2026-10-28T17:20:48.2296749Z   repository: khov4nfs/LCSP
+2026-10-28T17:20:48.2300876Z   token: ***
+2026-10-28T17:20:48.2301466Z   ssh-strict: true
+2026-10-28T17:20:48.2302035Z   ssh-user: git
+2026-10-28T17:20:48.2303036Z   persist-credentials: true
+2026-10-28T17:20:48.2303776Z   clean: true
+2026-10-28T17:20:48.2304421Z   sparse-checkout-cone-mode: true
+2026-10-28T17:20:48.2305049Z   fetch-depth: 1
+2026-10-28T17:20:48.2305665Z   fetch-tags: false
+2026-10-28T17:20:48.2306223Z   show-progress: true
+2026-10-28T17:20:48.2306811Z   lfs: false
+2026-10-28T17:20:48.2307417Z   submodules: false
+2026-10-28T17:20:48.2307953Z   set-safe-directory: true
+2026-10-28T17:20:48.2308622Z   allow-unsafe-pr-checkout: false
+2026-10-28T17:20:48.2309601Z env:
+2026-10-28T17:20:48.2311009Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:20:48.2312328Z ##[endgroup]
+2026-10-28T17:20:48.6901402Z Syncing repository: khov4nfs/LCSP
+2026-10-28T17:20:48.6904927Z ##[group]Getting Git version info
+2026-10-28T17:20:48.6906374Z Working directory is '/home/runner/work/LCSP/LCSP'
+2026-10-28T17:20:48.6908668Z [command]/usr/bin/git version
+2026-10-28T17:20:48.6909787Z git version 2.56.0
+2026-10-28T17:20:48.6934741Z ##[endgroup]
+2026-10-28T17:20:48.6950630Z Temporarily overriding HOME='/home/runner/work/_temp/31263456-be3e-49c3-bf12-2dde9b6d499a' before making global git config changes
+2026-10-28T17:20:48.6953959Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T17:20:48.6958126Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-28T17:20:48.7035769Z Deleting the contents of '/home/runner/work/LCSP/LCSP'
+2026-10-28T17:20:48.7040354Z ##[group]Initializing the repository
+2026-10-28T17:20:48.7046728Z [command]/usr/bin/git init /home/runner/work/LCSP/LCSP
+2026-10-28T17:20:48.7183153Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-28T17:20:48.7185707Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-28T17:20:48.7187750Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-28T17:20:48.7189205Z hint: call:
+2026-10-28T17:20:48.7190492Z hint:
+2026-10-28T17:20:48.7198744Z hint: 	git config --global init.defaultBranch <name>
+2026-10-28T17:20:48.7200164Z hint:
+2026-10-28T17:20:48.7201465Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-28T17:20:48.7203888Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-28T17:20:48.7205988Z hint:
+2026-10-28T17:20:48.7207162Z hint: 	git branch -m <name>
+2026-10-28T17:20:48.7208444Z hint:
+2026-10-28T17:20:48.7209773Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-28T17:20:48.7212076Z Initialized empty Git repository in /home/runner/work/LCSP/LCSP/.git/
+2026-10-28T17:20:48.7217510Z [command]/usr/bin/git remote add origin https://github.com/khov4nfs/LCSP
+2026-10-28T17:20:48.7278469Z ##[endgroup]
+2026-10-28T17:20:48.7280411Z ##[group]Disabling automatic garbage collection
+2026-10-28T17:20:48.7282877Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-28T17:20:48.7322703Z ##[endgroup]
+2026-10-28T17:20:48.7324056Z ##[group]Setting up auth
+2026-10-28T17:20:48.7333907Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T17:20:48.7377798Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T17:20:48.7919811Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T17:20:48.7960603Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T17:20:48.8258979Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T17:20:48.8300737Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T17:20:48.8674893Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-28T17:20:48.8681109Z ##[endgroup]
+2026-10-28T17:20:48.8682790Z ##[group]Fetching the repository
+2026-10-28T17:20:48.8685037Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2:refs/remotes/pull/440/merge
+2026-10-28T17:21:04.0990497Z From https://github.com/khov4nfs/LCSP
+2026-10-28T17:21:04.0996661Z  * [new ref]         98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2 -> pull/440/merge
+2026-10-28T17:21:04.0999477Z ##[endgroup]
+2026-10-28T17:21:04.1000493Z ##[group]Determining the checkout info
+2026-10-28T17:21:04.1001609Z ##[endgroup]
+2026-10-28T17:21:04.1007425Z [command]/usr/bin/git sparse-checkout disable
+2026-10-28T17:21:04.1079053Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-28T17:21:04.1113861Z ##[group]Checking out the ref
+2026-10-28T17:21:04.1117995Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/440/merge
+2026-10-28T17:21:04.3238022Z Note: switching to 'refs/remotes/pull/440/merge'.
+2026-10-28T17:21:04.3238625Z 
+2026-10-28T17:21:04.3238997Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-28T17:21:04.3239873Z changes and commit them, and you can discard any commits you make in this
+2026-10-28T17:21:04.3240754Z state without impacting any branches by switching back to a branch.
+2026-10-28T17:21:04.3241280Z 
+2026-10-28T17:21:04.3241710Z If you want to create a new branch to retain commits you create, you may
+2026-10-28T17:21:04.3243059Z do so (now or later) by using -c with the switch command. Example:
+2026-10-28T17:21:04.3243413Z 
+2026-10-28T17:21:04.3243532Z   git switch -c <new-branch-name>
+2026-10-28T17:21:04.3243734Z 
+2026-10-28T17:21:04.3243842Z Or undo this operation with:
+2026-10-28T17:21:04.3244013Z 
+2026-10-28T17:21:04.3244130Z   git switch -
+2026-10-28T17:21:04.3244307Z 
+2026-10-28T17:21:04.3244533Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-28T17:21:04.3244863Z 
+2026-10-28T17:21:04.3245222Z HEAD is now at 98d8f6c Merge 70dc0a6fe40c618bdf47d532f9baa5230e52faf1 into 70ddc3c086678edabb6b7a9f6627685841afbafb
+2026-10-28T17:21:04.3261890Z ##[endgroup]
+2026-10-28T17:21:04.3323229Z [command]/usr/bin/git log -1 --format=%H
+2026-10-28T17:21:04.3354954Z 98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2
+2026-10-28T17:21:04.3649010Z ##[group]Run pnpm/action-setup@v4
+2026-10-28T17:21:04.3649377Z with:
+2026-10-28T17:21:04.3649596Z   dest: ~/setup-pnpm
+2026-10-28T17:21:04.3649843Z   run_install: null
+2026-10-28T17:21:04.3650047Z   cache: false
+2026-10-28T17:21:04.3650272Z   cache_dependency_path: pnpm-lock.yaml
+2026-10-28T17:21:04.3650579Z   package_json_file: package.json
+2026-10-28T17:21:04.3650870Z   standalone: false
+2026-10-28T17:21:04.3651075Z env:
+2026-10-28T17:21:04.3651787Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:21:04.3652138Z ##[endgroup]
+2026-10-28T17:21:04.5353220Z ##[group]Running self-installer...
+2026-10-28T17:21:05.0268427Z (node:2371) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-28T17:21:05.0270514Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:21:05.2200867Z Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-10-28T17:21:05.3760459Z Packages: +3
+2026-10-28T17:21:05.3761040Z +++
+2026-10-28T17:21:06.0195048Z Progress: resolved 9, reused 0, downloaded 3, added 3, done
+2026-10-28T17:21:06.0386234Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall$ node install.js
+2026-10-28T17:21:06.4106469Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall: Done
+2026-10-28T17:21:06.4113731Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall$ node install.js
+2026-10-28T17:21:06.4657836Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall: Done
+2026-10-28T17:21:07.4560157Z 
+2026-10-28T17:21:07.4560987Z dependencies:
+2026-10-28T17:21:07.4561414Z + pnpm 12.3.4 (12.16.1 is available)
+2026-10-28T17:21:07.4561734Z 
+2026-10-28T17:21:07.4588999Z Done in 2.7s
+2026-10-28T17:21:07.5425280Z ##[endgroup]
+2026-10-28T17:21:07.5454519Z Installation Completed!
+2026-10-28T17:21:07.5800264Z ##[group]Run actions/setup-node@v4
+2026-10-28T17:21:07.5800572Z with:
+2026-10-28T17:21:07.5800775Z   node-version: 22
+2026-10-28T17:21:07.5800988Z   cache: pnpm
+2026-10-28T17:21:07.5801195Z   always-auth: false
+2026-10-28T17:21:07.5801439Z   check-latest: false
+2026-10-28T17:21:07.5804939Z   token: ***
+2026-10-28T17:21:07.5805164Z env:
+2026-10-28T17:21:07.5805946Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:21:07.5806420Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:07.5806798Z ##[endgroup]
+2026-10-28T17:21:07.7523976Z (node:2405) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T17:21:07.7525133Z Found in cache @ /opt/hostedtoolcache/node/22.23.4/x64
+2026-10-28T17:21:07.7525987Z ##[group]Environment details
+2026-10-28T17:21:07.7526833Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:21:08.3381037Z node: v22.23.4
+2026-10-28T17:21:08.3392141Z npm: 10.9.9
+2026-10-28T17:21:08.3417139Z yarn: 1.22.22
+2026-10-28T17:21:08.3441118Z ##[endgroup]
+2026-10-28T17:21:08.3443063Z [command]/home/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+2026-10-28T17:21:08.3700523Z /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-28T17:21:08.5131670Z Cache hit for: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-28T17:21:08.5266601Z (node:2405) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-28T17:21:09.6373794Z Received 125829120 of 277919439 (45.3%), 120.0 MBs/sec
+2026-10-28T17:21:10.4035591Z Received 277919439 of 277919439 (100.0%), 149.7 MBs/sec
+2026-10-28T17:21:10.4036371Z Cache Size: ~265 MB (277919439 B)
+2026-10-28T17:21:10.4086210Z [command]/usr/bin/tar -xf /home/runner/work/_temp/1fa3a949-20ab-450a-bb39-f576f5cf940f/cache.tzst -P -C /home/runner/work/LCSP/LCSP --use-compress-program unzstd
+2026-10-28T17:21:13.7301910Z Cache restored successfully
+2026-10-28T17:21:13.7443079Z Cache restored from key: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-28T17:21:13.7681308Z ##[group]Run pnpm install --frozen-lockfile
+2026-10-28T17:21:13.7681767Z pnpm install --frozen-lockfile
+2026-10-28T17:21:13.7723669Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:13.7723955Z env:
+2026-10-28T17:21:13.7724565Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:21:13.7724990Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:13.7725306Z ##[endgroup]
+2026-10-28T17:21:13.8146070Z Scope: all 5 workspace projects
+2026-10-28T17:21:13.8826905Z ? Verifying lockfile against supply-chain policies (1310 entries)...
+2026-10-28T17:21:14.2019429Z Packages are hard linked from the content-addressable store to the virtual store.
+2026-10-28T17:21:14.2020652Z   Content-addressable store is at: /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-28T17:21:14.2043695Z   Virtual store is at:             node_modules/.pnpm
+2026-10-28T17:21:21.1601136Z ✓ Lockfile passes supply-chain policies (1310 entries in 7.3s)
+2026-10-28T17:21:21.1602317Z Lockfile is up to date, resolution step is skipped
+2026-10-28T17:21:21.1783482Z Packages: +1175
+2026-10-28T17:21:21.1793432Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-28T17:21:21.3051652Z Progress: resolved 1175, reused 1175, downloaded 0, added 1175, done
+2026-10-28T17:21:21.5599067Z . prepare$ husky
+2026-10-28T17:21:21.6588070Z . prepare: Done
+2026-10-28T17:21:21.6606756Z 
+2026-10-28T17:21:21.6607073Z devDependencies:
+2026-10-28T17:21:21.6607818Z + @lcsp/contracts link:packages/contracts
+2026-10-28T17:21:21.6608713Z + @lcsp/i18n link:packages/i18n
+2026-10-28T17:21:21.6609399Z + @lcsp/web link:apps/web
+2026-10-28T17:21:21.6610031Z + @playwright/test 1.63.0
+2026-10-28T17:21:21.6610655Z + @tanstack/ai 0.14.0
+2026-10-28T17:21:21.6611285Z + @types/node 22.20.0
+2026-10-28T17:21:21.6611872Z + dotenv 16.6.1
+2026-10-28T17:21:21.6612794Z + dotenv-expand 12.0.3
+2026-10-28T17:21:21.6613449Z + husky 9.1.7
+2026-10-28T17:21:21.6614032Z + likec4 1.59.2
+2026-10-28T17:21:21.6614638Z + prettier 3.9.4
+2026-10-28T17:21:21.6615203Z + tsx 4.23.1
+2026-10-28T17:21:21.6615820Z + typescript 5.9.3
+2026-10-28T17:21:21.6616231Z 
+2026-10-28T17:21:21.6658019Z Done in 7.9s using pnpm v12.3.4
+2026-10-28T17:21:21.7597005Z ##[group]Run pnpm run typecheck
+2026-10-28T17:21:21.7597347Z pnpm run typecheck
+2026-10-28T17:21:21.7628997Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:21.7629265Z env:
+2026-10-28T17:21:21.7629824Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:21:21.7630255Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:21.7630591Z ##[endgroup]
+2026-10-28T17:21:21.7873071Z $ node scripts/with-check-memory.mjs pnpm run typecheck:run
+2026-10-28T17:21:21.8356250Z $ pnpm run prisma:generate && pnpm exec tsc -b
+2026-10-28T17:21:21.8539173Z $ pnpm --filter @lcsp/api prisma:generate
+2026-10-28T17:21:21.8754004Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
+2026-10-28T17:21:22.9321033Z Loaded Prisma config from prisma.config.ts.
+2026-10-28T17:21:22.9321801Z 
+2026-10-28T17:21:22.9999423Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-28T17:21:24.1902229Z 
+2026-10-28T17:21:24.1904451Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 753ms
+2026-10-28T17:21:24.1905416Z 
+2026-10-28T17:21:24.1905823Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-10-28T17:21:24.1906225Z 
+2026-10-28T17:21:24.1906232Z 
+2026-10-28T17:22:06.0691679Z ##[group]Run pnpm run test:business-logic-docs
+2026-10-28T17:22:06.0692102Z pnpm run test:business-logic-docs
+2026-10-28T17:22:06.0723831Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:06.0724095Z env:
+2026-10-28T17:22:06.0724705Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:06.0725110Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:06.0725467Z ##[endgroup]
+2026-10-28T17:22:06.0977811Z $ node --test scripts/check-business-logic-docs.test.mjs
+2026-10-28T17:22:06.1414051Z TAP version 13
+2026-10-28T17:22:06.6150696Z # Subtest: documents are required in shared business directories, not unit tests or technical Prisma clients
+2026-10-28T17:22:06.6159318Z ok 1 - documents are required in shared business directories, not unit tests or technical Prisma clients
+2026-10-28T17:22:06.6163508Z   ---
+2026-10-28T17:22:06.6183656Z   duration_ms: 1.888416
+2026-10-28T17:22:06.6193802Z   type: 'test'
+2026-10-28T17:22:06.6194429Z   ...
+2026-10-28T17:22:06.6195306Z # Subtest: all five meaningful sections are validated in a JSDoc comment
+2026-10-28T17:22:06.6205685Z ok 2 - all five meaningful sections are validated in a JSDoc comment
+2026-10-28T17:22:06.6206998Z   ---
+2026-10-28T17:22:06.6207437Z   duration_ms: 1.989105
+2026-10-28T17:22:06.6207822Z   type: 'test'
+2026-10-28T17:22:06.6208171Z   ...
+2026-10-28T17:22:06.6208773Z # Subtest: checks a decorated handler method, a function and a named arrow function
+2026-10-28T17:22:06.6209627Z ok 3 - checks a decorated handler method, a function and a named arrow function
+2026-10-28T17:22:06.6210549Z   ---
+2026-10-28T17:22:06.6211050Z   duration_ms: 11.294379
+2026-10-28T17:22:06.6211642Z   type: 'test'
+2026-10-28T17:22:06.6212119Z   ...
+2026-10-28T17:22:06.6213319Z # Subtest: freezes only unchanged undocumented methods; changed and newly added functions fail
+2026-10-28T17:22:06.6214836Z ok 4 - freezes only unchanged undocumented methods; changed and newly added functions fail
+2026-10-28T17:22:06.6215809Z   ---
+2026-10-28T17:22:06.6216377Z   duration_ms: 2.455347
+2026-10-28T17:22:06.6217018Z   type: 'test'
+2026-10-28T17:22:06.6217588Z   ...
+2026-10-28T17:22:06.6218708Z # Subtest: Python AST requires a structured docstring as the function's first statement
+2026-10-28T17:22:06.6220166Z ok 5 - Python AST requires a structured docstring as the function's first statement
+2026-10-28T17:22:06.6221135Z   ---
+2026-10-28T17:22:06.6221724Z   duration_ms: 36.573602
+2026-10-28T17:22:06.6222398Z   type: 'test'
+2026-10-28T17:22:06.6223470Z   ...
+2026-10-28T17:22:06.6389621Z 1..5
+2026-10-28T17:22:06.6390056Z # tests 5
+2026-10-28T17:22:06.6390440Z # suites 0
+2026-10-28T17:22:06.6390818Z # pass 5
+2026-10-28T17:22:06.6391182Z # fail 0
+2026-10-28T17:22:06.6391874Z # cancelled 0
+2026-10-28T17:22:06.6392842Z # skipped 0
+2026-10-28T17:22:06.6393577Z # todo 0
+2026-10-28T17:22:06.6394406Z # duration_ms 510.419365
+2026-10-28T17:22:06.6526315Z ##[group]Run pnpm run check:business-logic-docs
+2026-10-28T17:22:06.6526722Z pnpm run check:business-logic-docs
+2026-10-28T17:22:06.6558501Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:06.6558776Z env:
+2026-10-28T17:22:06.6559357Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:06.6559785Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:06.6560115Z ##[endgroup]
+2026-10-28T17:22:06.6831014Z $ node scripts/check-business-logic-docs.mjs
+2026-10-28T17:22:09.0328486Z Business logic documentation: 2958 functions in 762 production source files; 822 conformant; 2136 unchanged legacy; 0 missing/invalid.
+2026-10-28T17:22:09.0636815Z ##[group]Run pnpm run check:imports
+2026-10-28T17:22:09.0637412Z pnpm run check:imports
+2026-10-28T17:22:09.0669303Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:09.0669563Z env:
+2026-10-28T17:22:09.0670307Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:09.0670735Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:09.0671049Z ##[endgroup]
+2026-10-28T17:22:09.0917690Z $ node scripts/check-import-policy.mjs
+2026-10-28T17:22:11.8480214Z Import policy check passed.
+2026-10-28T17:22:11.8700090Z ##[group]Run pnpm run check:legal-v1-retired
+2026-10-28T17:22:11.8700478Z pnpm run check:legal-v1-retired
+2026-10-28T17:22:11.8731379Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:11.8731644Z env:
+2026-10-28T17:22:11.8732198Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:11.8732891Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:11.8733215Z ##[endgroup]
+2026-10-28T17:22:11.8978026Z $ node scripts/check-legal-v1-authority-retired.mjs
+2026-10-28T17:22:12.1827436Z check:legal-v1-retired OK (1394 current production/build/CI files, 27 retired patterns, 0 references)
+2026-10-28T17:22:12.1935991Z ##[group]Run pnpm run check:contracts
+2026-10-28T17:22:12.1936348Z pnpm run check:contracts
+2026-10-28T17:22:12.1967198Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:12.1967475Z env:
+2026-10-28T17:22:12.1968047Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:12.1968482Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:12.1968826Z ##[endgroup]
+2026-10-28T17:22:12.2224204Z $ node scripts/check-contract-literals.mjs
+2026-10-28T17:22:14.2630065Z Contract literal policy passed.
+2026-10-28T17:22:14.2896324Z ##[group]Run pnpm run check:billing-release-gate
+2026-10-28T17:22:14.2896761Z pnpm run check:billing-release-gate
+2026-10-28T17:22:14.2928348Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:14.2928617Z env:
+2026-10-28T17:22:14.2929248Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:14.2929662Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:14.2929976Z ##[endgroup]
+2026-10-28T17:22:14.3203670Z $ node scripts/check-billing-release-gate.mjs
+2026-10-28T17:22:14.3568960Z Billing release gate source checks passed.
+2026-10-28T17:22:14.3685008Z ##[group]Run pnpm run test:dev-scripts
+2026-10-28T17:22:14.3685389Z pnpm run test:dev-scripts
+2026-10-28T17:22:14.3716056Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:14.3716312Z env:
+2026-10-28T17:22:14.3716869Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:14.3717277Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:14.3717594Z ##[endgroup]
+2026-10-28T17:22:14.3974880Z $ node --test scripts/run-agent-runtime.test.mjs scripts/run-phoenix-config.test.mjs scripts/dev-stop.test.mjs scripts/dev-entry-command.test.mjs scripts/local-infra-launcher.test.mjs
+2026-10-28T17:22:14.4528779Z TAP version 13
+2026-10-28T17:22:14.5135513Z # Subtest: Windows pnpm invocation uses Node and Corepack without cmd.exe
+2026-10-28T17:22:14.5159547Z ok 1 - Windows pnpm invocation uses Node and Corepack without cmd.exe
+2026-10-28T17:22:14.5177813Z   ---
+2026-10-28T17:22:14.5178532Z   duration_ms: 2.385108
+2026-10-28T17:22:14.5179744Z   type: 'test'
+2026-10-28T17:22:14.5180261Z   ...
+2026-10-28T17:22:14.5180997Z # Subtest: Unix pnpm invocation keeps executable and arguments separate
+2026-10-28T17:22:14.5182000Z ok 2 - Unix pnpm invocation keeps executable and arguments separate
+2026-10-28T17:22:14.5182939Z   ---
+2026-10-28T17:22:14.5183287Z   duration_ms: 0.344164
+2026-10-28T17:22:14.5183725Z   type: 'test'
+2026-10-28T17:22:14.5184059Z   ...
+2026-10-28T17:22:14.5184781Z # Subtest: Windows invocation ignores ComSpec and fails closed without Corepack
+2026-10-28T17:22:14.5186319Z ok 3 - Windows invocation ignores ComSpec and fails closed without Corepack
+2026-10-28T17:22:14.5186846Z   ---
+2026-10-28T17:22:14.5187155Z   duration_ms: 0.763329
+2026-10-28T17:22:14.5187429Z   type: 'test'
+2026-10-28T17:22:14.5187627Z   ...
+2026-10-28T17:22:14.5188036Z # Subtest: actual Windows Corepack pnpm invocation accepts separated arguments
+2026-10-28T17:22:14.5188761Z ok 4 - actual Windows Corepack pnpm invocation accepts separated arguments # SKIP requires Windows
+2026-10-28T17:22:14.5189216Z   ---
+2026-10-28T17:22:14.5189408Z   duration_ms: 0.172262
+2026-10-28T17:22:14.5189631Z   type: 'test'
+2026-10-28T17:22:14.5189822Z   ...
+2026-10-28T17:22:14.5190184Z # Subtest: Windows metacharacter paths remain data, not shell commands
+2026-10-28T17:22:14.5190816Z ok 5 - Windows metacharacter paths remain data, not shell commands # SKIP requires Windows
+2026-10-28T17:22:14.5191645Z   ---
+2026-10-28T17:22:14.5191961Z   duration_ms: 0.285385
+2026-10-28T17:22:14.5192188Z   type: 'test'
+2026-10-28T17:22:14.5192385Z   ...
+2026-10-28T17:22:14.5608460Z # Subtest: unknown developer mode is rejected before any child command
+2026-10-28T17:22:14.5610044Z ok 6 - unknown developer mode is rejected before any child command
+2026-10-28T17:22:14.5611163Z   ---
+2026-10-28T17:22:14.5611939Z   duration_ms: 57.893536
+2026-10-28T17:22:14.5612939Z   type: 'test'
+2026-10-28T17:22:14.5613611Z   ...
+2026-10-28T17:22:14.5734421Z # Subtest: dev:stop preserves Fogewise with shared process group=false
+2026-10-28T17:22:14.5759049Z ok 7 - dev:stop preserves Fogewise with shared process group=false
+2026-10-28T17:22:14.5760208Z   ---
+2026-10-28T17:22:14.5760849Z   duration_ms: 2.561746
+2026-10-28T17:22:14.5761431Z   type: 'test'
+2026-10-28T17:22:14.5761929Z   ...
+2026-10-28T17:22:14.5763031Z # Subtest: dev:stop preserves Fogewise with shared process group=true
+2026-10-28T17:22:14.5764274Z ok 8 - dev:stop preserves Fogewise with shared process group=true
+2026-10-28T17:22:14.5765128Z   ---
+2026-10-28T17:22:14.5765660Z   duration_ms: 2.176927
+2026-10-28T17:22:14.5766364Z   type: 'test'
+2026-10-28T17:22:14.5766955Z   ...
+2026-10-28T17:22:14.5767888Z # Subtest: dev:stop matches Phoenix independently of uvx dependency arguments
+2026-10-28T17:22:14.5769179Z ok 9 - dev:stop matches Phoenix independently of uvx dependency arguments
+2026-10-28T17:22:14.5770038Z   ---
+2026-10-28T17:22:14.5770586Z   duration_ms: 0.215193
+2026-10-28T17:22:14.5771170Z   type: 'test'
+2026-10-28T17:22:14.5771694Z   ...
+2026-10-28T17:22:15.9553880Z # Subtest: launcher templates contain no credential literals and require all private values
+2026-10-28T17:22:15.9556275Z ok 10 - launcher templates contain no credential literals and require all private values
+2026-10-28T17:22:15.9557124Z   ---
+2026-10-28T17:22:15.9557367Z   duration_ms: 2.456208
+2026-10-28T17:22:15.9557628Z   type: 'test'
+2026-10-28T17:22:15.9557848Z   ...
+2026-10-28T17:22:15.9566941Z # Subtest: Compose uses the private env from arbitrary working directories and rejects missing passwords
+2026-10-28T17:22:15.9568330Z ok 11 - Compose uses the private env from arbitrary working directories and rejects missing passwords
+2026-10-28T17:22:15.9569206Z   ---
+2026-10-28T17:22:15.9569741Z   duration_ms: 582.691514
+2026-10-28T17:22:15.9570259Z   type: 'test'
+2026-10-28T17:22:15.9570704Z   ...
+2026-10-28T17:22:15.9571439Z # Subtest: Fedora launcher passes a private env path and stops before hosts or startup on invalid configuration
+2026-10-28T17:22:15.9573896Z ok 12 - Fedora launcher passes a private env path and stops before hosts or startup on invalid configuration
+2026-10-28T17:22:15.9574878Z   ---
+2026-10-28T17:22:15.9575359Z   duration_ms: 356.015728
+2026-10-28T17:22:15.9575856Z   type: 'test'
+2026-10-28T17:22:15.9576350Z   ...
+2026-10-28T17:22:15.9675184Z # Subtest: agent-runtime startup does not rely on generated managed build state
+2026-10-28T17:22:15.9676411Z ok 13 - agent-runtime startup does not rely on generated managed build state
+2026-10-28T17:22:15.9677537Z   ---
+2026-10-28T17:22:15.9678103Z   duration_ms: 1.83754
+2026-10-28T17:22:15.9678642Z   type: 'test'
+2026-10-28T17:22:15.9679153Z   ...
+2026-10-28T17:22:15.9680018Z # Subtest: dev supervisor identifies the child that terminates the stack
+2026-10-28T17:22:15.9681185Z ok 14 - dev supervisor identifies the child that terminates the stack
+2026-10-28T17:22:15.9681929Z   ---
+2026-10-28T17:22:15.9682317Z   duration_ms: 0.273132
+2026-10-28T17:22:15.9683034Z   type: 'test'
+2026-10-28T17:22:15.9683426Z   ...
+2026-10-28T17:22:15.9684368Z # Subtest: agent runtime disables LangSmith control-plane env unless explicitly enabled
+2026-10-28T17:22:15.9685798Z ok 15 - agent runtime disables LangSmith control-plane env unless explicitly enabled
+2026-10-28T17:22:15.9686557Z   ---
+2026-10-28T17:22:15.9686887Z   duration_ms: 1.919073
+2026-10-28T17:22:15.9687274Z   type: 'test'
+2026-10-28T17:22:15.9687600Z   ...
+2026-10-28T17:22:15.9688226Z # Subtest: agent runtime sets explicit local LangGraph concurrency
+2026-10-28T17:22:15.9689131Z ok 16 - agent runtime sets explicit local LangGraph concurrency
+2026-10-28T17:22:15.9689704Z   ---
+2026-10-28T17:22:15.9690028Z   duration_ms: 0.296045
+2026-10-28T17:22:15.9690396Z   type: 'test'
+2026-10-28T17:22:15.9690719Z   ...
+2026-10-28T17:22:15.9691432Z # Subtest: optional observability failure does not stop Agent Runtime services
+2026-10-28T17:22:15.9692984Z ok 17 - optional observability failure does not stop Agent Runtime services
+2026-10-28T17:22:15.9693560Z   ---
+2026-10-28T17:22:15.9693772Z   duration_ms: 0.605845
+2026-10-28T17:22:15.9694014Z   type: 'test'
+2026-10-28T17:22:15.9694210Z   ...
+2026-10-28T17:22:15.9694665Z # Subtest: docker worker env forwards every provider credential pool the worker rotates
+2026-10-28T17:22:15.9695374Z ok 18 - docker worker env forwards every provider credential pool the worker rotates
+2026-10-28T17:22:15.9695807Z   ---
+2026-10-28T17:22:15.9696008Z   duration_ms: 11.662243
+2026-10-28T17:22:15.9696252Z   type: 'test'
+2026-10-28T17:22:15.9696457Z   ...
+2026-10-28T17:22:15.9696896Z # Subtest: Phoenix dev server defaults to loopback and remains explicitly configurable
+2026-10-28T17:22:15.9697558Z ok 19 - Phoenix dev server defaults to loopback and remains explicitly configurable
+2026-10-28T17:22:15.9697954Z   ---
+2026-10-28T17:22:15.9698146Z   duration_ms: 1.055516
+2026-10-28T17:22:15.9698372Z   type: 'test'
+2026-10-28T17:22:15.9698565Z   ...
+2026-10-28T17:22:15.9698736Z 1..19
+2026-10-28T17:22:15.9698914Z # tests 19
+2026-10-28T17:22:15.9699107Z # suites 0
+2026-10-28T17:22:15.9699289Z # pass 17
+2026-10-28T17:22:15.9699736Z # fail 0
+2026-10-28T17:22:15.9699943Z # cancelled 0
+2026-10-28T17:22:15.9700135Z # skipped 2
+2026-10-28T17:22:15.9700318Z # todo 0
+2026-10-28T17:22:15.9700525Z # duration_ms 1537.480746
+2026-10-28T17:22:15.9819139Z ##[group]Run node --test tests/literal-answer-choice.test.mjs
+2026-10-28T17:22:15.9819643Z node --test tests/literal-answer-choice.test.mjs
+2026-10-28T17:22:15.9849849Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:15.9850123Z env:
+2026-10-28T17:22:15.9850664Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:15.9851068Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:15.9851376Z ##[endgroup]
+2026-10-28T17:22:16.0353014Z TAP version 13
+2026-10-28T17:22:16.0780956Z # Subtest: ordinary answers keep case-insensitive substring matching
+2026-10-28T17:22:16.0785532Z ok 1 - ordinary answers keep case-insensitive substring matching
+2026-10-28T17:22:16.0786415Z   ---
+2026-10-28T17:22:16.0786947Z   duration_ms: 0.885588
+2026-10-28T17:22:16.0787555Z   type: 'test'
+2026-10-28T17:22:16.0788197Z   ...
+2026-10-28T17:22:16.0792320Z # Subtest: regular expression metacharacters in an option are literal
+2026-10-28T17:22:16.0794663Z ok 2 - regular expression metacharacters in an option are literal
+2026-10-28T17:22:16.0795361Z   ---
+2026-10-28T17:22:16.0795747Z   duration_ms: 0.199222
+2026-10-28T17:22:16.0796187Z   type: 'test'
+2026-10-28T17:22:16.0796558Z   ...
+2026-10-28T17:22:16.0797901Z # Subtest: wildcard and alternation arguments cannot select another option
+2026-10-28T17:22:16.0803814Z ok 3 - wildcard and alternation arguments cannot select another option
+2026-10-28T17:22:16.0804501Z   ---
+2026-10-28T17:22:16.0804847Z   duration_ms: 0.143408
+2026-10-28T17:22:16.0805217Z   type: 'test'
+2026-10-28T17:22:16.0805449Z   ...
+2026-10-28T17:22:16.0805835Z # Subtest: malformed regex syntax cannot throw or broaden the match
+2026-10-28T17:22:16.0806377Z ok 4 - malformed regex syntax cannot throw or broaden the match
+2026-10-28T17:22:16.0823210Z   ---
+2026-10-28T17:22:16.0823779Z   duration_ms: 0.157184
+2026-10-28T17:22:16.0824210Z   type: 'test'
+2026-10-28T17:22:16.0824596Z   ...
+2026-10-28T17:22:16.0825263Z # Subtest: nested-quantifier payload is matched literally
+2026-10-28T17:22:16.0826115Z ok 5 - nested-quantifier payload is matched literally
+2026-10-28T17:22:16.0826676Z   ---
+2026-10-28T17:22:16.0827048Z   duration_ms: 0.271489
+2026-10-28T17:22:16.0827474Z   type: 'test'
+2026-10-28T17:22:16.0827875Z   ...
+2026-10-28T17:22:16.0828514Z # Subtest: Vietnamese labels keep case-insensitive matching
+2026-10-28T17:22:16.0829428Z ok 6 - Vietnamese labels keep case-insensitive matching
+2026-10-28T17:22:16.0830011Z   ---
+2026-10-28T17:22:16.0830346Z   duration_ms: 0.185717
+2026-10-28T17:22:16.0830742Z   type: 'test'
+2026-10-28T17:22:16.0830952Z   ...
+2026-10-28T17:22:16.0831283Z # Subtest: an unmatched literal answer remains unmatched
+2026-10-28T17:22:16.0831721Z ok 7 - an unmatched literal answer remains unmatched
+2026-10-28T17:22:16.0832279Z   ---
+2026-10-28T17:22:16.0832872Z   duration_ms: 0.200505
+2026-10-28T17:22:16.0833296Z   type: 'test'
+2026-10-28T17:22:16.0833677Z   ...
+2026-10-28T17:22:16.0910647Z 1..7
+2026-10-28T17:22:16.0911010Z # tests 7
+2026-10-28T17:22:16.0911277Z # suites 0
+2026-10-28T17:22:16.0911578Z # pass 7
+2026-10-28T17:22:16.0911771Z # fail 0
+2026-10-28T17:22:16.0912070Z # cancelled 0
+2026-10-28T17:22:16.0912971Z # skipped 0
+2026-10-28T17:22:16.0913476Z # todo 0
+2026-10-28T17:22:16.0914108Z # duration_ms 68.535393
+2026-10-28T17:22:16.1003102Z ##[group]Run node --test tests/assessment-semantic-oracle.test.mjs
+2026-10-28T17:22:16.1003709Z node --test tests/assessment-semantic-oracle.test.mjs
+2026-10-28T17:22:16.1033941Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:22:16.1034201Z env:
+2026-10-28T17:22:16.1034753Z   DATABASE_URL: ***127.0.0.1:55432/lcsp_api_test?schema=public
+2026-10-28T17:22:16.1035177Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:22:16.1035490Z ##[endgroup]
+2026-10-28T17:22:16.1513481Z TAP version 13
+2026-10-28T17:22:16.3110956Z # Subtest: semantic oracle rejects false compliance: otp-format-only (no model execution)
+2026-10-28T17:22:16.3118488Z ok 1 - semantic oracle rejects false compliance: otp-format-only (no model execution)
+2026-10-28T17:22:16.3119844Z   ---
+2026-10-28T17:22:16.3120286Z   duration_ms: 2.536007
+2026-10-28T17:22:16.3120915Z   type: 'test'
+2026-10-28T17:22:16.3121342Z   ...
+2026-10-28T17:22:16.3122812Z # Subtest: semantic oracle rejects false compliance: logging-without-persistence (no model execution)
+2026-10-28T17:22:16.3124886Z ok 2 - semantic oracle rejects false compliance: logging-without-persistence (no model execution)
+2026-10-28T17:22:16.3126000Z   ---
+2026-10-28T17:22:16.3126497Z   duration_ms: 0.299701
+2026-10-28T17:22:16.3126955Z   type: 'test'
+2026-10-28T17:22:16.3127332Z   ...
+2026-10-28T17:22:16.3130662Z # Subtest: semantic oracle rejects false compliance: partial-safeguard (no model execution)
+2026-10-28T17:22:16.3133355Z ok 3 - semantic oracle rejects false compliance: partial-safeguard (no model execution)
+2026-10-28T17:22:16.3134133Z   ---
+2026-10-28T17:22:16.3177488Z   duration_ms: 0.207829
+2026-10-28T17:22:16.3177957Z   type: 'test'
+2026-10-28T17:22:16.3178314Z   ...
+2026-10-28T17:22:16.3179249Z # Subtest: semantic oracle rejects false compliance: applicability-unproven (no model execution)
+2026-10-28T17:22:16.3186915Z ok 4 - semantic oracle rejects false compliance: applicability-unproven (no model execution)
+2026-10-28T17:22:16.3188205Z   ---
+2026-10-28T17:22:16.3188712Z   duration_ms: 0.299922
+2026-10-28T17:22:16.3189115Z   type: 'test'
+2026-10-28T17:22:16.3189456Z   ...
+2026-10-28T17:22:16.3190060Z # Subtest: semantic oracle rejects false compliance: applicability-refuted (no model execution)
+2026-10-28T17:22:16.3190820Z ok 5 - semantic oracle rejects false compliance: applicability-refuted (no model execution)
+2026-10-28T17:22:16.3191273Z   ---
+2026-10-28T17:22:16.3191473Z   duration_ms: 0.309409
+2026-10-28T17:22:16.3191706Z   type: 'test'
+2026-10-28T17:22:16.3191903Z   ...
+2026-10-28T17:22:16.3192395Z # Subtest: unknown applicability cannot pass as NOT_APPLICABLE or complete without a question
+2026-10-28T17:22:16.3193926Z ok 6 - unknown applicability cannot pass as NOT_APPLICABLE or complete without a question
+2026-10-28T17:22:16.3194434Z   ---
+2026-10-28T17:22:16.3194648Z   duration_ms: 4.03828
+2026-10-28T17:22:16.3194878Z   type: 'test'
+2026-10-28T17:22:16.3195173Z   ...
+2026-10-28T17:22:16.3195846Z # Subtest: partial control cannot pass when the unmet part is omitted
+2026-10-28T17:22:16.3196798Z ok 7 - partial control cannot pass when the unmet part is omitted
+2026-10-28T17:22:16.3197393Z   ---
+2026-10-28T17:22:16.3197726Z   duration_ms: 0.824544
+2026-10-28T17:22:16.3198100Z   type: 'test'
+2026-10-28T17:22:16.3198448Z   ...
+2026-10-28T17:22:16.3333105Z 1..7
+2026-10-28T17:22:16.3333355Z # tests 7
+2026-10-28T17:22:16.3333686Z # suites 0
+2026-10-28T17:22:16.3334325Z # pass 7
+2026-10-28T17:22:16.3334730Z # fail 0
+2026-10-28T17:22:16.3335270Z # cancelled 0
+2026-10-28T17:22:16.3335773Z # skipped 0
+2026-10-28T17:22:16.3336253Z # todo 0
+2026-10-28T17:22:16.3336765Z # duration_ms 195.025664
+2026-10-28T17:22:16.3477807Z Post job cleanup.
+2026-10-28T17:22:16.4796212Z (node:3360) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T17:22:16.4797306Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:22:16.4801132Z Cache hit occurred on the primary key node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007, not saving cache.
+2026-10-28T17:22:16.4939070Z Post job cleanup.
+2026-10-28T17:22:16.6562865Z Pruning is unnecessary.
+2026-10-28T17:22:16.6819158Z Post job cleanup.
+2026-10-28T17:22:16.7817479Z [command]/usr/bin/git version
+2026-10-28T17:22:16.7871530Z git version 2.56.0
+2026-10-28T17:22:16.7920937Z Temporarily overriding HOME='/home/runner/work/_temp/48288d88-acc3-4dfd-b90a-6f6104e0af1b' before making global git config changes
+2026-10-28T17:22:16.7923017Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T17:22:16.7927150Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-28T17:22:16.7979207Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T17:22:16.8028637Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T17:22:16.8416406Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T17:22:16.8454383Z http.https://github.com/.extraheader
+2026-10-28T17:22:16.8470346Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-28T17:22:16.8539945Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T17:22:16.8896114Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T17:22:16.8945060Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T17:22:16.9448568Z Cleaning up orphan processes
+2026-10-28T17:22:16.9943818Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

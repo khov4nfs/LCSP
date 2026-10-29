@@ -1,0 +1,84 @@
+{
+  "submitted": [
+    {
+      "requestId": "789b587e-fbfa-41bf-a066-dd795af32615",
+      "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nDeployment status: The README documents a machine-learning credit-scoring system and a demo interface. Actual live production deployment is unverified. For LCSP, this repository is used only as an assessment benchmark.",
+      "status": 200,
+      "result": {
+        "requestId": "789b587e-fbfa-41bf-a066-dd795af32615",
+        "requestRevision": 1,
+        "caseRevision": 3,
+        "status": "RESOLVED",
+        "factId": "cb52fcec-9a23-4207-8a6f-9642c3615138",
+        "resumed": false,
+        "replayed": false
+      },
+      "submittedAt": "2026-10-29T02:36:05.642Z"
+    },
+    {
+      "requestId": "382fd335-9a61-4d36-a516-5292a9c8fb58",
+      "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nOperator/legal form: Unknown. The repository describes a credit-scoring project for Upay users, but this does not establish the identity or legal form of a real production operator.\n\nBusiness sector: Financial services / credit scoring / loan eligibility prediction.",
+      "status": 200,
+      "result": {
+        "requestId": "382fd335-9a61-4d36-a516-5292a9c8fb58",
+        "requestRevision": 1,
+        "caseRevision": 4,
+        "status": "RESOLVED",
+        "factId": "6dca8d75-5fdf-4a16-8a36-00fb7aa642ce",
+        "resumed": false,
+        "replayed": false
+      },
+      "submittedAt": "2026-10-29T02:36:07.009Z"
+    },
+    {
+      "requestId": "5763d1b2-376d-44bc-bbb6-6a9311c9d1d4",
+      "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nOperator/legal form: Unknown. The repository describes a credit-scoring project for Upay users, but this does not establish the identity or legal form of a real production operator.\n\nPreserve all unknown operational facts as UNRESOLVED. Do not convert missing information into negative assertions.",
+      "status": 200,
+      "result": {
+        "requestId": "5763d1b2-376d-44bc-bbb6-6a9311c9d1d4",
+        "requestRevision": 1,
+        "caseRevision": 5,
+        "status": "RESOLVED",
+        "factId": "8760ffc2-abf5-4538-a5d1-1b03e4497e3c",
+        "resumed": false,
+        "replayed": false
+      },
+      "submittedAt": "2026-10-29T02:36:10.290Z"
+    },
+    {
+      "requestId": "9c63b88c-0573-4504-8e01-798848f561f5",
+      "answer": "These two repositories are public third-party GitHub projects selected exclusively for LCSP-346 production concurrency and compliance-assessment testing.\n\nWe are not the original developers, legal operators, or confirmed deployers of either target system. Do not invent operational facts or treat the LCSP production testing environment as the production deployment of these repositories.\n\nThird-party/cross-border data sharing: Unknown for the target system's actual deployment.\n\nVietnamese personal data: Unknown for any actual deployment. No actual Vietnamese operational dataset has been supplied as assessment context.",
+      "status": 200,
+      "result": {
+        "requestId": "9c63b88c-0573-4504-8e01-798848f561f5",
+        "requestRevision": 1,
+        "caseRevision": 6,
+        "status": "RESOLVED",
+        "factId": "88d6376e-362d-433e-882a-75e7c2e724a4",
+        "resumed": false,
+        "replayed": false
+      },
+      "submittedAt": "2026-10-29T02:36:13.194Z"
+    }
+  ],
+  "assessmentA": [
+    {
+      "requestId": "79f0936d-8fad-4b91-9715-6e02e3b6e813",
+      "status": "RESOLVED",
+      "answerCount": 1,
+      "lastAnsweredAt": "2026-10-29T02:32:30.201Z"
+    },
+    {
+      "requestId": "3ebaf6e8-b6cc-4da0-b302-fa0e147250b7",
+      "status": "RESOLVED",
+      "answerCount": 1,
+      "lastAnsweredAt": "2026-10-29T02:33:58.618Z"
+    },
+    {
+      "requestId": "1757079a-dac3-4428-bea2-1f5a31b9a2a7",
+      "status": "RESOLVED",
+      "answerCount": 1,
+      "lastAnsweredAt": "2026-10-29T02:35:18.127Z"
+    }
+  ]
+}

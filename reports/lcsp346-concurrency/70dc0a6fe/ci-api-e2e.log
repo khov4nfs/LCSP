@@ -1,0 +1,496 @@
+﻿2026-10-28T17:20:48.0758888Z Current runner version: '2.338.0'
+2026-10-28T17:20:48.0785963Z ##[group]Runner Image Provisioner
+2026-10-28T17:20:48.0786976Z Hosted Compute Agent
+2026-10-28T17:20:48.0787707Z Version: 20261021.618
+2026-10-28T17:20:48.0788373Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-28T17:20:48.0789143Z Build Date: 2026-10-21T00:45:21Z
+2026-10-28T17:20:48.0789841Z Worker ID: {f122b00e-a11a-4a8c-b8de-692ea50eaef6}
+2026-10-28T17:20:48.0790543Z Region: eastus2
+2026-10-28T17:20:48.0791138Z Cloud: Azure
+2026-10-28T17:20:48.0791671Z ##[endgroup]
+2026-10-28T17:20:48.0793724Z ##[group]Operating System
+2026-10-28T17:20:48.0794423Z Ubuntu
+2026-10-28T17:20:48.0794979Z 26.04.1
+2026-10-28T17:20:48.0795584Z LTS
+2026-10-28T17:20:48.0796132Z ##[endgroup]
+2026-10-28T17:20:48.0796722Z ##[group]Runner Image
+2026-10-28T17:20:48.0797339Z Image: ubuntu-26.04
+2026-10-28T17:20:48.0797895Z Version: 20261025.179.1
+2026-10-28T17:20:48.0799177Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261025.179/images/ubuntu/Ubuntu2604-Readme.md
+2026-10-28T17:20:48.0800776Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261025.179
+2026-10-28T17:20:48.0801744Z ##[endgroup]
+2026-10-28T17:20:48.0803353Z ##[group]GITHUB_TOKEN Permissions
+2026-10-28T17:20:48.0805768Z Contents: read
+2026-10-28T17:20:48.0806423Z Metadata: read
+2026-10-28T17:20:48.0807099Z PullRequests: read
+2026-10-28T17:20:48.0807818Z ##[endgroup]
+2026-10-28T17:20:48.0810920Z Secret source: Actions
+2026-10-28T17:20:48.0812523Z Cache mode: write
+2026-10-28T17:20:48.0813598Z Prepare workflow directory
+2026-10-28T17:20:48.1261128Z Prepare all required actions
+2026-10-28T17:20:48.1309472Z Getting action download info
+2026-10-28T17:20:48.3025105Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-28T17:20:48.4117302Z Download action repository 'pnpm/action-setup@v4' (SHA:b906affcce14559ad1aafd4ab0e942779e9f58b1)
+2026-10-28T17:20:48.6266337Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-28T17:20:48.8071297Z Complete job name: API e2e tests
+2026-10-28T17:20:48.8699439Z ##[group]Checking docker version
+2026-10-28T17:20:48.8712471Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-10-28T17:20:48.9949258Z '1.54'
+2026-10-28T17:20:48.9965912Z Docker daemon API version: '1.54'
+2026-10-28T17:20:48.9966693Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-10-28T17:20:49.0154799Z '1.54'
+2026-10-28T17:20:49.0172441Z Docker client API version: '1.54'
+2026-10-28T17:20:49.0179959Z ##[endgroup]
+2026-10-28T17:20:49.0183925Z ##[group]Clean up resources from previous jobs
+2026-10-28T17:20:49.0189981Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=cb9a8b"
+2026-10-28T17:20:49.0375079Z ##[command]/usr/bin/docker network prune --force --filter "label=cb9a8b"
+2026-10-28T17:20:49.0567874Z ##[endgroup]
+2026-10-28T17:20:49.0568433Z ##[group]Create local container network
+2026-10-28T17:20:49.0578537Z ##[command]/usr/bin/docker network create --label cb9a8b github_network_b2f8cfb09d59454cacf5ff0532e58b3d
+2026-10-28T17:20:49.1104390Z d2833e4576195481a6ad55fa9dc145e9bafcf7776ba1506d15017363cd130581
+2026-10-28T17:20:49.1134792Z ##[endgroup]
+2026-10-28T17:20:49.1159263Z ##[group]Starting postgres service container
+2026-10-28T17:20:49.1180917Z ##[command]/usr/bin/docker pull postgres:16
+2026-10-28T17:20:49.4094192Z 16: Pulling from library/postgres
+2026-10-28T17:20:49.5410547Z 7ee6ed8de1c8: Pulling fs layer
+2026-10-28T17:20:49.5412490Z 879995175298: Pulling fs layer
+2026-10-28T17:20:49.5414676Z 28d8a96df569: Pulling fs layer
+2026-10-28T17:20:49.5415731Z b355a8fcc1d3: Pulling fs layer
+2026-10-28T17:20:49.5416826Z 6fc242d221a6: Pulling fs layer
+2026-10-28T17:20:49.5417617Z c60d02d02e9b: Pulling fs layer
+2026-10-28T17:20:49.5418474Z d89068781d71: Pulling fs layer
+2026-10-28T17:20:49.5419643Z d06edb2e3f43: Pulling fs layer
+2026-10-28T17:20:49.5420785Z 9b1a18996a22: Pulling fs layer
+2026-10-28T17:20:49.5422204Z 5c4d204f6daa: Pulling fs layer
+2026-10-28T17:20:49.5423216Z fbc84e711712: Pulling fs layer
+2026-10-28T17:20:49.5424423Z 3795839385bc: Pulling fs layer
+2026-10-28T17:20:49.5425812Z dc3e98153fd4: Pulling fs layer
+2026-10-28T17:20:49.5427005Z cea4f0db46a6: Pulling fs layer
+2026-10-28T17:20:49.6385320Z d89068781d71: Download complete
+2026-10-28T17:20:49.6388762Z 7ee6ed8de1c8: Download complete
+2026-10-28T17:20:49.6411755Z b355a8fcc1d3: Download complete
+2026-10-28T17:20:49.6420201Z d06edb2e3f43: Download complete
+2026-10-28T17:20:49.6425652Z 879995175298: Download complete
+2026-10-28T17:20:49.6444565Z 28d8a96df569: Download complete
+2026-10-28T17:20:49.6460752Z dc3e98153fd4: Download complete
+2026-10-28T17:20:49.6492330Z c60d02d02e9b: Download complete
+2026-10-28T17:20:49.7396482Z fbc84e711712: Download complete
+2026-10-28T17:20:49.7407056Z 3795839385bc: Download complete
+2026-10-28T17:20:49.7413669Z 52b2ca0eb4bf: Download complete
+2026-10-28T17:20:49.7418478Z 9b1a18996a22: Download complete
+2026-10-28T17:20:49.7435005Z cea4f0db46a6: Download complete
+2026-10-28T17:20:49.8378280Z 6fc242d221a6: Download complete
+2026-10-28T17:20:49.8380328Z 34abe417644f: Download complete
+2026-10-28T17:20:50.5378816Z 5c4d204f6daa: Download complete
+2026-10-28T17:20:50.7413840Z d06edb2e3f43: Pull complete
+2026-10-28T17:20:50.7577448Z 6fc242d221a6: Pull complete
+2026-10-28T17:20:50.8492423Z 3795839385bc: Pull complete
+2026-10-28T17:20:50.8529466Z cea4f0db46a6: Pull complete
+2026-10-28T17:20:51.0390192Z d89068781d71: Pull complete
+2026-10-28T17:20:51.0437757Z 879995175298: Pull complete
+2026-10-28T17:20:51.0501954Z fbc84e711712: Pull complete
+2026-10-28T17:20:51.0520772Z 9b1a18996a22: Pull complete
+2026-10-28T17:20:52.8452507Z 5c4d204f6daa: Pull complete
+2026-10-28T17:20:52.8966151Z 7ee6ed8de1c8: Pull complete
+2026-10-28T17:20:52.8976827Z b355a8fcc1d3: Pull complete
+2026-10-28T17:20:52.9006526Z 28d8a96df569: Pull complete
+2026-10-28T17:20:52.9034283Z dc3e98153fd4: Pull complete
+2026-10-28T17:20:52.9059608Z c60d02d02e9b: Pull complete
+2026-10-28T17:20:52.9062416Z Digest: sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+2026-10-28T17:20:52.9063919Z Status: Downloaded newer image for postgres:16
+2026-10-28T17:20:52.9072738Z docker.io/library/postgres:16
+2026-10-28T17:20:52.9164823Z ##[command]/usr/bin/docker create --name 0ab651ddd87b473c8dcd5e3985444f50_postgres16_a69afc --label cb9a8b --network github_network_b2f8cfb09d59454cacf5ff0532e58b3d --network-alias postgres -p 55432:5432 --health-cmd "pg_isready -U postgres -d lcsp_api_test" --health-interval 10s --health-timeout 5s --health-retries 5 -e "POSTGRES_USER=postgres" -e "POSTGRES_PASSWORD=postgres" -e "POSTGRES_DB=lcsp_api_test" -e GITHUB_ACTIONS=true -e CI=true postgres:16
+2026-10-28T17:20:54.0665441Z 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:20:54.0692133Z ##[command]/usr/bin/docker start 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:20:54.3170731Z 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:20:54.3198103Z ##[command]/usr/bin/docker ps --all --filter id=739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-10-28T17:20:54.3524781Z 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e Up Less than a second (health: starting)
+2026-10-28T17:20:54.3563411Z ##[command]/usr/bin/docker port 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:20:54.3721204Z 5432/tcp -> 0.0.0.0:55432
+2026-10-28T17:20:54.3721928Z 5432/tcp -> [::]:55432
+2026-10-28T17:20:54.3776096Z ##[endgroup]
+2026-10-28T17:20:54.3786099Z ##[group]Waiting for all services to be ready
+2026-10-28T17:20:54.3801430Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:20:54.3992235Z starting
+2026-10-28T17:20:54.4023587Z postgres service is starting, waiting 2 seconds before checking again.
+2026-10-28T17:20:56.4022739Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:20:56.4172609Z starting
+2026-10-28T17:20:56.4189540Z postgres service is starting, waiting 4 seconds before checking again.
+2026-10-28T17:21:00.7435199Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:21:00.7584693Z starting
+2026-10-28T17:21:00.7604449Z postgres service is starting, waiting 8 seconds before checking again.
+2026-10-28T17:21:08.9348530Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:21:08.9500980Z healthy
+2026-10-28T17:21:08.9523855Z postgres service is healthy.
+2026-10-28T17:21:08.9524734Z ##[endgroup]
+2026-10-28T17:21:08.9897998Z ##[group]Run actions/checkout@v4
+2026-10-28T17:21:08.9898585Z with:
+2026-10-28T17:21:08.9898803Z   repository: khov4nfs/LCSP
+2026-10-28T17:21:08.9901193Z   token: ***
+2026-10-28T17:21:08.9901404Z   ssh-strict: true
+2026-10-28T17:21:08.9901607Z   ssh-user: git
+2026-10-28T17:21:08.9901822Z   persist-credentials: true
+2026-10-28T17:21:08.9902069Z   clean: true
+2026-10-28T17:21:08.9902284Z   sparse-checkout-cone-mode: true
+2026-10-28T17:21:08.9902541Z   fetch-depth: 1
+2026-10-28T17:21:08.9902749Z   fetch-tags: false
+2026-10-28T17:21:08.9902962Z   show-progress: true
+2026-10-28T17:21:08.9903415Z   lfs: false
+2026-10-28T17:21:08.9903610Z   submodules: false
+2026-10-28T17:21:08.9903825Z   set-safe-directory: true
+2026-10-28T17:21:08.9904080Z   allow-unsafe-pr-checkout: false
+2026-10-28T17:21:08.9904571Z ##[endgroup]
+2026-10-28T17:21:09.3029954Z Syncing repository: khov4nfs/LCSP
+2026-10-28T17:21:09.3031551Z ##[group]Getting Git version info
+2026-10-28T17:21:09.3032243Z Working directory is '/home/runner/work/LCSP/LCSP'
+2026-10-28T17:21:09.3033546Z [command]/usr/bin/git version
+2026-10-28T17:21:09.3053035Z git version 2.56.0
+2026-10-28T17:21:09.3096560Z ##[endgroup]
+2026-10-28T17:21:09.3103312Z Temporarily overriding HOME='/home/runner/work/_temp/8251463f-fad3-47be-b0d7-2dcf9815fb60' before making global git config changes
+2026-10-28T17:21:09.3104930Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T17:21:09.3108154Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-28T17:21:09.3190552Z Deleting the contents of '/home/runner/work/LCSP/LCSP'
+2026-10-28T17:21:09.3193916Z ##[group]Initializing the repository
+2026-10-28T17:21:09.3198683Z [command]/usr/bin/git init /home/runner/work/LCSP/LCSP
+2026-10-28T17:21:09.3343740Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-28T17:21:09.3344729Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-28T17:21:09.3345687Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-28T17:21:09.3346357Z hint: call:
+2026-10-28T17:21:09.3346577Z hint:
+2026-10-28T17:21:09.3346919Z hint: 	git config --global init.defaultBranch <name>
+2026-10-28T17:21:09.3347247Z hint:
+2026-10-28T17:21:09.3347551Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-28T17:21:09.3348063Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-28T17:21:09.3348456Z hint:
+2026-10-28T17:21:09.3348652Z hint: 	git branch -m <name>
+2026-10-28T17:21:09.3348877Z hint:
+2026-10-28T17:21:09.3349204Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-28T17:21:09.3360232Z Initialized empty Git repository in /home/runner/work/LCSP/LCSP/.git/
+2026-10-28T17:21:09.3374567Z [command]/usr/bin/git remote add origin https://github.com/khov4nfs/LCSP
+2026-10-28T17:21:09.3452212Z ##[endgroup]
+2026-10-28T17:21:09.3453345Z ##[group]Disabling automatic garbage collection
+2026-10-28T17:21:09.3457452Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-28T17:21:09.3500560Z ##[endgroup]
+2026-10-28T17:21:09.3501148Z ##[group]Setting up auth
+2026-10-28T17:21:09.3508607Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T17:21:09.3547502Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T17:21:09.4058828Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T17:21:09.4095822Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T17:21:09.4372842Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T17:21:09.4409552Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T17:21:09.4687731Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-28T17:21:09.4729155Z ##[endgroup]
+2026-10-28T17:21:09.4729617Z ##[group]Fetching the repository
+2026-10-28T17:21:09.4739034Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2:refs/remotes/pull/440/merge
+2026-10-28T17:21:11.0916567Z From https://github.com/khov4nfs/LCSP
+2026-10-28T17:21:11.0917170Z  * [new ref]         98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2 -> pull/440/merge
+2026-10-28T17:21:11.0923965Z ##[endgroup]
+2026-10-28T17:21:11.0924726Z ##[group]Determining the checkout info
+2026-10-28T17:21:11.0928173Z ##[endgroup]
+2026-10-28T17:21:11.0935268Z [command]/usr/bin/git sparse-checkout disable
+2026-10-28T17:21:11.0998895Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-28T17:21:11.1030610Z ##[group]Checking out the ref
+2026-10-28T17:21:11.1054436Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/440/merge
+2026-10-28T17:21:11.3137247Z Note: switching to 'refs/remotes/pull/440/merge'.
+2026-10-28T17:21:11.3137776Z 
+2026-10-28T17:21:11.3138046Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-28T17:21:11.3138572Z changes and commit them, and you can discard any commits you make in this
+2026-10-28T17:21:11.3139373Z state without impacting any branches by switching back to a branch.
+2026-10-28T17:21:11.3139877Z 
+2026-10-28T17:21:11.3140381Z If you want to create a new branch to retain commits you create, you may
+2026-10-28T17:21:11.3141189Z do so (now or later) by using -c with the switch command. Example:
+2026-10-28T17:21:11.3141664Z 
+2026-10-28T17:21:11.3141860Z   git switch -c <new-branch-name>
+2026-10-28T17:21:11.3142192Z 
+2026-10-28T17:21:11.3142371Z Or undo this operation with:
+2026-10-28T17:21:11.3142641Z 
+2026-10-28T17:21:11.3142791Z   git switch -
+2026-10-28T17:21:11.3143350Z 
+2026-10-28T17:21:11.3143764Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-28T17:21:11.3144271Z 
+2026-10-28T17:21:11.3144824Z HEAD is now at 98d8f6c Merge 70dc0a6fe40c618bdf47d532f9baa5230e52faf1 into 70ddc3c086678edabb6b7a9f6627685841afbafb
+2026-10-28T17:21:11.3156463Z ##[endgroup]
+2026-10-28T17:21:11.3208370Z [command]/usr/bin/git log -1 --format=%H
+2026-10-28T17:21:11.3235578Z 98d8f6c191c4d5acded1e1d48e2a1e79390a4ba2
+2026-10-28T17:21:11.3486271Z ##[group]Run pnpm/action-setup@v4
+2026-10-28T17:21:11.3486556Z with:
+2026-10-28T17:21:11.3486747Z   dest: ~/setup-pnpm
+2026-10-28T17:21:11.3486956Z   run_install: null
+2026-10-28T17:21:11.3487155Z   cache: false
+2026-10-28T17:21:11.3487364Z   cache_dependency_path: pnpm-lock.yaml
+2026-10-28T17:21:11.3487653Z   package_json_file: package.json
+2026-10-28T17:21:11.3488086Z   standalone: false
+2026-10-28T17:21:11.3488291Z ##[endgroup]
+2026-10-28T17:21:11.5059613Z ##[group]Running self-installer...
+2026-10-28T17:21:11.9755098Z (node:2760) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-28T17:21:11.9757111Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:21:12.3116434Z Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-10-28T17:21:12.4464926Z Packages: +3
+2026-10-28T17:21:12.4465464Z +++
+2026-10-28T17:21:13.0576961Z Progress: resolved 9, reused 0, downloaded 3, added 3, done
+2026-10-28T17:21:13.0745757Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall$ node install.js
+2026-10-28T17:21:13.3445593Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm preinstall: Done
+2026-10-28T17:21:13.3451150Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall$ node install.js
+2026-10-28T17:21:13.3940418Z .../.pnpm/pnpm@12.3.4/node_modules/pnpm postinstall: Done
+2026-10-28T17:21:14.4826762Z 
+2026-10-28T17:21:14.4827417Z dependencies:
+2026-10-28T17:21:14.4827831Z + pnpm 12.3.4 (12.16.1 is available)
+2026-10-28T17:21:14.4828072Z 
+2026-10-28T17:21:14.4851659Z Done in 2.7s
+2026-10-28T17:21:14.5499990Z ##[endgroup]
+2026-10-28T17:21:14.5500383Z Installation Completed!
+2026-10-28T17:21:14.5687557Z ##[group]Run actions/setup-node@v4
+2026-10-28T17:21:14.5687845Z with:
+2026-10-28T17:21:14.5688035Z   node-version: 22
+2026-10-28T17:21:14.5688235Z   cache: pnpm
+2026-10-28T17:21:14.5688427Z   always-auth: false
+2026-10-28T17:21:14.5688638Z   check-latest: false
+2026-10-28T17:21:14.5690942Z   token: ***
+2026-10-28T17:21:14.5691141Z env:
+2026-10-28T17:21:14.5691397Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:14.5691708Z ##[endgroup]
+2026-10-28T17:21:14.7221604Z (node:2813) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T17:21:14.7222910Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:21:14.7225365Z Found in cache @ /opt/hostedtoolcache/node/22.23.4/x64
+2026-10-28T17:21:14.7225914Z ##[group]Environment details
+2026-10-28T17:21:17.6739348Z node: v22.23.4
+2026-10-28T17:21:17.6739763Z npm: 10.9.9
+2026-10-28T17:21:17.6740099Z yarn: 1.22.22
+2026-10-28T17:21:17.6741645Z ##[endgroup]
+2026-10-28T17:21:17.6762392Z [command]/home/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+2026-10-28T17:21:17.6948133Z /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-28T17:21:17.8163214Z Cache hit for: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-28T17:21:17.8321609Z (node:2813) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-28T17:21:19.2213937Z Received 213909504 of 277919439 (77.0%), 203.8 MBs/sec
+2026-10-28T17:21:19.6717131Z Received 277919439 of 277919439 (100.0%), 182.7 MBs/sec
+2026-10-28T17:21:19.6718402Z Cache Size: ~265 MB (277919439 B)
+2026-10-28T17:21:19.6782420Z [command]/usr/bin/tar -xf /home/runner/work/_temp/4ade056f-0a0c-4dd9-8c15-b4d3a1c4d6dd/cache.tzst -P -C /home/runner/work/LCSP/LCSP --use-compress-program unzstd
+2026-10-28T17:21:23.0729283Z Cache restored successfully
+2026-10-28T17:21:23.0934184Z Cache restored from key: node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007
+2026-10-28T17:21:23.1306624Z ##[group]Run pnpm install --frozen-lockfile
+2026-10-28T17:21:23.1307049Z pnpm install --frozen-lockfile
+2026-10-28T17:21:23.1389275Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:23.1389557Z env:
+2026-10-28T17:21:23.1389821Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:23.1390146Z ##[endgroup]
+2026-10-28T17:21:23.1840575Z Scope: all 5 workspace projects
+2026-10-28T17:21:23.2438357Z ? Verifying lockfile against supply-chain policies (1310 entries)...
+2026-10-28T17:21:23.5239585Z Packages are hard linked from the content-addressable store to the virtual store.
+2026-10-28T17:21:23.5240318Z   Content-addressable store is at: /home/runner/setup-pnpm/node_modules/.bin/store/v11
+2026-10-28T17:21:23.5240983Z   Virtual store is at:             node_modules/.pnpm
+2026-10-28T17:21:30.7250215Z ✓ Lockfile passes supply-chain policies (1310 entries in 7.5s)
+2026-10-28T17:21:30.7250806Z Lockfile is up to date, resolution step is skipped
+2026-10-28T17:21:30.7439824Z Packages: +1175
+2026-10-28T17:21:30.7440692Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-28T17:21:30.8385692Z Progress: resolved 1175, reused 1175, downloaded 0, added 1175, done
+2026-10-28T17:21:31.0855468Z . prepare$ husky
+2026-10-28T17:21:31.1806801Z . prepare: Done
+2026-10-28T17:21:31.1831294Z 
+2026-10-28T17:21:31.1831622Z devDependencies:
+2026-10-28T17:21:31.1832347Z + @lcsp/contracts link:packages/contracts
+2026-10-28T17:21:31.1833282Z + @lcsp/i18n link:packages/i18n
+2026-10-28T17:21:31.1833844Z + @lcsp/web link:apps/web
+2026-10-28T17:21:31.1834346Z + @playwright/test 1.63.0
+2026-10-28T17:21:31.1834824Z + @tanstack/ai 0.14.0
+2026-10-28T17:21:31.1835274Z + @types/node 22.20.0
+2026-10-28T17:21:31.1835679Z + dotenv 16.6.1
+2026-10-28T17:21:31.1836128Z + dotenv-expand 12.0.3
+2026-10-28T17:21:31.1836536Z + husky 9.1.7
+2026-10-28T17:21:31.1836899Z + likec4 1.59.2
+2026-10-28T17:21:31.1837298Z + prettier 3.9.4
+2026-10-28T17:21:31.1837674Z + tsx 4.23.1
+2026-10-28T17:21:31.1838087Z + typescript 5.9.3
+2026-10-28T17:21:31.1838330Z 
+2026-10-28T17:21:31.1890736Z Done in 8s using pnpm v12.3.4
+2026-10-28T17:21:31.2677554Z ##[group]Run pnpm --filter @lcsp/api test:e2e
+2026-10-28T17:21:31.2677948Z pnpm --filter @lcsp/api test:e2e
+2026-10-28T17:21:31.2708857Z shell: /usr/bin/bash -e {0}
+2026-10-28T17:21:31.2709115Z env:
+2026-10-28T17:21:31.2709395Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-28T17:21:31.2709707Z ##[endgroup]
+2026-10-28T17:21:31.2973366Z $ pnpm --dir ../.. run build:runtime-packages && cross-env DATABASE_URL=***127.0.0.1:55434/lcsp_api_e2e?schema=public pnpm run prisma:generate
+2026-10-28T17:21:31.3164039Z $ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build
+2026-10-28T17:21:31.3377189Z $ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force
+2026-10-28T17:21:34.8095118Z $ tsc -b tsconfig.json --force
+2026-10-28T17:21:38.3279594Z $ cross-env XDG_CACHE_HOME=.cache prisma generate
+2026-10-28T17:21:39.4109748Z Loaded Prisma config from prisma.config.ts.
+2026-10-28T17:21:39.4110546Z 
+2026-10-28T17:21:39.4924912Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-28T17:21:40.6333152Z 
+2026-10-28T17:21:40.6335183Z ✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 714ms
+2026-10-28T17:21:40.6336272Z 
+2026-10-28T17:21:40.6336845Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-10-28T17:21:40.6337416Z 
+2026-10-28T17:21:40.6337425Z 
+2026-10-28T17:21:40.6798718Z $ cross-env LCSP_TEST_POSTGRES_PORT=55434 LCSP_TEST_POSTGRES_DB=lcsp_api_e2e LCSP_TEST_POSTGRES_USER=postgres LCSP_TEST_POSTGRES_PASSWORD=postgres node ./test/scripts/ensure-test-postgres.mjs && cross-env DATABASE_URL="***127.0.0.1:55434/lcsp_api_e2e?schema=public" LCSP_TEST_POSTGRES_PORT=55434 LCSP_TEST_POSTGRES_DB=lcsp_api_e2e node ./test/scripts/assert-disposable-database.mjs && cross-env DATABASE_URL="***127.0.0.1:55434/lcsp_api_e2e?schema=public" LCSP_TEST_POSTGRES_PORT=55434 LCSP_TEST_POSTGRES_DB=lcsp_api_e2e node ./test/scripts/reset-disposable-database-schema.mjs && cross-env DATABASE_URL="***127.0.0.1:55434/lcsp_api_e2e?schema=public" PHASE25_DATABASE_URL=***127.0.0.1:55434/lcsp_api_e2e?schema=public NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./test/jest-e2e.ts
+2026-10-28T17:21:47.7111181Z E2E database guard passed for 127.0.0.1:55434/lcsp_api_e2e
+2026-10-28T17:21:48.5790507Z Loaded Prisma config from prisma.config.ts.
+2026-10-28T17:21:48.5790809Z 
+2026-10-28T17:21:48.6878764Z ┌─────────────────────────────────────────────────────────┐
+2026-10-28T17:21:48.6880065Z │  Update available 7.8.0 -> 8.0.0-rc.28                  │
+2026-10-28T17:21:48.6880934Z Script executed successfully.
+2026-10-28T17:21:48.6882005Z │                                                         │
+2026-10-28T17:21:48.6883470Z │  This is a major update - please follow the guide at    │
+2026-10-28T17:21:48.6884672Z │  https://pris.ly/d/major-version-upgrade                │
+2026-10-28T17:21:48.6885803Z │                                                         │
+2026-10-28T17:21:48.6887042Z │  Run the following to update                            │
+2026-10-28T17:21:48.6888377Z │    npm i --save-dev prisma@latest                       │
+2026-10-28T17:21:48.6889563Z │    npm i @prisma/client@latest                          │
+2026-10-28T17:21:48.6890737Z └─────────────────────────────────────────────────────────┘
+2026-10-28T17:21:49.4918525Z Loaded Prisma config from prisma.config.ts.
+2026-10-28T17:21:49.4918814Z 
+2026-10-28T17:21:49.5557231Z Prisma schema loaded from prisma/schema.prisma.
+2026-10-28T17:21:49.5694571Z Datasource "db": PostgreSQL database "lcsp_api_e2e", schema "public" at "127.0.0.1:55434"
+2026-10-28T17:21:50.5394211Z 
+2026-10-28T17:21:50.5396019Z 🚀  Your database is now in sync with your Prisma schema. Done in 916ms
+2026-10-28T17:21:50.5396628Z 
+2026-10-28T17:21:50.5630574Z Disposable database schema reset completed for 127.0.0.1:55434/lcsp_api_e2e
+2026-10-28T17:22:06.1205409Z (node:3793) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:22:06.1206710Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:22:10.6906927Z [Nest] 3793  - 10/28/2026, 5:22:10 PM   ERROR [HttpExceptionFilter] [dc8afcc4-e261-4a4b-8f4e-76ccbc5ca8f6] POST /auth/mfa/enroll 500 - Internal Server Error
+2026-10-28T17:22:10.6908768Z Error: test MFA audit failure
+2026-10-28T17:22:10.6910152Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/auth.e2e-spec.ts:442:30)
+2026-10-28T17:22:10.6911568Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:22:10.6917213Z [Nest] 3793  - 10/28/2026, 5:22:10 PM   ERROR [HTTP] POST /auth/mfa/enroll 500 +64ms code=INTERNAL_ERROR requiredAction=none correlationId=dc8afcc4-e261-4a4b-8f4e-76ccbc5ca8f6
+2026-10-28T17:22:11.6871659Z [Nest] 3793  - 10/28/2026, 5:22:11 PM   ERROR [HttpExceptionFilter] [ef88f962-e168-4915-a5b0-c40d0fd82202] POST /auth/mfa/recovery-code/verify 500 - Internal Server Error
+2026-10-28T17:22:11.6873363Z Error: test MFA proof audit failure
+2026-10-28T17:22:11.6873945Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/auth.e2e-spec.ts:534:30)
+2026-10-28T17:22:11.6874985Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:22:11.6877496Z [Nest] 3793  - 10/28/2026, 5:22:11 PM   ERROR [HTTP] POST /auth/mfa/recovery-code/verify 500 +13ms code=INTERNAL_ERROR requiredAction=none correlationId=ef88f962-e168-4915-a5b0-c40d0fd82202
+2026-10-28T17:22:12.6758201Z [Nest] 3793  - 10/28/2026, 5:22:12 PM   ERROR [HttpExceptionFilter] [d1bc5671-ddf1-4468-b3a5-31e2153e0e85] POST /auth/mfa/recovery-codes 500 - Internal Server Error
+2026-10-28T17:22:12.6759168Z Error: test MFA code audit failure
+2026-10-28T17:22:12.6759709Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/auth.e2e-spec.ts:648:30)
+2026-10-28T17:22:12.6760338Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:22:12.6762575Z [Nest] 3793  - 10/28/2026, 5:22:12 PM   ERROR [HTTP] POST /auth/mfa/recovery-codes 500 +53ms code=INTERNAL_ERROR requiredAction=none correlationId=d1bc5671-ddf1-4468-b3a5-31e2153e0e85
+2026-10-28T17:22:14.9163889Z [Nest] 3793  - 10/28/2026, 5:22:14 PM   ERROR [HttpExceptionFilter] [ec55f7e4-784d-43fd-ba09-1638c41ff19b] POST /auth/mfa/verify-otp 500 - Internal Server Error
+2026-10-28T17:22:14.9165635Z Error: test OTP proof audit failure
+2026-10-28T17:22:14.9166846Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/auth.e2e-spec.ts:804:30)
+2026-10-28T17:22:14.9168237Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:22:14.9171044Z [Nest] 3793  - 10/28/2026, 5:22:14 PM   ERROR [HTTP] POST /auth/mfa/verify-otp 500 +14ms code=INTERNAL_ERROR requiredAction=none correlationId=ec55f7e4-784d-43fd-ba09-1638c41ff19b
+2026-10-28T17:22:21.3363697Z [Nest] 3793  - 10/28/2026, 5:22:21 PM   ERROR [HttpExceptionFilter] [9df5fedf-5e8f-4e98-ae11-286ed24c3290] POST /auth/mfa/enroll 500 - Internal Server Error
+2026-10-28T17:22:21.3364635Z Error: test MFA rotation audit failure
+2026-10-28T17:22:21.3365180Z     at Object.<anonymous> (/home/runner/work/LCSP/LCSP/apps/api/test/auth.e2e-spec.ts:1398:30)
+2026-10-28T17:22:21.3365817Z     at processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-10-28T17:22:21.3368194Z [Nest] 3793  - 10/28/2026, 5:22:21 PM   ERROR [HTTP] POST /auth/mfa/enroll 500 +56ms code=INTERNAL_ERROR requiredAction=none correlationId=9df5fedf-5e8f-4e98-ae11-286ed24c3290
+2026-10-28T17:22:27.5281129Z PASS test/auth.e2e-spec.ts (36.008 s)
+2026-10-28T17:22:38.8641629Z PASS test/billing-admin-reconciliation.e2e-spec.ts (10.02 s)
+2026-10-28T17:22:46.6376803Z PASS test/legal-source.e2e-spec.ts (7.768 s)
+2026-10-28T17:22:57.9775537Z PASS test/admin-users.e2e-spec.ts (11.334 s)
+2026-10-28T17:23:04.4464921Z PASS test/oauth-login.e2e-spec.ts (6.463 s)
+2026-10-28T17:23:13.9010155Z PASS test/admin-release-gate.e2e-spec.ts (9.449 s)
+2026-10-28T17:23:20.7599431Z PASS test/sign-up.e2e-spec.ts (6.853 s)
+2026-10-28T17:23:27.7968013Z PASS test/pin-commit-snapshot.e2e-spec.ts (7.031 s)
+2026-10-28T17:23:34.3346756Z (node:5021) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:23:34.3347890Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:23:34.8830570Z (node:5021) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+2026-10-28T17:23:36.9282469Z PASS test/assessment.e2e-spec.ts (8.718 s)
+2026-10-28T17:23:42.8633719Z (node:5021) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+2026-10-28T17:23:44.7525603Z PASS test/assessment-create.e2e-spec.ts (7.818 s)
+2026-10-28T17:23:50.7191080Z (node:5021) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+2026-10-28T17:23:54.1063425Z PASS test/assessment-list.e2e-spec.ts (9.349 s)
+2026-10-28T17:24:00.1816991Z (node:5021) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+2026-10-28T17:24:01.7408478Z PASS test/audit-trail.e2e-spec.ts (7.627 s)
+2026-10-28T17:24:09.4471007Z PASS test/redaction-boundary.e2e-spec.ts (7.699 s)
+2026-10-28T17:24:09.6426648Z PASS test/mfa-generation-migration.e2e-spec.ts
+2026-10-28T17:24:13.4909249Z PASS test/outbox-repository.e2e-spec.ts
+2026-10-28T17:24:19.5612191Z (node:5021) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+2026-10-28T17:24:20.9280262Z PASS test/assessment-get.e2e-spec.ts (7.433 s)
+2026-10-28T17:24:26.6455780Z PASS test/sepay-webhook.e2e-spec.ts (5.71 s)
+2026-10-28T17:24:33.0441020Z PASS test/idempotency.e2e-spec.ts (6.394 s)
+2026-10-28T17:24:33.8668013Z (node:6266) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+2026-10-28T17:24:33.8669629Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-28T17:24:33.9422258Z PASS test/account-invitation-removal-migration.e2e-spec.ts
+2026-10-28T17:24:40.1196575Z PASS test/smoke.e2e-spec.ts (5.926 s)
+2026-10-28T17:24:45.7250642Z PASS test/app.e2e-spec.ts (5.6 s)
+2026-10-28T17:24:45.7980705Z 
+2026-10-28T17:24:45.7985619Z Test Suites: 3 skipped, 21 passed, 21 of 24 total
+2026-10-28T17:24:45.7986501Z Tests:       21 skipped, 176 passed, 197 total
+2026-10-28T17:24:45.7987155Z Snapshots:   0 total
+2026-10-28T17:24:45.7987657Z Time:        174.824 s
+2026-10-28T17:24:45.7988128Z Ran all test suites.
+2026-10-28T17:24:45.8504581Z Post job cleanup.
+2026-10-28T17:24:45.9846238Z (node:6557) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T17:24:45.9847271Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T17:24:45.9851176Z Cache hit occurred on the primary key node-cache-Linux-x64-pnpm-d17ca309c06904a67c9fc300e804fa205fdc0f7e7afffdc5fd078ce84f085007, not saving cache.
+2026-10-28T17:24:46.0030249Z Post job cleanup.
+2026-10-28T17:24:46.1688139Z Pruning is unnecessary.
+2026-10-28T17:24:46.1896339Z Post job cleanup.
+2026-10-28T17:24:46.2838063Z [command]/usr/bin/git version
+2026-10-28T17:24:46.2886542Z git version 2.56.0
+2026-10-28T17:24:46.2929305Z Temporarily overriding HOME='/home/runner/work/_temp/423cc979-bbcb-487d-bce3-bb1b6957dbf9' before making global git config changes
+2026-10-28T17:24:46.2934151Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T17:24:46.2936244Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LCSP/LCSP
+2026-10-28T17:24:46.2987659Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T17:24:46.3035813Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T17:24:46.3409032Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T17:24:46.3449111Z http.https://github.com/.extraheader
+2026-10-28T17:24:46.3464136Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-28T17:24:46.3511009Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T17:24:46.3840596Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T17:24:46.3885223Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T17:24:46.4354104Z Print service container logs: 0ab651ddd87b473c8dcd5e3985444f50_postgres16_a69afc
+2026-10-28T17:24:46.4358699Z ##[command]/usr/bin/docker logs --details 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:24:46.4513815Z  The files belonging to this database system will be owned by user "postgres".
+2026-10-28T17:24:46.4517288Z  initdb: warning: enabling "trust" authentication for local connections
+2026-10-28T17:24:46.4518420Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-10-28T17:24:46.4520368Z  2026-10-28 17:20:55.260 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-28T17:24:46.4521136Z  2026-10-28 17:20:55.260 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-28T17:24:46.4521708Z  2026-10-28 17:20:55.260 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-10-28T17:24:46.4522247Z  2026-10-28 17:20:55.261 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-28T17:24:46.4522823Z  2026-10-28 17:20:55.264 UTC [64] LOG:  database system was shut down at 2026-10-28 17:20:55 UTC
+2026-10-28T17:24:46.4523757Z  2026-10-28 17:20:55.269 UTC [1] LOG:  database system is ready to accept connections
+2026-10-28T17:24:46.4524195Z  This user must also own the server process.
+2026-10-28T17:24:46.4524561Z  
+2026-10-28T17:24:46.4524948Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-10-28T17:24:46.4525408Z  The default database encoding has accordingly been set to "UTF8".
+2026-10-28T17:24:46.4525833Z  The default text search configuration will be set to "english".
+2026-10-28T17:24:46.4526165Z  
+2026-10-28T17:24:46.4526359Z  Data page checksums are disabled.
+2026-10-28T17:24:46.4526604Z  
+2026-10-28T17:24:46.4526901Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-10-28T17:24:46.4527386Z  creating subdirectories ... ok
+2026-10-28T17:24:46.4527734Z  selecting dynamic shared memory implementation ... posix
+2026-10-28T17:24:46.4528088Z  selecting default max_connections ... 100
+2026-10-28T17:24:46.4528384Z  selecting default shared_buffers ... 128MB
+2026-10-28T17:24:46.4528674Z  selecting default time zone ... Etc/UTC
+2026-10-28T17:24:46.4528961Z  creating configuration files ... ok
+2026-10-28T17:24:46.4529231Z  running bootstrap script ... ok
+2026-10-28T17:24:46.4529528Z  performing post-bootstrap initialization ... ok
+2026-10-28T17:24:46.4529838Z  syncing data to disk ... ok
+2026-10-28T17:24:46.4530060Z  
+2026-10-28T17:24:46.4530222Z  
+2026-10-28T17:24:46.4530449Z  Success. You can now start the database server using:
+2026-10-28T17:24:46.4530750Z  
+2026-10-28T17:24:46.4530983Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-10-28T17:24:46.4531275Z  
+2026-10-28T17:24:46.4531936Z  waiting for server to start....2026-10-28 17:20:54.951 UTC [48] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-28T17:24:46.4532827Z  2026-10-28 17:20:54.952 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-28T17:24:46.4533911Z  2026-10-28 17:20:54.955 UTC [51] LOG:  database system was shut down at 2026-10-28 17:20:54 UTC
+2026-10-28T17:24:46.4534605Z  2026-10-28 17:20:54.959 UTC [48] LOG:  database system is ready to accept connections
+2026-10-28T17:24:46.4535006Z   done
+2026-10-28T17:24:46.4535196Z  server started
+2026-10-28T17:24:46.4535397Z  CREATE DATABASE
+2026-10-28T17:24:46.4535584Z  
+2026-10-28T17:24:46.4535747Z  
+2026-10-28T17:24:46.4536072Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2026-10-28T17:24:46.4536476Z  
+2026-10-28T17:24:46.4536736Z  2026-10-28 17:20:55.139 UTC [48] LOG:  received fast shutdown request
+2026-10-28T17:24:46.4537543Z  waiting for server to shut down....2026-10-28 17:20:55.140 UTC [48] LOG:  aborting any active transactions
+2026-10-28T17:24:46.4538278Z  2026-10-28 17:20:55.141 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
+2026-10-28T17:24:46.4538825Z  2026-10-28 17:20:55.143 UTC [49] LOG:  shutting down
+2026-10-28T17:24:46.4539216Z  2026-10-28 17:20:55.143 UTC [49] LOG:  checkpoint starting: shutdown immediate
+2026-10-28T17:24:46.4540343Z  2026-10-28 17:20:55.159 UTC [49] LOG:  checkpoint complete: wrote 926 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.012 s, sync=0.004 s, total=0.017 s; sync files=301, longest=0.002 s, average=0.001 s; distance=4273 kB, estimate=4273 kB; lsn=0/191F0F0, redo lsn=0/191F0F0
+2026-10-28T17:24:46.4541582Z  2026-10-28 17:20:55.168 UTC [48] LOG:  database system is shut down
+2026-10-28T17:24:46.4541905Z   done
+2026-10-28T17:24:46.4542084Z  server stopped
+2026-10-28T17:24:46.4542273Z  
+2026-10-28T17:24:46.4542500Z  PostgreSQL init process complete; ready for start up.
+2026-10-28T17:24:46.4542802Z  
+2026-10-28T17:24:46.4566724Z Stop and remove container: 0ab651ddd87b473c8dcd5e3985444f50_postgres16_a69afc
+2026-10-28T17:24:46.4571683Z ##[command]/usr/bin/docker rm --force 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:24:46.5971324Z 739b65a2b8a887b3b1edcbe07582e693dfd08ade8d30bf94e63a82974c41320e
+2026-10-28T17:24:46.6002739Z Remove container network: github_network_b2f8cfb09d59454cacf5ff0532e58b3d
+2026-10-28T17:24:46.6007398Z ##[command]/usr/bin/docker network rm github_network_b2f8cfb09d59454cacf5ff0532e58b3d
+2026-10-28T17:24:46.6630157Z github_network_b2f8cfb09d59454cacf5ff0532e58b3d
+2026-10-28T17:24:46.6713582Z Cleaning up orphan processes
+2026-10-28T17:24:46.7320029Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

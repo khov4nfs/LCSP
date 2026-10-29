@@ -1,0 +1,10 @@
+{
+  "localHead": "70dc0a6fe40c618bdf47d532f9baa5230e52faf1",
+  "implementationSha": "70dc0a6fe40c618bdf47d532f9baa5230e52faf1",
+  "sourceHashes": {
+    "deepagents/assessment_root/agent.py": "a821bd1a5e656966c747cb6874a7b1369fb2443265153d2b0957f1bdc3fd7dac",
+    "deepagents/assessment_root/instructions.md": "c434d9d25ac910238c591c27e91fb30e4df954e419ecda7f326c7808d1d2edc3",
+    "deepagents/tools/common/capabilities/agent_runtime/rabbitmq_consumer.py": "72fb9fb1f1e49c8b2a423b92f09b6d6fa2b8c925b8e78b1bf12ca744833a63d9",
+    "deepagents/tools/common/capabilities/agent_runtime/local_server.py": "588bd1164a393cbb7d626e80ed838b859cae8c3a8e43f727b99174827561f4f1"
+  }
+}
