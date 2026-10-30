@@ -105,9 +105,17 @@ test("invalid or expired pending sessions return a sign-in outcome", () => {
     toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.sessionInvalid, 401), false),
     { kind: "session_invalid" },
   );
+});
+
+test("reauthRequired problem returns distinct reauth_required outcome without invalidating session", () => {
   assert.deepEqual(
     toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.reauthRequired, 403), false),
-    { kind: "session_invalid" },
+    {
+      kind: "reauth_required",
+      requiredAction: REQUIRED_ACTIONS.reauthenticate,
+      titleKey: "auth.errors.reauthRequired.title",
+      detailKey: "auth.errors.reauthRequired.detail",
+    },
   );
 });
 

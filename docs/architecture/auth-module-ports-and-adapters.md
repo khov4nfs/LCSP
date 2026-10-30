@@ -619,11 +619,18 @@ security review. This section reports local execution only.
   - Inside the database transaction in `PrismaMfaLifecyclePersistence.verifyProof()`, candidate cleanup now writes an atomic audit record via `this.audit.writeInTx(tx, ...)` with event type `AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRotationExpired` (canonical `AUTH_MFA_ROTATION_EXPIRED`), decision `DENY`, and reason `MFA_ENROLLMENT_EXPIRED`, capturing correlation ID, session, and candidate generation without exposing secrets.
   - Regression test in `auth.e2e-spec.ts` verifies that exactly one audit receipt is emitted upon candidate expiry and asserts idempotency on retry.
 
-#### 3. Administrative Identity Verification and Factor Reset Procedure (Issue #431)
+#### 3. Administrative Identity Verification and Factor Reset Procedure (Issue #431 Disposition)
 
-- **Policy Decision:** A self-service, password-only MFA reset from a pending-MFA session is strictly prohibited as it would compromise the second-factor security guarantee.
-- **Procedure for Users with Lost TOTP & Recovery Codes:**
-  1. **User Notification:** If a user loses both their authenticator device and all generated recovery codes, the UI directs the user to contact their workspace administrator.
-  2. **Out-of-Band Identity Verification:** The workspace administrator verifies the user's identity out-of-band via an established secondary communication channel (e.g., enterprise video verification, verified phone call, or corporate SSO directory).
-  3. **Admin Factor Reset via PBAC:** An administrator with `iam.users.manage` permission invokes `DELETE /admin/users/:userId/mfa` (or workspace user management CLI), which logs an immutable admin audit event (`AUTH_MFA_DISABLED`), revokes all active sessions for the user, and clears the user's registered MFA factor.
-  4. **Fresh Enrollment:** The user logs in with their password and is required to complete fresh MFA enrollment from scratch before accessing workspace resources.
+- **Status:** **PROPOSED / NOT YET IMPLEMENTED AS AN AUTOMATED API** (tracked as pending blocker issue #431 / LCSP-1002).
+- **Product & Security Policy Decision:** A self-service, password-only MFA reset from a pending-MFA session is strictly prohibited as it would compromise the second-factor security guarantee against credential stuffing and compromised passwords. PR #433 strictly scopes to staged candidate rotation, candidate TTL expiry, and session proof integrity.
+- **Automated API Scope:** The dedicated administrative endpoint `DELETE /admin/users/:userId/mfa` (and admin CLI) with fine-grained PBAC enforcement (`iam.users.manage`), workspace boundary isolation, and automated session revocation is a separate administrative capability scheduled for implementation under tracked issue #431 / LCSP-1002 with dedicated controller, policy, and negative E2E coverage.
+- **Interim Operational Support Escalation & Break-Glass Runbook Procedure:**
+  Until the automated administrative endpoint is deployed, users who lose both their TOTP authenticator and all backup recovery codes must use the following operational recovery runbook:
+  1. **User Notification:** The `/mfa/verify` screen provides recovery guidance directing the locked-out user to contact support or their workspace administrator.
+  2. **Out-of-Band Identity Verification:** Security operations or workspace administrators perform multi-factor out-of-band verification (e.g., recorded video verification, government ID check, or secondary managerial authorization via corporate directory).
+  3. **Tracked Manual Factor Reset (under Change Control):** An authorized DBA / security engineer executes an atomic database reset under a tracked change ticket:
+     - Clear registered MFA secret and advance generation: `UPDATE "User" SET "mfaEncryptedSecret" = NULL, "mfaVerifiedAt" = NULL, "mfaGenerationId" = gen_random_uuid() WHERE "id" = :targetUserId;`
+     - Revoke all active sessions: `UPDATE "AuthRecord" SET "revokedAt" = NOW() WHERE "userId" = :targetUserId AND "type" = 'SESSION' AND "revokedAt" IS NULL;`
+     - Revoke all unverified/active recovery codes: `UPDATE "AuthRecord" SET "revokedAt" = NOW() WHERE "userId" = :targetUserId AND "type" = 'MFA_RECOVERY_CODE' AND "revokedAt" IS NULL;`
+     - Record an immutable audit log entry (`AUTH_MFA_DISABLED`) documenting operator identity, ticket ID, correlation ID, and justification.
+  4. **Mandatory Fresh Enrollment:** The user logs in with their password and is required to complete fresh MFA enrollment from scratch before accessing workspace resources.

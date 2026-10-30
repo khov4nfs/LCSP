@@ -328,6 +328,7 @@ export function toSignUpOutcome(
  * - Successful API verification maps directly to the verified outcome.
  * - Decryption failures (retryRecovery required action) map to an invalid outcome with targeted recovery instructions.
  * - Expired MFA enrollment candidates map to mfaEnrollmentExpired with a restartEnrollment action instructing the user to restart setup.
+ * - Step-up reauthentication requirements map to reauthRequired without falsely invalidating the session.
  * - Rate limiting, invalid codes, and session errors map to discrete domain-level error states.
  *
  * Execution flow:
@@ -362,10 +363,21 @@ export function toMfaVerifyOutcome(
     };
   }
 
-  if (
-    problemCode === AUTH_ERROR_CODES.sessionInvalid ||
-    problemCode === AUTH_ERROR_CODES.reauthRequired
-  ) {
+  if (problemCode === AUTH_ERROR_CODES.reauthRequired) {
+    const action = getProblemRequiredAction(payload);
+    const requiredAction =
+      action && action !== REQUIRED_ACTIONS.none
+        ? action
+        : REQUIRED_ACTIONS.reauthenticate;
+    return {
+      kind: API_OUTCOME_KINDS.reauthRequired,
+      requiredAction,
+      titleKey: "auth.errors.reauthRequired.title",
+      detailKey: "auth.errors.reauthRequired.detail",
+    };
+  }
+
+  if (problemCode === AUTH_ERROR_CODES.sessionInvalid) {
     return { kind: API_OUTCOME_KINDS.sessionInvalid };
   }
   if (problemCode === AUTH_ERROR_CODES.mfaRateLimited) {

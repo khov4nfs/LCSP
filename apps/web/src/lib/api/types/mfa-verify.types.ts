@@ -26,6 +26,10 @@ export type MfaVerifyOutcome =
       requiredAction: RequiredAction;
     } & MfaVerifyError)
   | ({
+      kind: typeof API_OUTCOME_KINDS.reauthRequired;
+      requiredAction?: RequiredAction;
+    } & MfaVerifyError)
+  | ({
       kind: typeof API_OUTCOME_KINDS.invalid;
       requiredAction?: RequiredAction;
     } & MfaVerifyError)
