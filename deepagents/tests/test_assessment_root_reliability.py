@@ -200,6 +200,40 @@ def test_rule_catalog_can_be_read_in_bounded_complete_pages(tmp_path):
     assert len(run.rule_versions) == 243
 
 
+def test_selected_root_catalog_exposes_only_authorized_rules_across_pages(tmp_path):
+    class SelectedClient(FakeClient):
+        def context(self):
+            context = super().context()
+            context["auditRequest"] = {"requestId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                                       "scopeMode": "SELECTED_RULES", "status": "RUNNING",
+                                       "selectedRuleIds": ["ER-3", "ER-9"]}
+            context["coverage"] = [dict(context["coverage"][0], assessmentRuleId=rule_id)
+                                   for rule_id in ("ER-3", "ER-9")]
+            return context
+
+    client = SelectedClient()
+    rule_set = client.rule_set()
+    template = rule_set["assessmentRules"][0]
+    rule_set["assessmentRules"] = [dict(template, assessmentRuleId=f"ER-{i}") for i in range(1, 121)]
+    client.rule_set_override = rule_set
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+
+    page = json.loads(tools["get_pinned_rule_set"].invoke({"offset": 0, "limit": 1}))
+    next_page = json.loads(tools["get_pinned_rule_set"].invoke({"offset": 1, "limit": 1}))
+    forbidden = json.loads(tools["get_assessment_rule"].invoke({"assessment_rule_id": "ER-4"}))
+
+    assert [page["assessmentRules"][0]["assessmentRuleId"],
+            next_page["assessmentRules"][0]["assessmentRuleId"]] == ["ER-3", "ER-9"]
+    assert page["assessmentRuleCount"] == 2
+    assert page["totalPinnedRuleCount"] == 120
+    assert page["nextOffset"] == 1 and next_page["nextOffset"] is None
+    assert forbidden == {"ok": False, "code": "RULE_NOT_IN_AUDIT_REQUEST"}
+    assert set(run.rule_versions) == {"ER-3", "ER-9"}
+    assert not any(name in {"investigation", "decision", "fact", "final_report"}
+                   for name, _ in client.calls)
+
+
 def test_captured_genuine_packet_can_be_reinvestigated_then_pause_for_human_facts(tmp_path):
     """Replay tool/context plumbing only: scripted choices are not a live semantic verdict."""
     captured = json.loads((Path(__file__).parents[2] /

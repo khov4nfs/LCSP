@@ -13,6 +13,7 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+  RULE_AUDIT_STATUSES,
   assessmentFinalReportArtifactSchema,
   assessmentFinalReportResultSchema,
   type AssessmentFinalReportArtifact,
@@ -581,6 +582,12 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         [AGENTIC_RUNTIME_TRANSITION_GUARDS.ARTIFACT_PERSISTED_AND_VALIDATED],
         ORCHESTRATOR,
       );
+      if (run.auditRequestId) {
+        await tx.assessmentRuleAuditRequest.update({
+          where: { requestId: run.auditRequestId },
+          data: { status: RULE_AUDIT_STATUSES.COMPLETED, completedAt: new Date() },
+        });
+      }
 
       return assessmentFinalReportResultSchema.parse({
         artifactId,

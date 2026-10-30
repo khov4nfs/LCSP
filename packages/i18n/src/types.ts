@@ -247,6 +247,38 @@ export type PagesMessages = {
     };
   };
   assessmentConversation: {
+    ruleAudit: {
+      title: string;
+      description: string;
+      search: string;
+      selectedCount: string;
+      resultsCount: string;
+      notRequested: string;
+      selectAll: string;
+      clearAll: string;
+      auditSelected: string;
+      auditAll: string;
+      retry: string;
+      retryFailed: string;
+      viewResult: string;
+      viewActivity: string;
+      exportPartial: string;
+      exporting: string;
+      exportFailed: string;
+      legalBasis: string;
+      submitFailed: string;
+      loading: string;
+      progress: {
+        NOT_SELECTED: string;
+        QUEUED: string;
+        INVESTIGATING: string;
+        WAITING_FOR_CUSTOMER: string;
+        RESULT_READY: string;
+        FAILED: string;
+        INTERRUPTED: string;
+        STALE: string;
+      };
+    };
     transcriptLabel: string;
     agentName: string;
     userName: string;
@@ -358,6 +390,7 @@ export type PagesMessages = {
     state: {
       UNAVAILABLE: string;
       PREPARING: string;
+      SELECTING_RULES: string;
       WORKING: string;
       WAITING: string;
       PAUSED: string;
@@ -375,6 +408,7 @@ export type PagesMessages = {
       ruleSetWaiting: string;
       progress: string;
       progressValue: string;
+      selectedProgressValue: string;
       usage: string;
       usageValue: string;
       usageInvocations: string;

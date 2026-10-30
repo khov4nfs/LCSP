@@ -21,6 +21,7 @@ import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
+  AssessmentAuditMode,
   Prisma,
   RepositoryScanJobStatus,
   RepositoryScanTriggerSource,
@@ -65,7 +66,17 @@ export class AssessmentRuntimePreparation {
     private readonly outbox: OutboxRepository,
   ) {}
 
-  /** Creates the case at assessment creation, pinning the then-ACTIVE compliance rule set. */
+  /**
+   * Business purpose: Create a case pinned to the current legal catalog without starting an audit.
+   * Business rules:
+   * - New customers must explicitly choose their execution scope; old rows retain LEGACY_FULL.
+   * Execution flow:
+   * 1. Read the active Rule Set and create the case with CUSTOMER_SELECTED mode.
+   * Failure cases:
+   * - An unavailable Rule Set leaves the pin empty until setup can resolve it.
+   * Side effects:
+   * - Creates one assessment case inside the caller's transaction.
+   */
   async createCaseInTx(
     tx: Prisma.TransactionClient,
     assessmentId: string,
@@ -78,16 +89,24 @@ export class AssessmentRuntimePreparation {
       data: {
         assessmentId,
         ruleSetVersionId: ruleSet?.id ?? null,
+        auditMode: AssessmentAuditMode.CUSTOMER_SELECTED,
       },
     });
     return { ruleSetVersionId: ruleSet?.id ?? null };
   }
 
   /**
-   * Pins the then-ACTIVE compliance rule set and the repository snapshot, creates the hydration ticket
-   * and one decision-coverage row per AssessmentRule. It does NOT change the lifecycle state and
-   * enqueues nothing, so a caller (repository-setup completion, or the CUTOVER backfill) decides when the
-   * Root starts. Idempotent: re-applying identical pins is allowed by the database guard.
+   * Business purpose: Pin the Rule Set and ready snapshot before a customer chooses audit rules.
+   * Business rules:
+   * - Customer-selected cases gain no decision coverage before an explicit request;
+   * legacy full-scope cases retain their existing whole-catalog coverage.
+   * Execution flow:
+   * 1. Resolve immutable legal and repository pins and the hydration ticket.
+   * 2. Confirm a nonempty catalog and create legacy coverage when applicable.
+   * Failure cases:
+   * - Missing Rule Set returns WAITING; invalid snapshot rejects the transaction.
+   * Side effects:
+   * - Writes pins, hydration ticket and legacy coverage within the caller's transaction.
    */
   async pinRuntimeInputsInTx(
     tx: Prisma.TransactionClient,
@@ -171,18 +190,32 @@ export class AssessmentRuntimePreparation {
     if (rules.length === 0) {
       return { result: PIN_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET };
     }
-    await tx.assessmentDecisionCoverage.createMany({
-      data: rules.map((rule) => ({
-        assessmentId: input.assessmentId,
-        assessmentRuleId: rule.assessmentRuleId,
-        ruleSetVersionId: ruleSetId,
-        assessmentRuleVersion: rule.assessmentRuleVersion,
-      })),
-      skipDuplicates: true,
-    });
+    if (assessmentCase.auditMode === AssessmentAuditMode.LEGACY_FULL) {
+      await tx.assessmentDecisionCoverage.createMany({
+        data: rules.map((rule) => ({
+          assessmentId: input.assessmentId,
+          assessmentRuleId: rule.assessmentRuleId,
+          ruleSetVersionId: ruleSetId,
+          assessmentRuleVersion: rule.assessmentRuleVersion,
+        })),
+        skipDuplicates: true,
+      });
+    }
     return { result: PIN_RESULTS.PINNED };
   }
 
+  /**
+   * Business purpose: Make pinned assessment inputs ready while preserving customer choice as the start authority.
+   * Business rules:
+   * - Only legacy assessments dispatch Root during setup; new cases await a durable selected request.
+   * Execution flow:
+   * 1. Pin legal and repository inputs and transition PREPARING to ACTIVE.
+   * 2. Enqueue the legacy full-scope Root only when the case's audit mode permits it.
+   * Failure cases:
+   * - Incomplete pins defer activation; invalid lifecycle rejects transactionally.
+   * Side effects:
+   * - Lifecycle and, for legacy cases, Root outbox command in the caller transaction.
+   */
   async prepareInTx(
     tx: Prisma.TransactionClient,
     input: {
@@ -239,7 +272,10 @@ export class AssessmentRuntimePreparation {
       ],
       ORCHESTRATOR,
     );
-    await this.outbox.enqueue(
+    const auditCase = await tx.assessmentCase.findUniqueOrThrow({
+      where: { assessmentId: input.assessmentId }, select: { auditMode: true },
+    });
+    if (auditCase.auditMode === AssessmentAuditMode.LEGACY_FULL) await this.outbox.enqueue(
       buildOutboxMessageInput({
         aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
         aggregateId: input.assessmentId,

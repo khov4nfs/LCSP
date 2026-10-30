@@ -4,6 +4,8 @@ import {
   type AssessmentLifecycle,
 } from "@lcsp/contracts/assessment";
 import type { AssessmentRuntime } from "@lcsp/contracts/evidence";
+import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
+import { ASSESSMENT_AUDIT_MODES } from "@lcsp/contracts/assessment-domain";
 import {
   CUSTOMER_ASSESSMENT_STATES,
   type CustomerAssessmentState,
@@ -15,6 +17,7 @@ import {
  *
  * Business rules:
  * - An ACTIVE Assessment with a FAILED execution displays failure.
+ * - Customer-selected cases with no dispatched or continuing request display selection readiness.
  * - Paused and interrupted executions display pause; other lifecycle states retain their meaning.
  *
  * Execution flow:
@@ -32,6 +35,7 @@ import {
 export function customerAssessmentState(
   lifecycle: AssessmentLifecycle | null,
   runtime: AssessmentRuntime | null,
+  assessmentCase?: AssessmentDetail["case"],
 ): CustomerAssessmentState {
   if (!lifecycle) return CUSTOMER_ASSESSMENT_STATES.UNAVAILABLE;
   switch (lifecycle.state) {
@@ -39,6 +43,10 @@ export function customerAssessmentState(
     case ASSESSMENT_LIFECYCLE_STATES.PREPARING:
       return CUSTOMER_ASSESSMENT_STATES.PREPARING;
     case ASSESSMENT_LIFECYCLE_STATES.ACTIVE:
+      if (assessmentCase?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED &&
+          ((assessmentCase.auditRequestRevision === 0 && runtime?.executionState === AGENT_EXECUTION_STATES.QUEUED) ||
+           runtime?.executionState === AGENT_EXECUTION_STATES.SUCCEEDED))
+        return CUSTOMER_ASSESSMENT_STATES.SELECTING;
       if (runtime?.executionState === AGENT_EXECUTION_STATES.FAILED) {
         return CUSTOMER_ASSESSMENT_STATES.FAILED;
       }

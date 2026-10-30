@@ -18,6 +18,7 @@ export function ConversationDecisionTurn({ turn }: { turn: DecisionTurn }) {
   return (
     <ChatMessage role={CHAT_MESSAGE_ROLES.agent}>
       <article
+        id={`decision-${turn.decisionId}`}
         data-decision-id={turn.decisionId}
         data-decision-outcome={outcome}
         className="flex flex-col gap-2"

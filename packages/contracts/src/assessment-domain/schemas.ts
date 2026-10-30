@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ASSESSMENT_AUDIT_MODES, RULE_AUDIT_SCOPE_MODES, RULE_AUDIT_STATUSES } from "./rule-audits.ts";
 import {
   LEGAL_SOURCE_CHUNK_STATUSES,
   type LegalSourceChunkStatus,
@@ -416,6 +417,12 @@ export const assessmentRootContextSchema = z.strictObject({
   repositoryScanJobId: z.string().min(1),
   repositoryCommit: commitSchema,
   decisionScopeId: identifierSchema,
+  auditRequest: z.strictObject({
+    requestId: uuidSchema,
+    scopeMode: z.enum(RULE_AUDIT_SCOPE_MODES),
+    status: z.enum(RULE_AUDIT_STATUSES),
+    selectedRuleIds: z.array(identifierSchema).min(1),
+  }).nullable().default(null),
   coverage: z.array(decisionCoverageSchema),
   facts: z.array(assessmentCaseFactSchema),
   evidence: z.array(assessmentEvidenceSchema),
@@ -609,6 +616,8 @@ export type AssessmentRuleSetSummary = z.infer<
 >;
 export const assessmentCaseViewSchema = z.strictObject({
   caseRevision: revisionSchema,
+  auditRequestRevision: revisionSchema,
+  auditMode: z.enum(ASSESSMENT_AUDIT_MODES),
   ruleSetVersionId: uuidSchema.nullable(),
   ruleSet: assessmentRuleSetSummarySchema.nullable(),
   repositorySnapshotId: identifierSchema.nullable(),
