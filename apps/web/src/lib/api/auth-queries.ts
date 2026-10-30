@@ -32,10 +32,29 @@ export function useSignUpMutation() {
   return useMutation({ mutationFn: signUp });
 }
 
-export function useAuthSettingsProfileQuery() {
+/**
+ * Business purpose: Query the authenticated user profile for account and security settings surfaces.
+ *
+ * Business rules:
+ * - Allow callers to gate query execution using the optional enabled flag.
+ * - Cache profile under the shared auth settings query key for cross-surface consistency.
+ *
+ * Execution flow:
+ * 1. Read caller options including conditional enabled flag.
+ * 2. Delegate query execution to getAuthSettingsProfile through TanStack Query.
+ * 3. Return the reactive query outcome.
+ *
+ * Failure cases:
+ * - Query failure when unauthenticated or during unauthorized profile fetch surfaces through query error state.
+ *
+ * Side effects:
+ * - None: read-only query that populates TanStack Query cache.
+ */
+export function useAuthSettingsProfileQuery(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: apiQueryKeys.auth.settingsProfile(),
     queryFn: getAuthSettingsProfile,
+    ...(options?.enabled !== undefined ? { enabled: options.enabled } : {}),
   });
 }
 

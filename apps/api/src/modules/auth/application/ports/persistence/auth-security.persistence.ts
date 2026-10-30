@@ -23,7 +23,8 @@ export type DisableMfaResult =
       ok: false;
       code:
         | typeof AUTH_ERROR_CODES.sessionInvalid
-        | typeof AUTH_ERROR_CODES.mfaRequired;
+        | typeof AUTH_ERROR_CODES.mfaRequired
+        | typeof AUTH_ERROR_CODES.reauthRequired;
     };
 
 /** Atomic multi-record authentication operations. Prisma remains an infrastructure detail. */

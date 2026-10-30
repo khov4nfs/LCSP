@@ -1,5 +1,6 @@
 import type { AuthErrorCode } from "@lcsp/contracts/auth";
 import type { MfaEnrollment } from "../../../domain/models/auth.models.ts";
+import type { CandidateMfaEnrollment } from "../../../domain/entities/session.entity.ts";
 import type { MfaRecoveryCodeCreateInput } from "./mfa.repository.ts";
 
 export const AUTH_MFA_LIFECYCLE_PERSISTENCE = Symbol(
@@ -46,6 +47,7 @@ export type MfaProofCommit = {
   proof:
     | { kind: typeof MFA_PROOF_TYPES.otp; otp: string }
     | { kind: typeof MFA_PROOF_TYPES.recoveryCode; codeHash: string };
+  candidate?: CandidateMfaEnrollment | null;
 };
 
 export type MfaProofCommitResult =

@@ -10,6 +10,7 @@ import { Prisma, type AuthRecord, type User } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
+import { isSensitiveActionVerificationFresh } from "../../../../platform/security/sensitive-route-policy.js";
 import { MFA_PROOF_TYPES } from "../../application/ports/persistence/mfa-lifecycle.persistence.ts";
 import type {
   MfaEnrollmentCommit,
@@ -21,14 +22,39 @@ import type {
 } from "../../application/ports/persistence/mfa-lifecycle.persistence.ts";
 import type { MfaRecoveryCodeCreateInput } from "../../application/ports/persistence/mfa.repository.ts";
 import { AuthAuditService } from "../../application/services/auth/auth-audit.service.ts";
+import type { CandidateMfaEnrollment } from "../../domain/entities/session.entity.ts";
 import {
   AUTH_RECORD_TYPES,
+  authRecordDateMetadata,
   authRecordLookupKey,
   authRecordMetadata,
   authRecordMetadataDate,
   authRecordMetadataString,
   invalidateSessionProofsInTx,
 } from "./auth-record.persistence.ts";
+
+/**
+ * Time-to-live for a staged MFA candidate factor during rotation (5 minutes).
+ * Matches sensitive-action step-up freshness window.
+ */
+export const MFA_STAGED_ENROLLMENT_TTL_MS = 5 * 60_000;
+
+/**
+ * Validates whether a staged candidate factor enrollment remains fresh.
+ *
+ * @param enrolledAt - Candidate enrollment timestamp in epoch milliseconds or Date.
+ * @param now - Current epoch timestamp.
+ * @returns True when enrolledAt is present, not in the future, and within TTL.
+ */
+export function isCandidateEnrollmentFresh(
+  enrolledAt: number | Date | null | undefined,
+  now: number,
+): boolean {
+  if (!enrolledAt) return false;
+  const time =
+    typeof enrolledAt === "number" ? enrolledAt : enrolledAt.getTime();
+  return now - time <= MFA_STAGED_ENROLLMENT_TTL_MS && time <= now;
+}
 
 @Injectable()
 export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
@@ -42,18 +68,19 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
    * Business purpose: Install a new TOTP generation and rotate all account backup credentials.
    *
    * Business rules:
-   * - An existing MFA secret requires verified proof of its current generation to rotate.
+   * - An existing verified MFA secret requires verified proof of its current generation and fresh password re-auth to rotate.
+   * - Unverified/abandoned enrollments can be restarted without prior factor proof.
    * - Prior recovery codes and all session step-up proofs must become invalid in one transaction.
    * - A new backup batch must not be used before the replacement TOTP has been verified.
    *
    * Execution flow:
-   * 1. Lock the User and originating session, then verify the existing credential generation.
+   * 1. Lock the User and originating session, then verify the existing credential generation and sensitive-action freshness.
    * 2. Advance the generation and replace the encrypted TOTP secret.
    * 3. Invalidate all session proofs, used TOTP history and active recovery codes.
    * 4. Persist the new code batch and security audit atomically.
    *
    * Failure cases:
-   * - Unverified/stale sessions or obsolete secrets are rejected without mutation.
+   * - Unverified/stale sessions, obsolete secrets, or missing password step-up are rejected without mutation.
    * - Failed audit or database writes roll back the entire rotation.
    *
    * Side effects:
@@ -74,20 +101,134 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
       }
 
-      // Rotating an existing factor requires proof for the currently active
-      // generation. A password-only session may not replace undecryptable MFA.
-      if (
-        user.mfaEncryptedSecret !== null &&
-        (user.mfaVerifiedAt === null ||
+      // Rotating an existing verified factor requires proof for the currently active
+      // generation and fresh password re-authentication.
+      // An abandoned/unverified setup (user.mfaVerifiedAt === null) is safe to restart.
+      const isRotation =
+        user.mfaEncryptedSecret !== null && user.mfaVerifiedAt !== null;
+
+      if (isRotation) {
+        if (
           !authRecordMetadataDate(session, "mfaVerifiedAt") ||
           authRecordMetadataString(session, "mfaGenerationId") !==
-            user.mfaGenerationId)
-      ) {
-        return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+            user.mfaGenerationId
+        ) {
+          return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+        }
+        if (
+          !isSensitiveActionVerificationFresh(
+            authRecordMetadataDate(session, "passwordReauthenticatedAt"),
+            input.now,
+          )
+        ) {
+          return { ok: false, code: AUTH_ERROR_CODES.reauthRequired };
+        }
+
+        // Only an eligible, unrevoked, unexpired session with matching generation
+        // and fresh candidate rotation TTL can hold an active pending rotation.
+        const pendingRotations = await tx.authRecord.findMany({
+          where: {
+            userId: input.userId,
+            type: AUTH_RECORD_TYPES.session,
+            metadata: {
+              path: ["mfaRotationInitiator"],
+              equals: true,
+            },
+          },
+        });
+
+        const activePendingOther = pendingRotations.find((rec) => {
+          if (rec.id === input.sessionId) return false;
+          if (rec.revokedAt !== null) return false;
+          if (!rec.expiresAt || rec.expiresAt.getTime() <= input.now)
+            return false;
+          const meta = authRecordMetadata(rec.metadata);
+          if (Number(meta.accessVersion ?? 0) !== user.accessVersion)
+            return false;
+          if (meta.mfaGenerationId !== user.mfaGenerationId) return false;
+          const candidate = meta.candidateMfaEnrollment as
+            CandidateMfaEnrollment | undefined;
+          if (
+            candidate?.enrolledAt &&
+            !isCandidateEnrollmentFresh(candidate.enrolledAt, input.now)
+          ) {
+            return false;
+          }
+          return true;
+        });
+
+        if (activePendingOther) {
+          return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+        }
+
+        // Atomically clear stale or superseded rotation markers on other sessions
+        const staleSessions = pendingRotations.filter(
+          (rec) => rec.id !== input.sessionId,
+        );
+        for (const stale of staleSessions) {
+          const staleMeta = authRecordMetadata(stale.metadata);
+          await tx.authRecord.update({
+            where: { id: stale.id },
+            data: {
+              metadata: {
+                ...staleMeta,
+                candidateMfaEnrollment: null,
+                mfaRotationInitiator: null,
+                mfaRotationGenerationId: null,
+              },
+            },
+          });
+        }
+
+        const candidateGenerationId = crypto.randomUUID();
+        // Stage replacement S2 on initiating session without modifying active User primary factor.
+        await tx.authRecord.update({
+          where: { id: input.sessionId },
+          data: {
+            metadata: {
+              ...authRecordMetadata(session.metadata),
+              candidateMfaEnrollment: {
+                encryptedSecret: input.enrollment.encryptedSecret,
+                generationId: candidateGenerationId,
+                batchId: input.candidateBatchId,
+                enrolledAt: input.enrollment.enrolledAt,
+              },
+              mfaRotationInitiator: true,
+              mfaRotationGenerationId: candidateGenerationId,
+              passwordReauthenticatedAt: authRecordDateMetadata(
+                authRecordMetadataDate(
+                  session,
+                  "passwordReauthenticatedAt",
+                )?.getTime() ?? null,
+              ),
+            },
+          },
+        });
+
+        // Retain active recovery codes for user.mfaGenerationId, staging candidate codes
+        await this.replaceCandidateCodeRecords(
+          tx,
+          input.userId,
+          candidateGenerationId,
+          input.candidateBatchId,
+          input.candidateCodes,
+          input.now,
+          user.mfaGenerationId,
+        );
+
+        await this.writeCodeAudit(
+          tx,
+          input.userId,
+          input.sessionId,
+          input.correlationId,
+          input.candidateBatchId,
+          input.candidateCodes.length,
+        );
+
+        return { ok: true, recoveryCodesCreated: true };
       }
 
-      // Rotate proofs and credentials under the same User lock/transaction.
-      // A failure to persist any step, including audit, rolls everything back.
+      // Initial unverified setup: save directly to User and replace codes
       const nextGenerationId = crypto.randomUUID();
       await tx.user.update({
         where: { id: input.userId },
@@ -201,24 +342,26 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
   }
 
   /**
-   * Business purpose: Authenticate the active MFA generation using TOTP or a single-use recovery code.
+   * Business purpose: Authenticate the active MFA generation using TOTP or a single-use recovery code, or verify and promote a staged candidate rotation.
    *
    * Business rules:
-   * - Proof must match the current encrypted secret and the active account generation.
+   * - Proof must match the current encrypted secret and the active account generation, or the staged candidate rotation.
+   * - Staged candidate rotation must not exceed the candidate enrollment TTL (5 minutes).
    * - Recovery codes are unusable until the current TOTP generation has been verified once.
-   * - Consuming proof, elevating the session and security audit must be one transaction.
+   * - Consuming proof, elevating the session or promoting candidate rotation, and security audit must be one transaction.
    *
    * Execution flow:
-   * 1. Lock the account/session and recheck rate limiting and current enrollment identity.
-   * 2. Consume a unique OTP counter or a recovery code from the matching generation.
-   * 3. Mark the account/session verified and audit the accepted proof atomically.
+   * 1. Lock the account/session and recheck rate limiting and current enrollment/candidate identity.
+   * 2. If verifying a staged candidate rotation, enforce candidate enrollment TTL; if expired, clean candidate state and revoke candidate codes under lock.
+   * 3. Consume a unique OTP counter or a recovery code from the matching generation.
+   * 4. Mark the account/session verified and audit the accepted proof atomically.
    *
    * Failure cases:
-   * - Stale secret, used code, wrong generation or active lockout rejects elevation.
+   * - Stale secret, expired candidate rotation, used code, wrong generation or active lockout rejects elevation.
    * - Audit and persistence failures roll back proof consumption and session elevation.
    *
    * Side effects:
-   * - Consumes proof records, sets MFA/session verification timestamps and writes audit.
+   * - Consumes proof records, sets MFA/session verification timestamps, promotes candidate or clears expired rotation markers, and writes audit.
    */
   async verifyProof(input: MfaProofCommit): Promise<MfaProofCommitResult> {
     try {
@@ -231,13 +374,84 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
         );
         if (!current.ok) return current;
         const { user, session } = current;
-        if (
-          !user.mfaEncryptedSecret ||
-          user.mfaEncryptedSecret !== input.expectedEncryptedSecret ||
-          !user.mfaEnrolledAt
-        ) {
-          return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+
+        if (input.candidate) {
+          const sessionCandidate = authRecordMetadata(session.metadata)
+            .candidateMfaEnrollment as
+            | {
+                encryptedSecret: string;
+                generationId: string;
+                batchId: string;
+                enrolledAt: number;
+              }
+            | undefined;
+          if (
+            !sessionCandidate ||
+            sessionCandidate.encryptedSecret !==
+              input.candidate.encryptedSecret ||
+            sessionCandidate.generationId !== input.candidate.generationId
+          ) {
+            return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+          }
+          if (
+            !isCandidateEnrollmentFresh(sessionCandidate.enrolledAt, input.now)
+          ) {
+            // Staged enrollment candidate has expired beyond rotation TTL.
+            // Transactionally invalidate the expired candidate and revoke its unverified recovery codes,
+            // preserving active S1 factor and S1 recovery codes.
+            const freshMeta = authRecordMetadata(session.metadata);
+            await tx.authRecord.update({
+              where: { id: input.sessionId },
+              data: {
+                metadata: {
+                  ...freshMeta,
+                  candidateMfaEnrollment: null,
+                  mfaRotationInitiator: null,
+                  mfaRotationGenerationId: null,
+                },
+              },
+            });
+            await tx.authRecord.updateMany({
+              where: {
+                userId: input.userId,
+                type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+                metadata: {
+                  path: ["mfaGenerationId"],
+                  equals: sessionCandidate.generationId,
+                },
+              },
+              data: { revokedAt: new Date(input.now) },
+            });
+
+            await this.audit.writeInTx(
+              {
+                event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRotationExpired,
+                actor_id: input.userId,
+                session_id: input.sessionId,
+                correlationId: input.correlationId,
+                decision: AUDIT_DECISIONS.deny,
+                resource_type: AUDIT_RESOURCE_TYPES.authAccount,
+                resource_id: input.userId,
+                reason_code: AUTH_ERROR_CODES.mfaEnrollmentExpired,
+                generation_id: sessionCandidate.generationId,
+                mfaGenerationId: sessionCandidate.generationId,
+                reason: "candidate_enrolled_at_expired",
+              },
+              this.auditWriter.forTransaction(tx),
+            );
+
+            return { ok: false, code: AUTH_ERROR_CODES.mfaEnrollmentExpired };
+          }
+        } else {
+          if (
+            !user.mfaEncryptedSecret ||
+            user.mfaEncryptedSecret !== input.expectedEncryptedSecret ||
+            !user.mfaEnrolledAt
+          ) {
+            return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+          }
         }
+
         if (user.mfaLockedUntil && user.mfaLockedUntil > new Date(input.now)) {
           return { ok: false, code: AUTH_ERROR_CODES.mfaRateLimited };
         }
@@ -293,6 +507,83 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
           }
         }
 
+        if (input.candidate) {
+          // Commit the staged rotation atomically
+          await tx.user.update({
+            where: { id: input.userId },
+            data: {
+              mfaEncryptedSecret: input.candidate.encryptedSecret,
+              mfaGenerationId: input.candidate.generationId,
+              mfaEnrolledAt: new Date(input.candidate.enrolledAt),
+              mfaVerifiedAt: new Date(input.now),
+              mfaRequired: true,
+              mfaFailedCount: 0,
+              mfaLockedUntil: null,
+            },
+          });
+          // Revoke old recovery codes
+          await tx.authRecord.updateMany({
+            where: {
+              userId: input.userId,
+              type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+              revokedAt: null,
+              usedAt: null,
+              NOT: {
+                metadata: {
+                  path: ["mfaGenerationId"],
+                  equals: input.candidate.generationId,
+                },
+              },
+            },
+            data: { revokedAt: new Date(input.now) },
+          });
+          await invalidateSessionProofsInTx(
+            tx,
+            input.userId,
+            input.candidate.generationId,
+          );
+          // Session that proved candidate secret becomes verified on new generation,
+          // but sensitive/password proofs are strictly NOT resurrected from old generation S1.
+          const freshSession = await tx.authRecord.findUniqueOrThrow({
+            where: { id: input.sessionId },
+          });
+          const freshMeta = authRecordMetadata(freshSession.metadata);
+          await tx.authRecord.update({
+            where: { id: input.sessionId },
+            data: {
+              metadata: {
+                ...freshMeta,
+                passwordReauthenticatedAt: null,
+                sensitiveActionVerifiedAt: null,
+                mfaVerifiedAt: new Date(input.now).toISOString(),
+                mfaGenerationId: input.candidate.generationId,
+                candidateMfaEnrollment: null,
+                mfaRotationInitiator: null,
+                mfaRotationGenerationId: null,
+              },
+            },
+          });
+          await this.audit.writeInTx(
+            {
+              event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
+              actor_id: input.userId,
+              decision: AUDIT_DECISIONS.allow,
+              correlationId: input.correlationId,
+            },
+            this.auditWriter.forTransaction(tx),
+          );
+          await this.audit.writeInTx(
+            {
+              event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaVerified,
+              actor_id: input.userId,
+              decision: AUDIT_DECISIONS.allow,
+              correlationId: input.correlationId,
+            },
+            this.auditWriter.forTransaction(tx),
+          );
+          return { ok: true };
+        }
+
         // Proof consumption, account MFA state, session step-up and audit are
         // committed together. Failure leaves a recovery code reusable.
         await tx.user.update({
@@ -310,8 +601,9 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             metadata: {
               ...authRecordMetadata(session.metadata),
               mfaVerifiedAt: new Date(input.now).toISOString(),
-              sensitiveActionVerifiedAt: new Date(input.now).toISOString(),
               mfaGenerationId: user.mfaGenerationId,
+              mfaRotationInitiator: null,
+              mfaRotationGenerationId: null,
             },
           },
         });
@@ -346,6 +638,51 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
       }
       throw error;
     }
+  }
+
+  private async replaceCandidateCodeRecords(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    candidateGenerationId: string,
+    batchId: string,
+    codes: readonly MfaRecoveryCodeCreateInput[],
+    now: number,
+    activeGenerationId: string,
+  ): Promise<void> {
+    await tx.authRecord.updateMany({
+      where: {
+        userId,
+        type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+        revokedAt: null,
+        usedAt: null,
+        NOT: {
+          metadata: {
+            path: ["mfaGenerationId"],
+            equals: activeGenerationId,
+          },
+        },
+      },
+      data: { revokedAt: new Date(now) },
+    });
+    await tx.authRecord.createMany({
+      data: codes.map((record) => ({
+        id: record.id,
+        userId,
+        type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.mfaRecoveryCode,
+          userId,
+          record.codeHash,
+        ),
+        secretHash: record.codeHash,
+        metadata: {
+          batchId,
+          mfaGenerationId: candidateGenerationId,
+          candidate: true,
+        },
+        createdAt: new Date(now),
+      })),
+    });
   }
 
   private async lockAccountAndSession(

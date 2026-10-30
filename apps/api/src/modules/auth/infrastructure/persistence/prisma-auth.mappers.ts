@@ -70,7 +70,47 @@ export function mapSessionRecord(record: AuthRecord): Session {
     sensitiveActionVerifiedAt:
       authRecordMetadataDate(record, "sensitiveActionVerifiedAt")?.getTime() ??
       null,
+    passwordReauthenticatedAt:
+      authRecordMetadataDate(record, "passwordReauthenticatedAt")?.getTime() ??
+      null,
+    candidateMfaEnrollment: mapCandidateMfaEnrollment(record.metadata),
   });
+}
+
+function mapCandidateMfaEnrollment(metadata: unknown): {
+  encryptedSecret: string;
+  generationId: string;
+  batchId: string;
+  enrolledAt: number;
+} | null {
+  if (
+    !metadata ||
+    typeof metadata !== "object" ||
+    Array.isArray(metadata) ||
+    !("candidateMfaEnrollment" in metadata)
+  ) {
+    return null;
+  }
+  const candidate = (metadata as Record<string, unknown>)
+    .candidateMfaEnrollment;
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return null;
+  }
+  const c = candidate as Record<string, unknown>;
+  if (
+    typeof c.encryptedSecret === "string" &&
+    typeof c.generationId === "string" &&
+    typeof c.batchId === "string" &&
+    typeof c.enrolledAt === "number"
+  ) {
+    return {
+      encryptedSecret: c.encryptedSecret,
+      generationId: c.generationId,
+      batchId: c.batchId,
+      enrolledAt: c.enrolledAt,
+    };
+  }
+  return null;
 }
 
 export function mapMfaEnrollmentRecord(record: PrismaUser): MfaEnrollment {

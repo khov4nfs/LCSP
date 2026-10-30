@@ -31,28 +31,28 @@ export function MfaQrPreview({ totpUri }: MfaQrPreviewProps) {
 
   if (!qrCodeDataUrl) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-center text-sm text-muted-foreground">
         {resolveMessage(appLocale, "pages.mfaEnroll.qrLoading")}
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium">
+    <div className="flex flex-col items-center gap-3 text-center">
+      <p className="text-xs font-semibold tracking-wide text-foreground uppercase">
         {resolveMessage(appLocale, "pages.mfaEnroll.qrTitle")}
       </p>
-      <div className="inline-flex rounded-xl border bg-white p-3">
+      <div className="inline-flex rounded-2xl border border-border/80 bg-white p-4 sm:p-5 shadow-xs">
         <Image
           src={qrCodeDataUrl}
           alt={resolveMessage(appLocale, "pages.mfaEnroll.qrAlt")}
-          className="size-60 max-w-full"
-          width={240}
-          height={240}
+          className="size-44 max-w-full sm:size-48"
+          width={192}
+          height={192}
           unoptimized
         />
       </div>
-      <p className="text-sm text-muted-foreground">
+      <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
         {resolveMessage(appLocale, "pages.mfaEnroll.qrHint")}
       </p>
     </div>

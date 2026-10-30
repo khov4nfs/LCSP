@@ -218,6 +218,7 @@ export class RbacGuard implements CanActivate {
       userId: string;
       mfaGenerationId: string | null;
       sensitiveActionVerifiedAt: number | null;
+      passwordReauthenticatedAt?: number | null;
     };
     currentGenerationId: string;
     resourceId: string;
@@ -227,7 +228,7 @@ export class RbacGuard implements CanActivate {
       !input.required ||
       isSensitiveActionVerificationFresh(
         input.session.mfaGenerationId === input.currentGenerationId
-          ? input.session.sensitiveActionVerifiedAt
+          ? (input.session.passwordReauthenticatedAt ?? null)
           : null,
         Date.now(),
       )

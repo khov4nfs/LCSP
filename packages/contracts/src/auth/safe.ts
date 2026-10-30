@@ -31,6 +31,7 @@ export const PROBLEM_REQUIRED_ACTIONS: Record<AuthErrorCode, RequiredAction> = {
   [AUTH_ERROR_CODES.oauthStateInvalid]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.oauthCallbackInvalid]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.accountNotFound]: REQUIRED_ACTIONS.contactOwner,
+  [AUTH_ERROR_CODES.mfaEnrollmentExpired]: REQUIRED_ACTIONS.restartEnrollment,
 };
 
 type ProblemDefaults = {
@@ -166,6 +167,12 @@ export const PROBLEM_DEFAULTS: Record<AuthErrorCode, ProblemDefaults> = {
     status: 404,
     titleKey: "auth.errors.accountNotFound.title",
     detailKey: "auth.errors.accountNotFound.detail",
+  },
+  [AUTH_ERROR_CODES.mfaEnrollmentExpired]: {
+    type: "auth/mfa-enrollment-expired",
+    status: 403,
+    titleKey: "auth.errors.mfaEnrollmentExpired.title",
+    detailKey: "auth.errors.mfaEnrollmentExpired.detail",
   },
 };
 

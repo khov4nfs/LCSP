@@ -163,14 +163,17 @@ export function AuthInlineLink({
   href,
   children,
   className,
+  onClick,
 }: {
   href: string;
   children: ReactNode;
   className?: string;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         "text-[11px] font-medium leading-4 text-brand underline-offset-4 hover:underline",
         className,

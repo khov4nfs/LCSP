@@ -3,9 +3,27 @@ export const viPages = {
   complianceRuleSets: {
     resume: "Tiếp tục chuẩn bị",
     resuming: "Đang tiếp tục…",
-    resumeFailed: "Không thể tiếp tục chuẩn bị. Hãy làm mới trang và kiểm tra trạng thái hiện tại.",
-    stages: { CORPUS_READY: "Nguồn pháp lý đã sẵn sàng", PREPARING_RULE_SET: "Đang chuẩn bị bộ quy tắc", VALIDATION_REQUIRED: "Cần kiểm tra tính hợp lệ", VALIDATION_FAILED: "Kiểm tra tính hợp lệ thất bại", RULE_SET_READY: "Bộ quy tắc đã sẵn sàng", ACTIVE: "Đang hoạt động" },
-    draft: { documents: "Văn bản nguồn pháp lý", requirements: "Yêu cầu pháp lý trong bản nháp", rules: "Quy tắc đánh giá trong bản nháp", references: "Tham chiếu pháp lý chưa được giải quyết", blocked: "Đơn vị nguồn đang bị chặn bởi tham chiếu pháp lý:", validationErrors: "Lỗi kiểm tra tính hợp lệ", available: "Các đánh giá có thể sử dụng bộ quy tắc đang hoạt động này.", unavailable: "Các đánh giá chưa thể sử dụng bản nháp này.", boundedPreview: "Đang hiển thị 20 mục đầu tiên." },
+    resumeFailed:
+      "Không thể tiếp tục chuẩn bị. Hãy làm mới trang và kiểm tra trạng thái hiện tại.",
+    stages: {
+      CORPUS_READY: "Nguồn pháp lý đã sẵn sàng",
+      PREPARING_RULE_SET: "Đang chuẩn bị bộ quy tắc",
+      VALIDATION_REQUIRED: "Cần kiểm tra tính hợp lệ",
+      VALIDATION_FAILED: "Kiểm tra tính hợp lệ thất bại",
+      RULE_SET_READY: "Bộ quy tắc đã sẵn sàng",
+      ACTIVE: "Đang hoạt động",
+    },
+    draft: {
+      documents: "Văn bản nguồn pháp lý",
+      requirements: "Yêu cầu pháp lý trong bản nháp",
+      rules: "Quy tắc đánh giá trong bản nháp",
+      references: "Tham chiếu pháp lý chưa được giải quyết",
+      blocked: "Đơn vị nguồn đang bị chặn bởi tham chiếu pháp lý:",
+      validationErrors: "Lỗi kiểm tra tính hợp lệ",
+      available: "Các đánh giá có thể sử dụng bộ quy tắc đang hoạt động này.",
+      unavailable: "Các đánh giá chưa thể sử dụng bản nháp này.",
+      boundedPreview: "Đang hiển thị 20 mục đầu tiên.",
+    },
     title: "Bộ quy tắc tuân thủ",
     description:
       "Bộ quy tắc được các đánh giá dùng chung và chuẩn bị khi Phiên bản nguồn pháp lý được kích hoạt. Quản trị viên cũng có thể chuẩn bị nguồn hiện tại, hoặc chuẩn bị phiên bản mới sẽ tự động thay thế phiên bản đang hoạt động sau khi vượt qua kiểm tra.",
@@ -1214,14 +1232,20 @@ export const viPages = {
     recoveryCodeDescription:
       "Enter one of your saved recovery codes to continue.",
     recoveryCodeLabel: "Recovery code",
-    recoveryCodePlaceholder: "ABCD-EFGH",
+    recoveryCodePlaceholder: "ABCD-EFGH-IJKL",
     recoveryCodeHelp: "Recovery codes are single-use.",
     recoveryCodeSubmit: "Verify recovery code",
     submit: "Verify and continue",
     submitting: "Verifying",
     accessHelp: "MFA protects access to your LCSP workspace.",
     recoveryCodeAccessHelp: "Each recovery code can only be used once.",
+    lostBothFactorsHelp:
+      "Mất cả ứng dụng xác thực và mã dự phòng? Hãy liên hệ quản trị viên workspace để đặt lại xác thực đa yếu tố.",
     useRecovery: "Không dùng được ứng dụng xác thực? Khôi phục quyền truy cập.",
+    enrollmentExpiredTitle: "Phiên thiết lập đã hết hạn",
+    enrollmentExpiredDetail:
+      "Phiên thiết lập ứng dụng xác thực đã hết hạn. Vui lòng tạo mã QR mới để hoàn tất thiết lập.",
+    restartEnrollment: "Tạo mã QR mới",
     errors: {
       otpRequired: "Nhập mã xác minh của bạn.",
       otpInvalidFormat: "Nhập mã xác minh gồm sáu chữ số.",
@@ -1229,6 +1253,9 @@ export const viPages = {
       recoveryCodeInvalidFormat: "Nhập mã khôi phục hợp lệ.",
       requestFailedTitle: "Không thể xác minh",
       requestFailedDetail: "Không thể xác minh mã. Vui lòng thử lại.",
+      secretUnavailableTitle: "Mã bí mật xác thực không khả dụng",
+      secretUnavailableDetail:
+        "Không thể đọc thông tin xác thực. Vui lòng sử dụng mã khôi phục.",
     },
   },
   mfaEnroll: {

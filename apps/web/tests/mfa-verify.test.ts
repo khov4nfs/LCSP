@@ -1,4 +1,4 @@
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -19,7 +19,7 @@ function problem(code: string, status: number) {
       code,
       titleKey: "auth.errors.validationFailed.title",
       detailKey: "auth.errors.validationFailed.detail",
-      requiredAction: "none",
+      requiredAction: REQUIRED_ACTIONS.none,
       correlationId: "test-correlation",
     },
   };
@@ -60,6 +60,28 @@ test("invalid OTP responses use the shared non-leaking error contract", () => {
   );
 });
 
+test("undecryptable TOTP secret returns retryRecovery action with specialized copy", () => {
+  const problemPayload = {
+    ok: false,
+    problem: {
+      type: "test/mfa-invalid",
+      status: 403,
+      code: AUTH_ERROR_CODES.mfaInvalid,
+      titleKey: "auth.errors.validationFailed.title",
+      detailKey: "auth.errors.validationFailed.detail",
+      requiredAction: REQUIRED_ACTIONS.retryRecovery,
+      correlationId: "test-correlation",
+    },
+  };
+
+  assert.deepEqual(toMfaVerifyOutcome(problemPayload, false), {
+    kind: "invalid",
+    requiredAction: REQUIRED_ACTIONS.retryRecovery,
+    titleKey: "pages.mfaVerify.errors.secretUnavailableTitle",
+    detailKey: "pages.mfaVerify.errors.secretUnavailableDetail",
+  });
+});
+
 test("MFA rate limiting returns a locked outcome", () => {
   assert.deepEqual(
     toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.mfaRateLimited, 429), false),
@@ -83,6 +105,40 @@ test("invalid or expired pending sessions return a sign-in outcome", () => {
     toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.sessionInvalid, 401), false),
     { kind: "session_invalid" },
   );
+});
+
+test("reauthRequired problem returns distinct reauth_required outcome without invalidating session", () => {
+  assert.deepEqual(
+    toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.reauthRequired, 403), false),
+    {
+      kind: "reauth_required",
+      requiredAction: REQUIRED_ACTIONS.reauthenticate,
+      titleKey: "auth.errors.reauthRequired.title",
+      detailKey: "auth.errors.reauthRequired.detail",
+    },
+  );
+});
+
+test("expired MFA enrollment returns mfa_enrollment_expired outcome with restart action", () => {
+  const problemPayload = {
+    ok: false,
+    problem: {
+      type: "test/mfa-enrollment-expired",
+      status: 403,
+      code: AUTH_ERROR_CODES.mfaEnrollmentExpired,
+      titleKey: "auth.errors.validationFailed.title",
+      detailKey: "auth.errors.validationFailed.detail",
+      requiredAction: REQUIRED_ACTIONS.restartEnrollment,
+      correlationId: "test-correlation",
+    },
+  };
+
+  assert.deepEqual(toMfaVerifyOutcome(problemPayload, false), {
+    kind: "mfa_enrollment_expired",
+    requiredAction: REQUIRED_ACTIONS.restartEnrollment,
+    titleKey: "pages.mfaVerify.enrollmentExpiredTitle",
+    detailKey: "pages.mfaVerify.enrollmentExpiredDetail",
+  });
 });
 
 test("MFA client sends the OTP only in a same-origin JSON body", async () => {
