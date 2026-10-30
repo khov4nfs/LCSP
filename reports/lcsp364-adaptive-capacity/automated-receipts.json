@@ -1,6 +1,6 @@
 {
-  "capturedAt": "2026-10-30T08:00:48.494265+00:00",
-  "basedOnCommit": "b37d8dda6dcf77340ba5d79e77b120218bb8181f",
+  "capturedAt": "2026-10-30T09:06:31.542561+00:00",
+  "basedOnCommit": "9bec152bd66d7273c90eb74d3217f794ed9a8580",
   "scope": "Precommit source-content fingerprint; final PR HEAD CI is recorded in PR checks and Jira, not inferred from these receipts.",
   "codeSha256": {
     ".env.example": "2539799f3363bf79a8ffa63ba65ae173eea758e451eef568fa280999ae3a7dc9",
@@ -41,7 +41,7 @@
     "deepagents/tools/common/capabilities/agent_runtime/local_server.py": "d53ac5d5d7959abd70db434770daa8446523c3b5902f169fe81105db155c7ee2",
     "deepagents/tools/common/capabilities/agent_runtime/rabbitmq_consumer.py": "bfee274d548ac31c757025ae1b9882e65292b397b371b0a1452059519b48d2dc",
     "deepagents/tools/common/capabilities/agent_runtime/root_capacity.py": "d45fef28eed17013aa7feda064055c8df35a6ab21630c38df874a1c32e1f1c2d",
-    "docs/adr/LCSP-364-adaptive-root-admission.md": "906fa22478872136cfe7b58b2d002a7b5a19eb833950e192cbfb0a450ab6091a",
+    "docs/adr/LCSP-364-adaptive-root-admission.md": "13f071b83d441230f2e20c3c8470cbca2e7f27692cf87fd276ae14a542fc9d48",
     "docs/runbooks/assessment-root-capacity.md": "70a19c65e6b44291af3882a6309298c910a75e8c325a35f54d0eb3062e916227",
     "ecosystem.config.cjs": "32085f597dc37e52a518b87df16c1a5a802dcdfda8b7ed24836888b74ed037f8",
     "packages/contracts/src/assessment-domain/capacity.ts": "afcc058d544e5a132838e2ccbb93155c8c28c02c20ef6b68cc19fd75e1adb0c0",
@@ -59,7 +59,7 @@
     "tests/support/direct-root-admission.mjs": "c861e42a0455a03de56a969759bc66d800ed7a6bdd391e0a40abae6513d03a7c",
     "tests/tsconfig.json": "7905151f33d0709a946f05921dfd158ff32da904508db5ec2d4f98702855556a"
   },
-  "sourceSetSha256": "93d2af65278e24dd764437596c7db9b6640ff5656a39410979977ae3e544e26b",
+  "sourceSetSha256": "e368577b6ec39a912a3ce083edbf4f61941c99811cbcab6e866e11c27dbd39fb",
   "receipts": [
     {
       "label": "admission-and-policy",
@@ -211,6 +211,38 @@
       ],
       "sanitizedFullLogSha256": "315596413449b59f43637bbe0018eb4031a7b9fd688461af8f24b16e3f8d8327",
       "scopeNote": "Provider-free local verification after CI test-type corrections; final exact-head remote CI remains separate."
+    },
+    {
+      "label": "runtime-packages-merged",
+      "observedAt": "2026-10-30T09:04:32.460642+00:00",
+      "summary": [
+        "Command completed with exit 0 after integrating verified develop aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b."
+      ],
+      "sanitizedFullLogSha256": "111311cf86ef9c041a7fa71a42f83b12580187dc9c4dba20db3ca935b81c879b",
+      "scopeNote": "Merged-source local verification; exact final remote CI is recorded in PR and Jira."
+    },
+    {
+      "label": "source-gates-merged",
+      "observedAt": "2026-10-30T09:05:45.279806+00:00",
+      "summary": [
+        "Import policy check passed.",
+        "Contract literal policy passed.",
+        "check:legal-v1-retired OK (1434 current production/build/CI files, 27 retired patterns, 0 references)",
+        "Command completed with exit 0 after integrating verified develop aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b."
+      ],
+      "sanitizedFullLogSha256": "d22dcb1b06d0de15647c21bf4f411a3d6592816151ddf3834fe016e448bb3997",
+      "scopeNote": "Merged-source local verification; exact final remote CI is recorded in PR and Jira."
+    },
+    {
+      "label": "business-docs-merged",
+      "observedAt": "2026-10-30T09:05:13.383734+00:00",
+      "summary": [
+        "Business logic documentation: 3030 functions in 775 production source files; 921 conformant; 2109 unchanged legacy; 0 missing/invalid.",
+        "Command completed with exit 0 after integrating verified develop aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b."
+      ],
+      "sanitizedFullLogSha256": "26a376fbbd2f080d191dd8b12ed9d9042074f13bc581d1f3b0b75f02338ed081",
+      "scopeNote": "Merged-source local verification; exact final remote CI is recorded in PR and Jira."
     }
-  ]
+  ],
+  "integratedDevelop": "aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b"
 }

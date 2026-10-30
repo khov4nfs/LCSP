@@ -1,5 +1,5 @@
 {
-  "observedAt": "2026-10-30T06:26:58.309814+00:00",
+  "observedAt": "2026-10-30T09:01:01.547434+00:00",
   "readOnly": true,
   "host": "fogewise",
   "checkout": "/srv/apps/LCSP",
@@ -8,20 +8,20 @@
   "dirtyPaths": [],
   "cpuCount": 4,
   "loadAverage": [
-    0.1474609375,
-    0.2294921875,
-    0.19384765625
+    0.1845703125,
+    0.203125,
+    0.1806640625
   ],
-  "memory": "total        used        free      shared  buff/cache   available\nMem:      8327135232  3183333376  1669345280   223453184  4019601408  5143801856\nSwap:     2147479552   846045184  1301434368",
+  "memory": "total        used        free      shared  buff/cache   available\nMem:      8327135232  3151572992  1696653312   223453184  4024053760  5175562240\nSwap:     2147479552   845783040  1301696512",
   "disk": {
     "totalBytes": 42155278336,
-    "usedBytes": 38130155520,
-    "freeBytes": 1861111808
+    "usedBytes": 38131752960,
+    "freeBytes": 1859514368
   },
   "pressure": {
-    "cpu": "some avg10=0.00 avg60=0.08 avg300=0.10 total=40045823798\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
-    "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=6436527618\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=4246260179",
-    "io": "some avg10=0.03 avg60=0.04 avg300=0.00 total=17586242411\nfull avg10=0.03 avg60=0.04 avg300=0.00 total=12093124445"
+    "cpu": "some avg10=0.02 avg60=0.11 avg300=0.06 total=40127547611\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=6436535032\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=4246265900",
+    "io": "some avg10=0.00 avg60=0.00 avg300=0.00 total=17597673630\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=12103482799"
   },
   "configurationFingerprints": {
     ".env.pm2": "130b397dc63725e28efe1450d41305504acf00163ba2c609226abb91b12a49a3",
@@ -68,7 +68,7 @@
     {
       "pid": 2528924,
       "role": "api",
-      "rssBytes": 470237184,
+      "rssBytes": 470544384,
       "capacitySettings": {}
     },
     {
@@ -82,7 +82,7 @@
     {
       "pid": 2529122,
       "role": "bridge",
-      "rssBytes": 185167872,
+      "rssBytes": 185298944,
       "capacitySettings": {
         "LCSP_AGENT_RUNTIME_MODE": "production"
       }
@@ -122,7 +122,7 @@
       "pids": "2"
     },
     {
-      "cpuPercent": "0.01%",
+      "cpuPercent": "0.00%",
       "memory": "17.6MiB / 2GiB",
       "pids": "2"
     },
@@ -458,7 +458,7 @@
       "database": "lcsp_dev",
       "maxConnections": 100,
       "usedConnections": 9,
-      "probeLatencyMs": 10.14174148440361,
+      "probeLatencyMs": 3.757125698029995,
       "rootExecutionStates": [
         [
           "PAUSED",
@@ -531,7 +531,7 @@
       "database": "lcsp360_cheatshield_acceptance_20261026",
       "maxConnections": 100,
       "usedConnections": 9,
-      "probeLatencyMs": 11.194550432264805,
+      "probeLatencyMs": 4.143232479691505,
       "rootExecutionStates": [
         [
           "RUNNING",
@@ -588,7 +588,7 @@
       ],
       "unfinishedMigrations": [],
       "checkpointRows": 46453,
-      "checkpointReadLatencyMs": 37.78580203652382,
+      "checkpointReadLatencyMs": 17.45382882654667,
       "nativeTransportStates": [
         [
           "success",

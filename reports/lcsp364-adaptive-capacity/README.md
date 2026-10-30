@@ -10,6 +10,9 @@ canaries. Jira remains In Progress; no merge or Done transition is authorized he
 Initially verified develop was `e19048e1285c224085690cc344efb059c49bdf49`
 (merged LCSP-346 #440). Before publication the feature was rebased onto actual
 latest develop `9d677b8fc308bdc4ac7ce27addb74e796b58b880`.
+Before delivery, develop advanced to `aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b`
+(MFA security #433); that verified revision was integrated into the feature branch
+without conflicts. Final CI must validate the combined revision.
 The implementation extends the existing API/PostgreSQL lease and outbox stack;
 RabbitMQ remains the durable delivery authority and one native Root owns each
 Assessment's legal decisions. Native researcher concurrency remains one.
@@ -56,6 +59,8 @@ replay reopens only quiescent intent and does not clear accepted work.
   measurements, lifecycle, contracts, migration, controls and integration fixtures.
 - `67fbc7fcc4ad857f973040e547acf07cf91b7116`: serialize direct fixture snapshots.
 - `0dac9150cbd5215e70f0f51187eed06f4279eb42`: repository autofix bot formatting/type cleanup.
+- `b37d8dda6dcf77340ba5d79e77b120218bb8181f`: snapshot fencing, inherited resource limits, DLQ history and captured evidence.
+- `9bec152bd66d7273c90eb74d3217f794ed9a8580`: strict CI fixture types and affected lint/test receipts.
 - Follow-up source/content identity is recorded in [automated-receipts.json](automated-receipts.json).
   Final pushed SHA and CI receipts are maintained on the PR and Jira acceptance comment.
 
@@ -108,15 +113,15 @@ was added.
 
 ## F. Production deployment
 
-**NOT DEPLOYED.** Read-only Fogewise preflight at `2026-10-30T06:26:58.309814+00:00` found:
+**NOT DEPLOYED.** Refreshed read-only Fogewise preflight at `2026-10-30T09:01:01.547434+00:00` found:
 
 - Deployed/rollback revision: `44dba336f332d566d3fee9fc0d32642a402d024e`.
 - Checkout `/srv/apps/LCSP`, preserved clean source/configuration and unrelated services.
-- CPU count 4; available memory approximately 5.14 GB; swap used approximately 846 MB.
-- Free disk **1,861,111,808 bytes**, below the normal 4 GiB headroom.
-- Six persistent repository sandboxes; their 2 GiB/2-CPU configuration is a limit, not measured per-Root consumption.
+- CPU count 4; available memory approximately 5.18 GB; swap used approximately 846 MB.
+- Free disk **1,859,514,368 bytes**, below the normal 4 GiB headroom.
+- Three running repository sandboxes; their 2 GiB/2-CPU configuration is a limit, not measured per-Root consumption.
 - API database `lcsp_dev`; checkpoint/runtime store `lcsp360_cheatshield_acceptance_20261026`, verified from actual process environments.
-- PostgreSQL used 9 of 100 connections; checkpoint read probe approximately 38 ms.
+- PostgreSQL used 9 of 100 connections; checkpoint read probe approximately 17 ms.
 - Five expired RUNNING rows in each domain copy were not treated as live executions or altered.
   Native persisted transports were terminal (37 success, 2 error); broker occupancy was captured.
 - API/runtime health 200, web redirect 307. These are preflight observations, not canary PASS.
@@ -126,6 +131,8 @@ Existing sandbox image digest:
 Its revision remains the previous deployment. **New PR image/build identity and
 migration activation are BLOCKED**, not inferred from the old image. Environment
 fingerprints and exact observations are in [production-preflight-current.json](production-preflight-current.json).
+The [earlier 06:26 capture](production-preflight-initial.json) recorded six sandboxes
+and 1,861,111,808 bytes free. This task performed no production cleanup or sandbox deletion.
 
 No production rebuild, service restart, migration, paid Assessment, sandbox deletion,
 prune or unrelated cleanup was performed. The old server lacks the new drain

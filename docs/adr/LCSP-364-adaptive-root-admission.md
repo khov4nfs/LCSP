@@ -4,6 +4,8 @@ Status: implementation in progress; production acceptance is a separate gate.
 Initially verified develop: `e19048e1285c224085690cc344efb059c49bdf49`.
 Refreshed and rebased before publication onto actual develop
 `9d677b8fc308bdc4ac7ce27addb74e796b58b880`.
+Before delivery, integrated the next verified develop head
+`aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b` (merged MFA security #433).
 
 The LCSP-346 bridge and Agent Server each bound a startup-sized executor. These
 bounds neither adapt nor coordinate several bridge processes. The server persists
@@ -92,7 +94,7 @@ from hiding another customer's work. It schedules independent Assessments only.
 - Queue-only or CPU-only scaling: ignores memory, disk, DB, sandbox and provider bottlenecks.
 - Killing Roots on scale-down: breaks checkpoint, accounting and completion safety.
 
-Production preflight on 2026-10-30 at 06:26 UTC found 95% disk use, 1,861,111,808 bytes free and six
+Production preflight on 2026-10-30 at 09:01 UTC found 95% disk use, 1,859,514,368 bytes free and three
 running sandboxes. Rebuild/scale-up remains BLOCKED until fresh preflight proves
 a safe rollout envelope. Synthetic load proves controller and transport contracts;
 it never establishes real paid/native production semantic acceptance.
