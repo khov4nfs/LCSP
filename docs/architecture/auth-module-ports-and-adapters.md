@@ -619,18 +619,28 @@ security review. This section reports local execution only.
   - Inside the database transaction in `PrismaMfaLifecyclePersistence.verifyProof()`, candidate cleanup now writes an atomic audit record via `this.audit.writeInTx(tx, ...)` with event type `AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRotationExpired` (canonical `AUTH_MFA_ROTATION_EXPIRED`), decision `DENY`, and reason `MFA_ENROLLMENT_EXPIRED`, capturing correlation ID, session, and candidate generation without exposing secrets.
   - Regression test in `auth.e2e-spec.ts` verifies that exactly one audit receipt is emitted upon candidate expiry and asserts idempotency on retry.
 
-#### 3. Administrative Identity Verification and Factor Reset Procedure (Issue #431 Disposition)
+#### 3. Administrative Factor Recovery & Reset (Issue #431 Disposition & Release Limitation)
 
-- **Status:** **PROPOSED / NOT YET IMPLEMENTED AS AN AUTOMATED API** (tracked as pending blocker issue #431 / LCSP-1002).
-- **Product & Security Policy Decision:** A self-service, password-only MFA reset from a pending-MFA session is strictly prohibited as it would compromise the second-factor security guarantee against credential stuffing and compromised passwords. PR #433 strictly scopes to staged candidate rotation, candidate TTL expiry, and session proof integrity.
-- **Automated API Scope:** The dedicated administrative endpoint `DELETE /admin/users/:userId/mfa` (and admin CLI) with fine-grained PBAC enforcement (`iam.users.manage`), workspace boundary isolation, and automated session revocation is a separate administrative capability scheduled for implementation under tracked issue #431 / LCSP-1002 with dedicated controller, policy, and negative E2E coverage.
-- **Interim Operational Support Escalation & Break-Glass Runbook Procedure:**
-  Until the automated administrative endpoint is deployed, users who lose both their TOTP authenticator and all backup recovery codes must use the following operational recovery runbook:
-  1. **User Notification:** The `/mfa/verify` screen provides recovery guidance directing the locked-out user to contact support or their workspace administrator.
-  2. **Out-of-Band Identity Verification:** Security operations or workspace administrators perform multi-factor out-of-band verification (e.g., recorded video verification, government ID check, or secondary managerial authorization via corporate directory).
-  3. **Tracked Manual Factor Reset (under Change Control):** An authorized DBA / security engineer executes an atomic database reset under a tracked change ticket:
-     - Clear registered MFA secret and advance generation: `UPDATE "User" SET "mfaEncryptedSecret" = NULL, "mfaVerifiedAt" = NULL, "mfaGenerationId" = gen_random_uuid() WHERE "id" = :targetUserId;`
-     - Revoke all active sessions: `UPDATE "AuthRecord" SET "revokedAt" = NOW() WHERE "userId" = :targetUserId AND "type" = 'SESSION' AND "revokedAt" IS NULL;`
-     - Revoke all unverified/active recovery codes: `UPDATE "AuthRecord" SET "revokedAt" = NOW() WHERE "userId" = :targetUserId AND "type" = 'MFA_RECOVERY_CODE' AND "revokedAt" IS NULL;`
-     - Record an immutable audit log entry (`AUTH_MFA_DISABLED`) documenting operator identity, ticket ID, correlation ID, and justification.
-  4. **Mandatory Fresh Enrollment:** The user logs in with their password and is required to complete fresh MFA enrollment from scratch before accessing workspace resources.
+- **Release Limitation Status:** **NOT DELIVERED FUNCTIONALITY IN PR #433; EXPLICIT TRACKED RELEASE LIMITATION**.
+  Administrative recovery for accounts that have permanently lost both their TOTP device and backup recovery codes is not automated in PR #433. It is tracked as an open release blocker under GitHub Issue [#431](https://github.com/khov4nfs/LCSP/issues/431) / LCSP-1002.
+- **Product & Security Policy Disposition:**
+  The original request in issue #431 for a password-only self-service factor bypass from a pending-MFA session was intentionally rejected under the strict 2FA security policy. Allowing a compromised password to bypass the second factor would degrade tenant security. PR #433 delivers staged candidate rotation, candidate TTL expiry, and session proof integrity; automated administrative recovery is deliberately deferred.
+- **Non-Executable Conceptual Reference (Not Approved for Operational Execution):**
+  Any direct SQL modification or manual script is strictly **illustrative and non-executable conceptual reference**. Ad-hoc database updates must NOT be executed on production environments without an approved, parameterized, tested migration tool and runbook.
+- **Required Specification for LCSP-1002 (Automated Reset API & Verified Runbook):**
+  When implemented under LCSP-1002, the administrative reset capability (`DELETE /admin/users/:userId/mfa` and corresponding CLI) must satisfy the following invariants within a single atomic database transaction:
+  1. **Dual Authorization & Change Control:** Requires out-of-band identity verification (e.g., secondary channel, manager verification) and fine-grained PBAC permission (`iam.users.manage`).
+  2. **Row Locking & Target Validation:** Lock the target user row (`SELECT ... FOR UPDATE`) and assert valid account state and workspace ownership.
+  3. **Reset Semantics vs Disable Semantics:** Distinguish voluntary MFA disabling (`mfaRequired = false`) from an administrative recovery reset. Recovery reset must explicitly set `mfaRequired = true`, `mfaEnrolledAt = null`, `mfaVerifiedAt = null`, `mfaEncryptedSecret = null`, and advance `mfaGenerationId = gen_random_uuid()`. Explicitly setting `mfaRequired = true` guarantees that legacy accounts (where `mfaRequired` might have defaulted to false) are forced to complete fresh MFA enrollment before accessing workspace resources.
+  4. **Session & Proof Revocation:** Invalidate session proofs and revoke all active sessions (`type = 'SESSION'`) for the target user.
+  5. **Recovery Code Invalidation:** Transactionally revoke all unverified and active recovery codes (`type = 'MFA_RECOVERY_CODE'`).
+  6. **Replay Cache Invalidation:** Delete or retire all `type = 'MFA_OTP_USE'` records for the user.
+  7. **Attributable Audit Receipt:** Write an atomic audit event (`AUTH_MFA_DISABLED`) recording the administrator/operator actor ID, target user ID, change ticket ID, and correlation ID before transaction `COMMIT`.
+  8. **Strict Rollback:** Assert expected affected row counts and immediately `ROLLBACK` on any failure.
+  9. **Integration Verification:** Must be accompanied by disposable-DB integration tests asserting pre/post states (including legacy `mfaRequired = false` users) and failure-injection rollback tests.
+
+#### 4. Defensive OTP Response Handling (`REAUTH_REQUIRED`)
+
+- In `toMfaVerifyOutcome()` and `MfaVerifyForm`, `AUTH_ERROR_CODES.reauthRequired` is retained as a distinct typed outcome (`kind: "reauth_required"`).
+- It is an intentionally defensive, non-session-invalidating edge response that displays a standard inline alert while preserving the pending session state.
+- Following the introduction of the dedicated `AUTH_ERROR_CODES.mfaEnrollmentExpired` contract, no active candidate-expiry or OTP path emits `REAUTH_REQUIRED` during normal MFA verification.

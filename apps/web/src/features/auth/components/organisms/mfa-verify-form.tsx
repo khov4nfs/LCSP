@@ -145,6 +145,11 @@ export function MfaVerifyForm({
       setError(outcome);
       return;
     }
+    if (outcome.kind === API_OUTCOME_KINDS.reauthRequired) {
+      // Defensive edge fallback: retains pending session while displaying step-up alert.
+      setError(outcome);
+      return;
+    }
     if (outcome.kind === API_OUTCOME_KINDS.rateLimited) {
       setIsLocked(true);
     }
