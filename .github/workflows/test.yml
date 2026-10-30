@@ -230,6 +230,15 @@ jobs:
     if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     services:
+      rabbitmq:
+        image: rabbitmq:4-management
+        ports:
+          - 5678:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
       postgres:
         image: postgres:16
         env:
@@ -246,6 +255,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55438/lcsp364_capacity?schema=public
       LCSP_TEST_CAPACITY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55438/lcsp364_capacity?schema=public
+      LCSP_TEST_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5678/%2F
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -253,11 +263,19 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: deepagents/pyproject.toml
+      - name: Install broker and Agent Server regression dependencies
+        working-directory: deepagents
+        run: python -m pip install -e ".[dev]"
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:runtime-packages
       - run: pnpm --filter @lcsp/api prisma:generate
       - run: pnpm --filter @lcsp/api prisma:migrate:deploy
-      - name: Concurrent API replicas, fair admission, fencing and quiescence
+      - name: Concurrent replicas, 10001-command broker deferral, fencing and quiescence
         run: pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --runTestsByPath test/assessment-root-capacity.integration.spec.ts
 
   api-e2e:

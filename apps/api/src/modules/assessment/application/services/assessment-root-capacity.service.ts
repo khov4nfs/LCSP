@@ -13,7 +13,10 @@ import {
   HUMAN_RESOLUTION_REQUEST_STATUSES,
 } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
-import { OUTBOX_STATUSES } from "@lcsp/contracts/outbox";
+import {
+  OUTBOX_STATUSES,
+  OUTBOX_AGGREGATE_TYPES,
+} from "@lcsp/contracts/outbox";
 import {
   ROOT_CAPACITY_ID,
   ROOT_CAPACITY_REASONS as Reasons,
@@ -41,7 +44,6 @@ type Server = z.infer<typeof rootCapacityRegisterSchema>;
 interface WaitingRoot {
   assessmentId: string;
   requestedAt: Date;
-  commandId: string;
   commandKey: string;
 }
 
@@ -191,33 +193,42 @@ export class AssessmentRootCapacityService {
   }
 
   /**
-   * Business purpose: Return fair eligible demand from canonical durable Root commands.
+   * Business purpose: Select a bounded fairness window or an exact eligible Root command.
    * Business rules:
    * - A pending customer outside broker prefetch remains visible; old commands do not restart completed turns.
    * - Owners rotate by last admission, then each owner's oldest request, including supported Continue.
+   * - Window omission never proves obsolescence; point lookup applies the same eligibility guards.
+   * - Assessment aggregate identity scopes command lookup to the existing outbox index.
+   * - Owner history is aggregated once; a large customer's backlog cannot multiply history scans under the global lock.
    * Execution flow:
-   * 1. Select current eligible Root commands, excluding physically reserved Assessments.
-   * 2. Order owners by their last admitted slot and requests by durable command age.
+   * 1. Select current eligible Root commands, optionally restricted to one Assessment.
+   * 2. Aggregate owner admission history once and order by that history/request age within the result ceiling.
    * Failure cases:
    * - No eligible demand returns an empty list; SQL failures propagate without granting admission.
    * Side effects:
    * - Read-only query; no legal or workflow state is rewritten.
    */
-  private async waiting(tx: Prisma.TransactionClient): Promise<WaitingRoot[]> {
+  private async waiting(
+    tx: Prisma.TransactionClient,
+    assessmentId?: string,
+    take = 10_000,
+  ): Promise<WaitingRoot[]> {
     return tx.$queryRaw<WaitingRoot[]>(Prisma.sql`
-      SELECT a."id" AS "assessmentId", demand."requestedAt", command."id" AS "commandId",
+      SELECT a."id" AS "assessmentId", demand."requestedAt",
         command."payload"->>'idempotencyKey' AS "commandKey"
       FROM "AssessmentRootAdmissionRequest" demand
       JOIN "Assessment" a ON a."id" = demand."assessmentId"
       JOIN "OutboxMessage" command ON command."id" = demand."commandId"
       JOIN "AssessmentRuntime" r ON r."assessmentId" = a."id"
       LEFT JOIN "AssessmentRuntimeTurn" t ON t."id" = r."currentExecutionId"::text
-      LEFT JOIN LATERAL (
-        SELECT max(s."admittedAt") AS last_admitted
+      LEFT JOIN (
+        SELECT previous."ownerId", max(s."admittedAt") AS last_admitted
         FROM "AssessmentRootExecutionSlot" s JOIN "Assessment" previous ON previous."id" = s."assessmentId"
-        WHERE previous."ownerId" = a."ownerId"
-      ) owner_history ON true
-      WHERE (a."lifecycleState"::text = ${Lifecycles.ACTIVE}
+        GROUP BY previous."ownerId"
+      ) owner_history ON owner_history."ownerId" = a."ownerId"
+      WHERE command."aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
+        AND command."aggregateId" = a."id"
+        AND (a."lifecycleState"::text = ${Lifecycles.ACTIVE}
         OR (a."lifecycleState"::text = ${Lifecycles.PAUSED} AND t."state"::text = ${Controls.resumeRequested})
         OR (r."executionState"::text = ${Executions.RUNNING} AND r."leaseExpiresAt" <= (now() AT TIME ZONE 'UTC')
           AND (a."lifecycleState"::text = ${Lifecycles.WAITING_FOR_HUMAN}
@@ -231,11 +242,13 @@ export class AssessmentRootCapacityService {
         AND (command."status"::text = ${OUTBOX_STATUSES.published} OR demand."deliveredAt" IS NOT NULL)
         AND command."status"::text NOT IN (${OUTBOX_STATUSES.dlq}, ${OUTBOX_STATUSES.cancelled})
         AND NOT EXISTS (SELECT 1 FROM "OutboxMessage" newer
-          WHERE newer."aggregateId" = a."id" AND newer."eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
+          WHERE newer."aggregateType" = command."aggregateType"
+            AND newer."aggregateId" = a."id" AND newer."eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
             AND (newer."createdAt", newer."id") > (command."createdAt", command."id"))
         AND NOT EXISTS (SELECT 1 FROM "AssessmentRootExecutionSlot" s WHERE s."assessmentId" = a."id" AND s."releasedAt" IS NULL)
+        ${assessmentId ? Prisma.sql`AND a."id" = ${assessmentId}` : Prisma.empty}
       ORDER BY owner_history.last_admitted ASC NULLS FIRST, demand."requestedAt", a."id"
-      LIMIT 10000`);
+      LIMIT ${Math.min(take, 10_000)}`);
   }
 
   /**
@@ -243,9 +256,10 @@ export class AssessmentRootCapacityService {
    * Business rules:
    * - One Assessment has at most one live reservation; retries of the same run ID are idempotent.
    * - Fresh telemetry, global ceiling and owner fairness all precede admission; expired leases retain slots.
+   * - A valid command outside the fair window is deferred; only exact ineligibility/supersession is obsolete.
    * Execution flow:
    * 1. Lock authority, fence server identity and check an existing reservation.
-   * 2. Compare physical occupancy, metric freshness and the oldest fair eligible request.
+   * 2. Check the command's eligibility independently of rank, then compare capacity and the fair head.
    * 3. Persist a reservation or a durable deferral count without changing Assessment lifecycle.
    * Failure cases:
    * - Capacity/fairness refusal returns admitted false; stale owners fail without any mutation.
@@ -271,6 +285,7 @@ export class AssessmentRootCapacityService {
       }
       const command = await tx.outboxMessage.findFirst({
         where: {
+          aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
           aggregateId: input.assessmentId,
           eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
         },
@@ -285,7 +300,7 @@ export class AssessmentRootCapacityService {
       }
       // Materialize only a real delivered pre-cutover command; new commands
       // already created this bookkeeping in their canonical outbox transaction.
-      await tx.assessmentRootAdmissionRequest.upsert({
+      const demand = await tx.assessmentRootAdmissionRequest.upsert({
         where: { commandId: command.id },
         update: {},
         create: {
@@ -309,10 +324,9 @@ export class AssessmentRootCapacityService {
       const held = await tx.assessmentRootExecutionSlot.count({
         where: { assessmentId: input.assessmentId, releasedAt: null },
       });
-      const queue = await this.waiting(tx);
-      const target = queue.find(
-        (item) => item.assessmentId === input.assessmentId,
-      );
+      const target = held
+        ? undefined
+        : (await this.waiting(tx, input.assessmentId, 1))[0];
       if (!held && (!target || target.commandKey !== input.commandKey))
         return { admitted: false, obsolete: true, reason: Reasons.held };
       let reason: RootCapacityReason | null = held ? Reasons.held : null;
@@ -337,8 +351,14 @@ export class AssessmentRootCapacityService {
           active >= row.effective)
       )
         reason = Reasons.full;
-      if (!reason && queue[0]?.assessmentId !== input.assessmentId)
-        reason = Reasons.fairness;
+      if (!reason) {
+        const [head] = await this.waiting(tx, undefined, 1);
+        if (
+          head?.assessmentId !== input.assessmentId ||
+          head?.commandKey !== input.commandKey
+        )
+          reason = Reasons.fairness;
+      }
       if (reason) {
         await tx.assessmentRootCapacity.update({
           where: { id: row.id },
@@ -351,12 +371,12 @@ export class AssessmentRootCapacityService {
           runId: input.runId,
           assessmentId: input.assessmentId,
           incarnationId: input.incarnationId,
-          requestedAt: queue[0].requestedAt,
-          commandId: queue[0].commandId,
+          requestedAt: demand.requestedAt,
+          commandId: command.id,
         },
       });
       await tx.assessmentRootAdmissionRequest.update({
-        where: { commandId: queue[0].commandId },
+        where: { commandId: command.id },
         data: { admittedRunId: input.runId },
       });
       await tx.assessmentRootCapacity.update({

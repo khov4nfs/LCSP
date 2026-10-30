@@ -202,6 +202,52 @@ def test_global_refusal_publishes_no_run_or_future_and_restores_local_capacity(m
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("draining", [False, True])
+async def test_sync_wait_cannot_bypass_a_busy_executor_or_drain(monkeypatch, draining):
+    monkeypatch.setenv("LCSP_AGENT_RUNTIME_MODE", "production")
+    monkeypatch.setenv("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS", "1")
+    monkeypatch.setenv("WORKER_API_KEY", "fixture-only-key")
+    monkeypatch.setattr(local_server, "resource_measurements", lambda: {})
+    runtime = local_server.LocalAgentRuntime(capacity_client=CapacityProtocol())
+    monkeypatch.setattr(local_server.app.state, "runtime", runtime, raising=False)
+    started, release, calls = Event(), Event(), []
+
+    class SingleSlotGraph(BlockingGraph):
+        def stream(self, *_args, **_kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                started.set()
+                assert release.wait(5)
+            yield {"done": True}
+
+    runtime.graph = SingleSlotGraph(started, release, [])
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=local_server.app), base_url="http://fixture") as client:
+            run = (await client.post("/threads/occupied/runs", json=payload())).json()
+            assert await asyncio.to_thread(started.wait, 2)
+            if draining:
+                response = await client.post("/internal/execution-capacity",
+                    headers={"x-worker-api-key": "fixture-only-key"}, json={"draining": True})
+                assert response.json()["data"]["draining"] is True
+                assert response.json()["data"]["quiescent"] is False
+            responses = await asyncio.gather(*[
+                client.post(f"/threads/sync-{i}/runs/wait", json=payload()) for i in range(16)
+            ])
+            assert all(response.status_code == 405 for response in responses)
+            assert (await client.post("/threads/excess/runs", json=payload())).status_code == 429
+            assert calls == [1]
+            assert len(runtime._run_futures) == 1
+            assert runtime._executor._work_queue.qsize() == 0
+            release.set()
+            await asyncio.to_thread(runtime._run_futures[("occupied", run["run_id"])].result, 2)
+            polled = await client.get(f"/threads/occupied/runs/{run['run_id']}")
+            assert polled.json()["status"] == "success"
+    finally:
+        release.set()
+        runtime.close()
+
+
+@pytest.mark.asyncio
 async def test_cancelled_accounting_callback_retains_physical_scope_until_actual_end():
     scope, started, release, drained = PhysicalRunScope(), Event(), Event(), Event()
     token = active_physical_run_scope.set(scope)

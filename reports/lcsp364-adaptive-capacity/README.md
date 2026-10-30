@@ -1,9 +1,13 @@
 # LCSP-364 engineering report — A–K
 
 Verdict: **BLOCKED for production acceptance and merge**. Implementation is in
-[draft PR #442](https://github.com/khov4nfs/LCSP/pull/442), targeting develop.
+[PR #442](https://github.com/khov4nfs/LCSP/pull/442), targeting develop.
 This report distinguishes provider-free local proof from unexecuted production
 canaries. Jira remains In Progress; no merge or Done transition is authorized here.
+The review on `b360cfb30` requested changes and confirmed GitHub `isDraft=false`;
+the PR remains open under the normal review workflow. Earlier Draft wording was
+capture-time metadata. [Review regressions](review-regressions.md) records both P1
+fixes and new provider-free evidence; exact new-head CI/approval status is on the PR.
 
 ## A. Baseline and implementation
 
@@ -250,7 +254,7 @@ existing data, and requires physical drain before replacement.
 | Production canary A–G | Not executed | BLOCKED by resource preflight/activation |
 | Rollback H | Local policy/drain checks only | BLOCKED: production rollback unexecuted |
 | PR CI | Exact final HEAD checks must be inspected on PR | BLOCKED at report capture |
-| Independent review | Required normal repository review | BLOCKED; no approval/merge/Done claimed |
+| Independent review | Changes requested on b360cfb30; P1 follow-up documented | BLOCKED pending independent re-review; no approval/merge/Done claimed |
 
 This is a reviewable implementation with measured provider-free evidence. It is
 **not an accepted production release**. Resolve resource/first-activation gates,

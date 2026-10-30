@@ -42,6 +42,9 @@ submissions and Agent Server submissions remain bounded. Broker channel credit
 remains bounded by physical bridge capacity, independent of effective Root
 capacity; refusal is a confirmed durable delay without a failure retry attempt.
 Other boundary types keep their existing bounded path.
+The unused synchronous `runs/wait` compatibility route is removed. All HTTP
+execution enters the tracked create/poll/cancel lifecycle; concurrent compatibility
+requests cannot acquire compute outside physical capacity or bypass drain.
 
 ## Physical capacity, drain and recovery
 
@@ -84,6 +87,10 @@ transport request remains eligible for the established broker retry. Fair admiss
 admission and then oldest eligible request. It sees durable demand beyond the
 current RabbitMQ delivery window, preventing a large customer's queue prefix
 from hiding another customer's work. It schedules independent Assessments only.
+Eligibility is checked by exact Assessment/command independently of the bounded
+fairness window. An eligible out-of-order delivery is deferred rather than ACKed
+as obsolete. Admission selects only the fair head and aggregates owner history
+once, so large backlogs do not multiply history scans while holding global authority.
 
 ## Rejected alternatives and limits
 

@@ -1,8 +1,8 @@
 """LCSP-owned LangGraph HTTP runtime for the production Agent Server service.
 
 This server intentionally implements only the LangGraph SDK surface LCSP uses:
-thread creation, asynchronous run create/poll/cancel, synchronous wait
-compatibility, and thread state reads. It keeps the native Deep Agents/LangGraph
+thread creation, asynchronous run create/poll/cancel, and thread state reads.
+It keeps the native Deep Agents/LangGraph
 graph as the runtime authority while avoiding the licensed
 ``langchain/langgraph-api`` image for Fogewise production.
 """
@@ -465,14 +465,6 @@ class LocalAgentRuntime:
                     self._cancel_events.pop(key, None)
                     self._run_payloads.pop(key, None)
 
-    def wait_for_run(self, thread_id: str, payload: Mapping[str, Any]) -> Any:
-        """Synchronous SDK-compatible wait. No run id is tracked on this path, so
-        it cannot be cancelled mid-flight — only the async create/poll/cancel path
-        (``create_run``/``_execute_run``) supports cooperative interruption."""
-        with self._database_thread_lock(thread_id):
-            result, _interrupted = self._run_graph(thread_id, payload, cancel_event=None)
-        return _json_ready(result)
-
     def _stored_runs(self, thread_id: str | None = None):
         namespace = (RUN_NAMESPACE, thread_id) if thread_id else (RUN_NAMESPACE,)
         offset = 0
@@ -914,26 +906,6 @@ async def get_thread(request: Request) -> JSONResponse:
     return JSONResponse(_json_ready(thread))
 
 
-async def wait_for_run(request: Request) -> JSONResponse:
-    runtime: LocalAgentRuntime = request.app.state.runtime
-    thread_id = request.path_params["thread_id"]
-    payload = await request.json()
-    try:
-        result = await anyio.to_thread.run_sync(runtime.wait_for_run, thread_id, payload)
-    except PermissionError:
-        return JSONResponse({"error": "thread not found"}, status_code=404)
-    except Exception as exc:
-        logger.exception("LCSP local Agent Server run failed")
-        return JSONResponse(
-            {
-                "error": type(exc).__name__,
-                "detail": str(exc),
-            },
-            status_code=500,
-        )
-    return JSONResponse(_json_ready(result))
-
-
 async def create_run(request: Request) -> JSONResponse:
     """Business purpose: Expose bounded asynchronous native submission to the existing SDK.
 
@@ -1100,7 +1072,6 @@ app = Starlette(
         Route("/threads/{thread_id}", get_thread, methods=["GET"]),
         Route("/threads/{thread_id}/runs", create_run, methods=["POST"]),
         Route("/threads/{thread_id}/runs", list_runs, methods=["GET"]),
-        Route("/threads/{thread_id}/runs/wait", wait_for_run, methods=["POST"]),
         Route(
             "/threads/{thread_id}/runs/{run_id}",
             get_run,

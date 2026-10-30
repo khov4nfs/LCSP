@@ -5,6 +5,12 @@ native execution; several RabbitMQ bridges may use it. Never start a second Agen
 Server or change its lock path to bypass a running instance. Native researcher
 concurrency remains one. No capacity setting bypasses legal, budget or report gates.
 
+The LCSP SDK integration uses run create/poll/cancel. The unsupported synchronous
+`POST /threads/{thread_id}/runs/wait` compatibility route has been removed in all
+modes and returns HTTP 405. It had no tracked Future, physical slot or drain check.
+Do not route graph execution through an untracked synchronous call; use the
+existing bounded asynchronous lifecycle, including global admission for Roots.
+
 ## Configuration
 
 `LCSP_ROOT_CAPACITY_POLICY` seeds **only the first database row**, as validated JSON.
@@ -88,6 +94,10 @@ cancelled transport tombstone and admission history instead of cascading physica
 slots away. Explicit replay resets only quiescent admission intent; a live Root
 retains its slot. Accepted decisions, legal pins, checkpoint ancestry and usage
 are never cleared by these transport actions.
+An eligible command outside the bounded fairness window is deferred, never
+classified obsolete because of rank. Exact command/lifecycle eligibility is
+checked independently; only a superseded, consumed or ineligible command may
+take the obsolete ACK path. Owner history is aggregated once for fair selection.
 
 ## Drain, deployment and first activation
 
