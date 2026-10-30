@@ -1,9 +1,9 @@
 import type { MessageKey } from "@lcsp/i18n";
 import {
+  ActivityIcon,
   BookOpenIcon,
   LayoutDashboardIcon,
   UsersIcon,
-  ActivityIcon,
   WalletCardsIcon,
 } from "lucide-react";
 
@@ -12,6 +12,11 @@ export const ADMIN_NAV_ITEMS = [
     href: "/admin",
     labelKey: "pages.admin.sidebar.navOverview",
     icon: LayoutDashboardIcon,
+  },
+  {
+    href: "/admin/tracking",
+    labelKey: "pages.workspace.tracking.adminTitle",
+    icon: ActivityIcon,
   },
   {
     href: "/admin/users",

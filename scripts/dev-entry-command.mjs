@@ -10,6 +10,7 @@ export function buildCommandInvocation(
   {
     platform = process.platform,
     execPath = process.execPath,
+    pathEnv = process.env.PATH ?? process.env.Path ?? "",
     fileExists = existsSync,
   } = {},
 ) {
@@ -25,11 +26,37 @@ export function buildCommandInvocation(
     "dist",
     "pnpm.js",
   );
-  if (!fileExists(pnpmCli)) {
-    throw new Error(
-      "[dev] Corepack pnpm.js could not be resolved from the active Node installation.",
-    );
+  if (fileExists(pnpmCli)) {
+    return { command: execPath, args: [pnpmCli, ...args] };
   }
 
-  return { command: execPath, args: [pnpmCli, ...args] };
+  for (const rawDirectory of pathEnv.split(pathApi.delimiter)) {
+    const directory = rawDirectory.trim().replace(/^"(.*)"$/u, "$1");
+    if (!directory) continue;
+
+    const globalPnpmExe = pathApi.join(
+      directory,
+      "node_modules",
+      "pnpm",
+      "pnpm.exe",
+    );
+    if (fileExists(globalPnpmExe)) {
+      return { command: globalPnpmExe, args: [...args] };
+    }
+
+    const globalPnpmCli = pathApi.join(
+      directory,
+      "node_modules",
+      "pnpm",
+      "bin",
+      "pnpm.cjs",
+    );
+    if (fileExists(globalPnpmCli)) {
+      return { command: execPath, args: [globalPnpmCli, ...args] };
+    }
+  }
+
+  throw new Error(
+    "[dev] pnpm could not be resolved. Install Corepack with pnpm or add a global pnpm installation to PATH.",
+  );
 }

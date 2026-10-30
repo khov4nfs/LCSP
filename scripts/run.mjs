@@ -886,6 +886,8 @@ function dockerWorkerEnv() {
       rootEnv.LCSP_LANGSMITH_TRACING ??
       "false",
     LCSP_GRAPH_STORAGE_PATH: "/app/deepagents/tmp",
+    LCSP_AGENT_SERVER_GENERATION_URL: "http://127.0.0.1:2024",
+    LCSP_AGENT_SERVER_GENERATION_STARTED_AT: new Date().toISOString(),
     ...(dockerModelRoutesFile()
       ? { LCSP_MODEL_ROUTES_FILE: dockerModelRoutesTarget }
       : {}),
