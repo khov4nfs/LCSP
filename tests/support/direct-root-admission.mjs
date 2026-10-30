@@ -91,55 +91,55 @@ export function directRootAdmissionFixture({
   }
 
   async function report() {
-    const work = reporting.then(async () => {
-      const live = await q(
-        'SELECT "runId" FROM "AssessmentRootExecutionSlot" WHERE "releasedAt" IS NULL',
-      );
-      const sampledAt = new Date().toISOString();
-      await call("report", {
-        liveRunIds: live.map((s) => s.runId),
-        metrics: {
-          sampledAt,
-          source: ROOT_CAPACITY_METRIC_SOURCES.runtime,
-          workerSlots: 64,
-          serverSlots: 64,
-          activeNativeRuns: 0,
-          activeNativeRoots: 0,
-          reservedRootRuns: live.length,
-          draining: false,
-          cpuPressure: 0,
-          memoryAvailableBytes: 1024 ** 4,
-          cgroupMemoryAvailableBytes: 1024 ** 4,
-          cgroupMemoryLimitBytes: 2 * 1024 ** 4,
-          cgroupCpuLimitCores: 64,
-          cgroupObserved: true,
-          processRssBytes: 1,
-          diskAvailableBytes: 1024 ** 4,
-          diskPressure: 0,
-          sandboxMemoryBytes: 0,
-          largestSandboxMemoryBytes: 0,
-          sandboxCpuCores: 0,
-          activeSandboxes: 0,
-          sandboxSamples: [],
-          brokerReady: 0,
-          brokerUnacknowledged: 0,
-          brokerOtherReady: 0,
-          brokerObservedAt: sampledAt,
-          brokerSource: ROOT_CAPACITY_METRIC_SOURCES.broker,
-          checkpointLatencyMs: 0,
-          checkpointFailureRate: 0,
-          checkpointObservedAt: sampledAt,
-          provider429Count: 0,
-          budgetDenialCount: 0,
-        },
-      });
-      await new Promise((resolve) => setTimeout(resolve, 2));
+    const live = await q(
+      'SELECT "runId" FROM "AssessmentRootExecutionSlot" WHERE "releasedAt" IS NULL',
+    );
+    const sampledAt = new Date().toISOString();
+    await call("report", {
+      liveRunIds: live.map((s) => s.runId),
+      metrics: {
+        sampledAt,
+        source: ROOT_CAPACITY_METRIC_SOURCES.runtime,
+        workerSlots: 64,
+        serverSlots: 64,
+        activeNativeRuns: 0,
+        activeNativeRoots: 0,
+        reservedRootRuns: live.length,
+        draining: false,
+        cpuPressure: 0,
+        memoryAvailableBytes: 1024 ** 4,
+        cgroupMemoryAvailableBytes: 1024 ** 4,
+        cgroupMemoryLimitBytes: 2 * 1024 ** 4,
+        cgroupCpuLimitCores: 64,
+        cgroupObserved: true,
+        processRssBytes: 1,
+        diskAvailableBytes: 1024 ** 4,
+        diskPressure: 0,
+        sandboxMemoryBytes: 0,
+        largestSandboxMemoryBytes: 0,
+        sandboxCpuCores: 0,
+        activeSandboxes: 0,
+        sandboxSamples: [],
+        brokerReady: 0,
+        brokerUnacknowledged: 0,
+        brokerOtherReady: 0,
+        brokerObservedAt: sampledAt,
+        brokerSource: ROOT_CAPACITY_METRIC_SOURCES.broker,
+        checkpointLatencyMs: 0,
+        checkpointFailureRate: 0,
+        checkpointObservedAt: sampledAt,
+        provider429Count: 0,
+        budgetDenialCount: 0,
+      },
     });
-    reporting = work.catch(() => {});
-    return work;
+    await new Promise((resolve) => setTimeout(resolve, 2));
   }
 
-  async function prepare(assessmentId, body = {}, { manual = false } = {}) {
+  async function prepareOwned(
+    assessmentId,
+    body = {},
+    { manual = false } = {},
+  ) {
     await initialize();
     const previousManual = manualRuns.get(assessmentId);
     const [state] = await q(
@@ -210,6 +210,14 @@ export function directRootAdmissionFixture({
     });
     if (manual && reservation.admitted) manualRuns.set(assessmentId, runId);
     return { ...body, runtimeRunId: runId };
+  }
+
+  function prepare(...args) {
+    // Match the real server's submission lock: report and reserve must share one
+    // serialized snapshot, otherwise a concurrent fixture report can release a just-created slot.
+    const work = reporting.then(() => prepareOwned(...args));
+    reporting = work.catch(() => {});
+    return work;
   }
 
   async function release(runId) {
