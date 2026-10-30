@@ -28,6 +28,7 @@ export const AUTH_AUDIT_EVENT_TYPES = {
   authOauthStart: "AUTH_OAUTH_START",
   authOauthLoginSuccess: "AUTH_OAUTH_LOGIN_SUCCESS",
   authOauthLoginFailed: "AUTH_OAUTH_LOGIN_FAILED",
+  authMfaRotationExpired: "AUTH_MFA_ROTATION_EXPIRED",
 } as const;
 
 export type AuthAuditEventType =
@@ -45,6 +46,7 @@ export const AUTH_LEGACY_AUDIT_EVENT_TYPES = {
   mfaVerified: "auth.mfa.verified",
   mfaFailed: "auth.mfa.failed",
   mfaRateLimited: "auth.mfa.rate_limited",
+  mfaRotationExpired: "auth.mfa.rotation_expired",
   mfaRecoveryCodesGenerated: "auth.mfa.recovery_codes.generated",
   mfaRecoveryCodeViewed: "auth.mfa.recovery_code.viewed",
   mfaRecoveryCodeDownloaded: "auth.mfa.recovery_code.downloaded",
@@ -79,6 +81,8 @@ export const LEGACY_AUTH_AUDIT_EVENT_TYPE_ALIASES: Record<string, string> = {
     AUTH_AUDIT_EVENT_TYPES.authMfaOtpVerified,
   [AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaFailed]:
     AUTH_AUDIT_EVENT_TYPES.authMfaOtpFailed,
+  [AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRotationExpired]:
+    AUTH_AUDIT_EVENT_TYPES.authMfaRotationExpired,
   [AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodesGenerated]:
     AUTH_AUDIT_EVENT_TYPES.authMfaRecoveryCodesGenerated,
   [AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeViewed]:

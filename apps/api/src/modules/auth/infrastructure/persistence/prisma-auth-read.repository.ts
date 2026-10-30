@@ -209,7 +209,7 @@ export class PrismaAuthReadRepository implements AuthReadRepository {
     ) {
       return null;
     }
-    return authRecordMetadataDate(record, "sensitiveActionVerifiedAt");
+    return authRecordMetadataDate(record, "passwordReauthenticatedAt");
   }
 }
 

@@ -9,6 +9,7 @@ import {
   type MfaRecoveryCodeAccessAction,
   type ProblemMeta,
   PROBLEM_KEYS,
+  REQUIRED_ACTIONS,
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
@@ -24,6 +25,7 @@ import {
   getProblemCode,
   getProblemMessageKeys,
   getProblemMeta,
+  getProblemRequiredAction,
 } from "./problem-envelope.ts";
 
 export type { MfaVerifyOutcome } from "./types/mfa-verify.types";
@@ -67,6 +69,7 @@ export type EnrollMfaOutcome =
       recoveryCodes: string[];
     }
   | { kind: typeof API_OUTCOME_KINDS.mfaRequired }
+  | { kind: typeof API_OUTCOME_KINDS.reauthRequired }
   | { kind: typeof API_OUTCOME_KINDS.sessionInvalid }
   | {
       kind: typeof API_OUTCOME_KINDS.error;
@@ -85,6 +88,7 @@ export type MfaRecoveryCodeAccessOutcome =
 export type DisableMfaOutcome =
   | { kind: typeof API_OUTCOME_KINDS.disabled }
   | { kind: typeof API_OUTCOME_KINDS.mfaRequired }
+  | { kind: typeof API_OUTCOME_KINDS.reauthRequired }
   | { kind: typeof API_OUTCOME_KINDS.sessionInvalid }
   | {
       kind: typeof API_OUTCOME_KINDS.error;
@@ -317,6 +321,27 @@ export function toSignUpOutcome(
   }
 }
 
+/**
+ * Business purpose: Map an MFA OTP or recovery-code verification API response to a typed UI outcome.
+ *
+ * Business rules:
+ * - Successful API verification maps directly to the verified outcome.
+ * - Decryption failures (retryRecovery required action) map to an invalid outcome with targeted recovery instructions.
+ * - Expired MFA enrollment candidates map to mfaEnrollmentExpired with a restartEnrollment action instructing the user to restart setup.
+ * - Step-up reauthentication requirements map to reauthRequired without falsely invalidating the session.
+ * - Rate limiting, invalid codes, and session errors map to discrete domain-level error states.
+ *
+ * Execution flow:
+ * 1. Check if the HTTP response indicates success.
+ * 2. If rejected, extract problem code and required action metadata.
+ * 3. Return matching typed MfaVerifyOutcome variant with localized message keys.
+ *
+ * Failure cases:
+ * - Unrecognized failures fall back to a generic request failed outcome.
+ *
+ * Side effects:
+ * - None: pure mapping function.
+ */
 export function toMfaVerifyOutcome(
   payload: unknown,
   ok: boolean,
@@ -324,6 +349,32 @@ export function toMfaVerifyOutcome(
 ): MfaVerifyOutcome {
   if (ok) {
     return { kind: API_OUTCOME_KINDS.verified };
+  }
+
+  if (
+    problemCode === AUTH_ERROR_CODES.mfaEnrollmentExpired ||
+    getProblemRequiredAction(payload) === REQUIRED_ACTIONS.restartEnrollment
+  ) {
+    return {
+      kind: API_OUTCOME_KINDS.mfaEnrollmentExpired,
+      requiredAction: REQUIRED_ACTIONS.restartEnrollment,
+      titleKey: "pages.mfaVerify.enrollmentExpiredTitle",
+      detailKey: "pages.mfaVerify.enrollmentExpiredDetail",
+    };
+  }
+
+  if (problemCode === AUTH_ERROR_CODES.reauthRequired) {
+    const action = getProblemRequiredAction(payload);
+    const requiredAction =
+      action && action !== REQUIRED_ACTIONS.none
+        ? action
+        : REQUIRED_ACTIONS.reauthenticate;
+    return {
+      kind: API_OUTCOME_KINDS.reauthRequired,
+      requiredAction,
+      titleKey: "auth.errors.reauthRequired.title",
+      detailKey: "auth.errors.reauthRequired.detail",
+    };
   }
 
   if (problemCode === AUTH_ERROR_CODES.sessionInvalid) {
@@ -340,8 +391,20 @@ export function toMfaVerifyOutcome(
     return { kind: API_OUTCOME_KINDS.mfaRequired };
   }
   if (problemCode === AUTH_ERROR_CODES.mfaInvalid) {
+    const requiredAction = getProblemRequiredAction(payload);
+    if (requiredAction === REQUIRED_ACTIONS.retryRecovery) {
+      return {
+        kind: API_OUTCOME_KINDS.invalid,
+        requiredAction,
+        titleKey: "pages.mfaVerify.errors.secretUnavailableTitle",
+        detailKey: "pages.mfaVerify.errors.secretUnavailableDetail",
+      };
+    }
     return {
       kind: API_OUTCOME_KINDS.invalid,
+      ...(requiredAction && requiredAction !== REQUIRED_ACTIONS.none
+        ? { requiredAction }
+        : {}),
       titleKey: "auth.errors.mfaInvalid.title",
       detailKey: "auth.errors.mfaInvalid.detail",
     };
@@ -384,6 +447,26 @@ export async function verifyMfaRecoveryCode(
   return toMfaVerifyOutcome(payload, ok, problemCode);
 }
 
+/**
+ * Business purpose: Map raw MFA enrollment API response into strongly typed client outcomes.
+ *
+ * Business rules:
+ * - Successful responses must yield loaded outcome with TOTP URI and recovery codes.
+ * - Session invalid, MFA required, and reauth required are mapped to discrete UI outcome kinds.
+ * - Generic problem responses extract localized title and detail keys.
+ *
+ * Execution flow:
+ * 1. Check success response and presence of totp_uri string.
+ * 2. Check problemCode for sessionInvalid, mfaRequired, and reauthRequired.
+ * 3. Extract localized problem keys if available.
+ * 4. Fallback to generic requestFailed outcome.
+ *
+ * Failure cases:
+ * - Non-200 responses map to typed failure outcomes without throwing.
+ *
+ * Side effects:
+ * - None: pure mapping function.
+ */
 export function toEnrollMfaOutcome(
   payload: unknown,
   ok: boolean,
@@ -417,6 +500,10 @@ export function toEnrollMfaOutcome(
 
   if (problemCode === AUTH_ERROR_CODES.mfaRequired) {
     return { kind: API_OUTCOME_KINDS.mfaRequired };
+  }
+
+  if (problemCode === AUTH_ERROR_CODES.reauthRequired) {
+    return { kind: API_OUTCOME_KINDS.reauthRequired };
   }
 
   const problemKeys = getProblemMessageKeys(payload);
@@ -474,6 +561,26 @@ export async function recordMfaRecoveryCodeAccess(
 
 export { MFA_RECOVERY_CODE_ACCESS_ACTIONS };
 
+/**
+ * Business purpose: Map raw MFA disable API response into strongly typed client outcomes.
+ *
+ * Business rules:
+ * - Successful delete responses yield disabled outcome.
+ * - Session invalid, MFA required, and reauth required map to discrete UI outcome kinds.
+ * - Other problems extract localized title and detail keys.
+ *
+ * Execution flow:
+ * 1. Check success response.
+ * 2. Check problemCode for sessionInvalid, mfaRequired, and reauthRequired.
+ * 3. Extract localized problem keys if available.
+ * 4. Fallback to generic disableFailed outcome.
+ *
+ * Failure cases:
+ * - Non-200 responses map to typed failure outcomes without throwing.
+ *
+ * Side effects:
+ * - None: pure mapping function.
+ */
 export function toDisableMfaOutcome(
   payload: unknown,
   ok: boolean,
@@ -489,6 +596,10 @@ export function toDisableMfaOutcome(
 
   if (problemCode === AUTH_ERROR_CODES.mfaRequired) {
     return { kind: API_OUTCOME_KINDS.mfaRequired };
+  }
+
+  if (problemCode === AUTH_ERROR_CODES.reauthRequired) {
+    return { kind: API_OUTCOME_KINDS.reauthRequired };
   }
 
   const problemKeys = getProblemMessageKeys(payload);

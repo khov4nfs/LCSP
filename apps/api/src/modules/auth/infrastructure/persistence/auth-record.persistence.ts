@@ -40,12 +40,19 @@ export function authRecordMetadataDate(
   record: Pick<AuthRecord, "metadata">,
   key: string,
 ): Date | null {
-  const value = authRecordMetadataString(record, key);
-  if (!value) {
+  const value = authRecordMetadata(record.metadata)[key];
+  if (value === null || value === undefined) {
     return null;
   }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value === "string") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  return null;
 }
 
 export function authRecordDateMetadata(value: number | null): string | null {
@@ -82,6 +89,10 @@ export async function invalidateSessionProofsInTx(
       || jsonb_build_object(
         'mfaVerifiedAt', NULL,
         'sensitiveActionVerifiedAt', NULL,
+        'passwordReauthenticatedAt', NULL,
+        'candidateMfaEnrollment', NULL,
+        'mfaRotationInitiator', NULL,
+        'mfaRotationGenerationId', NULL,
         'mfaGenerationId', ${nextGenerationId}::text
       ),
       "updatedAt" = (NOW() AT TIME ZONE 'UTC')

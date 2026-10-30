@@ -1,4 +1,5 @@
 import {
+  AUTH_AUDIT_EVENT_TYPES,
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
@@ -586,6 +587,15 @@ describe("Auth workspace (e2e)", () => {
       .send({ session_token: signIn.session_token, otp })
       .expect(201);
 
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({
+        session_token: signIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     const generated = await httpRequest(app)
       .post("/auth/mfa/recovery-codes")
       .set("Authorization", `Bearer ${signIn.session_token}`)
@@ -642,7 +652,15 @@ describe("Auth workspace (e2e)", () => {
       orderBy: { id: "asc" },
     });
     const auditCount = await mfaBusinessAuditCount();
-    assert.equal(activeBefore.length, 10);
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({
+        session_token: signedIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     const spy = jest
       .spyOn(app.get(AuthAuditService), "writeInTx")
       .mockRejectedValueOnce(new Error("test MFA code audit failure"));
@@ -685,6 +703,14 @@ describe("Auth workspace (e2e)", () => {
     await httpRequest(app)
       .post("/auth/mfa/verify-otp")
       .send({ session_token: signedIn.session_token, otp })
+      .expect(201);
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signedIn.session_token}`)
+      .send({
+        session_token: signedIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
       .expect(201);
     const results = await Promise.all([
       httpRequest(app)
@@ -910,7 +936,7 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaRateLimited);
   });
 
-  it("undecryptable MFA secrets redirect verification back to enrollment", async () => {
+  it("undecryptable MFA secrets fail verification safely and suggest recovery code retry without enrollment bounce", async () => {
     const originalKey = process.env.MFA_SECRET_ENCRYPTION_KEY;
     process.env.MFA_SECRET_ENCRYPTION_KEY = "1".repeat(64);
     const signIn = await signInApprovedUser();
@@ -926,7 +952,11 @@ describe("Auth workspace (e2e)", () => {
         .expect(403);
 
       const failure = expectFailure(result.body);
-      assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaRequired);
+      assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaInvalid);
+      assert.equal(
+        failure.problem.requiredAction,
+        REQUIRED_ACTIONS.retryRecovery,
+      );
     } finally {
       process.env.MFA_SECRET_ENCRYPTION_KEY = originalKey;
     }
@@ -937,6 +967,10 @@ describe("Auth workspace (e2e)", () => {
     process.env.MFA_SECRET_ENCRYPTION_KEY = "1".repeat(64);
     const signIn = await signInApprovedUser();
     await seedMfaEnrollment(prisma, fixture.approvedUser.id);
+    await prisma.user.update({
+      where: { id: fixture.approvedUser.id },
+      data: { mfaVerifiedAt: new Date() },
+    });
     const oldUser = await prisma.user.findUniqueOrThrow({
       where: { id: fixture.approvedUser.id },
     });
@@ -1124,20 +1158,50 @@ describe("Auth workspace (e2e)", () => {
   // Review follow-ups: MFA hardening, mandatory-MFA policy, profile safety, recovery flow
 
   it("re-enrolling MFA requires a verified session so a stolen pre-MFA session cannot replace the secret", async () => {
-    const signIn = await signInApprovedUser();
-    await httpRequest(app)
+    const sessionA = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
       .post("/auth/mfa/enroll")
-      .set("Authorization", `Bearer ${signIn.session_token}`)
-      .send({ session_token: signIn.session_token })
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({ session_token: sessionA.session_token })
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(enrolled);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(totpSecretFromUri(s1.totp_uri), Date.now()),
+      })
       .expect(201);
 
+    const stolenPreMfaSession = await signInApprovedUser();
     const reEnroll = await httpRequest(app)
       .post("/auth/mfa/enroll")
-      .set("Authorization", `Bearer ${signIn.session_token}`)
-      .send({ session_token: signIn.session_token })
+      .set("Authorization", `Bearer ${stolenPreMfaSession.session_token}`)
+      .send({ session_token: stolenPreMfaSession.session_token })
       .expect(403);
 
     assert.equal(problemCode(reEnroll), AUTH_ERROR_CODES.mfaRequired);
+  });
+
+  it("initial enrollment abandoned before OTP verification allows safely restarting setup", async () => {
+    const session = await signInApprovedUser();
+    const firstEnroll = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(firstEnroll);
+    assert.ok(s1.totp_uri);
+
+    // Abandoned setup: user restarts enrollment without verifying OTP
+    const restartEnroll = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(201);
+    const s2 = successBody<EnrollMfaSuccess>(restartEnroll);
+    assert.ok(s2.totp_uri);
+    assert.ok(s2.recovery_codes.length > 0);
   });
 
   it("rotation revokes S1 recovery codes and step-up proofs across A/B/C sessions", async () => {
@@ -1181,6 +1245,14 @@ describe("Auth workspace (e2e)", () => {
     }
 
     const sessionC = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
     const replacement = await httpRequest(app)
       .post("/auth/mfa/enroll")
       .set("Authorization", `Bearer ${sessionA.session_token}`)
@@ -1188,82 +1260,34 @@ describe("Auth workspace (e2e)", () => {
     const s2 = successBody<EnrollMfaSuccess>(replacement);
     assert.ok(s2.recovery_codes.length > 0);
     assert.notEqual(s2.recovery_codes[0], oldCode);
-    const generationS2 = (
+    // In staged rotation, calling enroll stages candidate S2; active generation remains S1
+    const currentGen = (
       await prisma.user.findUniqueOrThrow({
         where: { id: fixture.approvedUser.id },
       })
     ).mfaGenerationId;
-    assert.notEqual(generationS1, generationS2);
+    assert.equal(generationS1, currentGen);
 
-    // A rotation must invalidate every session's proof in the same commit.
-    const sessionRecords = await prisma.authRecord.findMany({
-      where: {
-        userId: fixture.approvedUser.id,
-        type: AUTH_RECORD_TYPE.session,
-      },
-    });
-    assert.ok(sessionRecords.length >= 3);
-    for (const record of sessionRecords) {
-      assert.equal(authRecordMetadataString(record, "mfaVerifiedAt"), null);
-      assert.equal(
-        authRecordMetadataString(record, "sensitiveActionVerifiedAt"),
-        null,
-      );
-      assert.equal(
-        authRecordMetadataString(record, "mfaGenerationId"),
-        generationS2,
-      );
-    }
-
-    for (const token of [
-      sessionA.session_token,
-      sessionB.session_token,
-      sessionC.session_token,
-    ]) {
-      const denied = await httpRequest(app)
-        .get("/auth/profile")
-        .set("Authorization", `Bearer ${token}`)
-        .expect(401);
-      assert.equal(problemCode(denied), AUTH_ERROR_CODES.mfaRequired);
-    }
-
-    const pendingSensitive = await httpRequest(app)
-      .post("/auth/sensitive-route/check")
-      .set("Authorization", `Bearer ${sessionB.session_token}`)
-      .send({ method: "POST", path: "/auth/mfa/recovery-codes" })
-      .expect(200);
+    // Candidate recovery codes cannot prove S1 and cannot be used before S2 OTP verification
+    const candidateCodeBlocked = await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({
+        session_token: sessionC.session_token,
+        code: s2.recovery_codes[0],
+      })
+      .expect(403);
     assert.equal(
-      successBody<{ reauth_required: boolean }>(pendingSensitive)
-        .reauth_required,
-      true,
+      problemCode(candidateCodeBlocked),
+      AUTH_ERROR_CODES.mfaInvalid,
     );
 
-    // Password reauthentication is not a substitute for the pending S2 factor.
+    // Old recovery code is still usable while rotation is pending candidate OTP
     await httpRequest(app)
-      .post("/auth/re-auth/password")
-      .set("Authorization", `Bearer ${sessionB.session_token}`)
-      .send({ password: "CorrectHorseBatteryStaple!" })
+      .post("/auth/mfa/recovery-code/verify")
+      .send({ session_token: sessionC.session_token, code: oldCode })
       .expect(201);
-    const afterPasswordOnly = await httpRequest(app)
-      .post("/auth/sensitive-route/check")
-      .set("Authorization", `Bearer ${sessionB.session_token}`)
-      .send({ method: "POST", path: "/auth/mfa/recovery-codes" })
-      .expect(200);
-    assert.equal(
-      successBody<{ reauth_required: boolean }>(afterPasswordOnly)
-        .reauth_required,
-      true,
-    );
 
-    // Neither the previous C1 nor the newly-issued C2 may prove S2 before OTP.
-    for (const code of [oldCode, s2.recovery_codes[0]]) {
-      const blocked = await httpRequest(app)
-        .post("/auth/mfa/recovery-code/verify")
-        .send({ session_token: sessionC.session_token, code })
-        .expect(403);
-      assert.equal(problemCode(blocked), AUTH_ERROR_CODES.mfaRequired);
-    }
-
+    // Now Session A verifies candidate S2 OTP -> Atomically promotes S2, advances generation, revokes old codes, invalidates other sessions
     await httpRequest(app)
       .post("/auth/mfa/verify-otp")
       .send({
@@ -1271,6 +1295,71 @@ describe("Auth workspace (e2e)", () => {
         otp: totpForTime(totpSecretFromUri(s2.totp_uri), Date.now()),
       })
       .expect(201);
+
+    const generationS2 = (
+      await prisma.user.findUniqueOrThrow({
+        where: { id: fixture.approvedUser.id },
+      })
+    ).mfaGenerationId;
+    assert.notEqual(generationS1, generationS2);
+
+    const sessionsRes = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(200);
+    const sessionList = successBody<AuthSessionsSuccess>(sessionsRes).sessions;
+    const sessionAId = sessionList.find((s) => s.is_current)!.id;
+
+    // Verify DB-level post-promotion metadata for initiating session A:
+    // password and sensitive action proofs are strictly NULL (not resurrected from S1)
+    const dbSessionA = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: sessionAId },
+    });
+    const metaA = dbSessionA.metadata as Record<string, unknown>;
+    assert.equal(metaA.passwordReauthenticatedAt, null);
+    assert.equal(metaA.sensitiveActionVerifiedAt, null);
+    assert.equal(metaA.mfaGenerationId, generationS2);
+    assert.ok(metaA.mfaVerifiedAt);
+
+    // Verify DB-level post-promotion metadata for other sessions B and C:
+    const otherSessions = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.session,
+        NOT: { id: sessionAId },
+      },
+    });
+    assert.equal(otherSessions.length >= 2, true);
+    for (const session of otherSessions) {
+      const meta = session.metadata as Record<string, unknown>;
+      assert.equal(meta.passwordReauthenticatedAt, null);
+      assert.equal(meta.sensitiveActionVerifiedAt, null);
+      assert.equal(meta.mfaGenerationId, generationS2);
+      assert.equal(meta.mfaVerifiedAt, null);
+    }
+
+    // Sensitive route check for Session A requires fresh re-authentication
+    const sensitiveCheckA = await httpRequest(app)
+      .post("/auth/sensitive-route/check")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({ method: "POST", path: "/auth/mfa/recovery-codes" })
+      .expect(200);
+    assert.equal(
+      successBody<{ reauth_required: boolean }>(sensitiveCheckA)
+        .reauth_required,
+      true,
+    );
+
+    // Invoking sensitive route without entering password on S2 is denied
+    const sensitiveCallDenied = await httpRequest(app)
+      .post("/auth/mfa/recovery-codes")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(403);
+    assert.equal(
+      problemCode(sensitiveCallDenied),
+      AUTH_ERROR_CODES.reauthRequired,
+    );
+
     const afterA = await httpRequest(app)
       .get("/auth/profile")
       .set("Authorization", `Bearer ${sessionA.session_token}`)
@@ -1280,18 +1369,23 @@ describe("Auth workspace (e2e)", () => {
       true,
     );
 
-    const staleB = await httpRequest(app)
-      .get("/auth/profile")
-      .set("Authorization", `Bearer ${sessionB.session_token}`)
-      .expect(401);
-    assert.equal(problemCode(staleB), AUTH_ERROR_CODES.mfaRequired);
+    // Session B and Session C proofs (for S1) are now invalidated
+    for (const token of [sessionB.session_token, sessionC.session_token]) {
+      const stale = await httpRequest(app)
+        .get("/auth/profile")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(401);
+      assert.equal(problemCode(stale), AUTH_ERROR_CODES.mfaRequired);
+    }
 
+    // Old code C1 is now permanently invalid
     const oldCodeRejected = await httpRequest(app)
       .post("/auth/mfa/recovery-code/verify")
       .send({ session_token: sessionC.session_token, code: oldCode })
       .expect(403);
     assert.equal(problemCode(oldCodeRejected), AUTH_ERROR_CODES.mfaInvalid);
 
+    // Session B elevates using newly-activated candidate recovery code
     await httpRequest(app)
       .post("/auth/mfa/recovery-code/verify")
       .send({
@@ -1339,6 +1433,16 @@ describe("Auth workspace (e2e)", () => {
         otp: totpForTime(secretS1, Date.now() + 30_000),
       })
       .expect(201);
+    for (const token of [a.session_token, b.session_token]) {
+      await httpRequest(app)
+        .post("/auth/re-auth/password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          session_token: token,
+          password: "CorrectHorseBatteryStaple!",
+        })
+        .expect(201);
+    }
 
     const responses = await Promise.all(
       [a.session_token, b.session_token].map((token) =>
@@ -1358,7 +1462,20 @@ describe("Auth workspace (e2e)", () => {
     const persisted = await prisma.user.findUniqueOrThrow({
       where: { id: fixture.approvedUser.id },
     });
-    assert.equal(persisted.mfaVerifiedAt, null);
+    assert.ok(persisted.mfaVerifiedAt !== null);
+
+    const winnerSession = winners[0] === responses[0] ? a : b;
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: winnerSession.session_token,
+        otp: totpForTime(totpSecretFromUri(winner.totp_uri), Date.now()),
+      })
+      .expect(201);
+
+    const updatedUser = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
     const rows = await prisma.authRecord.findMany({
       where: {
         userId: fixture.approvedUser.id,
@@ -1371,7 +1488,7 @@ describe("Auth workspace (e2e)", () => {
     for (const row of rows) {
       assert.equal(
         authRecordMetadataString(row, "mfaGenerationId"),
-        persisted.mfaGenerationId,
+        updatedUser.mfaGenerationId,
       );
     }
   });
@@ -1393,6 +1510,15 @@ describe("Auth workspace (e2e)", () => {
     const before = await prisma.user.findUniqueOrThrow({
       where: { id: fixture.approvedUser.id },
     });
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     const spy = jest
       .spyOn(app.get(AuthAuditService), "writeInTx")
       .mockRejectedValueOnce(new Error("test MFA rotation audit failure"));
@@ -1450,6 +1576,15 @@ describe("Auth workspace (e2e)", () => {
     const before = await prisma.user.findUniqueOrThrow({
       where: { id: fixture.approvedUser.id },
     });
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${a.session_token}`)
+      .send({
+        session_token: a.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
     await httpRequest(app)
       .delete("/auth/mfa")
       .set("Authorization", `Bearer ${a.session_token}`)
@@ -1511,6 +1646,674 @@ describe("Auth workspace (e2e)", () => {
       .expect(200);
 
     assert.equal(successBody<UpdateProfileSuccess>(result).ok, true);
+  });
+
+  it("disabling MFA requires fresh password re-auth and rejects when sensitive proof is missing (OTP alone does not grant password step-up)", async () => {
+    const session = await signInAndVerifyApprovedUser();
+
+    // Sensitive route check shows reauth is required (OTP alone does not set passwordReauthenticatedAt)
+    const beforeCheck = await httpRequest(app)
+      .post("/auth/sensitive-route/check")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ method: "DELETE", path: "/auth/mfa" })
+      .expect(200);
+    assert.equal(
+      (beforeCheck.body as { data?: { reauth_required?: unknown } }).data
+        ?.reauth_required,
+      true,
+    );
+
+    // Attempting to disable without password re-auth is denied with 403 REAUTH_REQUIRED
+    const denied = await httpRequest(app)
+      .delete("/auth/mfa")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .expect(403);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.reauthRequired);
+
+    // Re-authenticate password
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({
+        session_token: session.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Now disable succeeds
+    await httpRequest(app)
+      .delete("/auth/mfa")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .expect(200);
+  });
+
+  it("re-enrolling verified MFA requires fresh password re-auth and rejects OTP-only proof", async () => {
+    const session = await signInAndVerifyApprovedUser();
+
+    // Calling enroll immediately after OTP verification is rejected with REAUTH_REQUIRED
+    const denied = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(403);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.reauthRequired);
+
+    // Re-authenticate password
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({
+        session_token: session.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Now re-enroll succeeds and returns candidate TOTP URI
+    const replacement = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${session.session_token}`)
+      .send({ session_token: session.session_token })
+      .expect(201);
+    assert.ok(successBody<EnrollMfaSuccess>(replacement).totp_uri);
+  });
+
+  it("cross-session rotation protection: pending-MFA session cannot restart or hijack an in-progress replacement", async () => {
+    // User A signs in and verifies existing MFA factor (S1)
+    const sessionA = await signInAndVerifyApprovedUser();
+
+    // User A reauthenticates password
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // User A initiates MFA replacement (S1 -> S2)
+    const enrollResA = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({ session_token: sessionA.session_token })
+      .expect(201);
+    const candidateA = successBody<EnrollMfaSuccess>(enrollResA);
+    assert.ok(candidateA.totp_uri);
+    const candidateSecretA = totpSecretFromUri(candidateA.totp_uri);
+
+    // User A re-enters password while replacement is pending (must NOT erase candidate rotation fence)
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Attacker B knows the password and logs in, establishing a separate pending-MFA session
+    const sessionB = await signInApprovedUser();
+    assert.equal(sessionB.mfa_required, true);
+
+    // Attacker B attempts to call POST /auth/mfa/enroll to restart/replace S2 with S3
+    const attackerDenied = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({ session_token: sessionB.session_token })
+      .expect(403);
+    assert.equal(problemCode(attackerDenied), AUTH_ERROR_CODES.mfaRequired);
+
+    // Attacker B also tries with reauth password first
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({
+        session_token: sessionB.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Still denied because session B hasn't verified existing factor S1
+    const attackerDeniedAgain = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({ session_token: sessionB.session_token })
+      .expect(403);
+    assert.equal(
+      problemCode(attackerDeniedAgain),
+      AUTH_ERROR_CODES.mfaRequired,
+    );
+
+    // Genuine User A verifies candidate S2 OTP
+    const candidateOtpA = totpForTime(candidateSecretA, Date.now());
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: sessionA.session_token, otp: candidateOtpA })
+      .expect(201);
+
+    // User A can access protected profile
+    const profile = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(200);
+    assert.equal(successBody<{ ok: boolean }>(profile).ok, true);
+  });
+
+  it("abandoned replacement preserves active S1 factor and S1 recovery codes for new sign-in", async () => {
+    // User A signs in and sets up S1
+    const sessionA = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(enrolled);
+    const secretS1 = totpSecretFromUri(s1.totp_uri);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(secretS1, Date.now()),
+      })
+      .expect(201);
+
+    // User A reauthenticates password and starts factor replacement (staged S2)
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+    const replacement = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    assert.ok(successBody<EnrollMfaSuccess>(replacement).totp_uri);
+
+    // User A abandons replacement (closes tab/browser) without verifying S2 OTP.
+    // User signs in from a fresh device/session D with password:
+    const sessionD = await signInApprovedUser();
+    assert.equal(sessionD.mfa_required, true);
+
+    // S1 OTP is still completely valid!
+    const otpS1 = totpForTime(secretS1, Date.now() + 60_000);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: sessionD.session_token, otp: otpS1 })
+      .expect(201);
+    const profileD = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionD.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(profileD).mfa_verified,
+      true,
+    );
+
+    // Another new sign-in session E can also still recover using original S1 recovery code!
+    const sessionE = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/mfa/recovery-code/verify")
+      .send({
+        session_token: sessionE.session_token,
+        code: s1.recovery_codes[0],
+      })
+      .expect(201);
+    const profileE = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionE.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(profileE).mfa_verified,
+      true,
+    );
+  });
+
+  it("abandoned or expired rotation initiator session allows legitimate replacement from an authenticated verified session", async () => {
+    // 1. User sets up initial factor S1
+    const sessionA = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(enrolled);
+    const secretS1 = totpSecretFromUri(s1.totp_uri);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(secretS1, Date.now()),
+      })
+      .expect(201);
+
+    // 2. Session A re-authenticates password and initiates replacement (stages S2)
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+    await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+
+    // 3. Session A expires without verifying S2 OTP
+    const sessionsResA = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(200);
+    const sessionAId = successBody<AuthSessionsSuccess>(
+      sessionsResA,
+    ).sessions.find((s) => s.is_current)!.id;
+    await prisma.authRecord.update({
+      where: { id: sessionAId },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+
+    // 4. Session B signs in with password
+    const sessionB = await signInApprovedUser();
+    assert.equal(sessionB.mfa_required, true);
+
+    // 4a. Password-only session B (not verified with S1) attempting enroll is denied
+    const passwordOnlyDenied = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(403);
+    assert.equal(problemCode(passwordOnlyDenied), AUTH_ERROR_CODES.mfaRequired);
+
+    // 4b. Session B reauthenticates password but STILL has not verified S1 -> still denied
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({
+        session_token: sessionB.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+    const stepUpOnlyDenied = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(403);
+    assert.equal(problemCode(stepUpOnlyDenied), AUTH_ERROR_CODES.mfaRequired);
+
+    // 4c. Session B completes S1 OTP verification
+    const otpS1 = totpForTime(secretS1, Date.now() + 30_000);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: sessionB.session_token, otp: otpS1 })
+      .expect(201);
+
+    // Session B reauthenticates password (fresh step-up proof)
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({
+        session_token: sessionB.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // 4d. Now fully verified Session B can safely initiate replacement (stages S3)
+    const replacementB = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(201);
+    const s3 = successBody<EnrollMfaSuccess>(replacementB);
+    assert.ok(s3.totp_uri);
+    const secretS3 = totpSecretFromUri(s3.totp_uri);
+
+    // 4e. Session B verifies candidate S3 OTP
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionB.session_token,
+        otp: totpForTime(secretS3, Date.now()),
+      })
+      .expect(201);
+
+    // Session B is fully verified on S3
+    const profileB = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(profileB).mfa_verified,
+      true,
+    );
+  });
+
+  it("staged candidate factor expires after rotation TTL: valid candidate OTP rejected, active S1 preserved, and verified session B can replace factor", async () => {
+    // 1. User sets up initial factor S1
+    const sessionA = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(enrolled);
+    const secretS1 = totpSecretFromUri(s1.totp_uri);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(secretS1, Date.now()),
+      })
+      .expect(201);
+
+    const userAfterS1 = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    const s1GenerationId = userAfterS1.mfaGenerationId;
+    const s1Secret = userAfterS1.mfaEncryptedSecret;
+    assert.ok(s1GenerationId);
+    assert.ok(s1Secret);
+
+    // 2. Session A reauthenticates password and initiates replacement (stages S2)
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+    const replacementA = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s2 = successBody<EnrollMfaSuccess>(replacementA);
+    assert.ok(s2.totp_uri);
+    const secretS2 = totpSecretFromUri(s2.totp_uri);
+
+    // Get Session A's record ID and verify candidate is staged
+    const sessionsResA = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(200);
+    const sessionAId = successBody<AuthSessionsSuccess>(
+      sessionsResA,
+    ).sessions.find((s) => s.is_current)!.id;
+    const sessionARecord = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: sessionAId },
+    });
+    const sessionAMeta = (sessionARecord.metadata ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const candidateMeta = sessionAMeta.candidateMfaEnrollment as Record<
+      string,
+      unknown
+    >;
+    assert.ok(candidateMeta);
+    const s2GenerationId = candidateMeta.generationId as string;
+    assert.ok(s2GenerationId);
+    assert.notEqual(s2GenerationId, s1GenerationId);
+
+    // 3. Advance candidate enrollment timestamp beyond the 5-minute rotation TTL (6 minutes ago)
+    await prisma.authRecord.update({
+      where: { id: sessionAId },
+      data: {
+        metadata: {
+          ...sessionAMeta,
+          candidateMfaEnrollment: {
+            ...candidateMeta,
+            enrolledAt: Date.now() - 6 * 60_000,
+          },
+        },
+      },
+    });
+
+    // 4. Negative assertion: Session A attempts to verify S2 candidate OTP with a valid code.
+    // The candidate rotation has expired, so valid OTP must NOT promote candidate S2.
+    const validCandidateOtp = totpForTime(secretS2, Date.now());
+    const expiredVerifyRes = await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: validCandidateOtp,
+      })
+      .expect(403);
+    assert.equal(
+      problemCode(expiredVerifyRes),
+      AUTH_ERROR_CODES.mfaEnrollmentExpired,
+    );
+    const expiredProblem = (
+      expiredVerifyRes.body as { problem?: { requiredAction?: string } }
+    ).problem;
+    assert.equal(
+      expiredProblem?.requiredAction,
+      REQUIRED_ACTIONS.restartEnrollment,
+    );
+
+    // Assert structured audit receipt recorded atomically with cleanup
+    const expiryAuditEvents = await prisma.auditEvent.findMany({
+      where: {
+        actorId: fixture.approvedUser.id,
+        eventType: AUTH_AUDIT_EVENT_TYPES.authMfaRotationExpired,
+      },
+    });
+    assert.equal(expiryAuditEvents.length, 1);
+    assert.equal(expiryAuditEvents[0]?.decision, AUDIT_DECISIONS.deny);
+    assert.equal(
+      expiryAuditEvents[0]?.reasonCode,
+      AUTH_ERROR_CODES.mfaEnrollmentExpired,
+    );
+    const auditPayload = expiryAuditEvents[0]?.payload as Record<
+      string,
+      unknown
+    >;
+    assert.equal(auditPayload?.mfaGenerationId, s2GenerationId);
+
+    // Assert idempotency: retry with same OTP rejects without emitting a duplicate audit receipt
+    const secondVerifyRes = await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: validCandidateOtp,
+      })
+      .expect(403);
+    assert.equal(problemCode(secondVerifyRes), AUTH_ERROR_CODES.mfaInvalid);
+    const expiryAuditEventsAfterRetry = await prisma.auditEvent.findMany({
+      where: {
+        actorId: fixture.approvedUser.id,
+        eventType: AUTH_AUDIT_EVENT_TYPES.authMfaRotationExpired,
+      },
+    });
+    assert.equal(expiryAuditEventsAfterRetry.length, 1);
+
+    // 5. Invariant check: User MFA factor is still S1; candidate was NOT promoted
+    const userAfterExpiredAttempt = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(userAfterExpiredAttempt.mfaGenerationId, s1GenerationId);
+    assert.equal(userAfterExpiredAttempt.mfaEncryptedSecret, s1Secret);
+    assert.ok(userAfterExpiredAttempt.mfaVerifiedAt);
+
+    // Candidate metadata on Session A has been cleaned up under lock
+    const sessionACleaned = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: sessionAId },
+    });
+    const cleanedMeta = (sessionACleaned.metadata ?? {}) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(cleanedMeta.candidateMfaEnrollment, null);
+    assert.equal(cleanedMeta.mfaRotationInitiator, null);
+
+    // Unconfirmed candidate S2 recovery codes are revoked
+    const candidateCodes = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        metadata: {
+          path: ["mfaGenerationId"],
+          equals: s2GenerationId,
+        },
+      },
+    });
+    assert.ok(candidateCodes.length > 0);
+    for (const code of candidateCodes) {
+      assert.ok(
+        code.revokedAt !== null,
+        "Candidate recovery codes must be revoked on expiry",
+      );
+    }
+
+    // Active S1 recovery codes remain intact and unrevoked
+    const s1Codes = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        metadata: {
+          path: ["mfaGenerationId"],
+          equals: s1GenerationId,
+        },
+      },
+    });
+    assert.ok(s1Codes.length > 0);
+    for (const code of s1Codes) {
+      assert.equal(
+        code.revokedAt,
+        null,
+        "Active S1 recovery codes must remain unrevoked",
+      );
+    }
+
+    // 6. Active factor S1 is still usable for a new sign-in
+    const sessionC = await signInApprovedUser();
+    assert.equal(sessionC.mfa_required, true);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionC.session_token,
+        otp: totpForTime(secretS1, Date.now() + 30_000),
+      })
+      .expect(201);
+    const profileC = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionC.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(profileC).mfa_verified,
+      true,
+    );
+
+    // 7. Cross-session B replacement after A expiry:
+    // Session B signs in, verifies S1, reauthenticates password, and can initiate replacement
+    const sessionB = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionB.session_token,
+        otp: totpForTime(secretS1, Date.now() + 60_000),
+      })
+      .expect(201);
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({
+        session_token: sessionB.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Session B initiates replacement (stages S3) - succeeds because A's rotation is expired/cleared
+    const replacementB = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(201);
+    const s3 = successBody<EnrollMfaSuccess>(replacementB);
+    assert.ok(s3.totp_uri);
+    const secretS3 = totpSecretFromUri(s3.totp_uri);
+
+    // Session B verifies within TTL -> S3 is successfully promoted!
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionB.session_token,
+        otp: totpForTime(secretS3, Date.now()),
+      })
+      .expect(201);
+
+    const userAfterS3 = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.notEqual(userAfterS3.mfaGenerationId, s1GenerationId);
+    assert.notEqual(userAfterS3.mfaGenerationId, s2GenerationId);
+    assert.ok(userAfterS3.mfaVerifiedAt);
+  });
+
+  it("unverified initial enrollment can be safely restarted without password re-auth", async () => {
+    // Reset approved user to have no MFA configured
+    await prisma.user.update({
+      where: { id: fixture.approvedUser.id },
+      data: {
+        mfaEncryptedSecret: null,
+        mfaEnrolledAt: null,
+        mfaVerifiedAt: null,
+      },
+    });
+
+    const signIn = await signInApprovedUser();
+
+    // First enrollment attempt
+    const enroll1 = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({ session_token: signIn.session_token })
+      .expect(201);
+    const body1 = successBody<EnrollMfaSuccess>(enroll1);
+    assert.ok(body1.totp_uri);
+
+    // User abandons setup and restarts enrollment without verifying
+    const enroll2 = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({ session_token: signIn.session_token })
+      .expect(201);
+    const body2 = successBody<EnrollMfaSuccess>(enroll2);
+    assert.ok(body2.totp_uri);
+    const secret2 = totpSecretFromUri(body2.totp_uri);
+
+    // Verifying candidate 2 successfully activates MFA
+    const otp2 = totpForTime(secret2, Date.now());
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({ session_token: signIn.session_token, otp: otp2 })
+      .expect(201);
+
+    const user = await prisma.user.findUnique({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.ok(user?.mfaVerifiedAt);
+  });
+
+  it("pending-MFA session with successful password re-auth cannot rebind without factor proof (strict 2FA)", async () => {
+    await signInAndVerifyApprovedUser();
+    // New sign-in on MFA-enrolled user is pending MFA
+    const pendingSession = await signInApprovedUser();
+    assert.equal(pendingSession.mfa_required, true);
+
+    // Password re-auth succeeds
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${pendingSession.session_token}`)
+      .send({
+        session_token: pendingSession.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Attempting to enroll/rebind without MFA factor proof fails with MFA_REQUIRED
+    const denied = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${pendingSession.session_token}`)
+      .send({ session_token: pendingSession.session_token })
+      .expect(403);
+    assert.equal(problemCode(denied), AUTH_ERROR_CODES.mfaRequired);
   });
 
   it("profile update rejects a malformed recovery_email", async () => {
@@ -1776,6 +2579,15 @@ describe("Auth workspace (e2e)", () => {
     await httpRequest(app)
       .post("/auth/mfa/verify-otp")
       .send({ session_token: signIn.session_token, otp })
+      .expect(201);
+
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({
+        session_token: signIn.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
       .expect(201);
 
     const response = await httpRequest(app)

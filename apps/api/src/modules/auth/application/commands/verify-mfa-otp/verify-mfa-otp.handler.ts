@@ -2,6 +2,7 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
+  REQUIRED_ACTIONS,
 } from "@lcsp/contracts/auth";
 import { Inject, Logger } from "@nestjs/common";
 
@@ -71,10 +72,26 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
   ) {}
 
   /**
-   * Executes TOTP OTP verification.
+   * Business purpose: Verify time-based one-time password (OTP) and elevate the session to MFA-verified.
    *
-   * @param command - Contains sessionToken, otp code, and request correlation metadata.
-   * @returns Success response with correlation ID.
+   * Business rules:
+   * - Session must be active and unexpired.
+   * - Must not exceed failed attempt rate limits (5 attempts per 15 minutes).
+   * - TOTP secret must be decryptable and OTP must match with clock skew tolerance (+/- 1 step).
+   * - Replayed OTPs within the replay protection window must be rejected.
+   * - On success, elevates session MFA status and records audit atomically.
+   *
+   * Execution flow:
+   * 1. Validate session and rate limit status.
+   * 2. Decrypt secret; if undecryptable, reject with retryRecovery required action.
+   * 3. Verify OTP against current time; check replay protection.
+   * 4. Atomically commit proof, session elevation, and audit via lifecycle persistence.
+   *
+   * Failure cases:
+   * - Invalid session, rate-limited lockout, undecryptable secret, or wrong OTP rejects elevation and increments failure counters.
+   *
+   * Side effects:
+   * - Consumes OTP token, elevates session, records security audit events.
    */
   async execute(command: VerifyMfaOtpCommand): Promise<VerifyMfaOtpSuccess> {
     const { sessionToken, otp, requestMeta } = command;
@@ -92,7 +109,10 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     }
 
     const enrollment = await mfaEnrollments.findByUserId(session.userId);
-    if (!enrollment) {
+    const candidate = session.candidateMfaEnrollment;
+    const targetEncryptedSecret =
+      candidate?.encryptedSecret ?? enrollment?.encryptedSecret;
+    if (!targetEncryptedSecret) {
       throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
@@ -123,7 +143,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
 
     let plaintextSecret: string;
     try {
-      plaintextSecret = this.cipher.decrypt(enrollment.encryptedSecret);
+      plaintextSecret = this.cipher.decrypt(targetEncryptedSecret);
     } catch {
       await this.recordFailedAttempt(
         session.userId,
@@ -131,7 +151,9 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "decrypt_error",
       );
-      throw authFailure(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId, {
+        requiredAction: REQUIRED_ACTIONS.retryRecovery,
+      });
     }
 
     const valid = verifyTotpOtp(plaintextSecret, otp, now);
@@ -148,10 +170,11 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     const proofResult = await this.lifecycle.verifyProof({
       userId: session.userId,
       sessionId: session.id,
-      expectedEncryptedSecret: enrollment.encryptedSecret,
+      expectedEncryptedSecret: targetEncryptedSecret,
       now,
       correlationId,
       proof: { kind: MFA_PROOF_TYPES.otp, otp },
+      candidate,
     });
     if (!proofResult.ok) {
       if (proofResult.code === AUTH_ERROR_CODES.mfaInvalid) {
@@ -162,7 +185,11 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
           "replayed",
         );
       }
-      throw authFailure(proofResult.code, correlationId);
+      throw authFailure(proofResult.code, correlationId, {
+        ...(proofResult.code === AUTH_ERROR_CODES.mfaEnrollmentExpired
+          ? { requiredAction: REQUIRED_ACTIONS.restartEnrollment }
+          : {}),
+      });
     }
 
     return { ok: true, correlationId: correlationId };

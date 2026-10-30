@@ -132,4 +132,188 @@ describe("EnrollMfaHandler", () => {
     expect(thrown).toBeInstanceOf(AuthApplicationError);
     expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.sessionInvalid });
   });
+
+  it("rejects with mfaRequired when re-enrolling an existing verified enrollment without active MFA proof", async () => {
+    const session = Session.rehydrate({
+      id: "session-1",
+      userId: "user-1",
+      tokenHash: "hash",
+      expiresAt: 1_800_000_000_000,
+      mfaVerifiedAt: null,
+      mfaGenerationId: "gen-1",
+      sensitiveActionVerifiedAt: 1_700_000_000_000,
+    });
+
+    const activeUser = User.rehydrate({
+      id: "user-1",
+      email: "user@example.com",
+      passwordHash: "hash",
+      emailVerified: true,
+      accessStatus: USER_ACCESS_STATUSES.active,
+      mfaGenerationId: "gen-1",
+    });
+
+    const existingEnrollment = new MfaEnrollment({
+      userId: "user-1",
+      encryptedSecret: "ciphertext:iv:tag",
+      enrolledAt: 1_650_000_000_000,
+      verifiedAt: 1_650_000_000_000,
+    });
+
+    const support = createMockSupport();
+    const handler = new EnrollMfaHandler(
+      support as never,
+      { findById: jest.fn(() => Promise.resolve(session)) } as never,
+      {
+        findByUserId: jest.fn(() => Promise.resolve(existingEnrollment)),
+      },
+      {
+        findByUserId: jest.fn(() => Promise.resolve([])),
+        nextBatchId: () => "b1",
+        nextId: () => "c1",
+      } as never,
+      { findById: jest.fn(() => Promise.resolve(activeUser)) } as never,
+      { encrypt: () => "encrypted", decrypt: () => "secret" },
+      {
+        enroll: jest.fn(() =>
+          Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+        ),
+      } as never,
+    );
+
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new EnrollMfaCommand("user-1", "session-1", {
+          correlationId: "corr-123",
+        }),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.mfaRequired });
+  });
+
+  it("rejects with reauthRequired when re-enrolling an existing verified enrollment without fresh password re-auth", async () => {
+    const session = Session.rehydrate({
+      id: "session-1",
+      userId: "user-1",
+      tokenHash: "hash",
+      expiresAt: 1_800_000_000_000,
+      mfaVerifiedAt: 1_700_000_000_000,
+      mfaGenerationId: "gen-1",
+      sensitiveActionVerifiedAt: null, // missing fresh password re-auth
+    });
+
+    const activeUser = User.rehydrate({
+      id: "user-1",
+      email: "user@example.com",
+      passwordHash: "hash",
+      emailVerified: true,
+      accessStatus: USER_ACCESS_STATUSES.active,
+      mfaGenerationId: "gen-1",
+    });
+
+    const existingEnrollment = new MfaEnrollment({
+      userId: "user-1",
+      encryptedSecret: "ciphertext:iv:tag",
+      enrolledAt: 1_650_000_000_000,
+      verifiedAt: 1_650_000_000_000,
+    });
+
+    const support = createMockSupport();
+    const handler = new EnrollMfaHandler(
+      support as never,
+      { findById: jest.fn(() => Promise.resolve(session)) } as never,
+      {
+        findByUserId: jest.fn(() => Promise.resolve(existingEnrollment)),
+      },
+      {
+        findByUserId: jest.fn(() => Promise.resolve([])),
+        nextBatchId: () => "b1",
+        nextId: () => "c1",
+      } as never,
+      { findById: jest.fn(() => Promise.resolve(activeUser)) } as never,
+      { encrypt: () => "encrypted", decrypt: () => "secret" },
+      {
+        enroll: jest.fn(() =>
+          Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+        ),
+      } as never,
+    );
+
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new EnrollMfaCommand("user-1", "session-1", {
+          correlationId: "corr-123",
+        }),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({ code: AUTH_ERROR_CODES.reauthRequired });
+  });
+
+  it("allows re-enrollment when existing enrollment was never verified (abandoned initial setup)", async () => {
+    const session = Session.rehydrate({
+      id: "session-1",
+      userId: "user-1",
+      tokenHash: "hash",
+      expiresAt: 1_800_000_000_000,
+      mfaVerifiedAt: null,
+      mfaGenerationId: "gen-1",
+      sensitiveActionVerifiedAt: null,
+    });
+
+    const activeUser = User.rehydrate({
+      id: "user-1",
+      email: "user@example.com",
+      passwordHash: "hash",
+      emailVerified: true,
+      accessStatus: USER_ACCESS_STATUSES.active,
+      mfaGenerationId: "gen-1",
+    });
+
+    const abandonedEnrollment = new MfaEnrollment({
+      userId: "user-1",
+      encryptedSecret: "ciphertext:iv:tag",
+      enrolledAt: 1_650_000_000_000,
+      verifiedAt: null, // abandoned before first OTP verification
+    });
+
+    const support = createMockSupport();
+    const handler = new EnrollMfaHandler(
+      support as never,
+      { findById: jest.fn(() => Promise.resolve(session)) } as never,
+      {
+        findByUserId: jest.fn(() => Promise.resolve(abandonedEnrollment)),
+      },
+      {
+        findByUserId: jest.fn(() => Promise.resolve([])),
+        nextBatchId: () => "b1",
+        nextId: () => "c1",
+      } as never,
+      { findById: jest.fn(() => Promise.resolve(activeUser)) } as never,
+      { encrypt: () => "encrypted", decrypt: () => "secret" },
+      {
+        enroll: jest.fn(() =>
+          Promise.resolve({ ok: true, recoveryCodesCreated: true }),
+        ),
+      } as never,
+    );
+
+    const result = await handler.execute(
+      new EnrollMfaCommand("user-1", "session-1", {
+        correlationId: "corr-123",
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.totp_uri).toContain("otpauth://totp/");
+  });
 });
