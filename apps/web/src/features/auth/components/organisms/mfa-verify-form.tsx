@@ -5,9 +5,12 @@ import { resolveMessage } from "@lcsp/i18n";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useState } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
@@ -64,6 +67,7 @@ export function MfaVerifyForm({
   const router = useRouter();
   const mfaVerifyMutation = useMfaVerifyMutation();
   const recoveryCodeVerifyMutation = useMfaRecoveryCodeVerifyMutation();
+  const [method, setMethod] = useState<MfaVerifyMethod>(initialMethod);
   const [error, setError] = useState<MfaVerifyError>();
   const [isLocked, setIsLocked] = useState(false);
   const form = useForm<MfaVerifyFormValues>({
@@ -74,7 +78,7 @@ export function MfaVerifyForm({
     resolver: zodResolver(mfaRecoveryCodeVerifySchema),
     defaultValues: { code: "" },
   });
-  const isRecoveryCode = initialMethod === MFA_VERIFY_METHODS.recoveryCode;
+  const isRecoveryCode = method === MFA_VERIFY_METHODS.recoveryCode;
   const otpError = form.formState.errors.otp?.message;
   const recoveryCodeError = recoveryCodeForm.formState.errors.code?.message;
   const isSubmitting =
@@ -123,7 +127,27 @@ export function MfaVerifyForm({
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.mfaRequired) {
-      router.replace(API_REDIRECT_LOCATIONS.mfaEnroll);
+      setError({
+        titleKey: "auth.errors.mfaRequired.title",
+        detailKey: "auth.errors.mfaRequired.detail",
+      });
+      return;
+    }
+    if (
+      outcome.kind === API_OUTCOME_KINDS.invalid &&
+      outcome.requiredAction === REQUIRED_ACTIONS.retryRecovery
+    ) {
+      setMethod(MFA_VERIFY_METHODS.recoveryCode);
+      setError(outcome);
+      return;
+    }
+    if (outcome.kind === API_OUTCOME_KINDS.mfaEnrollmentExpired) {
+      setError(outcome);
+      return;
+    }
+    if (outcome.kind === API_OUTCOME_KINDS.reauthRequired) {
+      // Defensive edge fallback: retains pending session while displaying step-up alert.
+      setError(outcome);
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.rateLimited) {
@@ -134,7 +158,7 @@ export function MfaVerifyForm({
 
   return (
     <AuthFormSurface
-      className="pt-[168px]"
+      className="pt-28 pb-16 sm:pt-32"
       data-figma-node={isRecoveryCode ? "926:31359" : "925:31355"}
     >
       <AuthHeading
@@ -159,6 +183,10 @@ export function MfaVerifyForm({
           isSubmitting={isSubmitting}
           onSubmit={recoveryCodeForm.handleSubmit(onRecoveryCodeSubmit)}
           control={recoveryCodeForm.control}
+          onSwitchMethod={() => {
+            setError(undefined);
+            setMethod(MFA_VERIFY_METHODS.otp);
+          }}
         />
       ) : (
         <OtpForm
@@ -168,6 +196,10 @@ export function MfaVerifyForm({
           isSubmitting={isSubmitting}
           control={form.control}
           onSubmit={form.handleSubmit(onSubmit)}
+          onSwitchMethod={() => {
+            setError(undefined);
+            setMethod(MFA_VERIFY_METHODS.recoveryCode);
+          }}
         />
       )}
     </AuthFormSurface>
@@ -181,6 +213,7 @@ function OtpForm({
   isSubmitting,
   control,
   onSubmit,
+  onSwitchMethod,
 }: {
   error?: MfaVerifyError;
   otpError?: string;
@@ -188,6 +221,7 @@ function OtpForm({
   isSubmitting: boolean;
   control: Control<MfaVerifyFormValues>;
   onSubmit: () => void;
+  onSwitchMethod: () => void;
 }) {
   return (
     <>
@@ -195,17 +229,17 @@ function OtpForm({
         id="mfa-verify-form"
         onSubmit={onSubmit}
         noValidate
-        className="mt-[38px] flex flex-col"
+        className="mt-8 flex flex-col"
       >
-        <FieldGroup className="gap-[18px]">
+        <FieldGroup className="gap-5">
           <Field
             data-invalid={Boolean(otpError) || undefined}
             data-disabled={isSubmitting || isLocked || undefined}
-            className="gap-2"
+            className="items-center gap-3"
           >
             <FieldLabel
               htmlFor="otp"
-              className="text-xs font-medium text-foreground"
+              className="block w-full text-center text-xs font-semibold tracking-wide text-foreground uppercase"
             >
               {resolveMessage(appLocale, "pages.mfaVerify.otpLabel")}
             </FieldLabel>
@@ -218,7 +252,7 @@ function OtpForm({
                   maxLength={6}
                   pattern={REGEXP_ONLY_DIGITS}
                   autoComplete="one-time-code"
-                  containerClassName="justify-start gap-[14px]"
+                  containerClassName="justify-center gap-2 sm:gap-2.5"
                   disabled={isSubmitting || isLocked}
                   aria-invalid={Boolean(otpError)}
                   {...field}
@@ -238,14 +272,14 @@ function OtpForm({
               )}
             />
             {otpError ? (
-              <FieldError className="text-[11px] leading-normal">
+              <FieldError className="text-center text-xs leading-normal">
                 {resolveMessage(
                   appLocale,
                   otpError as Parameters<typeof resolveMessage>[1],
                 )}
               </FieldError>
             ) : (
-              <FieldDescription className="text-[11px] leading-normal text-muted-foreground">
+              <FieldDescription className="text-center text-xs leading-normal text-muted-foreground">
                 {resolveMessage(appLocale, "pages.mfaVerify.otpDescription")}
               </FieldDescription>
             )}
@@ -253,7 +287,7 @@ function OtpForm({
           <MfaErrorAlert error={error} />
         </FieldGroup>
         <AuthPrimaryButton
-          className="mt-[30px]"
+          className="mt-6"
           type="submit"
           form="mfa-verify-form"
           disabled={isSubmitting || isLocked}
@@ -270,11 +304,15 @@ function OtpForm({
       </form>
       <AuthInlineLink
         href={API_REDIRECT_LOCATIONS.mfaRecoveryCode}
-        className="mt-[40px] self-center"
+        onClick={(event: React.MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onSwitchMethod();
+        }}
+        className="mt-6 self-center"
       >
         {resolveMessage(appLocale, "pages.mfaVerify.moreOptions")}
       </AuthInlineLink>
-      <AuthNote className="mt-[34px]">
+      <AuthNote className="mt-6">
         {resolveMessage(appLocale, "pages.mfaVerify.accessHelp")}
       </AuthNote>
     </>
@@ -288,6 +326,7 @@ function RecoveryCodeForm({
   isSubmitting,
   onSubmit,
   control,
+  onSwitchMethod,
 }: {
   error?: MfaVerifyError;
   recoveryCodeError?: string;
@@ -295,6 +334,7 @@ function RecoveryCodeForm({
   isSubmitting: boolean;
   onSubmit: () => void;
   control: Control<MfaRecoveryCodeVerifyFormValues>;
+  onSwitchMethod: () => void;
 }) {
   return (
     <>
@@ -302,9 +342,9 @@ function RecoveryCodeForm({
         id="mfa-recovery-code-verify-form"
         onSubmit={onSubmit}
         noValidate
-        className="mt-[38px] flex flex-col"
+        className="mt-8 flex flex-col"
       >
-        <FieldGroup className="gap-[18px]">
+        <FieldGroup className="gap-4">
           <Controller
             control={control}
             name="code"
@@ -364,12 +404,21 @@ function RecoveryCodeForm({
       </form>
       <AuthInlineLink
         href={API_REDIRECT_LOCATIONS.mfaVerify}
-        className="mt-[22px] self-start"
+        onClick={(event: React.MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onSwitchMethod();
+        }}
+        className="mt-6 self-center"
       >
         {resolveMessage(appLocale, "pages.mfaVerify.useAuthenticator")}
       </AuthInlineLink>
-      <AuthNote className="mt-[34px]">
-        {resolveMessage(appLocale, "pages.mfaVerify.recoveryCodeAccessHelp")}
+      <AuthNote className="mt-6 flex flex-col gap-1 text-center">
+        <span>
+          {resolveMessage(appLocale, "pages.mfaVerify.recoveryCodeAccessHelp")}
+        </span>
+        <span className="text-muted-foreground/80">
+          {resolveMessage(appLocale, "pages.mfaVerify.lostBothFactorsHelp")}
+        </span>
       </AuthNote>
     </>
   );
@@ -390,11 +439,24 @@ function MfaErrorAlert({ error }: { error?: MfaVerifyError }) {
     return null;
   }
 
+  const isRestartEnrollment =
+    error.requiredAction === REQUIRED_ACTIONS.restartEnrollment;
+
   return (
     <Alert variant="destructive">
       <AlertTitle>{resolveMessage(appLocale, error.titleKey)}</AlertTitle>
-      <AlertDescription>
-        {resolveMessage(appLocale, error.detailKey)}
+      <AlertDescription className="space-y-2">
+        <p>{resolveMessage(appLocale, error.detailKey)}</p>
+        {isRestartEnrollment ? (
+          <div className="pt-1">
+            <Link
+              href={API_REDIRECT_LOCATIONS.mfaEnroll}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              {resolveMessage(appLocale, "pages.mfaVerify.restartEnrollment")}
+            </Link>
+          </div>
+        ) : null}
       </AlertDescription>
     </Alert>
   );

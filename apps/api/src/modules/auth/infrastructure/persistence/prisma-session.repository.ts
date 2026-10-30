@@ -13,6 +13,7 @@ import {
   AUTH_RECORD_TYPES,
   authRecordDateMetadata,
   authRecordLookupKey,
+  authRecordMetadata,
 } from "./auth-record.persistence.ts";
 import {
   dateFromEpochMs,
@@ -80,20 +81,35 @@ export class PrismaSessionRepository implements SessionRepository {
           { reason: APPLICATION_ERROR_REASONS.authenticationRequired },
         );
       }
+      const existing = await tx.authRecord.findUnique({
+        where: { id: session.id },
+        select: { id: true, metadata: true },
+      });
+      const existingMeta = existing
+        ? authRecordMetadata(existing.metadata)
+        : {};
       // Proof metadata always points to the locked current generation. An
       // older in-memory entity may not revive timestamps for a past generation.
       const metadata = {
+        ...existingMeta,
         tokenFingerprint,
         mfaGenerationId: user.mfaGenerationId,
         mfaVerifiedAt: authRecordDateMetadata(session.mfaVerifiedAt),
         sensitiveActionVerifiedAt: authRecordDateMetadata(
           session.sensitiveActionVerifiedAt,
         ),
+        passwordReauthenticatedAt: authRecordDateMetadata(
+          session.passwordReauthenticatedAt,
+        ),
+        candidateMfaEnrollment: session.candidateMfaEnrollment
+          ? {
+              encryptedSecret: session.candidateMfaEnrollment.encryptedSecret,
+              generationId: session.candidateMfaEnrollment.generationId,
+              batchId: session.candidateMfaEnrollment.batchId,
+              enrolledAt: session.candidateMfaEnrollment.enrolledAt,
+            }
+          : (existingMeta.candidateMfaEnrollment ?? null),
       } satisfies Prisma.InputJsonObject;
-      const existing = await tx.authRecord.findUnique({
-        where: { id: session.id },
-        select: { id: true },
-      });
       if (existing) {
         // An MFA/reauth write from a stale entity must never un-revoke a session.
         const updated = await tx.authRecord.updateMany({

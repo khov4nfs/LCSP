@@ -31,10 +31,24 @@ export class DisableMfaHandler implements ICommandHandler<DisableMfaCommand> {
   ) {}
 
   /**
-   * Executes MFA disabling.
+   * Business purpose: Disable MFA without leaving usable recovery codes or elevated sessions.
    *
-   * @param command - Contains userId, sessionId, and request correlation metadata.
-   * @returns Success response with correlation ID.
+   * Business rules:
+   * - Requires active, unexpired session belonging to user.
+   * - Initiator must present current-generation verified MFA proof.
+   * - Must present fresh password re-authentication proof (sensitive-action step-up).
+   * - Deletes TOTP enrollment, revokes recovery codes, clears session MFA proofs and resets mfaRequired.
+   *
+   * Execution flow:
+   * 1. Validate session and user IDs.
+   * 2. Execute atomic disable operation in security persistence with User lock.
+   * 3. Return success correlation.
+   *
+   * Failure cases:
+   * - Invalid session, unverified MFA, or expired password re-auth rejects disable.
+   *
+   * Side effects:
+   * - Clears credentials and active proofs, records security audit event.
    */
   async execute(command: DisableMfaCommand): Promise<DisableMfaSuccess> {
     const { userId, sessionId, requestMeta } = command;

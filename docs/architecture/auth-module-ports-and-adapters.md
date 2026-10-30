@@ -567,3 +567,80 @@ security review. This section reports local execution only.
    rather than resetting security controls as part of this change.
 3. Deprecated import facades should remain until all consuming modules are
    migrated and tests prove they can be removed safely.
+
+## PR #430 follow-up: MFA reauthentication proof semantics and lost-MFA UX resolution (2026-10-28)
+
+**Review baseline:** merge commit `c828878eb8dd32c75c8866285b2774a58f9a6c03` / PR #430 (`LCSP-999`).
+
+### Product and security policy decision
+
+**Strict 2FA policy:**
+
+1. A pending-MFA session (e.g. after password sign-in or Google OAuth login) cannot reset or rebind MFA using password reauthentication alone. Allowing password-only rebind for pending-MFA sessions would enable an attacker with a compromised password to bypass the second factor entirely.
+2. A user who loses their primary authenticator (TOTP) must use an issued recovery code to verify their second factor, or have an existing active session with verified second factor (`mfaVerifiedAt`).
+3. For already-MFA-verified sessions, sensitive operations (re-enrolling/replacing MFA via `POST /auth/mfa/enroll` or disabling MFA via `DELETE /auth/mfa`) require fresh password re-authentication (`@ReAuthForSensitiveRoute`, TTL 5 minutes) to protect against unattended session hijacking.
+4. Abandoned initial/replacement enrollments (`mfaVerifiedAt === null`) are safe to restart without prior factor proof, preventing accounts from being stranded when setup is interrupted before the first OTP is verified.
+
+### Root causes and remediation
+
+1. **RC-1 (Inconsistent proof semantics between password re-auth and MFA replacement):**
+   - _Problem:_ `POST /auth/re-auth/password` wrote `sensitiveActionVerifiedAt` to session metadata, but `EnrollMfaHandler` and `PrismaMfaLifecyclePersistence.enroll` only checked `mfaVerifiedAt` and exact generation. Conversely, `DELETE /auth/mfa` and `POST /auth/mfa/enroll` lacked sensitive route protection, allowing replacement without fresh password proof.
+   - _Resolution:_ Added `Session.isSensitiveActionVerified(now, currentGenerationId)` checking fresh password re-auth (5-minute TTL). Both `EnrollMfaHandler` and the database transaction in `PrismaMfaLifecyclePersistence.enroll` enforce that replacing an existing verified MFA factor requires BOTH active MFA verification (`isMfaVerified`) AND fresh password reauthentication (`isSensitiveActionVerified`). If missing/expired, returns `AUTH_ERROR_CODES.reauthRequired` with `REQUIRED_ACTIONS.reauthRequired`. Added `@ReAuthForSensitiveRoute` to `DELETE /auth/mfa` and enforced fresh sensitive proof in `disableMfa` transaction.
+
+2. **RC-2 (Verify ↔ enroll bounce and stranded setups):**
+   - _Problem:_ `VerifyMfaOtpHandler` threw `mfaRequired` on secret decryption failure, causing web verify to navigate to `/mfa/enroll`, while web enroll redirected back to `/mfa/verify` on `mfaRequired`. Furthermore, `PrismaMfaLifecyclePersistence.enroll` rejected any enrollment if `user.mfaVerifiedAt === null`, permanently locking abandoned setups.
+   - _Resolution:_ `VerifyMfaOtpHandler` returns `AUTH_ERROR_CODES.mfaInvalid` with `REQUIRED_ACTIONS.retryRecovery` when ciphertext decryption fails, prompting the user directly to use a recovery code instead of bouncing. `EnrollMfaHandler` and `PrismaMfaLifecyclePersistence.enroll` permit unverified/abandoned enrollments (`user.mfaVerifiedAt === null`) to restart without requiring factor proof. On the web frontend (`mfa-verify-form.tsx`), interactive state allows toggling between TOTP and recovery code in place on the same screen, and error outcomes render actionable inline alerts rather than redirect bounces.
+
+3. **RC-3 (OAuth MFA funnel unification):**
+   - _Problem:_ Google OAuth sign-in projects `mfa_required: true` and routes to `/mfa/verify`, but provided no unified factor recovery path if the authenticator was lost.
+   - _Resolution:_ Preserved invariant that OAuth claims do not satisfy second factor possession. Unified the recovery path on the `/mfa/verify` screen, enabling users to switch directly to recovery code entry or access actionable support guidance without dead ends.
+
+4. **RC-4 (Auth HTTP error boundary design):**
+   - _Problem:_ Exception construction consistency between application-layer errors and HTTP problem envelopes.
+   - _Resolution:_ Preserved the transport-neutral Clean Architecture boundary in the CQRS application layer, where `AuthApplicationError` extends `ApplicationError` without coupling use cases to HTTP transport concerns. `scripts/check-import-policy.mjs` strictly prohibits NestJS/HTTP imports in the application layer. Transport-level mapping to canonical problem envelopes (`{ ok: false, problem: { type, status, code, requiredAction, correlationId, ... } }`) and HTTP status codes is centralized at the edge by `HttpExceptionFilter` via `problemResult()`. Verified standard problem envelopes, error codes, and correlation IDs across all Auth endpoints.
+
+### PR #433 follow-up: Candidate TTL Expiry, Actionable Web Restart Flow, and Administrative Recovery Procedure (2026-10-30)
+
+**Review baseline:** PR #433 (`head 09c7a36472a7ff4a0ee45a7bffe12ec8d562d569`).
+
+#### 1. Candidate TTL Expiry Contract & Actionable Restart UX (P1)
+
+- **Problem:** When an MFA replacement candidate exceeded its 5-minute TTL, the backend cleared candidate records and returned `AUTH_ERROR_CODES.reauthRequired` (403). The web client's `toMfaVerifyOutcome()` did not map `reauthRequired`, resulting in a generic `requestFailed` message without an actionable recovery CTA.
+- **Remediation:**
+  - Introduced dedicated contract error code `AUTH_ERROR_CODES.mfaEnrollmentExpired` (`"MFA_ENROLLMENT_EXPIRED"`) and required action `REQUIRED_ACTIONS.restartEnrollment` (`"restart_enrollment"`).
+  - In `PrismaMfaLifecyclePersistence.verifyProof()`, candidate TTL expiry returns `{ ok: false, code: AUTH_ERROR_CODES.mfaEnrollmentExpired }`. `VerifyMfaOtpHandler` decorates the error with `requiredAction: REQUIRED_ACTIONS.restartEnrollment`.
+  - In `apps/web`, `toMfaVerifyOutcome()` maps `AUTH_ERROR_CODES.mfaEnrollmentExpired` and `REQUIRED_ACTIONS.restartEnrollment` to `API_OUTCOME_KINDS.mfaEnrollmentExpired` with dedicated localized copy (`pages.mfaVerify.enrollmentExpiredTitle`, `pages.mfaVerify.enrollmentExpiredDetail`).
+  - `MfaVerifyForm` handles `mfaEnrollmentExpired` by rendering a distinct alert with an actionable button linking directly to `API_REDIRECT_LOCATIONS.mfaEnroll` (`/mfa/enroll`), prompting the user to generate a new QR code. Active factor S1 remains intact.
+
+#### 2. Atomic Transaction-Bound Candidate Expiry Audit Receipt (P2)
+
+- **Problem:** When an expired candidate was invalidated and unconfirmed recovery codes revoked, no audit event was emitted, leaving security-significant state changes untracked.
+- **Remediation:**
+  - Inside the database transaction in `PrismaMfaLifecyclePersistence.verifyProof()`, candidate cleanup now writes an atomic audit record via `this.audit.writeInTx(tx, ...)` with event type `AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRotationExpired` (canonical `AUTH_MFA_ROTATION_EXPIRED`), decision `DENY`, and reason `MFA_ENROLLMENT_EXPIRED`, capturing correlation ID, session, and candidate generation without exposing secrets.
+  - Regression test in `auth.e2e-spec.ts` verifies that exactly one audit receipt is emitted upon candidate expiry and asserts idempotency on retry.
+
+#### 3. Administrative Factor Recovery & Reset (Issue #431 Disposition & Release Limitation)
+
+- **Release Limitation Status:** **NOT DELIVERED FUNCTIONALITY IN PR #433; EXPLICIT TRACKED RELEASE LIMITATION**.
+  Administrative recovery for accounts that have permanently lost both their TOTP device and backup recovery codes is not automated in PR #433. It is tracked as an open release blocker under GitHub Issue [#431](https://github.com/khov4nfs/LCSP/issues/431) / LCSP-1002.
+- **Product & Security Policy Disposition:**
+  The original request in issue #431 for a password-only self-service factor bypass from a pending-MFA session was intentionally rejected under the strict 2FA security policy. Allowing a compromised password to bypass the second factor would degrade tenant security. PR #433 delivers staged candidate rotation, candidate TTL expiry, and session proof integrity; automated administrative recovery is deliberately deferred.
+- **Non-Executable Conceptual Reference (Not Approved for Operational Execution):**
+  Any direct SQL modification or manual script is strictly **illustrative and non-executable conceptual reference**. Ad-hoc database updates must NOT be executed on production environments without an approved, parameterized, tested migration tool and runbook.
+- **Required Specification for LCSP-1002 (Automated Reset API & Verified Runbook):**
+  When implemented under LCSP-1002, the administrative reset capability (`DELETE /admin/users/:userId/mfa` and corresponding CLI) must satisfy the following invariants within a single atomic database transaction:
+  1. **Dual Authorization & Change Control:** Requires out-of-band identity verification (e.g., secondary channel, manager verification) and fine-grained PBAC permission (`iam.users.manage`).
+  2. **Row Locking & Target Validation:** Lock the target user row (`SELECT ... FOR UPDATE`) and assert valid account state and workspace ownership.
+  3. **Reset Semantics vs Disable Semantics:** Distinguish voluntary MFA disabling (`mfaRequired = false`) from an administrative recovery reset. Recovery reset must explicitly set `mfaRequired = true`, `mfaEnrolledAt = null`, `mfaVerifiedAt = null`, `mfaEncryptedSecret = null`, and advance `mfaGenerationId = gen_random_uuid()`. Explicitly setting `mfaRequired = true` guarantees that legacy accounts (where `mfaRequired` might have defaulted to false) are forced to complete fresh MFA enrollment before accessing workspace resources.
+  4. **Session & Proof Revocation:** Invalidate session proofs and revoke all active sessions (`type = 'SESSION'`) for the target user.
+  5. **Recovery Code Invalidation:** Transactionally revoke all unverified and active recovery codes (`type = 'MFA_RECOVERY_CODE'`).
+  6. **Replay Cache Invalidation:** Delete or retire all `type = 'MFA_OTP_USE'` records for the user.
+  7. **Attributable Audit Receipt:** Write an atomic audit event (`AUTH_MFA_DISABLED`) recording the administrator/operator actor ID, target user ID, change ticket ID, and correlation ID before transaction `COMMIT`.
+  8. **Strict Rollback:** Assert expected affected row counts and immediately `ROLLBACK` on any failure.
+  9. **Integration Verification:** Must be accompanied by disposable-DB integration tests asserting pre/post states (including legacy `mfaRequired = false` users) and failure-injection rollback tests.
+
+#### 4. Defensive OTP Response Handling (`REAUTH_REQUIRED`)
+
+- In `toMfaVerifyOutcome()` and `MfaVerifyForm`, `AUTH_ERROR_CODES.reauthRequired` is retained as a distinct typed outcome (`kind: "reauth_required"`).
+- It is an intentionally defensive, non-session-invalidating edge response that displays a standard inline alert while preserving the pending session state.
+- Following the introduction of the dedicated `AUTH_ERROR_CODES.mfaEnrollmentExpired` contract, no active candidate-expiry or OTP path emits `REAUTH_REQUIRED` during normal MFA verification.

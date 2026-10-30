@@ -3,9 +3,27 @@ export const enPages = {
   complianceRuleSets: {
     resume: "Resume preparation",
     resuming: "Resuming…",
-    resumeFailed: "Preparation could not be resumed. Refresh the page and check the current state.",
-    stages: { CORPUS_READY: "Corpus Ready", PREPARING_RULE_SET: "Preparing Rule Set", VALIDATION_REQUIRED: "Validation Required", VALIDATION_FAILED: "Validation Failed", RULE_SET_READY: "Rule Set Ready", ACTIVE: "Active" },
-    draft: { documents: "Legal source documents", requirements: "Draft requirements", rules: "Draft assessment rules", references: "Unresolved legal references", blocked: "Source units blocked by legal references:", validationErrors: "Validation errors", available: "Assessments can use this active Rule Set.", unavailable: "Assessments cannot use this draft yet.", boundedPreview: "Showing the first 20 candidates." },
+    resumeFailed:
+      "Preparation could not be resumed. Refresh the page and check the current state.",
+    stages: {
+      CORPUS_READY: "Corpus Ready",
+      PREPARING_RULE_SET: "Preparing Rule Set",
+      VALIDATION_REQUIRED: "Validation Required",
+      VALIDATION_FAILED: "Validation Failed",
+      RULE_SET_READY: "Rule Set Ready",
+      ACTIVE: "Active",
+    },
+    draft: {
+      documents: "Legal source documents",
+      requirements: "Draft requirements",
+      rules: "Draft assessment rules",
+      references: "Unresolved legal references",
+      blocked: "Source units blocked by legal references:",
+      validationErrors: "Validation errors",
+      available: "Assessments can use this active Rule Set.",
+      unavailable: "Assessments cannot use this draft yet.",
+      boundedPreview: "Showing the first 20 candidates.",
+    },
     title: "Compliance rule sets",
     description:
       "Rule sets are shared by assessments and prepared when a Legal Source Version is activated. Administrators can also prepare the current source, or prepare a new version that replaces the active one automatically once it validates.",
@@ -1208,14 +1226,20 @@ export const enPages = {
     recoveryCodeDescription:
       "Enter one of your saved recovery codes to continue.",
     recoveryCodeLabel: "Recovery code",
-    recoveryCodePlaceholder: "ABCD-EFGH",
+    recoveryCodePlaceholder: "ABCD-EFGH-IJKL",
     recoveryCodeHelp: "Recovery codes are single-use.",
     recoveryCodeSubmit: "Verify recovery code",
     submit: "Verify and continue",
     submitting: "Verifying",
     accessHelp: "MFA protects access to your LCSP workspace.",
     recoveryCodeAccessHelp: "Each recovery code can only be used once.",
+    lostBothFactorsHelp:
+      "Lost both your authenticator and recovery codes? Contact your workspace administrator to reset your multi-factor authentication.",
     useRecovery: "Lost access to your authenticator? Recover access instead.",
+    enrollmentExpiredTitle: "Setup expired",
+    enrollmentExpiredDetail:
+      "This authenticator setup session has expired. Please generate a new QR code to complete setup.",
+    restartEnrollment: "Generate a new QR code",
     errors: {
       otpRequired: "Enter your verification code.",
       otpInvalidFormat: "Enter a six-digit verification code.",
@@ -1223,6 +1247,9 @@ export const enPages = {
       recoveryCodeInvalidFormat: "Enter a valid recovery code.",
       requestFailedTitle: "Unable to verify",
       requestFailedDetail: "Unable to verify the code. Please try again.",
+      secretUnavailableTitle: "Authenticator secret unavailable",
+      secretUnavailableDetail:
+        "Your authenticator credential cannot be read. Please use a recovery code instead.",
     },
   },
   mfaEnroll: {

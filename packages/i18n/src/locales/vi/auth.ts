@@ -84,5 +84,10 @@ export const viAuth = {
       detail:
         "Không có tài khoản nào được liên kết với phương thức đăng nhập này.",
     },
+    mfaEnrollmentExpired: {
+      title: "Phiên thiết lập MFA đã hết hạn",
+      detail:
+        "Phiên thiết lập xác thực hai lớp đã hết hạn. Vui lòng tạo mã QR mới để tiếp tục.",
+    },
   },
 } as const satisfies AuthMessages;

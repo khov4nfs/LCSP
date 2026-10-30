@@ -20,6 +20,7 @@ export const AUTH_ERROR_CODES = {
   oauthStateInvalid: "OAUTH_STATE_INVALID",
   oauthCallbackInvalid: "OAUTH_CALLBACK_INVALID",
   accountNotFound: "ACCOUNT_NOT_FOUND",
+  mfaEnrollmentExpired: "MFA_ENROLLMENT_EXPIRED",
 } as const;
 
 export const SIGN_UP_ERROR_CODES = {

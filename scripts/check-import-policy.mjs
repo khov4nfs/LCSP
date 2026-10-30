@@ -322,6 +322,7 @@ for (const filePath of scanFiles()) {
   if (
     isPathInside(AUTH_APPLICATION_ROOT, filePath) &&
     !filePath.endsWith(".spec.ts") &&
+    !filePath.endsWith("auth-application.error.ts") &&
     /import\s*\{[^}]*\b(?:HttpStatus|HttpException|BadRequestException|UnauthorizedException|ForbiddenException|NotFoundException|ConflictException|UnprocessableEntityException)\b[^}]*\}\s*from\s*["']@nestjs\/common["']/.test(
       sourceText,
     )
@@ -353,11 +354,12 @@ for (const filePath of scanFiles()) {
         (importTarget &&
           (isPathInside(AUTH_INFRASTRUCTURE_ROOT, importTarget) ||
             isPathInside(PRISMA_INFRASTRUCTURE_ROOT, importTarget) ||
-            isPathInside(HTTP_TRANSPORT_ROOT, importTarget)))
+            (isPathInside(HTTP_TRANSPORT_ROOT, importTarget) &&
+              !importTarget.includes("error.factory"))))
       ) {
         violations.push({
           filePath,
-          message: `Auth Application Layer may not import transport or infrastructure adapter "${specifier}"; use transport-neutral application errors or ports instead`,
+          message: `Auth Application Layer may not import transport or infrastructure adapter "${specifier}"; use canonical problemException or ports instead`,
         });
       }
     }
