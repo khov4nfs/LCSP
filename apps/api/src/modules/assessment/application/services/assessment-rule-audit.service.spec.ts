@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { jest } from "@jest/globals";
-import { AGENT_EXECUTION_STATES, ASSESSMENT_LIFECYCLE_STATES,
-  DECISION_RESOLUTION_STATES } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_AUDIT_MODES, ASSESSMENT_DECISION_RECORD_STATES,
-  RULE_AUDIT_PROGRESS_STATES, RULE_AUDIT_SCOPE_MODES, RULE_AUDIT_STATUSES,
-  type SubmitRuleAudit } from "@lcsp/contracts/assessment-domain";
+import {
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
+  DECISION_RESOLUTION_STATES,
+} from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_AUDIT_MODES,
+  ASSESSMENT_DECISION_RECORD_STATES,
+  RULE_AUDIT_PROGRESS_STATES,
+  RULE_AUDIT_SCOPE_MODES,
+  RULE_AUDIT_STATUSES,
+  type SubmitRuleAudit,
+} from "@lcsp/contracts/assessment-domain";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import type { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
@@ -18,73 +26,142 @@ const COMMIT = "a".repeat(40);
 const REQUEST = randomUUID();
 const DECISION = randomUUID();
 const rules = Array.from({ length: 20 }, (_, index) => ({
-  assessmentRuleId: `Rule-${index + 1}`, assessmentRuleVersion: "v1",
+  assessmentRuleId: `Rule-${index + 1}`,
+  assessmentRuleVersion: "v1",
 }));
 
 function submission(ruleIds: string[]): SubmitRuleAudit {
   return {
-    idempotencyKey: randomUUID(), expectedAuditRevision: 0,
-    ruleSetVersionId: RULE_SET, ruleSetDigest: "digest", repositorySnapshotId: SNAPSHOT,
-    repositoryCommit: COMMIT, scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+    idempotencyKey: randomUUID(),
+    expectedAuditRevision: 0,
+    ruleSetVersionId: RULE_SET,
+    ruleSetDigest: "digest",
+    repositorySnapshotId: SNAPSHOT,
+    repositoryCommit: COMMIT,
+    scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
     rules: rules.filter((rule) => ruleIds.includes(rule.assessmentRuleId)),
   };
 }
 
 function submitFixture() {
-  const created = jest.fn<(input: unknown) => Promise<unknown>>().mockResolvedValue({});
-  const coverageCreated = jest.fn<(input: unknown) => Promise<unknown>>().mockResolvedValue({ count: 1 });
-  const enqueued = jest.fn<(input: unknown, tx: unknown) => Promise<string>>().mockResolvedValue("outbox-id");
-  const requestFind = jest.fn<(input: unknown) => Promise<unknown>>().mockResolvedValue(null);
+  const created = jest
+    .fn<(input: unknown) => Promise<unknown>>()
+    .mockResolvedValue({});
+  const coverageCreated = jest
+    .fn<(input: unknown) => Promise<unknown>>()
+    .mockResolvedValue({ count: 1 });
+  const enqueued = jest
+    .fn<(input: unknown, tx: unknown) => Promise<string>>()
+    .mockResolvedValue("outbox-id");
+  const requestFind = jest
+    .fn<(input: unknown) => Promise<unknown>>()
+    .mockResolvedValue(null);
   const tx = {
     $queryRaw: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([1]),
-    assessment: { findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
-      id: ASSESSMENT, ownerId: OWNER, lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
-      domainCase: { assessmentId: ASSESSMENT, auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
-        auditRequestRevision: 0, caseRevision: 0, ruleSetVersionId: RULE_SET,
-        repositorySnapshotId: SNAPSHOT, repositoryCommit: COMMIT },
-    }) },
-    complianceRuleSetVersion: { findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
-      id: RULE_SET, ruleSetDigest: "digest",
-    }) },
-    assessmentRuleAuditRequest: { findUnique: requestFind,
-      findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue(null), create: created },
-    assessmentRule: { findMany: jest.fn<() => Promise<unknown>>().mockResolvedValue(rules) },
-    assessmentRuntime: { findUniqueOrThrow: jest.fn<() => Promise<unknown>>().mockResolvedValue({
-      leaseToken: null, executionState: AGENT_EXECUTION_STATES.QUEUED,
-    }), update: jest.fn<() => Promise<unknown>>().mockResolvedValue({}) },
-    assessmentDecisionCoverage: { findMany: jest.fn<() => Promise<unknown>>().mockResolvedValue([]),
-      createMany: coverageCreated },
-    assessmentCase: { update: jest.fn<() => Promise<unknown>>().mockResolvedValue({}) },
-    outboxMessage: { upsert: jest.fn<() => Promise<unknown>>().mockResolvedValue({}) },
+    assessment: {
+      findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        id: ASSESSMENT,
+        ownerId: OWNER,
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        domainCase: {
+          assessmentId: ASSESSMENT,
+          auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
+          auditRequestRevision: 0,
+          caseRevision: 0,
+          ruleSetVersionId: RULE_SET,
+          repositorySnapshotId: SNAPSHOT,
+          repositoryCommit: COMMIT,
+        },
+      }),
+    },
+    complianceRuleSetVersion: {
+      findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        id: RULE_SET,
+        ruleSetDigest: "digest",
+      }),
+    },
+    assessmentRuleAuditRequest: {
+      findUnique: requestFind,
+      findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue(null),
+      create: created,
+    },
+    assessmentRule: {
+      findMany: jest.fn<() => Promise<unknown>>().mockResolvedValue(rules),
+    },
+    assessmentRuntime: {
+      findUniqueOrThrow: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        leaseToken: null,
+        executionState: AGENT_EXECUTION_STATES.QUEUED,
+      }),
+      update: jest.fn<() => Promise<unknown>>().mockResolvedValue({}),
+    },
+    assessmentDecisionCoverage: {
+      findMany: jest.fn<() => Promise<unknown>>().mockResolvedValue([]),
+      createMany: coverageCreated,
+    },
+    assessmentCase: {
+      update: jest.fn<() => Promise<unknown>>().mockResolvedValue({}),
+    },
+    outboxMessage: {
+      upsert: jest.fn<() => Promise<unknown>>().mockResolvedValue({}),
+    },
   };
-  const prisma = { $transaction: (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) };
-  const service = new AssessmentRuleAuditService(prisma as unknown as PrismaService,
-    { enqueue: enqueued } as unknown as OutboxRepository, {} as AssessmentCaseSupport);
-  jest.spyOn(service, "request").mockImplementation(async (_assessment, _owner, _correlation, requestId) =>
-    ({ requestId }) as never);
+  const prisma = {
+    $transaction: (callback: (client: typeof tx) => Promise<unknown>) =>
+      callback(tx),
+  };
+  const service = new AssessmentRuleAuditService(
+    prisma as unknown as PrismaService,
+    { enqueue: enqueued } as unknown as OutboxRepository,
+    {} as AssessmentCaseSupport,
+  );
+  jest
+    .spyOn(service, "request")
+    .mockImplementation(
+      async (_assessment, _owner, _correlation, requestId) =>
+        ({ requestId }) as never,
+    );
   return { service, tx, created, coverageCreated, enqueued, requestFind };
 }
 
 it("freezes only Rule 3 from a 20-rule catalog and dispatches Root once", async () => {
   const f = submitFixture();
-  const result = await f.service.submit(ASSESSMENT, OWNER, randomUUID(), submission(["Rule-3"]));
+  const result = await f.service.submit(
+    ASSESSMENT,
+    OWNER,
+    randomUUID(),
+    submission(["Rule-3"]),
+  );
 
   expect(result.requestId).toBeDefined();
-  const created = f.created.mock.calls[0]![0] as { data: { rules: { create: typeof rules } } };
-  const coverage = f.coverageCreated.mock.calls[0]![0] as { data: typeof rules };
-  expect(created.data.rules.create.map((rule) => rule.assessmentRuleId)).toEqual(["Rule-3"]);
-  expect(coverage.data.map((rule) => rule.assessmentRuleId)).toEqual(["Rule-3"]);
+  const created = f.created.mock.calls[0][0] as {
+    data: { rules: { create: typeof rules } };
+  };
+  const coverage = f.coverageCreated.mock.calls[0][0] as {
+    data: typeof rules;
+  };
+  expect(
+    created.data.rules.create.map((rule) => rule.assessmentRuleId),
+  ).toEqual(["Rule-3"]);
+  expect(coverage.data.map((rule) => rule.assessmentRuleId)).toEqual([
+    "Rule-3",
+  ]);
   expect(f.enqueued).toHaveBeenCalledTimes(1);
 });
 
 it("rejects duplicate, foreign and stale selections before any dispatch", async () => {
   for (const body of [
-    { ...submission(["Rule-3"]), rules: [rules[2]!, rules[2]!] },
-    { ...submission(["Rule-3"]), rules: [{ assessmentRuleId: "foreign", assessmentRuleVersion: "v1" }] },
+    { ...submission(["Rule-3"]), rules: [rules[2], rules[2]] },
+    {
+      ...submission(["Rule-3"]),
+      rules: [{ assessmentRuleId: "foreign", assessmentRuleVersion: "v1" }],
+    },
     { ...submission(["Rule-3"]), expectedAuditRevision: 1 },
   ]) {
     const f = submitFixture();
-    await expect(f.service.submit(ASSESSMENT, OWNER, randomUUID(), body)).rejects.toThrow();
+    await expect(
+      f.service.submit(ASSESSMENT, OWNER, randomUUID(), body),
+    ).rejects.toThrow();
     expect(f.created).not.toHaveBeenCalled();
     expect(f.enqueued).not.toHaveBeenCalled();
   }
@@ -94,8 +171,13 @@ it("replays the same selection key without duplicate rows or Root work", async (
   const f = submitFixture();
   const body = submission(["Rule-3", "Rule-9"]);
   const first = await f.service.submit(ASSESSMENT, OWNER, randomUUID(), body);
-  const data = (f.created.mock.calls[0]![0] as { data: { requestDigest: string } }).data;
-  f.requestFind.mockResolvedValue({ requestId: first.requestId, requestDigest: data.requestDigest });
+  const data = (
+    f.created.mock.calls[0][0] as { data: { requestDigest: string } }
+  ).data;
+  f.requestFind.mockResolvedValue({
+    requestId: first.requestId,
+    requestDigest: data.requestDigest,
+  });
 
   await f.service.submit(ASSESSMENT, OWNER, randomUUID(), body);
 
@@ -106,41 +188,85 @@ it("replays the same selection key without duplicate rows or Root work", async (
 
 it("shows Rule 3 ready while Rule 9 investigates or awaits a customer answer", async () => {
   let waiting = false;
-  const row = { requestId: REQUEST, assessmentId: ASSESSMENT, requestRevision: 1,
-    scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES, status: RULE_AUDIT_STATUSES.RUNNING,
-    ruleSetVersionId: RULE_SET, ruleSetDigest: "digest", repositorySnapshotId: SNAPSHOT,
-    repositoryCommit: COMMIT, requestedAt: new Date(), completedAt: null,
+  const row = {
+    requestId: REQUEST,
+    assessmentId: ASSESSMENT,
+    requestRevision: 1,
+    scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+    status: RULE_AUDIT_STATUSES.RUNNING,
+    ruleSetVersionId: RULE_SET,
+    ruleSetDigest: "digest",
+    repositorySnapshotId: SNAPSHOT,
+    repositoryCommit: COMMIT,
+    requestedAt: new Date(),
+    completedAt: null,
     assessmentCase: { assessment: { ownerId: OWNER } },
-    rules: [{ ...rules[2]!, ordinal: 0, reusedDecisionId: null },
-      { ...rules[8]!, ordinal: 1, reusedDecisionId: null }],
+    rules: [
+      { ...rules[2], ordinal: 0, reusedDecisionId: null },
+      { ...rules[8], ordinal: 1, reusedDecisionId: null },
+    ],
   };
   const prisma = {
     assessmentRuleAuditRequest: { findUnique: async () => row },
     assessmentRule: { count: async () => 20 },
-    assessmentDecisionCoverage: { findMany: async () => [
-      { assessmentRuleId: "Rule-3", resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
-        currentDecisionId: DECISION, currentDecision: { state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED } },
-      { assessmentRuleId: "Rule-9", resolutionState: waiting
-        ? DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT : DECISION_RESOLUTION_STATES.INVESTIGATING,
-        currentDecisionId: null, currentDecision: null },
-    ] },
-    assessmentHumanRequest: { findMany: async () => waiting ? [{ assessmentRuleId: "Rule-9" }] : [] },
+    assessmentDecisionCoverage: {
+      findMany: async () => [
+        {
+          assessmentRuleId: "Rule-3",
+          resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
+          currentDecisionId: DECISION,
+          currentDecision: {
+            state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+          },
+        },
+        {
+          assessmentRuleId: "Rule-9",
+          resolutionState: waiting
+            ? DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT
+            : DECISION_RESOLUTION_STATES.INVESTIGATING,
+          currentDecisionId: null,
+          currentDecision: null,
+        },
+      ],
+    },
+    assessmentHumanRequest: {
+      findMany: async () => (waiting ? [{ assessmentRuleId: "Rule-9" }] : []),
+    },
     assessmentRuleAuditItem: { findMany: async () => row.rules },
-    assessmentRuleDecision: { findMany: async () => [{ assessmentRuleId: "Rule-3", decisionId: DECISION,
-      state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED }] },
+    assessmentRuleDecision: {
+      findMany: async () => [
+        {
+          assessmentRuleId: "Rule-3",
+          decisionId: DECISION,
+          state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+        },
+      ],
+    },
   };
-  const service = new AssessmentRuleAuditService(prisma as unknown as PrismaService,
-    {} as OutboxRepository, {} as AssessmentCaseSupport);
+  const service = new AssessmentRuleAuditService(
+    prisma as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+  );
 
   const first = await service.request(ASSESSMENT, OWNER, randomUUID(), REQUEST);
-  expect([first.ready, first.requested, first.notRequested]).toEqual([1, 2, 18]);
+  expect([first.ready, first.requested, first.notRequested]).toEqual([
+    1, 2, 18,
+  ]);
   expect(first.rules.map((rule) => rule.progress)).toEqual([
-    RULE_AUDIT_PROGRESS_STATES.RESULT_READY, RULE_AUDIT_PROGRESS_STATES.INVESTIGATING,
+    RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
+    RULE_AUDIT_PROGRESS_STATES.INVESTIGATING,
   ]);
   waiting = true;
-  const second = await service.request(ASSESSMENT, OWNER, randomUUID(), REQUEST);
+  const second = await service.request(
+    ASSESSMENT,
+    OWNER,
+    randomUUID(),
+    REQUEST,
+  );
   expect(second.rules.map((rule) => rule.progress)).toEqual([
-    RULE_AUDIT_PROGRESS_STATES.RESULT_READY, RULE_AUDIT_PROGRESS_STATES.WAITING_FOR_CUSTOMER,
+    RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
+    RULE_AUDIT_PROGRESS_STATES.WAITING_FOR_CUSTOMER,
   ]);
   expect(second.rules[0]?.decisionId).toBe(DECISION);
 });

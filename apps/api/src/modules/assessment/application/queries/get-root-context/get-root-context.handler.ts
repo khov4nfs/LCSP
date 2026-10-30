@@ -69,7 +69,9 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
             include: { rules: { orderBy: { ordinal: "asc" } } },
           })
         : null;
-      const selectedRuleIds = auditRequest?.rules.map((rule) => rule.assessmentRuleId);
+      const selectedRuleIds = auditRequest?.rules.map(
+        (rule) => rule.assessmentRuleId,
+      );
       const [
         coverage,
         facts,
@@ -157,19 +159,27 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         repositoryScanJobId: pins.repositoryScanJobId,
         repositoryCommit: pins.repositoryCommit,
         decisionScopeId: ASSESSMENT_DECISION_SCOPE,
-        auditRequest: auditRequest ? {
-          requestId: auditRequest.requestId,
-          scopeMode: auditRequest.scopeMode,
-          status: auditRequest.status,
-          selectedRuleIds,
-        } : null,
-        coverage: coverage.filter((row) => !selectedRuleIds || selectedRuleIds.includes(row.assessmentRuleId)).map((row) => ({
-          assessmentRuleId: row.assessmentRuleId,
-          assessmentRuleVersion: row.assessmentRuleVersion,
-          resolutionState: row.resolutionState,
-          currentDecisionId: row.currentDecisionId,
-          decisionRevision: row.decisionRevision,
-        })),
+        auditRequest: auditRequest
+          ? {
+              requestId: auditRequest.requestId,
+              scopeMode: auditRequest.scopeMode,
+              status: auditRequest.status,
+              selectedRuleIds,
+            }
+          : null,
+        coverage: coverage
+          .filter(
+            (row) =>
+              !selectedRuleIds ||
+              selectedRuleIds.includes(row.assessmentRuleId),
+          )
+          .map((row) => ({
+            assessmentRuleId: row.assessmentRuleId,
+            assessmentRuleVersion: row.assessmentRuleVersion,
+            resolutionState: row.resolutionState,
+            currentDecisionId: row.currentDecisionId,
+            decisionRevision: row.decisionRevision,
+          })),
         facts: facts.map((fact) => ({
           factId: fact.factId,
           assessmentId: fact.assessmentId,

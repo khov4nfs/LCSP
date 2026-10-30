@@ -585,7 +585,10 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       if (run.auditRequestId) {
         await tx.assessmentRuleAuditRequest.update({
           where: { requestId: run.auditRequestId },
-          data: { status: RULE_AUDIT_STATUSES.COMPLETED, completedAt: new Date() },
+          data: {
+            status: RULE_AUDIT_STATUSES.COMPLETED,
+            completedAt: new Date(),
+          },
         });
       }
 

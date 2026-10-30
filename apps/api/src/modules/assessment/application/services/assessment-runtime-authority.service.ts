@@ -123,19 +123,31 @@ export class AssessmentRuntimeAuthority {
         );
       }
       const auditMode = await tx.assessmentCase.findUnique({
-        where: { assessmentId: input.assessmentId }, select: { auditMode: true },
+        where: { assessmentId: input.assessmentId },
+        select: { auditMode: true },
       });
       if (auditMode?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED) {
         const auditRequest = row.currentAuditRequestId
-          ? await tx.assessmentRuleAuditRequest.findUnique({ where: { requestId: row.currentAuditRequestId } })
+          ? await tx.assessmentRuleAuditRequest.findUnique({
+              where: { requestId: row.currentAuditRequestId },
+            })
           : null;
-        if (!auditRequest || auditRequest.assessmentId !== input.assessmentId ||
-            (auditRequest.status === RULE_AUDIT_STATUSES.COMPLETED &&
-              !(row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
-                row.executionState === AGENT_EXECUTION_STATES.RUNNING && Boolean(input.runtimeRunId))) ||
-            auditRequest.status === RULE_AUDIT_STATUSES.CANCELLED) {
-          throw problemException(ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE, input.correlationId,
-            { status: HttpStatus.CONFLICT });
+        if (
+          !auditRequest ||
+          auditRequest.assessmentId !== input.assessmentId ||
+          (auditRequest.status === RULE_AUDIT_STATUSES.COMPLETED &&
+            !(
+              row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
+              row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
+              Boolean(input.runtimeRunId)
+            )) ||
+          auditRequest.status === RULE_AUDIT_STATUSES.CANCELLED
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
         }
       }
       const previousTurn = row.currentExecutionId
@@ -190,7 +202,8 @@ export class AssessmentRuntimeAuthority {
           ? await findFailedNativeCheckpoint(tx, {
               assessmentId: input.assessmentId,
               threadId: row.threadId,
-              checkpointNamespace: row.currentAuditRequestId ?? NATIVE_ROOT_CHECKPOINT_NAMESPACE,
+              checkpointNamespace:
+                row.currentAuditRequestId ?? NATIVE_ROOT_CHECKPOINT_NAMESPACE,
               runtimeRunId: previousRuntimeRunId,
               turnCreatedAt: previousTurn.createdAt,
               turnUpdatedAt: previousTurn.updatedAt,
@@ -330,7 +343,8 @@ export class AssessmentRuntimeAuthority {
       });
       if (row.currentAuditRequestId) {
         await tx.assessmentRuleAuditRequest.update({
-          where: { requestId: row.currentAuditRequestId }, data: { status: RULE_AUDIT_STATUSES.RUNNING },
+          where: { requestId: row.currentAuditRequestId },
+          data: { status: RULE_AUDIT_STATUSES.RUNNING },
         });
       }
       const [latestCommand] = await Promise.all([
@@ -663,18 +677,35 @@ export class AssessmentRuntimeAuthority {
         },
       });
       if (run.auditRequestId) {
-        const current = await tx.assessmentRuleAuditRequest.findUniqueOrThrow({ where: { requestId: run.auditRequestId } });
-        if (input.toState === AGENT_EXECUTION_STATES.SUCCEEDED && current.status !== RULE_AUDIT_STATUSES.COMPLETED) {
-          throw problemException(ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE, input.correlationId,
-            { status: HttpStatus.CONFLICT });
+        const current = await tx.assessmentRuleAuditRequest.findUniqueOrThrow({
+          where: { requestId: run.auditRequestId },
+        });
+        if (
+          input.toState === AGENT_EXECUTION_STATES.SUCCEEDED &&
+          current.status !== RULE_AUDIT_STATUSES.COMPLETED
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
         }
-        if (input.toState === AGENT_EXECUTION_STATES.FAILED ||
-            input.toState === AGENT_EXECUTION_STATES.INTERRUPTED ||
-            input.toState === AGENT_EXECUTION_STATES.CANCELLED) {
-          await tx.assessmentRuleAuditRequest.update({ where: { requestId: run.auditRequestId }, data: {
-            status: input.toState === AGENT_EXECUTION_STATES.FAILED ? RULE_AUDIT_STATUSES.FAILED :
-              input.toState === AGENT_EXECUTION_STATES.INTERRUPTED ? RULE_AUDIT_STATUSES.WAITING_FOR_CUSTOMER : RULE_AUDIT_STATUSES.CANCELLED,
-          } });
+        if (
+          input.toState === AGENT_EXECUTION_STATES.FAILED ||
+          input.toState === AGENT_EXECUTION_STATES.INTERRUPTED ||
+          input.toState === AGENT_EXECUTION_STATES.CANCELLED
+        ) {
+          await tx.assessmentRuleAuditRequest.update({
+            where: { requestId: run.auditRequestId },
+            data: {
+              status:
+                input.toState === AGENT_EXECUTION_STATES.FAILED
+                  ? RULE_AUDIT_STATUSES.FAILED
+                  : input.toState === AGENT_EXECUTION_STATES.INTERRUPTED
+                    ? RULE_AUDIT_STATUSES.WAITING_FOR_CUSTOMER
+                    : RULE_AUDIT_STATUSES.CANCELLED,
+            },
+          });
         }
       }
       await tx.assessmentRuntimeTurn.update({

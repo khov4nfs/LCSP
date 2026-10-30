@@ -6,7 +6,10 @@ import {
   ruleDecisionReferences,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_AUDIT_MODES, ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_AUDIT_MODES,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+} from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
@@ -92,17 +95,22 @@ export class AssessmentCaseSupport {
     correlationId: string,
   ) {
     const auditCase = await tx.assessmentCase.findUnique({
-      where: { assessmentId }, select: { auditMode: true },
+      where: { assessmentId },
+      select: { auditMode: true },
     });
     if (auditCase?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED) {
       const runtime = await tx.assessmentRuntime.findUnique({
-        where: { assessmentId }, select: { currentAuditRequestId: true },
+        where: { assessmentId },
+        select: { currentAuditRequestId: true },
       });
       const member = runtime?.currentAuditRequestId
         ? await tx.assessmentRuleAuditItem.findUnique({
-            where: { requestId_assessmentRuleId: {
-              requestId: runtime.currentAuditRequestId, assessmentRuleId,
-            } },
+            where: {
+              requestId_assessmentRuleId: {
+                requestId: runtime.currentAuditRequestId,
+                assessmentRuleId,
+              },
+            },
           })
         : null;
       if (!member) {

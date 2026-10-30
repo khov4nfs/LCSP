@@ -66,54 +66,93 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
           })
         : null;
       if (auditRequest?.scopeMode === RULE_AUDIT_SCOPE_MODES.SELECTED_RULES) {
-        const pins = await this.support.loadPins(tx, command.assessmentId, command.correlationId);
-        const blockers: Array<{ code: typeof ASSESSMENT_COMPLETION_BLOCKER_CODES[keyof typeof ASSESSMENT_COMPLETION_BLOCKER_CODES]; reference?: string }> = [];
+        const pins = await this.support.loadPins(
+          tx,
+          command.assessmentId,
+          command.correlationId,
+        );
+        const blockers: Array<{
+          code: (typeof ASSESSMENT_COMPLETION_BLOCKER_CODES)[keyof typeof ASSESSMENT_COMPLETION_BLOCKER_CODES];
+          reference?: string;
+        }> = [];
         const open = await tx.assessmentHumanRequest.findMany({
-          where: { assessmentId: command.assessmentId, status: "OPEN",
-            assessmentRuleId: { in: auditRequest.rules.map((item) => item.assessmentRuleId) } },
+          where: {
+            assessmentId: command.assessmentId,
+            status: "OPEN",
+            assessmentRuleId: {
+              in: auditRequest.rules.map((item) => item.assessmentRuleId),
+            },
+          },
           select: { assessmentRuleId: true },
         });
-        for (const request of open) blockers.push({
-          code: ASSESSMENT_COMPLETION_BLOCKER_CODES.OPEN_HUMAN_REQUEST,
-          reference: request.assessmentRuleId,
-        });
+        for (const request of open)
+          blockers.push({
+            code: ASSESSMENT_COMPLETION_BLOCKER_CODES.OPEN_HUMAN_REQUEST,
+            reference: request.assessmentRuleId,
+          });
         for (const item of auditRequest.rules) {
           const coverage = await tx.assessmentDecisionCoverage.findUnique({
-            where: { assessmentId_assessmentRuleId: {
-              assessmentId: command.assessmentId, assessmentRuleId: item.assessmentRuleId,
-            } }, include: { currentDecision: true },
+            where: {
+              assessmentId_assessmentRuleId: {
+                assessmentId: command.assessmentId,
+                assessmentRuleId: item.assessmentRuleId,
+              },
+            },
+            include: { currentDecision: true },
           });
           const record = coverage?.currentDecision;
-          if (!coverage || coverage.resolutionState !== DECISION_RESOLUTION_STATES.RESOLVED ||
-              coverage.assessmentRuleVersion !== item.assessmentRuleVersion ||
-              !record || record.state !== ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED ||
-              record.caseRevision !== pins.caseRevision ||
-              record.repositoryCommit !== pins.repositoryCommit ||
-              record.ruleSetVersionId !== auditRequest.ruleSetVersionId) {
-            blockers.push({ code: ASSESSMENT_COMPLETION_BLOCKER_CODES.DECISION_UNRESOLVED,
-              reference: item.assessmentRuleId });
+          if (
+            !coverage ||
+            coverage.resolutionState !== DECISION_RESOLUTION_STATES.RESOLVED ||
+            coverage.assessmentRuleVersion !== item.assessmentRuleVersion ||
+            !record ||
+            record.state !== ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED ||
+            record.caseRevision !== pins.caseRevision ||
+            record.repositoryCommit !== pins.repositoryCommit ||
+            record.ruleSetVersionId !== auditRequest.ruleSetVersionId
+          ) {
+            blockers.push({
+              code: ASSESSMENT_COMPLETION_BLOCKER_CODES.DECISION_UNRESOLVED,
+              reference: item.assessmentRuleId,
+            });
             continue;
           }
           const parsed = ruleDecisionSchema.safeParse(record.decision);
-          if (!parsed.success || parsed.data.assessmentRuleId !== item.assessmentRuleId) {
-            blockers.push({ code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-              reference: item.assessmentRuleId });
+          if (
+            !parsed.success ||
+            parsed.data.assessmentRuleId !== item.assessmentRuleId
+          ) {
+            blockers.push({
+              code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
+              reference: item.assessmentRuleId,
+            });
             continue;
           }
           const context = await this.support.buildValidationContext(tx, {
-            assessmentId: command.assessmentId, pins, decision: parsed.data,
+            assessmentId: command.assessmentId,
+            pins,
+            decision: parsed.data,
           });
           if (validateRuleDecision(parsed.data, context).length > 0)
-            blockers.push({ code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-              reference: item.assessmentRuleId });
+            blockers.push({
+              code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
+              reference: item.assessmentRuleId,
+            });
         }
-        if (blockers.length === 0 && auditRequest.status !== RULE_AUDIT_STATUSES.COMPLETED)
+        if (
+          blockers.length === 0 &&
+          auditRequest.status !== RULE_AUDIT_STATUSES.COMPLETED
+        )
           await tx.assessmentRuleAuditRequest.update({
             where: { requestId: auditRequest.requestId },
-            data: { status: RULE_AUDIT_STATUSES.COMPLETED, completedAt: new Date() },
+            data: {
+              status: RULE_AUDIT_STATUSES.COMPLETED,
+              completedAt: new Date(),
+            },
           });
         return assessmentCompletionGateResultSchema.parse({
-          lifecycleState: run.lifecycleState, blockers,
+          lifecycleState: run.lifecycleState,
+          blockers,
         });
       }
       const inspection = await this.completionGate.inspectInTx(

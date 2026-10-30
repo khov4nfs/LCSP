@@ -83,7 +83,8 @@ export class ReconcileOrphanedAssessmentHandler implements ICommandHandler<Recon
       if (
         assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE ||
         assessment.lifecycleRevision === null ||
-        assessment.domainCase?.auditMode === AssessmentAuditMode.CUSTOMER_SELECTED ||
+        assessment.domainCase?.auditMode ===
+          AssessmentAuditMode.CUSTOMER_SELECTED ||
         runtime.executionState !== AGENT_EXECUTION_STATES.QUEUED ||
         runtime.currentExecutionId !== null ||
         runtime.leaseToken !== null ||

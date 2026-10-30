@@ -273,34 +273,36 @@ export class AssessmentRuntimePreparation {
       ORCHESTRATOR,
     );
     const auditCase = await tx.assessmentCase.findUniqueOrThrow({
-      where: { assessmentId: input.assessmentId }, select: { auditMode: true },
+      where: { assessmentId: input.assessmentId },
+      select: { auditMode: true },
     });
-    if (auditCase.auditMode === AssessmentAuditMode.LEGACY_FULL) await this.outbox.enqueue(
-      buildOutboxMessageInput({
-        aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
-        aggregateId: input.assessmentId,
-        assessmentId: input.assessmentId,
-        eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
-        correlationId: input.correlationId,
-        causationId: input.correlationId,
-        actor: ORCHESTRATOR,
-        result: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
-        redactionStatus: AUDIT_REDACTION_STATUSES.none,
-        idempotencyKey: `${input.assessmentId}:${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}:start`,
-        // Identifiers and runtime settings: the Root loads everything else from server state with its lease.
-        payload: {
+    if (auditCase.auditMode === AssessmentAuditMode.LEGACY_FULL)
+      await this.outbox.enqueue(
+        buildOutboxMessageInput({
+          aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+          aggregateId: input.assessmentId,
           assessmentId: input.assessmentId,
-          ...(input.responseLanguage
-            ? {
-                responseLanguage: resolveResponseLanguage(
-                  input.responseLanguage,
-                ),
-              }
-            : {}),
-        },
-      }),
-      tx,
-    );
+          eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+          correlationId: input.correlationId,
+          causationId: input.correlationId,
+          actor: ORCHESTRATOR,
+          result: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+          redactionStatus: AUDIT_REDACTION_STATUSES.none,
+          idempotencyKey: `${input.assessmentId}:${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}:start`,
+          // Identifiers and runtime settings: the Root loads everything else from server state with its lease.
+          payload: {
+            assessmentId: input.assessmentId,
+            ...(input.responseLanguage
+              ? {
+                  responseLanguage: resolveResponseLanguage(
+                    input.responseLanguage,
+                  ),
+                }
+              : {}),
+          },
+        }),
+        tx,
+      );
     return { result: PREPARATION_RESULTS.ACTIVATED };
   }
 }
