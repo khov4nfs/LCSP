@@ -49,11 +49,19 @@ function makeTx() {
 }
 
 function makePrismaWithCreate() {
-  const upsert = jest.fn<CreateFn>().mockResolvedValue({ createdAt: new Date("2026-10-29T12:00:00Z") });
+  const upsert = jest
+    .fn<CreateFn>()
+    .mockResolvedValue({ createdAt: new Date("2026-10-29T12:00:00Z") });
   const admission = jest.fn<CreateFn>().mockResolvedValue({});
-  const tx = { outboxMessage: { upsert }, assessmentRootAdmissionRequest: { upsert: admission } };
+  const tx = {
+    outboxMessage: { upsert },
+    assessmentRootAdmissionRequest: { upsert: admission },
+  };
   return {
-    prisma: { ...tx, $transaction: (work: (client: unknown) => unknown) => work(tx) } as unknown as PrismaService,
+    prisma: {
+      ...tx,
+      $transaction: (work: (client: unknown) => unknown) => work(tx),
+    } as unknown as PrismaService,
     upsert,
     admission,
   };
@@ -145,15 +153,26 @@ describe("OutboxRepository", () => {
     it("atomically records Root demand and preserves its original age on duplicate enqueue", async () => {
       const { prisma, upsert, admission } = makePrismaWithCreate();
       const repository = new OutboxRepository(prisma);
-      const input = { aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
-        aggregateId: "assessment-1", eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
-        idempotencyKey: "root:assessment-1", payload: { assessmentId: "assessment-1" } };
+      const input = {
+        aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+        aggregateId: "assessment-1",
+        eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+        idempotencyKey: "root:assessment-1",
+        payload: { assessmentId: "assessment-1" },
+      };
       const id = await repository.enqueue(input);
       expect(await repository.enqueue(input)).toBe(id);
       expect(upsert).toHaveBeenCalledTimes(2);
       expect(admission).toHaveBeenCalledTimes(2);
-      expect(admission).toHaveBeenLastCalledWith({ where: { commandId: id }, update: {},
-        create: { commandId: id, assessmentId: "assessment-1", requestedAt: new Date("2026-10-29T12:00:00Z") } });
+      expect(admission).toHaveBeenLastCalledWith({
+        where: { commandId: id },
+        update: {},
+        create: {
+          commandId: id,
+          assessmentId: "assessment-1",
+          requestedAt: new Date("2026-10-29T12:00:00Z"),
+        },
+      });
     });
 
     it("creates a pending OutboxMessage row with the given aggregate/event/payload", async () => {

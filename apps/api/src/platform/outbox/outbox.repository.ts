@@ -65,8 +65,10 @@ export class OutboxRepository {
     // CUTOVER fence: a retired V1 command/event must never be created again, whatever code path asks.
     if (isRetiredOutboxEventType(input.eventType))
       throw new Error(`OUTBOX_EVENT_TYPE_RETIRED: ${input.eventType}`);
-    const isRoot = input.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED;
-    if (isRoot && !tx) return this.prisma.$transaction(client => this.enqueue(input, client));
+    const isRoot =
+      input.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED;
+    if (isRoot && !tx)
+      return this.prisma.$transaction((client) => this.enqueue(input, client));
     const client = tx ?? this.prisma;
     const message = OutboxMessageEntity.create(input);
 
@@ -84,10 +86,16 @@ export class OutboxRepository {
         createdAt: message.createdAt,
       },
     });
-    if (isRoot) await client.assessmentRootAdmissionRequest.upsert({
-      where: { commandId: message.id }, update: {},
-      create: { commandId: message.id, assessmentId: message.aggregateId, requestedAt: persisted.createdAt },
-    });
+    if (isRoot)
+      await client.assessmentRootAdmissionRequest.upsert({
+        where: { commandId: message.id },
+        update: {},
+        create: {
+          commandId: message.id,
+          assessmentId: message.aggregateId,
+          requestedAt: persisted.createdAt,
+        },
+      });
 
     return message.id;
   }

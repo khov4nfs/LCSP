@@ -78,7 +78,7 @@ export class AssessmentRootCapacityService {
           id: ROOT_CAPACITY_ID,
           desired: policy.initial,
           effective: 0,
-          policy: policy as Prisma.InputJsonValue,
+          policy: policy,
           reason: Reasons.initial,
         },
       });
@@ -656,7 +656,7 @@ export class AssessmentRootCapacityService {
         const next = await tx.assessmentRootCapacity.update({
           where: { id: row.id },
           data: {
-            runtimeMetrics: input.metrics as Prisma.InputJsonValue,
+            runtimeMetrics: input.metrics,
             reportedAt: now,
             databaseMetrics: database as unknown as Prisma.InputJsonValue,
             recoveredSlots: { increment: recovered },
@@ -703,7 +703,7 @@ export class AssessmentRootCapacityService {
       const next = await tx.assessmentRootCapacity.update({
         where: { id: row.id },
         data: {
-          policy: input.policy as Prisma.InputJsonValue,
+          policy: input.policy,
           desired: input.policy.manualOverride ?? input.policy.initial,
           effective: 0,
           evaluatedAt: null,
@@ -756,7 +756,7 @@ export class AssessmentRootCapacityService {
           runtime: after.runtimeMetrics,
           database: after.databaseMetrics,
           server: { hostId: after.hostId, incarnationId: after.incarnationId },
-        } as Prisma.InputJsonValue,
+        },
       },
     });
   }

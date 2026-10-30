@@ -270,7 +270,12 @@ export class AssessmentRuntimeAuthority {
       }
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
-      await this.capacity.bindInTx(tx, input.assessmentId, input.runtimeRunId, input.correlationId);
+      await this.capacity.bindInTx(
+        tx,
+        input.assessmentId,
+        input.runtimeRunId,
+        input.correlationId,
+      );
       const recoveringStop = row.currentExecutionId
         ? await tx.assessmentRuntimeTurn.findFirst({
             where: {

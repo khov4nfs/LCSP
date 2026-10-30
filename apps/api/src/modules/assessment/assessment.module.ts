@@ -4,7 +4,10 @@ import { WorkspaceRuntimeEventsController } from "./presentation/http/workspace-
 import { GetWorkspaceRuntimeHandler } from "./application/queries/get-workspace-runtime/get-workspace-runtime.handler.js";
 import { Module } from "@nestjs/common";
 import { AssessmentRootCapacityService } from "./application/services/assessment-root-capacity.service.js";
-import { AssessmentRootCapacityController, AdminAssessmentRootCapacityController } from "./presentation/http/assessment-root-capacity.controller.js";
+import {
+  AssessmentRootCapacityController,
+  AdminAssessmentRootCapacityController,
+} from "./presentation/http/assessment-root-capacity.controller.js";
 import { ASSESSMENT_RUNTIME_ERASURE } from "./application/ports/assessment-runtime-erasure.port.js";
 import { AgentServerAssessmentErasure } from "./infrastructure/runtime/agent-server-assessment-erasure.js";
 import { APP_INTERCEPTOR } from "@nestjs/core";
