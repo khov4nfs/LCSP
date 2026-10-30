@@ -1,7 +1,9 @@
 # LCSP-364: adaptive global Assessment Root admission
 
 Status: implementation in progress; production acceptance is a separate gate.
-Baseline: develop `e19048e1285c224085690cc344efb059c49bdf49`.
+Initially verified develop: `e19048e1285c224085690cc344efb059c49bdf49`.
+Refreshed and rebased before publication onto actual develop
+`9d677b8fc308bdc4ac7ce27addb74e796b58b880`.
 
 The LCSP-346 bridge and Agent Server each bound a startup-sized executor. These
 bounds neither adapt nor coordinate several bridge processes. The server persists
@@ -20,6 +22,13 @@ One Agent Server owns execution. A host-local exclusive process lock, held until
 all executions and callbacks drain, prevents overlapping server incarnations.
 The API pins that server's host identity and fences reports/reservations by a
 new incarnation ID on restart. A different host cannot take over automatically.
+Registration compares a freshly read control version: a delayed old handshake
+cannot fence a newer owner. A later invalid environment seed cannot overwrite
+or block an already persisted, audited policy.
+Reports also compare that version, which advances on reservation and release.
+An old report delayed beyond its HTTP timeout cannot reconcile away a slot
+admitted by a newer operation. Audit decision versions may therefore have gaps;
+the control version is an authority generation, not a count of scale decisions.
 Several bridge consumers may share this single endpoint. No controller leader
 lease is necessary: short row-locked evaluations plus a persisted evaluation
 timestamp/version serialize controllers across API replicas and restarts.
@@ -59,6 +68,10 @@ limits cannot justify scaling beyond the configured conservative fallback.
 Critical pressure or stale core telemetry can reduce admission to zero even
 with a positive normal minimum. Hysteresis, separate cooldowns and bounded steps
 control ordinary changes. An override cannot bypass physical/resource ceilings.
+The collector includes visible cgroup ancestors because limits are hierarchical
+([Linux kernel contract](https://docs.kernel.org/admin-guide/cgroup-v2.html));
+hidden delegated ancestry is unknown. Containerized Agent Server execution is
+not an enabled rollout topology; the supported server is the single PM2 process.
 
 Eligible demand is derived from canonical Root commands and runtime/lifecycle
 state, including requested continuations. Admission intent is committed with its
@@ -79,7 +92,7 @@ from hiding another customer's work. It schedules independent Assessments only.
 - Queue-only or CPU-only scaling: ignores memory, disk, DB, sandbox and provider bottlenecks.
 - Killing Roots on scale-down: breaks checkpoint, accounting and completion safety.
 
-Production preflight on 2026-10-29 found 95% disk use, about 2 GiB free and six
+Production preflight on 2026-10-30 at 06:26 UTC found 95% disk use, 1,861,111,808 bytes free and six
 running sandboxes. Rebuild/scale-up remains BLOCKED until fresh preflight proves
 a safe rollout envelope. Synthetic load proves controller and transport contracts;
 it never establishes real paid/native production semantic acceptance.

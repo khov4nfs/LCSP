@@ -32,6 +32,7 @@ import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { WorkerApiKeyGuard } from "../src/common/guards/worker-api-key.guard.js";
 import { AssessmentRootCapacityService } from "../src/modules/assessment/application/services/assessment-root-capacity.service.js";
 import { AssessmentRootCapacityController } from "../src/modules/assessment/presentation/http/assessment-root-capacity.controller.js";
+import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 
 const url = process.env.LCSP_TEST_CAPACITY_DATABASE_URL;
 const integration = url ? describe : describe.skip;
@@ -94,6 +95,85 @@ integration(
     const suffix = randomUUID();
     const owners = [`lcsp364-owner-a-${suffix}`, `lcsp364-owner-b-${suffix}`];
     const ids: string[] = [];
+
+    async function report(
+      service: AssessmentRootCapacityService,
+      input: Omit<
+        Parameters<AssessmentRootCapacityService["report"]>[0],
+        "expectedVersion"
+      >,
+    ) {
+      return service.report({
+        ...input,
+        expectedVersion: (await service.registration()).version,
+      });
+    }
+
+    it("keeps live Root slots during DLQ replay and reopens only quiescent intent", async () => {
+      const one = await enqueue();
+      const repository = new OutboxRepository(first as PrismaService);
+      const commandId = `fixture-command:${one.assessmentId}`;
+      await a.reserve(one);
+      await repository.resetMessageForReplay(commandId);
+      expect(
+        (
+          await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
+            where: { commandId },
+          })
+        ).admittedRunId,
+      ).toBe(one.runId);
+      expect((await a.status()).active).toBe(1);
+      await first.$transaction((tx) =>
+        a.bindInTx(tx, one.assessmentId, one.runId, randomUUID()),
+      );
+      await first.assessmentRuntime.update({
+        where: { assessmentId: one.assessmentId },
+        data: { executionState: AgentExecutionState.FAILED },
+      });
+      await a.release(one);
+      expect(
+        (
+          await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
+            where: { commandId },
+          })
+        ).completedAt,
+      ).not.toBeNull();
+      await first.outboxMessage.update({
+        where: { id: commandId },
+        data: { status: OutboxStatus.DLQ },
+      });
+      await repository.resetMessageForReplay(commandId);
+      expect((await b.reserve({ ...one, runId: randomUUID() })).admitted).toBe(
+        true,
+      );
+    });
+
+    it("discards Root DLQ transport without cascading away admission history or live capacity", async () => {
+      const one = await enqueue();
+      await a.reserve(one);
+      const commandId = `fixture-command:${one.assessmentId}`;
+      await first.outboxMessage.update({
+        where: { id: commandId },
+        data: { status: OutboxStatus.DLQ },
+      });
+      await new OutboxRepository(first as PrismaService).deleteMessage(
+        commandId,
+      );
+      expect(
+        (
+          await first.outboxMessage.findUniqueOrThrow({
+            where: { id: commandId },
+          })
+        ).status,
+      ).toBe(OutboxStatus.CANCELLED);
+      expect((await a.status()).active).toBe(1);
+      await a.release(one);
+      expect(
+        await first.assessmentRootExecutionSlot.count({
+          where: { assessmentId: one.assessmentId },
+        }),
+      ).toBe(1);
+    });
 
     beforeAll(async () => {
       const target = new URL(url!);
@@ -162,7 +242,7 @@ integration(
         },
         owners[0],
       );
-      await a.report({
+      await report(a, {
         hostId: host,
         incarnationId,
         liveRunIds: [],
@@ -371,7 +451,7 @@ integration(
       await expect(a.release(one)).rejects.toThrow();
       await expect(a.reserve(await enqueue())).rejects.toThrow();
       await expect(
-        a.report({
+        report(a, {
           hostId: host,
           incarnationId,
           liveRunIds: [],
@@ -397,6 +477,36 @@ integration(
       ).rejects.toThrow();
     });
 
+    it("rejects a delayed reconciliation snapshot after a newer admission", async () => {
+      const expectedVersion = (await a.registration()).version;
+      const one = await enqueue();
+      expect((await b.reserve(one)).admitted).toBe(true);
+      await expect(
+        a.report({
+          hostId: host,
+          incarnationId,
+          expectedVersion,
+          liveRunIds: [],
+          metrics: metrics(),
+        }),
+      ).rejects.toThrow();
+      expect((await b.status()).active).toBe(1);
+      expect(
+        (
+          await first.assessmentRootExecutionSlot.findUniqueOrThrow({
+            where: { runId: one.runId },
+          })
+        ).releasedAt,
+      ).toBeNull();
+      await report(a, {
+        hostId: host,
+        incarnationId,
+        liveRunIds: [one.runId],
+        metrics: metrics(1),
+      });
+      expect((await b.status()).active).toBe(1);
+    });
+
     it("uses the durable audited policy even if a later process has an invalid seed environment", async () => {
       const previous = process.env.LCSP_ROOT_CAPACITY_POLICY;
       try {
@@ -414,7 +524,7 @@ integration(
       const one = await enqueue();
       await a.reserve(one);
       await new Promise((resolve) => setTimeout(resolve, 2));
-      await b.report({
+      await report(b, {
         hostId: host,
         incarnationId,
         liveRunIds: [],
@@ -550,7 +660,7 @@ integration(
         owners[0],
       );
       await new Promise((resolve) => setTimeout(resolve, 2));
-      await a.report({
+      await report(a, {
         hostId: host,
         incarnationId,
         liveRunIds: [],

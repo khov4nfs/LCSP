@@ -95,6 +95,29 @@ function state(effective = 1): CapacityControlState {
 }
 
 describe("LCSP-364 bottleneck controller", () => {
+  it.each([
+    [{ serverSlots: 2 }, policy, Reasons.physical],
+    [
+      { memoryAvailableBytes: 6 * gib, cgroupMemoryAvailableBytes: 6 * gib },
+      policy,
+      Reasons.memory,
+    ],
+    [{}, { ...policy, maximum: 2 }, Reasons.full],
+  ])(
+    "explains a ceiling hold by its actual bottleneck rather than cooldown",
+    (readings, envelope, reason) => {
+      const next = decideRootCapacity(
+        envelope,
+        state(2),
+        { ...runtime(), ...readings },
+        database(),
+        epoch,
+      );
+      expect(next.effective).toBe(2);
+      expect(next.reason).toBe(reason);
+    },
+  );
+
   it("automatically progresses 1 -> 2 -> N -> 2 -> 1 with persisted cooldown/hysteresis", () => {
     let current = state();
     const capacities = [1];

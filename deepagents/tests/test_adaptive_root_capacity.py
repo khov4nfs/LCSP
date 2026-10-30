@@ -12,7 +12,7 @@ import pytest
 from tools.common.capabilities.agent_runtime import local_server, agent_server_client, rabbitmq_consumer
 from tools.common.capabilities.agent_runtime.root_capacity import (
     CAPACITY_UNAVAILABLE, ROOT_COMMAND_OBSOLETE, RootCapacityUnavailable,
-    RootCommandObsolete, RootCapacityClient, _docker_bytes,
+    RootCommandObsolete, RootCapacityClient, _docker_bytes, _cgroup_limits,
 )
 from orchestration.runtime_control import (
     PhysicalRunScope, active_physical_run_scope, cancellable_sync, physical_to_thread,
@@ -30,7 +30,56 @@ class CapacityProtocol:
         return {"admitted": self.admitted, "evaluationSeconds": 15}
 
 
-def test_registration_posts_one_comparison_version_and_does_not_retry_a_stale_handshake(monkeypatch):
+def test_image_health_api_fixture_fences_reports_and_never_admits_roots():
+    from tests.integration.test_production_agent_server_image_e2e import _SnapshotApi
+    api = _SnapshotApi(b"provider-free archive fixture")
+    api.start()
+    host, port = api._server.server_address[:2]
+    url = f"http://127.0.0.1:{port}/internal/assessment-root-capacity"
+    headers = {"x-worker-api-key": "test-worker-key"}
+    identity = {"hostId": "a" * 64, "incarnationId": str(uuid4())}
+    try:
+        assert httpx.get(url + "/registration").status_code == 403
+        assert httpx.get(url + "/registration", headers=headers).json()["data"]["version"] == 0
+        payload = {**identity, "expectedVersion": 0, "liveRunIds": []}
+        assert httpx.post(url + "/register", headers=headers, json=payload).status_code == 200
+        assert httpx.post(url + "/report", headers=headers, json=payload).status_code == 409
+        payload.update(expectedVersion=1, metrics={"reservedRootRuns": 0, "activeNativeRoots": 0})
+        assert httpx.post(url + "/report", headers=headers, json=payload).json()["data"]["effective"] == 0
+        assert httpx.post(url + "/reserve", headers=headers, json=identity).json()["data"]["admitted"] is False
+    finally:
+        api.stop()
+
+
+def test_inherited_cgroup_limits_tighten_an_unlimited_worker_leaf(tmp_path):
+    (tmp_path / "cgroup.controllers").write_text("cpu io memory")
+    parent = tmp_path / "tenant"; leaf = parent / "worker"; leaf.mkdir(parents=True)
+    for group, maximum, usage, quota, pressure in [
+        (parent, "4000", "3000", "150000 100000", "4.0"),
+        (leaf, "max", "500", "max 100000", "1.0"),
+    ]:
+        for file, content in {"memory.max": maximum, "memory.current": usage, "cpu.max": quota,
+            "cpu.pressure": f"some avg10={pressure} avg60=0 avg300=0 total=0",
+            "io.pressure": f"some avg10={pressure} avg60=0 avg300=0 total=0"}.items():
+            (group / file).write_text(content)
+    result = _cgroup_limits(leaf, tmp_path)
+    assert result["cgroupObserved"] is True
+    assert result["cgroupMemoryLimitBytes"] == 4000
+    assert result["cgroupMemoryAvailableBytes"] == 1000
+    assert result["cgroupCpuLimitCores"] <= 1.5
+    assert result["cpuPressure"] == 0.04
+    (parent / "memory.max").unlink()
+    assert _cgroup_limits(leaf, tmp_path)["cgroupObserved"] is False
+
+
+def test_hidden_cgroup_ancestry_is_unknown_rather_than_unlimited(tmp_path):
+    (tmp_path / "cgroup.controllers").write_text("cpu io memory")
+    (tmp_path / "memory.max").write_text("max")
+    assert _cgroup_limits(tmp_path, tmp_path)["cgroupObserved"] is False
+
+
+@pytest.mark.parametrize("action", ["register", "report"])
+def test_snapshot_posts_one_comparison_version_and_does_not_retry_a_stale_handshake(monkeypatch, action):
     monkeypatch.setenv("NESTJS_API_BASE_URL", "http://capacity.fixture")
     monkeypatch.setenv("WORKER_API_KEY", "fixture-only-key")
     calls = []
@@ -40,7 +89,7 @@ def test_registration_posts_one_comparison_version_and_does_not_retry_a_stale_ha
         calls.append(kwargs["json"])
         return httpx.Response(409, json={"ok": False}, request=httpx.Request("POST", url))
     monkeypatch.setattr(httpx, "post", post)
-    with pytest.raises(httpx.HTTPStatusError): RootCapacityClient().call("register", liveRunIds=[])
+    with pytest.raises(httpx.HTTPStatusError): RootCapacityClient().call(action, liveRunIds=[])
     assert len(calls) == 1 and calls[0]["expectedVersion"] == 7
 
 

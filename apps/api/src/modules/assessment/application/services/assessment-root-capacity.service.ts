@@ -359,6 +359,10 @@ export class AssessmentRootCapacityService {
         where: { commandId: queue[0].commandId },
         data: { admittedRunId: input.runId },
       });
+      await tx.assessmentRootCapacity.update({
+        where: { id: row.id },
+        data: { version: { increment: 1 } },
+      });
       return { admitted: true, reason: row.reason };
     });
   }
@@ -476,6 +480,10 @@ export class AssessmentRootCapacityService {
       UPDATE "AssessmentRootExecutionSlot" SET "releasedAt" = clock_timestamp()
       WHERE "runId" = ${slot.runId}::uuid AND "releasedAt" IS NULL RETURNING "releasedAt"`;
     if (!released) return;
+    await tx.assessmentRootCapacity.update({
+      where: { id: ROOT_CAPACITY_ID },
+      data: { version: { increment: 1 } },
+    });
     const runtime = await tx.assessmentRuntime.findUnique({
       where: { assessmentId: slot.assessmentId },
       select: { executionState: true },
@@ -608,6 +616,7 @@ export class AssessmentRootCapacityService {
    * Business purpose: Evaluate measured capacity with crash-safe replica coordination.
    * Business rules:
    * - Incarnation fencing and one row lock serialize reports, reconciliations and decisions.
+   * - A comparison version rejects delayed snapshots issued before any newer reservation/release/control.
    * - Evaluation interval and cooldown state survive API/controller restart; no leader TTL grants admission.
    * Execution flow:
    * 1. Validate report ordering, reconcile quiescent work and persist fresh runtime measurements.
@@ -623,6 +632,11 @@ export class AssessmentRootCapacityService {
       async (tx) => {
         const row = await this.lock(tx);
         this.assertServer(row, input);
+        if (row.version !== input.expectedVersion) {
+          throw problemException(Codes.conflict, input.incarnationId, {
+            status: HttpStatus.CONFLICT,
+          });
+        }
         const previous = rootCapacityRuntimeMetricsSchema.safeParse(
           row.runtimeMetrics,
         );

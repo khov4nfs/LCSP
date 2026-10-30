@@ -41,7 +41,7 @@ export function decideRootCapacity(
   now: Date,
 ): CapacityDecision {
   let ceiling = policy.maximum;
-  let reason: RootCapacityReason = Reasons.physical;
+  let reason: RootCapacityReason = Reasons.full;
   /**
    * Business purpose: Measure elapsed controller cooldown time.
    * Business rules:
@@ -250,6 +250,7 @@ export function decideRootCapacity(
     desired = policy.initial;
     effective = Math.min(desired, ceiling);
     healthySamples = idleSamples = 0;
+    if (desired <= ceiling) reason = Reasons.initial;
   } else {
     const pressure =
       database.queued > 0 &&
@@ -260,7 +261,7 @@ export function decideRootCapacity(
       database.queued === 0 && database.activeReservations < effective
         ? idleSamples + 1
         : 0;
-    reason = Reasons.cooldown;
+    if (!(pressure && ceiling <= effective)) reason = Reasons.cooldown;
     if (
       healthySamples >= policy.hysteresisSamples &&
       secondsSince(state.lastScaleUpAt) >= policy.scaleUpCooldownSeconds

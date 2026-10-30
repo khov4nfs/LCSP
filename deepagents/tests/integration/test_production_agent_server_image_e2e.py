@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import threading
 import time
@@ -138,6 +139,7 @@ def test_production_agent_server_image_runs_without_license_and_persists_state(
         assert checkpoint["checkpoint_id"]
         assert not values.get("skills_metadata")
         assert api.archive_requests == 1
+        assert api.root_reservation_requests == 0
         health = sandbox.read("/workspace/repository/.lcsp/agent/runtime-health.json")
         assert health.error is None
         assert "AgentRuntimeHealthBoundary" in health.file_data["content"]
@@ -160,6 +162,8 @@ def test_production_agent_server_image_runs_without_license_and_persists_state(
         assert restarted_state["checkpoint"] == checkpoint
         assert restarted_values == values
         assert not restarted_values.get("skills_metadata")
+        assert api.registration_requests == 2
+        assert api.root_reservation_requests == 0
     finally:
         sandbox.cleanup()
         _docker(["rm", "-f", server_name], check=False, timeout=30)
@@ -172,6 +176,13 @@ class _SnapshotApi:
     def __init__(self, archive: bytes) -> None:
         self.archive = archive
         self.archive_requests = 0
+        # This fixture exercises an unrelated boundary, not Assessment authority.
+        # Real Root admission/limits are tested with the API/PostgreSQL load stack.
+        self.registration_requests = 0
+        self.root_reservation_requests = 0
+        self._capacity_version = 0
+        self._capacity_owner = None
+        self._capacity_lock = threading.Lock()
         self._server = ThreadingHTTPServer(("0.0.0.0", 0), self._handler())
         self._thread = threading.Thread(
             target=self._server.serve_forever,
@@ -196,7 +207,24 @@ class _SnapshotApi:
         api = self
 
         class Handler(BaseHTTPRequestHandler):
+            def _reply(self, status: int, data: dict) -> None:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(data).encode())
+
+            def _authorized(self) -> bool:
+                if self.headers.get("x-worker-api-key") != "test-worker-key":
+                    self._reply(403, {"ok": False})
+                    return False
+                return True
+
             def do_GET(self) -> None:
+                if self.path == "/internal/assessment-root-capacity/registration":
+                    if self._authorized():
+                        with api._capacity_lock:
+                            self._reply(200, {"ok": True, "data": {"version": api._capacity_version}})
+                    return
                 if self.path.startswith("/internal/repository-snapshots/") and (
                     self.path.endswith("/archive")
                     or "/archive?" in self.path
@@ -209,6 +237,34 @@ class _SnapshotApi:
                     return
                 self.send_response(404)
                 self.end_headers()
+
+            def do_POST(self) -> None:
+                if not self.path.startswith("/internal/assessment-root-capacity/"):
+                    self._reply(404, {"ok": False}); return
+                if not self._authorized(): return
+                payload = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+                with api._capacity_lock:
+                    if self.path.endswith("/reserve"):
+                        api.root_reservation_requests += 1
+                        self._reply(200, {"ok": True, "data": {"admitted": False}}); return
+                    if payload.get("expectedVersion") != api._capacity_version:
+                        self._reply(409, {"ok": False}); return
+                    owner = (payload.get("hostId"), payload.get("incarnationId"))
+                    if self.path.endswith("/register"):
+                        assert payload["liveRunIds"] == []
+                        api._capacity_owner = owner
+                        api.registration_requests += 1
+                    elif self.path.endswith("/report"):
+                        if owner != api._capacity_owner:
+                            self._reply(409, {"ok": False}); return
+                        assert payload["liveRunIds"] == []
+                        assert payload["metrics"]["reservedRootRuns"] == 0
+                        assert payload["metrics"]["activeNativeRoots"] == 0
+                    else:
+                        self._reply(404, {"ok": False}); return
+                    api._capacity_version += 1
+                    self._reply(200, {"ok": True, "data": {"version": api._capacity_version,
+                        "desired": 0, "effective": 0, "evaluationSeconds": 15}})
 
             def log_message(self, _format: str, *_args: object) -> None:
                 return
@@ -240,6 +296,10 @@ def _start_server_container(
             f"127.0.0.1:{graph_port}:8000",
             "-v",
             "/var/run/docker.sock:/var/run/docker.sock",
+            # Explicit identity fixture for a production-mode image; never invent
+            # a host identity when the slim image has no machine-id file.
+            "--mount",
+            "type=bind,src=/etc/machine-id,dst=/etc/machine-id,readonly",
             "-e",
             "LCSP_AGENT_RUNTIME_MODE=production",
             "-e",

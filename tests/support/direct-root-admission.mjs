@@ -44,6 +44,18 @@ export function directRootAdmissionFixture({
   const manualRuns = new Map();
 
   async function call(action, payload) {
+    if (action === "report") {
+      const response = await fetch(
+        `${base}/internal/assessment-root-capacity/registration`,
+        {
+          headers: { "x-worker-api-key": workerKey },
+        },
+      );
+      assert.equal(response.status, 200);
+      const current = await response.json();
+      assert.equal(current.ok, true);
+      payload = { ...payload, expectedVersion: current.data.version };
+    }
     const response = await fetch(
       `${base}/internal/assessment-root-capacity/${action}`,
       {
@@ -216,18 +228,30 @@ export function directRootAdmissionFixture({
     // Match the real server's submission lock: report and reserve must share one
     // serialized snapshot, otherwise a concurrent fixture report can release a just-created slot.
     const work = reporting.then(() => prepareOwned(...args));
-    reporting = work.catch(() => {});
+    reporting = work.then(
+      () => {},
+      () => {},
+    );
     return work;
   }
 
   async function release(runId) {
-    if (initialized && runId) await call("quiesce", { runId });
+    const work = reporting.then(async () => {
+      if (initialized && runId) await call("quiesce", { runId });
+    });
+    reporting = work.then(
+      () => {},
+      () => {},
+    );
+    return work;
   }
   async function finishManual(assessmentId) {
-    await release(manualRuns.get(assessmentId));
-    manualRuns.delete(assessmentId);
+    const runId = manualRuns.get(assessmentId);
+    await release(runId);
+    if (manualRuns.get(assessmentId) === runId) manualRuns.delete(assessmentId);
   }
   async function close() {
+    await reporting;
     await client?.$disconnect();
   }
   return { prepare, release, finishManual, close };

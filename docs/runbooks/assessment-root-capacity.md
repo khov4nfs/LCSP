@@ -35,6 +35,10 @@ measurements suspend new admissions. Shared Python RSS is aggregate; per-Root
 Python RSS cannot be attributed reliably in a threaded process and remains
 unavailable. The per-Root reserve conservatively budgets that unknown consumption;
 only measured sandbox memory earns active-Root memory credit.
+The supported server runs under PM2 with a visible Linux cgroup v2 hierarchy.
+Ancestor limits constrain the worker even when its leaf is unlimited. Hidden
+ancestors in a delegated/container cgroup mount are unknown and suspend Root
+admission; do not bypass this by reporting an unlimited limit.
 
 Provider concurrent/RPM/TPM limits default to unknown. Configure all three only
 from the authorized provider envelope. They restrict Root expansion; the existing
@@ -70,8 +74,18 @@ bypass safety constraints. No command kills admitted work.
 
 Internal register/report/reserve/quiesce endpoints require the existing worker
 key. They are trusted runtime protocol, not an alternative customer interface.
+Registration/reporting read the worker-protected registration comparison version
+and submit it unchanged. Version conflict rejects a delayed snapshot; the next
+normal report obtains a fresh version. Reservations/releases advance the authority
+version as well as control changes, so decision-history versions can have gaps.
 Never call quiesce or register manually to clear a stuck slot. Lease expiry is
 not physical termination. Investigate the owning process/provider call first.
+
+The existing authorized DLQ actions remain available. Root discard retains a
+cancelled transport tombstone and admission history instead of cascading physical
+slots away. Explicit replay resets only quiescent admission intent; a live Root
+retains its slot. Accepted decisions, legal pins, checkpoint ancestry and usage
+are never cleared by these transport actions.
 
 ## Drain, deployment and first activation
 
@@ -79,7 +93,7 @@ not physical termination. Investigate the owning process/provider call first.
    migration state, image digest, broker occupancy and actual native runs using
    `scripts/assessment-root-capacity-preflight.py`. Preserve local changes/data.
 2. Verify disk/RAM/DB headroom. At the captured Fogewise free disk of about
-   1.87 GB, rebuild/canary is **BLOCKED**. Do not prune Docker, delete customer
+   1.86 GB, rebuild/canary is **BLOCKED**. Do not prune Docker, delete customer
    sandboxes or lower production safety thresholds to obtain a PASS.
 3. On an already upgraded runtime, run `node scripts/drain-agent-runtime.mjs`
    using private `.env.pm2` credentials. It sets server drain and polls real

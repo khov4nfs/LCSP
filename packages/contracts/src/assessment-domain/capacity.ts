@@ -151,6 +151,7 @@ export const rootCapacityRegisterSchema = rootCapacityLiveSchema.extend({
   expectedVersion: z.number().int().nonnegative(),
 });
 export const rootCapacityReportSchema = rootCapacityLiveSchema.extend({
+  expectedVersion: z.number().int().nonnegative(),
   metrics: rootCapacityRuntimeMetricsSchema,
 });
 export const rootCapacityReserveSchema = rootCapacityServerSchema.extend({

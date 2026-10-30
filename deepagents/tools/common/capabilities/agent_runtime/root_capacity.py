@@ -193,6 +193,58 @@ def _docker_bytes(value: str) -> float:
     return float(match[1]) * units[match[2]]
 
 
+def _cgroup_limits(group: Path, root: Path) -> dict[str, Any]:
+    """Business purpose: Respect inherited cgroup resource constraints rather than just the worker's leaf.
+
+    Business rules:
+    - Every visible ancestor can tighten RAM/CPU limits; a namespaced root with hidden parents is unknown.
+    - The real hierarchy root has no memory.max/cpu.max files; host measurements bound that unlimited root.
+    Execution flow:
+    1. Verify the hierarchy, then collect the tightest finite memory/CPU limits and remaining memory.
+    2. Combine measured stall pressure across the worker and its ancestors.
+    Failure cases:
+    - Missing/non-numeric limits, hidden ancestry or unreadable pressure fail closed without healthy substitutions.
+    Side effects:
+    - Reads kernel resource files only; no process, controller or container is modified.
+    """
+    result = dict(cgroupObserved=False, cgroupMemoryLimitBytes=None,
+        cgroupMemoryAvailableBytes=None, cgroupCpuLimitCores=None, cpuPressure=None, diskPressure=None)
+    try:
+        group, root = group.resolve(), root.resolve()
+        if not group.is_relative_to(root) or not {"cpu", "memory"}.issubset(set((root / "cgroup.controllers").read_text().split())):
+            return result
+        # memory.max exists only on non-root cgroups. At the mount root it
+        # identifies a delegated/namespaced subtree whose ancestors are hidden.
+        if (root / "memory.max").exists():
+            return result
+        limits, available, cpus, cpu_pressure, io_pressure = [], [], [], [], []
+        current = group
+        while current != root:
+            maximum = (current / "memory.max").read_text().strip()
+            usage = _read_number(current / "memory.current")
+            quota, period = (current / "cpu.max").read_text().split()
+            cpu, io = _pressure(current / "cpu.pressure"), _pressure(current / "io.pressure")
+            if usage is None or cpu is None or io is None or int(period) <= 0:
+                return result
+            if maximum != "max":
+                if int(maximum) <= 0: return result
+                limits.append(int(maximum)); available.append(max(0, int(maximum) - usage))
+            if quota != "max":
+                if int(quota) <= 0: return result
+                cpus.append(int(quota) / int(period))
+            cpu_pressure.append(cpu); io_pressure.append(io)
+            current = current.parent
+        count = os.cpu_count()
+        if count is None: return result
+        result.update(cgroupObserved=True, cgroupMemoryLimitBytes=min(limits, default=None),
+            cgroupMemoryAvailableBytes=min(available, default=None),
+            cgroupCpuLimitCores=min([count, *cpus]), cpuPressure=max(cpu_pressure, default=None),
+            diskPressure=max(io_pressure, default=None))
+    except (OSError, ValueError, TypeError):
+        pass
+    return result
+
+
 def resource_measurements() -> dict[str, Any]:
     """Business purpose: Capture real host, cgroup and sandbox headroom for Root admission.
 
@@ -200,7 +252,7 @@ def resource_measurements() -> dict[str, Any]:
     - Collector failures remain null; zero sandboxes is measured through successful Docker enumeration.
     - Sandbox identifiers are hashed; no environment, names, repository contents or credentials leave this collector.
     Execution flow:
-    1. Read host/PSI/cgroup limits and current process RSS.
+    1. Read host/PSI/cgroup ancestor limits and current process RSS.
     2. Read filesystem free space and aggregate labelled sandbox Docker stats.
     3. Add recent actual checkpoint and provider-pressure observations.
     Failure cases:
@@ -228,21 +280,12 @@ def resource_measurements() -> dict[str, Any]:
     try:
         relative = next(line.split(":", 2)[2] for line in Path("/proc/self/cgroup").read_text().splitlines() if line.startswith("0::"))
         group = Path("/sys/fs/cgroup") / relative.lstrip("/")
-        # A cgroup namespace may expose its root while /proc reports the host-relative path.
-        if not (group / "memory.max").exists():
-            group = Path("/sys/fs/cgroup")
-        maximum = (group / "memory.max").read_text().strip()
-        current = _read_number(group / "memory.current")
-        cpu_max, period = (group / "cpu.max").read_text().split()
-        result["cgroupMemoryLimitBytes"] = None if maximum == "max" else int(maximum)
-        result["cgroupMemoryAvailableBytes"] = (max(0, int(maximum) - current)
-            if maximum != "max" and current is not None else None)
-        result["cgroupCpuLimitCores"] = float(os.cpu_count()) if cpu_max == "max" else int(cpu_max) / int(period)
-        result["cgroupObserved"] = current is not None
-        for key, filename in (("cpuPressure", "cpu.pressure"), ("diskPressure", "io.pressure")):
-            local = _pressure(group / filename)
-            if local is not None:
-                result[key] = max(result[key] or 0, local)
+        limits = _cgroup_limits(group, Path("/sys/fs/cgroup"))
+        for key in ("cgroupObserved", "cgroupMemoryLimitBytes", "cgroupMemoryAvailableBytes", "cgroupCpuLimitCores"):
+            result[key] = limits[key]
+        for key in ("cpuPressure", "diskPressure"):
+            if result[key] is not None and limits[key] is not None:
+                result[key] = max(result[key], limits[key])
     except (OSError, ValueError, StopIteration, TypeError):
         pass
     result["sandboxSamples"] = None
@@ -324,14 +367,14 @@ class RootCapacityClient:
         Business rules:
         - Worker credentials remain headers only and are never logged; API problem/transport failures fail closed.
         Execution flow:
-        1. For registration, read its comparison version once so a delayed old request cannot fence a replacement.
+        1. For registration/reconciliation, read a comparison version so a delayed request cannot undo newer ownership/slots.
         2. POST the typed identity-bound operation and validate the shared success envelope.
         Failure cases:
         - HTTP, malformed-envelope and network failures raise without admitting or freeing work locally.
         Side effects:
         - Performs the selected API operational operation; never calls a provider or writes legal decisions.
         """
-        if action == "register":
+        if action in {"register", "report"}:
             current = httpx.get(f"{self._url}/registration", headers={"x-worker-api-key": self._key}, timeout=20)
             current.raise_for_status()
             envelope = current.json()

@@ -16,7 +16,10 @@ import {
 } from "../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
-import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_ROOT_COMMAND_TYPES,
+  ROOT_CAPACITY_ID,
+} from "@lcsp/contracts/assessment-domain";
 
 interface OutboxRow {
   id: string;
@@ -246,32 +249,61 @@ export class OutboxRepository {
   }
 
   /**
-   * Resets a DLQ message to a clean pending state so the publisher can replay it.
-   *
-   * @param id - Outbox message identifier to reset.
-   * @returns A promise that resolves after retry metadata is cleared.
+   * Business purpose: Replay an operator-approved failed delivery through its existing durable publisher.
+   * Business rules:
+   * - The DLQ service retains authorization/lifecycle guards; replay cannot release physical Root occupancy.
+   * - Only a quiescent Root command may reopen its operational admission intent; accepted domain work is unchanged.
+   * Execution flow:
+   * 1. Reset transport retry metadata and reopen quiescent admission bookkeeping in one transaction.
+   * Failure cases:
+   * - Missing message or persistence errors roll back both updates; live slots retain their existing authority.
+   * Side effects:
+   * - Updates outbox/admission bookkeeping; the caller preserves the existing operator audit.
    */
   async resetMessageForReplay(id: string): Promise<void> {
-    await this.prisma.outboxMessage.update({
-      where: { id },
-      data: {
-        status: toPrismaOutboxStatus(OUTBOX_STATUSES.pending),
-        attempts: 0,
-        nextAttemptAt: null,
-        errorMessage: null,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      // Serialize replay with admission whenever physical authority has been initialized.
+      await tx.$queryRaw`SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE`;
+      await tx.assessmentRootAdmissionRequest.updateMany({
+        where: { commandId: id, slots: { none: { releasedAt: null } } },
+        data: { completedAt: null, admittedRunId: null, deliveredAt: null },
+      });
+      await tx.outboxMessage.update({
+        where: { id },
+        data: {
+          status: toPrismaOutboxStatus(OUTBOX_STATUSES.pending),
+          attempts: 0,
+          nextAttemptAt: null,
+          errorMessage: null,
+        },
+      });
     });
   }
 
   /**
-   * Permanently removes an outbox message by identifier.
-   *
-   * @param id - Outbox message identifier to delete.
-   * @returns A promise that resolves after the row is removed.
+   * Business purpose: Discard an operator-selected DLQ delivery while retaining physical Root authority and audit links.
+   * Business rules:
+   * - Root commands referenced by admission history become cancelled tombstones; their slots/history cannot cascade away.
+   * - Unreferenced transport messages keep the existing physical deletion behavior.
+   * Execution flow:
+   * 1. Find admission bookkeeping and cancel its transport record, or delete an unreferenced message.
+   * Failure cases:
+   * - Missing message or database failure rejects atomically; discard never cancels a living native Root.
+   * Side effects:
+   * - Removes the message from DLQ visibility while preserving Root history; the caller records the discard audit.
    */
   async deleteMessage(id: string): Promise<void> {
-    await this.prisma.outboxMessage.delete({
-      where: { id },
+    await this.prisma.$transaction(async (tx) => {
+      const intent = await tx.assessmentRootAdmissionRequest.findUnique({
+        where: { commandId: id },
+        select: { commandId: true },
+      });
+      if (intent)
+        await tx.outboxMessage.update({
+          where: { id },
+          data: { status: toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled) },
+        });
+      else await tx.outboxMessage.delete({ where: { id } });
     });
   }
 }
