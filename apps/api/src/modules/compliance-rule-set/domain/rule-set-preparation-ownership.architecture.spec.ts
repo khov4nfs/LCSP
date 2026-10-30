@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { describe, expect, it } from "@jest/globals";
 
@@ -20,7 +20,7 @@ function sourceFiles(directory: string): string[] {
 }
 
 const relativePaths = (files: string[]) =>
-  files.map((file) => relative(SRC, file)).sort();
+  files.map((file) => relative(SRC, file).split(sep).join("/")).sort();
 const withMatch = (files: string[], pattern: RegExp) =>
   relativePaths(
     files.filter((file) => pattern.test(readFileSync(file, "utf8"))),

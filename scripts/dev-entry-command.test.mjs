@@ -34,20 +34,50 @@ test("Unix pnpm invocation keeps executable and arguments separate", () => {
   );
 });
 
-test("Windows invocation ignores ComSpec and fails closed without Corepack", () => {
+test("Windows pnpm invocation falls back to the standalone pnpm executable on PATH", () => {
+  const pnpmExe =
+    "C:\\Users\\pc\\AppData\\Roaming\\npm\\node_modules\\pnpm\\pnpm.exe";
+  const invocation = buildCommandInvocation("pnpm", ["run", "dev"], {
+    platform: "win32",
+    execPath: "C:\\Program Files\\nodejs\\node.exe",
+    pathEnv: "C:\\Users\\pc\\AppData\\Roaming\\npm",
+    fileExists: (candidate) => candidate === pnpmExe,
+  });
+
+  assert.deepEqual(invocation, { command: pnpmExe, args: ["run", "dev"] });
+});
+
+test("Windows pnpm invocation uses the global pnpm JavaScript CLI when available", () => {
+  const pnpmCli =
+    "C:\\Users\\pc\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs";
+  const invocation = buildCommandInvocation("pnpm", ["--version"], {
+    platform: "win32",
+    execPath: "C:\\Program Files\\nodejs\\node.exe",
+    pathEnv: "C:\\Users\\pc\\AppData\\Roaming\\npm",
+    fileExists: (candidate) => candidate === pnpmCli,
+  });
+
+  assert.deepEqual(invocation, {
+    command: "C:\\Program Files\\nodejs\\node.exe",
+    args: [pnpmCli, "--version"],
+  });
+});
+
+test("Windows invocation fails clearly when Corepack and PATH have no pnpm", () => {
   assert.throws(
     () =>
       buildCommandInvocation("pnpm", ["--version"], {
         platform: "win32",
         execPath: "C:\\Node\\node.exe",
+        pathEnv: "C:\\Windows\\System32",
         fileExists: () => false,
       }),
-    /Corepack pnpm\.js could not be resolved/u,
+    /pnpm could not be resolved/u,
   );
 });
 
 test(
-  "actual Windows Corepack pnpm invocation accepts separated arguments",
+  "actual Windows pnpm invocation accepts separated arguments",
   { skip: process.platform !== "win32" ? "requires Windows" : false },
   async () => {
     const invocation = buildCommandInvocation("pnpm", ["--version"]);

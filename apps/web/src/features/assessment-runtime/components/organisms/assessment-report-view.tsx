@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import { ASSESSMENT_ARTIFACT_KINDS } from "@lcsp/contracts/assessment-domain";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -12,10 +13,12 @@ import { copy } from "../../utils/conversation-copy";
 import { AssessmentReportActions } from "../molecules/assessment-report-actions";
 
 /** The stored final report, readable in the app: summary, per-rule findings and the pins it rests on. */
-export function AssessmentReportView({ assessmentId }: { assessmentId: string }) {
+export function AssessmentReportView({ assessmentId, artifactId }: { assessmentId: string; artifactId?: string }) {
   const detail = useAssessmentDetailQuery(assessmentId);
-  const artifact = detail.data?.case?.artifacts.find(
-    (item) => item.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+  const artifact = detail.data?.case?.artifacts.find((item) =>
+    item.kind === ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT &&
+    item.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE &&
+    (!artifactId || item.artifactId === artifactId),
   );
   const report = useAssessmentReportQuery(assessmentId, artifact?.artifactId ?? null);
   const concepts = new Map(

@@ -7,6 +7,7 @@ import { AUTH_USER_ROLES, AUTH_ACCOUNT_STATUSES } from "@lcsp/contracts/auth";
 import {
   formatLocaleDate,
   formatLocaleDateTime,
+  formatLocaleDateTimeWithYear,
   formatLocaleActivityTime,
 } from "../src/lib/date-format.ts";
 import { setAppLocale } from "../src/lib/locale.ts";
@@ -67,6 +68,12 @@ test("formatLocaleDateTime and formatLocaleActivityTime follow locale authority"
   assert.notEqual(enDateTime, viDateTime);
   assert.ok(enActivity);
   assert.ok(viActivity);
+});
+
+test("formatLocaleDateTimeWithYear uses an em dash for missing or invalid timestamps", () => {
+  assert.equal(formatLocaleDateTimeWithYear(null), "—");
+  assert.equal(formatLocaleDateTimeWithYear(undefined), "—");
+  assert.equal(formatLocaleDateTimeWithYear("not-a-date"), "—");
 });
 
 test("AdminRecentActivityCard presents activity timestamp driven by selected locale", () => {

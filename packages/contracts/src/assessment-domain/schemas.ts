@@ -39,6 +39,7 @@ import {
   TRACKING_FRESHNESS_STATUSES,
   TRACKING_IMPACT_REASONS,
   TRACKING_TRUST_STATUSES,
+  TRACKING_RULE_OUTCOMES,
   TRACKING_UNTRUSTED_REASONS,
 } from "./constants.ts";
 import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
@@ -887,6 +888,7 @@ export const trackingTrustStatusSchema = z.enum(TRACKING_TRUST_STATUSES);
 export const trackingFreshnessStatusSchema = z.enum(
   TRACKING_FRESHNESS_STATUSES,
 );
+export const trackingRuleOutcomeSchema = z.enum(TRACKING_RULE_OUTCOMES);
 export const trackingActionReasonSchema = z.enum(TRACKING_ACTION_REASONS);
 export const trackingAnomalyTypeSchema = z.enum(TRACKING_ANOMALY_TYPES);
 export const trackingUntrustedReasonSchema = z.enum(TRACKING_UNTRUSTED_REASONS);
@@ -943,6 +945,7 @@ export const customerTrackingAssessmentItemSchema = z.strictObject({
     owner: z.string().nullable(),
     pinnedCommit: z.string().nullable(),
     latestCommit: z.string().nullable(),
+    observedAt: z.iso.datetime().nullable(),
     freshnessStatus: trackingFreshnessStatusSchema,
     isStale: z.boolean(),
   }),
@@ -1002,6 +1005,7 @@ export type CustomerTrackingOverview = z.infer<
 export const customerTrackingOverviewQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
+  search: z.string().trim().max(120).optional(),
   actionsLimit: z.coerce.number().int().min(1).max(100).optional(),
   actionsOffset: z.coerce.number().int().min(0).optional(),
   changesLimit: z.coerce.number().int().min(1).max(100).optional(),
@@ -1018,6 +1022,89 @@ export const customerTrackingOverviewQuerySchema = z.strictObject({
 export type CustomerTrackingOverviewQuery = z.infer<
   typeof customerTrackingOverviewQuerySchema
 >;
+
+export const customerTrackingObligationAssessmentSchema = z.strictObject({
+  assessmentId: uuidSchema,
+  assessmentName: z.string().trim().min(1),
+  outcome: trackingRuleOutcomeSchema,
+  freshnessStatus: trackingFreshnessStatusSchema,
+  observedAt: z.iso.datetime().nullable(),
+  trustStatus: trackingTrustStatusSchema,
+});
+export type CustomerTrackingObligationAssessment = z.infer<typeof customerTrackingObligationAssessmentSchema>;
+
+export const customerTrackingObligationSchema = z.strictObject({
+  ruleSetVersionId: z.string().min(1),
+  ruleSetVersion: z.string().nullable(),
+  assessmentRuleId: z.string().min(1),
+  concept: z.string().trim().min(1),
+  compliantCount: z.number().int().nonnegative(),
+  nonCompliantCount: z.number().int().nonnegative(),
+  notApplicableCount: z.number().int().nonnegative(),
+  unresolvedCount: z.number().int().nonnegative(),
+  affectedAssessmentCount: z.number().int().nonnegative(),
+  assessments: z.array(customerTrackingObligationAssessmentSchema),
+});
+export type CustomerTrackingObligation = z.infer<typeof customerTrackingObligationSchema>;
+
+export const customerTrackingObligationsSchema = z.strictObject({
+  items: z.array(customerTrackingObligationSchema),
+  pagination: trackingPaginationSchema,
+  evaluationSummary: z.strictObject({
+    evaluatedAssessmentCount: z.number().int().nonnegative(),
+    notEvaluatedAssessmentCount: z.number().int().nonnegative(),
+  }),
+  generatedAt: z.iso.datetime(),
+});
+export type CustomerTrackingObligations = z.infer<typeof customerTrackingObligationsSchema>;
+
+export const customerTrackingObligationAssessmentsQuerySchema = z.strictObject({
+  ruleSetVersionId: uuidSchema,
+  assessmentRuleId: z.string().trim().min(1).max(200),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  outcome: trackingRuleOutcomeSchema.optional(),
+  freshness: trackingFreshnessStatusSchema.optional(),
+});
+export type CustomerTrackingObligationAssessmentsQuery = z.infer<typeof customerTrackingObligationAssessmentsQuerySchema>;
+
+export const customerTrackingObligationAssessmentsSchema = z.strictObject({
+  items: z.array(customerTrackingObligationAssessmentSchema),
+  pagination: trackingPaginationSchema,
+  generatedAt: z.iso.datetime(),
+});
+export type CustomerTrackingObligationAssessments = z.infer<typeof customerTrackingObligationAssessmentsSchema>;
+
+export const customerTrackingReportsSchema = z.strictObject({
+  items: z.array(z.strictObject({
+    assessmentId: uuidSchema,
+    assessmentName: z.string().trim().min(1),
+    repositoryName: z.string().nullable(),
+    repositoryOwner: z.string().nullable(),
+    artifactId: uuidSchema,
+    createdAt: z.iso.datetime(),
+    freshnessStatus: trackingFreshnessStatusSchema,
+    observedAt: z.iso.datetime().nullable(),
+    trustStatus: trackingTrustStatusSchema,
+  })),
+  pagination: trackingPaginationSchema,
+  generatedAt: z.iso.datetime(),
+});
+export type CustomerTrackingReports = z.infer<typeof customerTrackingReportsSchema>;
+
+export const customerTrackingListQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  outcome: trackingRuleOutcomeSchema.optional(),
+  freshness: trackingFreshnessStatusSchema.optional(),
+  needsAttention: z.preprocess(
+    (value) => typeof value === "string" && (value === "true" || value === "false")
+      ? value === "true"
+      : value,
+    z.boolean().optional(),
+  ),
+});
+export type CustomerTrackingListQuery = z.infer<typeof customerTrackingListQuerySchema>;
 
 export const adminTrackingImpactedAssessmentSchema = z.strictObject({
   assessmentId: uuidSchema,

@@ -2,6 +2,8 @@ import {
   LayoutDashboardIcon,
   ListChecksIcon,
   LibraryBigIcon,
+  ShieldCheckIcon,
+  FileTextIcon,
 } from "lucide-react";
 
 type NavigationDefinition = {
@@ -23,6 +25,16 @@ export const primaryNavigation = [
     href: "/assessments",
     labelKey: "pages.appShell.assessments",
     icon: ListChecksIcon,
+  },
+  {
+    href: "/workspace/compliance",
+    labelKey: "pages.workspace.tracking.navCompliance",
+    icon: ShieldCheckIcon,
+  },
+  {
+    href: "/workspace/reports",
+    labelKey: "pages.workspace.tracking.navReports",
+    icon: FileTextIcon,
   },
   {
     href: "/laws",

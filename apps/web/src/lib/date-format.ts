@@ -39,6 +39,30 @@ export function formatLocaleDateTime(
 }
 
 /**
+ * Business purpose: Show a complete localized event timestamp with year for customer and Admin views.
+ * Business rules:
+ * - An explicit locale overrides the active locale; missing or invalid timestamps use the unavailable marker.
+ * Execution flow:
+ * 1. Reject absent or invalid input, then format valid time with the chosen locale.
+ * Failure cases:
+ * - Missing and unparsable timestamps return the same unavailable marker.
+ * Side effects:
+ * - None: formats a supplied value without changing persisted or UI state.
+ */
+export function formatLocaleDateTimeWithYear(
+  isoString: string | null | undefined,
+  locale?: Locale,
+): string {
+  if (!isoString) return "—";
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat(locale ?? appLocale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+/**
  * Formats activity time using locale authority
  * (e.g., "10/14, 02:00" in EN, localized month/day/time in VI).
  */
