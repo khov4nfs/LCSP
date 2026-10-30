@@ -14,12 +14,17 @@ export type MfaRecoveryCodeVerifyRequest = {
 export type MfaVerifyError = {
   titleKey: MessageKey;
   detailKey: MessageKey;
+  requiredAction?: RequiredAction;
 };
 
 export type MfaVerifyOutcome =
   | { kind: typeof API_OUTCOME_KINDS.verified }
   | { kind: typeof API_OUTCOME_KINDS.mfaRequired }
   | { kind: typeof API_OUTCOME_KINDS.sessionInvalid }
+  | ({
+      kind: typeof API_OUTCOME_KINDS.mfaEnrollmentExpired;
+      requiredAction: RequiredAction;
+    } & MfaVerifyError)
   | ({
       kind: typeof API_OUTCOME_KINDS.invalid;
       requiredAction?: RequiredAction;

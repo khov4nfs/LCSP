@@ -422,7 +422,25 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
               },
               data: { revokedAt: new Date(input.now) },
             });
-            return { ok: false, code: AUTH_ERROR_CODES.reauthRequired };
+
+            await this.audit.writeInTx(
+              {
+                event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRotationExpired,
+                actor_id: input.userId,
+                session_id: input.sessionId,
+                correlationId: input.correlationId,
+                decision: AUDIT_DECISIONS.deny,
+                resource_type: AUDIT_RESOURCE_TYPES.authAccount,
+                resource_id: input.userId,
+                reason_code: AUTH_ERROR_CODES.mfaEnrollmentExpired,
+                generation_id: sessionCandidate.generationId,
+                mfaGenerationId: sessionCandidate.generationId,
+                reason: "candidate_enrolled_at_expired",
+              },
+              this.auditWriter.forTransaction(tx),
+            );
+
+            return { ok: false, code: AUTH_ERROR_CODES.mfaEnrollmentExpired };
           }
         } else {
           if (

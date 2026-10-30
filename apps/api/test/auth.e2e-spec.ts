@@ -1,4 +1,5 @@
 import {
+  AUTH_AUDIT_EVENT_TYPES,
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
@@ -2077,8 +2078,51 @@ describe("Auth workspace (e2e)", () => {
       .expect(403);
     assert.equal(
       problemCode(expiredVerifyRes),
-      AUTH_ERROR_CODES.reauthRequired,
+      AUTH_ERROR_CODES.mfaEnrollmentExpired,
     );
+    const expiredProblem = (
+      expiredVerifyRes.body as { problem?: { requiredAction?: string } }
+    ).problem;
+    assert.equal(
+      expiredProblem?.requiredAction,
+      REQUIRED_ACTIONS.restartEnrollment,
+    );
+
+    // Assert structured audit receipt recorded atomically with cleanup
+    const expiryAuditEvents = await prisma.auditEvent.findMany({
+      where: {
+        actorId: fixture.approvedUser.id,
+        eventType: AUTH_AUDIT_EVENT_TYPES.authMfaRotationExpired,
+      },
+    });
+    assert.equal(expiryAuditEvents.length, 1);
+    assert.equal(expiryAuditEvents[0]?.decision, AUDIT_DECISIONS.deny);
+    assert.equal(
+      expiryAuditEvents[0]?.reasonCode,
+      AUTH_ERROR_CODES.mfaEnrollmentExpired,
+    );
+    const auditPayload = expiryAuditEvents[0]?.payload as Record<
+      string,
+      unknown
+    >;
+    assert.equal(auditPayload?.mfaGenerationId, s2GenerationId);
+
+    // Assert idempotency: retry with same OTP rejects without emitting a duplicate audit receipt
+    const secondVerifyRes = await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: validCandidateOtp,
+      })
+      .expect(403);
+    assert.equal(problemCode(secondVerifyRes), AUTH_ERROR_CODES.mfaInvalid);
+    const expiryAuditEventsAfterRetry = await prisma.auditEvent.findMany({
+      where: {
+        actorId: fixture.approvedUser.id,
+        eventType: AUTH_AUDIT_EVENT_TYPES.authMfaRotationExpired,
+      },
+    });
+    assert.equal(expiryAuditEventsAfterRetry.length, 1);
 
     // 5. Invariant check: User MFA factor is still S1; candidate was NOT promoted
     const userAfterExpiredAttempt = await prisma.user.findUniqueOrThrow({

@@ -20,6 +20,7 @@ export type AuthMessages = {
     oauthStateInvalid: { title: string; detail: string };
     oauthCallbackInvalid: { title: string; detail: string };
     accountNotFound: { title: string; detail: string };
+    mfaEnrollmentExpired: { title: string; detail: string };
   };
 };
 
@@ -42,8 +43,25 @@ export type PagesMessages = {
     resume: string;
     resuming: string;
     resumeFailed: string;
-    stages: { CORPUS_READY: string; PREPARING_RULE_SET: string; VALIDATION_REQUIRED: string; VALIDATION_FAILED: string; RULE_SET_READY: string; ACTIVE: string };
-    draft: { documents: string; requirements: string; rules: string; references: string; blocked: string; validationErrors: string; available: string; unavailable: string; boundedPreview: string };
+    stages: {
+      CORPUS_READY: string;
+      PREPARING_RULE_SET: string;
+      VALIDATION_REQUIRED: string;
+      VALIDATION_FAILED: string;
+      RULE_SET_READY: string;
+      ACTIVE: string;
+    };
+    draft: {
+      documents: string;
+      requirements: string;
+      rules: string;
+      references: string;
+      blocked: string;
+      validationErrors: string;
+      available: string;
+      unavailable: string;
+      boundedPreview: string;
+    };
     title: string;
     description: string;
     active: string;
@@ -1145,6 +1163,9 @@ export type PagesMessages = {
     recoveryCodeAccessHelp: string;
     lostBothFactorsHelp: string;
     useRecovery: string;
+    enrollmentExpiredTitle: string;
+    enrollmentExpiredDetail: string;
+    restartEnrollment: string;
     errors: {
       otpRequired: string;
       otpInvalidFormat: string;

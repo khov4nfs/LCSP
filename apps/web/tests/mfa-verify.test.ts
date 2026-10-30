@@ -105,6 +105,32 @@ test("invalid or expired pending sessions return a sign-in outcome", () => {
     toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.sessionInvalid, 401), false),
     { kind: "session_invalid" },
   );
+  assert.deepEqual(
+    toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.reauthRequired, 403), false),
+    { kind: "session_invalid" },
+  );
+});
+
+test("expired MFA enrollment returns mfa_enrollment_expired outcome with restart action", () => {
+  const problemPayload = {
+    ok: false,
+    problem: {
+      type: "test/mfa-enrollment-expired",
+      status: 403,
+      code: AUTH_ERROR_CODES.mfaEnrollmentExpired,
+      titleKey: "auth.errors.validationFailed.title",
+      detailKey: "auth.errors.validationFailed.detail",
+      requiredAction: REQUIRED_ACTIONS.restartEnrollment,
+      correlationId: "test-correlation",
+    },
+  };
+
+  assert.deepEqual(toMfaVerifyOutcome(problemPayload, false), {
+    kind: "mfa_enrollment_expired",
+    requiredAction: REQUIRED_ACTIONS.restartEnrollment,
+    titleKey: "pages.mfaVerify.enrollmentExpiredTitle",
+    detailKey: "pages.mfaVerify.enrollmentExpiredDetail",
+  });
 });
 
 test("MFA client sends the OTP only in a same-origin JSON body", async () => {

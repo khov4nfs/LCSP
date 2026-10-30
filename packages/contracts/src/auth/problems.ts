@@ -45,6 +45,8 @@ export const PROBLEM_KEYS = {
   oauthCallbackInvalidDetail: "auth.errors.oauthCallbackInvalid.detail",
   accountNotFoundTitle: "auth.errors.accountNotFound.title",
   accountNotFoundDetail: "auth.errors.accountNotFound.detail",
+  mfaEnrollmentExpiredTitle: "auth.errors.mfaEnrollmentExpired.title",
+  mfaEnrollmentExpiredDetail: "auth.errors.mfaEnrollmentExpired.detail",
 } as const;
 
 export type ProblemKey = (typeof PROBLEM_KEYS)[keyof typeof PROBLEM_KEYS];

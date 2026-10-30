@@ -84,5 +84,10 @@ export const enAuth = {
       title: "Account not linked",
       detail: "No account is linked to this sign-in method.",
     },
+    mfaEnrollmentExpired: {
+      title: "MFA setup expired",
+      detail:
+        "The two-factor authentication setup session has expired. Please generate a new QR code to continue.",
+    },
   },
 } as const satisfies AuthMessages;

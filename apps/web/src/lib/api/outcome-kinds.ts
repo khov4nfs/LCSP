@@ -15,6 +15,7 @@ export const API_OUTCOME_KINDS = {
   loaded: "loaded",
   mfaRequired: "mfa_required",
   mfaEnrollmentRequired: "mfa_enrollment_required",
+  mfaEnrollmentExpired: "mfa_enrollment_expired",
   notFound: "not_found",
   passwordTooShort: "password_too_short",
   rateLimited: "rate_limited",

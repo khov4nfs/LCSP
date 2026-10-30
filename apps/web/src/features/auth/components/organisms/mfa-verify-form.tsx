@@ -5,10 +5,12 @@ import { resolveMessage } from "@lcsp/i18n";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useState } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
@@ -136,6 +138,10 @@ export function MfaVerifyForm({
       outcome.requiredAction === REQUIRED_ACTIONS.retryRecovery
     ) {
       setMethod(MFA_VERIFY_METHODS.recoveryCode);
+      setError(outcome);
+      return;
+    }
+    if (outcome.kind === API_OUTCOME_KINDS.mfaEnrollmentExpired) {
       setError(outcome);
       return;
     }
@@ -428,11 +434,24 @@ function MfaErrorAlert({ error }: { error?: MfaVerifyError }) {
     return null;
   }
 
+  const isRestartEnrollment =
+    error.requiredAction === REQUIRED_ACTIONS.restartEnrollment;
+
   return (
     <Alert variant="destructive">
       <AlertTitle>{resolveMessage(appLocale, error.titleKey)}</AlertTitle>
-      <AlertDescription>
-        {resolveMessage(appLocale, error.detailKey)}
+      <AlertDescription className="space-y-2">
+        <p>{resolveMessage(appLocale, error.detailKey)}</p>
+        {isRestartEnrollment ? (
+          <div className="pt-1">
+            <Link
+              href={API_REDIRECT_LOCATIONS.mfaEnroll}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              {resolveMessage(appLocale, "pages.mfaVerify.restartEnrollment")}
+            </Link>
+          </div>
+        ) : null}
       </AlertDescription>
     </Alert>
   );

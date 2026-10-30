@@ -185,7 +185,11 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
           "replayed",
         );
       }
-      throw authFailure(proofResult.code, correlationId);
+      throw authFailure(proofResult.code, correlationId, {
+        ...(proofResult.code === AUTH_ERROR_CODES.mfaEnrollmentExpired
+          ? { requiredAction: REQUIRED_ACTIONS.restartEnrollment }
+          : {}),
+      });
     }
 
     return { ok: true, correlationId: correlationId };
