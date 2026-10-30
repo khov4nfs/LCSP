@@ -1985,6 +1985,223 @@ describe("Auth workspace (e2e)", () => {
     );
   });
 
+  it("staged candidate factor expires after rotation TTL: valid candidate OTP rejected, active S1 preserved, and verified session B can replace factor", async () => {
+    // 1. User sets up initial factor S1
+    const sessionA = await signInApprovedUser();
+    const enrolled = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s1 = successBody<EnrollMfaSuccess>(enrolled);
+    const secretS1 = totpSecretFromUri(s1.totp_uri);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: totpForTime(secretS1, Date.now()),
+      })
+      .expect(201);
+
+    const userAfterS1 = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    const s1GenerationId = userAfterS1.mfaGenerationId;
+    const s1Secret = userAfterS1.mfaEncryptedSecret;
+    assert.ok(s1GenerationId);
+    assert.ok(s1Secret);
+
+    // 2. Session A reauthenticates password and initiates replacement (stages S2)
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .send({
+        session_token: sessionA.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+    const replacementA = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(201);
+    const s2 = successBody<EnrollMfaSuccess>(replacementA);
+    assert.ok(s2.totp_uri);
+    const secretS2 = totpSecretFromUri(s2.totp_uri);
+
+    // Get Session A's record ID and verify candidate is staged
+    const sessionsResA = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${sessionA.session_token}`)
+      .expect(200);
+    const sessionAId = successBody<AuthSessionsSuccess>(
+      sessionsResA,
+    ).sessions.find((s) => s.is_current)!.id;
+    const sessionARecord = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: sessionAId },
+    });
+    const sessionAMeta = (sessionARecord.metadata ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const candidateMeta = sessionAMeta.candidateMfaEnrollment as Record<
+      string,
+      unknown
+    >;
+    assert.ok(candidateMeta);
+    const s2GenerationId = candidateMeta.generationId as string;
+    assert.ok(s2GenerationId);
+    assert.notEqual(s2GenerationId, s1GenerationId);
+
+    // 3. Advance candidate enrollment timestamp beyond the 5-minute rotation TTL (6 minutes ago)
+    await prisma.authRecord.update({
+      where: { id: sessionAId },
+      data: {
+        metadata: {
+          ...sessionAMeta,
+          candidateMfaEnrollment: {
+            ...candidateMeta,
+            enrolledAt: Date.now() - 6 * 60_000,
+          },
+        },
+      },
+    });
+
+    // 4. Negative assertion: Session A attempts to verify S2 candidate OTP with a valid code.
+    // The candidate rotation has expired, so valid OTP must NOT promote candidate S2.
+    const validCandidateOtp = totpForTime(secretS2, Date.now());
+    const expiredVerifyRes = await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionA.session_token,
+        otp: validCandidateOtp,
+      })
+      .expect(403);
+    assert.equal(
+      problemCode(expiredVerifyRes),
+      AUTH_ERROR_CODES.reauthRequired,
+    );
+
+    // 5. Invariant check: User MFA factor is still S1; candidate was NOT promoted
+    const userAfterExpiredAttempt = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.equal(userAfterExpiredAttempt.mfaGenerationId, s1GenerationId);
+    assert.equal(userAfterExpiredAttempt.mfaEncryptedSecret, s1Secret);
+    assert.ok(userAfterExpiredAttempt.mfaVerifiedAt);
+
+    // Candidate metadata on Session A has been cleaned up under lock
+    const sessionACleaned = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: sessionAId },
+    });
+    const cleanedMeta = (sessionACleaned.metadata ?? {}) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(cleanedMeta.candidateMfaEnrollment, null);
+    assert.equal(cleanedMeta.mfaRotationInitiator, null);
+
+    // Unconfirmed candidate S2 recovery codes are revoked
+    const candidateCodes = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        metadata: {
+          path: ["mfaGenerationId"],
+          equals: s2GenerationId,
+        },
+      },
+    });
+    assert.ok(candidateCodes.length > 0);
+    for (const code of candidateCodes) {
+      assert.ok(
+        code.revokedAt !== null,
+        "Candidate recovery codes must be revoked on expiry",
+      );
+    }
+
+    // Active S1 recovery codes remain intact and unrevoked
+    const s1Codes = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        metadata: {
+          path: ["mfaGenerationId"],
+          equals: s1GenerationId,
+        },
+      },
+    });
+    assert.ok(s1Codes.length > 0);
+    for (const code of s1Codes) {
+      assert.equal(
+        code.revokedAt,
+        null,
+        "Active S1 recovery codes must remain unrevoked",
+      );
+    }
+
+    // 6. Active factor S1 is still usable for a new sign-in
+    const sessionC = await signInApprovedUser();
+    assert.equal(sessionC.mfa_required, true);
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionC.session_token,
+        otp: totpForTime(secretS1, Date.now() + 30_000),
+      })
+      .expect(201);
+    const profileC = await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${sessionC.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ mfa_verified: boolean }>(profileC).mfa_verified,
+      true,
+    );
+
+    // 7. Cross-session B replacement after A expiry:
+    // Session B signs in, verifies S1, reauthenticates password, and can initiate replacement
+    const sessionB = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionB.session_token,
+        otp: totpForTime(secretS1, Date.now() + 60_000),
+      })
+      .expect(201);
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .send({
+        session_token: sessionB.session_token,
+        password: "CorrectHorseBatteryStaple!",
+      })
+      .expect(201);
+
+    // Session B initiates replacement (stages S3) - succeeds because A's rotation is expired/cleared
+    const replacementB = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${sessionB.session_token}`)
+      .expect(201);
+    const s3 = successBody<EnrollMfaSuccess>(replacementB);
+    assert.ok(s3.totp_uri);
+    const secretS3 = totpSecretFromUri(s3.totp_uri);
+
+    // Session B verifies within TTL -> S3 is successfully promoted!
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: sessionB.session_token,
+        otp: totpForTime(secretS3, Date.now()),
+      })
+      .expect(201);
+
+    const userAfterS3 = await prisma.user.findUniqueOrThrow({
+      where: { id: fixture.approvedUser.id },
+    });
+    assert.notEqual(userAfterS3.mfaGenerationId, s1GenerationId);
+    assert.notEqual(userAfterS3.mfaGenerationId, s2GenerationId);
+    assert.ok(userAfterS3.mfaVerifiedAt);
+  });
+
   it("unverified initial enrollment can be safely restarted without password re-auth", async () => {
     // Reset approved user to have no MFA configured
     await prisma.user.update({

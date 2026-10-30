@@ -33,6 +33,29 @@ import {
   invalidateSessionProofsInTx,
 } from "./auth-record.persistence.ts";
 
+/**
+ * Time-to-live for a staged MFA candidate factor during rotation (5 minutes).
+ * Matches sensitive-action step-up freshness window.
+ */
+export const MFA_STAGED_ENROLLMENT_TTL_MS = 5 * 60_000;
+
+/**
+ * Validates whether a staged candidate factor enrollment remains fresh.
+ *
+ * @param enrolledAt - Candidate enrollment timestamp in epoch milliseconds or Date.
+ * @param now - Current epoch timestamp.
+ * @returns True when enrolledAt is present, not in the future, and within TTL.
+ */
+export function isCandidateEnrollmentFresh(
+  enrolledAt: number | Date | null | undefined,
+  now: number,
+): boolean {
+  if (!enrolledAt) return false;
+  const time =
+    typeof enrolledAt === "number" ? enrolledAt : enrolledAt.getTime();
+  return now - time <= MFA_STAGED_ENROLLMENT_TTL_MS && time <= now;
+}
+
 @Injectable()
 export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
   constructor(
@@ -127,7 +150,7 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             CandidateMfaEnrollment | undefined;
           if (
             candidate?.enrolledAt &&
-            !isSensitiveActionVerificationFresh(candidate.enrolledAt, input.now)
+            !isCandidateEnrollmentFresh(candidate.enrolledAt, input.now)
           ) {
             return false;
           }
@@ -319,24 +342,26 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
   }
 
   /**
-   * Business purpose: Authenticate the active MFA generation using TOTP or a single-use recovery code.
+   * Business purpose: Authenticate the active MFA generation using TOTP or a single-use recovery code, or verify and promote a staged candidate rotation.
    *
    * Business rules:
-   * - Proof must match the current encrypted secret and the active account generation.
+   * - Proof must match the current encrypted secret and the active account generation, or the staged candidate rotation.
+   * - Staged candidate rotation must not exceed the candidate enrollment TTL (5 minutes).
    * - Recovery codes are unusable until the current TOTP generation has been verified once.
-   * - Consuming proof, elevating the session and security audit must be one transaction.
+   * - Consuming proof, elevating the session or promoting candidate rotation, and security audit must be one transaction.
    *
    * Execution flow:
-   * 1. Lock the account/session and recheck rate limiting and current enrollment identity.
-   * 2. Consume a unique OTP counter or a recovery code from the matching generation.
-   * 3. Mark the account/session verified and audit the accepted proof atomically.
+   * 1. Lock the account/session and recheck rate limiting and current enrollment/candidate identity.
+   * 2. If verifying a staged candidate rotation, enforce candidate enrollment TTL; if expired, clean candidate state and revoke candidate codes under lock.
+   * 3. Consume a unique OTP counter or a recovery code from the matching generation.
+   * 4. Mark the account/session verified and audit the accepted proof atomically.
    *
    * Failure cases:
-   * - Stale secret, used code, wrong generation or active lockout rejects elevation.
+   * - Stale secret, expired candidate rotation, used code, wrong generation or active lockout rejects elevation.
    * - Audit and persistence failures roll back proof consumption and session elevation.
    *
    * Side effects:
-   * - Consumes proof records, sets MFA/session verification timestamps and writes audit.
+   * - Consumes proof records, sets MFA/session verification timestamps, promotes candidate or clears expired rotation markers, and writes audit.
    */
   async verifyProof(input: MfaProofCommit): Promise<MfaProofCommitResult> {
     try {
@@ -367,6 +392,37 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
             sessionCandidate.generationId !== input.candidate.generationId
           ) {
             return { ok: false, code: AUTH_ERROR_CODES.mfaRequired };
+          }
+          if (
+            !isCandidateEnrollmentFresh(sessionCandidate.enrolledAt, input.now)
+          ) {
+            // Staged enrollment candidate has expired beyond rotation TTL.
+            // Transactionally invalidate the expired candidate and revoke its unverified recovery codes,
+            // preserving active S1 factor and S1 recovery codes.
+            const freshMeta = authRecordMetadata(session.metadata);
+            await tx.authRecord.update({
+              where: { id: input.sessionId },
+              data: {
+                metadata: {
+                  ...freshMeta,
+                  candidateMfaEnrollment: null,
+                  mfaRotationInitiator: null,
+                  mfaRotationGenerationId: null,
+                },
+              },
+            });
+            await tx.authRecord.updateMany({
+              where: {
+                userId: input.userId,
+                type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+                metadata: {
+                  path: ["mfaGenerationId"],
+                  equals: sessionCandidate.generationId,
+                },
+              },
+              data: { revokedAt: new Date(input.now) },
+            });
+            return { ok: false, code: AUTH_ERROR_CODES.reauthRequired };
           }
         } else {
           if (
