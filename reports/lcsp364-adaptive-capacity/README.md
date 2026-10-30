@@ -81,6 +81,7 @@ Captured local verification includes:
 | Real RabbitMQ | 3 passed | Bounded credit/overlap, delivery-thread settlement and SIGTERM redelivery |
 | Drain script | 4 passed | Authenticated drain/resume and fail-closed invalid/unsupported responses |
 | Source gates | PASS | Imports, contracts, retired-authority check, typecheck and business documentation |
+| Changed API ESLint and affected fixture suites | 11 files clean; 58 tests passed | Exact changed-file lint command and admission/stream/lease fixtures after CI type corrections |
 
 See [machine-readable receipts](automated-receipts.json). CI runs real PostgreSQL
 admission separately from schema-resetting test suites, and the Assessment vertical
@@ -91,6 +92,10 @@ include and keeping the serialization tail typed as a void promise. An optional
 credential-index regression was test-database interference: it passed against the
 separate migrated database, and the broad API rerun passed with isolated databases.
 No assertion or financial/semantic gate was relaxed.
+CI's separate changed-file ESLint step also identified promise-only mocks marked
+async and untyped HTTP test responses. The mocks now return promises explicitly,
+and the Nest application carries its HTTP server type. The same lint command passes
+locally without rule suppression or relaxed response assertions.
 
 The initial Docker image check found a fixture integration gap: its snapshot-only
 API stub lacked the new startup registration/report protocol, and the slim image

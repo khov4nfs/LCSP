@@ -45,7 +45,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     prisma,
     {} as AssessmentEventAppender,
     {} as AssessmentLifecycleCoordinator,
-    { bindInTx: async () => undefined } as never,
+    { bindInTx: () => Promise.resolve(undefined) } as never,
   );
   const publish = jest
     .fn<AssessmentRuntimeEventService["publishAgentStreamEvent"]>()

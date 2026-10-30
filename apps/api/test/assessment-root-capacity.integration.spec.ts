@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Server } from "node:http";
 import {
   afterAll,
   beforeAll,
@@ -90,7 +91,7 @@ integration(
   () => {
     let first: PrismaClient, second: PrismaClient;
     let a: AssessmentRootCapacityService, b: AssessmentRootCapacityService;
-    let app: INestApplication;
+    let app: INestApplication<Server>;
     let incarnationId: string;
     const suffix = randomUUID();
     const owners = [`lcsp364-owner-a-${suffix}`, `lcsp364-owner-b-${suffix}`];
@@ -683,19 +684,26 @@ integration(
     });
 
     it("authenticates/validates the real HTTP protocol and keeps problem HTTP status consistent", async () => {
-      const missing = await request(app.getHttpServer())
+      const server = app.getHttpServer();
+      const missing = await request(server)
         .post("/internal/assessment-root-capacity/reserve")
         .send({});
       expect(missing.status).toBe(401);
-      expect(missing.body.problem.status).toBe(401);
-      const invalid = await request(app.getHttpServer())
+      expect(missing.body).toMatchObject({
+        ok: false,
+        problem: { status: 401 },
+      });
+      const invalid = await request(server)
         .post("/internal/assessment-root-capacity/reserve")
         .set("x-worker-api-key", workerKey)
         .send({});
       expect(invalid.status).toBe(422);
-      expect(invalid.body.problem.status).toBe(422);
+      expect(invalid.body).toMatchObject({
+        ok: false,
+        problem: { status: 422 },
+      });
       const one = await enqueue();
-      const response = await request(app.getHttpServer())
+      const response = await request(server)
         .post("/internal/assessment-root-capacity/reserve")
         .set("x-worker-api-key", workerKey)
         .send(one);
