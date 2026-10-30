@@ -150,6 +150,8 @@ model Assessment {
   domainCase             AssessmentCase?
 
   @@index([ownerId])
+  @@index([ownerId, updatedAt(sort: Desc), id])
+  @@index([ownerId, lifecycleState, id])
 }
 
 enum AgentStreamBoundaryType {
@@ -450,6 +452,8 @@ model RepositorySnapshot {
   @@index([assessmentId])
   @@index([connectionId])
   @@index([commitSha])
+  @@index([repositoryFullName, ref, status, createdAt], map: "RepositorySnapshot_repo_ref_status_created_idx")
+  @@index([repositoryFullName, branch, status, createdAt], map: "RepositorySnapshot_repo_branch_status_created_idx")
 }
 
 model RepositoryScanJob {
@@ -1823,6 +1827,7 @@ model AssessmentDecisionCoverage {
 
   @@id([assessmentId, assessmentRuleId])
   @@index([assessmentId, resolutionState])
+  @@index([ruleSetVersionId, assessmentRuleId, assessmentId])
 }
 
 // resolvedFactId also carries a raw composite FK (resolvedFactId, assessmentId) ->
@@ -1924,8 +1929,6 @@ enum AuthorizationReasonCode {
   UNSUPPORTED_PROVIDER
   VALIDATION_FAILED
 }
-
-
 enum PreparationExecutionContract {
   CLAIM_INVENTORY_V1
   DIRECT_DRAFT_V1

@@ -67,6 +67,57 @@ function Ensure-Docker {
     }
 }
 
+function Ensure-PrivateEnv {
+    if (Test-Path -LiteralPath $PrivateEnvFile) {
+        return
+    }
+
+    $containers = @(& docker ps -a --format "{{.Names}}")
+    if ($LASTEXITCODE -ne 0) {
+        Fail "Could not inspect existing Docker containers before creating private configuration."
+    }
+    $volumes = @(& docker volume ls --format "{{.Name}}")
+    if ($LASTEXITCODE -ne 0) {
+        Fail "Could not inspect existing Docker volumes before creating private configuration."
+    }
+    if (@($containers | Where-Object { $_ -match '^fogewise-(postgres|rabbitmq|redis)$' }).Count -gt 0 -or
+        @($volumes | Where-Object { $_ -match '(^|[_-])fogewise-(postgres|redis)-data$' }).Count -gt 0) {
+        Fail "Existing Fogewise containers or data volumes were found without common/.env. Restore the original private passwords; new ones would not unlock existing data."
+    }
+
+    $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $lines = foreach ($name in @(
+            "LCSP_LOCAL_POSTGRES_PASSWORD",
+            "LCSP_LOCAL_RABBITMQ_PASSWORD",
+            "LCSP_LOCAL_REDIS_PASSWORD"
+        )) {
+            $bytes = New-Object byte[] 32
+            $generator.GetBytes($bytes)
+            "$name=$([System.BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant())"
+        }
+    }
+    finally {
+        $generator.Dispose()
+    }
+
+    $payload = [System.Text.Encoding]::UTF8.GetBytes(($lines -join "`n") + "`n")
+    try {
+        $stream = [System.IO.File]::Open($PrivateEnvFile, [System.IO.FileMode]::CreateNew,
+            [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+    }
+    catch [System.IO.IOException] {
+        Fail "Private configuration appeared during startup. Review common/.env and rerun the launcher."
+    }
+    try {
+        $stream.Write($payload, 0, $payload.Length)
+    }
+    finally {
+        $stream.Dispose()
+    }
+    Write-Host "[Fogewise] Created private common/.env with three independent random passwords. Keep this file for future runs."
+}
+
 function Ensure-HostsAlias {
     $managedPattern = '^\s*127\.0\.0\.1\s+fogewise-redis(\s+.*)?#\s*fogewise-local-infra\s*$'
     if (Select-String -Path $HostsPath -Pattern $managedPattern -Quiet -ErrorAction SilentlyContinue) {
@@ -129,12 +180,11 @@ function Wait-ForHealthyContainer([string]$ContainerName, [string]$Label, [int]$
 if (-not (Test-Path $ComposeFile)) {
     Fail "Compose file not found: $ComposeFile"
 }
-if (-not (Test-Path $PrivateEnvFile)) {
-    Fail "Private configuration missing. Copy common/.env.example to common/.env and set the three passwords."
-}
-
 Step "Ensuring Docker Desktop is available"
 Ensure-Docker
+
+Step "Ensuring private local infrastructure configuration"
+Ensure-PrivateEnv
 
 Step "Validating private local infrastructure configuration"
 Invoke-Compose @("-f", $ComposeFile, "config", "--quiet")

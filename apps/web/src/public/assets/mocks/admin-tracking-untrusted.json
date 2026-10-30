@@ -1,0 +1,24 @@
+{
+  "platformHealth": {
+    "totalActiveAssessments": 0,
+    "totalFailedAssessments": 0,
+    "totalBlockedAssessments": 0,
+    "totalExecutionAnomalies": 0,
+    "totalUnreconciledUsageEvents": 0,
+    "totalUntrustedProjections": 1
+  },
+  "impactedAssessments": [],
+  "executionAnomalies": [],
+  "unreconciledUsage": [],
+  "untrustedProjections": [
+    {
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "name": "Rule set assessment",
+      "untrustedReason": "RULE_SET_UNAVAILABLE",
+      "detail": "Assessment has no pinned compliance rule set version",
+      "detectedAt": "2026-10-24T00:00:00.000Z"
+    }
+  ],
+  "correlationId": "admin-tracking-i18n-fixture",
+  "generatedAt": "2026-10-24T00:00:00.000Z"
+}

@@ -6,22 +6,16 @@ import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { canCreateAssessment } from "@/lib/api/workspace-client";
-import {
-  useAssessmentsQuery,
-  useWorkspaceQuery,
-} from "@/lib/api/workspace-queries";
+import { useWorkspaceQuery } from "@/lib/api/workspace-queries";
 
 import { appLocale } from "@/lib/locale";
 import type { WorkspaceErrorOutcome } from "../../types/workspace.types";
 import { WorkspaceHeader } from "../molecules/workspace-header";
-import { WorkspaceOverview } from "./workspace-overview";
-import { useWorkspaceRuntime } from "./workspace-runtime-provider";
+import { TrackingDashboard } from "@/features/tracking/components/organisms/tracking-dashboard";
 
 export function WorkspaceDashboard() {
   const router = useRouter();
-  const workspaceRuntime = useWorkspaceRuntime();
   const workspaceQuery = useWorkspaceQuery();
-  const assessmentsQuery = useAssessmentsQuery();
 
   useEffect(() => {
     if (workspaceQuery.data?.kind === "redirect") {
@@ -33,17 +27,9 @@ export function WorkspaceDashboard() {
     workspaceQuery.data?.kind === "loaded"
       ? workspaceQuery.data.workspace
       : null;
-  const assessments =
-    assessmentsQuery.data?.kind === "loaded"
-      ? assessmentsQuery.data.assessments
-      : [];
-  const workspaceError = isWorkspaceErrorOutcome(workspaceQuery.data)
+  const error = isWorkspaceErrorOutcome(workspaceQuery.data)
     ? workspaceQuery.data
     : null;
-  const assessmentsError = isWorkspaceErrorOutcome(assessmentsQuery.data)
-    ? assessmentsQuery.data
-    : null;
-  const error = workspaceError ?? assessmentsError;
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 py-6 text-foreground lg:px-6">
@@ -59,11 +45,8 @@ export function WorkspaceDashboard() {
 
         {workspace ? (
           <WorkspaceHeader
-            title={resolveMessage(appLocale, "pages.workspace.pageTitle")}
-            description={resolveMessage(
-              appLocale,
-              "pages.workspace.pageDescription",
-            )}
+            title={resolveMessage(appLocale, "pages.workspace.tracking.overviewTitle" as MessageKey)}
+            description={resolveMessage(appLocale, "pages.workspace.tracking.overviewDescription" as MessageKey)}
             organizationLabel={resolveMessage(
               appLocale,
               "pages.workspace.organizationLabel" as MessageKey,
@@ -83,22 +66,12 @@ export function WorkspaceDashboard() {
           />
         ) : null}
 
-        <WorkspaceOverview
-          assessments={assessments}
-          canonicalAssessments={workspaceRuntime.canonicalAssessmentByAssessmentId}
-          connectionState={workspaceRuntime.connectionState}
-        />
+        <TrackingDashboard />
       </div>
     </main>
   );
 }
 
-function isWorkspaceErrorOutcome(
-  outcome: unknown,
-): outcome is WorkspaceErrorOutcome {
-  return (
-    typeof outcome === "object" &&
-    outcome !== null &&
-    (outcome as { kind?: unknown }).kind === "error"
-  );
+function isWorkspaceErrorOutcome(outcome: unknown): outcome is WorkspaceErrorOutcome {
+  return typeof outcome === "object" && outcome !== null && (outcome as { kind?: unknown }).kind === "error";
 }
