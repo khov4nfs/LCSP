@@ -1,5 +1,7 @@
 # LCSP-364 engineering report — A–K
 
+Latest production update: [2026-10-31 activation, failed canary and verified rollback](rollout-20261031.md). Fogewise was activated on 7528577c0 and returned safely to 44dba336f; the shared external writer keeps global/native acceptance BLOCKED. Earlier sections below are capture-time implementation evidence.
+
 Verdict: **BLOCKED for production acceptance and merge**. Implementation is in
 [PR #442](https://github.com/khov4nfs/LCSP/pull/442), targeting develop.
 This report distinguishes provider-free local proof from unexecuted production

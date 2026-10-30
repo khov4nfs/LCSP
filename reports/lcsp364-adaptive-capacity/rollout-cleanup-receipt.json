@@ -1,0 +1,41 @@
+{
+  "observedAt": "2026-10-30T16:46:44.650160+00:00",
+  "diskFreeBeforeBytes": 1828675584,
+  "diskFreeAfterBytes": 5004980224,
+  "reclaimedMeasuredBytes": 3176304640,
+  "requiredFreeBytes": 4294967296,
+  "diskPolicyPass": true,
+  "removed": [
+    {
+      "path": "/root/.vscode-server/cli/servers/Stable-16507d91be0dc1ce4f94c04d4d0430210b8685d9",
+      "classifiedAs": "DISPOSABLE_UNUSED_TOOL_CACHE",
+      "bytesBefore": 702889984,
+      "processReferences": [],
+      "removed": true
+    },
+    {
+      "path": "/root/.vscode-server/cli/servers/Stable-6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1",
+      "classifiedAs": "DISPOSABLE_UNUSED_TOOL_CACHE",
+      "bytesBefore": 658849792,
+      "processReferences": [],
+      "removed": true
+    },
+    {
+      "path": "/root/.vscode-server/cli/servers/Stable-2d0b7506a36c1d6db9a466440131a8e01eab2289",
+      "classifiedAs": "DISPOSABLE_UNUSED_TOOL_CACHE",
+      "bytesBefore": 671838208,
+      "processReferences": [],
+      "removed": true
+    },
+    {
+      "path": "/root/.npm/_npx/2778af9cee32ff87",
+      "classifiedAs": "DISPOSABLE_UNUSED_TOOL_CACHE",
+      "bytesBefore": 1142726656,
+      "processReferences": [],
+      "removed": true
+    }
+  ],
+  "businessDataDeleted": false,
+  "dockerPrunePerformed": false,
+  "backupsDeleted": false
+}
