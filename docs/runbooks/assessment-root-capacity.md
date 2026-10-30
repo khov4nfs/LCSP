@@ -74,6 +74,8 @@ bypass safety constraints. No command kills admitted work.
 
 Internal register/report/reserve/quiesce endpoints require the existing worker
 key. They are trusted runtime protocol, not an alternative customer interface.
+Startup requires a non-zero, initialized 32-hex `/etc/machine-id`; absent, empty,
+uninitialized or malformed identity fails closed before registration.
 Registration/reporting read the worker-protected registration comparison version
 and submit it unchanged. Version conflict rejects a delayed snapshot; the next
 normal report obtains a fresh version. Reservations/releases advance the authority

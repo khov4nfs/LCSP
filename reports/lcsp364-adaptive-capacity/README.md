@@ -77,8 +77,8 @@ Captured local verification includes:
 | Receipt | Observed result | Scope |
 |---|---|---|
 | Admission/policy/outbox/routes | 105 passed | Real PostgreSQL pools/worker HTTP, cap, fairness, generation fencing, delayed report, DLQ, overrides and policy |
-| Runtime focused | 90 passed, 1 skipped | Physical late-call drain, SDK/Continue identity, broker settlement, restart, inherited cgroup limits and the image fixture handshake |
-| Full Python | 2,026 passed, 25 skipped | Current worker regression; skipped integrations are not PASS |
+| Runtime focused | 96 passed, 1 skipped | Physical late-call drain, SDK/Continue identity, broker settlement, restart, inherited cgroup limits, image handshake and invalid host identities |
+| Full Python | 2,026 passed, 25 skipped | Earlier broad worker regression; final exact-head CI covers the identity guard; skipped integrations are not PASS |
 | Full API | 1,554 passed, 127 skipped | Earlier broad regression; later affected tests and exact-head CI required for follow-up changes |
 | Assessment vertical | 148 checks | Real API/PG/native Root, scripted model, pins/negative controls/final report and artifact isolation |
 | Human resolution | 80 checks plus separate checkpoint DB PASS | Same-thread Stop/Continue, crash, answers, no checkpoint table in API DB |
@@ -110,6 +110,10 @@ the unrelated native health boundary, sandbox hydration and persisted thread sta
 across image restart. Its HTTP protocol unit check passes; the rebuilt candidate
 image must pass the final exact-HEAD Docker CI job. No production admission bypass
 was added.
+The final identity guard rejects empty, uninitialized, zero or malformed machine
+identities before API registration; these must not hash to a valid-looking shared
+host identity. Six provider-free cases cover invalid inputs and stable valid hosts
+with distinct process incarnations. Final exact-head CI receipts are on the PR/Jira.
 
 ## F. Production deployment
 

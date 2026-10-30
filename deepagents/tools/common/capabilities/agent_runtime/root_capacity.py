@@ -352,13 +352,28 @@ class RootCapacityClient:
     """Authenticated, incarnation-fenced API protocol for physical admission."""
 
     def __init__(self) -> None:
+        """Business purpose: Bind runtime operations to a stable, identifiable host incarnation.
+
+        Business rules:
+        - Worker credentials and a non-zero 32-hex Linux machine identity are required before registration.
+        Execution flow:
+        1. Read private API configuration and validate the host identity.
+        2. Derive its opaque hash and create this process's execution incarnation.
+        Failure cases:
+        - Missing credentials, unreadable or uninitialized identity reject startup without claiming authority.
+        Side effects:
+        - Reads configuration/identity only; no HTTP request or durable mutation occurs.
+        """
         base = os.environ.get("NESTJS_API_BASE_URL")
         key = os.environ.get("WORKER_API_KEY")
         if not base or not key:
             raise RuntimeError("Root capacity requires NESTJS_API_BASE_URL and WORKER_API_KEY")
         self._url = base.rstrip("/") + "/internal/assessment-root-capacity"
         self._key = key
-        self.identity = {"hostId": hashlib.sha256(Path("/etc/machine-id").read_bytes().strip()).hexdigest(),
+        machine_id = Path("/etc/machine-id").read_bytes().strip().lower()
+        if len(machine_id) != 32 or not all(c in b"0123456789abcdef" for c in machine_id) or machine_id == b"0" * 32:
+            raise RuntimeError("Root capacity requires a valid non-zero host machine identity")
+        self.identity = {"hostId": hashlib.sha256(machine_id).hexdigest(),
             "incarnationId": str(uuid.uuid4())}
 
     def call(self, action: str, **payload) -> dict[str, Any]:

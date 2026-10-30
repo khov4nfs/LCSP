@@ -1,6 +1,6 @@
 {
-  "capturedAt": "2026-10-30T09:06:31.542561+00:00",
-  "basedOnCommit": "9bec152bd66d7273c90eb74d3217f794ed9a8580",
+  "capturedAt": "2026-10-30T09:29:49.294380+00:00",
+  "basedOnCommit": "0e2a8d65baa79e2b760fda1bfd36edfa32ae832b",
   "scope": "Precommit source-content fingerprint; final PR HEAD CI is recorded in PR checks and Jira, not inferred from these receipts.",
   "codeSha256": {
     ".env.example": "2539799f3363bf79a8ffa63ba65ae173eea758e451eef568fa280999ae3a7dc9",
@@ -25,7 +25,7 @@
     "deepagents/middleware/usage_metering.py": "6be6ae0d2f186c490fa13e59b5ffefa4b9baaf2ec2cf5956c087e24944327025",
     "deepagents/orchestration/runtime_control.py": "b57f51849e8e07dd2353fa7594247ef5bf28ff51700163d32b4c650472cab287",
     "deepagents/tests/integration/test_production_agent_server_image_e2e.py": "026d81c685dc0ed66e5a17d729caec6d9a1c83ae567f3b9c546795fcf5f109e3",
-    "deepagents/tests/test_adaptive_root_capacity.py": "6b1c61a9408418c9b743fc7b45603671dd9be5418589a091809e5c108f467a16",
+    "deepagents/tests/test_adaptive_root_capacity.py": "9dcffa0dbc272fa6de157a1179ddc1b5873e60e05175a4baede644d731bd0014",
     "deepagents/tests/test_agent_runtime_rabbitmq_consumer.py": "678d4a5c8d9dc1e6370eb225ba3bfea1ba7c7471824109e1b369ee2e7255662c",
     "deepagents/tests/test_agent_runtime_recovery.py": "1a891aa1f1ac2291888eb878c1d45c9ef2375a854b12341665e99a49ba02e789",
     "deepagents/tests/test_agent_server_client.py": "6568dc2ccf8317742703452259fa575459e67556625f6c8f29730d0b2d46b5cc",
@@ -40,9 +40,9 @@
     "deepagents/tools/common/capabilities/agent_runtime/agent_server_client.py": "d3645cf67733a11f6187cd14b73d9ab4a7691fb59494a31968e20f2a2e5844d1",
     "deepagents/tools/common/capabilities/agent_runtime/local_server.py": "d53ac5d5d7959abd70db434770daa8446523c3b5902f169fe81105db155c7ee2",
     "deepagents/tools/common/capabilities/agent_runtime/rabbitmq_consumer.py": "bfee274d548ac31c757025ae1b9882e65292b397b371b0a1452059519b48d2dc",
-    "deepagents/tools/common/capabilities/agent_runtime/root_capacity.py": "d45fef28eed17013aa7feda064055c8df35a6ab21630c38df874a1c32e1f1c2d",
+    "deepagents/tools/common/capabilities/agent_runtime/root_capacity.py": "9a3c6bf2c033cbc6d7fa5730ef0150f321e0933e73c45413942372452900f076",
     "docs/adr/LCSP-364-adaptive-root-admission.md": "13f071b83d441230f2e20c3c8470cbca2e7f27692cf87fd276ae14a542fc9d48",
-    "docs/runbooks/assessment-root-capacity.md": "70a19c65e6b44291af3882a6309298c910a75e8c325a35f54d0eb3062e916227",
+    "docs/runbooks/assessment-root-capacity.md": "4a6e4405a852c89095d4cc8187c9aa3244ef0ee98d5e1f97bd2a5e2f992c80d8",
     "ecosystem.config.cjs": "32085f597dc37e52a518b87df16c1a5a802dcdfda8b7ed24836888b74ed037f8",
     "packages/contracts/src/assessment-domain/capacity.ts": "afcc058d544e5a132838e2ccbb93155c8c28c02c20ef6b68cc19fd75e1adb0c0",
     "packages/contracts/src/assessment-domain/index.ts": "aca693639be3db40cc45112f22d9be87aa73372c6f3347cade451e410c6b8cef",
@@ -59,7 +59,7 @@
     "tests/support/direct-root-admission.mjs": "c861e42a0455a03de56a969759bc66d800ed7a6bdd391e0a40abae6513d03a7c",
     "tests/tsconfig.json": "7905151f33d0709a946f05921dfd158ff32da904508db5ec2d4f98702855556a"
   },
-  "sourceSetSha256": "e368577b6ec39a912a3ce083edbf4f61941c99811cbcab6e866e11c27dbd39fb",
+  "sourceSetSha256": "2d55868b9e1e3957fd92ac799154675c44f620f91088946fbda042eb9d99257d",
   "receipts": [
     {
       "label": "admission-and-policy",
@@ -75,11 +75,11 @@
     },
     {
       "label": "runtime-focused",
-      "observedAt": "2026-10-30T07:48:19.415572+00:00",
+      "observedAt": "2026-10-30T09:28:35.098136+00:00",
       "summary": [
-        "======================== 90 passed, 1 skipped in 3.43s ========================="
+        "======================== 96 passed, 1 skipped in 4.11s ========================="
       ],
-      "sanitizedFullLogSha256": "e00b845fbc232113fc4b113213e95d810d4ed53907919b5dbfcff655981f49aa",
+      "sanitizedFullLogSha256": "045441d1d5287b1cf27843ec653d60862f714b6520d8971c8a4a70fcb488416b",
       "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
     },
     {
@@ -89,7 +89,7 @@
         "================= 2026 passed, 25 skipped in 143.22s (0:02:23) ================="
       ],
       "sanitizedFullLogSha256": "dd90e87d65e82bbb4603f4443b9ca5f12c22519954807dbc73569f4855d259d5",
-      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+      "scopeNote": "Earlier broad Python regression before final host-identity validation; final exact-head CI supplies the final broad receipt. Skipped integrations are not acceptance PASS."
     },
     {
       "label": "api-full",
@@ -242,6 +242,15 @@
       ],
       "sanitizedFullLogSha256": "26a376fbbd2f080d191dd8b12ed9d9042074f13bc581d1f3b0b75f02338ed081",
       "scopeNote": "Merged-source local verification; exact final remote CI is recorded in PR and Jira."
+    },
+    {
+      "label": "business-docs-identity",
+      "observedAt": "2026-10-30T09:28:32.763129+00:00",
+      "summary": [
+        "3030 functions; 921 conformant; 2109 unchanged legacy; 0 missing/invalid."
+      ],
+      "sanitizedFullLogSha256": "26a376fbbd2f080d191dd8b12ed9d9042074f13bc581d1f3b0b75f02338ed081",
+      "scopeNote": "Local business documentation gate after final host-identity validation."
     }
   ],
   "integratedDevelop": "aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b"

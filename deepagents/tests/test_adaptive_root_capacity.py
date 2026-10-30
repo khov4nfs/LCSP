@@ -3,6 +3,8 @@ from concurrent.futures import Future
 from threading import Event, Thread
 from types import SimpleNamespace
 from uuid import uuid4
+from pathlib import Path
+import hashlib
 import asyncio
 import time
 
@@ -28,6 +30,26 @@ class CapacityProtocol:
     def call(self, action, **payload):
         self.calls.append((action, payload))
         return {"admitted": self.admitted, "evaluationSeconds": 15}
+
+
+@pytest.mark.parametrize("machine_id", [b"", b"\n", b"uninitialized", b"0" * 32, b"g" * 32])
+def test_unidentified_hosts_fail_before_registering_authority(monkeypatch, machine_id):
+    monkeypatch.setenv("NESTJS_API_BASE_URL", "http://capacity.fixture")
+    monkeypatch.setenv("WORKER_API_KEY", "fixture-only-key")
+    monkeypatch.setattr(Path, "read_bytes", lambda _path: machine_id)
+    monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: pytest.fail("unidentified host must not register"))
+    with pytest.raises(RuntimeError, match="valid non-zero host machine identity"):
+        RootCapacityClient()
+
+
+def test_initialized_host_identity_is_stable_without_exposing_machine_id(monkeypatch):
+    monkeypatch.setenv("NESTJS_API_BASE_URL", "http://capacity.fixture")
+    monkeypatch.setenv("WORKER_API_KEY", "fixture-only-key")
+    monkeypatch.setattr(Path, "read_bytes", lambda _path: b"A" * 32 + b"\n")
+    first = RootCapacityClient().identity
+    second = RootCapacityClient().identity
+    assert first["hostId"] == second["hostId"] == hashlib.sha256(b"a" * 32).hexdigest()
+    assert first["incarnationId"] != second["incarnationId"]
 
 
 def test_image_health_api_fixture_fences_reports_and_never_admits_roots():
