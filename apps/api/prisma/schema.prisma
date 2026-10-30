@@ -117,6 +117,7 @@ model OutboxMessage {
   errorMessage    String?
   createdAt       DateTime            @default(now())
   assessmentEvent AssessmentEvent?
+  rootAdmissionRequest AssessmentRootAdmissionRequest?
 
   // Composite event FK binds delivery to the same assessment aggregate.
   @@unique([id, aggregateId])
@@ -148,6 +149,8 @@ model Assessment {
   runtime                AssessmentRuntime?
   events                 AssessmentEvent[]
   domainCase             AssessmentCase?
+  rootExecutionSlots     AssessmentRootExecutionSlot[]
+  rootAdmissionRequests  AssessmentRootAdmissionRequest[]
 
   @@index([ownerId])
   @@index([ownerId, updatedAt(sort: Desc), id])
@@ -267,6 +270,106 @@ model AssessmentRuntime {
 
   // Required by the event FK: a valid thread from another assessment is invalid.
   @@unique([assessmentId, threadId])
+}
+
+/// One API-owned global Root ceiling. Evaluators and admissions lock this row.
+enum AssessmentRootCapacityReason {
+  INITIAL
+  ADAPTIVE_DISABLED
+  EMERGENCY_DISABLED
+  SERVER_DRAINING
+  METRICS_STALE_OR_MISSING
+  METRICS_INCONSISTENT
+  MEMORY_PRESSURE
+  DISK_PRESSURE
+  CPU_PRESSURE
+  DATABASE_PRESSURE
+  CHECKPOINT_PRESSURE
+  PROVIDER_PRESSURE
+  BUDGET_ADMISSION_DENIED
+  PROVIDER_LIMIT_UNKNOWN
+  PHYSICAL_CAPACITY
+  BACKLOG_HEADROOM
+  LOW_DEMAND
+  COOLDOWN_OR_HYSTERESIS
+  MANUAL_OVERRIDE
+  GLOBAL_CAPACITY_FULL
+  OWNER_FAIRNESS
+  ASSESSMENT_ALREADY_ADMITTED
+  SERVER_INCARNATION_FENCED
+  SERVER_HOST_MISMATCH
+}
+
+model AssessmentRootCapacity {
+  id                  String   @id
+  version             Int      @default(0)
+  desired             Int      @default(2)
+  effective           Int      @default(0)
+  policy              Json
+  reason              AssessmentRootCapacityReason
+  healthySamples      Int      @default(0)
+  idleSamples         Int      @default(0)
+  lastScaleUpAt       DateTime? @db.Timestamptz(3)
+  lastScaleDownAt     DateTime? @db.Timestamptz(3)
+  evaluatedAt         DateTime? @db.Timestamptz(3)
+  reportedAt          DateTime? @db.Timestamptz(3)
+  hostId              String?
+  incarnationId       String?  @db.Uuid
+  runtimeMetrics      Json?
+  databaseMetrics     Json?
+  admissionDeferrals  Int      @default(0)
+  recoveredSlots      Int      @default(0)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+}
+
+/// A physical reservation outlives lease expiry and terminal domain callbacks.
+model AssessmentRootExecutionSlot {
+  runId           String     @id @db.Uuid
+  assessmentId    String
+  commandId       String
+  incarnationId   String     @db.Uuid
+  requestedAt     DateTime   @db.Timestamptz(3)
+  admittedAt      DateTime   @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(3)
+  startedAt       DateTime?  @db.Timestamptz(3)
+  releasedAt      DateTime?  @db.Timestamptz(3)
+  assessment      Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  request         AssessmentRootAdmissionRequest @relation(fields: [commandId], references: [commandId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([releasedAt, admittedAt])
+  @@index([assessmentId, admittedAt])
+  @@index([commandId, startedAt])
+}
+
+/// Durable admission bookkeeping for the existing canonical outbox command.
+model AssessmentRootAdmissionRequest {
+  commandId       String @id
+  assessmentId    String
+  requestedAt     DateTime @default(now()) @db.Timestamptz(3)
+  admittedRunId   String? @db.Uuid
+  deliveredAt     DateTime? @db.Timestamptz(3)
+  completedAt     DateTime? @db.Timestamptz(3)
+  command         OutboxMessage @relation(fields: [commandId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assessment      Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  slots           AssessmentRootExecutionSlot[]
+
+  @@index([completedAt, admittedRunId, requestedAt])
+  @@index([assessmentId, requestedAt])
+}
+
+/// Append-only sanitized controller/operator receipts; no customer reasoning.
+model AssessmentRootCapacityDecision {
+  id              String   @id @default(uuid()) @db.Uuid
+  version         Int      @unique
+  previous        Int
+  desired         Int
+  effective       Int
+  reason          AssessmentRootCapacityReason
+  actorId         String?
+  operatorReason  String?
+  snapshot        Json
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
 }
 
 /// Canonical redacted envelope. API validates typed payload/usage before persistence.

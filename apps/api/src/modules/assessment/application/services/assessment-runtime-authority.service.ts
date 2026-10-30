@@ -48,6 +48,7 @@ import { problemException } from "../../../../platform/http/filters/error.factor
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
 import { AssessmentEventAppender } from "./assessment-event-appender.service.js";
+import { AssessmentRootCapacityService } from "./assessment-root-capacity.service.js";
 
 export interface AuthorizedRootRun {
   assessmentId: string;
@@ -79,6 +80,7 @@ export class AssessmentRuntimeAuthority {
     private readonly prisma: PrismaService,
     private readonly events: AssessmentEventAppender,
     private readonly coordinator: AssessmentLifecycleCoordinator,
+    private readonly capacity: AssessmentRootCapacityService,
   ) {}
 
   /**
@@ -91,6 +93,7 @@ export class AssessmentRuntimeAuthority {
    *   assessment, runtime, boundary, agent, and timestamp provenance.
    * - Missing or inconsistent checkpoint IDs and metadata grant no checkpoint authority.
    * - Human interrupts, safe pauses, and authenticated transport recovery retain their existing lifecycle guards.
+   * - A fresh physical reservation must bind this exact native transport run; lease expiry never releases capacity.
    *
    * Execution flow:
    * 1. Lock the assessment/runtime and load the current Root turn.
@@ -267,6 +270,7 @@ export class AssessmentRuntimeAuthority {
       }
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
+      await this.capacity.bindInTx(tx, input.assessmentId, input.runtimeRunId, input.correlationId);
       const recoveringStop = row.currentExecutionId
         ? await tx.assessmentRuntimeTurn.findFirst({
             where: {

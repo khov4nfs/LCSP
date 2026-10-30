@@ -77,12 +77,15 @@ export async function consumeDirectRuleSet(stack, ruleSetVersionId) {
   const userId = randomUUID(), email = `direct-${userId}@assessment.test`, password = "DirectAssessmentFixturePassword!";
   await stack.q('INSERT INTO "User"(id,email,"passwordHash","emailVerified","failedLoginCount",role,"updatedAt") VALUES ($1,$2,$3,true,0,\'CUSTOMER\',now())', [userId, email, hashSecret(password)]);
   const request = async (method, route, { body, token, lease, worker } = {}) => {
+    const claim = route.match(/^\/internal\/assessment-runtime\/([^/]+)\/claim$/);
+    if (claim && worker) body = await stack.admission.prepare(claim[1], body, { manual: true });
     const response = await fetch(`${stack.base}${route}`, {
       method, headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...(worker ? { "x-worker-api-key": workerKey } : {}), ...(lease ? { "x-assessment-lease": lease } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const result = await response.json();
     assert.ok(response.ok && result.ok, `${route}: ${JSON.stringify(result)}`);
+    if (route.endsWith("/finish")) await stack.admission.finishManual(route.split("/")[3]);
     return result.data;
   };
   const login = await request("POST", "/auth/sign-in", { body: { email, password, organization_id: "org-1" } });

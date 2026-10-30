@@ -40,6 +40,7 @@ import {
   startStack,
   workerKey,
 } from "./support/compliance-rule-set-stack.mjs";
+import { runAdaptiveCapacityLoad } from "./support/adaptive-capacity-load.mjs";
 
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const {
@@ -88,7 +89,7 @@ const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl } = await startStack({
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl, admission } = await startStack({
   database,
   apiPort,
   checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
@@ -102,6 +103,8 @@ const { canonicalJson } = await import(
 
 /** HTTP helper for non-rule set routes. */
 async function http(method, route, { body, token, worker, lease } = {}) {
+  const claim = route.match(/^\/internal\/assessment-runtime\/([^/]+)\/claim$/);
+  if (claim && worker !== false) body = await admission.prepare(claim[1], body, { manual: true });
   const response = await fetch(`${base}${route}`, {
     method,
     headers: {
@@ -112,6 +115,7 @@ async function http(method, route, { body, token, worker, lease } = {}) {
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (response.ok && route.endsWith("/finish")) await admission.finishManual(route.split("/")[3]);
   return {
     status: response.status,
     body: await response.json().catch(() => ({})),
@@ -199,8 +203,8 @@ try {
     "a = 1\nb = 2\nkeep_days = 7\nc = 4\n",
   );
 
-  const newAssessment = async (name) => {
-    const created = await customerHttp("POST", "/assessments", owner.token, {
+  const newAssessment = async (name, actor = owner) => {
+    const created = await customerHttp("POST", "/assessments", actor.token, {
       name,
     });
     eq(created.status, 201, JSON.stringify(created.body));
@@ -210,12 +214,12 @@ try {
     await q(
       `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions)
        VALUES ($1,$2,$3,'inst-assessment',$4,'repo','acme/repo','main','{}'::jsonb)`,
-      [connection, id, owner.id, `repo-${id}`],
+      [connection, id, actor.id, `repo-${id}`],
     );
     await q(
       `INSERT INTO "RepositorySnapshot"(id,"assessmentId","connectionId","repositoryId","repositoryFullName","commitSha","providerMetadata","actorId")
        VALUES ($1,$2,$3,$4,'acme/repo',$5,'{}'::jsonb,$6)`,
-      [snapshot, id, connection, `repo-${id}`, COMMIT, owner.id],
+      [snapshot, id, connection, `repo-${id}`, COMMIT, actor.id],
     );
     return { id, snapshot };
   };
@@ -227,6 +231,10 @@ try {
       )
     ).rows[0];
 
+  if (process.env.LCSP_TEST_CAPACITY_LOAD === "1") {
+    await runAdaptiveCapacityLoad({ stack: { q, base, databaseUrl, checkpointDatabaseUrl },
+      createAssessment: newAssessment, owner, otherOwner: await customer("capacity-other@acme.test"), repoDir });
+  } else {
   const A = await newAssessment("ASSESSMENT vertical A");
   // creation: canonical lifecycle PREPARING, one server thread, the then-ACTIVE rule set pinned, no repo pin yet
   eq((await lifecycle(A.id)).lifecycleState, "PREPARING");
@@ -1125,6 +1133,7 @@ try {
   console.log(
     `PASS: ${checks} ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
   );
+  }
 } finally {
   await stop();
   rmSync(artifactStoragePath, { recursive: true, force: true });

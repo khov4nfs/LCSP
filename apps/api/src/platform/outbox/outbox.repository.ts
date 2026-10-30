@@ -16,6 +16,7 @@ import {
 } from "../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
+import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain";
 
 interface OutboxRow {
   id: string;
@@ -45,16 +46,17 @@ export class OutboxRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Inserts a new pending outbox message; the publisher poller delivers it separately.
-   *
-   * The insert is an upsert on the deterministic id derived from the idempotency key:
-   * a unique-violation catch would leave the surrounding interactive transaction
-   * aborted (PostgreSQL keeps the transaction in failed state after a constraint
-   * error), so replaying a duplicate enqueue must not raise at all.
-   *
-   * @param input - Aggregate and event payload to enqueue.
-   * @param tx - Optional existing Prisma transaction in which the enqueue must participate.
-   * @returns Identifier of the newly created outbox message.
+   * Business purpose: Durably enqueue an idempotent command/event and its Root admission intent.
+   * Business rules:
+   * - Retired events remain forbidden; duplicate deterministic IDs must not abort the caller's transaction.
+   * - Root demand commits in the same transaction as its canonical outbox command, including Continue.
+   * Execution flow:
+   * 1. Reject retired event types and ensure Root enqueue uses a transaction.
+   * 2. Upsert the canonical message and, for a Root request, its durable admission bookkeeping.
+   * Failure cases:
+   * - Persistence failure rolls back both command and admission intent; duplicate enqueue never reopens consumed work.
+   * Side effects:
+   * - Persists outbox/admission intent only; broker delivery, Root decisions and paid calls remain separate authorities.
    */
   async enqueue(
     input: OutboxMessageInput,
@@ -63,10 +65,12 @@ export class OutboxRepository {
     // CUTOVER fence: a retired V1 command/event must never be created again, whatever code path asks.
     if (isRetiredOutboxEventType(input.eventType))
       throw new Error(`OUTBOX_EVENT_TYPE_RETIRED: ${input.eventType}`);
+    const isRoot = input.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED;
+    if (isRoot && !tx) return this.prisma.$transaction(client => this.enqueue(input, client));
     const client = tx ?? this.prisma;
     const message = OutboxMessageEntity.create(input);
 
-    await client.outboxMessage.upsert({
+    const persisted = await client.outboxMessage.upsert({
       where: { id: message.id },
       update: {},
       create: {
@@ -79,6 +83,10 @@ export class OutboxRepository {
         attempts: message.attempts,
         createdAt: message.createdAt,
       },
+    });
+    if (isRoot) await client.assessmentRootAdmissionRequest.upsert({
+      where: { commandId: message.id }, update: {},
+      create: { commandId: message.id, assessmentId: message.aggregateId, requestedAt: persisted.createdAt },
     });
 
     return message.id;

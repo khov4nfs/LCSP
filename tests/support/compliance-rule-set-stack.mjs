@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LEGAL_SOURCE_CHUNK_STATUSES } from "@lcsp/contracts/legal-source";
+import { directRootAdmissionFixture } from "./direct-root-admission.mjs";
 
 export const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -24,6 +25,7 @@ export const sha = (text) => createHash("sha256").update(text).digest("hex");
 export const contentHash = (text) => `sha256:${sha(text)}`; // legalSource representation of chunk hashes
 const requireApi = createRequire(path.join(apiDir, "package.json"));
 const { Client } = requireApi("pg");
+const directRootFixtures = new Map();
 // Load built security only when a vertical needs it; process-control tests need no API build.
 export function hashSecret(...args) {
   return requireApi(
@@ -172,6 +174,8 @@ export async function startStack({
       server.kill("SIGTERM");
       await new Promise((resolve) => server.once("exit", resolve));
     }
+    await directRootFixtures.get(base)?.close();
+    directRootFixtures.delete(base);
     await db.end();
   };
 
@@ -417,7 +421,10 @@ export async function startStack({
         .pop(),
     );
   };
+  const admission = directRootAdmissionFixture({ q, base, databaseUrl, workerKey, apiDir });
+  directRootFixtures.set(base, admission);
   return {
+    admission,
     db,
     q,
     base,
@@ -437,7 +444,7 @@ export async function startStack({
 /** Runs a Python script with the repo PYTHONPATH; resolves with the last JSON line it prints. */
 /** @param {string} script @param {string[]} args
  * @param {{env?: Record<string,string>, timeoutMs?:number, signal?:AbortSignal, ownedProcessGroup?:boolean, executable?:string}} [options] */
-export function runPython(
+export async function runPython(
   script,
   args,
   {
@@ -448,12 +455,17 @@ export function runPython(
     executable = python,
   } = {},
 ) {
-  return new Promise((resolve, reject) => {
+  const admission = ["scripted_root.py", "hitl_root.py", "root_control.py"].includes(path.basename(script))
+    ? directRootFixtures.get(args[0]) : null;
+  const prepared = admission ? await admission.prepare(args[2]) : null;
+  try {
+  return await new Promise((resolve, reject) => {
     signal?.throwIfAborted();
     const child = spawn(executable, [script, ...args], {
       cwd: root,
       detached: ownedProcessGroup,
-      env: { ...process.env, PYTHONPATH: pythonPath, ...env },
+      env: { ...process.env, PYTHONPATH: pythonPath, ...env,
+        ...(prepared ? { LCSP_TEST_ROOT_RUNTIME_RUN_ID: prepared.runtimeRunId } : {}) },
     });
     let out = "",
       err = "",
@@ -511,4 +523,8 @@ export function runPython(
       }
     });
   });
+  } finally {
+    // A closed fixture process has no surviving Python model/tool threads.
+    await admission?.release(prepared.runtimeRunId);
+  }
 }

@@ -174,6 +174,8 @@ def resume_script(captured: dict[str, Any]) -> list[Step]:
 
 
 def main() -> int:
+    from orchestration.runtime_control import active_runtime_run_id
+    active_runtime_run_id.set(os.getenv("LCSP_TEST_ROOT_RUNTIME_RUN_ID"))
     base, key, assessment_id, repo_dir, mode = sys.argv[1:6]
     captured: dict[str, Any] = {}
     steps = full_script(captured) if mode in {"full", "complete"} else resume_script(captured)
