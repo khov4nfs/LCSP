@@ -77,8 +77,13 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
           reference?: string;
         }> = [];
         const open = await tx.assessmentHumanRequest.findMany({
-          where: { assessmentId: command.assessmentId, status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-            assessmentRuleId: { in: auditRequest.rules.map((item) => item.assessmentRuleId) } },
+          where: {
+            assessmentId: command.assessmentId,
+            status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            assessmentRuleId: {
+              in: auditRequest.rules.map((item) => item.assessmentRuleId),
+            },
+          },
           select: { assessmentRuleId: true },
         });
         for (const request of open)

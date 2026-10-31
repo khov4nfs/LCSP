@@ -227,7 +227,7 @@ it("versions a later Rule 9 request and reuses an unchanged accepted Rule 3 deci
 
   await f.service.submit(ASSESSMENT, OWNER, randomUUID(), body);
 
-  const created = f.created.mock.calls[0]![0] as {
+  const created = f.created.mock.calls[0][0] as {
     data: {
       requestRevision: number;
       rules: {
