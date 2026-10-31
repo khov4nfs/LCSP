@@ -7,7 +7,7 @@ import {
   ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import { AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
-import { Prisma } from "@prisma/client";
+import { AssessmentAuditMode, Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { failStaleRepositoryScanJobs } from "../../../../../platform/scan/repository-scan-staleness.js";
@@ -54,7 +54,7 @@ export class ReconcileOrphanedAssessmentHandler implements ICommandHandler<Recon
       );
       const assessment = await tx.assessment.findUnique({
         where: { id: command.assessmentId },
-        include: { runtime: true },
+        include: { runtime: true, domainCase: true },
       });
       const runtime = assessment?.runtime;
       if (!assessment || assessment.ownerId !== command.ownerId || !runtime) {
@@ -83,6 +83,8 @@ export class ReconcileOrphanedAssessmentHandler implements ICommandHandler<Recon
       if (
         assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE ||
         assessment.lifecycleRevision === null ||
+        assessment.domainCase?.auditMode ===
+          AssessmentAuditMode.CUSTOMER_SELECTED ||
         runtime.executionState !== AGENT_EXECUTION_STATES.QUEUED ||
         runtime.currentExecutionId !== null ||
         runtime.leaseToken !== null ||

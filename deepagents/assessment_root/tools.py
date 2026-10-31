@@ -184,6 +184,7 @@ class RootRun:
     backend: Any
     trace: SearchTrace = field(default_factory=SearchTrace)
     case_revision: int = 0
+    audit_request: dict[str, Any] | None = None
     pins: dict[str, str] = field(default_factory=dict)
     decision_revisions: dict[str, int] = field(default_factory=dict)
     rule_versions: dict[str, str] = field(default_factory=dict)
@@ -193,7 +194,21 @@ class RootRun:
     response_language: str = "en"
 
     def adopt_context(self, context: dict[str, Any]) -> None:
+        """Business purpose: Bind one leased Root to the latest server-owned scope and decision revision.
+
+        Business rules:
+        - Selected rule IDs and pins come only from API context; previous model memory grants no scope.
+        Execution flow:
+        1. Save case revision and request.
+        2. Bind pins and covered rule versions.
+        3. Resolve response language.
+        Failure cases:
+        - Missing required pins fail immediately; malformed revision does not become a default decision.
+        Side effects:
+        - Updates this run's in-memory caches only; no persisted audit record changes.
+        """
         self.case_revision = int(context["caseRevision"])
+        self.audit_request = context.get("auditRequest")
         self.pins = {
             "ruleSetVersionId": context["ruleSetVersionId"],
             "repositorySnapshotId": context["repositorySnapshotId"],
@@ -546,6 +561,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "pins": run.pins,
             "repositoryView": _repository_view(run),
             "decisionScopeId": context["decisionScopeId"],
+            "auditRequest": context.get("auditRequest"),
             "coverage": [
                 {
                     "assessmentRuleId": row["assessmentRuleId"],
@@ -618,7 +634,10 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         - Read-only API access and in-memory identity caches; no domain state or legal judgments are changed.
         """
         rule_set = client.rule_set()
-        for rule in rule_set["assessmentRules"]:
+        selected = set(run.audit_request["selectedRuleIds"]) if run.audit_request else None
+        visible_rules = [rule for rule in rule_set["assessmentRules"]
+                         if selected is None or rule["assessmentRuleId"] in selected]
+        for rule in visible_rules:
             run.rule_versions[rule["assessmentRuleId"]] = rule["assessmentRuleVersion"]
             run.rule_criteria[rule["assessmentRuleId"]] = [
                 c["criterionId"] for c in rule.get("criteria", [])
@@ -627,8 +646,9 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "ok": True,
             "ruleSetVersionId": rule_set["ruleSetVersionId"],
             "legalRequirementCount": len(rule_set["legalRequirements"]),
-            "assessmentRuleCount": len(rule_set["assessmentRules"]),
-            "nextOffset": offset + limit if offset + limit < len(rule_set["assessmentRules"]) else None,
+            "assessmentRuleCount": len(visible_rules),
+            "totalPinnedRuleCount": len(rule_set["assessmentRules"]),
+            "nextOffset": offset + limit if offset + limit < len(visible_rules) else None,
             "assessmentRules": [
                 {
                     "assessmentRuleId": rule["assessmentRuleId"],
@@ -637,7 +657,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                     "legalRequirementIds": rule["legalRequirementIds"],
                     "criterionIds": [c["criterionId"] for c in rule.get("criteria", [])],
                 }
-                for rule in rule_set["assessmentRules"][offset:offset + limit]
+                for rule in visible_rules[offset:offset + limit]
             ],
         }
 
@@ -655,6 +675,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         Side effects:
         - Reads the Rule Set API and updates only this execution’s applicability-element cache.
         """
+        if run.audit_request and assessment_rule_id not in run.audit_request["selectedRuleIds"]:
+            return {"ok": False, "code": "RULE_NOT_IN_AUDIT_REQUEST"}
         rule_set = client.rule_set()
         rule = next(
             (r for r in rule_set["assessmentRules"] if r["assessmentRuleId"] == assessment_rule_id),

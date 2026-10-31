@@ -15,7 +15,9 @@ import {
   type BlockerReason,
 } from "@lcsp/contracts/assessment";
 import {
+  ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  RULE_AUDIT_STATUSES,
   ASSESSMENT_DOMAIN_LIMITS,
   ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_ROOT_COMMAND_TYPES,
@@ -53,6 +55,7 @@ export interface AuthorizedRootRun {
   assessmentId: string;
   threadId: string;
   executionId: string;
+  auditRequestId: string | null;
   lifecycleState: string;
   lifecycleRevision: number;
   blockerReason: BlockerReason | null;
@@ -119,6 +122,34 @@ export class AssessmentRuntimeAuthority {
           { status: HttpStatus.NOT_FOUND },
         );
       }
+      const auditMode = await tx.assessmentCase.findUnique({
+        where: { assessmentId: input.assessmentId },
+        select: { auditMode: true },
+      });
+      if (auditMode?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED) {
+        const auditRequest = row.currentAuditRequestId
+          ? await tx.assessmentRuleAuditRequest.findUnique({
+              where: { requestId: row.currentAuditRequestId },
+            })
+          : null;
+        if (
+          !auditRequest ||
+          auditRequest.assessmentId !== input.assessmentId ||
+          (auditRequest.status === RULE_AUDIT_STATUSES.COMPLETED &&
+            !(
+              row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
+              row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
+              Boolean(input.runtimeRunId)
+            )) ||
+          auditRequest.status === RULE_AUDIT_STATUSES.CANCELLED
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+      }
       const previousTurn = row.currentExecutionId
         ? await tx.assessmentRuntimeTurn.findUnique({
             where: { id: row.currentExecutionId },
@@ -171,6 +202,8 @@ export class AssessmentRuntimeAuthority {
           ? await findFailedNativeCheckpoint(tx, {
               assessmentId: input.assessmentId,
               threadId: row.threadId,
+              checkpointNamespace:
+                row.currentAuditRequestId ?? NATIVE_ROOT_CHECKPOINT_NAMESPACE,
               runtimeRunId: previousRuntimeRunId,
               turnCreatedAt: previousTurn.createdAt,
               turnUpdatedAt: previousTurn.updatedAt,
@@ -308,6 +341,12 @@ export class AssessmentRuntimeAuthority {
           lastResumedAt: now,
         },
       });
+      if (row.currentAuditRequestId) {
+        await tx.assessmentRuleAuditRequest.update({
+          where: { requestId: row.currentAuditRequestId },
+          data: { status: RULE_AUDIT_STATUSES.RUNNING },
+        });
+      }
       const [latestCommand] = await Promise.all([
         tx.outboxMessage?.findFirst
           ? tx.outboxMessage.findFirst({
@@ -429,8 +468,16 @@ export class AssessmentRuntimeAuthority {
   }
 
   /**
-   * Validates a tool call's lease inside the caller's transaction and returns the server-owned
-   * identity. Locks the runtime row so the lease cannot change underneath the write.
+   * Business purpose: Bind every governed Root tool write to the current leased execution and scope.
+   * Business rules:
+   * - Only an unexpired RUNNING lease may write; active-only tools require the ACTIVE lifecycle.
+   * Execution flow:
+   * 1. Lock assessment and runtime in the canonical order.
+   * 2. Validate lease, execution identity and lifecycle before returning request identity.
+   * Failure cases:
+   * - Missing runtime, stale lease or inactive case rejects without a domain write.
+   * Side effects:
+   * - Holds transaction locks for the caller; this helper is otherwise read-only.
    */
   async authorizeInTx(
     tx: Prisma.TransactionClient,
@@ -477,6 +524,7 @@ export class AssessmentRuntimeAuthority {
       assessmentId: input.assessmentId,
       threadId: row.threadId,
       executionId: row.currentExecutionId,
+      auditRequestId: row.currentAuditRequestId,
       lifecycleState: row.lifecycleState ?? "",
       lifecycleRevision: row.lifecycleRevision ?? 0,
       blockerReason: row.blockerReason,
@@ -511,7 +559,19 @@ export class AssessmentRuntimeAuthority {
     });
   }
 
-  /** Ends the current execution. A terminal state never implies an assessment outcome. */
+  /**
+   * Business purpose: Settle one leased Root execution while preserving the selected request's own state.
+   * Business rules:
+   * - SUCCEEDED requires a completed selected request or full report; failure and human wait keep accepted sibling decisions.
+   * Execution flow:
+   * 1. Recheck the lease and native interruption/checkpoint evidence.
+   * 2. Release the runtime lease and update request state for failure or human wait.
+   * 3. Persist turn, lifecycle acknowledgement and runtime event together.
+   * Failure cases:
+   * - Unproven success, mismatched checkpoint or stale lease aborts settlement transactionally.
+   * Side effects:
+   * - Updates execution, request and event records without changing accepted decision packets.
+   */
   async finishExecution(input: {
     assessmentId: string;
     leaseToken: string | undefined;
@@ -616,6 +676,38 @@ export class AssessmentRuntimeAuthority {
           ...(input.checkpointId ? { checkpointId: input.checkpointId } : {}),
         },
       });
+      if (run.auditRequestId) {
+        const current = await tx.assessmentRuleAuditRequest.findUniqueOrThrow({
+          where: { requestId: run.auditRequestId },
+        });
+        if (
+          input.toState === AGENT_EXECUTION_STATES.SUCCEEDED &&
+          current.status !== RULE_AUDIT_STATUSES.COMPLETED
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          input.toState === AGENT_EXECUTION_STATES.FAILED ||
+          input.toState === AGENT_EXECUTION_STATES.INTERRUPTED ||
+          input.toState === AGENT_EXECUTION_STATES.CANCELLED
+        ) {
+          await tx.assessmentRuleAuditRequest.update({
+            where: { requestId: run.auditRequestId },
+            data: {
+              status:
+                input.toState === AGENT_EXECUTION_STATES.FAILED
+                  ? RULE_AUDIT_STATUSES.FAILED
+                  : input.toState === AGENT_EXECUTION_STATES.INTERRUPTED
+                    ? RULE_AUDIT_STATUSES.WAITING_FOR_CUSTOMER
+                    : RULE_AUDIT_STATUSES.CANCELLED,
+            },
+          });
+        }
+      }
       await tx.assessmentRuntimeTurn.update({
         where: { id: run.executionId },
         data: {
@@ -666,6 +758,7 @@ interface LockedRuntimeRow {
   checkpointNamespace: string;
   checkpointId: string | null;
   currentExecutionId: string | null;
+  currentAuditRequestId: string | null;
   executionState: AgentExecutionState;
   leaseToken: string | null;
   leaseExpiresAt: Date | null;
@@ -781,6 +874,7 @@ export function resetSeparateCheckpointClientFactoryForTesting(): void {
 async function querySeparateCheckpointDatabase(
   databaseUrl: string,
   threadId: string,
+  checkpointNamespace: string = NATIVE_ROOT_CHECKPOINT_NAMESPACE,
 ): Promise<
   | {
       checkpointId: string;
@@ -814,7 +908,7 @@ async function querySeparateCheckpointDatabase(
           AND "checkpoint_ns" = $2
         ORDER BY "checkpoint_id" DESC
         LIMIT 1`,
-      [threadId, NATIVE_ROOT_CHECKPOINT_NAMESPACE],
+      [threadId, checkpointNamespace],
     );
     return res.rows[0];
   } catch {
@@ -855,6 +949,7 @@ async function findFailedNativeCheckpoint(
   input: {
     assessmentId: string;
     threadId: string;
+    checkpointNamespace?: string;
     runtimeRunId: string;
     turnCreatedAt: Date;
     turnUpdatedAt: Date;
@@ -905,7 +1000,7 @@ async function findFailedNativeCheckpoint(
           "metadata"
         FROM "public"."checkpoints"
         WHERE "thread_id" = ${input.threadId}
-          AND "checkpoint_ns" = ${NATIVE_ROOT_CHECKPOINT_NAMESPACE}
+          AND "checkpoint_ns" = ${input.checkpointNamespace ?? NATIVE_ROOT_CHECKPOINT_NAMESPACE}
         -- Checkpoint IDs are time-ordered; validate the newest row rather than falling back to older metadata.
         ORDER BY "checkpoint_id" DESC
         LIMIT 1`,
@@ -915,6 +1010,7 @@ async function findFailedNativeCheckpoint(
     checkpoint = await querySeparateCheckpointDatabase(
       process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL,
       input.threadId,
+      input.checkpointNamespace ?? NATIVE_ROOT_CHECKPOINT_NAMESPACE,
     );
   } else {
     return null;
@@ -967,7 +1063,17 @@ async function findFailedNativeCheckpoint(
   };
 }
 
-/** Same lock order as the lifecycle coordinator: assessment row, then runtime row. */
+/**
+ * Business purpose: Serialize Root authority with assessment lifecycle and request changes.
+ * Business rules:
+ * - Assessment is locked before runtime to avoid a competing lease or lifecycle transition.
+ * Execution flow:
+ * 1. Lock assessment. 2. Lock its runtime row and combine their state.
+ * Failure cases:
+ * - Missing assessment or runtime yields no authority row to the caller.
+ * Side effects:
+ * - Acquires transaction row locks; does not persist changes.
+ */
 async function lockAssessmentAndRuntime(
   tx: Prisma.TransactionClient,
   assessmentId: string,
@@ -998,7 +1104,7 @@ async function lockAssessmentAndRuntime(
       >
     >
   >(
-    Prisma.sql`SELECT "threadId", "checkpointNamespace", "checkpointId", "currentExecutionId", "executionState",
+    Prisma.sql`SELECT "threadId", "checkpointNamespace", "checkpointId", "currentExecutionId", "currentAuditRequestId", "executionState",
         "leaseToken", "leaseExpiresAt"
       FROM "AssessmentRuntime" WHERE "assessmentId" = ${assessmentId} FOR UPDATE`,
   );

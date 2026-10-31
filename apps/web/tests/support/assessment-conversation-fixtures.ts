@@ -17,6 +17,7 @@ import {
   type HumanResolutionRequestStatus,
 } from "@lcsp/contracts/assessment";
 import {
+  ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DECISION_RECORD_STATES,
   ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS,
   HUMAN_RESOLUTION_CONTROL_TYPES,
@@ -261,6 +262,8 @@ export function detail(options: DetailOptions = {}): AssessmentDetail {
     usage: options.usage ? { partial: false, ...options.usage } : undefined,
     case: {
       caseRevision: 1,
+      auditRequestRevision: 0,
+      auditMode: ASSESSMENT_AUDIT_MODES.LEGACY_FULL,
       ruleSetVersionId: RULE_SET_ID,
       ruleSet: {
         ruleSetVersionId: RULE_SET_ID,

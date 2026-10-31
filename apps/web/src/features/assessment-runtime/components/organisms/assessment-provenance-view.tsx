@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAssessmentProvenanceQuery } from "@/lib/api/assessment-domain-queries";
+import { ASSESSMENT_AUDIT_MODES } from "@lcsp/contracts/assessment-domain";
 import { copy } from "../../utils/conversation-copy";
 
 export function AssessmentProvenanceView({
@@ -57,6 +58,8 @@ export function AssessmentProvenanceView({
   }
 
   const data = provenance.data;
+  const scope = data.auditScope;
+  const isSelectedScope = scope?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED;
   const downloadUrl = `/api/assessments/${encodeURIComponent(assessmentId)}/provenance/download`;
 
   return (
@@ -166,9 +169,16 @@ export function AssessmentProvenanceView({
                 {data.pins?.ruleSet?.legalSourceVersion ?? "N/A"}
               </div>
               <div>
-                <span className="font-medium text-foreground">Rules Covered:</span>{" "}
+                <span className="font-medium text-foreground">{copy("provenance.ruleSetRuleCount")}:</span>{" "}
                 {data.pins?.ruleSet?.assessmentRuleCount ?? 0}
               </div>
+              {isSelectedScope && scope && (
+                <div>
+                  <span className="font-medium text-foreground">{copy("provenance.selectedScope")}:</span>{" "}
+                  {copy("context.selectedProgressValue", { done: scope.ready, total: scope.requested })};{" "}
+                  {copy("ruleAudit.notRequested", { count: scope.notRequested })}
+                </div>
+              )}
               <div>
                 <span className="font-medium text-foreground">Legal Requirements:</span>{" "}
                 {data.pins?.ruleSet?.legalRequirementCount ?? 0}

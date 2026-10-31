@@ -75,6 +75,8 @@ import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-
 import { AssessmentDomainController } from "./presentation/http/assessment-domain.controller.js";
 import { AssessmentRuntimeControlController } from "./presentation/http/assessment-runtime-control.controller.js";
 import { AssessmentController } from "./presentation/http/assessment.controller.js";
+import { AssessmentRuleAuditController } from "./presentation/http/assessment-rule-audit.controller.js";
+import { AssessmentRuleAuditService } from "./application/services/assessment-rule-audit.service.js";
 import { ReconcileOrphanedAssessmentHandler } from "./application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.js";
 
 /**
@@ -93,6 +95,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     InternalAgentStreamController,
     AssessmentRuntimeControlController,
     AssessmentController,
+    AssessmentRuleAuditController,
     WorkspaceRuntimeEventsController,
     AssessmentDomainController,
     AssessmentHumanResolutionController,
@@ -113,6 +116,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentEventAppender,
     AssessmentRuntimeAuthority,
     AssessmentRuntimePreparation,
+    AssessmentRuleAuditService,
     AssessmentCaseSupport,
     AssessmentEvidenceInvalidation,
     AssessmentCompletionGate,

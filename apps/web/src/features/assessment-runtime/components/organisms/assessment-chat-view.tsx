@@ -14,6 +14,7 @@ import { copy } from "../../utils/conversation-copy";
 import { customerAssessmentState } from "../../utils/customer-assessment-state";
 import { AssessmentInteractionBar } from "../molecules/assessment-interaction-bar";
 import { AssessmentConversation } from "./assessment-conversation";
+import { RuleAuditPicker } from "./rule-audit-picker";
 
 /**
  * The assessment page: ONE conversation with the Assessment Root plus a sticky interaction area.
@@ -97,6 +98,7 @@ export function AssessmentChatView({
   const state = customerAssessmentState(
     assessment.lifecycle,
     assessment.runtime,
+    assessment.case,
   );
   return (
     <main
@@ -115,6 +117,7 @@ export function AssessmentChatView({
       </p>
       <AssessmentConversation
         projection={projection}
+        intro={<RuleAuditPicker assessmentId={assessmentId} />}
         targetRequestId={targetRequestId}
         answerPending={answer.pending}
         answerFailed={answer.failed}

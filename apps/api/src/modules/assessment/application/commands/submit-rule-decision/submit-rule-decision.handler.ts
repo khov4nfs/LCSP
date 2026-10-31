@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
+  DECISION_RESOLUTION_STATES,
   ruleDecisionSchema,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
@@ -113,6 +114,25 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         decision.assessmentRuleId,
         input.correlationId,
       );
+      if (
+        run.auditRequestId &&
+        coverage.resolutionState === DECISION_RESOLUTION_STATES.RESOLVED
+      ) {
+        const member = await tx.assessmentRuleAuditItem.findUnique({
+          where: {
+            requestId_assessmentRuleId: {
+              requestId: run.auditRequestId,
+              assessmentRuleId: decision.assessmentRuleId,
+            },
+          },
+        });
+        if (member?.reusedDecisionId === coverage.currentDecisionId && !replay)
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+      }
       const context = await this.support.buildValidationContext(tx, {
         assessmentId: input.assessmentId,
         pins,
@@ -179,6 +199,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         data: {
           decisionId,
           assessmentId: input.assessmentId,
+          auditRequestId: run.auditRequestId,
           ruleSetVersionId: pins.ruleSetVersionId,
           assessmentRuleId: decision.assessmentRuleId,
           assessmentRuleVersion: decision.assessmentRuleVersion,

@@ -38,7 +38,7 @@ LABEL_TASK_FINISHED = "assessment.activity.taskFinished"
 
 _START_MESSAGE = (
     "Start (or resume) this assessment. Call get_assessment_context first, then work through "
-    "every AssessmentRule of the pinned rule set."
+    "only the AssessmentRules in the current authorized audit request."
 )
 
 
@@ -222,7 +222,8 @@ def run_assessment_root(
             middleware=[RootRuntimeControl(client, run.execution_id)],
         )
         graph_config = agent_graph_config({
-            "configurable": {"thread_id": run.thread_id},
+            "configurable": {"thread_id": run.thread_id,
+                             "checkpoint_ns": (context.get("auditRequest") or {}).get("requestId", "")},
             "metadata": {"assessment_id": assessment_id, "assessment_root_execution_id": run.execution_id,
                          "rule_set_version_id": run.pins["ruleSetVersionId"],
                          "repository_snapshot_id": run.pins["repositorySnapshotId"],
@@ -311,8 +312,9 @@ def run_assessment_root(
                     terminal = client.context()
                     if terminal["openHumanRequestIds"]:
                         raise RuntimeError("open human blockers without a native interrupt")
-                    if terminal["lifecycleState"] != "COMPLETE":
-                        raise RuntimeError("Root graph ended before authoritative assessment COMPLETE")
+                    selected_done = (terminal.get("auditRequest") or {}).get("status") == "COMPLETED"
+                    if terminal["lifecycleState"] != "COMPLETE" and not selected_done:
+                        raise RuntimeError("Root graph ended before authoritative audit completion")
                     final_state = EXECUTION_SUCCEEDED
     except Exception as error:  # noqa: BLE001 - settled as an execution failure below
         final_state = EXECUTION_FAILED

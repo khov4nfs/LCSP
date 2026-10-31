@@ -1,0 +1,107 @@
+{
+  "assessment_id": "11111111-1111-4111-8111-111111111111",
+  "name": "Synthetic notice service",
+  "owner_id": "owner-1",
+  "lifecycle": {
+    "state": "ACTIVE",
+    "assessmentRevision": 3
+  },
+  "runtime": {
+    "threadId": "22222222-2222-4222-8222-222222222222",
+    "rootAgentVersion": "root-1",
+    "checkpointNamespace": "88888888-8888-4888-8888-888888888889",
+    "checkpointId": "ckpt-1",
+    "currentExecutionId": "33333333-3333-4333-8333-333333333333",
+    "executionState": "RUNNING",
+    "eventSequence": 12,
+    "startedAt": "2026-10-11T10:00:00.000Z",
+    "lastResumedAt": null,
+    "updatedAt": "2026-10-11T10:00:50.000Z"
+  },
+  "case": {
+    "caseRevision": 1,
+    "auditRequestRevision": 1,
+    "auditMode": "CUSTOMER_SELECTED",
+    "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+    "ruleSet": {
+      "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+      "version": "2026.10.p1",
+      "legalSourceVersion": "2026.10",
+      "legalRequirementCount": 37,
+      "assessmentRuleCount": 20
+    },
+    "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+    "repositoryScanJobId": "job-1",
+    "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "coverage": [
+      {
+        "assessmentRuleId": "Rule-3",
+        "assessmentRuleVersion": "v1",
+        "resolutionState": "RESOLVED",
+        "currentDecisionId": "66666666-6666-4666-8666-666666666666",
+        "decisionRevision": 1,
+        "concept": "Rule 3"
+      },
+      {
+        "assessmentRuleId": "Rule-9",
+        "assessmentRuleVersion": "v1",
+        "resolutionState": "INVESTIGATING",
+        "currentDecisionId": null,
+        "decisionRevision": 0,
+        "concept": "Rule 9"
+      }
+    ],
+    "decisions": [
+      {
+        "decisionId": "66666666-6666-4666-8666-666666666666",
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "assessmentRuleId": "Rule-3",
+        "scopeId": "ASSESSMENT",
+        "decisionRevision": 1,
+        "state": "ACCEPTED",
+        "decision": {
+          "assessmentRuleId": "Rule-3",
+          "assessmentRuleVersion": "v1",
+          "scopeId": "ASSESSMENT",
+          "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+          "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+          "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "caseRevision": 1,
+          "legalContextRefs": [
+            {
+              "legalContextId": "LC-1"
+            }
+          ],
+          "applicability": "APPLICABLE",
+          "rationale": "Deletion is based on the draft timestamp instead of the receipt timestamp.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "88888888-8888-4888-8888-888888888888"
+            }
+          ],
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "NOT_MET",
+              "rationale": "Retention uses the wrong timestamp.",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "evidenceId": "88888888-8888-4888-8888-888888888888"
+                }
+              ]
+            }
+          ],
+          "compliance": "NON_COMPLIANT"
+        },
+        "createdAt": "2026-10-11T10:00:40.000Z"
+      }
+    ],
+    "facts": [],
+    "artifacts": []
+  },
+  "created_at": "2026-10-11T10:00:00.000Z",
+  "updated_at": "2026-10-11T10:01:00.000Z",
+  "correlationId": "corr-1"
+}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ASSESSMENT_AUDIT_MODES, RULE_AUDIT_SCOPE_MODES, RULE_AUDIT_STATUSES } from "./rule-audits.ts";
 import {
   LEGAL_SOURCE_CHUNK_STATUSES,
   type LegalSourceChunkStatus,
@@ -416,6 +417,12 @@ export const assessmentRootContextSchema = z.strictObject({
   repositoryScanJobId: z.string().min(1),
   repositoryCommit: commitSchema,
   decisionScopeId: identifierSchema,
+  auditRequest: z.strictObject({
+    requestId: uuidSchema,
+    scopeMode: z.enum(RULE_AUDIT_SCOPE_MODES),
+    status: z.enum(RULE_AUDIT_STATUSES),
+    selectedRuleIds: z.array(identifierSchema).min(1),
+  }).nullable().default(null),
   coverage: z.array(decisionCoverageSchema),
   facts: z.array(assessmentCaseFactSchema),
   evidence: z.array(assessmentEvidenceSchema),
@@ -609,6 +616,8 @@ export type AssessmentRuleSetSummary = z.infer<
 >;
 export const assessmentCaseViewSchema = z.strictObject({
   caseRevision: revisionSchema,
+  auditRequestRevision: revisionSchema,
+  auditMode: z.enum(ASSESSMENT_AUDIT_MODES),
   ruleSetVersionId: uuidSchema.nullable(),
   ruleSet: assessmentRuleSetSummarySchema.nullable(),
   repositorySnapshotId: identifierSchema.nullable(),
@@ -815,6 +824,14 @@ export type PinnedLegalSourceSearchResult = z.infer<
 >;
 
 /** Canonical assessment provenance artifact for Story 8.7 / LCSP-58. */
+const assessmentProvenanceAuditScopeSchema = z.strictObject({
+  auditMode: z.enum(ASSESSMENT_AUDIT_MODES),
+  totalPinned: z.number().int().nonnegative(),
+  requested: z.number().int().nonnegative(),
+  ready: z.number().int().nonnegative(),
+  notRequested: z.number().int().nonnegative(),
+});
+
 export const assessmentProvenanceArtifactSchema = z.strictObject({
   schemaVersion: z.literal(ASSESSMENT_PROVENANCE_SCHEMA_VERSION),
   assessmentId: uuidSchema,
@@ -825,6 +842,7 @@ export const assessmentProvenanceArtifactSchema = z.strictObject({
   checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
   correlationId: z.string(),
   lifecycle: assessmentLifecycleSchema.nullable(),
+  auditScope: assessmentProvenanceAuditScopeSchema.optional(),
   pins: z
     .strictObject({
       ruleSet: assessmentRuleSetSummarySchema.nullable(),
@@ -858,6 +876,7 @@ export const assessmentProvenanceExportSchema = z.strictObject({
   contentFingerprintSha256: z.string().regex(/^[a-f0-9]{64}$/),
   checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
   lifecycle: assessmentLifecycleSchema.nullable(),
+  auditScope: assessmentProvenanceAuditScopeSchema.optional(),
   pins: z
     .strictObject({
       ruleSet: assessmentRuleSetSummarySchema.nullable(),

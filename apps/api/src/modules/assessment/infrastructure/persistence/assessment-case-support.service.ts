@@ -6,7 +6,10 @@ import {
   ruleDecisionReferences,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_AUDIT_MODES,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+} from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
@@ -73,12 +76,51 @@ export class AssessmentCaseSupport {
     };
   }
 
+  /**
+   * Business purpose: Gate every rule action to a persisted coverage member of the current audit request.
+   * Business rules:
+   * - Customer-selected cases require frozen membership; legacy cases use existing full coverage.
+   * Execution flow:
+   * 1. Check audit mode and current request membership when selection is required.
+   * 2. Load the rule's decision coverage record.
+   * Failure cases:
+   * - Unrequested or missing rules reject before investigation, decision or human-question writes.
+   * Side effects:
+   * - Read-only transaction helper; it does not create coverage or outcomes.
+   */
   async requireCoverage(
     tx: Prisma.TransactionClient,
     assessmentId: string,
     assessmentRuleId: string,
     correlationId: string,
   ) {
+    const auditCase = await tx.assessmentCase.findUnique({
+      where: { assessmentId },
+      select: { auditMode: true },
+    });
+    if (auditCase?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED) {
+      const runtime = await tx.assessmentRuntime.findUnique({
+        where: { assessmentId },
+        select: { currentAuditRequestId: true },
+      });
+      const member = runtime?.currentAuditRequestId
+        ? await tx.assessmentRuleAuditItem.findUnique({
+            where: {
+              requestId_assessmentRuleId: {
+                requestId: runtime.currentAuditRequestId,
+                assessmentRuleId,
+              },
+            },
+          })
+        : null;
+      if (!member) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.RULE_NOT_IN_RULE_SET,
+          correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
+    }
     const row = await tx.assessmentDecisionCoverage.findUnique({
       where: {
         assessmentId_assessmentRuleId: { assessmentId, assessmentRuleId },

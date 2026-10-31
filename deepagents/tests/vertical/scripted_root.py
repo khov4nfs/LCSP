@@ -19,6 +19,7 @@ from deepagents.backends import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 
+import assessment_root.runner as assessment_root_runner
 from assessment_root.client import AssessmentRuntimeClient
 from assessment_root.researcher import RESEARCHER_NAME
 from assessment_root.runner import run_assessment_root
@@ -189,6 +190,21 @@ def main() -> int:
         ]
     model = DynamicScriptedModel(responses=[], steps=steps)
     client = AssessmentRuntimeClient(base, key)
+    root_logger = assessment_root_runner.logger
+
+    class RootFailureCapture:
+        def __getattr__(self, name: str) -> Any:
+            return getattr(root_logger, name)
+
+        def error(self, event: str, *args: Any, **kwargs: Any) -> Any:
+            if event == "ASSESSMENT_ROOT_RUN_FAILED":
+                captured["rootError"] = {
+                    key: kwargs.get(key)
+                    for key in ("error_type", "error_message", "error_traceback")
+                }
+            return root_logger.error(event, *args, **kwargs)
+
+    assessment_root_runner.logger = RootFailureCapture()
     with PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
         saver.setup()
         result = run_assessment_root(
