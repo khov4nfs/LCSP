@@ -63,31 +63,43 @@ it("completes only one validated selected rule without invoking the full-report 
     ],
     compliance: RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT,
   });
-  const updated = jest.fn<() => Promise<unknown>>().mockResolvedValue({});
+  const updated = jest
+    .fn<
+      (input: {
+        where: { requestId: string };
+        data: {
+          status: typeof RULE_AUDIT_STATUSES.COMPLETED;
+          completedAt: Date;
+        };
+      }) => Promise<unknown>
+    >()
+    .mockResolvedValue({});
   const tx = {
     assessmentRuleAuditRequest: {
-      findUnique: async () => ({
-        requestId,
-        ruleSetVersionId,
-        scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
-        status: RULE_AUDIT_STATUSES.RUNNING,
-        rules: [{ assessmentRuleId: "Rule-3", assessmentRuleVersion: "v1" }],
-      }),
+      findUnique: () =>
+        Promise.resolve({
+          requestId,
+          ruleSetVersionId,
+          scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+          status: RULE_AUDIT_STATUSES.RUNNING,
+          rules: [{ assessmentRuleId: "Rule-3", assessmentRuleVersion: "v1" }],
+        }),
       update: updated,
     },
-    assessmentHumanRequest: { findMany: async () => [] },
+    assessmentHumanRequest: { findMany: () => Promise.resolve([]) },
     assessmentDecisionCoverage: {
-      findUnique: async () => ({
-        assessmentRuleVersion: "v1",
-        resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
-        currentDecision: {
-          state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
-          caseRevision: 1,
-          repositoryCommit,
-          ruleSetVersionId,
-          decision,
-        },
-      }),
+      findUnique: () =>
+        Promise.resolve({
+          assessmentRuleVersion: "v1",
+          resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
+          currentDecision: {
+            state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+            caseRevision: 1,
+            repositoryCommit,
+            ruleSetVersionId,
+            decision,
+          },
+        }),
     },
   };
   const fullGate = jest.fn<() => Promise<unknown>>();
@@ -98,40 +110,42 @@ it("completes only one validated selected rule without invoking the full-report 
         callback(tx),
     } as unknown as PrismaService,
     {
-      authorizeInTx: async () => ({
-        auditRequestId: requestId,
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
-      }),
+      authorizeInTx: () =>
+        Promise.resolve({
+          auditRequestId: requestId,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        }),
     } as unknown as AssessmentRuntimeAuthority,
     { inspectInTx: fullGate } as unknown as AssessmentCompletionGate,
     {
       transitionVerifiedInTx: transition,
     } as unknown as AssessmentLifecycleCoordinator,
     {
-      loadPins: async () => pins,
-      buildValidationContext: async () => ({
-        caseRevision: 1,
-        pins,
-        rule: {
-          assessmentRuleId: "Rule-3",
-          assessmentRuleVersion: "v1",
-          criterionIds: new Set(["C-1"]),
-          legalContextIds: new Set(["Legal-3"]),
-          declaredElements: new Map(),
-        },
-        evidence: new Map([
-          [
-            evidenceId,
-            {
-              state: "ACCEPTED",
-              repositoryCommit,
-              type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
-              payload: {},
-            },
-          ],
-        ]),
-        facts: new Map(),
-      }),
+      loadPins: () => Promise.resolve(pins),
+      buildValidationContext: () =>
+        Promise.resolve({
+          caseRevision: 1,
+          pins,
+          rule: {
+            assessmentRuleId: "Rule-3",
+            assessmentRuleVersion: "v1",
+            criterionIds: new Set(["C-1"]),
+            legalContextIds: new Set(["Legal-3"]),
+            declaredElements: new Map(),
+          },
+          evidence: new Map([
+            [
+              evidenceId,
+              {
+                state: "ACCEPTED",
+                repositoryCommit,
+                type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+                payload: {},
+              },
+            ],
+          ]),
+          facts: new Map(),
+        }),
     } as unknown as AssessmentCaseSupport,
   );
 
@@ -148,13 +162,10 @@ it("completes only one validated selected rule without invoking the full-report 
     lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
     blockers: [],
   });
-  expect(updated).toHaveBeenCalledWith({
-    where: { requestId },
-    data: {
-      status: RULE_AUDIT_STATUSES.COMPLETED,
-      completedAt: expect.any(Date),
-    },
-  });
+  const update = updated.mock.calls[0]?.[0];
+  expect(update?.where).toEqual({ requestId });
+  expect(update?.data.status).toBe(RULE_AUDIT_STATUSES.COMPLETED);
+  expect(update?.data.completedAt).toBeInstanceOf(Date);
   expect(fullGate).not.toHaveBeenCalled();
   expect(transition).not.toHaveBeenCalled();
 });

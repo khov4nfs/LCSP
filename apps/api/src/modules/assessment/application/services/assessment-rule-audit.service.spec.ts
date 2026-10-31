@@ -119,8 +119,8 @@ function submitFixture() {
   jest
     .spyOn(service, "request")
     .mockImplementation(
-      async (_assessment, _owner, _correlation, requestId) =>
-        ({ requestId }) as never,
+      (_assessment, _owner, _correlation, requestId) =>
+        Promise.resolve({ requestId }) as never,
     );
   return { service, tx, created, coverageCreated, enqueued, requestFind };
 }
@@ -323,40 +323,47 @@ it("shows Rule 3 ready while Rule 9 investigates or awaits a customer answer", a
     ],
   };
   const prisma = {
-    assessmentRuleAuditRequest: { findUnique: async () => row },
-    assessmentRule: { count: async () => 20 },
+    assessmentRuleAuditRequest: {
+      findUnique: () => Promise.resolve(row),
+    },
+    assessmentRule: { count: () => Promise.resolve(20) },
     assessmentDecisionCoverage: {
-      findMany: async () => [
-        {
-          assessmentRuleId: "Rule-3",
-          resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
-          currentDecisionId: DECISION,
-          currentDecision: {
-            state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+      findMany: () =>
+        Promise.resolve([
+          {
+            assessmentRuleId: "Rule-3",
+            resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
+            currentDecisionId: DECISION,
+            currentDecision: {
+              state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+            },
           },
-        },
-        {
-          assessmentRuleId: "Rule-9",
-          resolutionState: waiting
-            ? DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT
-            : DECISION_RESOLUTION_STATES.INVESTIGATING,
-          currentDecisionId: null,
-          currentDecision: null,
-        },
-      ],
+          {
+            assessmentRuleId: "Rule-9",
+            resolutionState: waiting
+              ? DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT
+              : DECISION_RESOLUTION_STATES.INVESTIGATING,
+            currentDecisionId: null,
+            currentDecision: null,
+          },
+        ]),
     },
     assessmentHumanRequest: {
-      findMany: async () => (waiting ? [{ assessmentRuleId: "Rule-9" }] : []),
+      findMany: () =>
+        Promise.resolve(waiting ? [{ assessmentRuleId: "Rule-9" }] : []),
     },
-    assessmentRuleAuditItem: { findMany: async () => row.rules },
+    assessmentRuleAuditItem: {
+      findMany: () => Promise.resolve(row.rules),
+    },
     assessmentRuleDecision: {
-      findMany: async () => [
-        {
-          assessmentRuleId: "Rule-3",
-          decisionId: DECISION,
-          state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
-        },
-      ],
+      findMany: () =>
+        Promise.resolve([
+          {
+            assessmentRuleId: "Rule-3",
+            decisionId: DECISION,
+            state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+          },
+        ]),
     },
   };
   const service = new AssessmentRuleAuditService(

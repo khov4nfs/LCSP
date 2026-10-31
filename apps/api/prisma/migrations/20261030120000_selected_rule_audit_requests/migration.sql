@@ -6,6 +6,47 @@ ALTER TABLE "AssessmentCase"
   ADD COLUMN "auditRequestRevision" INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN "auditMode" "AssessmentAuditMode" NOT NULL DEFAULT 'LEGACY_FULL';
 
+-- A customer-selected assessment becomes ready with pinned inputs and no rule coverage.
+-- Coverage is created atomically only after an explicit audit request; historical full-scope
+-- assessments retain the original all-rules activation invariant.
+CREATE OR REPLACE FUNCTION public.lcsp_assessment_active_requires_pins()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  pinned_rule_set text;
+  pinned_snapshot text;
+  pinned_audit_mode "AssessmentAuditMode";
+  rule_count integer;
+  coverage_count integer;
+BEGIN
+  IF NEW."lifecycleState" = 'ACTIVE' AND OLD."lifecycleState" IS DISTINCT FROM 'ACTIVE' THEN
+    SELECT "ruleSetVersionId", "repositorySnapshotId", "auditMode"
+      INTO pinned_rule_set, pinned_snapshot, pinned_audit_mode
+      FROM "AssessmentCase" WHERE "assessmentId" = NEW."id";
+    IF NOT FOUND OR pinned_rule_set IS NULL OR pinned_snapshot IS NULL THEN
+      RAISE EXCEPTION 'an assessment cannot be ACTIVE without a pinned compliance rule set and repository snapshot' USING ERRCODE = 'check_violation';
+    END IF;
+    SELECT count(*) INTO rule_count FROM "AssessmentRule" WHERE "ruleSetVersionId" = pinned_rule_set;
+    IF rule_count = 0 THEN
+      RAISE EXCEPTION 'an assessment cannot be ACTIVE without pinned AssessmentRules' USING ERRCODE = 'check_violation';
+    END IF;
+    IF pinned_audit_mode = 'LEGACY_FULL' THEN
+      SELECT count(*) INTO coverage_count FROM "AssessmentDecisionCoverage" WHERE "assessmentId" = NEW."id";
+      IF coverage_count <> rule_count THEN
+        RAISE EXCEPTION 'decision coverage must exist for every pinned AssessmentRule' USING ERRCODE = 'check_violation';
+      END IF;
+    ELSIF pinned_audit_mode = 'CUSTOMER_SELECTED' THEN
+      SELECT count(*) INTO coverage_count FROM "AssessmentDecisionCoverage" WHERE "assessmentId" = NEW."id";
+      IF coverage_count <> 0 THEN
+        RAISE EXCEPTION 'customer-selected assessment must wait for an explicit audit request before creating decision coverage' USING ERRCODE = 'check_violation';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
 ALTER TABLE "AssessmentRuntime" ADD COLUMN "currentAuditRequestId" UUID;
 ALTER TABLE "AssessmentRuleDecision" ADD COLUMN "auditRequestId" UUID;
 

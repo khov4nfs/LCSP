@@ -28,6 +28,7 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
   HUMAN_RESOLUTION_CONTROL_TYPES,
+  RULE_AUDIT_SCOPE_MODES,
   SEARCH_COVERAGE_SCOPE_KINDS,
   answerAssessmentHumanRequestSchema,
   assessmentHumanRequestsResultSchema,
@@ -242,7 +243,7 @@ try {
   // an assessment cannot reason before it is prepared
   eq((await runtime(A.id, "claim")).body.problem.code, "ASSESSMENT_NOT_ACTIVE");
 
-  // repository setup completion pins the snapshot, covers every rule and activates (idempotent)
+  // repository setup pins the snapshot and activates without selecting or covering rules
   const setup = await customerHttp(
     "POST",
     `/assessments/${A.id}/repository-setup/complete`,
@@ -264,7 +265,7 @@ try {
         [A.id],
       )
     ).rows[0],
-    { n: 3, pending: 3 },
+    { n: 0, pending: 0 },
   );
   eq(
     (
@@ -273,7 +274,7 @@ try {
         [A.id],
       )
     ).rows[0].n,
-    1,
+    0,
   );
   const setupAgain = await customerHttp(
     "POST",
@@ -281,6 +282,51 @@ try {
     owner.token,
   );
   ok(setupAgain.status < 300, "idempotent setup completion");
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "OutboxMessage" WHERE "aggregateId"=$1 AND "eventType"='command.assessment.root.requested.v1'`,
+        [A.id],
+      )
+    ).rows[0].n,
+    0,
+  );
+
+  // This legacy vertical journey explicitly opts into the full pinned Rule Set before Root runs.
+  const catalogResponse = await customerHttp(
+    "GET",
+    `/assessments/${A.id}/rules?offset=0&limit=100`,
+    owner.token,
+  );
+  eq(catalogResponse.status, 200, JSON.stringify(catalogResponse.body));
+  const catalog = catalogResponse.body.data;
+  eq(catalog.total, ruleCount);
+  const audit = await customerHttp(
+    "POST",
+    `/assessments/${A.id}/rule-audits`,
+    owner.token,
+    {
+      idempotencyKey: randomUUID(),
+      expectedAuditRevision: catalog.auditRevision,
+      ruleSetVersionId: catalog.ruleSetVersionId,
+      ruleSetDigest: catalog.ruleSetDigest,
+      repositorySnapshotId: catalog.repositorySnapshotId,
+      repositoryCommit: catalog.repositoryCommit,
+      scopeMode: RULE_AUDIT_SCOPE_MODES.FULL_RULE_SET,
+      rules: [],
+    },
+  );
+  eq(audit.status, 201, JSON.stringify(audit.body));
+  eq(audit.body.data.requested, ruleCount);
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n, count(*) FILTER (WHERE "resolutionState"='PENDING')::int AS pending FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1`,
+        [A.id],
+      )
+    ).rows[0],
+    { n: ruleCount, pending: ruleCount },
+  );
   eq(
     (
       await q(
