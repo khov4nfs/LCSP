@@ -1,0 +1,17 @@
+{
+  "runtimeProcesses": [
+    {
+      "pid": 191709,
+      "role": "SERVER",
+      "mode": "production",
+      "activeTestFixtureFlags": []
+    },
+    {
+      "pid": 191710,
+      "role": "BRIDGE",
+      "mode": "production",
+      "activeTestFixtureFlags": []
+    }
+  ],
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192"
+}

@@ -44,12 +44,14 @@ from tools.common.capabilities.platform.config import (
     resolve_usage_recovery_store_path,
 )
 from middleware.usage_recovery import start_background_worker
+from tools.common.capabilities.agent_runtime.root_capacity import RootCapacityUnavailable, RootCommandObsolete
 
 LOGGER = logging.getLogger("lcsp.agent_runtime.rabbitmq_consumer")
 DEFAULT_EXCHANGE = "lcsp.events"
 DEFAULT_QUEUE_PREFIX = "lcsp.agent_runtime.boundary"
 DEFAULT_RECONNECT_DELAY_SECONDS = 2.0
 DEFAULT_REQUEUE_DELAY_SECONDS = 2.0
+ROOT_ADMISSION_REQUEUE_SECONDS = 15.0
 DEFAULT_FALLBACK_MAX_REDELIVERIES = 3
 AGENT_RUNTIME_ATTEMPT_HEADER = "x-lcsp-agent-runtime-attempt"
 DEFAULT_API_READY_TIMEOUT_SECONDS = 60.0
@@ -449,7 +451,7 @@ def _configure_channel(
             fallback_max_redeliveries=fallback_max_redeliveries,
         )
         channel.queue_declare(queue=binding.queue_name, durable=True)
-        for retry_delay_seconds in sorted({DEFAULT_REQUEUE_DELAY_SECONDS, *retry_delays_seconds}):
+        for retry_delay_seconds in sorted({DEFAULT_REQUEUE_DELAY_SECONDS, ROOT_ADMISSION_REQUEUE_SECONDS, *retry_delays_seconds}):
             channel.queue_declare(
                 queue=_retry_queue_name(binding.queue_name, retry_delay_seconds),
                 durable=True,
@@ -597,6 +599,18 @@ def _dispatch_delivery(
     timeout_seconds: float | None = None,
     settlement_state: DeliverySettlementState | None = None,
 ) -> None:
+    """Business purpose: Dispatch this durable command or harmlessly settle an obsolete duplicate.
+
+    Business rules:
+    - A settled/timed-out delivery cannot start work; obsolete canonical commands invoke no Root or model.
+    Execution flow:
+    1. Validate delivery lifetime and decode its frozen command/correlation identity.
+    2. Dispatch through bounded native admission, preserving capacity refusal for durable deferral.
+    Failure cases:
+    - Expired work raises timeout; typed obsolete commands return without execution; other failures preserve policy.
+    Side effects:
+    - May dispatch one native request; broker ACK/NACK stays with the original connection-thread settlement.
+    """
     if settlement_state is not None and _delivery_already_settled(settlement_state):
         raise BoundaryExecutionTimeout(timeout_seconds or 0.0)
     message = _decode_message(body)
@@ -609,12 +623,12 @@ def _dispatch_delivery(
         timeout_seconds = settlement_state.deadline - monotonic()
         if timeout_seconds <= 0 or _delivery_already_settled(settlement_state):
             raise BoundaryExecutionTimeout(0.0)
-    dispatch_agent_runtime_event(
-        boundary_name,
-        message,
-        correlation_id,
-        timeout_seconds=timeout_seconds,
-    )
+    try:
+        dispatch_agent_runtime_event(
+            boundary_name, message, correlation_id, timeout_seconds=timeout_seconds,
+        )
+    except RootCommandObsolete:
+        return
 
 
 
@@ -802,6 +816,19 @@ def _settle_delivery(
     retry_delays_seconds: tuple[float, ...] = (),
     completed: Future[None] | None = None,
 ) -> None:
+    """Business purpose: Settle only this delivery on its original RabbitMQ connection thread.
+
+    Business rules:
+    - Global capacity refusal uses confirmed durable delay without incrementing failure attempts.
+    - Successful dispatch ACKs only after terminal execution; errors retain established bounded retry handling.
+    Execution flow:
+    1. Verify the original channel, then ACK completed work or confirmed admission deferral.
+    2. Otherwise apply durable retry/backoff or terminal failure notification and NACK.
+    Failure cases:
+    - Failed publication requeues the original; closed connections leave broker redelivery authority intact.
+    Side effects:
+    - Delivery-specific broker settlement/publication and established failure callbacks only.
+    """
     if not channel.is_open:
         LOGGER.warning(
             "RabbitMQ channel closed before delivery settlement "
@@ -816,6 +843,17 @@ def _settle_delivery(
     try:
         if error is None:
             channel.basic_ack(delivery_tag=delivery_tag)
+            return
+
+        if isinstance(error, RootCapacityUnavailable):
+            confirmed = _publish_retry_delivery(
+                channel=channel, retry_queue=_retry_queue_name(queue_name, ROOT_ADMISSION_REQUEUE_SECONDS),
+                properties=properties, body=body, attempt=_delivery_attempt(properties),
+            )
+            if confirmed:
+                channel.basic_ack(delivery_tag=delivery_tag)
+            else:
+                channel.basic_nack(delivery_tag=delivery_tag, requeue=True)
             return
 
 

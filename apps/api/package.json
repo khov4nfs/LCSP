@@ -32,6 +32,7 @@
     ".": "./src/index.ts",
     "./security": "./src/security.ts",
     "./main": "./src/main.ts",
+    "./operations": "./dist/src/operations.js",
     "./app.module": "./src/app.module.ts"
   },
   "dependencies": {

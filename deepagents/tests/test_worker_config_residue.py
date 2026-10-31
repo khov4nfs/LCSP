@@ -31,6 +31,7 @@ RETIRED_ENV = (
 
 
 def _env(monkeypatch) -> None:
+    monkeypatch.setattr(config_module, "load_runtime_env", lambda: None)
     monkeypatch.setenv("NESTJS_API_BASE_URL", "http://api.test")
     monkeypatch.setenv("WORKER_API_KEY", "worker-key")
 

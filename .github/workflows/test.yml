@@ -224,6 +224,64 @@ jobs:
       - name: Test API
         run: pnpm --filter @lcsp/api test
 
+  root-capacity-integration:
+    name: Adaptive Root global admission PostgreSQL integration
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:4-management
+        ports:
+          - 5678:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lcsp364_capacity
+        ports:
+          - 55438:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lcsp364_capacity"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55438/lcsp364_capacity?schema=public
+      LCSP_TEST_CAPACITY_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55438/lcsp364_capacity?schema=public
+      LCSP_TEST_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5678/%2F
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: deepagents/pyproject.toml
+      - name: Install broker and Agent Server regression dependencies
+        working-directory: deepagents
+        run: python -m pip install -e ".[dev]"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:runtime-packages
+      - run: pnpm --filter @lcsp/api prisma:generate
+      - run: pnpm --filter @lcsp/api prisma:migrate:deploy
+      - name: Concurrent replicas, 10001-command broker deferral, fencing and quiescence
+        run: pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --runTestsByPath test/assessment-root-capacity.integration.spec.ts
+      - name: Build actual API kernel and publisher for mixed-version canary regression
+        run: pnpm --filter @lcsp/api exec nest build
+      - name: Isolated writer, old publisher, real broker and test ledger accounting
+        run: node --test scripts/lcsp364-acceptance.integration.test.mjs
+
   api-e2e:
     name: API e2e tests
     needs: changes
@@ -414,6 +472,16 @@ jobs:
     if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     services:
+      rabbitmq:
+        image: rabbitmq:4-management
+        ports:
+          - 5678:5672
+          - 15678:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
       postgres:
         image: postgres:16
         env:
@@ -501,6 +569,23 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Adaptive native Root load 1/2/4/8 with two real broker consumers
+        env:
+          LCSP_TEST_CAPACITY_LOAD: "1"
+        run: |
+          mkdir -p reports/lcsp364-adaptive-capacity
+          node --test scripts/drain-agent-runtime.test.mjs
+          node tests/assessment-domain-vertical.mjs
+
+      - name: Upload adaptive capacity measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcsp364-provider-free-native-capacity
+          path: reports/lcsp364-adaptive-capacity/native-load.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   admin-playwright-e2e:
     name: Billing and Admin Playwright E2E release gate
     needs: changes
@@ -579,6 +664,7 @@ jobs:
       - web-production-build
       - api-unit
       - api-e2e
+      - root-capacity-integration
       - web
       - python
       - docker-sandbox-e2e

@@ -1,0 +1,43 @@
+{
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "at": "2026-10-31T09:08:35.711226+00:00",
+  "scope": "READ_ONLY_NATIVE_CHECKPOINT_STATE_AFTER_SERVER_RESTART",
+  "threads": [
+    {
+      "threadId": "1f039d1f-8daa-4cd1-a6e8-02938f3e3b98",
+      "httpStatus": 200,
+      "checkpoint": {
+        "thread_id": "1f039d1f-8daa-4cd1-a6e8-02938f3e3b98",
+        "checkpoint_ns": "",
+        "checkpoint_id": "1f1d5096-232a-6f04-8261-6f728b7b651a"
+      },
+      "expectedCheckpointId": "1f1d5096-232a-6f04-8261-6f728b7b651a",
+      "checkpointMatchesBeforeRestart": true,
+      "nextNodes": [
+        "tools",
+        "tools",
+        "tools",
+        "tools"
+      ],
+      "stateContentWithheld": true
+    },
+    {
+      "threadId": "619454fb-1ebc-44bc-aaa3-fcfef52ff0bc",
+      "httpStatus": 200,
+      "checkpoint": {
+        "thread_id": "619454fb-1ebc-44bc-aaa3-fcfef52ff0bc",
+        "checkpoint_ns": "",
+        "checkpoint_id": "1f1d508f-eab1-67b5-820d-95ef69f78247"
+      },
+      "expectedCheckpointId": "1f1d508f-eab1-67b5-820d-95ef69f78247",
+      "checkpointMatchesBeforeRestart": true,
+      "nextNodes": [
+        "tools",
+        "tools",
+        "tools",
+        "tools"
+      ],
+      "stateContentWithheld": true
+    }
+  ]
+}

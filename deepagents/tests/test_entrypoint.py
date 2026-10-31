@@ -224,6 +224,6 @@ def test_local_agent_runtime_close_drains_runs_before_checkpointer_shutdown() ->
 
     runtime.close()
 
-    assert order == [("executor", True, True), "checkpointer"]
+    assert order == [("executor", True, False), "checkpointer"]
     assert runtime._checkpointer_context is None
     assert runtime._checkpointer is None

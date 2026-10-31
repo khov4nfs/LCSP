@@ -1,0 +1,98 @@
+{
+  "previousRevision": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "targetRevision": "7528577c08e23e991f62223558407d529d22babd",
+  "startedAt": "2026-10-30T17:01:33.484287+00:00",
+  "buildDirectory": "/root/lcsp364-rollout/7528577c08e23e991f62223558407d529d22babd",
+  "dockerfile": "deepagents/Dockerfile.dev",
+  "uvSha256": "6065104d08e2abd75d7d2411c64e270ebd26124bb85f0a3a7f5b5dada369bea7",
+  "steps": [
+    {
+      "step": "node-frozen-install",
+      "startedAt": "2026-10-30T17:01:33.792955+00:00",
+      "diskFreeBeforeBytes": 4993863680,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:01:34.676980+00:00",
+      "diskFreeAfterBytes": 4993859584
+    },
+    {
+      "step": "sandbox-image",
+      "startedAt": "2026-10-30T17:01:34.677736+00:00",
+      "diskFreeBeforeBytes": 4993855488,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:02:52.754654+00:00",
+      "diskFreeAfterBytes": 3055808512
+    },
+    {
+      "step": "host-frozen-sync",
+      "startedAt": "2026-10-30T17:04:23.659865+00:00",
+      "diskFreeBeforeBytes": 5137694720,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:04:23.873904+00:00",
+      "diskFreeAfterBytes": 5137690624
+    },
+    {
+      "step": "host-wheel",
+      "startedAt": "2026-10-30T17:04:23.874633+00:00",
+      "diskFreeBeforeBytes": 5137690624,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:04:24.938324+00:00",
+      "diskFreeAfterBytes": 5137408000
+    },
+    {
+      "step": "host-bytecode",
+      "startedAt": "2026-10-30T17:04:24.939017+00:00",
+      "diskFreeBeforeBytes": 5137408000,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:04:25.060746+00:00",
+      "diskFreeAfterBytes": 5137334272
+    },
+    {
+      "step": "shared-packages",
+      "startedAt": "2026-10-30T17:04:25.061479+00:00",
+      "diskFreeBeforeBytes": 5137334272,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:04:36.096658+00:00",
+      "diskFreeAfterBytes": 5137244160
+    },
+    {
+      "step": "prisma-generate",
+      "startedAt": "2026-10-30T17:04:36.097300+00:00",
+      "diskFreeBeforeBytes": 5137244160,
+      "exitCode": 1,
+      "endedAt": "2026-10-30T17:04:37.500613+00:00",
+      "diskFreeAfterBytes": 5137235968
+    },
+    {
+      "step": "prisma-generate",
+      "startedAt": "2026-10-30T17:05:55.316360+00:00",
+      "diskFreeBeforeBytes": 5137199104,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:05:59.252793+00:00",
+      "diskFreeAfterBytes": 5137199104
+    },
+    {
+      "step": "api-build",
+      "startedAt": "2026-10-30T17:05:59.254141+00:00",
+      "diskFreeBeforeBytes": 5137199104,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:06:41.240431+00:00",
+      "diskFreeAfterBytes": 5136924672
+    },
+    {
+      "step": "web-build",
+      "startedAt": "2026-10-30T17:06:41.242255+00:00",
+      "diskFreeBeforeBytes": 5136924672,
+      "exitCode": 0,
+      "endedAt": "2026-10-30T17:07:51.251764+00:00",
+      "diskFreeAfterBytes": 5081542656
+    }
+  ],
+  "endedAt": "2026-10-30T17:07:51.349454+00:00",
+  "imageId": "sha256:28f9aafc97f5884aff5b7ccd7ee9438c04f9cc3956d0b51d7dde4f5aa4a74ee0",
+  "imageDigests": [
+    "lcsp-agent-runtime@sha256:28f9aafc97f5884aff5b7ccd7ee9438c04f9cc3956d0b51d7dde4f5aa4a74ee0"
+  ],
+  "webBuildId": "E6kAYpDvkM7zmXhL2ML3v",
+  "dirtyPaths": [],
+  "diskFreeBytes": 5081542656
+}

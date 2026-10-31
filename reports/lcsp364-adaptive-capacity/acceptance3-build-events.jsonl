@@ -1,0 +1,19 @@
+{"step": "node-frozen-install", "startedAt": "2026-10-31T08:44:35.781431+00:00", "diskFreeBeforeBytes": 4980076544}
+{"step": "node-frozen-install", "startedAt": "2026-10-31T08:44:35.781431+00:00", "diskFreeBeforeBytes": 4980076544, "exitCode": 0, "endedAt": "2026-10-31T08:44:36.115407+00:00", "diskFreeAfterBytes": 4980072448}
+{"step": "sandbox-image", "startedAt": "2026-10-31T08:44:36.116009+00:00", "diskFreeBeforeBytes": 4980068352}
+{"step": "sandbox-image", "startedAt": "2026-10-31T08:44:36.116009+00:00", "diskFreeBeforeBytes": 4980068352, "exitCode": 0, "endedAt": "2026-10-31T08:44:39.312111+00:00", "diskFreeAfterBytes": 4979912704}
+{"step": "host-frozen-sync", "startedAt": "2026-10-31T08:44:39.312700+00:00", "diskFreeBeforeBytes": 4979912704}
+{"step": "host-frozen-sync", "startedAt": "2026-10-31T08:44:39.312700+00:00", "diskFreeBeforeBytes": 4979912704, "exitCode": 0, "endedAt": "2026-10-31T08:44:39.499973+00:00", "diskFreeAfterBytes": 4979908608}
+{"step": "host-wheel", "startedAt": "2026-10-31T08:44:39.500570+00:00", "diskFreeBeforeBytes": 4979908608}
+{"step": "host-wheel", "startedAt": "2026-10-31T08:44:39.500570+00:00", "diskFreeBeforeBytes": 4979908608, "exitCode": 0, "endedAt": "2026-10-31T08:44:40.446481+00:00", "diskFreeAfterBytes": 4979634176}
+{"step": "host-bytecode", "startedAt": "2026-10-31T08:44:40.447184+00:00", "diskFreeBeforeBytes": 4979634176}
+{"step": "host-bytecode", "startedAt": "2026-10-31T08:44:40.447184+00:00", "diskFreeBeforeBytes": 4979634176, "exitCode": 0, "endedAt": "2026-10-31T08:44:40.516057+00:00", "diskFreeAfterBytes": 4979634176}
+{"step": "shared-packages", "startedAt": "2026-10-31T08:44:40.517073+00:00", "diskFreeBeforeBytes": 4979634176}
+{"step": "shared-packages", "startedAt": "2026-10-31T08:44:40.517073+00:00", "diskFreeBeforeBytes": 4979634176, "exitCode": 0, "endedAt": "2026-10-31T08:44:51.217359+00:00", "diskFreeAfterBytes": 4979486720}
+{"step": "prisma-generate", "startedAt": "2026-10-31T08:44:51.218253+00:00", "diskFreeBeforeBytes": 4979486720}
+{"step": "prisma-generate", "startedAt": "2026-10-31T08:44:51.218253+00:00", "diskFreeBeforeBytes": 4979486720, "exitCode": 0, "endedAt": "2026-10-31T08:44:54.923371+00:00", "diskFreeAfterBytes": 4979466240}
+{"step": "api-build", "startedAt": "2026-10-31T08:44:54.924179+00:00", "diskFreeBeforeBytes": 4979466240}
+{"step": "api-build", "startedAt": "2026-10-31T08:44:54.924179+00:00", "diskFreeBeforeBytes": 4979466240, "exitCode": 0, "endedAt": "2026-10-31T08:45:35.471623+00:00", "diskFreeAfterBytes": 4979347456}
+{"step": "web-build", "startedAt": "2026-10-31T08:45:35.473850+00:00", "diskFreeBeforeBytes": 4979347456}
+{"step": "web-build", "startedAt": "2026-10-31T08:45:35.473850+00:00", "diskFreeBeforeBytes": 4979347456, "exitCode": 0, "endedAt": "2026-10-31T08:45:59.656355+00:00", "diskFreeAfterBytes": 4980264960}
+{"event": "EXACT_PR_BUILD_READY", "targetRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192", "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160", "imageDigests": ["lcsp-agent-runtime@sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160"], "webBuildId": "JkRQ7uuBPfMZ4IpXwiwqc", "diskFreeBytes": 4980264960, "endedAt": "2026-10-31T08:45:59.747880+00:00"}

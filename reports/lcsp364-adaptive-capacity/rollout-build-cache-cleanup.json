@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-30T17:03:28.289457+00:00",
+  "beforeBytes": 3055673344,
+  "afterBytes": 4465565696,
+  "reclaimedBytes": 1409892352,
+  "policyMinimumBytes": 4294967296,
+  "policyPass": true,
+  "removed": [
+    {
+      "path": "/root/.npm/_cacache",
+      "classification": "DISPOSABLE_REGISTRY_DOWNLOAD_CACHE",
+      "bytesBefore": 896344064,
+      "processReferences": [],
+      "removed": true
+    },
+    {
+      "path": "/root/.cache/pnpm/v11",
+      "classification": "DISPOSABLE_REGISTRY_DOWNLOAD_CACHE",
+      "bytesBefore": 513548288,
+      "processReferences": [],
+      "removed": true
+    }
+  ],
+  "databaseOrSandboxOrImageDeleted": false
+}

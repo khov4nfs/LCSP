@@ -11,6 +11,8 @@ from assessment_root.runner import run_assessment_root
 from vertical.scripted_root import DynamicScriptedModel, _call
 
 base, key, assessment_id, repo_dir, mode = sys.argv[1:6]
+from orchestration.runtime_control import active_runtime_run_id
+active_runtime_run_id.set(os.getenv("LCSP_TEST_ROOT_RUNTIME_RUN_ID"))
 client = AssessmentRuntimeClient(base, key)
 steps = [lambda m: _call("get_assessment_context", {}, "context"), lambda m: AIMessage(content="Investigation continues from confirmed server state.")]
 model = DynamicScriptedModel(responses=[], steps=steps)

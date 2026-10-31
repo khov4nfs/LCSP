@@ -1,0 +1,9 @@
+{
+  "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+  "foreignLogin": "fogewise",
+  "operation": "NO_OP_RUNTIME_UPDATE",
+  "rejected": true,
+  "sqlState": "42501",
+  "dataChanged": false,
+  "guard": "LCSP_EXECUTION_WRITER_FENCED"
+}

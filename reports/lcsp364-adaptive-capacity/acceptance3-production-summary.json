@@ -1,0 +1,64 @@
+{
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "scope": "ACTUAL_PRODUCTION_NATIVE_EXECUTION_NOT_FIXTURE",
+  "measurementSamples": 279,
+  "unavailableObserverSamples": 1,
+  "firstObservedAt": "2026-10-31T08:50:06.623275+00:00",
+  "lastObservedAt": "2026-10-31T09:13:52.785784+00:00",
+  "distinctAssessments": 2,
+  "nativeExecutionSegments": 3,
+  "actualSqlPeakRoots": 1,
+  "maximumAdmittedObserved": 1,
+  "maximumNativeRootsObserved": 1,
+  "queueWaitToNativeStartP50Ms": 45412.0,
+  "queueWaitToNativeStartP95Ms": 59830.0,
+  "nativeSegmentDurationsSeconds": [
+    93.184,
+    183.07,
+    81.115
+  ],
+  "elapsedFirstStartToLastQuiescenceSeconds": 451.777,
+  "completedAssessmentThroughput": null,
+  "throughputDisposition": "Both Assessments wait for genuine human facts; execution-segment completion is not completed Assessment throughput.",
+  "resourceRanges": {
+    "memoryAvailableBytes": {
+      "minimum": 4232679424,
+      "maximum": 5675110400
+    },
+    "diskAvailableBytes": {
+      "minimum": 4938088448,
+      "maximum": 4979380224
+    },
+    "cpuPressure": {
+      "minimum": 0,
+      "maximum": 0.0311
+    },
+    "diskPressure": {
+      "minimum": 0,
+      "maximum": 0.031
+    },
+    "sandboxMemoryBytes": {
+      "minimum": 69692784.64,
+      "maximum": 469458288.64
+    },
+    "sandboxCpuCores": {
+      "minimum": 0,
+      "maximum": 1.0544
+    },
+    "activeSandboxes": {
+      "minimum": 3,
+      "maximum": 5
+    },
+    "dbUsedConnections": {
+      "minimum": 13,
+      "maximum": 25
+    },
+    "checkpointLatencyMs": {
+      "minimum": 1.5509901568293571,
+      "maximum": 68.71516350656748
+    }
+  },
+  "measurementSha256": "81d3f132d4a3cb96e8fff0ada154739f98e03f1116dd55debd5a53b58276ea6e",
+  "chartLabel": "Derived from captured measurements, not a live screenshot",
+  "productionConcurrency2OrMoreClaim": false
+}

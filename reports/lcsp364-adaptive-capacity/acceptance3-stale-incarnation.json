@@ -1,0 +1,59 @@
+{
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "at": "2026-10-31T09:07:48.967180+00:00",
+  "negativeControl": "AUTHENTICATED_OLD_INCARNATION",
+  "earlierProbeNote": "First authenticated report returned stale owner; receipt assertion used an incorrectly shortened error code. This capture asserts the actual shared contract code.",
+  "requests": [
+    {
+      "endpoint": "report",
+      "httpStatus": 409,
+      "problem": {
+        "type": "problem/assessment-root-capacity-stale-owner",
+        "status": 409,
+        "code": "ASSESSMENT_ROOT_CAPACITY_STALE_OWNER",
+        "titleKey": "auth.errors.validationFailed.title",
+        "detailKey": "auth.errors.validationFailed.detail",
+        "requiredAction": "none",
+        "correlationId": "defc74df-487a-4c4c-833e-0b95ff62cc8a",
+        "meta": {
+          "reason": "SERVER_INCARNATION_FENCED"
+        }
+      }
+    },
+    {
+      "endpoint": "reserve",
+      "httpStatus": 409,
+      "problem": {
+        "type": "problem/assessment-root-capacity-stale-owner",
+        "status": 409,
+        "code": "ASSESSMENT_ROOT_CAPACITY_STALE_OWNER",
+        "titleKey": "auth.errors.validationFailed.title",
+        "detailKey": "auth.errors.validationFailed.detail",
+        "requiredAction": "none",
+        "correlationId": "defc74df-487a-4c4c-833e-0b95ff62cc8a",
+        "meta": {
+          "reason": "SERVER_INCARNATION_FENCED"
+        }
+      }
+    },
+    {
+      "endpoint": "quiesce",
+      "httpStatus": 409,
+      "problem": {
+        "type": "problem/assessment-root-capacity-stale-owner",
+        "status": 409,
+        "code": "ASSESSMENT_ROOT_CAPACITY_STALE_OWNER",
+        "titleKey": "auth.errors.validationFailed.title",
+        "detailKey": "auth.errors.validationFailed.detail",
+        "requiredAction": "none",
+        "correlationId": "defc74df-487a-4c4c-833e-0b95ff62cc8a",
+        "meta": {
+          "reason": "SERVER_INCARNATION_FENCED"
+        }
+      }
+    }
+  ],
+  "currentIncarnation": "7f458806-c216-4313-bb45-d2c692f39a1d",
+  "previousIncarnation": "defc74df-487a-4c4c-833e-0b95ff62cc8a",
+  "managedOpenSlotsAfter": 0
+}

@@ -55,6 +55,8 @@ const ok = (actual, message) => {
   checks++;
 };
 const http = async (method, route, body, token, worker = false) => {
+  const claim = route.match(/^\/internal\/assessment-runtime\/([^/]+)\/claim$/);
+  if (claim && worker) body = await stack.admission.prepare(claim[1], body, { manual: true });
   const res = await fetch(`${base}${route}`, {
     method,
     headers: {
@@ -65,6 +67,7 @@ const http = async (method, route, body, token, worker = false) => {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status >= 500) console.error(stack.logs.join("").slice(-8000));
+  if (res.ok && route.endsWith("/finish")) await stack.admission.finishManual(route.split("/")[3]);
   return { status: res.status, body: await res.json() };
 };
 const dir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-hitl-"));
