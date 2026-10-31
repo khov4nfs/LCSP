@@ -208,6 +208,11 @@ def preserved_database(conn, state: dict, *, renamed: bool = False) -> str:
         if table == "AssessmentCase" and not renamed:
             for row in rows:
                 row["row"]["ruleSetVersionId"] = row["row"].pop("legalPortfolioVersionId")
+        if table == "AssessmentCase":
+            for row in rows:
+                # LCSP-347 adds defaulted audit-scope metadata; it does not mutate the case's canonical facts.
+                row["row"].pop("auditMode", None)
+                row["row"].pop("auditRequestRevision", None)
         value[table] = rows
     # Compare identical data across the historical physical-name cutover.
     source_table = "LegalSourceVersion" if renamed else "LegalCorpusVersion"

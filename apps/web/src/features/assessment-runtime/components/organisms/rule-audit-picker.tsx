@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { ASSESSMENT_AUDIT_MODES, RULE_AUDIT_PROGRESS_STATES, RULE_AUDIT_SCOPE_MODES,
@@ -84,6 +85,32 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
   }
 
   /**
+   * Business purpose: Submit the rule selection validated by the form when the customer starts an audit.
+   * Business rules: The form schema rejects an empty selection; the server revalidates rule membership and pins.
+   * Execution flow:
+   * 1. Receive the validated rule IDs from react-hook-form.
+   * 2. Pass them to the canonical selected-scope submission flow.
+   * Failure cases: Submission errors retain the customer's selection for a safe retry.
+   * Side effects: Starts one idempotent selected-rule audit request.
+   */
+  async function submitSelected(value: RuleAuditSelection) {
+    await start(RULE_AUDIT_SCOPE_MODES.SELECTED_RULES, value.selectedRuleIds);
+  }
+
+  /**
+   * Business purpose: Route the browser submit event through validated form state.
+   * Business rules: Invalid or empty selections cannot reach the audit request command.
+   * Execution flow:
+   * 1. Receive the native form event after user submission.
+   * 2. Ask react-hook-form to validate and deliver the selected rule IDs.
+   * Failure cases: Validation errors leave the picker selection available for correction.
+   * Side effects: A valid event starts one selected-rule request.
+   */
+  async function handleSelectionSubmit(event: FormEvent<HTMLFormElement>) {
+    await form.handleSubmit(submitSelected)(event);
+  }
+
+  /**
    * Business purpose: Give the customer a durable partial export of accepted results available now.
    * Business rules: The server chooses accepted decisions; a retry reuses the same export key.
    * Execution flow:
@@ -154,7 +181,7 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
         </div>
       ) : null}
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(async (value) => start(RULE_AUDIT_SCOPE_MODES.SELECTED_RULES, value.selectedRuleIds))}
+        <form onSubmit={handleSelectionSubmit}
           className="mt-3 space-y-3">
           <Input value={search} onChange={(event) => setSearch(event.target.value)}
             aria-label={copy("ruleAudit.search")} placeholder={copy("ruleAudit.search")} />

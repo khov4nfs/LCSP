@@ -710,7 +710,7 @@ export class AssessmentRuleAuditService {
           { status: HttpStatus.CONFLICT },
         );
       const pins = await this.support.loadPins(tx, assessmentId, correlationId);
-      const legalRules = await tx.assessmentRule.findMany({
+      const pinnedRules = await tx.assessmentRule.findMany({
         where: {
           ruleSetVersionId: ruleSet.id,
           assessmentRuleId: {
@@ -726,7 +726,7 @@ export class AssessmentRuleAuditService {
         },
       });
       const legalById = new Map(
-        legalRules.map((rule) => [rule.assessmentRuleId, rule]),
+        pinnedRules.map((rule) => [rule.assessmentRuleId, rule]),
       );
       const results: RuleAuditExport["results"] = [];
       for (const item of request.rules) {
