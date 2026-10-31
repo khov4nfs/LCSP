@@ -94,6 +94,16 @@ once, so large backlogs do not multiply history scans while holding global autho
 
 ## Rejected alternatives and limits
 
+Mixed-version production canaries additionally opt into an audited PostgreSQL
+writer-role fence before activation. Their pending outbox uses OWNED_PENDING,
+which old publishers do not select, and only the enrolled DB login may mutate
+their canonical Assessment records. A dedicated broker alone is insufficient:
+an old API can take shared pending outbox rows and send them elsewhere. The fence
+never transfers historical work or replaces Root leases, admission, checkpoints,
+paid governance or legal authority. Unrelated external processes remain untouched;
+this is scoped isolation, not a claim of all-writer/global quiescence. Binary
+rollback cannot remove the fence or resume unfinished protected work on old code.
+
 - Replicated Agent Servers: local polling/cancellation state is not replica-safe.
 - Redis locks, another queue or scheduler: existing API/PostgreSQL/RabbitMQ suffice.
 - Mutating `ThreadPoolExecutor` internals: unsupported and hard to drain safely.

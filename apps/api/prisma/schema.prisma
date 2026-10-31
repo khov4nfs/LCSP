@@ -151,10 +151,22 @@ model Assessment {
   domainCase             AssessmentCase?
   rootExecutionSlots     AssessmentRootExecutionSlot[]
   rootAdmissionRequests  AssessmentRootAdmissionRequest[]
+  executionIsolation     AssessmentExecutionIsolation?
 
   @@index([ownerId])
   @@index([ownerId, updatedAt(sort: Desc), id])
   @@index([ownerId, lifecycleState, id])
+}
+
+/// Optional deployment fence for a new Assessment in a shared, mixed-version database.
+/// Enrollment is an audited operator action, never a second execution authority.
+model AssessmentExecutionIsolation {
+  assessmentId String     @id
+  writerRole   String
+  actorId      String
+  reason       String
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 enum AgentStreamBoundaryType {
@@ -456,6 +468,7 @@ enum OutboxAggregateType {
 
 enum OutboxStatus {
   PENDING
+  OWNED_PENDING
   PUBLISHED
   FAILED
   DLQ

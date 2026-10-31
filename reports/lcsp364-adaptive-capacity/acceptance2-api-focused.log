@@ -1,0 +1,8 @@
+(node:82362) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Test Suites: 5 passed, 5 total
+Tests:       98 passed, 98 total
+Snapshots:   0 total
+Time:        1.191 s
+Ran all test suites within paths "src/platform/outbox/outbox-publisher.service.spec.ts", "src/platform/outbox/outbox-message.entity.spec.ts", "src/platform/outbox/outbox.repository.spec.ts", "src/platform/outbox/outbox-dlq.service.spec.ts", "src/modules/assessment/application/services/root-capacity-policy.spec.ts".

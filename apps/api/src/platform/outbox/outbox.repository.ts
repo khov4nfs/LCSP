@@ -104,12 +104,17 @@ export class OutboxRepository {
   }
 
   /**
-   * Locks an eligible pending batch with `FOR UPDATE SKIP LOCKED` and executes a handler before the transaction commits.
-   * The row locks remain held while `handler` runs, preventing another publisher instance from selecting the same messages concurrently.
-   *
-   * @param batchSize - Maximum number of deliverable messages to lock in one transaction.
-   * @param handler - Callback that processes the locked entities using the same Prisma transaction.
-   * @returns The handler result, or null when no eligible outbox messages are available.
+   * Business purpose: Publish durable events through their authorized deployment without losing broker confirmation.
+   * Business rules:
+   * - Legacy publishers cannot select OWNED_PENDING; isolated Assessment events require their enrolled DB login.
+   * - Every retry respects its UTC backoff and row locks remain held until the publication handler finishes.
+   * Execution flow:
+   * 1. Lock a bounded, oldest-first batch of ordinary or authorized isolated deliveries with SKIP LOCKED.
+   * 2. Rehydrate and handle each event in that transaction, or return null for an empty batch.
+   * Failure cases:
+   * - A handler/DB failure rolls back publication state; redelivery retains the original idempotency identity.
+   * Side effects:
+   * - Holds only the selected outbox row locks; the caller confirms broker publication before marking success.
    */
   async withPendingBatch<T>(
     batchSize: number,
@@ -128,6 +133,15 @@ export class OutboxRepository {
             -- column. Compare against a UTC timestamp without zone to avoid
             -- treating future retries as due on servers with a non-UTC TZ.
             AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC'))
+          )
+          OR (
+            status = ${OUTBOX_STATUSES.ownedPending}
+            AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC'))
+            AND EXISTS (
+              SELECT 1 FROM "AssessmentExecutionIsolation" isolation
+              WHERE isolation."assessmentId" = "OutboxMessage"."aggregateId"
+                AND isolation."writerRole" = session_user
+            )
           )
         ORDER BY "createdAt" ASC
         LIMIT ${batchSize}

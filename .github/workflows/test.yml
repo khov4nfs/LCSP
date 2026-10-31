@@ -277,6 +277,10 @@ jobs:
       - run: pnpm --filter @lcsp/api prisma:migrate:deploy
       - name: Concurrent replicas, 10001-command broker deferral, fencing and quiescence
         run: pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --runTestsByPath test/assessment-root-capacity.integration.spec.ts
+      - name: Build actual API kernel and publisher for mixed-version canary regression
+        run: pnpm --filter @lcsp/api exec nest build
+      - name: Isolated writer, old publisher, real broker and test ledger accounting
+        run: node --test scripts/lcsp364-acceptance.integration.test.mjs
 
   api-e2e:
     name: API e2e tests

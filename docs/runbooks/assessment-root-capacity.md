@@ -168,3 +168,72 @@ Root and 1 GiB disk headroom because it performs no clone/image build/sandbox
 work. It never proves paid-provider, Docker workload or production acceptance.
 The normal 4 GiB policy correctly refused this local host's roughly 2.37 GB disk.
 All graphs generated from the saved timeline must be labelled derived measurements.
+
+## Mixed-version canary isolation
+
+An external API sharing the DB can claim the same pending outbox and publish to
+its own broker. A private broker alone does not isolate the execution. Before a
+new canary is activated, apply migration `20261031120000_assessment_execution_isolation`
+and create a distinct, non-superuser PostgreSQL login for the Fogewise API. Grant
+schema USAGE, table SELECT/INSERT/UPDATE/DELETE and sequence USAGE/SELECT; do not
+grant role membership or superuser rights. Store its generated password only in
+the existing private deployment configuration. Migrations still use the previous
+privileged migration login. Verify the actual API process login after restart;
+dotenv does not override a stale inherited PM2 environment by default.
+
+With the built API and its new `DATABASE_URL`, run
+`LCSP_TEST_GRANT_ADMIN_ID=<verified-admin-id> node scripts/lcsp364-enroll-canary.mjs <assessment-id>`.
+This script only permits the exact acceptance customer and an unstarted PREPARING
+Assessment. It locks the Assessment, verifies the actual login and records an
+idempotent audited enrollment. Do not enroll Canary A retrospectively, transfer
+ownership of existing work, or alter its failed history.
+
+For an enrolled Assessment, the DB converts new pending/retrying events to
+`OWNED_PENDING`. Old publishers do not select this status. The current publisher
+selects it only as the enrolled login and preserves UTC retry/backoff, bounded
+batches, row locks, mandatory routing and broker confirmation. DB triggers reject
+other logins' changes to the Assessment, outbox and canonical tables carrying an
+assessmentId, including turns, decisions, facts and usage. `SET ROLE` cannot
+impersonate `session_user`. This protects against accidental old application
+writers, not malicious database superusers. No new Root or scheduler is created.
+
+Verify a foreign-login no-op UPDATE of the new test Assessment fails with 42501,
+ordinary unrelated writes remain operational, all local broker connections map
+to the owned API/bridge processes, and the canary's command reaches that broker.
+Only after that proof may a scoped canary proceed while unrelated external
+executions remain untouched. Record this as scoped isolation, never as global
+quiescence or proof that unsupported external workers obey the new global cap.
+Local maintenance still requires actual native futures and broker deliveries to
+be quiescent. Do not stop external processes or expire their leases manually.
+
+Policy disable is the supported rollback during isolated unfinished work. Keep
+the upgraded API login, route table and global admission checks. Binary rollback
+to an old publisher is blocked until enrolled work is terminal/quiescent and no
+owned event remains pending; the enrollment/history stays intact. Never delete
+the fence to make an old worker accept protected work.
+
+## Audited test funding
+
+`scripts/lcsp364-test-credit.mjs` uses the compiled public API operations entry,
+the existing user transaction lock, `BillingAccountingKernel.appendLedger()` and
+its wallet projection. It verifies the exact acceptance customer and an active
+ADMIN, grants 1,000,000 test credits with source `INTERNAL_TEST_GRANT`, reference
+LCSP-364 and a fixed unique idempotency key, and appends its audit in the same
+transaction. No SePay payment, order, webhook or revenue is created. Provider
+admission, metering, model budgets and reference-cost limits are unchanged.
+
+Run `LCSP_TEST_GRANT_ADMIN_ID=<verified-admin-id> node scripts/lcsp364-test-credit.mjs grant`
+with the private deployment environment. Save the sanitized before/after receipt.
+Do not make up a new key on retry. After canaries and paid attempts have drained
+and reconciled, run the same command with `revoke` for an idempotent negative
+ledger entry sourced `INTERNAL_TEST_GRANT_REVERSAL`. It refuses active credit holds
+or unrelated positive funding; reconcile those explicitly before retrying.
+Record granted, actually debited and remaining credits separately from provider
+tokens/costs. The existing kernel has retired new model-credit reservations/debits;
+therefore zero wallet debit is not zero provider cost or proof of paid acceptance.
+
+For provider-free regression, build the API and run
+`node --test scripts/lcsp364-acceptance.integration.test.mjs` with a disposable
+loopback `LCSP_TEST_CAPACITY_DATABASE_URL` (`lcsp364_*`) and test RabbitMQ URL.
+This verifies actual PostgreSQL roles/triggers, the real kernel, atomic audit
+rollback, grant/reversal idempotency and confirmed broker publication/redelivery.
