@@ -362,7 +362,7 @@ try {
   // This partial-work fixture deliberately exhausts its offline model before finalization.
   // A normal response cannot falsely settle unfinished domain work as SUCCEEDED.
   eq(first.result.state, AGENT_EXECUTION_STATES.FAILED, JSON.stringify(first));
-  eq(first.result.errorType, "AssertionError");
+  eq(first.result.errorType, "AssertionError", JSON.stringify(first));
   ok(first.result.checkpointId, "failed native work retains its checkpoint");
   eq(first.remainingSteps, 0);
   eq(first.result.threadId, threadA);
@@ -493,7 +493,7 @@ try {
     AGENT_EXECUTION_STATES.FAILED,
     JSON.stringify(second),
   );
-  eq(second.result.errorType, "AssertionError");
+  eq(second.result.errorType, "AssertionError", JSON.stringify(second));
   ok(second.result.checkpointId !== failedCheckpoint, "same-thread retry advances the native checkpoint");
   eq(second.result.threadId, threadA);
   ok(
