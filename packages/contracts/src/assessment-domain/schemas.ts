@@ -824,6 +824,14 @@ export type PinnedLegalSourceSearchResult = z.infer<
 >;
 
 /** Canonical assessment provenance artifact for Story 8.7 / LCSP-58. */
+const assessmentProvenanceAuditScopeSchema = z.strictObject({
+  auditMode: z.enum(ASSESSMENT_AUDIT_MODES),
+  totalPinned: z.number().int().nonnegative(),
+  requested: z.number().int().nonnegative(),
+  ready: z.number().int().nonnegative(),
+  notRequested: z.number().int().nonnegative(),
+});
+
 export const assessmentProvenanceArtifactSchema = z.strictObject({
   schemaVersion: z.literal(ASSESSMENT_PROVENANCE_SCHEMA_VERSION),
   assessmentId: uuidSchema,
@@ -834,6 +842,7 @@ export const assessmentProvenanceArtifactSchema = z.strictObject({
   checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
   correlationId: z.string(),
   lifecycle: assessmentLifecycleSchema.nullable(),
+  auditScope: assessmentProvenanceAuditScopeSchema.optional(),
   pins: z
     .strictObject({
       ruleSet: assessmentRuleSetSummarySchema.nullable(),
@@ -867,6 +876,7 @@ export const assessmentProvenanceExportSchema = z.strictObject({
   contentFingerprintSha256: z.string().regex(/^[a-f0-9]{64}$/),
   checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
   lifecycle: assessmentLifecycleSchema.nullable(),
+  auditScope: assessmentProvenanceAuditScopeSchema.optional(),
   pins: z
     .strictObject({
       ruleSet: assessmentRuleSetSummarySchema.nullable(),

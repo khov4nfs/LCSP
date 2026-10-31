@@ -3,10 +3,13 @@ import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
   DECISION_RESOLUTION_STATES,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
+  RULE_DECISION_REFERENCE_TYPES,
   ruleDecisionSchema,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_RECORD_STATES,
+  ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   RULE_AUDIT_EXPORT_KINDS,
   RULE_AUDIT_EXPORT_SCHEMA_VERSION,
@@ -141,7 +144,11 @@ export class AssessmentRuleAuditService {
             skip: offset,
             take: limit,
             include: {
-              legalRequirementLinks: { include: { legalRequirement: true } },
+              legalRequirementLinks: {
+                include: {
+                  legalRequirement: { include: { provenance: true } },
+                },
+              },
             },
           }),
           tx.assessmentRuleAuditItem.findMany({
@@ -153,7 +160,10 @@ export class AssessmentRuleAuditService {
             include: { currentDecision: { select: { state: true } } },
           }),
           tx.assessmentHumanRequest.findMany({
-            where: { assessmentId, status: "OPEN" },
+            where: {
+              assessmentId,
+              status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            },
             select: { assessmentRuleId: true },
           }),
           tx.assessmentRuleAuditRequest.findFirst({
@@ -198,9 +208,15 @@ export class AssessmentRuleAuditService {
             legalRequirements: rule.legalRequirementLinks.map((link) => ({
               legalRequirementId: link.legalRequirement.legalRequirementId,
               title: link.legalRequirement.title,
+              sources: link.legalRequirement.provenance.map((source) => ({
+                documentId: source.documentId,
+                locator: source.locator,
+              })),
             })),
             progress: progressOf({
-              selected: selected.has(rule.assessmentRuleId),
+              selected:
+                domainCase.auditMode === ASSESSMENT_AUDIT_MODES.LEGACY_FULL ||
+                selected.has(rule.assessmentRuleId),
               resolutionState: row?.resolutionState,
               decisionId: row?.currentDecisionId,
               decisionState: row?.currentDecision?.state,
@@ -551,39 +567,33 @@ export class AssessmentRuleAuditService {
         correlationId,
         { status: HttpStatus.NOT_FOUND },
       );
-    const [
-      totalPinned,
-      coverage,
-      openRequests,
-      everRequested,
-      requestDecisions,
-    ] = await Promise.all([
-      this.prisma.assessmentRule.count({
-        where: { ruleSetVersionId: row.ruleSetVersionId },
-      }),
-      this.prisma.assessmentDecisionCoverage.findMany({
-        where: {
-          assessmentId,
-          assessmentRuleId: {
-            in: row.rules.map((rule) => rule.assessmentRuleId),
+    const [totalPinned, coverage, openRequests, requestDecisions] =
+      await Promise.all([
+        this.prisma.assessmentRule.count({
+          where: { ruleSetVersionId: row.ruleSetVersionId },
+        }),
+        this.prisma.assessmentDecisionCoverage.findMany({
+          where: {
+            assessmentId,
+            assessmentRuleId: {
+              in: row.rules.map((rule) => rule.assessmentRuleId),
+            },
           },
-        },
-        include: { currentDecision: { select: { state: true } } },
-      }),
-      this.prisma.assessmentHumanRequest.findMany({
-        where: { assessmentId, status: "OPEN" },
-        select: { assessmentRuleId: true },
-      }),
-      this.prisma.assessmentRuleAuditItem.findMany({
-        where: { request: { assessmentId } },
-        select: { assessmentRuleId: true },
-      }),
-      this.prisma.assessmentRuleDecision.findMany({
-        where: { auditRequestId: requestId },
-        orderBy: { decisionRevision: "desc" },
-        select: { assessmentRuleId: true, decisionId: true, state: true },
-      }),
-    ]);
+          include: { currentDecision: { select: { state: true } } },
+        }),
+        this.prisma.assessmentHumanRequest.findMany({
+          where: {
+            assessmentId,
+            status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+          },
+          select: { assessmentRuleId: true },
+        }),
+        this.prisma.assessmentRuleDecision.findMany({
+          where: { auditRequestId: requestId },
+          orderBy: { decisionRevision: "desc" },
+          select: { assessmentRuleId: true, decisionId: true, state: true },
+        }),
+      ]);
     const byId = new Map(coverage.map((item) => [item.assessmentRuleId, item]));
     const decided = new Map<string, (typeof requestDecisions)[number]>();
     for (const decision of requestDecisions)
@@ -636,11 +646,7 @@ export class AssessmentRuleAuditService {
       ready: rules.filter(
         (rule) => rule.progress === RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
       ).length,
-      notRequested: Math.max(
-        0,
-        totalPinned -
-          new Set(everRequested.map((item) => item.assessmentRuleId)).size,
-      ),
+      notRequested: Math.max(0, totalPinned - rules.length),
       rules,
     });
   }
@@ -694,6 +700,7 @@ export class AssessmentRuleAuditService {
         });
       if (
         request.ruleSetVersionId !== ruleSet.id ||
+        request.ruleSetDigest !== ruleSet.ruleSetDigest ||
         request.repositorySnapshotId !== domainCase.repositorySnapshotId ||
         request.repositoryCommit !== domainCase.repositoryCommit
       )
@@ -760,12 +767,34 @@ export class AssessmentRuleAuditService {
         if (validateRuleDecision(parsed.data, context).length > 0) continue;
         const legal = legalById.get(item.assessmentRuleId);
         if (!legal) continue;
+        const references = [
+          ...parsed.data.references,
+          ...parsed.data.criteria.flatMap((criterion) => criterion.references),
+          ...(parsed.data.applicabilityBasis ?? []).flatMap(
+            (basis) => basis.references,
+          ),
+        ];
+        const citedEvidence = new Set(
+          references.flatMap((reference) =>
+            reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+              ? [reference.evidenceId]
+              : [],
+          ),
+        );
         results.push({
           assessmentRuleId: item.assessmentRuleId,
           assessmentRuleVersion: item.assessmentRuleVersion,
           decisionId: record.decisionId,
           decisionRevision: record.decisionRevision,
           decision: parsed.data,
+          evidence: [...context.evidence.entries()]
+            .filter(([evidenceId]) => citedEvidence.has(evidenceId))
+            .map(([evidenceId, source]) => ({
+              evidenceId,
+              type: source.type,
+              repositoryCommit: source.repositoryCommit,
+              payload: source.payload,
+            })),
           legalBasis: {
             concept: legal.concept,
             legalIntent: legal.legalIntent,
@@ -786,13 +815,9 @@ export class AssessmentRuleAuditService {
           correlationId,
           { status: HttpStatus.CONFLICT },
         );
-      const [totalPinned, everRequested] = await Promise.all([
-        tx.assessmentRule.count({ where: { ruleSetVersionId: ruleSet.id } }),
-        tx.assessmentRuleAuditItem.findMany({
-          where: { request: { assessmentId } },
-          select: { assessmentRuleId: true },
-        }),
-      ]);
+      const totalPinned = await tx.assessmentRule.count({
+        where: { ruleSetVersionId: ruleSet.id },
+      });
       const exportId = randomUUID();
       const now = new Date();
       const content = ruleAuditExportSchema.parse({
@@ -808,11 +833,7 @@ export class AssessmentRuleAuditService {
         repositoryCommit: request.repositoryCommit,
         requestedRuleIds: request.rules.map((rule) => rule.assessmentRuleId),
         includedRuleIds: results.map((item) => item.assessmentRuleId),
-        notRequestedRuleCount: Math.max(
-          0,
-          totalPinned -
-            new Set(everRequested.map((item) => item.assessmentRuleId)).size,
-        ),
+        notRequestedRuleCount: Math.max(0, totalPinned - request.rules.length),
         exportedAt: now.toISOString(),
         results,
       });
@@ -824,7 +845,7 @@ export class AssessmentRuleAuditService {
           assessmentId,
           idempotencyKey,
           contentSha256,
-          content: content,
+          content: content as Prisma.InputJsonValue,
           createdAt: now,
         },
       });

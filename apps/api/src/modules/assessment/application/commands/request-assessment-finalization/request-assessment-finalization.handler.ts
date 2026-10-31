@@ -2,6 +2,7 @@ import {
   AGENTIC_RUNTIME_TRANSITION_GUARDS,
   ASSESSMENT_LIFECYCLE_STATES,
   DECISION_RESOLUTION_STATES,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
   ruleDecisionSchema,
 } from "@lcsp/contracts/assessment";
 import {
@@ -76,13 +77,8 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
           reference?: string;
         }> = [];
         const open = await tx.assessmentHumanRequest.findMany({
-          where: {
-            assessmentId: command.assessmentId,
-            status: "OPEN",
-            assessmentRuleId: {
-              in: auditRequest.rules.map((item) => item.assessmentRuleId),
-            },
-          },
+          where: { assessmentId: command.assessmentId, status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            assessmentRuleId: { in: auditRequest.rules.map((item) => item.assessmentRuleId) } },
           select: { assessmentRuleId: true },
         });
         for (const request of open)

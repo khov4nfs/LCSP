@@ -224,7 +224,8 @@ export const viPages = {
   assessmentConversation: {
     ruleAudit: {
       title: "Chọn quy tắc cần đánh giá",
-      description: "Chỉ các quy tắc bạn yêu cầu mới được điều tra. Quy tắc chưa yêu cầu chưa có kết luận đánh giá.",
+      description:
+        "Chỉ các quy tắc bạn yêu cầu mới được điều tra. Quy tắc chưa yêu cầu chưa có kết luận đánh giá.",
       search: "Tìm quy tắc đánh giá",
       selectedCount: "Đã chọn {selected}/{total}",
       resultsCount: "Kết quả sẵn sàng: {ready}/{requested} quy tắc đã chọn",
@@ -241,7 +242,8 @@ export const viPages = {
       exporting: "Đang chuẩn bị kết quả một phần…",
       exportFailed: "Không thể tải kết quả một phần.",
       legalBasis: "Phạm vi pháp lý",
-      submitFailed: "Không thể bắt đầu yêu cầu đánh giá. Hãy tải lại và thử lại.",
+      submitFailed:
+        "Không thể bắt đầu yêu cầu đánh giá. Hãy tải lại và thử lại.",
       loading: "Đang tải quy tắc đã ghim…",
       progress: {
         NOT_SELECTED: "Chưa yêu cầu",
@@ -426,6 +428,8 @@ export const viPages = {
       overview: "Tổng quan",
       pins: "Các ràng buộc cố định (Pins)",
       ruleSet: "Bộ quy tắc tuân thủ",
+      ruleSetRuleCount: "Số quy tắc trong Bộ quy tắc đã ghim",
+      selectedScope: "Phạm vi đánh giá quy tắc đã chọn",
       repository: "Kho mã nguồn",
       lineage: "Dòng thực thi runtime",
       facts: "Các sự thật đã chấp nhận",

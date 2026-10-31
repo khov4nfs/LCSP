@@ -224,7 +224,8 @@ export const enPages = {
   assessmentConversation: {
     ruleAudit: {
       title: "Choose rules to audit",
-      description: "Only the rules you request will be investigated. Unrequested rules have no audit decision.",
+      description:
+        "Only the rules you request will be investigated. Unrequested rules have no audit decision.",
       search: "Search assessment rules",
       selectedCount: "Selected {selected}/{total}",
       resultsCount: "Results ready: {ready}/{requested} selected",
@@ -241,7 +242,8 @@ export const enPages = {
       exporting: "Preparing partial result…",
       exportFailed: "The partial result could not be downloaded.",
       legalBasis: "Legal coverage",
-      submitFailed: "The audit request could not be started. Refresh and try again.",
+      submitFailed:
+        "The audit request could not be started. Refresh and try again.",
       loading: "Loading pinned rules…",
       progress: {
         NOT_SELECTED: "Not requested",
@@ -429,6 +431,8 @@ export const enPages = {
       overview: "Overview",
       pins: "Pinned foundations",
       ruleSet: "Compliance rule set",
+      ruleSetRuleCount: "Rules in pinned Rule Set",
+      selectedScope: "Selected-rule audit scope",
       repository: "Repository snapshot",
       lineage: "Runtime execution lineage",
       facts: "Accepted facts",

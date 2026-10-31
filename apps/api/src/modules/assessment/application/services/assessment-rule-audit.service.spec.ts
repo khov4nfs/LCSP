@@ -84,6 +84,7 @@ function submitFixture() {
       findUnique: requestFind,
       findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue(null),
       create: created,
+      update: jest.fn<() => Promise<unknown>>().mockResolvedValue({}),
     },
     assessmentRule: {
       findMany: jest.fn<() => Promise<unknown>>().mockResolvedValue(rules),
@@ -186,6 +187,121 @@ it("replays the same selection key without duplicate rows or Root work", async (
   expect(f.enqueued).toHaveBeenCalledTimes(1);
 });
 
+it("versions a later Rule 9 request and reuses an unchanged accepted Rule 3 decision", async () => {
+  const f = submitFixture();
+  f.tx.assessment.findUnique.mockResolvedValue({
+    id: ASSESSMENT,
+    ownerId: OWNER,
+    lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+    domainCase: {
+      assessmentId: ASSESSMENT,
+      auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
+      auditRequestRevision: 1,
+      caseRevision: 0,
+      ruleSetVersionId: RULE_SET,
+      repositorySnapshotId: SNAPSHOT,
+      repositoryCommit: COMMIT,
+    },
+  });
+  f.tx.assessmentRuleAuditRequest.findFirst.mockResolvedValue({
+    status: RULE_AUDIT_STATUSES.COMPLETED,
+  });
+  f.tx.assessmentDecisionCoverage.findMany.mockResolvedValue([
+    {
+      assessmentRuleId: "Rule-3",
+      assessmentRuleVersion: "v1",
+      resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
+      currentDecision: {
+        decisionId: DECISION,
+        state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+        caseRevision: 0,
+        repositoryCommit: COMMIT,
+        ruleSetVersionId: RULE_SET,
+      },
+    },
+  ]);
+  const body = {
+    ...submission(["Rule-3", "Rule-9"]),
+    expectedAuditRevision: 1,
+  };
+
+  await f.service.submit(ASSESSMENT, OWNER, randomUUID(), body);
+
+  const created = f.created.mock.calls[0]![0] as {
+    data: {
+      requestRevision: number;
+      rules: {
+        create: Array<{
+          assessmentRuleId: string;
+          reusedDecisionId: string | null;
+        }>;
+      };
+    };
+  };
+  expect(created.data.requestRevision).toBe(2);
+  expect(
+    created.data.rules.create.map((rule) => [
+      rule.assessmentRuleId,
+      rule.reusedDecisionId,
+    ]),
+  ).toEqual([
+    ["Rule-3", DECISION],
+    ["Rule-9", null],
+  ]);
+  expect(f.enqueued).toHaveBeenCalledTimes(1);
+});
+
+it("retries a failed frozen request once without clearing its execution checkpoint", async () => {
+  const f = submitFixture();
+  const key = randomUUID();
+  f.tx.assessment.findUnique.mockResolvedValue({
+    id: ASSESSMENT,
+    ownerId: OWNER,
+    lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+    domainCase: {
+      assessmentId: ASSESSMENT,
+      auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
+      auditRequestRevision: 1,
+      caseRevision: 0,
+      ruleSetVersionId: RULE_SET,
+      repositorySnapshotId: SNAPSHOT,
+      repositoryCommit: COMMIT,
+    },
+  });
+  f.requestFind.mockResolvedValue({
+    requestId: REQUEST,
+    assessmentId: ASSESSMENT,
+    requestRevision: 1,
+    status: RULE_AUDIT_STATUSES.FAILED,
+    lastRetryKey: null,
+    ruleSetVersionId: RULE_SET,
+    ruleSetDigest: "digest",
+    repositorySnapshotId: SNAPSHOT,
+    repositoryCommit: COMMIT,
+  });
+  f.tx.assessmentRuntime.findUniqueOrThrow.mockResolvedValue({
+    leaseToken: null,
+    executionState: AGENT_EXECUTION_STATES.FAILED,
+    currentAuditRequestId: REQUEST,
+    checkpointId: randomUUID(),
+  });
+
+  await f.service.retry(ASSESSMENT, OWNER, randomUUID(), REQUEST, key);
+
+  expect(f.tx.assessmentRuleAuditRequest.update).toHaveBeenCalledTimes(1);
+  expect(f.tx.assessmentRuntime.update).not.toHaveBeenCalled();
+  expect(f.enqueued).toHaveBeenCalledTimes(1);
+  f.requestFind.mockResolvedValue({
+    requestId: REQUEST,
+    assessmentId: ASSESSMENT,
+    requestRevision: 1,
+    status: RULE_AUDIT_STATUSES.QUEUED,
+    lastRetryKey: key,
+  });
+  await f.service.retry(ASSESSMENT, OWNER, randomUUID(), REQUEST, key);
+  expect(f.enqueued).toHaveBeenCalledTimes(1);
+});
+
 it("shows Rule 3 ready while Rule 9 investigates or awaits a customer answer", async () => {
   let waiting = false;
   const row = {
@@ -269,4 +385,16 @@ it("shows Rule 3 ready while Rule 9 investigates or awaits a customer answer", a
     RULE_AUDIT_PROGRESS_STATES.WAITING_FOR_CUSTOMER,
   ]);
   expect(second.rules[0]?.decisionId).toBe(DECISION);
+  row.rules.pop();
+  const laterScope = await service.request(
+    ASSESSMENT,
+    OWNER,
+    randomUUID(),
+    REQUEST,
+  );
+  expect([
+    laterScope.requested,
+    laterScope.notRequested,
+    laterScope.totalPinned,
+  ]).toEqual([1, 19, 20]);
 });

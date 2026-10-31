@@ -60,16 +60,28 @@ export const ruleAuditCatalogSchema = z.strictObject({
   total: z.number().int().nonnegative(),
   offset: z.number().int().nonnegative(),
   nextOffset: z.number().int().nonnegative().nullable(),
-  rules: z.array(ruleIdentitySchema.extend({
-    concept: z.string().min(1),
-    summary: z.string().min(1),
-    legalRequirements: z.array(z.strictObject({
-      legalRequirementId: z.string().min(1),
-      title: z.string().min(1),
-    })),
-    progress: z.enum(RULE_AUDIT_PROGRESS_STATES),
-    decisionId: z.uuid().nullable(),
-  })),
+  rules: z.array(
+    ruleIdentitySchema.extend({
+      concept: z.string().min(1),
+      summary: z.string().min(1),
+      legalRequirements: z.array(
+        z.strictObject({
+          legalRequirementId: z.string().min(1),
+          title: z.string().min(1),
+          sources: z
+            .array(
+              z.strictObject({
+                documentId: z.string().min(1),
+                locator: z.string().min(1),
+              }),
+            )
+            .default([]),
+        }),
+      ),
+      progress: z.enum(RULE_AUDIT_PROGRESS_STATES),
+      decisionId: z.uuid().nullable(),
+    }),
+  ),
 });
 export type RuleAuditCatalog = z.infer<typeof ruleAuditCatalogSchema>;
 
@@ -89,44 +101,82 @@ export const ruleAuditRequestViewSchema = z.strictObject({
   requested: z.number().int().nonnegative(),
   ready: z.number().int().nonnegative(),
   notRequested: z.number().int().nonnegative(),
-  rules: z.array(ruleIdentitySchema.extend({
-    ordinal: z.number().int().nonnegative(),
-    progress: z.enum(RULE_AUDIT_PROGRESS_STATES),
-    decisionId: z.uuid().nullable(),
-  })),
+  rules: z.array(
+    ruleIdentitySchema.extend({
+      ordinal: z.number().int().nonnegative(),
+      progress: z.enum(RULE_AUDIT_PROGRESS_STATES),
+      decisionId: z.uuid().nullable(),
+    }),
+  ),
 });
 export type RuleAuditRequestView = z.infer<typeof ruleAuditRequestViewSchema>;
 
-export const RULE_AUDIT_EXPORT_KINDS = { PARTIAL_SELECTED_RULE_AUDIT: "PARTIAL_SELECTED_RULE_AUDIT" } as const;
-export const RULE_AUDIT_EXPORT_SCHEMA_VERSION = "SELECTED_RULE_AUDIT_V1" as const;
-export const ruleAuditExportRequestSchema = z.strictObject({ idempotencyKey: z.uuid() });
-export const ruleAuditRetryRequestSchema = z.strictObject({ idempotencyKey: z.uuid() });
+export const RULE_AUDIT_EXPORT_KINDS = {
+  PARTIAL_SELECTED_RULE_AUDIT: "PARTIAL_SELECTED_RULE_AUDIT",
+} as const;
+export const RULE_AUDIT_EXPORT_SCHEMA_VERSION =
+  "SELECTED_RULE_AUDIT_V1" as const;
+export const ruleAuditExportRequestSchema = z.strictObject({
+  idempotencyKey: z.uuid(),
+});
+export const ruleAuditRetryRequestSchema = z.strictObject({
+  idempotencyKey: z.uuid(),
+});
 export const ruleAuditExportMetadataSchema = z.strictObject({
-  exportId: z.uuid(), requestId: z.uuid(), contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  exportId: z.uuid(),
+  requestId: z.uuid(),
+  contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
   createdAt: z.iso.datetime(),
 });
 export const ruleAuditExportSchema = z.strictObject({
   schemaVersion: z.literal(RULE_AUDIT_EXPORT_SCHEMA_VERSION),
   kind: z.literal(RULE_AUDIT_EXPORT_KINDS.PARTIAL_SELECTED_RULE_AUDIT),
-  exportId: z.uuid(), requestId: z.uuid(), assessmentId: z.string().min(1),
-  ruleSetVersionId: z.uuid(), ruleSetDigest: z.string().min(1),
-  repositorySnapshotId: z.string().min(1), repositoryCommit: z.string().min(1),
+  exportId: z.uuid(),
+  requestId: z.uuid(),
+  assessmentId: z.string().min(1),
+  ruleSetVersionId: z.uuid(),
+  ruleSetDigest: z.string().min(1),
+  repositorySnapshotId: z.string().min(1),
+  repositoryCommit: z.string().min(1),
   requestRevision: z.number().int().positive(),
   requestedRuleIds: z.array(z.string().min(1)).min(1),
   includedRuleIds: z.array(z.string().min(1)).min(1),
   notRequestedRuleCount: z.number().int().nonnegative(),
   exportedAt: z.iso.datetime(),
-  results: z.array(z.strictObject({
-    assessmentRuleId: z.string().min(1), assessmentRuleVersion: z.string().min(1),
-    decisionId: z.uuid(), decisionRevision: z.number().int().positive(),
-    decision: ruleDecisionSchema,
-    legalBasis: z.strictObject({
-      concept: z.string().min(1), legalIntent: z.string().min(1),
-      legalRequirements: z.array(z.strictObject({
-        legalRequirementId: z.string().min(1), title: z.string().min(1),
-        sources: z.array(z.strictObject({ documentId: z.string().min(1), locator: z.string().min(1) })),
-      })),
-    }),
-  })).min(1),
+  results: z
+    .array(
+      z.strictObject({
+        assessmentRuleId: z.string().min(1),
+        assessmentRuleVersion: z.string().min(1),
+        decisionId: z.uuid(),
+        decisionRevision: z.number().int().positive(),
+        decision: ruleDecisionSchema,
+        evidence: z.array(
+          z.strictObject({
+            evidenceId: z.uuid(),
+            type: z.string().min(1),
+            repositoryCommit: z.string().min(1),
+            payload: z.unknown(),
+          }),
+        ),
+        legalBasis: z.strictObject({
+          concept: z.string().min(1),
+          legalIntent: z.string().min(1),
+          legalRequirements: z.array(
+            z.strictObject({
+              legalRequirementId: z.string().min(1),
+              title: z.string().min(1),
+              sources: z.array(
+                z.strictObject({
+                  documentId: z.string().min(1),
+                  locator: z.string().min(1),
+                }),
+              ),
+            }),
+          ),
+        }),
+      }),
+    )
+    .min(1),
 });
 export type RuleAuditExport = z.infer<typeof ruleAuditExportSchema>;

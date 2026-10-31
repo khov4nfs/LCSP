@@ -3,10 +3,13 @@ import { Injectable, HttpStatus } from "@nestjs/common";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_ERROR_CODES,
+  DECISION_RESOLUTION_STATES,
   RULE_DECISION_REFERENCE_TYPES,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  ASSESSMENT_AUDIT_MODES,
+  ASSESSMENT_DECISION_RECORD_STATES,
   ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
   assessmentHumanRequestViewSchema,
   assessmentProvenanceArtifactSchema,
@@ -32,6 +35,7 @@ export class AssessmentProvenanceLoader {
    * Business rules:
    * - Customers may read only their own Assessment; every record and reference must retain the same Assessment and immutable pins.
    * - A confirmed-fact reference names the decision's case revision. Its fact may originate in an earlier revision, but never after that decision.
+   * - Selected scope counts only requested coverage and accepted resolved decisions; unrequested rules receive no legal outcome.
    * - Preserve historical revisions and human answers while redacting sensitive runtime payloads.
    *
    * Execution flow:
@@ -40,7 +44,7 @@ export class AssessmentProvenanceLoader {
    * 3. Project the history, redact sensitive payloads and return a schema-validated artifact with a deterministic checksum.
    *
    * Failure cases:
-   * - Missing or foreign-owned Assessments return not found; broken references, future facts and mismatched pins return a provenance integrity conflict.
+   * - Missing or foreign-owned Assessments return not found; broken references, future facts, mismatched pins or coverage exceeding the pinned catalog return a provenance integrity conflict.
    * - Invalid persisted contract shapes fail validation rather than producing a misleading audit trail.
    *
    * Side effects: Read-only database access and pure artifact projection; no state, checkpoint, decision or answer is rewritten.
@@ -615,6 +619,37 @@ export class AssessmentProvenanceLoader {
     }));
 
     const generatedAt = new Date().toISOString();
+    const totalPinned = pins?.ruleSet?.assessmentRuleCount ?? 0;
+    const auditMode =
+      domainCase?.auditMode ?? ASSESSMENT_AUDIT_MODES.LEGACY_FULL;
+    const requested =
+      auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED
+        ? coverage.length
+        : totalPinned;
+    if (requested > totalPinned) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    const accepted = new Map(
+      decisions.map((decision) => [decision.decisionId, decision]),
+    );
+    const ready = coverage.filter(
+      (item) =>
+        item.resolutionState === DECISION_RESOLUTION_STATES.RESOLVED &&
+        item.currentDecisionId &&
+        accepted.get(item.currentDecisionId)?.state ===
+          ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+    ).length;
+    const auditScope = {
+      auditMode,
+      totalPinned,
+      requested,
+      ready,
+      notRequested: totalPinned - requested,
+    };
 
     const stableProvenancePayload = {
       schemaVersion: ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
@@ -622,6 +657,7 @@ export class AssessmentProvenanceLoader {
       name: assessment.name,
       ownerId: assessment.ownerId,
       lifecycle: canonical.lifecycle,
+      auditScope,
       pins,
       runtime: canonical.runtime,
       acceptedFacts,

@@ -447,6 +447,8 @@ export type PagesMessages = {
       overview: string;
       pins: string;
       ruleSet: string;
+      ruleSetRuleCount: string;
+      selectedScope: string;
       repository: string;
       lineage: string;
       facts: string;
