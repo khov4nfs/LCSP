@@ -24,7 +24,7 @@ Additive migration, shared status mapping, authorized outbox selection, compiled
 - Global admission PostgreSQL: 17 PASS plus real SDK/broker 10,001-command regression.
 - Policy/outbox focused: 98 PASS.
 - Business documentation checker tests: 5 PASS; production docs/import/contracts/lint/schema/build gates PASS.
-- Full API: 187 suites / 1,561 tests PASS, 15 suites / 146 tests skipped; 343.419 seconds. Exact-head remote CI remains pending at report creation.
+- Full API: 187 suites / 1,561 tests PASS, 15 suites / 146 tests skipped; 343.419 seconds. Web contract expectation updated for OWNED_PENDING and the full Web command passes locally. Exact-head remote CI remains pending at report creation; 585828b05 had a stale expected-value assertion in Web tests, while its new PostgreSQL/kernel/broker CI job passed.
 
 ## F. Production deployment
 
@@ -40,7 +40,7 @@ Pending production. Foreign-login mutation, SET ROLE impersonation, deletion/own
 
 ## I. Resources, provider and monetary governance
 
-User authorized an INTERNAL_TEST_GRANT through appendLedger only. Script grants 1,000,000 credits to the exact verified acceptance customer and audits atomically, with fixed idempotency and reversal. Production grant not yet applied. No SePay order/payment/webhook, policy bypass or direct wallet update. Existing model-credit debits are retired in the kernel; wallet debit and provider cost must be reconciled separately, UNKNOWN remains UNKNOWN.
+User authorized an INTERNAL_TEST_GRANT through appendLedger only. Script grants 1,000,000 credits to the exact verified acceptance customer and audits atomically, with fixed idempotency and reversal. Production grant applied at 2026-10-31 07:13:02.356 UTC: 0 → 1,000,000 available, reserved 0, version 0 → 1; exactly one ledger entry/audit. BillingOrder and PaymentTransaction counts for the test account are zero. See acceptance2-credit-grant.json and acceptance2-credit-verification.json. Used credits 0, remaining 1,000,000 at capture; canary not yet started. No SePay order/payment/webhook, policy bypass or direct wallet update. Existing model-credit debits are retired in the kernel; wallet debit and provider cost must be reconciled separately, UNKNOWN remains UNKNOWN.
 
 ## J. Screenshots, traces and rollback
 

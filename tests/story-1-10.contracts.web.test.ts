@@ -14,6 +14,7 @@ type _ApiProblemIsAcceptedByWebWireContract = Assert<
 test("shared contracts expose resource-local value sets", () => {
   assert.deepEqual(Object.values(OUTBOX_STATUSES), [
     "PENDING",
+    OUTBOX_STATUSES.ownedPending,
     "PUBLISHED",
     "FAILED",
     "DLQ",
