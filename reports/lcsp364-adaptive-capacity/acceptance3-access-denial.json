@@ -1,0 +1,23 @@
+{
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "artifacts": [
+    {
+      "probe": "acceptance3-customer-operator-denied",
+      "httpStatus": 403,
+      "problemCode": "RBAC_DENIED",
+      "payloadExposed": false
+    },
+    {
+      "probe": "acceptance3-cross-account-events-denied",
+      "httpStatus": 404,
+      "problemCode": "ASSESSMENT_NOT_FOUND",
+      "payloadExposed": false
+    },
+    {
+      "probe": "acceptance3-cross-account-provenance-denied",
+      "httpStatus": 404,
+      "problemCode": "ASSESSMENT_NOT_FOUND",
+      "payloadExposed": false
+    }
+  ]
+}

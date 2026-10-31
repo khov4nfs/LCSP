@@ -1,0 +1,11 @@
+{
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "workflowRun": "https://github.com/khov4nfs/LCSP/actions/runs/41184224299",
+  "artifactId": 13036512669,
+  "artifactName": "lcsp364-provider-free-native-capacity",
+  "zipBytes": 13192,
+  "zipSha256": "1836888fe63b027286399099600e185b9d0ee6ff208418931615eaaca7c6c0a7",
+  "scope": "PROVIDER_FREE_NATIVE_INTEGRATION_NOT_PRODUCTION",
+  "extractedFile": "acceptance3-native-load-ci.json",
+  "extractedSha256": "64db0c747ba79dde087f37fdfc8cb5c3f07eb49165e5fb01556ca22c60d25d3c"
+}

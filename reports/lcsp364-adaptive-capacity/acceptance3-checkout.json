@@ -1,0 +1,9 @@
+{
+  "event": "EXACT_PR_HEAD_CHECKOUT",
+  "previousRevision": "7fda124687ea22cea4ae8fa14f684098b9338efc",
+  "targetRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "branch": "feat/LCSP-364-adaptive-root-admission",
+  "dirty": false,
+  "rollbackBranchPreserved": true,
+  "fetchIdentity": "nhibao08"
+}

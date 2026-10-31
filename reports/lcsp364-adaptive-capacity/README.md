@@ -1,15 +1,16 @@
 # LCSP-364 engineering report — A–K
 
-Latest production update: [2026-10-31 activation, failed canary and verified rollback](rollout-20261031.md). Fogewise was activated on 7528577c0 and returned safely to 44dba336f; the shared external writer keeps global/native acceptance BLOCKED. Earlier sections below are capture-time implementation evidence.
+Latest production update: [2026-10-31 isolated native acceptance and A–K verdict](acceptance-20261031.md). Fogewise ran real native canaries on `2cd94a65e`, including Stop/Continue, HITL release, automatic admission recovery, safety refusal, fenced restart, duplicate redelivery and audited bounded-mode rollback. Unused test credit was reversed. Complete production/semantic/monetary acceptance and review remain **BLOCKED**. [Earlier failed A and binary rollback](rollout-20261031.md) remain history.
 
 Verdict: **BLOCKED for production acceptance and merge**. Implementation is in
 [PR #442](https://github.com/khov4nfs/LCSP/pull/442), targeting develop.
-This report distinguishes provider-free local proof from unexecuted production
-canaries. Jira remains In Progress; no merge or Done transition is authorized here.
+The latest dated report distinguishes provider-free proof, actual production behavior and unexecuted scenarios. Jira remains In Progress; no merge or Done transition is authorized here.
 The review on `b360cfb30` requested changes and confirmed GitHub `isDraft=false`;
 the PR remains open under the normal review workflow. Earlier Draft wording was
 capture-time metadata. [Review regressions](review-regressions.md) records both P1
 fixes and new provider-free evidence; exact new-head CI/approval status is on the PR.
+
+**Historical capture below:** the following A–K sections retain the original pre-rollout record. Statements such as “NOT DEPLOYED” describe that earlier checkpoint and are superseded by the dated report linked above.
 
 ## A. Baseline and implementation
 

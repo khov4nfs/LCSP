@@ -1,0 +1,75 @@
+{
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "assessments": [
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "pins": {
+        "ruleSet": {
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "version": "lcsp-360-official-eight-document-acceptance-corpus.v1.p1",
+          "legalSourceVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "legalRequirementCount": 633,
+          "assessmentRuleCount": 243
+        },
+        "repositorySnapshotId": "7f1647a1-eee9-403e-84a6-346b3c37b917",
+        "repositoryScanJobId": "25dfed1a-f985-4d35-9c08-9213fd1f3486",
+        "repositoryCommit": "9ddb361e4cd52aafe4e1d0763f57005a607efae6",
+        "pinnedAt": "2026-10-31T08:28:20.435Z"
+      },
+      "runtime": {
+        "threadId": "1f039d1f-8daa-4cd1-a6e8-02938f3e3b98",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+        "checkpointId": "1f1d5096-232a-6f04-8261-6f728b7b651a",
+        "currentExecutionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+        "executionState": "INTERRUPTED",
+        "eventSequence": 89,
+        "startedAt": "2026-10-31T08:58:11.087Z",
+        "lastResumedAt": "2026-10-31T08:58:11.087Z",
+        "updatedAt": "2026-10-31T08:59:32.139Z"
+      },
+      "contentFingerprintSha256": "0431b2647cc017479704e2cf2f5151b8a3c30643e83707f30f82f1174e926de6",
+      "checksumSha256": "0431b2647cc017479704e2cf2f5151b8a3c30643e83707f30f82f1174e926de6",
+      "acceptedFactsCount": 5,
+      "acceptedEvidenceCount": 6,
+      "humanResolutionCount": 4,
+      "acceptedDecisionsCount": 0,
+      "privateFactsEvidenceReasoningWithheld": true
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "pins": {
+        "ruleSet": {
+          "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+          "version": "lcsp-360-official-eight-document-acceptance-corpus.v1.p1",
+          "legalSourceVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          "legalRequirementCount": 633,
+          "assessmentRuleCount": 243
+        },
+        "repositorySnapshotId": "90e0710e-33b8-4292-8429-5b52a3319cc1",
+        "repositoryScanJobId": "93e05787-beec-466a-adef-ffb788c12d8e",
+        "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+        "pinnedAt": "2026-10-30T17:14:34.425Z"
+      },
+      "runtime": {
+        "threadId": "619454fb-1ebc-44bc-aaa3-fcfef52ff0bc",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+        "checkpointId": "1f1d508f-eab1-67b5-820d-95ef69f78247",
+        "currentExecutionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+        "executionState": "INTERRUPTED",
+        "eventSequence": 101,
+        "startedAt": "2026-10-31T08:53:40.834Z",
+        "lastResumedAt": "2026-10-31T08:53:40.834Z",
+        "updatedAt": "2026-10-31T08:56:43.852Z"
+      },
+      "contentFingerprintSha256": "87267533d79194be06f12fbf31102a9ed1d1cf87c1b4e3a86f387b0684a112c8",
+      "checksumSha256": "87267533d79194be06f12fbf31102a9ed1d1cf87c1b4e3a86f387b0684a112c8",
+      "acceptedFactsCount": 1,
+      "acceptedEvidenceCount": 7,
+      "humanResolutionCount": 4,
+      "acceptedDecisionsCount": 0,
+      "privateFactsEvidenceReasoningWithheld": true
+    }
+  ]
+}

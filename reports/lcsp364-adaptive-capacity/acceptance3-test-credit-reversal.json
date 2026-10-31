@@ -1,0 +1,28 @@
+{
+  "reference": "LCSP-364",
+  "action": "revoke",
+  "replay": false,
+  "testAccountHash": "a6c5c8279d66930d",
+  "actorVerifiedAdmin": true,
+  "ledgerEntryId": "f07eaa1b-a754-4d3e-99ab-53544990fd65",
+  "source": "INTERNAL_TEST_GRANT_REVERSAL",
+  "idempotencyKey": "LCSP-364:test-credit:20261031:2e723a25-b79c-4aac-a094-5771f3fbc590:revoke:1",
+  "deltaCredits": "-1000000",
+  "before": {
+    "available": "1000000",
+    "reserved": "0",
+    "version": 1
+  },
+  "after": {
+    "available": "0",
+    "reserved": "0",
+    "version": 2
+  },
+  "grantCredits": "1000000",
+  "usedCredits": "0",
+  "remainingTestCredits": "0",
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "at": "2026-10-31T09:08:36.081343+00:00",
+  "providerCostUnknownsRetained": true,
+  "noRemainingActiveCanaryAttemptOrSlot": true
+}
