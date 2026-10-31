@@ -206,6 +206,14 @@ quiescence or proof that unsupported external workers obey the new global cap.
 Local maintenance still requires actual native futures and broker deliveries to
 be quiescent. Do not stop external processes or expire their leases manually.
 
+If broker ready/unacked is zero but durable waiting age grows, inspect canonical
+execution/turn state and command timestamps. A legacy terminal Root can have no
+physical/admission bookkeeping. Matching completed FAILED/SUCCEEDED turns consume
+strictly older commands for eligibility purposes; the query leaves every historical
+row intact. Never clear an intent, lease or accepted decision just to unblock a
+canary. Live physical slots retain capacity through terminal callbacks until the
+actual execution is quiescent; later continuation commands use the same Root/thread.
+
 Policy disable is the supported rollback during isolated unfinished work. Keep
 the upgraded API login, route table and global admission checks. Binary rollback
 to an old publisher is blocked until enrolled work is terminal/quiescent and no

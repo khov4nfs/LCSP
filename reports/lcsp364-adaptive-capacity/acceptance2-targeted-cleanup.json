@@ -1,0 +1,12 @@
+{
+  "diskFreeBeforeBytes": 4623048704,
+  "diskFreeAfterBytes": 5057544192,
+  "scope": "ONLY_SUPERSEDED_752_CANDIDATE_GENERATED_BUILD",
+  "offHostArchiveSha256": "58fc34118535e2a7ab1df4f40c00c8f7b7bf544b4e3fbe7125d38e63f4319312",
+  "offHostArchiveBytes": 291879226,
+  "verifiedFileCount": 4498,
+  "liveReferences": 0,
+  "rollback44ArchiveVerified": true,
+  "removedCurrentCheckout": false,
+  "removedDatabaseOrSandbox": false
+}

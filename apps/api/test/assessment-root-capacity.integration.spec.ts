@@ -19,6 +19,7 @@ import {
   AuthUserRole,
   OutboxAggregateType,
   OutboxStatus,
+  AssessmentRuntimeControlState,
 } from "@prisma/client";
 import { Test } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
@@ -26,6 +27,7 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
+  ASSESSMENT_ROOT_BOUNDARY,
   ROOT_CAPACITY_ID,
   ROOT_CAPACITY_REASONS as Reasons,
   ROOT_CAPACITY_METRIC_SOURCES as Sources,
@@ -387,6 +389,127 @@ integration(
       });
       return { head: reservation(jobs[0]), tail: reservation(jobs[10_000]) };
     }
+
+    it("does not let a legacy completed failed command strand independent demand or a new continuation", async () => {
+      const ended = await enqueue(owners[0], 3600);
+      const next = await enqueue(owners[1]);
+      const runtime = await first.assessmentRuntime.findUniqueOrThrow({
+        where: { assessmentId: ended.assessmentId },
+      });
+      const executionId = randomUUID();
+      const terminal = await first.assessmentRuntimeTurn.create({
+        data: {
+          id: executionId,
+          assessmentId: ended.assessmentId,
+          threadId: runtime.threadId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: executionId,
+          correlationId: randomUUID(),
+          state: AssessmentRuntimeControlState.COMPLETED,
+          contextJson: { runtimeRunId: randomUUID() },
+        },
+      });
+      await first.assessmentRuntime.update({
+        where: { assessmentId: ended.assessmentId },
+        data: {
+          executionState: AgentExecutionState.FAILED,
+          currentExecutionId: executionId,
+        },
+      });
+      const before = await first.assessmentRuntime.findUniqueOrThrow({
+        where: { assessmentId: ended.assessmentId },
+      });
+      expect((await a.reserve(next)).admitted).toBe(true);
+      expect(await b.reserve(ended)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+      expect(
+        await first.assessmentRuntime.findUnique({
+          where: { assessmentId: ended.assessmentId },
+        }),
+      ).toEqual(before);
+      expect(
+        (
+          await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
+            where: { commandId: `fixture-command:${ended.assessmentId}` },
+          })
+        ).completedAt,
+      ).toBeNull();
+
+      // A new command may share millisecond resolution with the earlier failed turn.
+      const continuedKey = `${ended.commandKey}:continued`;
+      await first.outboxMessage.create({
+        data: {
+          id: randomUUID(),
+          aggregateType: OutboxAggregateType.ASSESSMENT,
+          aggregateId: ended.assessmentId,
+          eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+          status: OutboxStatus.PUBLISHED,
+          createdAt: terminal.createdAt,
+          payload: {
+            assessmentId: ended.assessmentId,
+            idempotencyKey: continuedKey,
+          },
+        },
+      });
+      expect(
+        (
+          await b.reserve({
+            ...ended,
+            runId: randomUUID(),
+            commandKey: continuedKey,
+          })
+        ).admitted,
+      ).toBe(true);
+      expect(
+        (
+          await first.assessmentRuntime.findUniqueOrThrow({
+            where: { assessmentId: ended.assessmentId },
+          })
+        ).threadId,
+      ).toBe(runtime.threadId);
+    });
+
+    it("keeps physical capacity and defers redelivery after a terminal callback until actual release", async () => {
+      const running = await enqueue();
+      expect((await a.reserve(running)).admitted).toBe(true);
+      const runtime = await first.assessmentRuntime.findUniqueOrThrow({
+        where: { assessmentId: running.assessmentId },
+      });
+      const executionId = randomUUID();
+      await first.assessmentRuntimeTurn.create({
+        data: {
+          id: executionId,
+          assessmentId: running.assessmentId,
+          threadId: runtime.threadId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: executionId,
+          correlationId: randomUUID(),
+          state: AssessmentRuntimeControlState.COMPLETED,
+          contextJson: { runtimeRunId: running.runId },
+        },
+      });
+      await first.$transaction((tx) =>
+        a.bindInTx(tx, running.assessmentId, running.runId, executionId),
+      );
+      await first.assessmentRuntime.update({
+        where: { assessmentId: running.assessmentId },
+        data: {
+          currentExecutionId: executionId,
+          executionState: AgentExecutionState.FAILED,
+        },
+      });
+      const duplicate = await b.reserve({ ...running, runId: randomUUID() });
+      expect(duplicate).toMatchObject({ admitted: false });
+      expect(duplicate.obsolete).not.toBe(true);
+      expect((await a.status()).active).toBe(1);
+      const independent = await enqueue(owners[1]);
+      expect((await b.reserve(independent)).admitted).toBe(true);
+      expect((await a.status()).active).toBe(2);
+      await a.release(running);
+      expect((await a.status()).active).toBe(1);
+    });
 
     it("defers an eligible out-of-order command beyond 10000 candidates and later admits its owner", async () => {
       const { head, tail } = await enqueueLargeBacklog();

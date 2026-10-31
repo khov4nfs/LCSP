@@ -23,6 +23,7 @@ import {
   ROOT_CAPACITY_ERROR_CODES as Codes,
   ROOT_CAPACITY_METRIC_SOURCES as Sources,
   ASSESSMENT_ROOT_COMMAND_TYPES,
+  ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   rootCapacityPolicySchema,
   rootCapacityRuntimeMetricsSchema,
@@ -200,6 +201,8 @@ export class AssessmentRootCapacityService {
    * - Window omission never proves obsolescence; point lookup applies the same eligibility guards.
    * - Assessment aggregate identity scopes command lookup to the existing outbox index.
    * - Owner history is aggregated once; a large customer's backlog cannot multiply history scans under the global lock.
+   * - A matching completed terminal Root settles its older command even when a legacy writer omitted admission bookkeeping.
+   * - Held physical slots still defer redelivery; newer or timestamp-ambiguous continuation commands remain eligible.
    * Execution flow:
    * 1. Select current eligible Root commands, optionally restricted to one Assessment.
    * 2. Aggregate owner admission history once and order by that history/request age within the result ceiling.
@@ -239,6 +242,13 @@ export class AssessmentRootCapacityService {
                   AND human."requestId"::text = a."blockerReference"->>'humanResolutionRequestId'
                   AND human."status"::text = ${HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN})))))
         AND demand."admittedRunId" IS NULL AND demand."completedAt" IS NULL
+        AND NOT COALESCE(
+          r."executionState"::text IN (${Executions.FAILED}, ${Executions.SUCCEEDED})
+          AND t."assessmentId" = a."id" AND t."threadId" = r."threadId"::text
+          AND t."boundary" = ${ASSESSMENT_ROOT_BOUNDARY}
+          AND t."state"::text = ${Controls.completed}
+          -- Equal millisecond timestamps do not prove that a turn consumed this command.
+          AND t."createdAt" > command."createdAt", FALSE)
         AND (command."status"::text = ${OUTBOX_STATUSES.published} OR demand."deliveredAt" IS NOT NULL)
         AND command."status"::text NOT IN (${OUTBOX_STATUSES.dlq}, ${OUTBOX_STATUSES.cancelled})
         AND NOT EXISTS (SELECT 1 FROM "OutboxMessage" newer

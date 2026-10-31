@@ -49,3 +49,11 @@ Pending current-revision production. Policy disable/drain is the supported rollb
 ## K. Acceptance and verdict
 
 Production-native, Stop/Continue, HITL, adaptive execution, paid reconciliation and current-head CI remain BLOCKED/unexecuted at this checkpoint. Prior CHANGES_REQUESTED review remains required; no merge/Done.
+
+## Preflight follow-up: settled legacy demand
+
+Exact revision 7fda124687ea22cea4ae8fa14f684098b9338efc deployed at 08:03:12 UTC with image sha256:51a7a4351886effcc984bd5baa0cb0efdf1ec517c3b1e2839973bbb75d1e136d, 140 completed migrations, clean checkout and healthy API/Web/Runtime. All 37 exact-head CI checks passed. The new API login is lcsp364_fogewise_api; unrelated PM2 process IDs were preserved. B was enrolled while still unstarted, and the old fogewise login's no-op runtime UPDATE was rejected with SQLSTATE 42501. These are actual deployment/isolation receipts, not native execution acceptance.
+
+Preflight found the original Canary A's admission intent still unbound/uncompleted despite a canonical FAILED execution and COMPLETED Root turn. Its ACTIVE lifecycle made that old command the fairness head even with broker ready/unacked zero; fresh independent demand would be indefinitely deferred. Admission was held through audited emergency disable, before any new canary/model run.
+
+The source correction excludes a matching completed FAILED/SUCCEEDED turn's strictly older command from eligibility. It does not rewrite Assessment, intent, accepted decisions, usage or checkpoint history. Physical slots still hold through terminal callbacks, and a new continuation sharing millisecond resolution stays eligible. A real PostgreSQL regression failed on the deployed source, then all 19 admission cases and the real 10,001-command RabbitMQ child passed after correction. Canary execution remains pending a new exact-head CI/deployment.

@@ -1,0 +1,375 @@
+{
+  "headRefOid": "7fda124687ea22cea4ae8fa14f684098b9338efc",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:16:58Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179942579/job/124475111187",
+      "name": "Analyze (actions)",
+      "startedAt": "2026-10-31T07:16:28Z",
+      "status": "COMPLETED",
+      "workflowName": "CodeQL"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:16:35Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946187/job/124475120354",
+      "name": "Dependency Review",
+      "startedAt": "2026-10-31T07:16:30Z",
+      "status": "COMPLETED",
+      "workflowName": "Dependency Review"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:16:36Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946197/job/124475120396",
+      "name": "Require Jira issue key",
+      "startedAt": "2026-10-31T07:16:30Z",
+      "status": "COMPLETED",
+      "workflowName": "Jira PR Link"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:19Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946344/job/124475196060",
+      "name": "Trivy repository scan",
+      "startedAt": "2026-10-31T07:16:54Z",
+      "status": "COMPLETED",
+      "workflowName": "Security and Quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:16:46Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475121268",
+      "name": "Detect test areas",
+      "startedAt": "2026-10-31T07:16:31Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:16:38Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946386/job/124475121324",
+      "name": "Detect changed areas",
+      "startedAt": "2026-10-31T07:16:31Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:16:37Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179941344/job/124475105485",
+      "name": "Detect changed areas",
+      "startedAt": "2026-10-31T07:16:26Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:46Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179942579/job/124475111329",
+      "name": "Analyze (javascript-typescript)",
+      "startedAt": "2026-10-31T07:16:28Z",
+      "status": "COMPLETED",
+      "workflowName": "CodeQL"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:28Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179942579/job/124475111440",
+      "name": "Analyze (python)",
+      "startedAt": "2026-10-31T07:16:28Z",
+      "status": "COMPLETED",
+      "workflowName": "CodeQL"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:49Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946344/job/124475195965",
+      "name": "SecureAI-Scan",
+      "startedAt": "2026-10-31T07:16:54Z",
+      "status": "COMPLETED",
+      "workflowName": "Security and Quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:20Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475121085",
+      "name": "PR review shadow triage packet",
+      "startedAt": "2026-10-31T07:16:30Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:22Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946386/job/124475151255",
+      "name": "Auto-fix imports and lint",
+      "startedAt": "2026-10-31T07:16:39Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:21Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179941344/job/124475149906",
+      "name": "Auto-fix imports and lint",
+      "startedAt": "2026-10-31T07:16:39Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:37Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946344/job/124475195996",
+      "name": "Trustabl agent reliability",
+      "startedAt": "2026-10-31T07:16:54Z",
+      "status": "COMPLETED",
+      "workflowName": "Security and Quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:43Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178285",
+      "name": "Workspace static checks",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:20:46Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946386/job/124475151232",
+      "name": "Python worker checks",
+      "startedAt": "2026-10-31T07:16:40Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:20:19Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179941344/job/124475150014",
+      "name": "Python worker checks",
+      "startedAt": "2026-10-31T07:16:39Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:26:01Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946344/job/124475195873",
+      "name": "API coverage",
+      "startedAt": "2026-10-31T07:16:53Z",
+      "status": "COMPLETED",
+      "workflowName": "Security and Quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:18:07Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178263",
+      "name": "Web lint and production build",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:18:14Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946386/job/124475299032",
+      "name": "API checks",
+      "startedAt": "2026-10-31T07:17:24Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:18:33Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179941344/job/124475295424",
+      "name": "API checks",
+      "startedAt": "2026-10-31T07:17:23Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:25:00Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178199",
+      "name": "API unit tests",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:18:17Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946386/job/124475299040",
+      "name": "Web checks",
+      "startedAt": "2026-10-31T07:17:24Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:18:24Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179941344/job/124475295409",
+      "name": "Web checks",
+      "startedAt": "2026-10-31T07:17:23Z",
+      "status": "COMPLETED",
+      "workflowName": "autofix.ci"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:19:27Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178257",
+      "name": "Adaptive Root global admission PostgreSQL integration",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:20:45Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178324",
+      "name": "API e2e tests",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:40Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178243",
+      "name": "Web tests",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:20:36Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178261",
+      "name": "Python worker tests",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:26:48Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178241",
+      "name": "Docker sandbox E2E",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:27:26Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178307",
+      "name": "Assessment Root vertical",
+      "startedAt": "2026-10-31T07:16:58Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:18:22Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178305",
+      "name": "Billing and Admin Playwright E2E release gate",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:18:15Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124475178236",
+      "name": "Windows dev launcher security tests",
+      "startedAt": "2026-10-31T07:16:48Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:27:31Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/actions/runs/41179946345/job/124477250731",
+      "name": "V2 required release gate",
+      "startedAt": "2026-10-31T07:27:28Z",
+      "status": "COMPLETED",
+      "workflowName": "Tests"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:16:52Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/runs/124475187426",
+      "name": "CodeQL",
+      "startedAt": "2026-10-31T07:16:49Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:44Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/runs/124475354714",
+      "name": "SecureAI-Scan",
+      "startedAt": "2026-10-31T07:17:41Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:14Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/runs/124475256051",
+      "name": "Trivy",
+      "startedAt": "2026-10-31T07:17:10Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-31T07:17:38Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/khov4nfs/LCSP/runs/124475337402",
+      "name": "trustabl",
+      "startedAt": "2026-10-31T07:17:35Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    }
+  ]
+}

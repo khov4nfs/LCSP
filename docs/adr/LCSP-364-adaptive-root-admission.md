@@ -91,6 +91,12 @@ Eligibility is checked by exact Assessment/command independently of the bounded
 fairness window. An eligible out-of-order delivery is deferred rather than ACKed
 as obsolete. Admission selects only the fair head and aggregates owner history
 once, so large backlogs do not multiply history scans while holding global authority.
+An older mixed-version writer can leave admission intent unbound after recording
+a completed FAILED/SUCCEEDED Root turn. Such a matching terminal turn excludes
+its strictly older command from waiting/duplicate admission without rewriting
+history. A held physical slot still defers redelivery until actual release, and
+a newer or same-millisecond continuation command remains eligible. This prevents
+a settled legacy command from becoming a permanent global fairness head.
 
 ## Rejected alternatives and limits
 
