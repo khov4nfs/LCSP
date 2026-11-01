@@ -145,7 +145,11 @@ describe.each(fixture.historicalCases)(
           $transaction: (fn: (tx: typeof transaction) => unknown) =>
             fn(transaction),
         },
-        { authorizeInTx: () => Promise.resolve({ executionId: "execution" }) },
+        {
+          authorizeInTx: () =>
+            Promise.resolve({ executionId: "execution", auditRequestId: null }),
+          requireSelectedRuleMembershipInTx: () => Promise.resolve(),
+        },
         {
           loadPins: () => Promise.resolve(row.decision),
           lockCase: () => Promise.resolve(),

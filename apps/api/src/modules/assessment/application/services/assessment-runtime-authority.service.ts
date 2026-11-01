@@ -89,6 +89,8 @@ export class AssessmentRuntimeAuthority {
    *
    * Business rules:
    * - A live lease excludes a competing execution; a retry after failure uses a new execution ID on the same thread.
+   * - A selected request uses its immutable request UUID as a separate native Root thread; retries and Stop/Continue
+   *   reuse that thread while later requests cannot see its terminal checkpoint.
    * - A failed checkpoint is resumable only when the runtime row and failed Root turn bind the same checkpoint,
    *   or a missing API checkpoint is recovered from the latest native Root checkpoint with matching persisted
    *   assessment, runtime, boundary, agent, and timestamp provenance.
@@ -98,7 +100,7 @@ export class AssessmentRuntimeAuthority {
    * Execution flow:
    * 1. Lock the assessment/runtime and load the current Root turn.
    * 2. Validate lifecycle, lease, and any failed-turn checkpoint binding; recover a missing checkpoint only
-   *    from the canonical native checkpoint store under the same assessment transaction.
+   *    from the request-bound native checkpoint thread under the same assessment transaction.
    * 3. Issue a lease and execution identity, returning only the authorized resume checkpoint.
    *
    * Failure cases:
@@ -155,6 +157,13 @@ export class AssessmentRuntimeAuthority {
             where: { id: row.currentExecutionId },
           })
         : null;
+      const previousContextJson =
+        previousTurn?.contextJson &&
+        typeof previousTurn.contextJson === "object" &&
+        !Array.isArray(previousTurn.contextJson)
+          ? previousTurn.contextJson
+          : null;
+      const previousRuntimeRunId = previousContextJson?.runtimeRunId;
       const failedCheckpointJson =
         previousTurn?.checkpointJson &&
         typeof previousTurn.checkpointJson === "object" &&
@@ -166,18 +175,15 @@ export class AssessmentRuntimeAuthority {
         row.checkpointId &&
         previousTurn?.assessmentId === input.assessmentId &&
         previousTurn.threadId === row.threadId &&
+        (!row.currentAuditRequestId ||
+          (previousContextJson?.auditRequestId === row.currentAuditRequestId &&
+            previousContextJson?.checkpointThreadId ===
+              row.currentAuditRequestId)) &&
         previousTurn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
         previousTurn.state === Controls.completed &&
         failedCheckpointJson?.checkpointId === row.checkpointId
           ? row.checkpointId
           : null;
-      const previousContextJson =
-        previousTurn?.contextJson &&
-        typeof previousTurn.contextJson === "object" &&
-        !Array.isArray(previousTurn.contextJson)
-          ? previousTurn.contextJson
-          : null;
-      const previousRuntimeRunId = previousContextJson?.runtimeRunId;
       const caseRow = tx.assessmentCase
         ? await tx.assessmentCase.findUnique({
             where: { assessmentId: input.assessmentId },
@@ -201,9 +207,9 @@ export class AssessmentRuntimeAuthority {
         previousRuntimeRunId.length > 0
           ? await findFailedNativeCheckpoint(tx, {
               assessmentId: input.assessmentId,
-              threadId: row.threadId,
-              checkpointNamespace:
-                row.currentAuditRequestId ?? NATIVE_ROOT_CHECKPOINT_NAMESPACE,
+              threadId: row.currentAuditRequestId ?? row.threadId,
+              checkpointNamespace: NATIVE_ROOT_CHECKPOINT_NAMESPACE,
+              auditRequestId: row.currentAuditRequestId,
               runtimeRunId: previousRuntimeRunId,
               turnCreatedAt: previousTurn.createdAt,
               turnUpdatedAt: previousTurn.updatedAt,
@@ -378,6 +384,12 @@ export class AssessmentRuntimeAuthority {
               ? { responseLanguage: persistedLanguage }
               : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
+            ...(row.currentAuditRequestId
+              ? {
+                  auditRequestId: row.currentAuditRequestId,
+                  checkpointThreadId: row.currentAuditRequestId,
+                }
+              : {}),
             ...(nativeCheckpointRecoveryContext ?? {}),
           },
           ...(nativeCheckpointRecovery
@@ -398,6 +410,12 @@ export class AssessmentRuntimeAuthority {
               ? { responseLanguage: persistedLanguage }
               : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
+            ...(row.currentAuditRequestId
+              ? {
+                  auditRequestId: row.currentAuditRequestId,
+                  checkpointThreadId: row.currentAuditRequestId,
+                }
+              : {}),
             ...(nativeCheckpointRecoveryContext ?? {}),
           },
         },
@@ -451,6 +469,7 @@ export class AssessmentRuntimeAuthority {
       return {
         assessmentId: input.assessmentId,
         threadId: row.threadId,
+        checkpointThreadId: row.currentAuditRequestId ?? row.threadId,
         executionId,
         leaseToken,
         leaseExpiresAt: leaseExpiresAt.toISOString(),
@@ -530,6 +549,47 @@ export class AssessmentRuntimeAuthority {
       blockerReason: row.blockerReason,
       blockerReference: row.blockerReference,
     };
+  }
+
+  /**
+   * Business purpose: Restrict every selected-mode Root mutation to rules in its immutable claimed request.
+   *
+   * Business rules:
+   * - A non-null audit request grants authority only for membership rows in that request; historical coverage
+   *   and prior accepted decisions do not grant membership. A null request is the explicit legacy full-audit path.
+   *
+   * Execution flow:
+   * 1. Read the exact request/rule membership under the caller's existing transaction and locks.
+   * 2. Return only for a current member; reject absent membership before the caller performs side effects.
+   *
+   * Failure cases:
+   * - A selected request that does not contain the rule fails with REQUEST_INVALID and HTTP 403.
+   *
+   * Side effects:
+   * - Performs a read-only membership lookup.
+   */
+  async requireSelectedRuleMembershipInTx(
+    tx: Prisma.TransactionClient,
+    run: AuthorizedRootRun,
+    assessmentRuleId: string,
+    correlationId: string,
+  ): Promise<void> {
+    if (!run.auditRequestId) return;
+    const member = await tx.assessmentRuleAuditItem.findUnique({
+      where: {
+        requestId_assessmentRuleId: {
+          requestId: run.auditRequestId,
+          assessmentRuleId,
+        },
+      },
+      select: { assessmentRuleId: true },
+    });
+    if (!member)
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+        correlationId,
+        { status: HttpStatus.FORBIDDEN },
+      );
   }
 
   async authorize(input: {
@@ -922,7 +982,7 @@ async function querySeparateCheckpointDatabase(
  * Business purpose: Recover a native checkpoint omitted from the API runtime row after a failed Root turn.
  *
  * Business rules:
- * - The newest checkpoint for the exact Root thread and native Root namespace must carry the same persisted
+ * - The newest checkpoint for the exact assessment or immutable selected-request Root thread and native Root namespace must carry the same persisted
  *   assessment, transport run, Root boundary, agent identity, and exact immutable case pins (rule set, repository snapshot, commit).
  * - Authoritative case pins (rule set, repository snapshot, commit) are required; missing case pins fail closed.
  * - Checkpoint metadata must explicitly contain string values for rule_set_version_id, repository_snapshot_id, and repository_commit matching case pins.
@@ -935,7 +995,8 @@ async function querySeparateCheckpointDatabase(
  * 1. Validate that the input case pins exist and contain non-empty string values for rule set, repository snapshot, and commit.
  * 2. Check for the co-located native checkpoint table in the current database transaction.
  * 3. If absent and a separate native checkpoint database URL is configured, query that external database securely.
- * 4. Read only the newest checkpoint for this thread and the native Root namespace.
+ * 4. Read only the newest checkpoint for this thread and the native Root namespace; selected requests also
+ *    require matching request metadata so an adjacent request cannot authorize recovery.
  * 5. Validate checkpoint identity, metadata types, case pins, and timestamp against the failed turn before returning its ID.
  *
  * Failure cases:
@@ -950,6 +1011,7 @@ async function findFailedNativeCheckpoint(
     assessmentId: string;
     threadId: string;
     checkpointNamespace?: string;
+    auditRequestId?: string | null;
     runtimeRunId: string;
     turnCreatedAt: Date;
     turnUpdatedAt: Date;
@@ -1033,6 +1095,9 @@ async function findFailedNativeCheckpoint(
   if (
     !metadata ||
     metadata.assessment_id !== input.assessmentId ||
+    (input.auditRequestId
+      ? metadata.assessment_root_audit_request_id !== input.auditRequestId
+      : metadata.assessment_root_audit_request_id != null) ||
     metadata.lcsp_runtime_run_id !== input.runtimeRunId ||
     metadata.lcsp_boundary_name !== NATIVE_ROOT_BOUNDARY_NAME ||
     metadata.lc_agent_name !== NATIVE_ROOT_AGENT_NAME ||

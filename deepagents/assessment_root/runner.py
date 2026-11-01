@@ -194,6 +194,10 @@ def run_assessment_root(
     control_request_id: str | None = None
     try:
         context = client.context()
+        audit_request_id = (context.get("auditRequest") or {}).get("requestId")
+        expected_checkpoint_thread_id = audit_request_id or claim["threadId"]
+        if claim.get("checkpointThreadId", claim["threadId"]) != expected_checkpoint_thread_id:
+            raise RuntimeError("server checkpoint thread does not match the authorized audit request")
         # The factory hydrates the pinned repository for THIS thread and returns the backend
         from orchestration.context import LCSPRunContext, resolve_response_language
 
@@ -222,9 +226,14 @@ def run_assessment_root(
             middleware=[RootRuntimeControl(client, run.execution_id)],
         )
         graph_config = agent_graph_config({
-            "configurable": {"thread_id": run.thread_id,
-                             "checkpoint_ns": (context.get("auditRequest") or {}).get("requestId", "")},
+            # Selected requests use their immutable request UUID as an isolated native root thread.
+            # The root namespace stays empty; checkpoint_ns is reserved for LangGraph subgraphs.
+            "configurable": {
+                "thread_id": claim.get("checkpointThreadId") or run.thread_id,
+                "checkpoint_ns": "",
+            },
             "metadata": {"assessment_id": assessment_id, "assessment_root_execution_id": run.execution_id,
+                         "assessment_root_audit_request_id": audit_request_id,
                          "rule_set_version_id": run.pins["ruleSetVersionId"],
                          "repository_snapshot_id": run.pins["repositorySnapshotId"],
                          "repository_commit": run.pins["repositoryCommit"], "case_revision": run.case_revision},

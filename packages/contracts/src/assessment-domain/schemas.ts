@@ -394,6 +394,7 @@ export type FinishAssessmentRootRequest = z.infer<
 export const assessmentRootClaimSchema = z.strictObject({
   assessmentId: uuidSchema,
   threadId: uuidSchema,
+  checkpointThreadId: uuidSchema,
   executionId: uuidSchema,
   leaseToken: uuidSchema,
   leaseExpiresAt: z.iso.datetime(),
