@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
-  DECISION_RESOLUTION_STATES,
   ruleDecisionSchema,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
