@@ -49,6 +49,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
    *
    * Business rules:
    * - The leased Root owns the semantic finding; pins, source-addressed scope, references and revisions must validate.
+   * - A selected request authorizes writes only for its immutable members; prior coverage and replay keys cannot widen that set.
    * - Exact native replays retain their original identity but cannot bypass current validation or revive invalidated work.
    *
    * Execution flow:
@@ -70,6 +71,12 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
     const requestDigest = sha256Hex(canonicalJson(request));
     return this.prisma.$transaction(async (tx) => {
       const run = await this.authority.authorizeInTx(tx, input);
+      await this.authority.requireSelectedRuleMembershipInTx(
+        tx,
+        run,
+        decision.assessmentRuleId,
+        input.correlationId,
+      );
       const pins = await this.support.loadPins(
         tx,
         input.assessmentId,
@@ -113,6 +120,27 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         decision.assessmentRuleId,
         input.correlationId,
       );
+      const auditMember = run.auditRequestId
+        ? await tx.assessmentRuleAuditItem.findUnique({
+            where: {
+              requestId_assessmentRuleId: {
+                requestId: run.auditRequestId,
+                assessmentRuleId: decision.assessmentRuleId,
+              },
+            },
+            select: { reusedDecisionId: true },
+          })
+        : null;
+      if (
+        auditMember?.reusedDecisionId != null &&
+        auditMember.reusedDecisionId === coverage.currentDecisionId &&
+        !replay
+      )
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
       const context = await this.support.buildValidationContext(tx, {
         assessmentId: input.assessmentId,
         pins,
@@ -179,6 +207,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         data: {
           decisionId,
           assessmentId: input.assessmentId,
+          auditRequestId: run.auditRequestId,
           ruleSetVersionId: pins.ruleSetVersionId,
           assessmentRuleId: decision.assessmentRuleId,
           assessmentRuleVersion: decision.assessmentRuleVersion,

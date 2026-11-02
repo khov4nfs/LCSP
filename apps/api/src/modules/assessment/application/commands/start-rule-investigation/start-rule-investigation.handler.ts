@@ -33,6 +33,23 @@ export class StartRuleInvestigationHandler implements ICommandHandler<StartRuleI
     private readonly events: AssessmentEventAppender,
   ) {}
 
+  /**
+   * Business purpose: Start investigation only for a rule authorized by the current Root request.
+   *
+   * Business rules:
+   * - Selected requests must contain the rule even when prior coverage exists; legacy full runs have no request ID.
+   * - RESOLVED rules cannot be reopened through this command.
+   *
+   * Execution flow:
+   * 1. Verify the execution lease and current request membership.
+   * 2. Require canonical coverage, then move eligible coverage to INVESTIGATING and append its event.
+   *
+   * Failure cases:
+   * - Nonmembers fail before coverage writes; resolved rules fail with DECISION_REVISION_STALE.
+   *
+   * Side effects:
+   * - Updates decision coverage and appends one domain activity event.
+   */
   async execute(
     input: StartRuleInvestigationCommand,
   ): Promise<StartRuleInvestigationResult> {
@@ -40,6 +57,12 @@ export class StartRuleInvestigationHandler implements ICommandHandler<StartRuleI
 
     return this.prisma.$transaction(async (tx) => {
       const run = await this.authority.authorizeInTx(tx, input);
+      await this.authority.requireSelectedRuleMembershipInTx(
+        tx,
+        run,
+        request.assessmentRuleId,
+        input.correlationId,
+      );
       const row = await this.support.requireCoverage(
         tx,
         input.assessmentId,

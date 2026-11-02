@@ -104,6 +104,24 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           input.correlationId,
           { status: HttpStatus.NOT_FOUND },
         );
+      const auditRequestId = assessment.runtime?.currentAuditRequestId;
+      if (auditRequestId) {
+        const member = await tx.assessmentRuleAuditItem.findUnique({
+          where: {
+            requestId_assessmentRuleId: {
+              requestId: auditRequestId,
+              assessmentRuleId: row.assessmentRuleId,
+            },
+          },
+          select: { assessmentRuleId: true },
+        });
+        if (!member)
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+            input.correlationId,
+            { status: HttpStatus.FORBIDDEN },
+          );
+      }
       const answers = z.array(humanAnswerAuditSchema).parse(row.answers);
       const replay = answers.find(
         (answer) => answer.idempotencyKey === input.request.idempotencyKey,

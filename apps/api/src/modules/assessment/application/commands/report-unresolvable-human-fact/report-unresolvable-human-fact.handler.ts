@@ -41,6 +41,23 @@ export class ReportUnresolvableHumanFactHandler implements ICommandHandler<Repor
     private readonly audit: AuditWriterService,
   ) {}
 
+  /**
+   * Business purpose: Let the leased Root close a human blocker only when the blocked rule belongs to its request.
+   *
+   * Business rules:
+   * - Selected scope membership is mandatory even for a previously covered rule; only legacy full runs omit it.
+   * - A permanent unavailability claim requires accepted, pinned evidence and the matching open human request.
+   *
+   * Execution flow:
+   * 1. Authorize the lease, load the request and require its selected-rule membership.
+   * 2. Validate revisions, evidence and blocker identity, then record the claim and lifecycle transition.
+   *
+   * Failure cases:
+   * - A nonmember or stale/missing request, evidence or blocker rejects before state changes.
+   *
+   * Side effects:
+   * - Records an audit claim and may move the assessment into its blocked lifecycle state.
+   */
   execute(
     input: ReportUnresolvableHumanFactCommand,
   ): Promise<ReportUnresolvableHumanFactResult> {
@@ -62,6 +79,12 @@ export class ReportUnresolvableHumanFactHandler implements ICommandHandler<Repor
       });
       if (!request || request.threadId !== run.threadId)
         throw reject(ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_NOT_FOUND);
+      await this.authority.requireSelectedRuleMembershipInTx(
+        tx,
+        run,
+        request.assessmentRuleId,
+        input.correlationId,
+      );
       if (request.status !== HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN)
         throw reject(ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_CLOSED);
       if (request.requestRevision !== body.expectedRequestRevision)

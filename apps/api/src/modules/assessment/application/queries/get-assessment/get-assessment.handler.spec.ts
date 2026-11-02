@@ -3,6 +3,7 @@ import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
+import { ASSESSMENT_AUDIT_MODES } from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AssessmentDetailLoader } from "../../../infrastructure/persistence/assessment-detail.loader.js";
@@ -34,6 +35,8 @@ function fixture(overrides: Record<string, unknown> = {}) {
     },
     domainCase: {
       caseRevision: 0,
+      auditRequestRevision: 0,
+      auditMode: ASSESSMENT_AUDIT_MODES.LEGACY_FULL,
       ruleSetVersionId: null,
       repositorySnapshotId: null,
       repositoryScanJobId: null,

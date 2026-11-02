@@ -42,17 +42,43 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
-        if self.run.client.context()["lifecycleState"] == "COMPLETE":
+        """Business purpose: Stop reasoning once the server has completed the authorized audit scope.
+
+        Business rules:
+        - Only a durable full assessment or selected request completion can end Root work.
+        Execution flow:
+        1. Reload canonical context.
+        2. End the graph for a completed scope.
+        Failure cases:
+        - API context failures propagate; incomplete work continues to the model.
+        Side effects:
+        - Reads API context and may end native graph execution; no decision is written.
+        """
+        context = self.run.client.context()
+        if context["lifecycleState"] == "COMPLETE" or (context.get("auditRequest") or {}).get("status") == "COMPLETED":
             return {"jump_to": "end"}
         return None
 
     @hook_config(can_jump_to=["model"])
     def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+        """Business purpose: Keep Root working until the API accepts the requested audit scope.
+
+        Business rules:
+        - A model final message cannot substitute for selected-scope or full-report completion.
+        Execution flow:
+        1. Inspect the model response.
+        2. Reload canonical status.
+        3. Request another tool-using turn if unfinished.
+        Failure cases:
+        - Open human blockers without native interrupt reject completion.
+        Side effects:
+        - Reads API context and adds a native continuation message; no legal decision is persisted.
+        """
         response = state["messages"][-1]
         if not isinstance(response, AIMessage) or response.tool_calls:
             return None
         context = self.run.client.context()
-        if context["lifecycleState"] == "COMPLETE":
+        if context["lifecycleState"] == "COMPLETE" or (context.get("auditRequest") or {}).get("status") == "COMPLETED":
             return None
         if context["openHumanRequestIds"]:
             raise RuntimeError("open human blockers without a native interrupt")
@@ -62,8 +88,8 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
             "messages": [HumanMessage(content=(
                 "The API has not confirmed this assessment COMPLETE. Continue this same "
                 "assessment and preserve accepted evidence and decisions. Reload governed "
-                "context, resolve remaining pinned rules, request_finalization, then "
-                "submit_final_report when the Completion Gate permits it. Use native tools, "
+                "context, resolve remaining authorized rules, request_finalization, then "
+                "submit_final_report only for a FULL_RULE_SET request when the Completion Gate permits it. Use native tools, "
                 "not tool-call text. Use the native human request interrupt for missing "
                 "customer facts; do not infer lifecycle completion from your response."
             ))],

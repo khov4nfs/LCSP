@@ -16,6 +16,7 @@ import {
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   AGENT_EXECUTION_STATES,
@@ -28,6 +29,8 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
   HUMAN_RESOLUTION_CONTROL_TYPES,
+  RULE_AUDIT_PROGRESS_STATES,
+  RULE_AUDIT_SCOPE_MODES,
   SEARCH_COVERAGE_SCOPE_KINDS,
   answerAssessmentHumanRequestSchema,
   assessmentHumanRequestsResultSchema,
@@ -62,7 +65,7 @@ const ok = (value, message) => {
   checks += 1;
 };
 const eq = (actual, expected, message) => {
-  assert.deepEqual(actual, expected, message);
+  assert.deepEqual(actual, expected, message ?? "actual value differs from expected value");
   checks += 1;
 };
 
@@ -86,6 +89,73 @@ const LOCATORS = [
 const DOC = "SYNTHETIC-NOTICE-INSTRUMENT";
 const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
+const twentyRulePacket = () => {
+  const reference = (locator) => ({
+    documentId: DOC,
+    locator,
+    contentSha256: contentHash(contentFor(locator, "a")),
+  });
+  const rows = Array.from({ length: 20 }, (_, index) => {
+    const ordinal = index + 1;
+    const ruleId =
+      ordinal === 3
+        ? "ER-RET"
+        : ordinal === 9
+          ? "ER-XREF"
+          : `ER-R${String(ordinal).padStart(2, "0")}`;
+    const legalRequirementId =
+      ordinal === 3
+        ? "LR-RET"
+        : ordinal === 9
+          ? "LR-XREF"
+          : `LR-R${String(ordinal).padStart(2, "0")}`;
+    const locator = LOCATORS[(ordinal - 1) % LOCATORS.length];
+    const refs = [reference(locator)];
+    return {
+      legalRequirement: {
+        legalRequirementId,
+        title: `Synthetic requirement ${ordinal}`,
+        proposition: `Requirement ${ordinal} governs the synthetic service.`,
+        applicabilityConditions: ["Applies to the service that stores notices."],
+        qualifiers: [],
+        exceptions: [],
+        nonRepositoryDuty: false,
+        sourceRefs: refs,
+        coverage: {
+          state: "COVERED_BY_ASSESSMENT_RULES",
+          nonAssessableReason: null,
+        },
+      },
+      assessmentRule: {
+        assessmentRuleId: ruleId,
+        legalRequirementIds: [legalRequirementId],
+        concept: `Synthetic control ${ordinal}`,
+        legalIntent: "Ensure the legal intent is met.",
+        applicabilityGuidance: "Applies when the described condition holds.",
+        criteria: [{ criterionId: "C-1", statement: "The control exists." }],
+        investigationGoals: ["find the control"],
+        startingNodeTypes: [],
+        targetNodeTypes: [],
+        edgeStrategies: [],
+        graphQueries: [],
+        keywords: [],
+        commonApis: [],
+        commonLibraries: [],
+        patterns: [],
+        requiredEvidence: ["control implementation"],
+        supportingEvidence: [],
+        negativeEvidence: [],
+        unresolvedConditions: [],
+        sourceRefs: refs,
+      },
+    };
+  });
+  return {
+    legalRequirements: rows.map((row) => row.legalRequirement),
+    assessmentRules: rows.map((row) => row.assessmentRule),
+    contextRelations: [],
+  };
+};
 const COMMIT = "c".repeat(40);
 
 const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl } = await startStack({
@@ -94,10 +164,14 @@ const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, 
   checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
 });
 const { hashSecret } = await import(
-  path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
+  pathToFileURL(
+    path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js"),
+  ).href,
 );
 const { canonicalJson } = await import(
-  path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js")
+  pathToFileURL(
+    path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js"),
+  ).href,
 );
 
 /** HTTP helper for non-rule set routes. */
@@ -147,15 +221,16 @@ try {
   const legalSourceB = await seedLegalSourceVersion("assessment-b", "b", "ACTIVE");
   const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-vertical-"));
   const seedFile = path.join(seedDir, "seed.json");
-  writeFileSync(
-    seedFile,
-    JSON.stringify({
-      hashes: Object.fromEntries(
-        LOCATORS.map((l) => [l, contentHash(contentFor(l, "a"))]),
-      ),
-    }),
-  );
-  const prepareRuleSet = async (legalSourceId) => {
+  const prepareRuleSet = async (legalSourceId, packet) => {
+    writeFileSync(
+      seedFile,
+      JSON.stringify({
+        hashes: Object.fromEntries(
+          LOCATORS.map((l) => [l, contentHash(contentFor(l, "a"))]),
+        ),
+        ...(packet ? { packet } : {}),
+      }),
+    );
     // The activation event (delivered to the real consumer) starts the one automatic run.
     const started = await activateLegalSource(legalSourceId);
     eq(started.runs.length, 1, "one Legal Source -> one automatic preparation");
@@ -242,7 +317,7 @@ try {
   // an assessment cannot reason before it is prepared
   eq((await runtime(A.id, "claim")).body.problem.code, "ASSESSMENT_NOT_ACTIVE");
 
-  // repository setup completion pins the snapshot, covers every rule and activates (idempotent)
+  // repository setup pins the snapshot and activates without selecting or covering rules
   const setup = await customerHttp(
     "POST",
     `/assessments/${A.id}/repository-setup/complete`,
@@ -264,7 +339,7 @@ try {
         [A.id],
       )
     ).rows[0],
-    { n: 3, pending: 3 },
+    { n: 0, pending: 0 },
   );
   eq(
     (
@@ -273,7 +348,7 @@ try {
         [A.id],
       )
     ).rows[0].n,
-    1,
+    0,
   );
   const setupAgain = await customerHttp(
     "POST",
@@ -281,6 +356,51 @@ try {
     owner.token,
   );
   ok(setupAgain.status < 300, "idempotent setup completion");
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "OutboxMessage" WHERE "aggregateId"=$1 AND "eventType"='command.assessment.root.requested.v1'`,
+        [A.id],
+      )
+    ).rows[0].n,
+    0,
+  );
+
+  // This legacy vertical journey explicitly opts into the full pinned Rule Set before Root runs.
+  const catalogResponse = await customerHttp(
+    "GET",
+    `/assessments/${A.id}/rules?offset=0&limit=100`,
+    owner.token,
+  );
+  eq(catalogResponse.status, 200, JSON.stringify(catalogResponse.body));
+  const catalog = catalogResponse.body.data;
+  eq(catalog.total, ruleCount);
+  const audit = await customerHttp(
+    "POST",
+    `/assessments/${A.id}/rule-audits`,
+    owner.token,
+    {
+      idempotencyKey: randomUUID(),
+      expectedAuditRevision: catalog.auditRevision,
+      ruleSetVersionId: catalog.ruleSetVersionId,
+      ruleSetDigest: catalog.ruleSetDigest,
+      repositorySnapshotId: catalog.repositorySnapshotId,
+      repositoryCommit: catalog.repositoryCommit,
+      scopeMode: RULE_AUDIT_SCOPE_MODES.FULL_RULE_SET,
+      rules: [],
+    },
+  );
+  eq(audit.status, 201, JSON.stringify(audit.body));
+  eq(audit.body.data.requested, ruleCount);
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n, count(*) FILTER (WHERE "resolutionState"='PENDING')::int AS pending FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1`,
+        [A.id],
+      )
+    ).rows[0],
+    { n: ruleCount, pending: ruleCount },
+  );
   eq(
     (
       await q(
@@ -316,13 +436,17 @@ try {
   // This partial-work fixture deliberately exhausts its offline model before finalization.
   // A normal response cannot falsely settle unfinished domain work as SUCCEEDED.
   eq(first.result.state, AGENT_EXECUTION_STATES.FAILED, JSON.stringify(first));
-  eq(first.result.errorType, "AssertionError");
+  eq(first.result.errorType, "AssertionError", JSON.stringify(first));
   ok(first.result.checkpointId, "failed native work retains its checkpoint");
   eq(first.remainingSteps, 0);
   eq(first.result.threadId, threadA);
+  eq(first.captured.graphConfig, {
+    threadId: audit.body.data.requestId,
+    checkpointNamespace: "",
+  }, "selected Root uses a request-isolated native root thread");
   // the validator rejected the bad attempt with mechanical codes and the Root corrected itself
   eq(first.captured.rejected.ok, false);
-  eq(first.captured.rejected.code, "ASSESSMENT_DECISION_VALIDATION_FAILED");
+  eq(first.captured.rejected.code, "ASSESSMENT_DECISION_VALIDATION_FAILED", JSON.stringify({ rejected: first.captured.rejected, context: first.captured.context }));
   for (const failure of [
     "UNKNOWN_LEGAL_CONTEXT:LR-NOT-LINKED",
     ...first.captured.rule_set.assessmentRules.find((r) => r.assessmentRuleId === "ER-RET").criterionIds.map((id) => `CRITERIA_INCOMPLETE:${id}`),
@@ -447,9 +571,13 @@ try {
     AGENT_EXECUTION_STATES.FAILED,
     JSON.stringify(second),
   );
-  eq(second.result.errorType, "AssertionError");
+  eq(second.result.errorType, "AssertionError", JSON.stringify(second));
   ok(second.result.checkpointId !== failedCheckpoint, "same-thread retry advances the native checkpoint");
   eq(second.result.threadId, threadA);
+  eq(second.captured.graphConfig, {
+    threadId: audit.body.data.requestId,
+    checkpointNamespace: "",
+  }, "failed selected work retries on its own native root thread");
   ok(
     second.result.executionId !== rootExecution,
     "retry uses a new execution ID",
@@ -494,8 +622,162 @@ try {
     "retired V1 report route cannot bypass the canonical artifact path",
   );
 
+  // ---- selected batches: one rule result is visible, then a fresh request adds another ----------
+  const legalSourceTwenty = await seedLegalSourceVersion(
+    "assessment-twenty-rule",
+    "a",
+    "ACTIVE",
+  );
+  const ruleSetTwenty = await prepareRuleSet(
+    legalSourceTwenty,
+    twentyRulePacket(),
+  );
+  const pinnedRuleCountTwenty = (
+    await q(
+      `SELECT count(*)::int AS n FROM "AssessmentRule" WHERE "ruleSetVersionId"=$1`,
+      [ruleSetTwenty],
+    )
+  ).rows[0].n;
+  eq(pinnedRuleCountTwenty, 20, "the selected fixture pins twenty rules");
+  const selectedAssessment = await newAssessment(
+    "Selected rule 3 followed by rule 9 from twenty pinned rules",
+  );
+  const selectedSetup = await customerHttp(
+    "POST",
+    `/assessments/${selectedAssessment.id}/repository-setup/complete`,
+    owner.token,
+  );
+  eq(selectedSetup.status, 201, JSON.stringify(selectedSetup.body));
+  const selectedCatalog = await customerHttp(
+    "GET",
+    `/assessments/${selectedAssessment.id}/rules?offset=0&limit=100`,
+    owner.token,
+  );
+  eq(selectedCatalog.status, 200, JSON.stringify(selectedCatalog.body));
+  const submitSelected = async (catalog, ruleId) => {
+    const rule = catalog.body.data.rules.find(
+      (candidate) => candidate.assessmentRuleId === ruleId,
+    );
+    ok(rule, `fixture contains ${ruleId}`);
+    return customerHttp(
+      "POST",
+      `/assessments/${selectedAssessment.id}/rule-audits`,
+      owner.token,
+      {
+        idempotencyKey: randomUUID(),
+        expectedAuditRevision: catalog.body.data.auditRevision,
+        ruleSetVersionId: catalog.body.data.ruleSetVersionId,
+        ruleSetDigest: catalog.body.data.ruleSetDigest,
+        repositorySnapshotId: catalog.body.data.repositorySnapshotId,
+        repositoryCommit: catalog.body.data.repositoryCommit,
+        scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+        rules: [
+          {
+            assessmentRuleId: rule.assessmentRuleId,
+            assessmentRuleVersion: rule.assessmentRuleVersion,
+          },
+        ],
+      },
+    );
+  };
+  const firstSelected = await submitSelected(selectedCatalog, "ER-RET");
+  eq(firstSelected.status, 201, JSON.stringify(firstSelected.body));
+  eq(firstSelected.body.data.requested, 1);
+  const ruleThreeRun = await runPython(
+    script,
+    [base, workerKey, selectedAssessment.id, repoDir, "selected"],
+    {
+      env: {
+        LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl,
+        ASSESSMENT_SELECTED_RULE_ID: "ER-RET",
+      },
+    },
+  );
+  eq(ruleThreeRun.result.state, AGENT_EXECUTION_STATES.SUCCEEDED, JSON.stringify(ruleThreeRun));
+  eq(ruleThreeRun.captured.graphConfig, {
+    threadId: firstSelected.body.data.requestId,
+    checkpointNamespace: "",
+  });
+  eq(ruleThreeRun.captured.selected_decision.ok, true);
+  const afterRuleThree = await customerHttp(
+    "GET",
+    `/assessments/${selectedAssessment.id}/rules?offset=0&limit=100`,
+    owner.token,
+  );
+  eq(
+    [
+      afterRuleThree.body.data.rules.find((rule) => rule.assessmentRuleId === "ER-RET")?.progress,
+      afterRuleThree.body.data.rules.find((rule) => rule.assessmentRuleId === "ER-XREF")?.progress,
+      afterRuleThree.body.data.rules.filter((rule) => rule.progress === RULE_AUDIT_PROGRESS_STATES.RESULT_READY).length,
+      afterRuleThree.body.data.rules.filter((rule) => rule.progress === RULE_AUDIT_PROGRESS_STATES.NOT_SELECTED).length,
+    ],
+    [
+      RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
+      RULE_AUDIT_PROGRESS_STATES.NOT_SELECTED,
+      1,
+      19,
+    ],
+    "ER-RET's result is visible while ER-XREF and the other eighteen rules wait",
+  );
+  const secondSelected = await submitSelected(afterRuleThree, "ER-XREF");
+  eq(secondSelected.status, 201, JSON.stringify(secondSelected.body));
+  eq(secondSelected.body.data.requested, 1);
+  const ruleNineRun = await runPython(
+    script,
+    [base, workerKey, selectedAssessment.id, repoDir, "selected"],
+    {
+      env: {
+        LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl,
+        ASSESSMENT_SELECTED_RULE_ID: "ER-XREF",
+      },
+    },
+  );
+  eq(ruleNineRun.result.state, AGENT_EXECUTION_STATES.SUCCEEDED, JSON.stringify(ruleNineRun));
+  eq(ruleNineRun.captured.graphConfig, {
+    threadId: secondSelected.body.data.requestId,
+    checkpointNamespace: "",
+  });
+  ok(
+    ruleNineRun.captured.graphConfig.threadId !== ruleThreeRun.captured.graphConfig.threadId,
+    "a second batch starts with an isolated native Root checkpoint thread",
+  );
+  const afterRuleNine = await customerHttp(
+    "GET",
+    `/assessments/${selectedAssessment.id}/rules?offset=0&limit=100`,
+    owner.token,
+  );
+  eq(
+    [
+      afterRuleNine.body.data.rules.find((rule) => rule.assessmentRuleId === "ER-RET")?.progress,
+      afterRuleNine.body.data.rules.find((rule) => rule.assessmentRuleId === "ER-XREF")?.progress,
+      afterRuleNine.body.data.rules.filter((rule) => rule.progress === RULE_AUDIT_PROGRESS_STATES.RESULT_READY).length,
+      afterRuleNine.body.data.rules.filter((rule) => rule.progress === RULE_AUDIT_PROGRESS_STATES.NOT_SELECTED).length,
+    ],
+    [
+      RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
+      RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
+      2,
+      18,
+    ],
+    "the second request preserves ER-RET while adding ER-XREF among twenty pinned rules",
+  );
+  const selectedHistory = (
+    await q(
+      `SELECT "assessmentRuleId" AS rule, "auditRequestId" AS request, state FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY "assessmentRuleId"`,
+      [selectedAssessment.id],
+    )
+  ).rows;
+  eq(selectedHistory, [
+    { rule: "ER-RET", request: firstSelected.body.data.requestId, state: "ACCEPTED" },
+    { rule: "ER-XREF", request: secondSelected.body.data.requestId, state: "ACCEPTED" },
+  ]);
+
   // ---- isolation: B has its own thread, namespace and lease; A's data is invisible to it ---------
   const B = await newAssessment("ASSESSMENT vertical B");
+  await q(
+    `UPDATE "AssessmentCase" SET "auditMode"='LEGACY_FULL' WHERE "assessmentId"=$1`,
+    [B.id],
+  );
   eq(
     (
       await customerHttp(
@@ -518,7 +800,7 @@ try {
     runtime(B.id, "claim"),
     runtime(B.id, "claim"),
   ]);
-  eq(claims.map((c) => c.status).sort(), [200, 409]);
+  eq(claims.map((c) => c.status).sort(), [200, 409], JSON.stringify(claims));
   const winner = claims.find((c) => c.status === 200).body.data;
   eq(winner.threadId, threadB);
   eq(
@@ -695,29 +977,8 @@ try {
     ).rows[0].s,
     "SUPERSEDED",
   );
-  // the pinned (superseded) rule set stays readable by its assessment
-  const lease = (await runtime(A.id, "claim")).body.data;
-  const pinnedRuleSet = await runtime(A.id, "rule-set", {
-    method: "GET",
-    lease: lease.leaseToken,
-  });
-  eq(
-    [
-      pinnedRuleSet.status,
-      pinnedRuleSet.body.data.ruleSetVersionId,
-      pinnedRuleSet.body.data.lifecycleState,
-    ],
-    [200, ruleSet1, "SUPERSEDED"],
-  );
-  eq(
-    (
-      await runtime(A.id, "finish", {
-        lease: lease.leaseToken,
-        body: { state: "SUCCEEDED" },
-      })
-    ).status,
-    200,
-  );
+  // The case remains pinned to the superseded version after its completed request;
+  // a completed selected request cannot issue another worker lease for readback.
 
   // ---- database guarantees on the real migrated schema ------------------------------------------
   const rejects = async (label, text, values, pattern) => {
@@ -793,6 +1054,28 @@ try {
     ).status,
     201,
   );
+  const terminalCatalog = await customerHttp(
+    "GET",
+    `/assessments/${completedByRoot.id}/rules?offset=0&limit=100`,
+    owner.token,
+  );
+  eq(terminalCatalog.status, 200, JSON.stringify(terminalCatalog.body));
+  const terminalAudit = await customerHttp(
+    "POST",
+    `/assessments/${completedByRoot.id}/rule-audits`,
+    owner.token,
+    {
+      idempotencyKey: randomUUID(),
+      expectedAuditRevision: terminalCatalog.body.data.auditRevision,
+      ruleSetVersionId: terminalCatalog.body.data.ruleSetVersionId,
+      ruleSetDigest: terminalCatalog.body.data.ruleSetDigest,
+      repositorySnapshotId: terminalCatalog.body.data.repositorySnapshotId,
+      repositoryCommit: terminalCatalog.body.data.repositoryCommit,
+      scopeMode: RULE_AUDIT_SCOPE_MODES.FULL_RULE_SET,
+      rules: [],
+    },
+  );
+  eq(terminalAudit.status, 201, JSON.stringify(terminalAudit.body));
   const completed = await runPython(script, [
     base,
     workerKey,

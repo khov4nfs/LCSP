@@ -51,6 +51,23 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
     private readonly coordinator: AssessmentLifecycleCoordinator,
   ) {}
 
+  /**
+   * Business purpose: Open a customer resolution request only for a rule authorized by the active Root request.
+   *
+   * Business rules:
+   * - Selected requests must contain the rule regardless of prior coverage; legacy full audits have no request ID.
+   * - The pinned rule criteria, customer-safe content and current case revision remain authoritative.
+   *
+   * Execution flow:
+   * 1. Authorize the Root lease and validate selected membership.
+   * 2. Validate the request, persist it, move coverage to waiting and transition lifecycle when needed.
+   *
+   * Failure cases:
+   * - Nonmembers or invalid/stale requests fail before human-request side effects.
+   *
+   * Side effects:
+   * - Persists a human request, updates decision coverage, appends events and may transition lifecycle.
+   */
   async execute(
     input: OpenHumanRequestCommand,
   ): Promise<OpenAssessmentHumanRequestResult> {
@@ -60,6 +77,12 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
         ...input,
         requireActive: false,
       });
+      await this.authority.requireSelectedRuleMembershipInTx(
+        tx,
+        run,
+        request.assessmentRuleId,
+        input.correlationId,
+      );
       const {
         expectedCaseRevision: _revision,
         idempotencyKey: _key,

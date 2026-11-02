@@ -1,6 +1,9 @@
 import { expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { ASSESSMENT_FACT_AUTHORITIES } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_AUDIT_MODES,
+  ASSESSMENT_FACT_AUTHORITIES,
+} from "@lcsp/contracts/assessment-domain";
 import { AssessmentDetailLoader } from "./assessment-detail.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
@@ -116,6 +119,8 @@ it("projects decision customer-visible rationales to VI while preserving technic
 
   row.domainCase = {
     caseRevision: 1,
+    auditRequestRevision: 0,
+    auditMode: ASSESSMENT_AUDIT_MODES.LEGACY_FULL,
     ruleSetVersionId: null,
     repositorySnapshotId: null,
     repositoryScanJobId: null,
