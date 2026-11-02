@@ -1,0 +1,8 @@
+{
+  "scope": "SYNTHETIC_POST_CUTOVER_DISPOSABLE_FIXTURE",
+  "status": "FAIL",
+  "checks": [],
+  "unrelatedSandboxCount": 0,
+  "reasonType": "FileNotFoundError",
+  "reason": "[WinError 2] The system cannot find the file specified"
+}

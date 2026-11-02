@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ShieldCheckIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import { ASSESSMENT_AUDIT_MODES } from "@lcsp/contracts/assessment-domain";
 import { cn } from "@/lib/utils";
 import {
   useAssessmentDetailQuery,
@@ -26,6 +27,7 @@ import { formatTokens } from "../../utils/format-tokens";
 const DOT: Record<CustomerAssessmentState, string> = {
   [CUSTOMER_ASSESSMENT_STATES.UNAVAILABLE]: "bg-muted-foreground/50",
   [CUSTOMER_ASSESSMENT_STATES.PREPARING]: "bg-muted-foreground",
+  [CUSTOMER_ASSESSMENT_STATES.SELECTING]: "bg-muted-foreground",
   [CUSTOMER_ASSESSMENT_STATES.WORKING]: "bg-primary motion-safe:animate-pulse",
   [CUSTOMER_ASSESSMENT_STATES.WAITING]: "bg-amber-500",
   [CUSTOMER_ASSESSMENT_STATES.PAUSED]: "bg-muted-foreground",
@@ -70,6 +72,7 @@ export function AssessmentContextPanel({
   const state = customerAssessmentState(
     assessment?.lifecycle ?? null,
     assessment?.runtime ?? null,
+    assessment?.case,
   );
   const progress = assessmentProgress(assessment);
   const ruleSet = assessment?.case?.ruleSet ?? null;
@@ -135,7 +138,14 @@ export function AssessmentContextPanel({
         </Fact>
         {progress ? (
           <Fact label={copy("context.progress")}>
-            {copy("context.progressValue", progress)}
+            {assessment?.case?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED
+              ? copy("context.selectedProgressValue", progress)
+              : copy("context.progressValue", progress)}
+            {assessment?.case?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED && ruleSet ? (
+              <span className="block text-xs text-muted-foreground">
+                {copy("ruleAudit.notRequested", { count: Math.max(0, ruleSet.assessmentRuleCount - progress.total) })}
+              </span>
+            ) : null}
             <progress
               value={progress.done}
               max={progress.total}

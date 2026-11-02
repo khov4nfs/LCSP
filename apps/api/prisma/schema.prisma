@@ -252,6 +252,7 @@ model AssessmentRuntime {
   checkpointNamespace String
   checkpointId        String?
   currentExecutionId  String?                  @db.Uuid
+  currentAuditRequestId String?                @db.Uuid
   executionState      AgentExecutionState      @default(QUEUED)
   leaseToken          String?                  @db.Uuid
   leaseExpiresAt      DateTime?                @db.Timestamptz(3)
@@ -1714,6 +1715,8 @@ enum AssessmentArtifactKind {
 model AssessmentCase {
   assessmentId         String                       @id
   caseRevision         Int                          @default(0)
+  auditRequestRevision Int                          @default(0)
+  auditMode             AssessmentAuditMode          @default(LEGACY_FULL)
   ruleSetVersionId     String?
   repositorySnapshotId String?
   repositoryScanJobId  String?
@@ -1729,9 +1732,84 @@ model AssessmentCase {
   coverage             AssessmentDecisionCoverage[]
   humanRequests        AssessmentHumanRequest[]
   artifacts            AssessmentArtifact[]
+  auditRequests        AssessmentRuleAuditRequest[]
 
   // Lets children prove they use the case's own pinned rule set (composite FK).
   @@unique([assessmentId, ruleSetVersionId])
+}
+
+enum AssessmentAuditMode {
+  LEGACY_FULL
+  CUSTOMER_SELECTED
+}
+
+enum AssessmentRuleAuditScopeMode {
+  SELECTED_RULES
+  FULL_RULE_SET
+}
+
+enum AssessmentRuleAuditStatus {
+  QUEUED
+  RUNNING
+  WAITING_FOR_CUSTOMER
+  COMPLETED
+  FAILED
+  INTERRUPTED
+  CANCELLED
+}
+
+/// An immutable customer choice. Runtime status may advance, but its pins and members cannot change.
+model AssessmentRuleAuditRequest {
+  requestId            String                       @id @db.Uuid
+  assessmentId         String
+  requestRevision      Int
+  idempotencyKey       String
+  requestDigest        String
+  scopeMode            AssessmentRuleAuditScopeMode
+  status               AssessmentRuleAuditStatus    @default(QUEUED)
+  lastRetryKey         String?
+  retryAttempt         Int                          @default(0)
+  ruleSetVersionId     String
+  ruleSetDigest        String
+  repositorySnapshotId String
+  repositoryCommit     String
+  requestedAt          DateTime                     @default(now()) @db.Timestamptz(3)
+  completedAt          DateTime?                    @db.Timestamptz(3)
+  assessmentCase       AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  rules                AssessmentRuleAuditItem[]
+  decisions            AssessmentRuleDecision[]
+  exports              AssessmentRuleAuditExport[]
+
+  @@unique([assessmentId, requestRevision])
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, status])
+}
+
+model AssessmentRuleAuditItem {
+  requestId             String @db.Uuid
+  assessmentRuleId      String
+  assessmentRuleVersion String
+  ordinal               Int
+  reusedDecisionId      String? @db.Uuid
+  request               AssessmentRuleAuditRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([requestId, assessmentRuleId])
+  @@unique([requestId, ordinal])
+}
+
+/// Immutable partial export of the accepted decisions available at its creation time.
+model AssessmentRuleAuditExport {
+  exportId        String @id @db.Uuid
+  requestId       String @db.Uuid
+  assessmentId    String
+  idempotencyKey  String
+  contentSha256   String
+  content         Json
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  request         AssessmentRuleAuditRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([requestId, idempotencyKey])
+  @@index([assessmentId, requestId])
 }
 
 model AssessmentEvidence {
@@ -1784,6 +1862,7 @@ model AssessmentCaseFactEvidence {
 model AssessmentRuleDecision {
   decisionId            String                         @id @db.Uuid
   assessmentId          String
+  auditRequestId        String?                        @db.Uuid
   ruleSetVersionId      String
   assessmentRuleId      String
   assessmentRuleVersion String
@@ -1801,6 +1880,7 @@ model AssessmentRuleDecision {
   supersededAt          DateTime?                      @db.Timestamptz(3)
   invalidatedAt         DateTime?                      @db.Timestamptz(3)
   assessmentCase        AssessmentCase                 @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
+  auditRequest          AssessmentRuleAuditRequest?    @relation(fields: [auditRequestId], references: [requestId], onDelete: Restrict, onUpdate: Restrict)
   assessmentRule        AssessmentRule                 @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
   currentFor            AssessmentDecisionCoverage[]
 
