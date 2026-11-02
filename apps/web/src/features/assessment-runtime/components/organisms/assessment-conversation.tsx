@@ -28,6 +28,7 @@ type AssessmentConversationProps = {
   failedRequestId?: string | null;
   /** Rendered after the last turn inside the scroll area (e.g. a load error). */
   footer?: ReactNode;
+  intro?: ReactNode;
   targetRequestId?: string;
 };
 
@@ -44,6 +45,7 @@ export function AssessmentConversation({
   submittingRequestId,
   failedRequestId,
   footer,
+  intro,
   targetRequestId,
 }: AssessmentConversationProps) {
   return (
@@ -52,6 +54,7 @@ export function AssessmentConversation({
       autoScrollKey={targetRequestId ? undefined : projection.followKey}
       live="off"
     >
+      {intro}
       {projection.turns.map((turn) => (
         <div key={turn.id} data-turn-kind={turn.kind}>
           {renderTurn(turn, {

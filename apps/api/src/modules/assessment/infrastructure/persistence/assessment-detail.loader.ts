@@ -311,6 +311,8 @@ export class AssessmentDetailLoader {
 
           return {
             caseRevision: domainCase.caseRevision,
+            auditRequestRevision: domainCase.auditRequestRevision,
+            auditMode: domainCase.auditMode,
             ruleSetVersionId: domainCase.ruleSetVersionId,
             ruleSet: pinnedRuleSet
               ? {

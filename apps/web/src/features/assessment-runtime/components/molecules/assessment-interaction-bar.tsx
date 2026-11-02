@@ -6,6 +6,7 @@ import {
   ARTIFACT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
+import { ASSESSMENT_AUDIT_MODES } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES } from "@lcsp/contracts/evidence";
 import { Button } from "@/components/ui/button";
 import { ChatInteractionBar } from "@/components/molecules/chat-interaction-bar";
@@ -63,6 +64,7 @@ export function AssessmentInteractionBar({
     runtime?.executionState === AGENT_EXECUTION_STATES.PAUSED;
   const isOrphanedQueued =
     assessment.lifecycle?.state === ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
+    assessment.case?.auditMode !== ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED &&
     runtime?.executionState === AGENT_EXECUTION_STATES.QUEUED &&
     runtime.currentExecutionId === null;
   const report = assessment.case?.artifacts.find(
@@ -72,7 +74,8 @@ export function AssessmentInteractionBar({
 
   if (
     state === CUSTOMER_ASSESSMENT_STATES.UNAVAILABLE ||
-    state === CUSTOMER_ASSESSMENT_STATES.PREPARING
+    state === CUSTOMER_ASSESSMENT_STATES.PREPARING ||
+    state === CUSTOMER_ASSESSMENT_STATES.SELECTING
   )
     return null;
 

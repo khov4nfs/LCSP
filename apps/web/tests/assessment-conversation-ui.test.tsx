@@ -437,7 +437,7 @@ test("COMPLETE: one completion message with the summary and report actions, no s
     const download = turn.querySelector<HTMLAnchorElement>('[data-report-action="download"]');
     assert.equal(download?.getAttribute("href"), `/api/assessments/${ASSESSMENT_ID}/artifacts/${ARTIFACT_ID}/download`);
     const viewLink = turn.querySelector<HTMLAnchorElement>('[data-report-action="view"]');
-    assert.equal(viewLink?.getAttribute("href"), `/assessments/${ASSESSMENT_ID}/report`);
+    assert.equal(viewLink?.getAttribute("href"), `/assessments/${ASSESSMENT_ID}/report?artifactId=${ARTIFACT_ID}`);
     assert.equal(view.querySelectorAll(".animate-spin").length, 0);
     assert.match(view.querySelector('[data-slot="chat-interaction-bar"]')?.textContent ?? "", /Assessment complete/);
   } finally {

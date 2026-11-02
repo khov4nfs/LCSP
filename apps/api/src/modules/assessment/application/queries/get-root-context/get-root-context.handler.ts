@@ -39,6 +39,19 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
     private readonly support: AssessmentCaseSupport,
   ) {}
 
+  /**
+   * Business purpose: Supply the leased Root with current pins, facts and only its authorized rule scope.
+   * Business rules:
+   * - Request membership comes from immutable server rows; legacy full assessments retain existing coverage.
+   * Execution flow:
+   * 1. Authorize the Root lease and load pinned case state.
+   * 2. Read request members, accepted facts, evidence, coverage and response language.
+   * 3. Filter coverage to selected members and validate the response contract.
+   * Failure cases:
+   * - An invalid lease or missing pins rejects the query without exposing another scope.
+   * Side effects:
+   * - Read-only transaction; no investigation or legal decision is created.
+   */
   async execute(input: GetRootContextQuery): Promise<AssessmentRootContext> {
     return this.prisma.$transaction(async (tx) => {
       const run = await this.authority.authorizeInTx(tx, {
@@ -49,6 +62,15 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         tx,
         input.assessmentId,
         input.correlationId,
+      );
+      const auditRequest = run.auditRequestId
+        ? await tx.assessmentRuleAuditRequest.findUnique({
+            where: { requestId: run.auditRequestId },
+            include: { rules: { orderBy: { ordinal: "asc" } } },
+          })
+        : null;
+      const selectedRuleIds = auditRequest?.rules.map(
+        (rule) => rule.assessmentRuleId,
       );
       const [
         coverage,
@@ -137,13 +159,27 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         repositoryScanJobId: pins.repositoryScanJobId,
         repositoryCommit: pins.repositoryCommit,
         decisionScopeId: ASSESSMENT_DECISION_SCOPE,
-        coverage: coverage.map((row) => ({
-          assessmentRuleId: row.assessmentRuleId,
-          assessmentRuleVersion: row.assessmentRuleVersion,
-          resolutionState: row.resolutionState,
-          currentDecisionId: row.currentDecisionId,
-          decisionRevision: row.decisionRevision,
-        })),
+        auditRequest: auditRequest
+          ? {
+              requestId: auditRequest.requestId,
+              scopeMode: auditRequest.scopeMode,
+              status: auditRequest.status,
+              selectedRuleIds,
+            }
+          : null,
+        coverage: coverage
+          .filter(
+            (row) =>
+              !selectedRuleIds ||
+              selectedRuleIds.includes(row.assessmentRuleId),
+          )
+          .map((row) => ({
+            assessmentRuleId: row.assessmentRuleId,
+            assessmentRuleVersion: row.assessmentRuleVersion,
+            resolutionState: row.resolutionState,
+            currentDecisionId: row.currentDecisionId,
+            decisionRevision: row.decisionRevision,
+          })),
         facts: facts.map((fact) => ({
           factId: fact.factId,
           assessmentId: fact.assessmentId,

@@ -1,0 +1,33 @@
+{
+  "requestId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "assessmentId": "11111111-1111-4111-8111-111111111111",
+  "requestRevision": 1,
+  "scopeMode": "SELECTED_RULES",
+  "status": "RUNNING",
+  "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+  "ruleSetDigest": "digest",
+  "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+  "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "requestedAt": "2026-10-31T00:00:00.000Z",
+  "completedAt": null,
+  "totalPinned": 20,
+  "requested": 2,
+  "ready": 1,
+  "notRequested": 18,
+  "rules": [
+    {
+      "assessmentRuleId": "Rule-3",
+      "assessmentRuleVersion": "v1",
+      "ordinal": 0,
+      "progress": "RESULT_READY",
+      "decisionId": "66666666-6666-4666-8666-666666666666"
+    },
+    {
+      "assessmentRuleId": "Rule-9",
+      "assessmentRuleVersion": "v1",
+      "ordinal": 1,
+      "progress": "INVESTIGATING",
+      "decisionId": null
+    }
+  ]
+}

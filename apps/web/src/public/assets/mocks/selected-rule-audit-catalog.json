@@ -1,0 +1,296 @@
+{
+  "assessmentId": "11111111-1111-4111-8111-111111111111",
+  "auditMode": "CUSTOMER_SELECTED",
+  "auditRevision": 0,
+  "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+  "ruleSetDigest": "digest",
+  "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+  "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "latestRequestId": null,
+  "latestRequestStatus": null,
+  "total": 20,
+  "offset": 0,
+  "nextOffset": null,
+  "rules": [
+    {
+      "assessmentRuleId": "Rule-1",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 1",
+      "summary": "Assessment rule 1 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-1",
+          "title": "Legal requirement 1"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-2",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 2",
+      "summary": "Assessment rule 2 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-2",
+          "title": "Legal requirement 2"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-3",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 3",
+      "summary": "Assessment rule 3 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-3",
+          "title": "Legal requirement 3"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-4",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 4",
+      "summary": "Assessment rule 4 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-4",
+          "title": "Legal requirement 4"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-5",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 5",
+      "summary": "Assessment rule 5 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-5",
+          "title": "Legal requirement 5"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-6",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 6",
+      "summary": "Assessment rule 6 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-6",
+          "title": "Legal requirement 6"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-7",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 7",
+      "summary": "Assessment rule 7 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-7",
+          "title": "Legal requirement 7"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-8",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 8",
+      "summary": "Assessment rule 8 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-8",
+          "title": "Legal requirement 8"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-9",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 9",
+      "summary": "Assessment rule 9 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-9",
+          "title": "Legal requirement 9"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-10",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 10",
+      "summary": "Assessment rule 10 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-10",
+          "title": "Legal requirement 10"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-11",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 11",
+      "summary": "Assessment rule 11 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-11",
+          "title": "Legal requirement 11"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-12",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 12",
+      "summary": "Assessment rule 12 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-12",
+          "title": "Legal requirement 12"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-13",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 13",
+      "summary": "Assessment rule 13 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-13",
+          "title": "Legal requirement 13"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-14",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 14",
+      "summary": "Assessment rule 14 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-14",
+          "title": "Legal requirement 14"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-15",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 15",
+      "summary": "Assessment rule 15 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-15",
+          "title": "Legal requirement 15"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-16",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 16",
+      "summary": "Assessment rule 16 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-16",
+          "title": "Legal requirement 16"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-17",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 17",
+      "summary": "Assessment rule 17 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-17",
+          "title": "Legal requirement 17"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-18",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 18",
+      "summary": "Assessment rule 18 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-18",
+          "title": "Legal requirement 18"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-19",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 19",
+      "summary": "Assessment rule 19 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-19",
+          "title": "Legal requirement 19"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    },
+    {
+      "assessmentRuleId": "Rule-20",
+      "assessmentRuleVersion": "v1",
+      "concept": "Rule 20",
+      "summary": "Assessment rule 20 summary",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "Legal-20",
+          "title": "Legal requirement 20"
+        }
+      ],
+      "progress": "NOT_SELECTED",
+      "decisionId": null
+    }
+  ]
+}

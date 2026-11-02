@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
+  ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
   assessmentProvenanceArtifactSchema,
@@ -413,6 +414,13 @@ describe("AssessmentProvenanceLoader", () => {
     );
     expect(result.decisions).toHaveLength(1);
     expect(result.coverage).toHaveLength(1);
+    expect(result.auditScope).toEqual({
+      auditMode: ASSESSMENT_AUDIT_MODES.LEGACY_FULL,
+      totalPinned: 5,
+      requested: 5,
+      ready: 1,
+      notRequested: 0,
+    });
     expect(result.events).toHaveLength(1);
     expect(result.artifacts).toHaveLength(1);
     expect(result.checksumSha256).toBeDefined();
@@ -421,6 +429,57 @@ describe("AssessmentProvenanceLoader", () => {
     expect(() =>
       assessmentProvenanceArtifactSchema.parse(result),
     ).not.toThrow();
+  });
+
+  it("labels customer-selected provenance as partial without deciding unrequested rules", async () => {
+    const record = buildValidRecord();
+    Object.assign(record.domainCase, {
+      auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
+    });
+    const loader = new AssessmentProvenanceLoader({
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService);
+
+    const result = await loader.load({
+      assessmentId,
+      sessionUserId: ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "selected-scope",
+    });
+
+    expect(result.auditScope).toEqual({
+      auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
+      totalPinned: 5,
+      requested: 1,
+      ready: 1,
+      notRequested: 4,
+    });
+    expect(result.decisions).toHaveLength(1);
+    expect(result.coverage).toHaveLength(1);
+  });
+
+  it("rejects selected coverage larger than the pinned catalog", async () => {
+    const record = buildValidRecord();
+    Object.assign(record.domainCase, {
+      auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
+    });
+    record.domainCase.ruleSet._count.assessmentRules = 0;
+    const loader = new AssessmentProvenanceLoader({
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "invalid-scope",
+      }),
+    ).rejects.toThrow();
   });
 
   it("redacts sensitive fields, private reasoning, and system prompts from event payloads", async () => {
