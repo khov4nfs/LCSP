@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { Search } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import {
@@ -243,8 +244,8 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
       data-slot="rule-audit-picker"
     >
       <Card>
-        <CardHeader>
-          <CardTitle>
+        <CardHeader className="gap-2 pb-4">
+          <CardTitle className="text-lg">
             <h2>{copy("ruleAudit.title")}</h2>
           </CardTitle>
           <CardDescription>{copy("ruleAudit.description")}</CardDescription>
@@ -308,15 +309,22 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
         ) : null}
         <CardContent>
           <FormProvider {...form}>
-            <form onSubmit={handleSelectionSubmit} className="mt-3 space-y-3">
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                aria-label={copy("ruleAudit.search")}
-                placeholder={copy("ruleAudit.search")}
-              />
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span>
+            <form onSubmit={handleSelectionSubmit} className="mt-1 space-y-4">
+              <div className="relative">
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  aria-label={copy("ruleAudit.search")}
+                  placeholder={copy("ruleAudit.search")}
+                  className="h-10 rounded-lg pl-9"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-auto text-sm font-medium">
                   {copy("ruleAudit.selectedCount", {
                     selected: selectedIds.length,
                     total: data.total,
@@ -326,6 +334,7 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="rounded-lg"
                   disabled={!canStart}
                   onClick={() =>
                     form.setValue(
@@ -344,8 +353,9 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="rounded-lg"
                   disabled={!canStart || selectedIds.length === 0}
                   onClick={() => form.setValue("selectedRuleIds", [])}
                 >
@@ -353,7 +363,7 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                 </Button>
               </div>
               <ul
-                className="max-h-80 space-y-2 overflow-y-auto"
+                className="max-h-72 space-y-2 overflow-y-auto rounded-xl border bg-muted/20 p-2 sm:max-h-96"
                 aria-label={copy("ruleAudit.title")}
               >
                 {filtered.map((rule) => (
@@ -372,9 +382,10 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                 ))}
               </ul>
               {canStart ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 border-t pt-4">
                   <Button
                     type="submit"
+                    className="rounded-lg"
                     disabled={selectedIds.length === 0 || submit.isPending}
                   >
                     {copy("ruleAudit.auditSelected")}
@@ -382,6 +393,7 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                   <Button
                     type="button"
                     variant="outline"
+                    className="rounded-lg"
                     disabled={submit.isPending}
                     onClick={() =>
                       void start(RULE_AUDIT_SCOPE_MODES.FULL_RULE_SET, [])
