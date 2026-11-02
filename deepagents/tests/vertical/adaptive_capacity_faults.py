@@ -124,13 +124,15 @@ def bridge_mode():
 
 def main():
     events=[];scenarios={};children=[];requests=[];request_lock=threading.Lock();timeline=[]
+    release_signals = {identity: directory / ('release-' + identity) for identity in held}
     class Provider(BaseHTTPRequestHandler):
         def do_POST(self):
             payload=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
             payload.update(startedAt=time.time(),finishedAt=None)
             with request_lock: requests.append(payload)
-            if payload['step']==0 and payload['assessmentId'] in held:
-                while not (directory/('release-'+payload['assessmentId'])).exists(): time.sleep(.02)
+            release_signal = release_signals.get(payload['assessmentId'])
+            if payload['step']==0 and release_signal is not None:
+                while not release_signal.exists(): time.sleep(.02)
             with request_lock:payload['finishedAt']=time.time()
             try:
                 self.send_response(200);self.end_headers();self.wfile.write(b'{"fixture":true}')

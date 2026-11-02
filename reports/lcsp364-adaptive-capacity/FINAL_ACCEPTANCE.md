@@ -48,7 +48,7 @@ Local source-bound receipts:
 
 Setup-only failed attempts (unstarted default test DB, overlapping resettable fixture names and an obsolete fixture assertion against the deliberately cleared success resume pointer) were corrected without weakening product assertions. The completed checkpoint ancestry is verified against persisted native checkpoint rows. No fixture is claimed to prove paid-provider semantics or production faults.
 
-Exact-head CodeQL on `1094527d4` found an uncontrolled log path in the new fault harness. The input is now restricted to an owned, allowlisted temporary directory and `input.json` before reading it; traversal/unowned-path controls pass along with all 32 focused lifecycle tests. The 10-scenario real-process suite passes again after this harness-only hardening. The security check must pass on the follow-up HEAD; the old alert is not dismissed or waived. Runtime production sources remain identical to `1094527d4`.
+Exact-head CodeQL on `1094527d4` found an HTTP model-fixture Assessment ID flowing into a release-marker path. The first directory guard in `90b1f10c9` did not remove that HTTP dataflow; its scan correctly remained failed. The adapter now selects a preconstructed release marker from known fixture identities instead of composing a path from HTTP content. Input is also restricted to an owned temporary directory and `input.json`; traversal/unowned-path controls pass with 32 focused lifecycle tests. The security check must pass on the corrected follow-up HEAD; no alert is dismissed or waived. Production runtime sources remain identical to `1094527d4`.
 
 ## F. Production scope and safe envelope
 
