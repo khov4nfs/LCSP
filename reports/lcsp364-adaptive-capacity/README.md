@@ -1,6 +1,6 @@
 # LCSP-364 engineering report — A–K
 
-Latest production update: [2026-10-31 isolated native acceptance and A–K verdict](acceptance-20261031.md). Fogewise ran real native canaries on `2cd94a65e`, including Stop/Continue, HITL release, automatic admission recovery, safety refusal, fenced restart, duplicate redelivery and audited bounded-mode rollback. Unused test credit was reversed. Complete production/semantic/monetary acceptance and review remain **BLOCKED**. [Earlier failed A and binary rollback](rollout-20261031.md) remain history.
+Latest update: [2026-11-02 real native concurrency and A–K verdict](acceptance-20261102.md). A representative isolated live-provider stack proves automatic **1→2→1**, two overlapping native Roots across two API/two bridge processes, Stop/Continue ancestry, HITL release and no extra work after real broker redelivery. User answers remain UNKNOWN; full production/legal/report/monetary acceptance and review remain **BLOCKED**. [2026-10-31 Fogewise acceptance](acceptance-20261031.md) retains production peak one, safety refusal, fencing and rollback. Both environment-specific test credit grants have been reversed. [Earlier failed A and binary rollback](rollout-20261031.md) remain history.
 
 Verdict: **BLOCKED for production acceptance and merge**. Implementation is in
 [PR #442](https://github.com/khov4nfs/LCSP/pull/442), targeting develop.

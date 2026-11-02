@@ -1,0 +1,25 @@
+{
+  "native": {
+    "ok": true,
+    "data": {
+      "draining": false,
+      "activeNativeRuns": 2,
+      "reservedRootRuns": 2,
+      "activeNativeRoots": 2,
+      "quiescent": false
+    }
+  },
+  "dProviderAttemptsBeforeStop": 1,
+  "control": {
+    "httpStatus": 200,
+    "payload": {
+      "ok": true,
+      "data": {
+        "state": "RUNNING",
+        "targetRunId": "937d8ca6-5a88-4916-86f9-ee522cc22fd2",
+        "requestId": null
+      }
+    }
+  },
+  "at": "2026-11-02 03:32:18.543553+00:00"
+}

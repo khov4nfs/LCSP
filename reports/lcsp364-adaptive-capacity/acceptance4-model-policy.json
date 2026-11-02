@@ -1,0 +1,7 @@
+{
+  "sha256": "2dcc7049d3309c36647ba60dac06453b0259cefe5bdd7e626316ab447d20a55b",
+  "sourcePath": "/srv/apps/.lcsp-config/model_routes.yaml",
+  "exactBytesPreserved": true,
+  "isolatedContainerPath": "/run/lcsp364/model_routes.yaml",
+  "startupFailureBeforeAnyAssessment": "Original source path unavailable inside isolated container"
+}

@@ -1,0 +1,39 @@
+{
+  "sourceRevision": "31f27042970b5aa6945e612af283a6e61aee3fa2",
+  "scope": "ISOLATED_LIVE_PROVIDER_NATIVE_NO_SCRIPTED_MODEL",
+  "processes": [
+    {
+      "name": "router",
+      "pid": 63415
+    },
+    {
+      "name": "api-36481",
+      "pid": 47457
+    },
+    {
+      "name": "api-36482",
+      "pid": 47640
+    },
+    {
+      "name": "bridge-1",
+      "pid": 47960
+    },
+    {
+      "name": "bridge-2",
+      "pid": 47961
+    }
+  ],
+  "apiReplicas": 2,
+  "bridgeReplicas": 2,
+  "authoritativeServers": 1,
+  "nativeContainer": "lcsp364-live-server-31f270429",
+  "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+  "nativeCgroupMemoryBytes": 8589934592,
+  "physicalNativeSlots": 2,
+  "cgroupFullAncestryReadOnly": true,
+  "dockerCliMountedReadOnly": true,
+  "providerPolicySha256": "2dcc7049d3309c36647ba60dac06453b0259cefe5bdd7e626316ab447d20a55b",
+  "apiDatabase": "lcsp364_native_20261031_31f270429",
+  "checkpointDatabase": "lcsp364_native_cp_20261031_31f270429",
+  "requestRouting": "TRANSPARENT_PER_OPERATION_ROUND_ROBIN_NO_RETRY"
+}

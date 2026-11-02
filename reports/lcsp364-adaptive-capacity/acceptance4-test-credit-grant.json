@@ -1,0 +1,26 @@
+{
+  "reference": "LCSP-364",
+  "action": "grant",
+  "replay": false,
+  "testAccountHash": "a6c5c8279d66930d",
+  "actorVerifiedAdmin": true,
+  "ledgerEntryId": "1331b9dc-217e-488f-a4b5-d8b5226fa70b",
+  "source": "INTERNAL_TEST_GRANT",
+  "idempotencyKey": "LCSP-364:test-credit:isolated-live-20261031:2e723a25-b79c-4aac-a094-5771f3fbc590:grant:1",
+  "deltaCredits": "1000000",
+  "before": {
+    "available": "0",
+    "reserved": "0",
+    "version": 0
+  },
+  "after": {
+    "available": "1000000",
+    "reserved": "0",
+    "version": 1
+  },
+  "grantCredits": "1000000",
+  "usedCredits": "0",
+  "remainingTestCredits": "1000000",
+  "environment": "ISOLATED_LIVE_NATIVE_ACCEPTANCE",
+  "sourceScript": "scripts/lcsp364-test-credit.mjs, identical kernel/account checks with isolated fixed idempotency-key prefix and module path"
+}

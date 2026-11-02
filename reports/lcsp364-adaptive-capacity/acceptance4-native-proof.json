@@ -1,0 +1,331 @@
+{
+  "capturedAt": "2026-11-02T03:43:23.397020+00:00",
+  "scope": "ISOLATED_LIVE_PROVIDER_NATIVE_NOT_FOGEWISE_NOT_SCRIPTED_MODEL",
+  "apiReplicas": 2,
+  "bridgeReplicas": 2,
+  "authoritativeAgentServers": 1,
+  "sourceRevision": "31f27042970b5aa6945e612af283a6e61aee3fa2",
+  "nativeImageSourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "physicalSlots": [
+    {
+      "runId": "846c5ac6-7a1d-49e4-8ed4-e8ddba0c9c72",
+      "commandId": "outbox:09623f75d873a9d8c84dc4fba63b01f131eae808231382c7ac98bc291bd4d168",
+      "startedAt": "2026-11-02T03:30:48.196+00:00",
+      "admittedAt": "2026-11-02T03:30:47.84+00:00",
+      "releasedAt": "2026-11-02T03:32:22.648+00:00",
+      "requestedAt": "2026-11-02T03:30:47.592+00:00",
+      "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+      "incarnationId": "d05957f0-da4b-4ce5-a19d-818f9d6ff815"
+    },
+    {
+      "runId": "f397e7b6-9c76-4b3a-93e9-a9fa7fa39a4a",
+      "commandId": "outbox:60e130496613f3b5b75e2c6ad360622252bdb87e1f72d42e32c6f3cde0a1b07c",
+      "startedAt": "2026-11-02T03:31:34.169+00:00",
+      "admittedAt": "2026-11-02T03:31:34.073+00:00",
+      "releasedAt": "2026-11-02T03:33:36.63+00:00",
+      "requestedAt": "2026-11-02T03:30:47.829+00:00",
+      "assessmentId": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+      "incarnationId": "d05957f0-da4b-4ce5-a19d-818f9d6ff815"
+    },
+    {
+      "runId": "0ff691d3-1634-436e-b1fa-7c4779c6b557",
+      "commandId": "outbox:e43fc7c3bbc66942103a2fb5ec766282155cd6206b95c75c92289b10a8884940",
+      "startedAt": "2026-11-02T03:32:34.3+00:00",
+      "admittedAt": "2026-11-02T03:32:34.218+00:00",
+      "releasedAt": "2026-11-02T03:34:39.671+00:00",
+      "requestedAt": "2026-11-02T03:30:48.034+00:00",
+      "assessmentId": "9d7e6400-fbc7-44dc-a515-d2501e4045bb",
+      "incarnationId": "d05957f0-da4b-4ce5-a19d-818f9d6ff815"
+    },
+    {
+      "runId": "824b72ee-3010-4a31-8733-abc557f09348",
+      "commandId": "outbox:2f6382c7241f1e3f9153c74400903f5d041f7c152e8115f08bf20df5d8685fd5",
+      "startedAt": "2026-11-02T03:34:47.718+00:00",
+      "admittedAt": "2026-11-02T03:34:47.618+00:00",
+      "releasedAt": "2026-11-02T03:35:24.982+00:00",
+      "requestedAt": "2026-11-02T03:34:32.344+00:00",
+      "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+      "incarnationId": "d05957f0-da4b-4ce5-a19d-818f9d6ff815"
+    }
+  ],
+  "nativeTransports": [
+    {
+      "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+      "run": {
+        "run_id": "846c5ac6-7a1d-49e4-8ed4-e8ddba0c9c72",
+        "status": "success",
+        "thread_id": "07baea1d-b58c-59f6-887d-8552d1260b80",
+        "created_at": "2026-11-02T03:30:47.790555+00:00",
+        "updated_at": "2026-11-02T03:32:22.624766+00:00",
+        "assistant_id": "lcsp-agent",
+        "multitask_strategy": "enqueue"
+      },
+      "boundary": "assessment_root_requested",
+      "commandKey": "e983847a-1a58-4397-a8c2-2013d9147499:command.assessment.root.requested.v1:start"
+    },
+    {
+      "assessmentId": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+      "run": {
+        "run_id": "f397e7b6-9c76-4b3a-93e9-a9fa7fa39a4a",
+        "status": "success",
+        "thread_id": "cf0fdb45-74f4-5275-864b-3ce58decab22",
+        "created_at": "2026-11-02T03:31:34.028703+00:00",
+        "updated_at": "2026-11-02T03:33:36.605242+00:00",
+        "assistant_id": "lcsp-agent",
+        "multitask_strategy": "enqueue"
+      },
+      "boundary": "assessment_root_requested",
+      "commandKey": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e:command.assessment.root.requested.v1:start"
+    },
+    {
+      "assessmentId": "9d7e6400-fbc7-44dc-a515-d2501e4045bb",
+      "run": {
+        "run_id": "0ff691d3-1634-436e-b1fa-7c4779c6b557",
+        "status": "success",
+        "thread_id": "324bddaf-29c5-5df6-a6d8-7b9a43745781",
+        "created_at": "2026-11-02T03:32:34.167685+00:00",
+        "updated_at": "2026-11-02T03:34:39.629641+00:00",
+        "assistant_id": "lcsp-agent",
+        "multitask_strategy": "enqueue"
+      },
+      "boundary": "assessment_root_requested",
+      "commandKey": "9d7e6400-fbc7-44dc-a515-d2501e4045bb:command.assessment.root.requested.v1:start"
+    },
+    {
+      "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+      "run": {
+        "run_id": "824b72ee-3010-4a31-8733-abc557f09348",
+        "status": "success",
+        "thread_id": "07baea1d-b58c-59f6-887d-8552d1260b80",
+        "created_at": "2026-11-02T03:34:47.565046+00:00",
+        "updated_at": "2026-11-02T03:35:24.959044+00:00",
+        "assistant_id": "lcsp-agent",
+        "multitask_strategy": "enqueue"
+      },
+      "boundary": "assessment_root_requested",
+      "commandKey": "root-resume:937d8ca6-5a88-4916-86f9-ee522cc22fd2:c4e03b90-5d57-46bd-82bd-a6a0675771b3"
+    }
+  ],
+  "checkpoints": [
+    {
+      "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+      "threadId": "019bb6b0-2cd2-4730-9935-1af99684516b",
+      "checkpoints": 443,
+      "firstCheckpoint": "1f1d66dd-7042-694a-bfff-6073d370395e",
+      "firstCheckpointAt": "2026-11-02T03:31:07.234933+00:00",
+      "latestCheckpoint": "1f1d66e6-ff53-6c30-81b9-627430dee511",
+      "latestCheckpointAt": "2026-11-02T03:35:23.828491+00:00",
+      "stoppedCheckpoint": "1f1d66e0-3baf-6df2-815b-8ed16704304c",
+      "resumedCheckpointDescendsFromStopped": true,
+      "parentLinksToStopped": 94,
+      "sameLogicalExecutionId": "937d8ca6-5a88-4916-86f9-ee522cc22fd2",
+      "checkpointsInsideOverlap": [
+        {
+          "start": "2026-11-02T03:31:34.169000+00:00",
+          "end": "2026-11-02T03:32:22.648000+00:00",
+          "count": 200
+        }
+      ]
+    },
+    {
+      "assessmentId": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+      "threadId": "f8bb9265-5dd0-4348-9726-2bde47c7a11d",
+      "checkpoints": 380,
+      "firstCheckpoint": "1f1d66e0-0dcb-68c7-bfff-a2acbe00a14f",
+      "firstCheckpointAt": "2026-11-02T03:32:17.440769+00:00",
+      "latestCheckpoint": "1f1d66e2-fd79-6483-817a-dafa5a66976b",
+      "latestCheckpointAt": "2026-11-02T03:33:36.259985+00:00",
+      "checkpointsInsideOverlap": [
+        {
+          "start": "2026-11-02T03:31:34.169000+00:00",
+          "end": "2026-11-02T03:32:22.648000+00:00",
+          "count": 56
+        },
+        {
+          "start": "2026-11-02T03:32:34.300000+00:00",
+          "end": "2026-11-02T03:33:36.630000+00:00",
+          "count": 231
+        }
+      ]
+    },
+    {
+      "assessmentId": "9d7e6400-fbc7-44dc-a515-d2501e4045bb",
+      "threadId": "63604511-f9a2-4114-98ca-42e82edc7ba2",
+      "checkpoints": 443,
+      "firstCheckpoint": "1f1d66e1-65f4-69b9-bfff-849454b34477",
+      "firstCheckpointAt": "2026-11-02T03:32:53.528610+00:00",
+      "latestCheckpoint": "1f1d66e5-47b8-6433-81b9-d4795e7aa359",
+      "latestCheckpointAt": "2026-11-02T03:34:37.732325+00:00",
+      "checkpointsInsideOverlap": [
+        {
+          "start": "2026-11-02T03:32:34.300000+00:00",
+          "end": "2026-11-02T03:33:36.630000+00:00",
+          "count": 264
+        }
+      ]
+    }
+  ],
+  "assessments": [
+    {
+      "label": "c",
+      "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+      "threadId": "019bb6b0-2cd2-4730-9935-1af99684516b",
+      "repo": "shreeram312/AI-Proctored-System",
+      "commit": "9ddb361e4cd52aafe4e1d0763f57005a607efae6",
+      "connectionId": "0f32f02f-edee-4c89-bb60-a75a0d9d719e",
+      "snapshotId": "d5282501-f855-4ab5-b37a-dc5d2cc0f037",
+      "runtime": {
+        "threadId": "019bb6b0-2cd2-4730-9935-1af99684516b",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "e983847a-1a58-4397-a8c2-2013d9147499",
+        "checkpointId": "1f1d66e6-ff53-6c30-81b9-627430dee511",
+        "currentExecutionId": "937d8ca6-5a88-4916-86f9-ee522cc22fd2",
+        "executionState": "INTERRUPTED",
+        "eventSequence": 75,
+        "startedAt": "2026-11-02T03:34:47.717Z",
+        "lastResumedAt": "2026-11-02T03:34:47.717Z",
+        "updatedAt": "2026-11-02T03:35:24.936Z"
+      },
+      "lifecycle": {
+        "state": "WAITING_FOR_HUMAN",
+        "assessmentRevision": 5
+      },
+      "caseRevision": 0,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "ruleSet": {
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "version": "lcsp-360-official-eight-document-acceptance-corpus.v1.p1",
+        "legalSourceVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+        "legalRequirementCount": 633,
+        "assessmentRuleCount": 243
+      },
+      "repositoryCommit": "9ddb361e4cd52aafe4e1d0763f57005a607efae6",
+      "facts": 0,
+      "decisions": 0,
+      "artifacts": 0,
+      "humanRequests": {
+        "OPEN": 3
+      }
+    },
+    {
+      "label": "d",
+      "assessmentId": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+      "threadId": "f8bb9265-5dd0-4348-9726-2bde47c7a11d",
+      "repo": "Kowshik-18/credit_score_engine",
+      "commit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+      "connectionId": "149d9b21-b929-4b95-9196-21aee9579fd8",
+      "snapshotId": "fe8441b3-994b-48d9-98b5-819d5cbd5db9",
+      "runtime": {
+        "threadId": "f8bb9265-5dd0-4348-9726-2bde47c7a11d",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+        "checkpointId": "1f1d66e2-fd79-6483-817a-dafa5a66976b",
+        "currentExecutionId": "21c6d2b8-c57f-4687-b68a-b9b8e8c498bb",
+        "executionState": "INTERRUPTED",
+        "eventSequence": 63,
+        "startedAt": "2026-11-02T03:31:34.165Z",
+        "lastResumedAt": "2026-11-02T03:31:34.165Z",
+        "updatedAt": "2026-11-02T03:33:36.581Z"
+      },
+      "lifecycle": {
+        "state": "WAITING_FOR_HUMAN",
+        "assessmentRevision": 3
+      },
+      "caseRevision": 1,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "ruleSet": {
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "version": "lcsp-360-official-eight-document-acceptance-corpus.v1.p1",
+        "legalSourceVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+        "legalRequirementCount": 633,
+        "assessmentRuleCount": 243
+      },
+      "repositoryCommit": "132b5d796b32bf2f4454990b64df7d0435e28161",
+      "facts": 1,
+      "decisions": 0,
+      "artifacts": 0,
+      "humanRequests": {
+        "OPEN": 2
+      }
+    },
+    {
+      "label": "e",
+      "assessmentId": "9d7e6400-fbc7-44dc-a515-d2501e4045bb",
+      "threadId": "63604511-f9a2-4114-98ca-42e82edc7ba2",
+      "repo": "vishal017/cheatshield",
+      "commit": "af4a55a86244f68d749d43b40f13678defdfff81",
+      "connectionId": "936f2333-a1ff-4a95-ba36-63e227229304",
+      "snapshotId": "2fe7bc19-a24d-4f56-b3a1-e132dde87ab7",
+      "runtime": {
+        "threadId": "63604511-f9a2-4114-98ca-42e82edc7ba2",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "9d7e6400-fbc7-44dc-a515-d2501e4045bb",
+        "checkpointId": "1f1d66e5-47b8-6433-81b9-d4795e7aa359",
+        "currentExecutionId": "35a7216c-330c-4457-aa4b-2a9f72d6f970",
+        "executionState": "INTERRUPTED",
+        "eventSequence": 61,
+        "startedAt": "2026-11-02T03:32:34.297Z",
+        "lastResumedAt": "2026-11-02T03:32:34.297Z",
+        "updatedAt": "2026-11-02T03:34:39.571Z"
+      },
+      "lifecycle": {
+        "state": "WAITING_FOR_HUMAN",
+        "assessmentRevision": 3
+      },
+      "caseRevision": 4,
+      "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+      "ruleSet": {
+        "ruleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "version": "lcsp-360-official-eight-document-acceptance-corpus.v1.p1",
+        "legalSourceVersion": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+        "legalRequirementCount": 633,
+        "assessmentRuleCount": 243
+      },
+      "repositoryCommit": "af4a55a86244f68d749d43b40f13678defdfff81",
+      "facts": 4,
+      "decisions": 0,
+      "artifacts": 0,
+      "humanRequests": {
+        "OPEN": 4
+      }
+    }
+  ],
+  "overlaps": [
+    {
+      "assessmentIds": [
+        "e983847a-1a58-4397-a8c2-2013d9147499",
+        "1dbfa6d0-49a7-40a2-b5d8-81a42744881e"
+      ],
+      "start": "2026-11-02T03:31:34.169000+00:00",
+      "end": "2026-11-02T03:32:22.648000+00:00",
+      "seconds": 48.479
+    },
+    {
+      "assessmentIds": [
+        "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+        "9d7e6400-fbc7-44dc-a515-d2501e4045bb"
+      ],
+      "start": "2026-11-02T03:32:34.300000+00:00",
+      "end": "2026-11-02T03:33:36.630000+00:00",
+      "seconds": 62.33
+    }
+  ],
+  "actualPeakNativeRoots": 2,
+  "actualNativeSegments": 4,
+  "replicasHandlingGlobalReserve": [
+    36481,
+    36482
+  ],
+  "billingAfterReversal": {
+    "wallets": [
+      {
+        "version": 2,
+        "reservedCredits": "0",
+        "availableCredits": "0"
+      }
+    ],
+    "ledgerEntries": 2,
+    "paymentTransactions": 0,
+    "billingReservations": 0
+  }
+}

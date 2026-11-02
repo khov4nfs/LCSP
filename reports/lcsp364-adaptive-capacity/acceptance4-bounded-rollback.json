@@ -1,0 +1,22 @@
+{
+  "at": "2026-11-02T03:38:13.492029+00:00",
+  "scope": "ISOLATED_LIVE_PROVIDER_NATIVE",
+  "before": {
+    "version": 117,
+    "desired": 1,
+    "effective": 1,
+    "active": 0,
+    "reason": "COOLDOWN_OR_HYSTERESIS"
+  },
+  "result": {
+    "httpStatus": 200,
+    "payload": {
+      "ok": true,
+      "data": {
+        "version": 118,
+        "desired": 2,
+        "effective": 0
+      }
+    }
+  }
+}

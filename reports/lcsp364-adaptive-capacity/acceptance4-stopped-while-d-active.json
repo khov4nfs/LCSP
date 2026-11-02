@@ -1,0 +1,41 @@
+{
+  "cControl": {
+    "state": "STOPPED",
+    "targetRunId": "937d8ca6-5a88-4916-86f9-ee522cc22fd2",
+    "requestId": "0508a472-5745-497c-8153-a7a0c0648664"
+  },
+  "cRuntime": {
+    "threadId": "019bb6b0-2cd2-4730-9935-1af99684516b",
+    "rootAgentVersion": "assessment-root-v2",
+    "checkpointNamespace": "e983847a-1a58-4397-a8c2-2013d9147499",
+    "checkpointId": "1f1d66e0-3baf-6df2-815b-8ed16704304c",
+    "currentExecutionId": "937d8ca6-5a88-4916-86f9-ee522cc22fd2",
+    "executionState": "PAUSED",
+    "eventSequence": 60,
+    "startedAt": "2026-11-02T03:30:48.194Z",
+    "lastResumedAt": "2026-11-02T03:30:48.194Z",
+    "updatedAt": "2026-11-02T03:32:22.598Z"
+  },
+  "cSlot": {
+    "runId": "846c5ac6-7a1d-49e4-8ed4-e8ddba0c9c72",
+    "commandId": "outbox:09623f75d873a9d8c84dc4fba63b01f131eae808231382c7ac98bc291bd4d168",
+    "startedAt": "2026-11-02T03:30:48.196+00:00",
+    "admittedAt": "2026-11-02T03:30:47.84+00:00",
+    "releasedAt": "2026-11-02T03:32:22.648+00:00",
+    "requestedAt": "2026-11-02T03:30:47.592+00:00",
+    "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+    "incarnationId": "d05957f0-da4b-4ce5-a19d-818f9d6ff815"
+  },
+  "dSlot": {
+    "runId": "f397e7b6-9c76-4b3a-93e9-a9fa7fa39a4a",
+    "commandId": "outbox:60e130496613f3b5b75e2c6ad360622252bdb87e1f72d42e32c6f3cde0a1b07c",
+    "startedAt": "2026-11-02T03:31:34.169+00:00",
+    "admittedAt": "2026-11-02T03:31:34.073+00:00",
+    "releasedAt": "2026-11-02T03:33:36.63+00:00",
+    "requestedAt": "2026-11-02T03:30:47.829+00:00",
+    "assessmentId": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+    "incarnationId": "d05957f0-da4b-4ce5-a19d-818f9d6ff815"
+  },
+  "dActualUsageAttemptsCreatedAfterCSlotRelease": 15,
+  "physicalCReleased": true
+}

@@ -245,3 +245,24 @@ For provider-free regression, build the API and run
 loopback `LCSP_TEST_CAPACITY_DATABASE_URL` (`lcsp364_*`) and test RabbitMQ URL.
 This verifies actual PostgreSQL roles/triggers, the real kernel, atomic audit
 rollback, grant/reversal idempotency and confirmed broker publication/redelivery.
+
+## Container telemetry preflight
+
+A containerized authoritative server must observe complete ancestor cgroup
+limits and actual Docker sandbox usage before admission is considered healthy.
+A private cgroup namespace or missing Docker CLI produces UNKNOWN measurements
+and conservatively suspends admission. Do not convert them into healthy values.
+
+The November 2 representative live-provider test used host cgroup namespace,
+read-only `/sys/fs/cgroup`, the compatible host Docker executable mounted
+read-only as `/usr/local/bin/docker`, the existing Docker socket, and the actual
+read-only `/etc/machine-id`. Its fixed physical ceiling was two, with an 8 GiB
+server memory limit and four CPU cores. The 2 GiB headroom, 2 GiB per-Root reserve
+and 4 GiB disk minimum were unchanged. This is calibration evidence for that
+host, not a higher Fogewise authorization or a requirement to containerize PM2.
+
+Verify `cgroupObserved`, limit/available bytes, sandbox samples and sensor age
+through the existing ADMIN status before queuing paid work. Keep provider routes
+and financial admission intact. Retain separate API/checkpoint databases and new
+Assessment/Root identities in isolated tests; never clone an unfinished canonical
+Root into a second independently writable environment.
