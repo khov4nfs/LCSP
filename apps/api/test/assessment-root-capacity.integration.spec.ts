@@ -132,11 +132,36 @@ integration(
       ).toBe(one.runId);
       expect((await a.status()).active).toBe(1);
       await first.$transaction((tx) =>
-        a.bindInTx(tx, one.assessmentId, one.runId, randomUUID()),
+        a.bindInTx(
+          tx,
+          one.assessmentId,
+          one.runId,
+          randomUUID(),
+          incarnationId,
+        ),
       );
+      const runtime = await first.assessmentRuntime.findUniqueOrThrow({
+        where: { assessmentId: one.assessmentId },
+      });
+      const terminalTurn = randomUUID();
+      await first.assessmentRuntimeTurn.create({
+        data: {
+          id: terminalTurn,
+          assessmentId: one.assessmentId,
+          threadId: runtime.threadId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: terminalTurn,
+          correlationId: randomUUID(),
+          state: AssessmentRuntimeControlState.COMPLETED,
+          contextJson: { runtimeRunId: one.runId },
+        },
+      });
       await first.assessmentRuntime.update({
         where: { assessmentId: one.assessmentId },
-        data: { executionState: AgentExecutionState.FAILED },
+        data: {
+          executionState: AgentExecutionState.FAILED,
+          currentExecutionId: terminalTurn,
+        },
       });
       await a.release(one);
       expect(
@@ -151,6 +176,13 @@ integration(
         data: { status: OutboxStatus.DLQ },
       });
       await repository.resetMessageForReplay(commandId);
+      const refreshed =
+        await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
+          where: { commandId },
+        });
+      expect(refreshed.requestedAt.getTime()).toBeGreaterThan(
+        Date.now() - 5000,
+      );
       expect((await b.reserve({ ...one, runId: randomUUID() })).admitted).toBe(
         true,
       );
@@ -491,7 +523,13 @@ integration(
         },
       });
       await first.$transaction((tx) =>
-        a.bindInTx(tx, running.assessmentId, running.runId, executionId),
+        a.bindInTx(
+          tx,
+          running.assessmentId,
+          running.runId,
+          executionId,
+          incarnationId,
+        ),
       );
       await first.assessmentRuntime.update({
         where: { assessmentId: running.assessmentId },
@@ -664,8 +702,26 @@ integration(
       const one = await enqueue(),
         other = await enqueue(owners[1]);
       await a.reserve(one);
+      for (const missingOrStale of [undefined, randomUUID()])
+        await expect(
+          first.$transaction((tx) =>
+            a.bindInTx(
+              tx,
+              one.assessmentId,
+              one.runId,
+              randomUUID(),
+              missingOrStale,
+            ),
+          ),
+        ).rejects.toThrow();
       await first.$transaction((tx) =>
-        a.bindInTx(tx, one.assessmentId, one.runId, randomUUID()),
+        a.bindInTx(
+          tx,
+          one.assessmentId,
+          one.runId,
+          randomUUID(),
+          incarnationId,
+        ),
       );
       expect(
         (
@@ -676,13 +732,25 @@ integration(
       ).not.toBeNull();
       await expect(
         first.$transaction((tx) =>
-          a.bindInTx(tx, other.assessmentId, one.runId, randomUUID()),
+          a.bindInTx(
+            tx,
+            other.assessmentId,
+            one.runId,
+            randomUUID(),
+            incarnationId,
+          ),
         ),
       ).rejects.toThrow();
       await a.release(one);
       await expect(
         first.$transaction((tx) =>
-          a.bindInTx(tx, one.assessmentId, one.runId, randomUUID()),
+          a.bindInTx(
+            tx,
+            one.assessmentId,
+            one.runId,
+            randomUUID(),
+            incarnationId,
+          ),
         ),
       ).rejects.toThrow();
     });
@@ -692,6 +760,31 @@ integration(
         two = await enqueue(owners[1]);
       await a.reserve(one);
       await a.reserve(two);
+      const executionId = randomUUID();
+      const original = await first.assessmentRuntime.findUniqueOrThrow({
+        where: { assessmentId: one.assessmentId },
+      });
+      await first.assessmentRuntimeTurn.create({
+        data: {
+          id: executionId,
+          assessmentId: one.assessmentId,
+          threadId: original.threadId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: executionId,
+          correlationId: randomUUID(),
+          state: AssessmentRuntimeControlState.RUNNING,
+          contextJson: { runtimeRunId: one.runId },
+        },
+      });
+      await first.assessmentRuntime.update({
+        where: { assessmentId: one.assessmentId },
+        data: {
+          currentExecutionId: executionId,
+          executionState: AgentExecutionState.RUNNING,
+          leaseToken: randomUUID(),
+          leaseExpiresAt: new Date(Date.now() + 600000),
+        },
+      });
       const replacement = randomUUID();
       const delayed = {
         hostId: host,
@@ -707,6 +800,27 @@ integration(
       });
       expect((await b.status()).active).toBe(1);
       expect((await b.status()).effective).toBe(0);
+      const fenced = await first.assessmentRuntime.findUniqueOrThrow({
+        where: { assessmentId: one.assessmentId },
+      });
+      expect(fenced.leaseToken).toBeNull();
+      expect(fenced.leaseExpiresAt).toBeNull();
+      expect(fenced.threadId).toBe(original.threadId);
+      expect(fenced.currentExecutionId).toBe(executionId);
+      await expect(
+        first.$transaction((tx) =>
+          a.bindInTx(
+            tx,
+            one.assessmentId,
+            one.runId,
+            randomUUID(),
+            incarnationId,
+          ),
+        ),
+      ).rejects.toThrow();
+      await first.$transaction((tx) =>
+        a.bindInTx(tx, one.assessmentId, one.runId, randomUUID(), replacement),
+      );
       await expect(a.release(one)).rejects.toThrow();
       await expect(a.reserve(await enqueue())).rejects.toThrow();
       await expect(
@@ -799,7 +913,13 @@ integration(
       expect((await b.reserve(one)).admitted).toBe(true);
       expect((await a.status()).active).toBe(1);
       await first.$transaction((tx) =>
-        a.bindInTx(tx, one.assessmentId, one.runId, randomUUID()),
+        a.bindInTx(
+          tx,
+          one.assessmentId,
+          one.runId,
+          randomUUID(),
+          incarnationId,
+        ),
       );
       await first.assessmentRuntime.update({
         where: { assessmentId: one.assessmentId },
@@ -834,7 +954,13 @@ integration(
       const one = await enqueue();
       await a.reserve(one);
       await first.$transaction((tx) =>
-        a.bindInTx(tx, one.assessmentId, one.runId, randomUUID()),
+        a.bindInTx(
+          tx,
+          one.assessmentId,
+          one.runId,
+          randomUUID(),
+          incarnationId,
+        ),
       );
       await first.assessmentRuntime.update({
         where: { assessmentId: one.assessmentId },
@@ -862,7 +988,13 @@ integration(
       const one = await enqueue();
       await a.reserve(one);
       await first.$transaction((tx) =>
-        a.bindInTx(tx, one.assessmentId, one.runId, randomUUID()),
+        a.bindInTx(
+          tx,
+          one.assessmentId,
+          one.runId,
+          randomUUID(),
+          incarnationId,
+        ),
       );
       await first.assessment.update({
         where: { id: one.assessmentId },

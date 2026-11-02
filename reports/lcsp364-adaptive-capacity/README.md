@@ -1,6 +1,6 @@
 # LCSP-364 engineering report — A–K
 
-Latest update: [2026-11-02 real native concurrency and A–K verdict](acceptance-20261102.md). A representative isolated live-provider stack proves automatic **1→2→1**, two overlapping native Roots across two API/two bridge processes, Stop/Continue ancestry, HITL release and no extra work after real broker redelivery. User answers remain UNKNOWN; full production/legal/report/monetary acceptance and review remain **BLOCKED**. [2026-10-31 Fogewise acceptance](acceptance-20261031.md) retains production peak one, safety refusal, fencing and rollback. Both environment-specific test credit grants have been reversed. [Earlier failed A and binary rollback](rollout-20261031.md) remain history.
+Latest: [FINAL_ACCEPTANCE — scope reconciliation and A–K closure](FINAL_ACCEPTANCE.md). New active fault/ownership and completed-fixture legal/report regressions pass locally; exact-head CI, affected production rollout and independent review remain required. The owner's approved scope preserves legitimate human UNKNOWN, separates historical invoices and accepts the measured Fogewise one-Root envelope. Historical [November 2 live-provider concurrency](acceptance-20261102.md), [October 31 Fogewise](acceptance-20261031.md) and [earlier failed A/rollback](rollout-20261031.md) receipts remain unchanged. New fixture measurements use separate `final-*` receipts.
 
 Verdict: **BLOCKED for production acceptance and merge**. Implementation is in
 [PR #442](https://github.com/khov4nfs/LCSP/pull/442), targeting develop.

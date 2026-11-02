@@ -3,6 +3,14 @@ import { isRetiredOutboxEventType } from "./retired-event-policy.js";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import {
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_ROOT_COMMAND_TYPES,
+  ROOT_CAPACITY_REASONS,
+} from "@lcsp/contracts/assessment-domain";
+import {
   OUTBOX_AUDIT_EVENT_TYPES,
   OUTBOX_AGGREGATE_TYPES,
   OUTBOX_ERROR_CODES,
@@ -145,11 +153,15 @@ export class OutboxDlqService {
   }
 
   /**
-   * Rejects replay when the target aggregate has already reached a terminal state that must not be repeated.
-   *
-   * @param message - DLQ message whose aggregate target should be checked.
-   * @param correlationId - Correlation identifier used when reporting an unsafe replay.
-   * @returns A promise that resolves when replay is considered safe.
+   * Business purpose: Permit explicit operator retry only when its aggregate cannot duplicate live or completed work.
+   * Business rules:
+   * - Retired traffic and terminal repository jobs remain non-replayable.
+   * - A crash-quarantined Root requires FAILED runtime, ACTIVE Assessment, no lease and no held physical slot.
+   * Execution flow: 1. Reject retired traffic; 2. validate Root recovery or existing repository-job eligibility.
+   * Failure cases:
+   * - Unsafe current state returns the existing DLQ conflict and the caller records denial audit.
+   * Side effects:
+   * - Reads canonical state only; no lease, model invocation, checkpoint or legal decision is created here.
    */
   private async assertReplayTargetIsSafe(
     message: OutboxMessageEntity,
@@ -158,6 +170,24 @@ export class OutboxDlqService {
     // CUTOVER fence: retired V1 traffic is never replayable, regardless of its aggregate's state.
     if (isRetiredOutboxEventType(message.eventType)) {
       this.unsafeReplay(correlationId);
+    }
+    if (message.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED) {
+      const assessment = await this.prisma.assessment.findUnique({
+        where: { id: message.aggregateId },
+        include: { runtime: true },
+      });
+      const held = await this.prisma.assessmentRootExecutionSlot.count({
+        where: { assessmentId: message.aggregateId, releasedAt: null },
+      });
+      if (
+        message.errorMessage !== ROOT_CAPACITY_REASONS.fenced ||
+        assessment?.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE ||
+        assessment.runtime?.executionState !== AGENT_EXECUTION_STATES.FAILED ||
+        assessment.runtime.leaseToken ||
+        held
+      )
+        this.unsafeReplay(correlationId);
+      return;
     }
     if (message.aggregateType === OUTBOX_AGGREGATE_TYPES.repositoryScanJob) {
       const job = await this.prisma.repositoryScanJob.findUnique({

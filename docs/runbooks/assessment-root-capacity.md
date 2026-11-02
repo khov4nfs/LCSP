@@ -89,6 +89,11 @@ version as well as control changes, so decision-history versions can have gaps.
 Never call quiesce or register manually to clear a stuck slot. Lease expiry is
 not physical termination. Investigate the owning process/provider call first.
 
+Root claims require both `runtimeRunId` and `runtimeIncarnationId` from the native
+execution context. A missing/stale incarnation fails closed even if the run ID
+was retained after restart. Upgrade API and the single Agent Server together under
+admission hold/drain; old clients cannot claim against this contract.
+
 The existing authorized DLQ actions remain available. Root discard retains a
 cancelled transport tombstone and admission history instead of cascading physical
 slots away. Explicit replay resets only quiescent admission intent; a live Root
@@ -104,8 +109,8 @@ take the obsolete ACK path. Owner history is aggregated once for fair selection.
 1. Capture exact deployed/target SHA, configuration fingerprints, database
    migration state, image digest, broker occupancy and actual native runs using
    `scripts/assessment-root-capacity-preflight.py`. Preserve local changes/data.
-2. Verify disk/RAM/DB headroom. At the captured Fogewise free disk of about
-   1.86 GB, rebuild/canary is **BLOCKED**. Do not prune Docker, delete customer
+2. Verify disk/RAM/DB headroom. The October 30 disk refusal (about 1.86 GB free)
+   is historical; use fresh measurements and retain the 4 GiB minimum. Do not prune Docker, delete customer
    sandboxes or lower production safety thresholds to obtain a PASS.
 3. On an already upgraded runtime, run `node scripts/drain-agent-runtime.mjs`
    using private `.env.pm2` credentials. It sets server drain and polls real
@@ -117,7 +122,8 @@ take the obsolete ACK path. Owner history is aggregated once for fair selection.
    through its existing graceful lifecycle while observing child termination.
    Independent operator verification of zero live writers is required before
    installing this revision. There is no force/skip-drain flag. This bootstrap
-   procedure has not yet been exercised on Fogewise.
+   procedure was exercised in the [October 31 rollout](../../reports/lcsp364-adaptive-capacity/rollout-20261031.md);
+   its historical receipt does not authorize skipping quiescence on a later release.
 5. Keep the old checkout/image as rollback targets. The updated `redeploy.sh`
    requires exact `LCSP_DEPLOY_EXPECTED_SHA`, clean checkout and fast-forward
    pull; it drains before source/build/migration changes. A failed restart does
@@ -150,6 +156,48 @@ data. A host migration additionally requires proof the old host cannot write;
 the new host is deliberately rejected until an authorized operational recovery
 is designed and reviewed. No automatic host-rebinding bypass is provided.
 
+During unfinished enrolled work, primary rollback is audited adaptive disable,
+bounded policy and graceful drain while keeping the compatible upgraded binaries,
+writer login and routing fence. An older binary is compatible only after protected
+work is terminal/quiescent, no owned event remains pending and the target supports
+the persisted contract. Otherwise refuse downgrade. Do not delete enrollment or
+change checkpoint ancestry. Preserve the last compatible exact image/SHA for
+forward recovery. If deployment is interrupted, leave admission disabled/drained,
+compare checkout/API/image revision, migration state and incarnation, complete the
+compatible release, check health/actual occupancy and only then resume admission.
+
+## Unclean active-execution recovery
+
+Bridge disconnect/redelivery reattaches to the single authoritative transport;
+it does not authorize another Root. Lease expiry retains physical capacity.
+Agent Server restart immediately fences prior leases and preserves restored
+reservations. Proven quiescent HITL/Stop/COMPLETE settlement remains supported.
+Uncertain unfinished model/tool work is refused before another native invocation
+and parked as FAILED with outbox DLQ reason `SERVER_INCARNATION_FENCED`.
+
+1. Keep admission held when diagnosing an uncertain executor. Verify the owned
+   process/descendants, actual futures, provider request and usage-journal state.
+   Process death alone is insufficient evidence that an upstream request ended.
+2. Let the supported server send quiescence or a consistent fenced report. A lost
+   receipt keeps its DB slot until reconciliation. Never clear slots by TTL or SQL.
+3. Preserve UNKNOWN failed-call usage. Reconcile uncertain external side effects;
+   do not blindly repeat paid operations. If uncertainty cannot be resolved, keep
+   the command in controlled DLQ and escalate that operation to its owner.
+4. After physical release and reconciliation, an authenticated ADMIN may use
+   `POST /internal/outbox/dlq/:id/replay`. The existing endpoint audits denial and
+   replay, requires ACTIVE Assessment/FAILED runtime/no lease/no physical slot,
+   and republishes the existing command via its authorized route. It refreshes
+   admission request time without rewriting accepted evidence, pins or history.
+5. Verify same canonical thread, descendant native checkpoint, unique invocation
+   attribution and quiescent release. An explicit retry may incur another paid
+   call; automatic crash replay never assumes an unknown result was free.
+
+Reproduce with `LCSP_TEST_CAPACITY_FAULTS=1 node tests/assessment-domain-vertical.mjs`
+using the dedicated PG/MQ fixture environment. It kills only its owned children,
+keeps a separate fixture HTTP request alive after server death, tests stale
+heartbeat/finish/claim, delayed quiescence, queued progress and audited retry.
+This provider-free test is not a production fault or provider invoice receipt.
+
 ## Reproduce local verification
 
 Use dedicated loopback test PostgreSQL and RabbitMQ, never production/proxy queues.
@@ -174,7 +222,8 @@ All graphs generated from the saved timeline must be labelled derived measuremen
 An external API sharing the DB can claim the same pending outbox and publish to
 its own broker. A private broker alone does not isolate the execution. Before a
 new canary is activated, apply migration `20261031120000_assessment_execution_isolation`
-and create a distinct, non-superuser PostgreSQL login for the Fogewise API. Grant
+and `20261102043000_assessment_execution_isolation_immutable`, and create a distinct,
+non-superuser PostgreSQL login for the Fogewise API. Grant
 schema USAGE, table SELECT/INSERT/UPDATE/DELETE and sequence USAGE/SELECT; do not
 grant role membership or superuser rights. Store its generated password only in
 the existing private deployment configuration. Migrations still use the previous
@@ -196,6 +245,11 @@ other logins' changes to the Assessment, outbox and canonical tables carrying an
 assessmentId, including turns, decisions, facts and usage. `SET ROLE` cannot
 impersonate `session_user`. This protects against accidental old application
 writers, not malicious database superusers. No new Root or scheduler is created.
+The additive enrollment guard leaves existing rows unchanged and rejects their
+UPDATE, DELETE and nonempty-table TRUNCATE. New insertion locks the Assessment
+and requires unstarted state, the actual writer login and active ADMIN attribution.
+Applications cannot replace enrollment; a trusted DBA capable of disabling the
+trigger remains an explicit administrative boundary.
 
 Verify a foreign-login no-op UPDATE of the new test Assessment fails with 42501,
 ordinary unrelated writes remain operational, all local broker connections map

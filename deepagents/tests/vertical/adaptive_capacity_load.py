@@ -138,7 +138,7 @@ def main():
             server = uvicorn.Server(uvicorn.Config(local_server.app, host="127.0.0.1", port=3429, log_level="warning"))
             server_thread = threading.Thread(target=server.run, daemon=True)
             server_thread.start()
-            db = psycopg.connect(data["checkpointDatabaseUrl"], autocommit=True)
+            db = psycopg.connect(data["databaseUrl"].split("?")[0], autocommit=True)
             publisher = pika.BlockingConnection(pika.URLParameters(os.environ["RABBITMQ_URL"]))
             channel = publisher.channel()
             channel.confirm_delivery()

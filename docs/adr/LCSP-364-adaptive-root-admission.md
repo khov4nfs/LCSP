@@ -16,7 +16,8 @@ still use local dictionaries. Horizontal Agent Server replication is unsupported
 
 PostgreSQL, through the API, owns one capacity row and durable physical execution
 reservations. Every reservation, decision and operator change serializes on that
-row. The Root claim must bind the reservation's exact native transport run ID.
+row. The Root claim must bind the reservation's exact native transport run ID
+and current server incarnation. Run ID alone cannot reclaim a replacement lease.
 The existing Assessment lease, canonical Root thread, legal gates and paid-call
 admission retain their authority. Reservations are not new Assessment workflows.
 
@@ -58,6 +59,24 @@ checkpoint identity; absent requests can then be reconciled safely. Network
 loss suspends admission and never authorizes a second server or lease takeover
 around a living execution. Host migration requires an operator-proven drain.
 
+Registration clears both fields of each retained running Root's old API lease
+atomically, before restored work starts. Old heartbeat, finish, claim and quiescence
+requests are fenced. Physical occupancy remains reserved. The new incarnation
+can settle a proven COMPLETE, Stop or HITL checkpoint without replaying investigation.
+Other unfinished running work fails closed before native model/tool invocation:
+the existing command is quarantined in durable outbox DLQ with
+`SERVER_INCARNATION_FENCED`, retaining the canonical checkpoint and accepted work.
+A killed executor does not prove a remote provider operation stopped. An operator
+must reconcile uncertain external operations before using the existing audited
+ADMIN DLQ replay. Replay requires ACTIVE/FAILED state, no lease and no held slot;
+it reuses the Root/thread and refreshes only the operational request time. It is
+an explicit retry, not an exactly-once guarantee for an unknown upstream response.
+
+Identical in-flight Root deliveries on one bridge share a bounded fingerprint
+guard: duplicates take the existing confirmed durable 15-second admission delay
+instead of occupying another polling worker. Connection-thread settlement and
+retry attempt identity remain unchanged; independent boundaries keep their path.
+
 Scale-down withholds new admissions; already admitted work may exceed the new
 target while draining. It is never killed to meet a target. A quiescent human
 interrupt releases capacity; Continue competes again on the same canonical Root.
@@ -90,7 +109,7 @@ from hiding another customer's work. It schedules independent Assessments only.
 Eligibility is checked by exact Assessment/command independently of the bounded
 fairness window. An eligible out-of-order delivery is deferred rather than ACKed
 as obsolete. Admission selects only the fair head and aggregates owner history
-once, so large backlogs do not multiply history scans while holding global authority.
+once through a materialized aggregate, so large backlogs do not multiply history scans while holding global authority.
 An older mixed-version writer can leave admission intent unbound after recording
 a completed FAILED/SUCCEEDED Root turn. Such a matching terminal turn excludes
 its strictly older command from waiting/duplicate admission without rewriting
@@ -103,7 +122,12 @@ a settled legacy command from becoming a permanent global fairness head.
 Mixed-version production canaries additionally opt into an audited PostgreSQL
 writer-role fence before activation. Their pending outbox uses OWNED_PENDING,
 which old publishers do not select, and only the enrolled DB login may mutate
-their canonical Assessment records. A dedicated broker alone is insufficient:
+their canonical Assessment records. Enrollment itself is append-only under an
+additive DB trigger, including protection against UPDATE, DELETE, TRUNCATE and
+SET ROLE impersonation. New enrollment requires the actual unprivileged login,
+active ADMIN attribution and unstarted state under the activation lock. A trusted
+DB owner capable of disabling triggers remains outside the accidental legacy
+writer threat model. A dedicated broker alone is insufficient:
 an old API can take shared pending outbox rows and send them elsewhere. The fence
 never transfers historical work or replaces Root leases, admission, checkpoints,
 paid governance or legal authority. Unrelated external processes remain untouched;

@@ -172,7 +172,11 @@ export function directRootAdmissionFixture({
         ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
       ].includes(state.lifecycleState)
     )
-      return { ...body, runtimeRunId: runId };
+      return {
+        ...body,
+        runtimeRunId: runId,
+        runtimeIncarnationId: identity.incarnationId,
+      };
     if (
       previousManual &&
       manualRuns.get(assessmentId) === previousManual &&
@@ -213,7 +217,12 @@ export function directRootAdmissionFixture({
       );
       command = { id, payload };
     }
-    if (!command) return { ...body, runtimeRunId: runId };
+    if (!command)
+      return {
+        ...body,
+        runtimeRunId: runId,
+        runtimeIncarnationId: identity.incarnationId,
+      };
     await report();
     const reservation = await call("reserve", {
       assessmentId,
@@ -221,7 +230,11 @@ export function directRootAdmissionFixture({
       commandKey: command.payload.idempotencyKey,
     });
     if (manual && reservation.admitted) manualRuns.set(assessmentId, runId);
-    return { ...body, runtimeRunId: runId };
+    return {
+      ...body,
+      runtimeRunId: runId,
+      runtimeIncarnationId: identity.incarnationId,
+    };
   }
 
   function prepare(...args) {

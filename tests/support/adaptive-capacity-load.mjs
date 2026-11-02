@@ -84,7 +84,7 @@ export async function runAdaptiveCapacityLoad({
     const input = path.join(dir, "input.json");
     const output = path.join(
       root,
-      "reports/lcsp364-adaptive-capacity/native-load.json",
+      "reports/lcsp364-adaptive-capacity/final-native-load.json",
     );
     writeFileSync(
       input,

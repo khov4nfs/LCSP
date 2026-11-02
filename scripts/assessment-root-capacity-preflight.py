@@ -15,6 +15,18 @@ def run(*args):
 
 
 def main():
+    """Business purpose: Capture deployment and resource evidence without changing production.
+
+    Business rules:
+    - Read actual service environments; unavailable optional table access remains explicitly unknown.
+    Execution flow:
+    1. Inspect revision, processes, resources and broker.
+    2. Probe API and canonical checkpoint databases with their actual logins and record health.
+    Failure cases:
+    - Required connection/health failures propagate; denied optional checkpoint-table reads are recorded.
+    Side effects:
+    - Read-only probes and sanitized JSON output; no grants, process changes or data mutation.
+    """
     root = Path("/srv/apps/LCSP").resolve()
     from dotenv import dotenv_values
     import psycopg
@@ -121,12 +133,18 @@ def main():
             checkpoint_table, store_table = cursor.fetchone()
             if checkpoint_table:
                 started = time.monotonic()
-                cursor.execute("SELECT count(*) FROM checkpoints")
-                health["checkpointRows"] = cursor.fetchone()[0]
-                health["checkpointReadLatencyMs"] = (time.monotonic() - started) * 1000
+                try:
+                    cursor.execute("SELECT count(*) FROM checkpoints")
+                    health["checkpointRows"] = cursor.fetchone()[0]
+                    health["checkpointReadLatencyMs"] = (time.monotonic() - started) * 1000
+                except psycopg.errors.InsufficientPrivilege:
+                    health["checkpointReadStatus"] = "ACCESS_DENIED_UNKNOWN"
             if store_table:
-                cursor.execute("SELECT value->'run'->>'status', count(*) FROM store WHERE prefix LIKE 'lcsp-agent-runtime-runs%' GROUP BY 1")
-                health["nativeTransportStates"] = cursor.fetchall()
+                try:
+                    cursor.execute("SELECT value->'run'->>'status', count(*) FROM store WHERE prefix LIKE 'lcsp-agent-runtime-runs%' GROUP BY 1")
+                    health["nativeTransportStates"] = cursor.fetchall()
+                except psycopg.errors.InsufficientPrivilege:
+                    health["nativeTransportReadStatus"] = "ACCESS_DENIED_UNKNOWN"
             result["databases"][role] = health
     result["health"] = {name: run("curl", "--silent", "--output", "/dev/null", "--write-out", "%{http_code}", "--max-time", "5", url)
         for name, url in {"api": "http://127.0.0.1:8080/health", "web": "http://127.0.0.1:3002/", "runtime": "http://127.0.0.1:2024/ok"}.items()}

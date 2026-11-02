@@ -425,6 +425,8 @@ export async function startStack({
   directRootFixtures.set(base, admission);
   return {
     admission,
+    server,
+    apiEnv,
     db,
     q,
     base,
@@ -465,7 +467,7 @@ export async function runPython(
       cwd: root,
       detached: ownedProcessGroup,
       env: { ...process.env, PYTHONPATH: pythonPath, ...env,
-        ...(prepared ? { LCSP_TEST_ROOT_RUNTIME_RUN_ID: prepared.runtimeRunId } : {}) },
+        ...(prepared ? { LCSP_TEST_ROOT_RUNTIME_RUN_ID: prepared.runtimeRunId, LCSP_TEST_ROOT_INCARNATION_ID: prepared.runtimeIncarnationId } : {}) },
     });
     let out = "",
       err = "",

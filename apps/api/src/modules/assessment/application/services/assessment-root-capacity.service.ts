@@ -146,6 +146,7 @@ export class AssessmentRootCapacityService {
    * Business rules:
    * - The caller holds the exclusive host process lock; cross-host takeover is forbidden.
    * - Persisted live runs retain their slots; only absent, now quiescent runs are released.
+   * - Replacement immediately fences old Root leases before any restored Root can reclaim authority.
    * Execution flow:
    * 1. Lock the global authority and verify the pinned server host.
    * 2. Rebind retained reservations, reconcile absent runs and fence the previous incarnation.
@@ -170,6 +171,13 @@ export class AssessmentRootCapacityService {
           status: HttpStatus.CONFLICT,
         });
       }
+      await tx.$executeRaw`
+        UPDATE "AssessmentRuntime" r SET "leaseToken" = NULL,
+          "leaseExpiresAt" = NULL, "updatedAt" = clock_timestamp()
+        FROM "AssessmentRuntimeTurn" t, "AssessmentRootExecutionSlot" s
+        WHERE r."currentExecutionId"::text = t."id" AND r."assessmentId" = t."assessmentId"
+          AND r."assessmentId" = s."assessmentId" AND r."executionState"::text = ${Executions.RUNNING}
+          AND s."releasedAt" IS NULL AND s."runId"::text = t."contextJson"->>'runtimeRunId'`;
       const recovered = await this.reconcile(tx, input.liveRunIds);
       await tx.assessmentRootExecutionSlot.updateMany({
         where: { releasedAt: null, runId: { in: input.liveRunIds } },
@@ -217,6 +225,11 @@ export class AssessmentRootCapacityService {
     take = 10_000,
   ): Promise<WaitingRoot[]> {
     return tx.$queryRaw<WaitingRoot[]>(Prisma.sql`
+      WITH owner_history AS MATERIALIZED (
+        SELECT previous."ownerId", max(s."admittedAt") AS last_admitted
+        FROM "AssessmentRootExecutionSlot" s JOIN "Assessment" previous ON previous."id" = s."assessmentId"
+        GROUP BY previous."ownerId"
+      )
       SELECT a."id" AS "assessmentId", demand."requestedAt",
         command."payload"->>'idempotencyKey' AS "commandKey"
       FROM "AssessmentRootAdmissionRequest" demand
@@ -224,11 +237,7 @@ export class AssessmentRootCapacityService {
       JOIN "OutboxMessage" command ON command."id" = demand."commandId"
       JOIN "AssessmentRuntime" r ON r."assessmentId" = a."id"
       LEFT JOIN "AssessmentRuntimeTurn" t ON t."id" = r."currentExecutionId"::text
-      LEFT JOIN (
-        SELECT previous."ownerId", max(s."admittedAt") AS last_admitted
-        FROM "AssessmentRootExecutionSlot" s JOIN "Assessment" previous ON previous."id" = s."assessmentId"
-        GROUP BY previous."ownerId"
-      ) owner_history ON owner_history."ownerId" = a."ownerId"
+      LEFT JOIN owner_history ON owner_history."ownerId" = a."ownerId"
       WHERE command."aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
         AND command."aggregateId" = a."id"
         AND (a."lifecycleState"::text = ${Lifecycles.ACTIVE}
@@ -248,7 +257,7 @@ export class AssessmentRootCapacityService {
           AND t."boundary" = ${ASSESSMENT_ROOT_BOUNDARY}
           AND t."state"::text = ${Controls.completed}
           -- Equal millisecond timestamps do not prove that a turn consumed this command.
-          AND t."createdAt" > command."createdAt", FALSE)
+          AND t."createdAt" > demand."requestedAt", FALSE)
         AND (command."status"::text = ${OUTBOX_STATUSES.published} OR demand."deliveredAt" IS NOT NULL)
         AND command."status"::text NOT IN (${OUTBOX_STATUSES.dlq}, ${OUTBOX_STATUSES.cancelled})
         AND NOT EXISTS (SELECT 1 FROM "OutboxMessage" newer
@@ -401,6 +410,7 @@ export class AssessmentRootCapacityService {
    * Business purpose: Bind an API Root lease to the physical native run that reserved its capacity.
    * Business rules:
    * - No caller may bypass global admission or use another Assessment's reservation.
+   * - A reused physical run ID is insufficient after restart: the caller must present its current incarnation.
    * Execution flow:
    * 1. Find the live reservation bound to this exact Assessment and transport run ID.
    * 2. Mark its actual Root start while retaining its physical reservation.
@@ -414,14 +424,17 @@ export class AssessmentRootCapacityService {
     assessmentId: string,
     runId: string | undefined,
     correlationId: string,
+    incarnationId?: string,
   ): Promise<void> {
-    const rows = runId
-      ? await tx.$queryRaw<Array<{ runId: string }>>`
+    const rows =
+      runId && incarnationId
+        ? await tx.$queryRaw<Array<{ runId: string }>>`
       SELECT s."runId" FROM "AssessmentRootExecutionSlot" s
       JOIN "AssessmentRootCapacity" c ON c."id" = ${ROOT_CAPACITY_ID} AND c."incarnationId" = s."incarnationId"
       WHERE s."runId" = ${runId}::uuid AND s."assessmentId" = ${assessmentId} AND s."releasedAt" IS NULL
+        AND s."incarnationId" = ${incarnationId}::uuid
       FOR SHARE OF s`
-      : [];
+        : [];
     if (!rows.length) {
       const held = await tx.assessmentRootExecutionSlot.count({
         where: { assessmentId, releasedAt: null },

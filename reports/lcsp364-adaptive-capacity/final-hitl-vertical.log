@@ -1,0 +1,2 @@
+{"gate":"ASSESSMENT HITL mechanics","checks":80,"result":"PASS","sameThread":"6e5d9b97-c863-4d0a-a66e-c37a1d779bff","checkpoint":"1f1d6a19-6f11-6666-801c-c98dda3388ad","crashThread":"d2e6a835-aa2c-4341-8d46-2eeeadb9f1c9","proof":"real migrated DB/API/PostgresSaver; scripted model; separate processes"}
+{"gate":"SEPARATE_CHECKPOINT_DATABASE","apiCheckpointTable":null,"nativeDatabase":"lcsp_assessment_checkpoint_final_hitl","result":"PASS","model":"SCRIPTED"}

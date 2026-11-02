@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import math
 import os
@@ -12,7 +13,7 @@ from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from contextvars import copy_context
 from dataclasses import dataclass, field
 from functools import partial
-from threading import BoundedSemaphore, Event, Lock, Timer
+from threading import BoundedSemaphore, Event, Lock, Timer, RLock
 from time import monotonic
 from typing import Any, Callable
 
@@ -44,7 +45,7 @@ from tools.common.capabilities.platform.config import (
     resolve_usage_recovery_store_path,
 )
 from middleware.usage_recovery import start_background_worker
-from tools.common.capabilities.agent_runtime.root_capacity import RootCapacityUnavailable, RootCommandObsolete
+from tools.common.capabilities.agent_runtime.root_capacity import RootCapacityUnavailable, RootCommandObsolete, ROOT_BOUNDARY
 
 LOGGER = logging.getLogger("lcsp.agent_runtime.rabbitmq_consumer")
 DEFAULT_EXCHANGE = "lcsp.events"
@@ -69,35 +70,66 @@ class BoundaryCapacityUnavailable(RuntimeError):
     """The existing boundary workers still own all execution slots."""
 
 
+class DuplicateRootDelivery(BoundaryCapacityUnavailable):
+    """An identical Root delivery already owns a poller in this bounded executor."""
+
+
 class BoundedBoundaryExecutor(ThreadPoolExecutor):
     """Bound submitted work across broker connections, including timed-out workers."""
 
     def __init__(self, max_workers: int, **kwargs: Any) -> None:
         super().__init__(max_workers=max_workers, **kwargs)
         self._slots = BoundedSemaphore(max_workers)
+        self._submission_lock = RLock()
+        self._root_submissions: set[bytes] = set()
 
     def submit(self, fn: Callable, /, *args: Any, **kwargs: Any) -> Future:
-        """Business purpose: Admit at most one delivery per available boundary worker.
+        """Business purpose: Bound independent boundary work without letting Root duplicates starve queued Assessments.
 
         Business rules:
         - A disconnected or timed-out delivery retains capacity until its actual work ends.
         - Each submission gets a separate Context so reused threads cannot retain delivery state.
+        - An identical in-flight Root payload is durably deferred, freeing broker credit instead of occupying another poller.
         Execution flow:
-        1. Reserve capacity without blocking the broker thread, submit isolated work, then release on completion.
+        1. Reject duplicate in-flight Root payloads before reserving another worker.
+        2. Reserve capacity without blocking the broker thread, submit isolated work, then release on completion.
         Failure cases:
         - Saturation raises BoundaryCapacityUnavailable; failed submission releases its reservation.
         Side effects:
         - Schedules bounded worker execution; performs no broker settlement or domain writes.
         """
-        if not self._slots.acquire(blocking=False):
-            raise BoundaryCapacityUnavailable()
-        try:
-            future = super().submit(copy_context().run, fn, *args, **kwargs)
-        except BaseException:
+        root_key = hashlib.sha256(args[2]).digest() if fn is _dispatch_delivery and len(args) >= 3 and args[0] == ROOT_BOUNDARY else None
+        with self._submission_lock:
+            if root_key is not None and root_key in self._root_submissions:
+                raise DuplicateRootDelivery()
+            if not self._slots.acquire(blocking=False):
+                raise BoundaryCapacityUnavailable()
+            if root_key is not None:
+                self._root_submissions.add(root_key)
+            try:
+                future = super().submit(copy_context().run, fn, *args, **kwargs)
+            except BaseException:
+                self._submission_finished(root_key)
+                raise
+            future.add_done_callback(lambda _completed: self._submission_finished(root_key))
+            return future
+
+    def _submission_finished(self, root_key: bytes | None) -> None:
+        """Business purpose: Make a worker and its duplicate guard available only after actual dispatch termination.
+
+        Business rules:
+        - A logical timeout or disconnected delivery cannot clear the owning Future's occupancy.
+        Execution flow:
+        1. Under the submission lock, remove the completed Root fingerprint and release one worker slot.
+        Failure cases:
+        - An unbalanced release raises; no timer or retry can manufacture available capacity.
+        Side effects:
+        - Updates only bounded executor bookkeeping; delivery-specific broker settlement remains separate.
+        """
+        with self._submission_lock:
+            if root_key is not None:
+                self._root_submissions.discard(root_key)
             self._slots.release()
-            raise
-        future.add_done_callback(lambda _completed: self._slots.release())
-        return future
 
 
 class BoundaryExecutionTimeout(NonRetryableAgentBoundaryError):
@@ -537,10 +569,11 @@ def _delivery_handler(
                 timeout_seconds,
                 settlement_state,
             )
-        except BoundaryCapacityUnavailable:
+        except BoundaryCapacityUnavailable as error:
+            delay = ROOT_ADMISSION_REQUEUE_SECONDS if isinstance(error, DuplicateRootDelivery) else DEFAULT_REQUEUE_DELAY_SECONDS
             confirmed = _publish_retry_delivery(
                 channel=channel,
-                retry_queue=_retry_queue_name(queue_name or boundary_name, DEFAULT_REQUEUE_DELAY_SECONDS),
+                retry_queue=_retry_queue_name(queue_name or boundary_name, delay),
                 properties=properties,
                 body=body,
                 attempt=_delivery_attempt(properties),

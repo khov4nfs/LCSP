@@ -95,8 +95,18 @@ after(async () => {
   if (!url || !admin) return;
   await Promise.all([owner?.$disconnect(), replica?.$disconnect()]);
   // Fixture teardown is restricted to identities created in this disposable database.
-  await admin.assessmentExecutionIsolation.deleteMany({
-    where: { assessmentId: { in: [ownedId, ordinaryId] } },
+  await admin.$transaction(async (tx) => {
+    // Only the disposable fixture DBA may remove its own rows during teardown.
+    // Production applications cannot disable this immutable-enrollment trigger.
+    await tx.$executeRawUnsafe(
+      `ALTER TABLE "AssessmentExecutionIsolation" DISABLE TRIGGER lcsp_execution_isolation_guard`,
+    );
+    await tx.assessmentExecutionIsolation.deleteMany({
+      where: { assessmentId: { in: [ownedId, ordinaryId] } },
+    });
+    await tx.$executeRawUnsafe(
+      `ALTER TABLE "AssessmentExecutionIsolation" ENABLE TRIGGER lcsp_execution_isolation_guard`,
+    );
   });
   await admin.assessmentRootAdmissionRequest.deleteMany({
     where: { assessmentId: { in: [ownedId, ordinaryId] } },
@@ -372,6 +382,76 @@ test(
       rows[0].count >= 20,
       "Canonical evidence, decisions, usage and runtime tables must be covered",
     );
+  },
+);
+
+test(
+  "enrollment cannot be reassigned, removed, truncated or forged through SET ROLE",
+  enabled,
+  async () => {
+    const original = await owner.assessmentExecutionIsolation.findUniqueOrThrow(
+      {
+        where: { assessmentId: ownedId },
+      },
+    );
+    for (const [client, role, statement] of [
+      [
+        admin,
+        null,
+        `UPDATE "AssessmentExecutionIsolation" SET "writerRole" = session_user WHERE "assessmentId" = $1`,
+      ],
+      [
+        admin,
+        writerRole,
+        `DELETE FROM "AssessmentExecutionIsolation" WHERE "assessmentId" = $1`,
+      ],
+      [
+        owner,
+        null,
+        `UPDATE "AssessmentExecutionIsolation" SET reason = 'rewritten history' WHERE "assessmentId" = $1`,
+      ],
+      [
+        owner,
+        null,
+        `DELETE FROM "AssessmentExecutionIsolation" WHERE "assessmentId" = $1`,
+      ],
+      [admin, null, `TRUNCATE "AssessmentExecutionIsolation"`],
+    ]) {
+      await assert.rejects(
+        client.$transaction(async (tx) => {
+          if (role) await tx.$executeRawUnsafe(`SET LOCAL ROLE "${role}"`);
+          await tx.$executeRawUnsafe(
+            statement,
+            ...(statement.includes("$1") ? [ownedId] : []),
+          );
+          // Always roll back a successful mutation on the pre-fix database as well.
+          throw new Error("UNPROTECTED_ENROLLMENT_MUTATION");
+        }),
+        /LCSP_EXECUTION_ISOLATION_IMMUTABLE/,
+      );
+    }
+    await assert.rejects(
+      admin.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE "${writerRole}"`);
+        await tx.$executeRaw`INSERT INTO "AssessmentExecutionIsolation" ("assessmentId", "writerRole", "actorId", reason) VALUES (${ordinaryId}, ${writerRole}, ${actorId}, 'LCSP-364')`;
+        throw new Error("UNPROTECTED_ENROLLMENT_INSERT");
+      }),
+      /LCSP_EXECUTION_ISOLATION_ENROLLMENT_DENIED/,
+    );
+    assert.deepEqual(
+      await owner.assessmentExecutionIsolation.findUniqueOrThrow({
+        where: { assessmentId: ownedId },
+      }),
+      original,
+    );
+    await owner.assessment.update({
+      where: { id: ownedId },
+      data: { name: "Authorized canonical writer still works" },
+    });
+    await admin.assessment.update({
+      where: { id: ordinaryId },
+      data: { name: "Non-enrolled legacy path unchanged" },
+    });
   },
 );
 

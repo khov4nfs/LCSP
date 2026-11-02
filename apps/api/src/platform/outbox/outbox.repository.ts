@@ -267,6 +267,7 @@ export class OutboxRepository {
    * Business rules:
    * - The DLQ service retains authorization/lifecycle guards; replay cannot release physical Root occupancy.
    * - Only a quiescent Root command may reopen its operational admission intent; accepted domain work is unchanged.
+   * - Explicit replay receives a new database-clock request time so an older completed turn cannot consume the new intent.
    * Execution flow:
    * 1. Reset transport retry metadata and reopen quiescent admission bookkeeping in one transaction.
    * Failure cases:
@@ -278,10 +279,13 @@ export class OutboxRepository {
     await this.prisma.$transaction(async (tx) => {
       // Serialize replay with admission whenever physical authority has been initialized.
       await tx.$queryRaw`SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE`;
-      await tx.assessmentRootAdmissionRequest.updateMany({
-        where: { commandId: id, slots: { none: { releasedAt: null } } },
-        data: { completedAt: null, admittedRunId: null, deliveredAt: null },
-      });
+      await tx.$executeRaw`
+        UPDATE "AssessmentRootAdmissionRequest" r SET "completedAt" = NULL,
+          "admittedRunId" = NULL, "deliveredAt" = NULL,
+          "requestedAt" = clock_timestamp()
+        WHERE r."commandId" = ${id} AND NOT EXISTS (
+          SELECT 1 FROM "AssessmentRootExecutionSlot" s
+          WHERE s."commandId" = r."commandId" AND s."releasedAt" IS NULL)`;
       await tx.outboxMessage.update({
         where: { id },
         data: {

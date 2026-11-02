@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: semantic oracle rejects false compliance: otp-format-only (no model execution)
+ok 1 - semantic oracle rejects false compliance: otp-format-only (no model execution)
+  ---
+  duration_ms: 1.535052
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: logging-without-persistence (no model execution)
+ok 2 - semantic oracle rejects false compliance: logging-without-persistence (no model execution)
+  ---
+  duration_ms: 0.194031
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: partial-safeguard (no model execution)
+ok 3 - semantic oracle rejects false compliance: partial-safeguard (no model execution)
+  ---
+  duration_ms: 0.120863
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: applicability-unproven (no model execution)
+ok 4 - semantic oracle rejects false compliance: applicability-unproven (no model execution)
+  ---
+  duration_ms: 0.176617
+  type: 'test'
+  ...
+# Subtest: semantic oracle rejects false compliance: applicability-refuted (no model execution)
+ok 5 - semantic oracle rejects false compliance: applicability-refuted (no model execution)
+  ---
+  duration_ms: 0.181696
+  type: 'test'
+  ...
+# Subtest: unknown applicability cannot pass as NOT_APPLICABLE or complete without a question
+ok 6 - unknown applicability cannot pass as NOT_APPLICABLE or complete without a question
+  ---
+  duration_ms: 2.385372
+  type: 'test'
+  ...
+# Subtest: partial control cannot pass when the unmet part is omitted
+ok 7 - partial control cannot pass when the unmet part is omitted
+  ---
+  duration_ms: 0.515674
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 105.195354

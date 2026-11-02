@@ -41,6 +41,7 @@ import {
   workerKey,
 } from "./support/compliance-rule-set-stack.mjs";
 import { runAdaptiveCapacityLoad } from "./support/adaptive-capacity-load.mjs";
+import { runAdaptiveCapacityFaults } from "./support/adaptive-capacity-faults.mjs";
 
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const {
@@ -48,7 +49,8 @@ const {
   AssessmentArtifactKind,
 } = requireApi("@prisma/client");
 
-const database = "lcsp_assessment_vertical";
+const database = process.env.LCSP_ASSESSMENT_TEST_DATABASE ?? "lcsp_assessment_vertical";
+assert.match(database, /^lcsp_assessment_[a-z0-9_]+$/);
 const apiPort = Number(process.env.LCSP_ASSESSMENT_TEST_API_PORT ?? 3413);
 const artifactStoragePath = mkdtempSync(
   path.join(tmpdir(), "lcsp-assessment-artifacts-"),
@@ -89,7 +91,7 @@ const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl, admission } = await startStack({
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl, admission, server, apiEnv } = await startStack({
   database,
   apiPort,
   checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
@@ -231,7 +233,15 @@ try {
       )
     ).rows[0];
 
-  if (process.env.LCSP_TEST_CAPACITY_LOAD === "1") {
+  if (process.env.LCSP_TEST_CAPACITY_FAULTS === "1") {
+    await runAdaptiveCapacityFaults({
+      stack: { q, base, databaseUrl, checkpointDatabaseUrl, server, apiEnv },
+      createAssessment: newAssessment,
+      owner,
+      otherOwner: await customer("fault-other@acme.test"),
+      repoDir,
+    });
+  } else if (process.env.LCSP_TEST_CAPACITY_LOAD === "1") {
     await runAdaptiveCapacityLoad({ stack: { q, base, databaseUrl, checkpointDatabaseUrl },
       createAssessment: newAssessment, owner, otherOwner: await customer("capacity-other@acme.test"), repoDir });
   } else {

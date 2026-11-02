@@ -40,6 +40,7 @@ from orchestration.agent_stream import AgentStreamInterrupted, active_agent_stre
 from orchestration.graph_execution import agent_graph_config
 from orchestration.runtime_control import (
     active_runtime_run_id,
+    active_runtime_incarnation_id,
     active_physical_run_scope,
     PhysicalRunScope,
 )
@@ -716,6 +717,7 @@ class LocalAgentRuntime:
         context.setdefault("logical_run_id", run_id)
         payload = {**payload, "context": context}
         run_token = active_runtime_run_id.set(run_id)
+        incarnation_token = active_runtime_incarnation_id.set(getattr(self._capacity, "identity", {}).get("incarnationId"))
         physical_scope = PhysicalRunScope()
         physical_token = active_physical_run_scope.set(physical_scope)
         terminal_status = "error"
@@ -737,6 +739,7 @@ class LocalAgentRuntime:
             physical_scope.drain()
             active_physical_run_scope.reset(physical_token)
             active_runtime_run_id.reset(run_token)
+            active_runtime_incarnation_id.reset(incarnation_token)
             if is_root:
                 with self._lock:
                     self._executing_root_runs.discard(run_id)

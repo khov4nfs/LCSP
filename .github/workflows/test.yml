@@ -577,12 +577,22 @@ jobs:
           node --test scripts/drain-agent-runtime.test.mjs
           node tests/assessment-domain-vertical.mjs
 
+      - name: Active native Root failure, fencing and audited operator recovery
+        env:
+          LCSP_TEST_CAPACITY_FAULTS: "1"
+          LCSP_ASSESSMENT_TEST_DATABASE: lcsp_assessment_active_faults
+          LCSP_ASSESSMENT_TEST_API_PORT: "3433"
+          LCSP_TEST_CHECKPOINT_DATABASE: lcsp_assessment_active_fault_checkpoints
+        run: node tests/assessment-domain-vertical.mjs
+
       - name: Upload adaptive capacity measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lcsp364-provider-free-native-capacity
-          path: reports/lcsp364-adaptive-capacity/native-load.json
+          path: |
+            reports/lcsp364-adaptive-capacity/final-native-load.json
+            reports/lcsp364-adaptive-capacity/final-active-faults.json
           if-no-files-found: ignore
           retention-days: 14
 

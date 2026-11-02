@@ -32,6 +32,10 @@ EXECUTION_FAILED = "FAILED"
 EXECUTION_INTERRUPTED = "INTERRUPTED"
 EXECUTION_PAUSED = "PAUSED"
 
+
+class NativeRootRecoveryRequired(RuntimeError):
+    """Unfinished crash recovery requires operator consent before any uncertain model/tool step is repeated."""
+
 # Customer-safe activity label keys (catalog keys, never agent/provider text).
 LABEL_TASK_STARTED = "assessment.activity.taskStarted"
 LABEL_TASK_FINISHED = "assessment.activity.taskFinished"
@@ -130,6 +134,7 @@ def run_assessment_root(
 
     Business rules:
     - Claim authority owns execution identity; a concurrent held lease cannot start duplicate work.
+    - An unclean running Root may settle proven HITL/Stop/COMPLETE, but unfinished model/tool work fails closed for operator replay.
     - Resume native pending work only when the claim binds its exact checkpoint, or when an existing
       server-authorized transport or human-wait recovery applies; an unbound checkpoint is rejected.
     - A leased human-wait recovery with an open server request may replay unfinished native work
@@ -189,6 +194,7 @@ def run_assessment_root(
     checkpoint_id: str | None = None
     starting_checkpoint_id: str | None = None
     checkpoint_authorized = False
+    human_wait_recovery = False
     graph_invoke_started = False
     request_ids: list[str] | None = None
     control_request_id: str | None = None
@@ -287,6 +293,8 @@ def run_assessment_root(
                         raise RuntimeError("server checkpoint binding missing for native pending work")
                     packet = None
             if final_state not in {EXECUTION_INTERRUPTED, EXECUTION_PAUSED}:
+                if claim.get("recoveredExecution") and not human_wait_recovery:
+                    raise NativeRootRecoveryRequired("Uncertain native work retained for audited operator replay")
                 graph_invoke_started = True
                 output = agent.invoke(
                     packet,
@@ -355,6 +363,8 @@ def run_assessment_root(
         client.finish(final_state, checkpoint_id=checkpoint_id, request_ids=request_ids)
     elif final_state == EXECUTION_PAUSED:
         client.finish(final_state, checkpoint_id=checkpoint_id, control_request_id=control_request_id)
+    elif error_type == NativeRootRecoveryRequired.__name__:
+        client.finish(EXECUTION_FAILED, checkpoint_id=checkpoint_id, recovery_required=True)
     elif final_state == EXECUTION_FAILED and checkpoint_id:
         client.finish(final_state, checkpoint_id=checkpoint_id)
     else:

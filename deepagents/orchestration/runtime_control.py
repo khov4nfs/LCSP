@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 
 active_runtime_run_id: ContextVar[str | None] = ContextVar("runtime_run_id", default=None)
+active_runtime_incarnation_id: ContextVar[str | None] = ContextVar("runtime_incarnation_id", default=None)
 active_abandoned_call: ContextVar[Event | None] = ContextVar("abandoned_runtime_call", default=None)
 active_physical_run_scope: ContextVar[PhysicalRunScope | None] = ContextVar("physical_runtime_scope", default=None)
 
