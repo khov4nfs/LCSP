@@ -1,0 +1,31 @@
+{
+  "baseRevision": "1094527d45135da79b1931670cf42c8794db90dc",
+  "scope": "HARNESS_ONLY_NO_PRODUCTION_RUNTIME_CHANGE",
+  "codeqlAlert": {
+    "checkRun": 125215893228,
+    "severity": "HIGH",
+    "rule": "Uncontrolled data used in path expression",
+    "disposition": "FIXED_PENDING_EXACT_HEAD_SCAN"
+  },
+  "focusedTests": {
+    "passed": 32,
+    "failed": 0,
+    "receipt": "final-harness-security.log"
+  },
+  "activeFaultScenarios": {
+    "activeGracefulBridgeDrain": "PASS",
+    "activeAbruptBridgeRedelivery": "PASS",
+    "twoOwnerFairBackpressure": "PASS",
+    "apiReplicaFailure": "PASS",
+    "liveLeaseExpiry": "PASS",
+    "staleLeaseAndClaimFencing": "PASS",
+    "uncertainModelReplayRefused": "PASS",
+    "lostQuiescenceRecovery": "PASS",
+    "queuedRootAfterCrash": "PASS",
+    "operatorRecoveryAndCheckpointAncestry": "PASS"
+  },
+  "sourceSha256": {
+    "deepagents/tests/vertical/adaptive_capacity_faults.py": "0ed40739fb263cc0977c3a6a28380bd0fcc5e49f7fa3a798c2d0968432ef93b4",
+    "deepagents/tests/test_adaptive_root_capacity.py": "97c9307c1e53ff9389112e9ed8006ecabe2c38d02b668ed0b32cb8a58504c840"
+  }
+}

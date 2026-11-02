@@ -7,6 +7,8 @@ from pathlib import Path
 import hashlib
 import asyncio
 import time
+import subprocess
+import sys
 
 import httpx
 import pytest
@@ -20,6 +22,18 @@ from orchestration.runtime_control import (
     PhysicalRunScope, active_physical_run_scope, cancellable_sync, physical_to_thread,
 )
 from test_agent_runtime_rabbitmq_consumer import FakeChannel
+
+
+@pytest.mark.parametrize("input_path", [
+    "/tmp/unowned/input.json",
+    "/tmp/lcsp364-active-faults-owned/credentials.json",
+    "/tmp/lcsp364-active-faults-owned/../../unowned/input.json",
+])
+def test_fault_harness_rejects_unowned_or_traversing_paths_before_reading(input_path):
+    script = Path(__file__).parent / "vertical" / "adaptive_capacity_faults.py"
+    result = subprocess.run([sys.executable, str(script), input_path], capture_output=True, text=True, timeout=5)
+    assert result.returncode != 0
+    assert "Owned LCSP-364 fixture input required" in result.stderr
 
 
 class CapacityProtocol:

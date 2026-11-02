@@ -1,0 +1,86 @@
+
+tests/test_adaptive_root_capacity.py::test_fault_harness_rejects_unowned_or_traversing_paths_before_reading[/tmp/unowned/input.json] PASSED [  3%]
+tests/test_adaptive_root_capacity.py::test_fault_harness_rejects_unowned_or_traversing_paths_before_reading[/tmp/lcsp364-active-faults-owned/credentials.json] PASSED [  6%]
+tests/test_adaptive_root_capacity.py::test_fault_harness_rejects_unowned_or_traversing_paths_before_reading[/tmp/lcsp364-active-faults-owned/../../unowned/input.json] PASSED [  9%]
+tests/test_adaptive_root_capacity.py::test_unidentified_hosts_fail_before_registering_authority[] PASSED [ 12%]
+tests/test_adaptive_root_capacity.py::test_unidentified_hosts_fail_before_registering_authority[\n] PASSED [ 15%]
+tests/test_adaptive_root_capacity.py::test_unidentified_hosts_fail_before_registering_authority[uninitialized] PASSED [ 18%]
+tests/test_adaptive_root_capacity.py::test_unidentified_hosts_fail_before_registering_authority[00000000000000000000000000000000] PASSED [ 21%]
+tests/test_adaptive_root_capacity.py::test_unidentified_hosts_fail_before_registering_authority[gggggggggggggggggggggggggggggggg] PASSED [ 25%]
+tests/test_adaptive_root_capacity.py::test_initialized_host_identity_is_stable_without_exposing_machine_id PASSED [ 28%]
+tests/test_adaptive_root_capacity.py::test_image_health_api_fixture_fences_reports_and_never_admits_roots 
+-------------------------------- live log call ---------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://127.0.0.1:37227/internal/assessment-root-capacity/registration "HTTP/1.0 403 Forbidden"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://127.0.0.1:37227/internal/assessment-root-capacity/registration "HTTP/1.0 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://127.0.0.1:37227/internal/assessment-root-capacity/register "HTTP/1.0 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://127.0.0.1:37227/internal/assessment-root-capacity/report "HTTP/1.0 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://127.0.0.1:37227/internal/assessment-root-capacity/report "HTTP/1.0 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://127.0.0.1:37227/internal/assessment-root-capacity/reserve "HTTP/1.0 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_adaptive_root_capacity.py::test_inherited_cgroup_limits_tighten_an_unlimited_worker_leaf PASSED [ 34%]
+tests/test_adaptive_root_capacity.py::test_hidden_cgroup_ancestry_is_unknown_rather_than_unlimited PASSED [ 37%]
+tests/test_adaptive_root_capacity.py::test_snapshot_posts_one_comparison_version_and_does_not_retry_a_stale_handshake[register] PASSED [ 40%]
+tests/test_adaptive_root_capacity.py::test_snapshot_posts_one_comparison_version_and_does_not_retry_a_stale_handshake[report] PASSED [ 43%]
+tests/test_adaptive_root_capacity.py::test_queued_continue_never_acknowledges_the_previous_still_draining_run[old-command] PASSED [ 46%]
+tests/test_adaptive_root_capacity.py::test_queued_continue_never_acknowledges_the_previous_still_draining_run[None] PASSED [ 50%]
+tests/test_adaptive_root_capacity.py::test_stop_retains_physical_slot_and_nonterminal_transport_until_late_usage_ends PASSED [ 53%]
+tests/test_adaptive_root_capacity.py::test_global_refusal_publishes_no_run_or_future_and_restores_local_capacity PASSED [ 56%]
+tests/test_adaptive_root_capacity.py::test_sync_wait_cannot_bypass_a_busy_executor_or_drain[False] 
+-------------------------------- live log call ---------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/occupied/runs "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-0/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-1/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-2/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-3/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-4/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-5/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-6/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-7/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-8/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-9/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-10/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-11/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-12/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-13/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-14/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-15/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/excess/runs "HTTP/1.1 429 Too Many Requests"
+INFO     httpx:_client.py:1740 HTTP Request: GET http://fixture/threads/occupied/runs/15dc1a5b-4ed2-46b4-92b3-673e315fcffe "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_adaptive_root_capacity.py::test_sync_wait_cannot_bypass_a_busy_executor_or_drain[True] 
+-------------------------------- live log call ---------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/occupied/runs "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/internal/execution-capacity "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-0/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-1/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-2/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-3/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-4/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-5/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-6/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-7/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-8/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-9/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-10/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-11/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-12/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-13/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-14/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-15/runs/wait "HTTP/1.1 405 Method Not Allowed"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/excess/runs "HTTP/1.1 429 Too Many Requests"
+INFO     httpx:_client.py:1740 HTTP Request: GET http://fixture/threads/occupied/runs/3a19eec0-d192-4b22-a131-430fd9751ad0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_adaptive_root_capacity.py::test_cancelled_accounting_callback_retains_physical_scope_until_actual_end PASSED [ 65%]
+tests/test_adaptive_root_capacity.py::test_sdk_translates_only_the_exact_capacity_or_obsolete_signal[429-ASSESSMENT_ROOT_CAPACITY_UNAVAILABLE-RootCapacityUnavailable] PASSED [ 68%]
+tests/test_adaptive_root_capacity.py::test_sdk_translates_only_the_exact_capacity_or_obsolete_signal[409-ASSESSMENT_ROOT_COMMAND_OBSOLETE-RootCommandObsolete] PASSED [ 71%]
+tests/test_adaptive_root_capacity.py::test_sdk_translates_only_the_exact_capacity_or_obsolete_signal[429-OTHER_ERROR-HTTPStatusError] PASSED [ 75%]
+tests/test_adaptive_root_capacity.py::test_capacity_refusal_uses_delivery_specific_confirmed_delay_without_spending_attempt[True] PASSED [ 78%]
+tests/test_adaptive_root_capacity.py::test_capacity_refusal_uses_delivery_specific_confirmed_delay_without_spending_attempt[False] PASSED [ 81%]
+tests/test_adaptive_root_capacity.py::test_obsolete_duplicate_never_invokes_or_retries_a_root PASSED [ 84%]
+tests/test_adaptive_root_capacity.py::test_reported_docker_memory_units_are_preserved[2GiB-2147483648] PASSED [ 87%]
+tests/test_adaptive_root_capacity.py::test_reported_docker_memory_units_are_preserved[1.5MB-1500000] PASSED [ 90%]
+tests/test_adaptive_root_capacity.py::test_reported_docker_memory_units_are_preserved[0B-0] PASSED [ 93%]
+tests/test_adaptive_root_capacity.py::test_unrecognized_docker_memory_is_unknown_not_zero PASSED [ 96%]
+tests/test_adaptive_root_capacity.py::test_second_server_cannot_enter_the_same_host_lock PASSED [100%]
+
+============================== 32 passed in 6.18s ==============================

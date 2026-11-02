@@ -9,9 +9,11 @@ import contextlib
 import json
 import logging
 import os
+import re
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -22,8 +24,15 @@ from typing import TypedDict
 from unittest.mock import patch
 from urllib.parse import quote
 
-data = json.loads(Path(sys.argv[1]).read_text())
-directory = Path(data["dir"])
+input_file = Path(sys.argv[1]).resolve()
+fixture_name = input_file.parent.name
+if input_file.name != "input.json" or not re.fullmatch(r"lcsp364-active-faults-[A-Za-z0-9]+", fixture_name):
+    raise ValueError("Owned LCSP-364 fixture input required")
+directory = Path(tempfile.gettempdir()) / fixture_name
+if directory.resolve() != input_file.parent or directory.stat().st_uid != os.getuid():
+    raise ValueError("Fixture directory must be owned under the system temporary directory")
+data = json.loads(input_file.read_text())
+assert directory == Path(data["dir"]), "Fixture directory mismatch"
 root = Path(__file__).resolve().parents[3]
 fixture_prefix = "lcsp364.active-faults." + directory.name.rsplit("-", 1)[-1]
 os.environ.update(NESTJS_API_BASE_URL=data["base"], DATABASE_URL=data["databaseUrl"],
