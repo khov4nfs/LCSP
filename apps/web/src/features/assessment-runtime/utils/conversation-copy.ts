@@ -4,7 +4,24 @@ import { getAppLocaleSnapshot } from "@/lib/locale";
 
 const PREFIX = "pages.assessmentConversation.";
 
-/** Resolves one `pages.assessmentConversation.*` message and fills its `{name}` placeholders. */
+/**
+ * Business purpose: Present assessment conversation and report labels in the active customer locale.
+ *
+ * Business rules:
+ * - Prefer the conversation message namespace and fall back to its report namespace only when the first key is unresolved.
+ * - Interpolate caller-provided values as display text and never treat them as message keys.
+ *
+ * Execution flow:
+ * 1. Select the explicit locale or the current application locale.
+ * 2. Resolve the conversation key and, when absent, the report-specific key.
+ * 3. Replace named placeholders and return the localized copy.
+ *
+ * Failure cases:
+ * - Unrecognized keys use the i18n resolver's unresolved key behavior; missing interpolation values remain visible as placeholders.
+ *
+ * Side effects:
+ * - None: reads the locale catalog and returns a string without changing assessment state.
+ */
 export function copy(
   key: string,
   values: Record<string, string | number> = {},

@@ -134,6 +134,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright Chromium for API coverage tests
+        run: pnpm --filter @lcsp/api exec playwright install --with-deps chromium
+
       - name: Build runtime packages
         run: pnpm run build:runtime-packages
 

@@ -235,7 +235,6 @@ export function assessmentReportV2Html(
     applicabilityRow(rule, refs, translations),
   );
   const factsRows = applicabilityRows;
-  const applicabilityTable = `<table><thead><tr>${["Quy tắc / nghĩa vụ", "Khả năng áp dụng", "Dữ kiện được ghi nhận", "Bằng chứng được trích dẫn"].map((item) => `<th>${inline(item)}</th>`).join("")}</tr></thead><tbody>${applicabilityRows.join("")}</tbody></table>`;
   const catalogRows = model.obligationCatalog.map((item) => {
     const rule = detailByRule.get(item.assessmentRuleId);
     if (!rule) return ["", "", "", ""];

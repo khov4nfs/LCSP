@@ -172,6 +172,22 @@ export type AssessmentReportV1Presentation = {
   };
 };
 
+/**
+ * Business purpose: Keep the customer-facing V1 and V2 report sections in the shared canonical order.
+ *
+ * Business rules:
+ * - Emit each contracted section exactly once and retain its stable section identity and order.
+ *
+ * Execution flow:
+ * 1. Construct the six section descriptors from the shared section constants.
+ * 2. Return a fresh ordered list for the presentation projection.
+ *
+ * Failure cases:
+ * - No external input is evaluated; section identity changes require the shared contract constants to be updated with consumers.
+ *
+ * Side effects:
+ * - None: returns an in-memory section list.
+ */
 const sections = (): AssessmentReportSection[] => [
   { id: ASSESSMENT_REPORT_SECTION_IDS.result, order: 1 },
   { id: ASSESSMENT_REPORT_SECTION_IDS.applicabilityFacts, order: 2 },
@@ -181,6 +197,22 @@ const sections = (): AssessmentReportSection[] => [
   { id: ASSESSMENT_REPORT_SECTION_IDS.scopeTraceability, order: 6 },
 ];
 
+/**
+ * Business purpose: Project an immutable versioned report artifact into the shape consumed by customer presentation surfaces.
+ *
+ * Business rules:
+ * - Select the matching V1 or V2 projection from the artifact schema version; never recalculate accepted decisions.
+ *
+ * Execution flow:
+ * 1. Inspect the versioned artifact discriminator.
+ * 2. Dispatch to the version-specific presentation projection.
+ *
+ * Failure cases:
+ * - The versioned contract restricts accepted inputs to V1 or V2; unknown runtime versions must not be reinterpreted as V1.
+ *
+ * Side effects:
+ * - None: creates a presentation model without changing the source artifact.
+ */
 export function buildAssessmentReportPresentation(
   artifact: AssessmentFinalReportArtifactVersioned,
 ): AssessmentReportPresentation {
@@ -189,6 +221,22 @@ export function buildAssessmentReportPresentation(
   return buildV2Presentation(artifact);
 }
 
+/**
+ * Business purpose: Preserve the existing V1 artifact's accepted report content for legacy presentation clients.
+ *
+ * Business rules:
+ * - Keep the V1 assessment, artifact, repository pin, publication state, summary, findings, and revision as stored.
+ *
+ * Execution flow:
+ * 1. Copy V1 header and pin values into the presentation model.
+ * 2. Attach the canonical report sections and legacy content projection.
+ *
+ * Failure cases:
+ * - Invalid V1 artifacts are rejected by the versioned contract before this projection is used.
+ *
+ * Side effects:
+ * - None: constructs an in-memory backward-compatible presentation model.
+ */
 function buildV1Presentation(
   artifact: AssessmentFinalReportArtifact,
 ): AssessmentReportV1Presentation {
@@ -212,6 +260,24 @@ function buildV1Presentation(
   };
 }
 
+/**
+ * Business purpose: Present the immutable V2 report with explicit links among accepted rules, legal requirements, criteria, facts, and evidence.
+ *
+ * Business rules:
+ * - Resolve references only against the report's own indexes and preserve stored rule decisions, pins, source references, narratives, and outcomes.
+ * - Missing linked index entries are omitted rather than fabricated; no compliance decision is recomputed.
+ *
+ * Execution flow:
+ * 1. Index the V2 legal requirements, facts, and evidence by their authoritative identities.
+ * 2. Project each rule detail with only its linked requirements and referenced facts/evidence.
+ * 3. Derive report counts and sections from the supplied artifact and return the V2 presentation model.
+ *
+ * Failure cases:
+ * - A schema-invalid artifact must be rejected before projection; unresolved references remain absent for validation/reporting rather than being guessed.
+ *
+ * Side effects:
+ * - None: returns a read-only in-memory projection of the V2 artifact.
+ */
 function buildV2Presentation(
   artifact: AssessmentFinalReportV2,
 ): AssessmentReportV2Presentation {

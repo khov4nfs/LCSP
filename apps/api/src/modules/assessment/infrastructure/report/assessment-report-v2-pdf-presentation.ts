@@ -144,7 +144,7 @@ function removeEnglishTranslationParentheticals(text: string): {
     }
     const content = text.slice(index + 1, end - 1).trim();
     const isEnglishTranslation =
-      /^[A-Z][A-Za-z]+(?:[\s,;:\-]+[A-Za-z]+){3,}/u.test(content) &&
+      /^[A-Z][A-Za-z]+(?:[\s,;:-]+[A-Za-z]+){3,}/u.test(content) &&
       !hasVietnameseDiacritics(content);
     if (isEnglishTranslation) {
       output += " ";

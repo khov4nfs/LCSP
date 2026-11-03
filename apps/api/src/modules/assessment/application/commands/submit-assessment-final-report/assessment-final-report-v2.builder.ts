@@ -23,16 +23,64 @@ import { decisionFingerprint } from "../../../domain/decision-fingerprint.js";
 
 type Narrative = SubmitAssessmentFinalReportRequest["findings"][number];
 
+/**
+ * Business purpose: Safely inspect persisted JSON-shaped rule metadata while projecting a report.
+ *
+ * Business rules:
+ * - Only non-array objects may supply structured metadata; malformed JSON is not interpreted.
+ *
+ * Execution flow:
+ * 1. Check that the value is a non-null object and not an array.
+ * 2. Return the object view or null for all other values.
+ *
+ * Failure cases:
+ * - Missing or malformed metadata returns null so optional presentation fields remain absent.
+ *
+ * Side effects:
+ * - None: reads an in-memory value without changing assessment or legal records.
+ */
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
 }
 
+/**
+ * Business purpose: Accept non-empty text metadata used to link the report to pinned source records.
+ *
+ * Business rules:
+ * - Preserve accepted strings exactly; do not coerce other JSON values into identities or text.
+ *
+ * Execution flow:
+ * 1. Require a string with at least one character.
+ * 2. Return the original value or null.
+ *
+ * Failure cases:
+ * - Empty strings and non-string values are omitted from the report projection.
+ *
+ * Side effects:
+ * - None: performs an in-memory shape check only.
+ */
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+/**
+ * Business purpose: Read legal-source chunk identities declared by a pinned rule contract.
+ *
+ * Business rules:
+ * - Retain only string identities from the stored sourceChunkIds array; do not invent provenance.
+ *
+ * Execution flow:
+ * 1. Inspect the contract object for sourceChunkIds.
+ * 2. Return its string members in stored order, or an empty list.
+ *
+ * Failure cases:
+ * - Missing, malformed, or non-array metadata produces no source identities and is rejected by provenance validation when required.
+ *
+ * Side effects:
+ * - None: reads pinned rule metadata without persistence changes.
+ */
 function sourceChunkIds(contract: unknown): string[] {
   const value = record(contract)?.sourceChunkIds;
   return Array.isArray(value)
@@ -40,6 +88,22 @@ function sourceChunkIds(contract: unknown): string[] {
     : [];
 }
 
+/**
+ * Business purpose: Project the rule's declared criteria into the immutable report without adding criteria.
+ *
+ * Business rules:
+ * - Include a criterion only when both its identifier and description are stored as non-empty strings.
+ *
+ * Execution flow:
+ * 1. Read the criteria array from the pinned rule contract.
+ * 2. Validate each entry's identity and statement and preserve valid entries in order.
+ *
+ * Failure cases:
+ * - Missing arrays and incomplete entries are omitted; the report schema and completion checks determine whether the resulting report is acceptable.
+ *
+ * Side effects:
+ * - None: creates an in-memory projection of authoritative rule data.
+ */
 function criteria(contract: unknown) {
   const value = record(contract)?.criteria;
   if (!Array.isArray(value)) return [];
@@ -51,6 +115,22 @@ function criteria(contract: unknown) {
   });
 }
 
+/**
+ * Business purpose: Expose a repository evidence location only when its path and line range are valid.
+ *
+ * Business rules:
+ * - Only repository-source evidence may produce a locator; line numbers must be positive integers with an ordered range.
+ *
+ * Execution flow:
+ * 1. Confirm the evidence type and payload shape.
+ * 2. Validate path and line bounds, then format the stable path-and-range reference.
+ *
+ * Failure cases:
+ * - Unsupported evidence types or malformed locations return null rather than a misleading citation.
+ *
+ * Side effects:
+ * - None: formats the accepted evidence locator in memory.
+ */
 function safeLocator(type: string, payload: unknown): string | null {
   const value = record(payload);
   if (type !== ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE || !value) {
@@ -73,6 +153,22 @@ function safeLocator(type: string, payload: unknown): string | null {
   return `${path}:${startLine}-${endLine}`;
 }
 
+/**
+ * Business purpose: Bind a report citation to the pinned legal-source version and source chunk.
+ *
+ * Business rules:
+ * - Preserve source version, document, locator, and content hash from the immutable provenance records.
+ *
+ * Execution flow:
+ * 1. Combine the pinned source identity with the selected chunk's citation fields.
+ * 2. Return the traceable source reference used by the V2 artifact.
+ *
+ * Failure cases:
+ * - Missing required values are rejected by upstream provenance/schema validation rather than replaced.
+ *
+ * Side effects:
+ * - None: constructs an in-memory reference and does not modify legal-source records.
+ */
 function sourceRef(
   source: { id: string; version: string },
   chunk: {
@@ -90,6 +186,22 @@ function sourceRef(
   };
 }
 
+/**
+ * Business purpose: Preserve whether a report citation came from a rule decision or criterion decision.
+ *
+ * Business rules:
+ * - Assign only the caller-provided authoritative origin and retain every supplied reference in order.
+ *
+ * Execution flow:
+ * 1. Wrap each accepted decision reference with its origin.
+ * 2. Return the ordered report references.
+ *
+ * Failure cases:
+ * - Empty input produces an empty list; invalid reference shapes are rejected by report validation.
+ *
+ * Side effects:
+ * - None: creates an in-memory reference projection.
+ */
 function references(
   items: RuleDecision["references"],
   origin: "DECISION" | "CRITERION",
@@ -98,8 +210,22 @@ function references(
 }
 
 /**
- * Hydrates and projects only the accepted, pinned state needed for the V2
- * artifact. This function performs no legal or compliance reasoning.
+ * Business purpose: Build the immutable V2 report projection from the accepted finalization snapshot and pinned sources.
+ *
+ * Business rules:
+ * - Use only the snapshot's repository and rule-set pins and stored decisions; this builder never evaluates applicability or compliance.
+ * - Preserve rule, legal requirement, source, criterion, fact, evidence, and reference identities as stored.
+ *
+ * Execution flow:
+ * 1. Load the pinned rule set, rules, legal requirements, and source provenance.
+ * 2. Join accepted decisions and requested narratives to their authoritative rule and reference records.
+ * 3. Construct and schema-validate the V2 artifact for the supplied assessment and artifact IDs.
+ *
+ * Failure cases:
+ * - Missing pinned data, inconsistent references, or schema-invalid projections fail report construction; callers map these failures to the final-report contract.
+ *
+ * Side effects:
+ * - Read-only queries through the caller's transaction; no assessment decisions or source records are changed.
  */
 export async function buildAssessmentFinalReportV2(input: {
   tx: Prisma.TransactionClient;

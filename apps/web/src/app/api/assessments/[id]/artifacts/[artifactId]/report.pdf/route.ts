@@ -10,6 +10,24 @@ import {
   upstreamJson,
 } from "@/lib/server/upstream-request";
 
+/**
+ * Business purpose: Let an authenticated assessment owner download the authorized final-report PDF artifact.
+ *
+ * Business rules:
+ * - Require the normal customer session and valid assessment/artifact UUIDs; upstream API authorization remains authoritative.
+ * - Preserve the upstream binary content type, download name, cache restriction, and integrity header.
+ *
+ * Execution flow:
+ * 1. Resolve the customer session and route identifiers.
+ * 2. Request the report PDF through the shared authenticated upstream helper.
+ * 3. Forward a successful binary response or the shared upstream problem response.
+ *
+ * Failure cases:
+ * - Missing sessions and invalid identifiers return their standard problem responses; upstream authorization or renderer errors are forwarded.
+ *
+ * Side effects:
+ * - Performs a read-only authenticated artifact request; does not create or alter report data.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; artifactId: string }> },

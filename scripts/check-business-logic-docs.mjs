@@ -91,12 +91,13 @@ function collectRecords(files) {
   if (!python.length) return typed;
 
   const processResult = spawnSync(
-    "python3",
+    process.platform === "win32" ? "python" : "python3",
     [join(REPO, "scripts/business-logic-docs-python.py")],
     {
       cwd: REPO,
       encoding: "utf8",
       input: JSON.stringify({ files: python }),
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
       maxBuffer: 64 * 1024 * 1024,
     },
   );

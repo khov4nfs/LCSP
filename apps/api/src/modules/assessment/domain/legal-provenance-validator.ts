@@ -65,6 +65,22 @@ const REPEALED_STATUS = "REPEALED";
 const COVERED_BY_RULES = "COVERED_BY_ASSESSMENT_RULES";
 const NON_ASSESSABLE = "NON_ASSESSABLE";
 
+/**
+ * Business purpose: Record one stable legal-provenance validation failure for the report submission gate.
+ *
+ * Business rules:
+ * - Keep the failure code from the validator's closed failure set and preserve the source identity needed to locate the defect.
+ *
+ * Execution flow:
+ * 1. Combine the stable code and offending reference.
+ * 2. Append the failure to the current validation result.
+ *
+ * Failure cases:
+ * - The helper does not reject on its own; accumulated failures cause the caller to block publication.
+ *
+ * Side effects:
+ * - Mutates only the validator's in-memory failure list; no database state is changed.
+ */
 function add(
   failures: LegalProvenanceFailure[],
   code: LegalProvenanceFailure["code"],
@@ -73,6 +89,22 @@ function add(
   failures.push({ code, reference });
 }
 
+/**
+ * Business purpose: Read the source chunk identities declared by an assessment rule's pinned contract.
+ *
+ * Business rules:
+ * - Accept only string identities from an array; a rule with no declared source chunk cannot prove required report provenance.
+ *
+ * Execution flow:
+ * 1. Verify that the contract is an object.
+ * 2. Return string members from sourceChunkIds or an empty list.
+ *
+ * Failure cases:
+ * - Missing or malformed metadata returns an empty list, which the validator records as incomplete provenance.
+ *
+ * Side effects:
+ * - None: inspects in-memory contract data only.
+ */
 function sourceChunkIds(contract: unknown): string[] {
   if (!contract || typeof contract !== "object") return [];
   const ids = (contract as { sourceChunkIds?: unknown }).sourceChunkIds;
@@ -82,8 +114,24 @@ function sourceChunkIds(contract: unknown): string[] {
 }
 
 /**
- * Validates only the immutable identity and provenance links used by a final
- * report. It does not assess legal meaning, applicability, or compliance.
+ * Business purpose: Prevent publication of a final report whose pinned legal sources or rule-to-requirement provenance cannot be verified.
+ *
+ * Business rules:
+ * - The report must use its pinned active or superseded legal source, matching source chunks and non-repealed references.
+ * - Every report rule must link to requirements in the pinned rule set and declare source chunks; covered requirements require provenance.
+ * - This validator checks identity and provenance only; it never determines legal meaning, applicability, or compliance.
+ *
+ * Execution flow:
+ * 1. Verify that the selected legal source matches the report pin and has an allowed lifecycle status.
+ * 2. Check rule uniqueness, required links, and declared source chunk identities.
+ * 3. Validate each linked requirement and its source document, locator, effect status, and content hash.
+ * 4. Return all stable failures so the caller can reject the report as a whole.
+ *
+ * Failure cases:
+ * - Missing/mismatched pins, invalid links, repealed references, missing chunks, or incomplete hashes are returned as structured failures.
+ *
+ * Side effects:
+ * - None: validates supplied snapshots and returns an in-memory failure list.
  */
 export function validateLegalProvenance(input: {
   ruleSetVersionId: string;
