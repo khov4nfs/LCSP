@@ -25,13 +25,16 @@ def researcher_prompt_for_locale(locale: str) -> str:
     Select the canonical locale-specific read-only researcher instructions.
 
     Business rules:
-    - Supported locales are en/vi; only the language changes, never permissions.
+    - Supported locales are en/vi; only the prompt language changes, never tool permissions.
+
     Execution flow:
-    1. Normalize trusted run locale and select its checked-in researcher prompt.
+    1. Normalize the trusted response locale and select the checked-in researcher instructions.
+
     Failure cases:
-    - Unknown locales use the product's canonical response-language fallback.
+    - If an unsupported locale is supplied, normalize through the product fallback; missing localized source files cause a visible loading error instead of fabricated prompt text.
+
     Side effects:
-    - Pure prompt selection; no repository or Assessment mutation.
+    - Selects an immutable in-process prompt only; does not mutate repository or Assessment state.
     """
     return RESEARCHER_PROMPT_VI if resolve_response_language(locale) == "vi" else RESEARCHER_PROMPT
 
