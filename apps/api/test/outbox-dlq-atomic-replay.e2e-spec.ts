@@ -852,14 +852,21 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
       // Signal that capacity lock and unreleased execution slot are in place
       notifyLockAcquired();
 
-      // Deterministically wait until PostgreSQL confirms Session 1 is actively blocked in pg_locks
+      // Retrieve backend PID of this transaction holding the AssessmentRootCapacity lock
+      const [{ holderPid }] = await tx.$queryRaw<Array<{ holderPid: number }>>`
+        SELECT pg_backend_pid() AS "holderPid"
+      `;
+
+      // Deterministically wait until PostgreSQL confirms the replay session is actively blocked
+      // by this exact holder PID on the AssessmentRootCapacity row lock
       const start = Date.now();
       let blockedWaiterConfirmed = false;
       while (Date.now() - start < 5000) {
         const rows = await tx.$queryRaw<Array<{ count: number }>>`
           SELECT count(*)::int AS count
-          FROM pg_locks
-          WHERE NOT granted
+          FROM pg_stat_activity a
+          WHERE ${holderPid} = ANY(pg_blocking_pids(a.pid))
+            AND a.query ILIKE '%AssessmentRootCapacity%'
         `;
         if (rows[0]?.count > 0) {
           blockedWaiterConfirmed = true;
@@ -870,7 +877,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
 
       if (!blockedWaiterConfirmed) {
         throw new Error(
-          "PostgreSQL waiter failed to block on AssessmentRootCapacity row lock within timeout",
+          `Replay session failed to block on AssessmentRootCapacity row lock held by PID ${holderPid} within timeout`,
         );
       }
     });

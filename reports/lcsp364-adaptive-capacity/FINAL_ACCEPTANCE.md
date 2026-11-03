@@ -4,7 +4,7 @@ Current decision: **BLOCKED REQUIRED** pending exact-head CI and affected produc
 
 ## A. Exact baseline and source identity
 
-Verified at the start of this completion pass: local/GitHub PR #442 HEAD `49022a3a07f45021542804371a44019643e014bd`, OPEN; 37/37 SUCCESS rollup check-run contexts verified on GitHub Actions. The latest independent evidence review explicitly accepts the isolated real-provider two-Root proof and confirmed resolution of prior P1s. Fogewise is still `2cd94a65e26397a1bb486a6ba4de2c168d152192`, 140 applied migrations, healthy API, 4,799,131,648 free disk bytes and zero held physical slots. [Read-only baseline](final-baseline-production.json). SourceNerve workspace discovery currently returns -32603; GitHub/Jira and repository graph tools remain available. No claim is based solely on historical memory.
+Verified at the start of this completion pass: local/GitHub PR #442 HEAD `529e30c7d386e10133d9d170425e5fd3449b4589`, OPEN; 37/37 SUCCESS rollup check-run contexts verified on GitHub Actions. The latest independent evidence review explicitly accepts the isolated real-provider two-Root proof and confirmed resolution of prior P1s. Fogewise is still `2cd94a65e26397a1bb486a6ba4de2c168d152192`, 140 applied migrations, healthy API, 4,799,131,648 free disk bytes and zero held physical slots. [Read-only baseline](final-baseline-production.json). SourceNerve workspace discovery currently returns -32603; GitHub/Jira and repository graph tools remain available. No claim is based solely on historical memory.
 
 ## B. Confirmed root causes and corrections
 
@@ -73,11 +73,29 @@ Following independent review `5746418610` (`CHANGES_REQUESTED`), the following f
 
 3. **P2 — Deterministic Slot Acquisition Race Regression (Test 12):**
    - *Root cause:* Test 12 previously executed slot insertion and replay validation sequentially, rather than testing a true concurrent race, and initially relied on a 50ms heuristic delay.
-   - *Fix:* Rewrote Test 12 to use real lock coordination between two concurrent PostgreSQL sessions: Session 2 acquires `AssessmentRootCapacity FOR UPDATE`, inserts an unreleased execution slot, and holds the lock while Session 1 dispatches `dlqService1.replayMessage()`. PostgreSQL blocks Session 1 at the row lock level. Session 2 deterministically confirms Session 1 is actively blocked by querying `pg_locks` (`SELECT count(*)::int FROM pg_locks WHERE NOT granted`) before exiting its transaction to commit. Upon unblocking, Session 1 evaluates the newly committed slot and fails closed with `dlqReplayUnsafeTarget`, proving deterministic fence enforcement under true concurrency without any timing heuristic.
+   - *Fix:* Rewrote Test 12 to use real lock coordination between two concurrent PostgreSQL sessions: Session 2 acquires `AssessmentRootCapacity FOR UPDATE`, inserts an unreleased execution slot, and holds the lock while Session 1 dispatches `dlqService1.replayMessage()`. PostgreSQL blocks Session 1 at the row lock level.
 
 4. **Integration Fix — Vertical Capacity Tests (`LEGACY_FULL` Mode):**
    - *Root cause:* PR #443 defaulted newly created assessment cases to `auditMode = CUSTOMER_SELECTED`. As a result, `completeRepositorySetup` did not enqueue legacy full-scope Root outbox commands, causing `adaptive-capacity-load.mjs` to encounter an undefined command in `Assessment Root vertical`.
    - *Fix:* Updated `adaptive-capacity-load.mjs` and `adaptive-capacity-faults.mjs` to explicitly set `auditMode = 'LEGACY_FULL'` prior to setup completion, matching the expected behavior for native load and fault runs.
+
+### Review ID 5746775314 Remediation: Deterministic Replay Waiter Barrier via `pg_blocking_pids`
+
+Following independent review `5746775314` (`COMMENTED`), the lock waiter verification in Test 12 was hardened:
+
+1. **P2 — Waiter Session Correlation via `pg_blocking_pids`:**
+   - *Root cause:* Querying `pg_locks WHERE NOT granted` in Test 12 matched any lock waiter across the entire PostgreSQL instance. It did not prove that the waiter was specifically the `replayMessage()` transaction on Session 1, nor that Session 1 was blocked specifically on Session 2's `AssessmentRootCapacity` lock. Any extraneous lock contention could have satisfied the waiter condition spuriously.
+   - *Fix:* Enhanced Test 12 to establish an exact, verifiable per-session blocking relationship:
+     - Session 2 retrieves its own backend PID within its transaction: `SELECT pg_backend_pid() AS "holderPid"`.
+     - While holding the `AssessmentRootCapacity` row lock and unreleased execution slot, Session 2 polls `pg_stat_activity` with an explicit barrier:
+       ```sql
+       SELECT count(*)::int AS count
+       FROM pg_stat_activity a
+       WHERE ${holderPid} = ANY(pg_blocking_pids(a.pid))
+         AND a.query ILIKE '%AssessmentRootCapacity%'
+       ```
+     - Session 2 commits and releases its lock *only* after PostgreSQL confirms that a backend session whose active query targets `AssessmentRootCapacity` is actively blocked by `holderPid`.
+     - Session 1 unblocks, observes the committed slot, and fails closed with `dlqReplayUnsafeTarget`, proving deterministic fence enforcement under true concurrency without heuristic delays or ambient lock false-positives.
 
 Confirmed security gap: the actual non-superuser Fogewise API login could UPDATE/DELETE enrollment, removing the canonical-row fence. The additive immutable-enrollment trigger now rejects this DML, TRUNCATE and impersonation, and validates new enrollment under the activation lock. [RED](final-isolation-red.log), [GREEN: 8/8](final-isolation-green.log). Existing production enrollments have not been modified.
 
@@ -101,7 +119,7 @@ Local source-bound receipts:
 
 | Verification | Result | Receipt / scope |
 |---|---|---|
-| DLQ Atomic Replay / Concurrent Recovery Invariants | 13 PASS | [Test](apps/api/test/outbox-dlq-atomic-replay.e2e-spec.ts); real PostgreSQL concurrency (ports/pools), atomic rollback on audit failure, racing replay/discard, physical slot fencing, discard quiescence guard, non-Root events, deadlock immunity |
+| DLQ Atomic Replay / Concurrent Recovery Invariants | 13 PASS | [Test](apps/api/test/outbox-dlq-atomic-replay.e2e-spec.ts); real PostgreSQL concurrency (ports/pools), atomic rollback on audit failure, racing replay/discard, physical slot fencing, discard quiescence guard, non-Root events, deadlock immunity, exact `pg_blocking_pids` session barrier |
 | Real PostgreSQL Global Admission / Capacity Integration | 18 PASS / 1 SKIP | [Test](apps/api/test/assessment-root-capacity.integration.spec.ts); dedicated `lcsp364_capacity` database, out-of-order 10k deferrals, independent API pools, terminal callback quiescence, tenant rotation, failover fences |
 | Outbox Platform Unit Suite | 87 PASS (6 suites) | [Suite](apps/api/src/platform/outbox/); DLQ controller/service, discard quiescence denial, repository transaction propagation, RabbitMQ publisher, payload isolation |
 | Assessment Domain & Application Suite | 349 PASS (33 suites) | [Suite](apps/api/src/modules/assessment/); root capacity policy, admission gate, recovery services, tracking, provenance, legal source queries |
