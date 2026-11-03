@@ -79,17 +79,8 @@ assert_expected_pm2_apps() {
 }
 
 restart_pm2() {
-  remove_legacy_pm2_apps
-
-  if pm2 startOrRestart "$ECOSYSTEM_FILE" --update-env; then
-    assert_expected_pm2_apps
-    return 0
-  fi
-
-  echo "==> PM2 process list is inconsistent; rebuilding the PM2 daemon state"
-  pm2 kill || true
-  sleep 2
-  pm2 start "$ECOSYSTEM_FILE" --update-env
+  # A failed replacement leaves admission drained; never kill unrelated PM2 apps.
+  pm2 startOrRestart "$ECOSYSTEM_FILE" --update-env
   assert_expected_pm2_apps
 }
 
@@ -103,8 +94,24 @@ require_command pnpm
 
 cd "$APP"
 
+if [[ ! "${LCSP_DEPLOY_EXPECTED_SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "LCSP_DEPLOY_EXPECTED_SHA must pin the reviewed PR revision" >&2
+  exit 1
+fi
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Production checkout has local changes; preserve them before deployment" >&2
+  exit 1
+fi
+
+echo "==> Drain actual native execution before changing source or persistence"
+node scripts/drain-agent-runtime.mjs
+
 echo "==> Pull source"
 git pull --ff-only
+if [[ "$(git rev-parse HEAD)" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
+  echo "Pulled revision differs from the expected PR SHA; no build/restart performed" >&2
+  exit 1
+fi
 
 echo "==> Install Node dependencies"
 pnpm install --frozen-lockfile

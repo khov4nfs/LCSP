@@ -1,0 +1,167 @@
+
+tests/test_adaptive_root_capacity.py::test_sync_wait_cannot_bypass_a_busy_executor_or_drain[False]
+-------------------------------- live log call ---------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/occupied/runs "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-0/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-1/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-2/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-3/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-4/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-5/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-6/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-7/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-8/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-9/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-10/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-11/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-12/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-13/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-14/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-15/runs/wait "HTTP/1.1 200 OK"
+FAILED                                                                   [ 50%]
+tests/test_adaptive_root_capacity.py::test_sync_wait_cannot_bypass_a_busy_executor_or_drain[True]
+-------------------------------- live log call ---------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/occupied/runs "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/internal/execution-capacity "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-0/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-1/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-3/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-2/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-4/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-5/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-6/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-7/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-8/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-9/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-10/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-11/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-12/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-14/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-13/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-15/runs/wait "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_sync_wait_cannot_bypass_a_busy_executor_or_drain[False] _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1c8cfa3010>
+draining = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("draining", [False, True])
+    async def test_sync_wait_cannot_bypass_a_busy_executor_or_drain(monkeypatch, draining):
+        monkeypatch.setenv("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS", "1")
+        monkeypatch.setenv("WORKER_API_KEY", "fixture-only-key")
+        monkeypatch.setattr(local_server, "resource_measurements", lambda: {})
+        runtime = local_server.LocalAgentRuntime(capacity_client=CapacityProtocol())
+        monkeypatch.setattr(local_server.app.state, "runtime", runtime, raising=False)
+        started, release, calls = Event(), Event(), []
+
+        class SingleSlotGraph(BlockingGraph):
+            def stream(self, *_args, **_kwargs):
+                calls.append(1)
+                if len(calls) == 1:
+                    started.set()
+                    assert release.wait(5)
+                yield {"done": True}
+
+        runtime.graph = SingleSlotGraph(started, release, [])
+        try:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=local_server.app), base_url="http://fixture") as client:
+                run = (await client.post("/threads/occupied/runs", json=payload())).json()
+                assert await asyncio.to_thread(started.wait, 2)
+                if draining:
+                    response = await client.post("/internal/execution-capacity",
+                        headers={"x-worker-api-key": "fixture-only-key"}, json={"draining": True})
+                    assert response.json()["data"]["draining"] is True
+                    assert response.json()["data"]["quiescent"] is False
+                responses = await asyncio.gather(*[
+                    client.post(f"/threads/sync-{i}/runs/wait", json=payload()) for i in range(16)
+                ])
+>               assert all(response.status_code == 405 for response in responses)
+E               assert False
+E                +  where False = all(<generator object test_sync_wait_cannot_bypass_a_busy_executor_or_drain.<locals>.<genexpr> at 0x7f1c8cf924d0>)
+
+tests/test_adaptive_root_capacity.py:235: AssertionError
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/occupied/runs "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-0/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-1/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-2/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-3/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-4/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-5/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-6/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-7/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-8/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-9/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-10/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-11/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-12/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-13/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-14/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-15/runs/wait "HTTP/1.1 200 OK"
+_________ test_sync_wait_cannot_bypass_a_busy_executor_or_drain[True] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1c8cfa2f10>
+draining = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("draining", [False, True])
+    async def test_sync_wait_cannot_bypass_a_busy_executor_or_drain(monkeypatch, draining):
+        monkeypatch.setenv("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS", "1")
+        monkeypatch.setenv("WORKER_API_KEY", "fixture-only-key")
+        monkeypatch.setattr(local_server, "resource_measurements", lambda: {})
+        runtime = local_server.LocalAgentRuntime(capacity_client=CapacityProtocol())
+        monkeypatch.setattr(local_server.app.state, "runtime", runtime, raising=False)
+        started, release, calls = Event(), Event(), []
+
+        class SingleSlotGraph(BlockingGraph):
+            def stream(self, *_args, **_kwargs):
+                calls.append(1)
+                if len(calls) == 1:
+                    started.set()
+                    assert release.wait(5)
+                yield {"done": True}
+
+        runtime.graph = SingleSlotGraph(started, release, [])
+        try:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=local_server.app), base_url="http://fixture") as client:
+                run = (await client.post("/threads/occupied/runs", json=payload())).json()
+                assert await asyncio.to_thread(started.wait, 2)
+                if draining:
+                    response = await client.post("/internal/execution-capacity",
+                        headers={"x-worker-api-key": "fixture-only-key"}, json={"draining": True})
+                    assert response.json()["data"]["draining"] is True
+                    assert response.json()["data"]["quiescent"] is False
+                responses = await asyncio.gather(*[
+                    client.post(f"/threads/sync-{i}/runs/wait", json=payload()) for i in range(16)
+                ])
+>               assert all(response.status_code == 405 for response in responses)
+E               assert False
+E                +  where False = all(<generator object test_sync_wait_cannot_bypass_a_busy_executor_or_drain.<locals>.<genexpr> at 0x7f1c8cc9ecf0>)
+
+tests/test_adaptive_root_capacity.py:235: AssertionError
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/occupied/runs "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/internal/execution-capacity "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-0/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-1/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-3/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-2/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-4/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-5/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-6/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-7/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-8/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-9/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-10/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-11/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-12/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-14/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-13/runs/wait "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: POST http://fixture/threads/sync-15/runs/wait "HTTP/1.1 200 OK"
+=========================== short test summary info ============================
+FAILED tests/test_adaptive_root_capacity.py::test_sync_wait_cannot_bypass_a_busy_executor_or_drain[False]
+FAILED tests/test_adaptive_root_capacity.py::test_sync_wait_cannot_bypass_a_busy_executor_or_drain[True]
+======================= 2 failed, 27 deselected in 2.42s =======================

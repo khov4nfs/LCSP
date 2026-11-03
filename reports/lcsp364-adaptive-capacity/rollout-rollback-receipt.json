@@ -1,0 +1,114 @@
+{
+  "candidateRevision": "7528577c08e23e991f62223558407d529d22babd",
+  "rollbackRevision": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "startedAt": "2026-10-30T19:32:45.710997+00:00",
+  "steps": [],
+  "additiveMigrationsRetained": true,
+  "databaseRestorePerformed": false,
+  "beforeDomainFingerprints": {
+    "Assessment": {
+      "rows": 29,
+      "rowsFingerprint": "d89bddcc73fefe3b15caf14640c0f05a"
+    },
+    "AssessmentCase": {
+      "rows": 29,
+      "rowsFingerprint": "f3f8cac1ceb54b7a7314ec0234c61e98"
+    },
+    "AssessmentRuntime": {
+      "rows": 29,
+      "rowsFingerprint": "ca92957fa39714926adc6bac5ea40cb4"
+    },
+    "AssessmentRuntimeTurn": {
+      "rows": 43,
+      "rowsFingerprint": "1df8d5e46bf4b63793ae3492e7f4fc2e"
+    },
+    "AssessmentDecisionCoverage": {
+      "rows": 5366,
+      "rowsFingerprint": "4befc0cbd6c1e2400a23acc397c13f7c"
+    },
+    "AssessmentEvidence": {
+      "rows": 299,
+      "rowsFingerprint": "57844aaf54958c0befc5963079cec624"
+    },
+    "AssessmentRule": {
+      "rows": 243,
+      "rowsFingerprint": "e3fcf486704dbe246fc114e46efead8c"
+    },
+    "LlmUsageEvent": {
+      "rows": 5829,
+      "rowsFingerprint": "e463f66e0df11cdf1556b22d5e728d4f"
+    },
+    "ComplianceRuleSetVersion": {
+      "rows": 1,
+      "rowsFingerprint": "7a0538a67fd4b0a713a013b50b1e5534"
+    }
+  },
+  "imageId": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+  "imageDigests": [
+    "lcsp-agent-runtime@sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5"
+  ],
+  "restoredEnvironmentSha256": "130b397dc63725e28efe1450d41305504acf00163ba2c609226abb91b12a49a3",
+  "apiHealth": 200,
+  "webHealth": 200,
+  "runtimeHealth": 200,
+  "afterDomainFingerprints": {
+    "Assessment": {
+      "rows": 29,
+      "rowsFingerprint": "d89bddcc73fefe3b15caf14640c0f05a"
+    },
+    "AssessmentCase": {
+      "rows": 29,
+      "rowsFingerprint": "f3f8cac1ceb54b7a7314ec0234c61e98"
+    },
+    "AssessmentRuntime": {
+      "rows": 29,
+      "rowsFingerprint": "ca92957fa39714926adc6bac5ea40cb4"
+    },
+    "AssessmentRuntimeTurn": {
+      "rows": 43,
+      "rowsFingerprint": "1df8d5e46bf4b63793ae3492e7f4fc2e"
+    },
+    "AssessmentDecisionCoverage": {
+      "rows": 5366,
+      "rowsFingerprint": "4befc0cbd6c1e2400a23acc397c13f7c"
+    },
+    "AssessmentEvidence": {
+      "rows": 299,
+      "rowsFingerprint": "57844aaf54958c0befc5963079cec624"
+    },
+    "AssessmentRule": {
+      "rows": 243,
+      "rowsFingerprint": "e3fcf486704dbe246fc114e46efead8c"
+    },
+    "LlmUsageEvent": {
+      "rows": 5829,
+      "rowsFingerprint": "e463f66e0df11cdf1556b22d5e728d4f"
+    },
+    "ComplianceRuleSetVersion": {
+      "rows": 1,
+      "rowsFingerprint": "7a0538a67fd4b0a713a013b50b1e5534"
+    }
+  },
+  "domainFingerprintDifferences": [],
+  "endedAt": "2026-10-30T19:33:09.509032+00:00",
+  "diskFreeBytes": 4431831040,
+  "unrelatedProcessIdsPreserved": true,
+  "checkoutClean": true,
+  "services": [
+    {
+      "name": "lcsp-api",
+      "pid": 3887557,
+      "status": "online"
+    },
+    {
+      "name": "lcsp-agent-runtime",
+      "pid": 3887558,
+      "status": "online"
+    },
+    {
+      "name": "lcsp-web",
+      "pid": 3887581,
+      "status": "online"
+    }
+  ]
+}

@@ -190,6 +190,50 @@ def test_failed_submission_releases_capacity():
             executor.submit(lambda: None)
 
 
+@pytest.mark.parametrize("confirmed", [True, False])
+def test_duplicate_root_releases_broker_credit_without_occupying_independent_worker(monkeypatch, confirmed):
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def dispatch(_boundary, message, _correlation, **_kwargs):
+        calls.append(message["assessmentId"])
+        if message["assessmentId"] == "A":
+            entered.set()
+            assert release.wait(5)
+
+    monkeypatch.setattr(bridge, "dispatch_agent_runtime_event", dispatch)
+    connection, channel = Connection(), Channel()
+    channel.publish_result = confirmed
+    with bridge.BoundedBoundaryExecutor(max_workers=2) as executor:
+        handler = bridge._delivery_handler(
+            "assessment_root_requested", connection=connection, executor=executor,
+            queue_name="lcsp364.root", requeue_on_error=True,
+        )
+        try:
+            body = json.dumps({"assessmentId": "A"}).encode()
+            props = SimpleNamespace(headers={bridge.AGENT_RUNTIME_ATTEMPT_HEADER: 2})
+            handler(channel, SimpleNamespace(delivery_tag="original", routing_key="command.root"), props, body)
+            assert entered.wait(2)
+            handler(channel, SimpleNamespace(delivery_tag="duplicate", routing_key="command.root"), props, body)
+            if confirmed:
+                assert channel.acked == ["duplicate"]
+                assert channel.nacked == []
+            else:
+                assert channel.acked == []
+                assert channel.nacked == [("duplicate", True)]
+            assert channel.published[-1]["routing_key"].endswith("retry.15000ms")
+            assert channel.published[-1]["properties"].headers[bridge.AGENT_RUNTIME_ATTEMPT_HEADER] == 2
+            deliver(executor, connection, channel, "B")
+            connection.drain()
+            assert calls == ["A", "B"]
+            assert not release.is_set()
+            assert executor._work_queue.qsize() == 0
+        finally:
+            release.set()
+        connection.drain()
+        assert channel.acked.count("original") == 1
+
+
 @pytest.mark.parametrize("raw", ["0", "-1", "65536", "nan", "1.5"])
 def test_unbounded_or_invalid_prefetch_is_rejected(monkeypatch, raw):
     monkeypatch.setenv("LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH", raw)

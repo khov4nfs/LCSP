@@ -17,6 +17,9 @@ from tools.common.capabilities.agent_runtime.boundary import (
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
+from tools.common.capabilities.agent_runtime.root_capacity import (
+    CAPACITY_UNAVAILABLE, RootCapacityUnavailable, ROOT_COMMAND_OBSOLETE, RootCommandObsolete, ROOT_BOUNDARY,
+)
 
 
 DEFAULT_AGENT_SERVER_URL = "http://127.0.0.1:2024"
@@ -40,6 +43,33 @@ class AgentServerRunError(NonRetryableAgentBoundaryError):
 _INTERRUPTED_RUN_STATUS = "interrupted"
 
 
+def _create_bounded_run(client, *args, **kwargs):
+    """Business purpose: Preserve admission refusal as queue backpressure rather than failed Assessment work.
+
+    Business rules:
+    - Only the server's exact operational capacity refusal becomes durable broker deferral.
+    Execution flow:
+    1. Create the native request, translating its typed 429 capacity response when present.
+    Failure cases:
+    - Other HTTP/provider/transport errors retain their existing failure handling.
+    Side effects:
+    - May create a native request; refusal schedules no native work or model call.
+    """
+    try:
+        return client.runs.create(*args, **kwargs)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in {409, 429}:
+            try:
+                problem = exc.response.json()
+                if isinstance(problem, dict) and problem.get("error") == CAPACITY_UNAVAILABLE:
+                    raise RootCapacityUnavailable() from exc
+                if isinstance(problem, dict) and problem.get("error") == ROOT_COMMAND_OBSOLETE:
+                    raise RootCommandObsolete() from exc
+            except ValueError:
+                pass
+        raise
+
+
 def _run_budget_seconds(timeout_seconds: float | None) -> float | None:
     """The boundary's opt-in deadline, else an explicit operator override, else none."""
     if timeout_seconds is not None and timeout_seconds > 0:
@@ -55,11 +85,19 @@ def dispatch_agent_runtime_event(
     *,
     timeout_seconds: float | None = None,
 ) -> dict[str, Any] | list[dict[str, Any]]:
-    """Create/reuse one assessment thread and synchronously execute the system event.
+    """Business purpose: Dispatch a durable boundary through one bounded native transport request.
 
-    The run is created asynchronously and then polled instead of holding one long
-    runs.wait request. This exposes scheduler delay, detects terminal errors
-    promptly, and lets the boundary deadline interrupt the actual LangGraph run.
+    Business rules:
+    - Only the same Root command can reattach active work; a new Continue waits for the preceding execution to quiesce.
+    - Global capacity refusal defers delivery without failing the Assessment.
+    - No deadline exists unless the existing boundary explicitly configures one.
+    Execution flow:
+    1. Resolve deterministic transport identity and immutable event context.
+    2. Reattach or create a bounded run, then poll through terminal execution.
+    Failure cases:
+    - Typed capacity refusal propagates for durable broker deferral; existing timeout/terminal errors retain their policy.
+    Side effects:
+    - Creates/polls native transport work and established telemetry; RabbitMQ settlement stays on its connection thread.
     """
     # No deadline unless the boundary opted into one: agent runs take as long
     # as their reasoning needs.
@@ -118,9 +156,13 @@ def dispatch_agent_runtime_event(
         metadata=metadata,
     )
     run = _find_active_thread_run(client, thread_id, boundary_name)
-    reused_active_run = run is not None
+    command_key = _find_text(message, "idempotencyKey")
+    if run is not None and boundary_name == ROOT_BOUNDARY and (
+        not command_key or (run.get("metadata") or {}).get("lcsp_root_command_key") != command_key
+    ):
+        raise RootCapacityUnavailable()
     if run is None:
-        run = client.runs.create(
+        run = _create_bounded_run(client,
             thread_id,
             os.getenv("LCSP_AGENT_ASSISTANT_ID", DEFAULT_ASSISTANT_ID),
             input={
@@ -141,6 +183,7 @@ def dispatch_agent_runtime_event(
                 "lcsp_boundary_name": boundary_name,
                 "correlation_id": correlation_id,
                 "assessment_id": assessment_id,
+                **({"lcsp_root_command_key": command_key} if boundary_name == ROOT_BOUNDARY else {}),
             },
             multitask_strategy="enqueue",
             on_completion="keep",
@@ -263,11 +306,18 @@ def resume_agent_runtime_run(
     *,
     timeout_seconds: float | None = None,
 ) -> dict[str, Any] | list[dict[str, Any]]:
-    """Continue a previously interrupted run from its last checkpoint.
+    """Business purpose: Continue the existing canonical workflow through bounded native re-admission.
 
-    Recomputes the same deterministic thread id and creates a new run with no
-    new input, so the graph resumes purely from checkpointed state (LangGraph's
-    standard resume idiom) instead of appending another turn.
+    Business rules:
+    - Keep the deterministic thread, frozen event and checkpoint; duplicate request IDs reuse their saved request.
+    - Continue competes for physical/global capacity and never creates another decision-owning Root.
+    Execution flow:
+    1. Reconstruct the authoritative continuation context and find a previously published request.
+    2. Reuse or create its bounded native request with no repeated input, then poll to terminal state.
+    Failure cases:
+    - Admission refusal durably defers; invalid checkpoint/transport/terminal failures retain existing handling.
+    Side effects:
+    - May create one native continuation request; preserves existing checkpoint ancestry and settlement authority.
     """
     thread_id = _find_text(message, "threadId") or agent_thread_id(boundary_name, message, correlation_id)
     assessment_id = _find_text(message, "assessmentId", "assessment_id")
@@ -336,7 +386,7 @@ def resume_agent_runtime_run(
             raise AgentServerRunError("RuntimeAlreadyRunning", "Another native generation owns the thread")
         run = active
     if run is None:
-        run = client.runs.create(
+        run = _create_bounded_run(client,
         thread_id,
         os.getenv("LCSP_AGENT_ASSISTANT_ID", DEFAULT_ASSISTANT_ID),
         input=None,

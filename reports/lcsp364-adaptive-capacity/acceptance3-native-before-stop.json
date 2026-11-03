@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-31T08:53:23.242719+00:00",
+  "slots": [
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "70f9547f-5d7a-46ce-9dea-ad3469b6a192",
+      "2026-10-31 08:52:00.224000+00:00",
+      "2026-10-31 08:52:00.427000+00:00",
+      null
+    ]
+  ],
+  "runtimes": [
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "1f039d1f-8daa-4cd1-a6e8-02938f3e3b98",
+      "6f869774-db6d-4465-be46-87ebd34f682c",
+      "RUNNING",
+      null,
+      "RUNNING",
+      "70f9547f-5d7a-46ce-9dea-ad3469b6a192"
+    ],
+    [
+      "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "619454fb-1ebc-44bc-aaa3-fcfef52ff0bc",
+      null,
+      "QUEUED",
+      null,
+      null,
+      null
+    ]
+  ],
+  "usageEvents": [
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      19
+    ]
+  ]
+}

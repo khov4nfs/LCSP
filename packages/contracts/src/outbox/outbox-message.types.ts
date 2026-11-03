@@ -7,6 +7,8 @@ import {
 
 export const OUTBOX_STATUSES = {
   pending: "PENDING",
+  /** Only the enrolled PostgreSQL writer role may publish this Assessment's events. */
+  ownedPending: "OWNED_PENDING",
   published: "PUBLISHED",
   failed: "FAILED",
   dlq: "DLQ",
@@ -20,11 +22,13 @@ export const OUTBOX_AUDIT_EVENT_TYPES = {
   dlqReplayDenied: "OUTBOX_DLQ_REPLAY_DENIED",
   dlqReplayed: "OUTBOX_DLQ_REPLAYED",
   dlqDiscarded: "OUTBOX_DLQ_DISCARDED",
+  dlqDiscardDenied: "OUTBOX_DLQ_DISCARD_DENIED",
 } as const;
 
 export const OUTBOX_ERROR_CODES = {
   dlqMessageNotFound: "OUTBOX_DLQ_MESSAGE_NOT_FOUND",
   dlqReplayUnsafeTarget: "OUTBOX_DLQ_REPLAY_UNSAFE_TARGET",
+  dlqDiscardUnsafeTarget: "OUTBOX_DLQ_DISCARD_UNSAFE_TARGET",
 } as const;
 
 export const OUTBOX_MESSAGE_SCHEMA_VERSION = "outbox.message.v1";

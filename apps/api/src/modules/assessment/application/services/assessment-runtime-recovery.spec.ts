@@ -116,6 +116,7 @@ function fixture(
     { $transaction: (fn: (tx: unknown) => unknown) => fn(tx) } as never,
     { appendInTx } as never,
     {} as never,
+    { bindInTx: () => Promise.resolve(undefined) } as never,
   );
   return {
     authority,

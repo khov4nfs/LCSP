@@ -151,7 +151,7 @@ def test_redelivered_root_reattaches_active_boundary_run(monkeypatch):
             {
                 "run_id": "active-run",
                 "status": "running",
-                "metadata": {"lcsp_boundary_name": "assessment_root_requested"},
+                "metadata": {"lcsp_boundary_name": "assessment_root_requested", "lcsp_root_command_key": "root:assessment-1"},
             }
         ]
     )
@@ -160,7 +160,7 @@ def test_redelivered_root_reattaches_active_boundary_run(monkeypatch):
 
     result = agent_server_client.dispatch_agent_runtime_event(
         "assessment_root_requested",
-        {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
+        {"assessmentId": "assessment-1", "scanJobId": "scan-1", "idempotencyKey": "root:assessment-1"},
         "correlation-1",
         timeout_seconds=30,
     )

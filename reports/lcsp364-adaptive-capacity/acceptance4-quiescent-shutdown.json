@@ -1,0 +1,38 @@
+{
+  "at": "2026-11-02T03:52:28.381763+00:00",
+  "scope": "ISOLATED_OWNED_SERVICES_ONLY",
+  "verifiedQuiescentBeforeStop": {
+    "draining": false,
+    "activeNativeRuns": 0,
+    "reservedRootRuns": 0,
+    "activeNativeRoots": 0,
+    "quiescent": true
+  },
+  "nativeContainer": "lcsp364-live-server-31f270429",
+  "gracefulDockerStopSucceeded": true,
+  "ownedProcessesSignaled": [
+    {
+      "name": "router",
+      "pid": 63415
+    },
+    {
+      "name": "api-36481",
+      "pid": 47457
+    },
+    {
+      "name": "api-36482",
+      "pid": 47640
+    },
+    {
+      "name": "bridge-1",
+      "pid": 82374
+    },
+    {
+      "name": "bridge-2",
+      "pid": 82375
+    }
+  ],
+  "databaseCheckpointBrokerAndSandboxesPreserved": true,
+  "productionActions": "READ_ONLY_ONLY",
+  "unmanagedProcessesSignaled": 0
+}

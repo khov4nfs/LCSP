@@ -1,0 +1,2384 @@
+$ node scripts/with-check-memory.mjs pnpm run test:web:run
+Running as unit: run-p109160-i81792.scope; invocation ID: 7c37472ec931438d84b882ffc9381411
+$ pnpm run build:runtime-packages && pnpm exec tsx --tsconfig apps/web/tsconfig.test.json --test --test-concurrency=1 tests/*.web.test.ts && pnpm --dir apps/web exec tsx --tsconfig tsconfig.test.json --test --test-concurrency=1 'tests/*.test.ts'
+$ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build
+$ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force
+$ tsc -b tsconfig.json --force
+TAP version 13
+# Subtest: canonical assessment activity labels resolve in both locales
+ok 1 - canonical assessment activity labels resolve in both locales
+  ---
+  duration_ms: 0.543972
+  type: 'test'
+  ...
+# Subtest: unrestricted evaluation requires explicit matching authorization and preserves cancellation
+ok 2 - unrestricted evaluation requires explicit matching authorization and preserves cancellation
+  ---
+  duration_ms: 23.13798
+  type: 'test'
+  ...
+# Subtest: bounded authorization still enforces count, token ceilings and deadlines
+ok 3 - bounded authorization still enforces count, token ceilings and deadlines
+  ---
+  duration_ms: 0.414003
+  type: 'test'
+  ...
+# Subtest: frozen candidate permits evidence publication and rejects committed or dirty source changes
+ok 4 - frozen candidate permits evidence publication and rejects committed or dirty source changes
+  ---
+  duration_ms: 73.595209
+  type: 'test'
+  ...
+# Subtest: global and cumulative stage deadlines abort without stage-reset bypass
+ok 5 - global and cumulative stage deadlines abort without stage-reset bypass
+  ---
+  duration_ms: 51.140904
+  type: 'test'
+  ...
+# Subtest: supervised worker kills its owned process group before recovery
+ok 6 - supervised worker kills its owned process group before recovery
+  ---
+  duration_ms: 508.131011
+  type: 'test'
+  ...
+# Subtest: live entrypoint rejects missing frozen authorization context before database or provider work
+ok 7 - live entrypoint rejects missing frozen authorization context before database or provider work
+  ---
+  duration_ms: 166.365584
+  type: 'test'
+  ...
+# Subtest: official reference mapping MIRAIAPI/claude-sonnet-5
+ok 8 - official reference mapping MIRAIAPI/claude-sonnet-5
+  ---
+  duration_ms: 1.070559
+  type: 'test'
+  ...
+# Subtest: official reference mapping APX/claude-sonnet-4-6-free
+ok 9 - official reference mapping APX/claude-sonnet-4-6-free
+  ---
+  duration_ms: 0.236611
+  type: 'test'
+  ...
+# Subtest: official reference mapping INCEPTION/mercury-2.5
+ok 10 - official reference mapping INCEPTION/mercury-2.5
+  ---
+  duration_ms: 0.12229
+  type: 'test'
+  ...
+# Subtest: official reference mapping GOOGLE_GENAI/gemini-3.5-flash-lite
+ok 11 - official reference mapping GOOGLE_GENAI/gemini-3.5-flash-lite
+  ---
+  duration_ms: 0.121633
+  type: 'test'
+  ...
+# Subtest: official reference mapping OPENAI/gpt-4o
+ok 12 - official reference mapping OPENAI/gpt-4o
+  ---
+  duration_ms: 0.074469
+  type: 'test'
+  ...
+# Subtest: cache read/write TTL buckets and reasoning are counted once
+ok 13 - cache read/write TTL buckets and reasoning are counted once
+  ---
+  duration_ms: 0.118661
+  type: 'test'
+  ...
+# Subtest: partial usage retains exact known subtotal, never presents a complete total
+ok 14 - partial usage retains exact known subtotal, never presents a complete total
+  ---
+  duration_ms: 0.231137
+  type: 'test'
+  ...
+# Subtest: version selection does not invent historical prices or mutate existing snapshots
+ok 15 - version selection does not invent historical prices or mutate existing snapshots
+  ---
+  duration_ms: 5.580111
+  type: 'test'
+  ...
+# Subtest: context tiers require measured inclusive input and exact precision survives large counts
+ok 16 - context tiers require measured inclusive input and exact precision survives large counts
+  ---
+  duration_ms: 0.337267
+  type: 'test'
+  ...
+# Subtest: decimal formatter trims adversarial zero tails in a bounded scan
+ok 17 - decimal formatter trims adversarial zero tails in a bounded scan
+  ---
+  duration_ms: 0.887659
+  type: 'test'
+  ...
+# Subtest: Mercury 3 uses the captured launch rate after observation without inventing historical cost
+ok 18 - Mercury 3 uses the captured launch rate after observation without inventing historical cost
+  ---
+  duration_ms: 0.160426
+  type: 'test'
+  ...
+# Subtest: release gate keeps static and canonical Web CI coverage
+ok 19 - release gate keeps static and canonical Web CI coverage
+  ---
+  duration_ms: 0.89858
+  type: 'test'
+  ...
+# Subtest: V2 release gate requires every applicable canonical suite
+ok 20 - V2 release gate requires every applicable canonical suite
+  ---
+  duration_ms: 0.465497
+  type: 'test'
+  ...
+# Subtest: V2 release gate refuses missing required suites or conditional aggregate execution
+ok 21 - V2 release gate refuses missing required suites or conditional aggregate execution
+  ---
+  duration_ms: 3.435997
+  type: 'test'
+  ...
+# Subtest: server-side route middleware redirects unauthenticated workspace routes before render
+ok 22 - server-side route middleware redirects unauthenticated workspace routes before render
+  ---
+  duration_ms: 0.538904
+  type: 'test'
+  ...
+# Subtest: server-side route middleware allows protected routes only when session cookie exists
+ok 23 - server-side route middleware allows protected routes only when session cookie exists
+  ---
+  duration_ms: 0.090678
+  type: 'test'
+  ...
+# Subtest: protected web route redirects to sign-in and renders no workspace data
+ok 24 - protected web route redirects to sign-in and renders no workspace data
+  ---
+  duration_ms: 0.1698
+  type: 'test'
+  ...
+# Subtest: blocked state copy stays safe and exposes a clear next action
+ok 25 - blocked state copy stays safe and exposes a clear next action
+  ---
+  duration_ms: 0.246365
+  type: 'test'
+  ...
+# Subtest: capability projection does not replace server enforcement
+ok 26 - capability projection does not replace server enforcement
+  ---
+  duration_ms: 0.119466
+  type: 'test'
+  ...
+# Subtest: authenticated blocked workspace state stays on page and surfaces required action
+ok 27 - authenticated blocked workspace state stays on page and surfaces required action
+  ---
+  duration_ms: 0.082769
+  type: 'test'
+  ...
+# Subtest: shared contracts expose resource-local value sets
+ok 28 - shared contracts expose resource-local value sets
+  ---
+  duration_ms: 0.795576
+  type: 'test'
+  ...
+# Subtest: decision and role contracts have canonical sources
+ok 29 - decision and role contracts have canonical sources
+  ---
+  duration_ms: 0.097008
+  type: 'test'
+  ...
+# Subtest: successful sign-in outcomes redirect without exposing a session token
+ok 30 - successful sign-in outcomes redirect without exposing a session token
+  ---
+  duration_ms: 0.938973
+  type: 'test'
+  ...
+# Subtest: sign-in errors expose safe i18n keys
+ok 31 - sign-in errors expose safe i18n keys
+  ---
+  duration_ms: 0.145226
+  type: 'test'
+  ...
+# Subtest: session storage is an httpOnly same-site cookie
+ok 32 - session storage is an httpOnly same-site cookie
+  ---
+  duration_ms: 0.082887
+  type: 'test'
+  ...
+# Subtest: sign-in schema rejects malformed credentials without retaining a password outside the form
+ok 33 - sign-in schema rejects malformed credentials without retaining a password outside the form
+  ---
+  duration_ms: 1.165898
+  type: 'test'
+  ...
+# Subtest: sign-up outcomes establish a session without exposing session credentials
+ok 34 - sign-up outcomes establish a session without exposing session credentials
+  ---
+  duration_ms: 0.166862
+  type: 'test'
+  ...
+# Subtest: sign-up schema validates account fields
+ok 35 - sign-up schema validates account fields
+  ---
+  duration_ms: 0.66738
+  type: 'test'
+  ...
+# Subtest: sign-in schema derives from canonical contract and trims email
+ok 36 - sign-in schema derives from canonical contract and trims email
+  ---
+  duration_ms: 0.218149
+  type: 'test'
+  ...
+# Subtest: recovery request schema trims email according to shared contract
+ok 37 - recovery request schema trims email according to shared contract
+  ---
+  duration_ms: 0.227276
+  type: 'test'
+  ...
+# Subtest: recovery confirm schema enforces canonical password rules
+ok 38 - recovery confirm schema enforces canonical password rules
+  ---
+  duration_ms: 0.397731
+  type: 'test'
+  ...
+# Subtest: mfa verify schemas validate otp and recovery code formats
+ok 39 - mfa verify schemas validate otp and recovery code formats
+  ---
+  duration_ms: 0.652513
+  type: 'test'
+  ...
+# Subtest: profile safety schema accepts optional valid recovery email and trims
+ok 40 - profile safety schema accepts optional valid recovery email and trims
+  ---
+  duration_ms: 0.649429
+  type: 'test'
+  ...
+# Subtest: workspace role projection shows create assessment only for customer role
+ok 41 - workspace role projection shows create assessment only for customer role
+  ---
+  duration_ms: 0.501399
+  type: 'test'
+  ...
+# Subtest: workspace redirects auth and mfa failures to safe routes
+ok 42 - workspace redirects auth and mfa failures to safe routes
+  ---
+  duration_ms: 0.559046
+  type: 'test'
+  ...
+# Subtest: workspace outcome normalizes the role-only flat API contract
+ok 43 - workspace outcome normalizes the role-only flat API contract
+  ---
+  duration_ms: 0.149919
+  type: 'test'
+  ...
+# Subtest: assessment list outcome accepts only canonical list payloads
+ok 44 - assessment list outcome accepts only canonical list payloads
+  ---
+  duration_ms: 2.21897
+  type: 'test'
+  ...
+# Subtest: workspace sidebar navigation active state uses pathname and hash
+ok 45 - workspace sidebar navigation active state uses pathname and hash
+  ---
+  duration_ms: 0.160203
+  type: 'test'
+  ...
+# Subtest: workspace sidebar navigation keeps same-page targets as client-side urls
+ok 46 - workspace sidebar navigation keeps same-page targets as client-side urls
+  ---
+  duration_ms: 0.095639
+  type: 'test'
+  ...
+# Subtest: Story 1.6 uses canonical role-only authorization
+ok 47 - Story 1.6 uses canonical role-only authorization
+  ---
+  duration_ms: 0.805493
+  type: 'test'
+  ...
+# Subtest: Story 1.6 exposes assessment creation only to CUSTOMER
+ok 48 - Story 1.6 exposes assessment creation only to CUSTOMER
+  ---
+  duration_ms: 0.132302
+  type: 'test'
+  ...
+1..48
+# tests 48
+# suites 0
+# pass 48
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2900.31225
+TAP version 13
+# Subtest: ACCOUNT_LIFECYCLE clients preserve expectedVersion and idempotency through all lifecycle requests
+ok 1 - ACCOUNT_LIFECYCLE clients preserve expectedVersion and idempotency through all lifecycle requests
+  ---
+  duration_ms: 15.906403
+  type: 'test'
+  ...
+# Subtest: ACCOUNT_LIFECYCLE client never reports success for a stale-state rejection
+ok 2 - ACCOUNT_LIFECYCLE client never reports success for a stale-state rejection
+  ---
+  duration_ms: 1.08041
+  type: 'test'
+  ...
+# Subtest: ACCOUNT_LIFECYCLE list sends search, role, status and pagination to the server
+ok 3 - ACCOUNT_LIFECYCLE list sends search, role, status and pagination to the server
+  ---
+  duration_ms: 0.627246
+  type: 'test'
+  ...
+# Subtest: ACCOUNT_LIFECYCLE actual action card renders Restore for authoritative Suspended state
+ok 4 - ACCOUNT_LIFECYCLE actual action card renders Restore for authoritative Suspended state
+  ---
+  duration_ms: 10.725378
+  type: 'test'
+  ...
+# Subtest: ACCOUNT_LIFECYCLE active card retains Suspend
+ok 5 - ACCOUNT_LIFECYCLE active card retains Suspend
+  ---
+  duration_ms: 1.796401
+  type: 'test'
+  ...
+# Subtest: ACCOUNT_LIFECYCLE role is read-only account metadata; actions contain no role editor
+ok 6 - ACCOUNT_LIFECYCLE role is read-only account metadata; actions contain no role editor
+  ---
+  duration_ms: 16.137935
+  type: 'test'
+  ...
+# Subtest: ACCOUNT_LIFECYCLE existing-user role mutation has no exported client, hook or BFF route
+ok 7 - ACCOUNT_LIFECYCLE existing-user role mutation has no exported client, hook or BFF route
+  ---
+  duration_ms: 55.025685
+  type: 'test'
+  ...
+# Subtest: formatLocaleDate formats according to active locale
+ok 8 - formatLocaleDate formats according to active locale
+  ---
+  duration_ms: 13.340696
+  type: 'test'
+  ...
+# Subtest: formatLocaleDateTime and formatLocaleActivityTime follow locale authority
+ok 9 - formatLocaleDateTime and formatLocaleActivityTime follow locale authority
+  ---
+  duration_ms: 0.814571
+  type: 'test'
+  ...
+# Subtest: formatLocaleDateTimeWithYear uses an em dash for missing or invalid timestamps
+ok 10 - formatLocaleDateTimeWithYear uses an em dash for missing or invalid timestamps
+  ---
+  duration_ms: 0.11006
+  type: 'test'
+  ...
+# Subtest: AdminRecentActivityCard presents activity timestamp driven by selected locale
+ok 11 - AdminRecentActivityCard presents activity timestamp driven by selected locale
+  ---
+  duration_ms: 10.473619
+  type: 'test'
+  ...
+# Subtest: AdminAccountDetailsCard presents user dates driven by selected locale
+ok 12 - AdminAccountDetailsCard presents user dates driven by selected locale
+  ---
+  duration_ms: 1.619298
+  type: 'test'
+  ...
+# Subtest: AdminUsageSummary presents last assessment timestamp driven by selected locale
+ok 13 - AdminUsageSummary presents last assessment timestamp driven by selected locale
+  ---
+  duration_ms: 1.796619
+  type: 'test'
+  ...
+# Subtest: AdminUserTable presents user creation and activity dates driven by selected locale
+ok 14 - AdminUserTable presents user creation and activity dates driven by selected locale
+  ---
+  duration_ms: 3.701828
+  type: 'test'
+  ...
+# Subtest: setAppLocale synchronizes cookie, appLocale, and document.documentElement.lang
+ok 15 - setAppLocale synchronizes cookie, appLocale, and document.documentElement.lang
+  ---
+  duration_ms: 5.47943
+  type: 'test'
+  ...
+# Subtest: AdminShell and page body update simultaneously when setAppLocale is triggered
+ok 16 - AdminShell and page body update simultaneously when setAppLocale is triggered
+  ---
+  duration_ms: 109.122646
+  type: 'test'
+  ...
+# Subtest: AdminPeriodSelector renders selected period and opens dropdown menu on click
+ok 17 - AdminPeriodSelector renders selected period and opens dropdown menu on click
+  ---
+  duration_ms: 32.064108
+  type: 'test'
+  ...
+# Subtest: AdminPeriodSelector supports full keyboard navigation (ArrowDown, ArrowUp, Enter, Escape)
+ok 18 - AdminPeriodSelector supports full keyboard navigation (ArrowDown, ArrowUp, Enter, Escape)
+  ---
+  duration_ms: 10.466347
+  type: 'test'
+  ...
+# Subtest: AdminOverviewMetricCard renders label, value, subtitle and handles unavailable state gracefully
+ok 19 - AdminOverviewMetricCard renders label, value, subtitle and handles unavailable state gracefully
+  ---
+  duration_ms: 10.585837
+  type: 'test'
+  ...
+# Subtest: AdminAssessmentActivityCard renders points, completion count and labels
+ok 20 - AdminAssessmentActivityCard renders points, completion count and labels
+  ---
+  duration_ms: 11.833543
+  type: 'test'
+  ...
+# Subtest: AdminUserStatusCard renders status rows and total count accurately
+ok 21 - AdminUserStatusCard renders status rows and total count accurately
+  ---
+  duration_ms: 3.555541
+  type: 'test'
+  ...
+# Subtest: AdminRecentActivityCard renders audit-safe table rows with localized actions
+ok 22 - AdminRecentActivityCard renders audit-safe table rows with localized actions
+  ---
+  duration_ms: 10.710754
+  type: 'test'
+  ...
+# Subtest: AdminLegalSourceStatusCard renders CURRENT and DRAFT legalSource boxes with null rule counts preserved as dash
+ok 23 - AdminLegalSourceStatusCard renders CURRENT and DRAFT legalSource boxes with null rule counts preserved as dash
+  ---
+  duration_ms: 5.251095
+  type: 'test'
+  ...
+# Subtest: Admin overview data mapping: unavailable metrics must not be coerced to zero
+ok 24 - Admin overview data mapping: unavailable metrics must not be coerced to zero
+  ---
+  duration_ms: 9.367033
+  type: 'test'
+  ...
+# Subtest: Figma fixture isolation: Figma mock values must not be hardcoded as production truth
+ok 25 - Figma fixture isolation: Figma mock values must not be hardcoded as production truth
+  ---
+  duration_ms: 0.124435
+  type: 'test'
+  ...
+# Subtest: Admin i18n invariance: dynamic runtime values must not be translated
+ok 26 - Admin i18n invariance: dynamic runtime values must not be translated
+  ---
+  duration_ms: 0.125498
+  type: 'test'
+  ...
+# Subtest: Destructive action dismissal contract: Cancel, Backdrop, Escape generate 0 mutations
+ok 27 - Destructive action dismissal contract: Cancel, Backdrop, Escape generate 0 mutations
+  ---
+  duration_ms: 0.087029
+  type: 'test'
+  ...
+# Subtest: Browser security: client request builder must never attach worker credentials
+ok 28 - Browser security: client request builder must never attach worker credentials
+  ---
+  duration_ms: 0.164972
+  type: 'test'
+  ...
+# Subtest: Audit payload sanitizer recursively redacts credentials and tokens
+ok 29 - Audit payload sanitizer recursively redacts credentials and tokens
+  ---
+  duration_ms: 0.356222
+  type: 'test'
+  ...
+# Subtest: Post-auth redirect policy: Admin enters the Admin surface and Customer enters the workspace
+ok 30 - Post-auth redirect policy: Admin enters the Admin surface and Customer enters the workspace
+  ---
+  duration_ms: 0.49658
+  type: 'test'
+  ...
+# Subtest: Admin route policy: path matcher classification
+ok 31 - Admin route policy: path matcher classification
+  ---
+  duration_ms: 0.100178
+  type: 'test'
+  ...
+# Subtest: Admin route policy: unauthenticated visitors are redirected to sign-in preserving next path and query
+ok 32 - Admin route policy: unauthenticated visitors are redirected to sign-in preserving next path and query
+  ---
+  duration_ms: 0.095757
+  type: 'test'
+  ...
+# Subtest: Admin route policy: non-admin roles are redirected to customer workspace
+ok 33 - Admin route policy: non-admin roles are redirected to customer workspace
+  ---
+  duration_ms: 0.104269
+  type: 'test'
+  ...
+# Subtest: Admin route policy: verified Admin navigating to /admin landing is allowed directly with 0 redirect
+ok 34 - Admin route policy: verified Admin navigating to /admin landing is allowed directly with 0 redirect
+  ---
+  duration_ms: 0.066719
+  type: 'test'
+  ...
+# Subtest: Admin route policy: verified Admin is allowed into /admin/users and child routes with 0 redirect
+ok 35 - Admin route policy: verified Admin is allowed into /admin/users and child routes with 0 redirect
+  ---
+  duration_ms: 0.082797
+  type: 'test'
+  ...
+# Subtest: Admin route policy: non-admin paths return null without interfering
+ok 36 - Admin route policy: non-admin paths return null without interfering
+  ---
+  duration_ms: 0.096565
+  type: 'test'
+  ...
+# Subtest: Admin suspend modal: dismissal actions (Cancel, Escape, Backdrop) cause 0 mutations
+ok 37 - Admin suspend modal: dismissal actions (Cancel, Escape, Backdrop) cause 0 mutations
+  ---
+  duration_ms: 0.460295
+  type: 'test'
+  ...
+# Subtest: Admin suspend modal: dynamic target user identity injection
+ok 38 - Admin suspend modal: dynamic target user identity injection
+  ---
+  duration_ms: 0.09371
+  type: 'test'
+  ...
+# Subtest: Admin suspend modal: focus trapping and restoration contract
+ok 39 - Admin suspend modal: focus trapping and restoration contract
+  ---
+  duration_ms: 0.179109
+  type: 'test'
+  ...
+# Subtest: usage BFF denies unauthenticated access before any upstream call
+ok 40 - usage BFF denies unauthenticated access before any upstream call
+  ---
+  duration_ms: 4.174046
+  type: 'test'
+  ...
+# Subtest: usage period/filter validation is bounded and date fields produce UTC boundaries
+ok 41 - usage period/filter validation is bounded and date fields produce UTC boundaries
+  ---
+  duration_ms: 2.638788
+  type: 'test'
+  ...
+# Subtest: preparation usage scope resolves ownership on the API and cannot claim another scope
+ok 42 - preparation usage scope resolves ownership on the API and cannot claim another scope
+  ---
+  duration_ms: 1.274221
+  type: 'test'
+  ...
+# Subtest: usage navigation follows existing Admin role boundary
+ok 43 - usage navigation follows existing Admin role boundary
+  ---
+  duration_ms: 0.12425
+  type: 'test'
+  ...
+# Subtest: Admin user query filters correctly across search, status, and role
+ok 44 - Admin user query filters correctly across search, status, and role
+  ---
+  duration_ms: 0.71435
+  type: 'test'
+  ...
+# Subtest: Admin user list pagination computes total pages and page slices accurately
+ok 45 - Admin user list pagination computes total pages and page slices accurately
+  ---
+  duration_ms: 0.152465
+  type: 'test'
+  ...
+# Subtest: Ensures no Figma design fixture values are hardcoded into production admin components
+ok 46 - Ensures no Figma design fixture values are hardcoded into production admin components
+  ---
+  duration_ms: 4.17966
+  type: 'test'
+  ...
+# Subtest: Ensures production BFF admin user routes forward upstream directly without mock json fallbacks
+ok 47 - Ensures production BFF admin user routes forward upstream directly without mock json fallbacks
+  ---
+  duration_ms: 1.045131
+  type: 'test'
+  ...
+# Subtest: Admin user filters expose only lifecycle statuses supported by the API and omit retired invite triggers
+ok 48 - Admin user filters expose only lifecycle statuses supported by the API and omit retired invite triggers
+  ---
+  duration_ms: 0.614713
+  type: 'test'
+  ...
+# Subtest: Admin UI chrome resolves labels from i18n instead of hardcoded English copy
+ok 49 - Admin UI chrome resolves labels from i18n instead of hardcoded English copy
+  ---
+  duration_ms: 2.055062
+  type: 'test'
+  ...
+# Subtest: Admin mutations invalidate list queries through the shared admin query key
+ok 50 - Admin mutations invalidate list queries through the shared admin query key
+  ---
+  duration_ms: 2.578792
+  type: 'test'
+  ...
+# Subtest: Admin UI components use semantic color tokens instead of raw palette colors
+ok 51 - Admin UI components use semantic color tokens instead of raw palette colors
+  ---
+  duration_ms: 4.118684
+  type: 'test'
+  ...
+# Subtest: Admin user detail: unavailable usage summary metrics format as em dash, never zero
+ok 52 - Admin user detail: unavailable usage summary metrics format as em dash, never zero
+  ---
+  duration_ms: 0.4393
+  type: 'test'
+  ...
+# Subtest: input/output render with reasoning and thinking, no model logic
+ok 53 - input/output render with reasoning and thinking, no model logic
+  ---
+  duration_ms: 9.800835
+  type: 'test'
+  ...
+# Subtest: total-only renders as tokens
+ok 54 - total-only renders as tokens
+  ---
+  duration_ms: 0.249139
+  type: 'test'
+  ...
+# Subtest: unknown future metric renders via humanized fallback
+ok 55 - unknown future metric renders via humanized fallback
+  ---
+  duration_ms: 0.181231
+  type: 'test'
+  ...
+# Subtest: no usage: no token footer, no fabricated zero; duration alone survives
+ok 56 - no usage: no token footer, no fabricated zero; duration alone survives
+  ---
+  duration_ms: 0.525511
+  type: 'test'
+  ...
+# Subtest: failed turn without completed event has no usage
+ok 57 - failed turn without completed event has no usage
+  ---
+  duration_ms: 0.097271
+  type: 'test'
+  ...
+# Subtest: tool activity shows payload metrics and exactly correlated provider tokens
+ok 58 - tool activity shows payload metrics and exactly correlated provider tokens
+  ---
+  duration_ms: 0.692863
+  type: 'test'
+  ...
+# Subtest: hostile usage is ignored
+ok 59 - hostile usage is ignored
+  ---
+  duration_ms: 1.005424
+  type: 'test'
+  ...
+# Subtest: reasoning text and secrets never reach usage telemetry
+ok 60 - reasoning text and secrets never reach usage telemetry
+  ---
+  duration_ms: 0.242702
+  type: 'test'
+  ...
+# Subtest: prototype-named detail key does not crash the label lookup
+ok 61 - prototype-named detail key does not crash the label lookup
+  ---
+  duration_ms: 0.366037
+  type: 'test'
+  ...
+# Subtest: duplicate and reordered tool deliveries count one logical model step
+ok 62 - duplicate and reordered tool deliveries count one logical model step
+  ---
+  duration_ms: 0.493095
+  type: 'test'
+  ...
+# Subtest: Artifacts destination is wired through the redesigned shell
+ok 63 - Artifacts destination is wired through the redesigned shell
+  ---
+  duration_ms: 3.96298
+  type: 'test'
+  ...
+# Subtest: Artifacts shared contracts expose semantic refs and safe open targets
+ok 64 - Artifacts shared contracts expose semantic refs and safe open targets
+  ---
+  duration_ms: 1.478899
+  type: 'test'
+  ...
+# Subtest: Artifacts list supports empty and grouped populated states
+ok 65 - Artifacts list supports empty and grouped populated states
+  ---
+  duration_ms: 0.79373
+  type: 'test'
+  ...
+# Subtest: assessment app shell exposes the state machine and slots
+ok 66 - assessment app shell exposes the state machine and slots
+  ---
+  duration_ms: 7.091207
+  type: 'test'
+  ...
+# Subtest: workspace route uses the redesigned app shell instead of the legacy sidebar provider
+ok 67 - workspace route uses the redesigned app shell instead of the legacy sidebar provider
+  ---
+  duration_ms: 1.80403
+  type: 'test'
+  ...
+# Subtest: assessment app shell releases the left sidebar space completely when collapsed
+ok 68 - assessment app shell releases the left sidebar space completely when collapsed
+  ---
+  duration_ms: 0.596722
+  type: 'test'
+  ...
+# Subtest: right assessment sidebar keeps one shared 320px context slot and mobile sheet reuse
+ok 69 - right assessment sidebar keeps one shared 320px context slot and mobile sheet reuse
+  ---
+  duration_ms: 0.740232
+  type: 'test'
+  ...
+# Subtest: right assessment sidebar removes the generic runtime dashboard UI
+ok 70 - right assessment sidebar removes the generic runtime dashboard UI
+  ---
+  duration_ms: 0.626922
+  type: 'test'
+  ...
+# Subtest: right sidebar layout keeps the center pane shrinkable and overflow-contained
+ok 71 - right sidebar layout keeps the center pane shrinkable and overflow-contained
+  ---
+  duration_ms: 18.330541
+  type: 'test'
+  ...
+# Subtest: right assessment sidebar uses canonical state instead of F03/F04 screen branching
+ok 72 - right assessment sidebar uses canonical state instead of F03/F04 screen branching
+  ---
+  duration_ms: 1.234288
+  type: 'test'
+  ...
+# Subtest: assessment app shell mounts the single shared AppSidebar through the left slot
+ok 73 - assessment app shell mounts the single shared AppSidebar through the left slot
+  ---
+  duration_ms: 1.321334
+  type: 'test'
+  ...
+# Subtest: app sidebar keeps navigation contracts without legacy assessment routes
+ok 74 - app sidebar keeps navigation contracts without legacy assessment routes
+  ---
+  duration_ms: 0.850587
+  type: 'test'
+  ...
+# Subtest: app shell renders top controls through shell-owned sidebar state
+ok 75 - app shell renders top controls through shell-owned sidebar state
+  ---
+  duration_ms: 0.827024
+  type: 'test'
+  ...
+# Subtest: app sidebar exposes the Figma sidebar item state contracts
+ok 76 - app sidebar exposes the Figma sidebar item state contracts
+  ---
+  duration_ms: 0.570785
+  type: 'test'
+  ...
+# Subtest: assessment sidebar items reveal a three-dot actions popover with rename and delete
+ok 77 - assessment sidebar items reveal a three-dot actions popover with rename and delete
+  ---
+  duration_ms: 2.175156
+  type: 'test'
+  ...
+# Subtest: recent filter popover renders main rows, submenus, and preserved selection state
+ok 78 - recent filter popover renders main rows, submenus, and preserved selection state
+  ---
+  duration_ms: 0.629138
+  type: 'test'
+  ...
+# Subtest: recent filter empty and hover-through states are explicitly handled
+ok 79 - recent filter empty and hover-through states are explicitly handled
+  ---
+  duration_ms: 0.603124
+  type: 'test'
+  ...
+# Subtest: account mount remains available for the account controls
+ok 80 - account mount remains available for the account controls
+  ---
+  duration_ms: 0.599457
+  type: 'test'
+  ...
+# Subtest: account popover uses one reusable menu item and existing sign-out
+ok 81 - account popover uses one reusable menu item and existing sign-out
+  ---
+  duration_ms: 0.518759
+  type: 'test'
+  ...
+# Subtest: settings modal is owned by the shared app shell
+ok 82 - settings modal is owned by the shared app shell
+  ---
+  duration_ms: 0.502869
+  type: 'test'
+  ...
+# Subtest: settings navigation exposes the seven approved tabs and legacy mapping
+ok 83 - settings navigation exposes the seven approved tabs and legacy mapping
+  ---
+  duration_ms: 0.568902
+  type: 'test'
+  ...
+# Subtest: sidebar is split into feature atomic files
+ok 84 - sidebar is split into feature atomic files
+  ---
+  duration_ms: 0.801818
+  type: 'test'
+  ...
+# Subtest: sidebar copy resolves through the shared app i18n helper
+ok 85 - sidebar copy resolves through the shared app i18n helper
+  ---
+  duration_ms: 0.804407
+  type: 'test'
+  ...
+# Subtest: sidebar hover hints use shadcn tooltip primitives instead of native title attributes
+ok 86 - sidebar hover hints use shadcn tooltip primitives instead of native title attributes
+  ---
+  duration_ms: 1.619927
+  type: 'test'
+  ...
+# Subtest: assessment entry points no longer route progression through legacy step pages
+ok 87 - assessment entry points no longer route progression through legacy step pages
+  ---
+  duration_ms: 0.802123
+  type: 'test'
+  ...
+# Subtest: deprecated assessment step routes are absent from production routing
+ok 88 - deprecated assessment step routes are absent from production routing
+  ---
+  duration_ms: 0.692786
+  type: 'test'
+  ...
+# Subtest: wizard assessment route is removed from production routing
+ok 89 - wizard assessment route is removed from production routing
+  ---
+  duration_ms: 0.367504
+  type: 'test'
+  ...
+# Subtest: BFF repository-setup/complete derives authoritative locale from lcsp_locale cookie and forwards x-lcsp-locale upstream
+ok 90 - BFF repository-setup/complete derives authoritative locale from lcsp_locale cookie and forwards x-lcsp-locale upstream
+  ---
+  duration_ms: 6.770455
+  type: 'test'
+  ...
+# Subtest: BFF runtime continue route forwards authoritative lcsp_locale cookie upstream
+ok 91 - BFF runtime continue route forwards authoritative lcsp_locale cookie upstream
+  ---
+  duration_ms: 1.443334
+  type: 'test'
+  ...
+# Subtest: BFF human-requests answer route forwards authoritative lcsp_locale cookie upstream
+ok 92 - BFF human-requests answer route forwards authoritative lcsp_locale cookie upstream
+  ---
+  duration_ms: 1.498356
+  type: 'test'
+  ...
+# Subtest: BFF assessment creation route forwards authoritative lcsp_locale cookie upstream
+ok 93 - BFF assessment creation route forwards authoritative lcsp_locale cookie upstream
+  ---
+  duration_ms: 1.783803
+  type: 'test'
+  ...
+# Subtest: client apiRequest automatically attaches x-lcsp-locale header in browser environment
+ok 94 - client apiRequest automatically attaches x-lcsp-locale header in browser environment
+  ---
+  duration_ms: 0.602056
+  type: 'test'
+  ...
+# Subtest: BFF human-requests GET route derives authoritative locale from cookie and forwards across VI -> EN -> VI switches
+ok 95 - BFF human-requests GET route derives authoritative locale from cookie and forwards across VI -> EN -> VI switches
+  ---
+  duration_ms: 2.217091
+  type: 'test'
+  ...
+# Subtest: BFF report artifact GET route derives authoritative locale from cookie and forwards across VI -> EN -> VI switches
+ok 96 - BFF report artifact GET route derives authoritative locale from cookie and forwards across VI -> EN -> VI switches
+  ---
+  duration_ms: 3.889794
+  type: 'test'
+  ...
+# Subtest: repository setup remains a read-only conversation after submission and remount
+ok 97 - repository setup remains a read-only conversation after submission and remount
+  ---
+  duration_ms: 46.410694
+  type: 'test'
+  ...
+# Subtest: repository history requires persisted identity and never guesses a provider
+ok 98 - repository history requires persisted identity and never guesses a provider
+  ---
+  duration_ms: 0.223677
+  type: 'test'
+  ...
+# Subtest: assessment composer submits through Send click and Enter key
+ok 99 - assessment composer submits through Send click and Enter key
+  ---
+  duration_ms: 63.683592
+  type: 'test'
+  ...
+# Subtest: assessment composer blocks empty disabled submitting and multiline submits
+ok 100 - assessment composer blocks empty disabled submitting and multiline submits
+  ---
+  duration_ms: 27.289349
+  type: 'test'
+  ...
+# Subtest: assessment composer swaps Resume back to Send after typing
+ok 101 - assessment composer swaps Resume back to Send after typing
+  ---
+  duration_ms: 11.71668
+  type: 'test'
+  ...
+# Subtest: assessment composer grows from one to three rows before scrolling and offering expand
+ok 102 - assessment composer grows from one to three rows before scrolling and offering expand
+  ---
+  duration_ms: 32.092739
+  type: 'test'
+  ...
+# Subtest: composer expands and collapses without changing the draft or submitting
+ok 103 - composer expands and collapses without changing the draft or submitting
+  ---
+  duration_ms: 16.428295
+  type: 'test'
+  ...
+# Subtest: chat single select changes by click and ignores disabled options
+ok 104 - chat single select changes by click and ignores disabled options
+  ---
+  duration_ms: 4.083123
+  type: 'test'
+  ...
+# Subtest: chat single select keyboard navigation selects and focuses enabled radios
+ok 105 - chat single select keyboard navigation selects and focuses enabled radios
+  ---
+  duration_ms: 7.99513
+  type: 'test'
+  ...
+# Subtest: assessment transcript leaves short content at the top without synthetic bottom anchoring
+ok 106 - assessment transcript leaves short content at the top without synthetic bottom anchoring
+  ---
+  duration_ms: 2.288315
+  type: 'test'
+  ...
+# Subtest: assessment transcript follows new output while pinned and offers a jump after scrolling up
+ok 107 - assessment transcript follows new output while pinned and offers a jump after scrolling up
+  ---
+  duration_ms: 4.141326
+  type: 'test'
+  ...
+# Subtest: assessment transcript resize never pulls an unpinned reader to latest
+ok 108 - assessment transcript resize never pulls an unpinned reader to latest
+  ---
+  duration_ms: 2.627229
+  type: 'test'
+  ...
+# Subtest: selection history row keeps completed value visible and non-interactive
+ok 109 - selection history row keeps completed value visible and non-interactive
+  ---
+  duration_ms: 2.055878
+  type: 'test'
+  ...
+# Subtest: assessment transcript is the shared scrollable 768px rail primitive
+ok 110 - assessment transcript is the shared scrollable 768px rail primitive
+  ---
+  duration_ms: 4.937324
+  type: 'test'
+  ...
+# Subtest: assessment transcript follows only while pinned and preserves a fixed composer gap
+ok 111 - assessment transcript follows only while pinned and preserves a fixed composer gap
+  ---
+  duration_ms: 0.927936
+  type: 'test'
+  ...
+# Subtest: assessment composer auto-grows from one to three rows and keeps expansion bounded
+ok 112 - assessment composer auto-grows from one to three rows and keeps expansion bounded
+  ---
+  duration_ms: 1.074357
+  type: 'test'
+  ...
+# Subtest: assessment composer uses one submit path for Enter, Send, disabled, and IME behavior
+ok 113 - assessment composer uses one submit path for Enter, Send, disabled, and IME behavior
+  ---
+  duration_ms: 0.776534
+  type: 'test'
+  ...
+# Subtest: agent turn groups agent blocks and places terminal actions before the footer
+ok 114 - agent turn groups agent blocks and places terminal actions before the footer
+  ---
+  duration_ms: 0.79564
+  type: 'test'
+  ...
+# Subtest: agent, user, thought, and thinking message primitives are reusable presentation only
+ok 115 - agent, user, thought, and thinking message primitives are reusable presentation only
+  ---
+  duration_ms: 0.694888
+  type: 'test'
+  ...
+# Subtest: turn footer defaults to the Figma timestamp plus copy action layout below content
+ok 116 - turn footer defaults to the Figma timestamp plus copy action layout below content
+  ---
+  duration_ms: 0.640872
+  type: 'test'
+  ...
+# Subtest: chat single select uses generic exclusive radio-row semantics and selected visual state
+ok 117 - chat single select uses generic exclusive radio-row semantics and selected visual state
+  ---
+  duration_ms: 0.734651
+  type: 'test'
+  ...
+# Subtest: selection history preserves the submitted value as compact transcript history
+ok 118 - selection history preserves the submitted value as compact transcript history
+  ---
+  duration_ms: 0.669999
+  type: 'test'
+  ...
+# Subtest: tool activity list and row support reusable Running, Done, and Failed semantics
+ok 119 - tool activity list and row support reusable Running, Done, and Failed semantics
+  ---
+  duration_ms: 0.721099
+  type: 'test'
+  ...
+# Subtest: chat result container stays domain-neutral and wraps chat results
+ok 120 - chat result container stays domain-neutral and wraps chat results
+  ---
+  duration_ms: 0.509658
+  type: 'test'
+  ...
+# Subtest: assessment chat view does not append raw runtime activity to the customer transcript
+ok 121 - assessment chat view does not append raw runtime activity to the customer transcript
+  ---
+  duration_ms: 1.38314
+  type: 'test'
+  ...
+# Subtest: structured chat primitives stay presentational and do not introduce chat network calls
+ok 122 - structured chat primitives stay presentational and do not introduce chat network calls
+  ---
+  duration_ms: 1.283004
+  type: 'test'
+  ...
+# Subtest: chat primitives use theme tokens and keep dark-light state out of component logic
+ok 123 - chat primitives use theme tokens and keep dark-light state out of component logic
+  ---
+  duration_ms: 1.848347
+  type: 'test'
+  ...
+# Subtest: canonical RUNNING projects Stop with the server execution identity
+ok 124 - canonical RUNNING projects Stop with the server execution identity
+  ---
+  duration_ms: 0.869692
+  type: 'test'
+  ...
+# Subtest: canonical INTERRUPTED and PAUSED project Continue without event inference
+ok 125 - canonical INTERRUPTED and PAUSED project Continue without event inference
+  ---
+  duration_ms: 0.104416
+  type: 'test'
+  ...
+# Subtest: canonical terminal AES projects completed and cannot be reopened by activity
+ok 126 - canonical terminal AES projects completed and cannot be reopened by activity
+  ---
+  duration_ms: 0.116069
+  type: 'test'
+  ...
+# Subtest: canonical terminal and paused ALS/AES dominate a same-ID stale RUNNING poll
+ok 127 - canonical terminal and paused ALS/AES dominate a same-ID stale RUNNING poll
+  ---
+  duration_ms: 0.094013
+  type: 'test'
+  ...
+# Subtest: only a matching pending command consistent with canonical state may overlay
+ok 128 - only a matching pending command consistent with canonical state may overlay
+  ---
+  duration_ms: 0.212675
+  type: 'test'
+  ...
+# Subtest: missing canonical state is unavailable even when a control poll or events exist
+ok 129 - missing canonical state is unavailable even when a control poll or events exist
+  ---
+  duration_ms: 0.104964
+  type: 'test'
+  ...
+# Subtest: a control acknowledgement is accepted only for the canonical execution
+ok 130 - a control acknowledgement is accepted only for the canonical execution
+  ---
+  duration_ms: 0.11661
+  type: 'test'
+  ...
+# Subtest: a Human Resolution interrupt waits for the answer without a Stop/Continue pause notice
+ok 131 - a Human Resolution interrupt waits for the answer without a Stop/Continue pause notice
+  ---
+  duration_ms: 3.159738
+  type: 'test'
+  ...
+# Subtest: one deterministic projection turns events into chronological conversation turns
+ok 132 - one deterministic projection turns events into chronological conversation turns
+  ---
+  duration_ms: 0.96378
+  type: 'test'
+  ...
+# Subtest: related activities collapse into compact steps with counts, never raw event codes
+ok 133 - related activities collapse into compact steps with counts, never raw event codes
+  ---
+  duration_ms: 0.486436
+  type: 'test'
+  ...
+# Subtest: usage is counted once per invocation: group, turn, then the same total
+ok 134 - usage is counted once per invocation: group, turn, then the same total
+  ---
+  duration_ms: 0.448096
+  type: 'test'
+  ...
+# Subtest: a duplicated canonical event renders once and arrival order never changes the result
+ok 135 - a duplicated canonical event renders once and arrival order never changes the result
+  ---
+  duration_ms: 0.583719
+  type: 'test'
+  ...
+# Subtest: human resolution survives the answer and a reload as question, user answer, then resumed work
+ok 136 - human resolution survives the answer and a reload as question, user answer, then resumed work
+  ---
+  duration_ms: 0.881149
+  type: 'test'
+  ...
+# Subtest: an 'I don't know' answer is a user turn and keeps the question open
+ok 137 - an 'I don't know' answer is a user turn and keeps the question open
+  ---
+  duration_ms: 0.412477
+  type: 'test'
+  ...
+# Subtest: a spinner exists only while the canonical runtime is RUNNING
+ok 138 - a spinner exists only while the canonical runtime is RUNNING
+  ---
+  duration_ms: 1.461767
+  type: 'test'
+  ...
+# Subtest: Stop: RUNNING -> PAUSED ends the animation, adds a quiet notice, and Continue resumes the SAME thread
+ok 139 - Stop: RUNNING -> PAUSED ends the animation, adds a quiet notice, and Continue resumes the SAME thread
+  ---
+  duration_ms: 0.85132
+  type: 'test'
+  ...
+# Subtest: an accepted decision becomes assistant output with its readable rule name
+ok 140 - an accepted decision becomes assistant output with its readable rule name
+  ---
+  duration_ms: 1.84728
+  type: 'test'
+  ...
+# Subtest: COMPLETE ends with one completion turn, report id and no running work
+ok 141 - COMPLETE ends with one completion turn, report id and no running work
+  ---
+  duration_ms: 0.822834
+  type: 'test'
+  ...
+# Subtest: customer state collapses lifecycle and execution into one customer word
+ok 142 - customer state collapses lifecycle and execution into one customer word
+  ---
+  duration_ms: 0.479162
+  type: 'test'
+  ...
+# Subtest: AssessmentAppShell, navigation, and workspace presentation tree update live on locale switch without reload
+ok 143 - AssessmentAppShell, navigation, and workspace presentation tree update live on locale switch without reload
+  ---
+  duration_ms: 127.730865
+  type: 'test'
+  ...
+# Subtest: customer BFF download route forwards ETag, X-Checksum-Sha256, X-Content-Fingerprint-Sha256 and body hash matches checksum
+ok 144 - customer BFF download route forwards ETag, X-Checksum-Sha256, X-Content-Fingerprint-Sha256 and body hash matches checksum
+  ---
+  duration_ms: 4.537478
+  type: 'test'
+  ...
+# Subtest: customer BFF download route rejects unauthenticated request with 401
+ok 145 - customer BFF download route rejects unauthenticated request with 401
+  ---
+  duration_ms: 1.066541
+  type: 'test'
+  ...
+# Subtest: customer BFF download route rejects invalid UUID with 422
+ok 146 - customer BFF download route rejects invalid UUID with 422
+  ---
+  duration_ms: 0.661585
+  type: 'test'
+  ...
+# Subtest: report actions are native links: view in the app, download the stored artifact
+ok 147 - report actions are native links: view in the app, download the stored artifact
+  ---
+  duration_ms: 10.360863
+  type: 'test'
+  ...
+# Subtest: new assessment page creates through the canonical form and repository setup runs inside the assessment
+ok 148 - new assessment page creates through the canonical form and repository setup runs inside the assessment
+  ---
+  duration_ms: 3.699911
+  type: 'test'
+  ...
+# Subtest: repository setup accepts only valid repository URLs matching supported provider rules
+ok 149 - repository setup accepts only valid repository URLs matching supported provider rules
+  ---
+  duration_ms: 1.370878
+  type: 'test'
+  ...
+# Subtest: repository history row uses provider and commit icons without repeating the prompt
+ok 150 - repository history row uses provider and commit icons without repeating the prompt
+  ---
+  duration_ms: 1.176947
+  type: 'test'
+  ...
+# Subtest: a delayed Stop response cannot revert a stopped acknowledgement
+ok 151 - a delayed Stop response cannot revert a stopped acknowledgement
+  ---
+  duration_ms: 0.499395
+  type: 'test'
+  ...
+# Subtest: a delayed response from the cancelled generation cannot replace resumed state
+ok 152 - a delayed response from the cancelled generation cannot replace resumed state
+  ---
+  duration_ms: 0.124265
+  type: 'test'
+  ...
+# Subtest: completion wins over delayed stop acknowledgement
+ok 153 - completion wins over delayed stop acknowledgement
+  ---
+  duration_ms: 0.070693
+  type: 'test'
+  ...
+# Subtest: Stop for the generation already visible in SSE advances its older unchanged poll cache
+ok 154 - Stop for the generation already visible in SSE advances its older unchanged poll cache
+  ---
+  duration_ms: 0.064105
+  type: 'test'
+  ...
+# Subtest: an in-flight response cannot replace a newer generation that updated the cache
+ok 155 - an in-flight response cannot replace a newer generation that updated the cache
+  ---
+  duration_ms: 0.099937
+  type: 'test'
+  ...
+# Subtest: a response for an unexpected target cannot advance an older cache
+ok 156 - a response for an unexpected target cannot advance an older cache
+  ---
+  duration_ms: 0.848137
+  type: 'test'
+  ...
+# Subtest: assessment runtime formatter formats a valid timestamp for the active locale
+ok 157 - assessment runtime formatter formats a valid timestamp for the active locale
+  ---
+  duration_ms: 9.649421
+  type: 'test'
+  ...
+# Subtest: assessment runtime formatter preserves an invalid timestamp
+ok 158 - assessment runtime formatter preserves an invalid timestamp
+  ---
+  duration_ms: 0.115
+  type: 'test'
+  ...
+# Subtest: assessment runtime label formatters return correct localizations
+ok 159 - assessment runtime label formatters return correct localizations
+  ---
+  duration_ms: 0.156619
+  type: 'test'
+  ...
+# Subtest: the context panel renders canonical context only and is mounted twice by the shell (panel + sheet)
+ok 160 - the context panel renders canonical context only and is mounted twice by the shell (panel + sheet)
+  ---
+  duration_ms: 3.680793
+  type: 'test'
+  ...
+# Subtest: the context panel does not reconstruct workflow from screen or F-state branches
+ok 161 - the context panel does not reconstruct workflow from screen or F-state branches
+  ---
+  duration_ms: 0.796529
+  type: 'test'
+  ...
+# Subtest: sign-in routes required MFA without enrollment to the setup flow
+ok 162 - sign-in routes required MFA without enrollment to the setup flow
+  ---
+  duration_ms: 0.935569
+  type: 'test'
+  ...
+# Subtest: sign-in shows a generic request failure for server errors
+ok 163 - sign-in shows a generic request failure for server errors
+  ---
+  duration_ms: 0.141616
+  type: 'test'
+  ...
+# Subtest: MFA enrollment success returns the provisioning URI
+ok 164 - MFA enrollment success returns the provisioning URI
+  ---
+  duration_ms: 0.116199
+  type: 'test'
+  ...
+# Subtest: MFA enrollment falls back to verify when enrollment already exists
+ok 165 - MFA enrollment falls back to verify when enrollment already exists
+  ---
+  duration_ms: 0.1076
+  type: 'test'
+  ...
+# Subtest: MFA enrollment sends expired or unauthenticated sessions back to sign-in
+ok 166 - MFA enrollment sends expired or unauthenticated sessions back to sign-in
+  ---
+  duration_ms: 0.072545
+  type: 'test'
+  ...
+# Subtest: MFA enrollment preserves upstream problem copy for unexpected known problems
+ok 167 - MFA enrollment preserves upstream problem copy for unexpected known problems
+  ---
+  duration_ms: 0.092299
+  type: 'test'
+  ...
+# Subtest: recovery request treats safe success as a generic requested outcome
+ok 168 - recovery request treats safe success as a generic requested outcome
+  ---
+  duration_ms: 0.11974
+  type: 'test'
+  ...
+# Subtest: recovery confirm maps invalid tokens to a safe invalid outcome
+ok 169 - recovery confirm maps invalid tokens to a safe invalid outcome
+  ---
+  duration_ms: 0.12091
+  type: 'test'
+  ...
+# Subtest: profile update maps validation failures to field-safe outcomes
+ok 170 - profile update maps validation failures to field-safe outcomes
+  ---
+  duration_ms: 0.212759
+  type: 'test'
+  ...
+# Subtest: password re-auth maps invalid credentials to a safe invalid outcome
+ok 171 - password re-auth maps invalid credentials to a safe invalid outcome
+  ---
+  duration_ms: 0.242717
+  type: 'test'
+  ...
+# Subtest: recovery request schema requires a valid work email
+ok 172 - recovery request schema requires a valid work email
+  ---
+  duration_ms: 1.158441
+  type: 'test'
+  ...
+# Subtest: recovery confirm schema requires token and a 12-char password
+ok 173 - recovery confirm schema requires token and a 12-char password
+  ---
+  duration_ms: 0.295761
+  type: 'test'
+  ...
+# Subtest: profile safety schema accepts blank recovery email and valid addresses only
+ok 174 - profile safety schema accepts blank recovery email and valid addresses only
+  ---
+  duration_ms: 0.653177
+  type: 'test'
+  ...
+# Subtest: auth sessions client accepts the real session payload without provider metadata
+ok 175 - auth sessions client accepts the real session payload without provider metadata
+  ---
+  duration_ms: 12.655521
+  type: 'test'
+  ...
+# Subtest: Billing amount schema enforces the canonical amount boundaries
+ok 176 - Billing amount schema enforces the canonical amount boundaries
+  ---
+  duration_ms: 1.178829
+  type: 'test'
+  ...
+# Subtest: Billing LLM usage report is telemetry only and rejects invalid tokens
+ok 177 - Billing LLM usage report is telemetry only and rejects invalid tokens
+  ---
+  duration_ms: 1.811038
+  type: 'test'
+  ...
+# Subtest: Billing response schemas validate customer and admin data
+ok 178 - Billing response schemas validate customer and admin data
+  ---
+  duration_ms: 1.893095
+  type: 'test'
+  ...
+# Subtest: Billing BFF response adapter rejects invalid upstream data
+ok 179 - Billing BFF response adapter rejects invalid upstream data
+  ---
+  duration_ms: 2.064817
+  type: 'test'
+  ...
+# Subtest: Billing browser client uses schemas for local input and response checks
+ok 180 - Billing browser client uses schemas for local input and response checks
+  ---
+  duration_ms: 0.947611
+  type: 'test'
+  ...
+# Subtest: Admin billing export client fetches one snapshot report and validates it
+ok 181 - Admin billing export client fetches one snapshot report and validates it
+  ---
+  duration_ms: 1.082071
+  type: 'test'
+  ...
+# Subtest: Billing Settings visibly renders a pending payment
+ok 182 - Billing Settings visibly renders a pending payment
+  ---
+  duration_ms: 83.808029
+  type: 'test'
+  ...
+# Subtest: Billing Settings visibly renders credited state
+ok 183 - Billing Settings visibly renders credited state
+  ---
+  duration_ms: 29.989469
+  type: 'test'
+  ...
+# Subtest: Billing Settings visibly renders expired state
+ok 184 - Billing Settings visibly renders expired state
+  ---
+  duration_ms: 12.212296
+  type: 'test'
+  ...
+# Subtest: Billing Settings visibly renders pending reconciliation
+ok 185 - Billing Settings visibly renders pending reconciliation
+  ---
+  duration_ms: 28.702364
+  type: 'test'
+  ...
+# Subtest: order-detail 404 falls back to authenticated history and stops retry polling
+ok 186 - order-detail 404 falls back to authenticated history and stops retry polling
+  ---
+  duration_ms: 284.221257
+  type: 'test'
+  ...
+# Subtest: a pending history order can be reopened to show its own payment instructions
+ok 187 - a pending history order can be reopened to show its own payment instructions
+  ---
+  duration_ms: 35.148344
+  type: 'test'
+  ...
+# Subtest: creating another order requires confirmation while an order is pending
+ok 188 - creating another order requires confirmation while an order is pending
+  ---
+  duration_ms: 61.454458
+  type: 'test'
+  ...
+# Subtest: successful top-up clears the amount and a new submission starts a new intent
+ok 189 - successful top-up clears the amount and a new submission starts a new intent
+  ---
+  duration_ms: 78.668398
+  type: 'test'
+  ...
+# Subtest: a credited non-selected order refreshes history and prepaid balance while the selected order stays pending
+ok 190 - a credited non-selected order refreshes history and prepaid balance while the selected order stays pending
+  ---
+  duration_ms: 5045.687042
+  type: 'test'
+  ...
+# Subtest: initial history showing a credited order refreshes an older wallet snapshot once
+ok 191 - initial history showing a credited order refreshes an older wallet snapshot once
+  ---
+  duration_ms: 29.338261
+  type: 'test'
+  ...
+# Subtest: history completing before the initial wallet triggers a fresh wallet request after that snapshot
+ok 192 - history completing before the initial wallet triggers a fresh wallet request after that snapshot
+  ---
+  duration_ms: 57.618553
+  type: 'test'
+  ...
+# Subtest: Billing Settings renders the top-up quote without usage-charge fields
+ok 193 - Billing Settings renders the top-up quote without usage-charge fields
+  ---
+  duration_ms: 63.005003
+  type: 'test'
+  ...
+# Subtest: Billing Settings renders the server-backed customer surface
+ok 194 - Billing Settings renders the server-backed customer surface
+  ---
+  duration_ms: 3.740658
+  type: 'test'
+  ...
+# Subtest: Billing top-up uses authenticated BFF requests and idempotency
+ok 195 - Billing top-up uses authenticated BFF requests and idempotency
+  ---
+  duration_ms: 1.785298
+  type: 'test'
+  ...
+# Subtest: shared logo keeps Next Image rendering under the Node ESM loader
+ok 196 - shared logo keeps Next Image rendering under the Node ESM loader
+  ---
+  duration_ms: 38.883793
+  type: 'test'
+  ...
+# Subtest: shared brand component renders approved mark and lockup assets
+ok 197 - shared brand component renders approved mark and lockup assets
+  ---
+  duration_ms: 6.041502
+  type: 'test'
+  ...
+# Subtest: marketing product features and pricing share the lockup header
+ok 198 - marketing product features and pricing share the lockup header
+  ---
+  duration_ms: 2.173244
+  type: 'test'
+  ...
+# Subtest: auth and workspace selection reuse the shared lockup component
+ok 199 - auth and workspace selection reuse the shared lockup component
+  ---
+  duration_ms: 0.939259
+  type: 'test'
+  ...
+# Subtest: admin routes do not carry a separate brand implementation
+ok 200 - admin routes do not carry a separate brand implementation
+  ---
+  duration_ms: 29.913859
+  type: 'test'
+  ...
+# Subtest: metadata favicon and apple icon use mark-only brand assets
+ok 201 - metadata favicon and apple icon use mark-only brand assets
+  ---
+  duration_ms: 0.746051
+  type: 'test'
+  ...
+# Subtest: brand assets are stable local files without temporary Figma URLs
+ok 202 - brand assets are stable local files without temporary Figma URLs
+  ---
+  duration_ms: 1.660723
+  type: 'test'
+  ...
+# Subtest: light dark and system theme behavior stays class based
+ok 203 - light dark and system theme behavior stays class based
+  ---
+  duration_ms: 0.423847
+  type: 'test'
+  ...
+# Subtest: logo navigation has no unrelated side effects
+ok 204 - logo navigation has no unrelated side effects
+  ---
+  duration_ms: 0.486935
+  type: 'test'
+  ...
+# Subtest: production source does not retain temporary Figma asset URLs
+ok 205 - production source does not retain temporary Figma asset URLs
+  ---
+  duration_ms: 34.490544
+  type: 'test'
+  ...
+# Subtest: github repositories BFF route requests upstream /github/repositories and uses shared sanitizer
+ok 206 - github repositories BFF route requests upstream /github/repositories and uses shared sanitizer
+  ---
+  duration_ms: 3.923354
+  type: 'test'
+  ...
+# Subtest: mock repositories fixture defines provider GITHUB and satisfies connection schema
+ok 207 - mock repositories fixture defines provider GITHUB and satisfies connection schema
+  ---
+  duration_ms: 1.822693
+  type: 'test'
+  ...
+# Subtest: getRepositoryConnections receives mock BFF shape and returns defined provider
+ok 208 - getRepositoryConnections receives mock BFF shape and returns defined provider
+  ---
+  duration_ms: 13.522107
+  type: 'test'
+  ...
+# Subtest: sanitizeRepositoriesPayload rejects upstream repository missing provider
+ok 209 - sanitizeRepositoriesPayload rejects upstream repository missing provider
+  ---
+  duration_ms: 0.143056
+  type: 'test'
+  ...
+# Subtest: sanitizeRepositoriesPayload rejects repository with invalid provider enum
+ok 210 - sanitizeRepositoriesPayload rejects repository with invalid provider enum
+  ---
+  duration_ms: 0.166804
+  type: 'test'
+  ...
+# Subtest: sanitizeRepositoriesPayload accepts all valid credential provider values
+ok 211 - sanitizeRepositoriesPayload accepts all valid credential provider values
+  ---
+  duration_ms: 0.14532
+  type: 'test'
+  ...
+# Subtest: GitHub discovery sends the credential only in the POST body
+ok 212 - GitHub discovery sends the credential only in the POST body
+  ---
+  duration_ms: 13.568782
+  type: 'test'
+  ...
+# Subtest: GitHub connect exposes no credential in its sanitized result
+ok 213 - GitHub connect exposes no credential in its sanitized result
+  ---
+  duration_ms: 0.457347
+  type: 'test'
+  ...
+# Subtest: upload BFF forwards raw file bytes and validated metadata in the query
+ok 214 - upload BFF forwards raw file bytes and validated metadata in the query
+  ---
+  duration_ms: 9.790366
+  type: 'test'
+  ...
+# Subtest: upload BFF rejects a file larger than the contract limit before forwarding
+ok 215 - upload BFF rejects a file larger than the contract limit before forwarding
+  ---
+  duration_ms: 50.844263
+  type: 'test'
+  ...
+# Subtest: upload BFF requires a session before forwarding
+ok 216 - upload BFF requires a session before forwarding
+  ---
+  duration_ms: 1.431574
+  type: 'test'
+  ...
+# Subtest: effect BFF forwards validated status metadata to the draft document endpoint
+ok 217 - effect BFF forwards validated status metadata to the draft document endpoint
+  ---
+  duration_ms: 2.924978
+  type: 'test'
+  ...
+# Subtest: marketing routes render real Product, Features, and Pricing pages
+ok 218 - marketing routes render real Product, Features, and Pricing pages
+  ---
+  duration_ms: 4.888423
+  type: 'test'
+  ...
+# Subtest: shared marketing header is 72px on desktop and routes across marketing plus auth
+ok 219 - shared marketing header is 72px on desktop and routes across marketing plus auth
+  ---
+  duration_ms: 1.240183
+  type: 'test'
+  ...
+# Subtest: Product implements the complete M01 Overview long-page structure
+ok 220 - Product implements the complete M01 Overview long-page structure
+  ---
+  duration_ms: 0.714091
+  type: 'test'
+  ...
+# Subtest: Features implements every required M02 section below the fold
+ok 221 - Features implements every required M02 section below the fold
+  ---
+  duration_ms: 0.807107
+  type: 'test'
+  ...
+# Subtest: Pricing implements the full M03 prepaid-credit model
+ok 222 - Pricing implements the full M03 prepaid-credit model
+  ---
+  duration_ms: 0.896373
+  type: 'test'
+  ...
+# Subtest: auth uses the Figma centered surface instead of the old split visual
+ok 223 - auth uses the Figma centered surface instead of the old split visual
+  ---
+  duration_ms: 0.934707
+  type: 'test'
+  ...
+# Subtest: login keeps Google first and auth navigation routes alive
+ok 224 - login keeps Google first and auth navigation routes alive
+  ---
+  duration_ms: 0.715525
+  type: 'test'
+  ...
+# Subtest: MFA exposes authenticator and recovery-code Figma states
+ok 225 - MFA exposes authenticator and recovery-code Figma states
+  ---
+  duration_ms: 0.45779
+  type: 'test'
+  ...
+# Subtest: exposes all localized public marketing routes with locale copy
+ok 226 - exposes all localized public marketing routes with locale copy
+  ---
+  duration_ms: 5.019565
+  type: 'test'
+  ...
+# Subtest: language switching preserves the current marketing page and locale nav
+ok 227 - language switching preserves the current marketing page and locale nav
+  ---
+  duration_ms: 1.014764
+  type: 'test'
+  ...
+# Subtest: explicit marketing locale choices persist through the shared cookie
+ok 228 - explicit marketing locale choices persist through the shared cookie
+  ---
+  duration_ms: 0.9331
+  type: 'test'
+  ...
+# Subtest: unsupported marketing locales use deterministic fallback or not-found handling
+ok 229 - unsupported marketing locales use deterministic fallback or not-found handling
+  ---
+  duration_ms: 1.400477
+  type: 'test'
+  ...
+# Subtest: MFA verification accepts only a six-digit numeric OTP
+ok 230 - MFA verification accepts only a six-digit numeric OTP
+  ---
+  duration_ms: 1.440015
+  type: 'test'
+  ...
+# Subtest: successful MFA verification returns a workspace redirect outcome
+ok 231 - successful MFA verification returns a workspace redirect outcome
+  ---
+  duration_ms: 0.51734
+  type: 'test'
+  ...
+# Subtest: successful MFA verification accepts the API success envelope payload
+ok 232 - successful MFA verification accepts the API success envelope payload
+  ---
+  duration_ms: 0.08136
+  type: 'test'
+  ...
+# Subtest: invalid OTP responses use the shared non-leaking error contract
+ok 233 - invalid OTP responses use the shared non-leaking error contract
+  ---
+  duration_ms: 0.11073
+  type: 'test'
+  ...
+# Subtest: undecryptable TOTP secret returns retryRecovery action with specialized copy
+ok 234 - undecryptable TOTP secret returns retryRecovery action with specialized copy
+  ---
+  duration_ms: 0.088505
+  type: 'test'
+  ...
+# Subtest: MFA rate limiting returns a locked outcome
+ok 235 - MFA rate limiting returns a locked outcome
+  ---
+  duration_ms: 0.069068
+  type: 'test'
+  ...
+# Subtest: undecryptable MFA enrollment redirects back to setup
+ok 236 - undecryptable MFA enrollment redirects back to setup
+  ---
+  duration_ms: 0.120467
+  type: 'test'
+  ...
+# Subtest: invalid or expired pending sessions return a sign-in outcome
+ok 237 - invalid or expired pending sessions return a sign-in outcome
+  ---
+  duration_ms: 0.072226
+  type: 'test'
+  ...
+# Subtest: reauthRequired problem returns distinct reauth_required outcome without invalidating session
+ok 238 - reauthRequired problem returns distinct reauth_required outcome without invalidating session
+  ---
+  duration_ms: 0.173791
+  type: 'test'
+  ...
+# Subtest: expired MFA enrollment returns mfa_enrollment_expired outcome with restart action
+ok 239 - expired MFA enrollment returns mfa_enrollment_expired outcome with restart action
+  ---
+  duration_ms: 0.277815
+  type: 'test'
+  ...
+# Subtest: MFA client sends the OTP only in a same-origin JSON body
+ok 240 - MFA client sends the OTP only in a same-origin JSON body
+  ---
+  duration_ms: 12.182919
+  type: 'test'
+  ...
+# Subtest: MFA BFF body uses the server-side pending session
+ok 241 - MFA BFF body uses the server-side pending session
+  ---
+  duration_ms: 0.079001
+  type: 'test'
+  ...
+# Subtest: Turbopack is pinned to the LCSP monorepo root
+ok 242 - Turbopack is pinned to the LCSP monorepo root
+  ---
+  duration_ms: 0.856312
+  type: 'test'
+  ...
+# Subtest: password re-auth returns verified on success
+ok 243 - password re-auth returns verified on success
+  ---
+  duration_ms: 0.785725
+  type: 'test'
+  ...
+# Subtest: password re-auth returns session invalid for expired sessions
+ok 244 - password re-auth returns session invalid for expired sessions
+  ---
+  duration_ms: 0.118105
+  type: 'test'
+  ...
+# Subtest: password re-auth preserves password whitespace
+ok 245 - password re-auth preserves password whitespace
+  ---
+  duration_ms: 0.663622
+  type: 'test'
+  ...
+# Subtest: password re-auth client sends only the password in a same-origin JSON body
+ok 246 - password re-auth client sends only the password in a same-origin JSON body
+  ---
+  duration_ms: 12.084205
+  type: 'test'
+  ...
+# Subtest: upstream read failures end the stream without rejecting downstream
+ok 247 - upstream read failures end the stream without rejecting downstream
+  ---
+  duration_ms: 12.415005
+  type: 'test'
+  ...
+# Subtest: downstream cancellation aborts upstream and cancels its reader
+ok 248 - downstream cancellation aborts upstream and cancels its reader
+  ---
+  duration_ms: 0.593713
+  type: 'test'
+  ...
+# Subtest: request abort propagates upstream and unavailable API returns 503
+ok 249 - request abort propagates upstream and unavailable API returns 503
+  ---
+  duration_ms: 0.31858
+  type: 'test'
+  ...
+# Subtest: upstream authentication failures preserve their HTTP status
+ok 250 - upstream authentication failures preserve their HTTP status
+  ---
+  duration_ms: 0.230942
+  type: 'test'
+  ...
+# Subtest: repository connection client sends only repositoryUrl
+ok 251 - repository connection client sends only repositoryUrl
+  ---
+  duration_ms: 3.413754
+  type: 'test'
+  ...
+# Subtest: public origin uses reverse-proxy host instead of the internal Next URL
+ok 252 - public origin uses reverse-proxy host instead of the internal Next URL
+  ---
+  duration_ms: 12.225942
+  type: 'test'
+  ...
+# Subtest: public origin falls back to the preserved Host header behind Caddy
+ok 253 - public origin falls back to the preserved Host header behind Caddy
+  ---
+  duration_ms: 0.225331
+  type: 'test'
+  ...
+# Subtest: password recovery BFF forwards the resolved public origin
+ok 254 - password recovery BFF forwards the resolved public origin
+  ---
+  duration_ms: 4.005091
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com/acme//payments
+ok 255 - shared URL validation rejects https://github.com/acme//payments
+  ---
+  duration_ms: 0.750239
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com//acme/payments
+ok 256 - shared URL validation rejects https://github.com//acme/payments
+  ---
+  duration_ms: 0.112357
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com/acme/payments//
+ok 257 - shared URL validation rejects https://github.com/acme/payments//
+  ---
+  duration_ms: 0.063358
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects http://github.com/acme/payments
+ok 258 - shared URL validation rejects http://github.com/acme/payments
+  ---
+  duration_ms: 0.048825
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com/acme/payments/tree/main
+ok 259 - shared URL validation rejects https://github.com/acme/payments/tree/main
+  ---
+  duration_ms: 0.104981
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com/acme/payments/blob/main/a.ts
+ok 260 - shared URL validation rejects https://github.com/acme/payments/blob/main/a.ts
+  ---
+  duration_ms: 0.054004
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com/acme/payments?tab=code
+ok 261 - shared URL validation rejects https://github.com/acme/payments?tab=code
+  ---
+  duration_ms: 0.093686
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com/acme/payments\#readme
+ok 262 - shared URL validation rejects https://github.com/acme/payments\#readme
+  ---
+  duration_ms: 0.053391
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://[REDACTED]@github.com/acme/payments
+ok 263 - shared URL validation rejects https://[REDACTED]@github.com/acme/payments
+  ---
+  duration_ms: 0.158936
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com:444/acme/payments
+ok 264 - shared URL validation rejects https://github.com:444/acme/payments
+  ---
+  duration_ms: 0.235531
+  type: 'test'
+  ...
+# Subtest: shared URL validation rejects https://github.com/acme/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ok 265 - shared URL validation rejects https://github.com/acme/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  ---
+  duration_ms: 0.054169
+  type: 'test'
+  ...
+# Subtest: shared parsers preserve supported repository URL forms
+ok 266 - shared parsers preserve supported repository URL forms
+  ---
+  duration_ms: 0.239063
+  type: 'test'
+  ...
+# Subtest: resume completes a saved snapshot and reads the server-owned scan without repinning
+ok 267 - resume completes a saved snapshot and reads the server-owned scan without repinning
+  ---
+  duration_ms: 15.125919
+  type: 'test'
+  ...
+# Subtest: new setup pins only when no persisted snapshot exists
+ok 268 - new setup pins only when no persisted snapshot exists
+  ---
+  duration_ms: 3.981999
+  type: 'test'
+  ...
+# Subtest: completion retry retains snapshot and commit even if the branch head moves
+ok 269 - completion retry retains snapshot and commit even if the branch head moves
+  ---
+  duration_ms: 1.785855
+  type: 'test'
+  ...
+# Subtest: resume reconciles persisted state after losing snapshot-response
+ok 270 - resume reconciles persisted state after losing snapshot-response
+  ---
+  duration_ms: 0.98728
+  type: 'test'
+  ...
+# Subtest: resume reconciles persisted state after losing completion-response
+ok 271 - resume reconciles persisted state after losing completion-response
+  ---
+  duration_ms: 0.556052
+  type: 'test'
+  ...
+# Subtest: a setup that is no longer PREPARING and has no snapshot fails before any mutation
+ok 272 - a setup that is no longer PREPARING and has no snapshot fails before any mutation
+  ---
+  duration_ms: 0.576579
+  type: 'test'
+  ...
+# Subtest: lost connection response is recovered without deleting or connecting again
+ok 273 - lost connection response is recovered without deleting or connecting again
+  ---
+  duration_ms: 0.562214
+  type: 'test'
+  ...
+# Subtest: an existing connection cannot be silently switched to another repository
+ok 274 - an existing connection cannot be silently switched to another repository
+  ---
+  duration_ms: 0.286582
+  type: 'test'
+  ...
+# Subtest: resume returns existing QUEUED scan without implicitly rerunning
+ok 275 - resume returns existing QUEUED scan without implicitly rerunning
+  ---
+  duration_ms: 0.386605
+  type: 'test'
+  ...
+# Subtest: resume returns existing COMPLETED scan without implicitly rerunning
+ok 276 - resume returns existing COMPLETED scan without implicitly rerunning
+  ---
+  duration_ms: 0.26173
+  type: 'test'
+  ...
+# Subtest: resume returns existing FAILED scan without implicitly rerunning
+ok 277 - resume returns existing FAILED scan without implicitly rerunning
+  ---
+  duration_ms: 0.231521
+  type: 'test'
+  ...
+# Subtest: concurrent client submissions share one resume operation
+ok 278 - concurrent client submissions share one resume operation
+  ---
+  duration_ms: 0.650467
+  type: 'test'
+  ...
+# Subtest: unreadable or mismatched checkpoints fail before any mutation
+ok 279 - unreadable or mismatched checkpoints fail before any mutation
+  ---
+  duration_ms: 0.480547
+  type: 'test'
+  ...
+# Subtest: completion with a different snapshot is rejected
+ok 280 - completion with a different snapshot is rejected
+  ---
+  duration_ms: 0.404812
+  type: 'test'
+  ...
+# Subtest: setup UI has an explicit resume action and no automatic destructive cleanup
+ok 281 - setup UI has an explicit resume action and no automatic destructive cleanup
+  ---
+  duration_ms: 10.174028
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://github.com/acme/project
+ok 282 - web schema agrees with the API's shared parser: https://github.com/acme/project
+  ---
+  duration_ms: 1.584056
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://github.com/acme/project.git/
+ok 283 - web schema agrees with the API's shared parser: https://github.com/acme/project.git/
+  ---
+  duration_ms: 0.174671
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://github.com/acme//project
+ok 284 - web schema agrees with the API's shared parser: https://github.com/acme//project
+  ---
+  duration_ms: 0.182365
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://github.com/acme/project/tree/main
+ok 285 - web schema agrees with the API's shared parser: https://github.com/acme/project/tree/main
+  ---
+  duration_ms: 0.169726
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: http://github.com/acme/project
+ok 286 - web schema agrees with the API's shared parser: http://github.com/acme/project
+  ---
+  duration_ms: 0.206092
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://github.com/acme/project?tab=code
+ok 287 - web schema agrees with the API's shared parser: https://github.com/acme/project?tab=code
+  ---
+  duration_ms: 0.192452
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://gitlab.com/acme/tree/subgroup/project.git
+ok 288 - web schema agrees with the API's shared parser: https://gitlab.com/acme/tree/subgroup/project.git
+  ---
+  duration_ms: 0.107263
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://gitlab.com/acme//project
+ok 289 - web schema agrees with the API's shared parser: https://gitlab.com/acme//project
+  ---
+  duration_ms: 0.135691
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://gitlab.com/acme/project/-/blob/main/file.ts
+ok 290 - web schema agrees with the API's shared parser: https://gitlab.com/acme/project/-/blob/main/file.ts
+  ---
+  duration_ms: 0.308229
+  type: 'test'
+  ...
+# Subtest: web schema agrees with the API's shared parser: https://github.com/acme/project\#readme
+ok 291 - web schema agrees with the API's shared parser: https://github.com/acme/project\#readme
+  ---
+  duration_ms: 0.325888
+  type: 'test'
+  ...
+# Subtest: Settings repository section contains credential status only
+ok 292 - Settings repository section contains credential status only
+  ---
+  duration_ms: 3.554042
+  type: 'test'
+  ...
+# Subtest: provider credential BFF validates and forwards only provider and credential
+ok 293 - provider credential BFF validates and forwards only provider and credential
+  ---
+  duration_ms: 0.893509
+  type: 'test'
+  ...
+# Subtest: readiness client contract contains no credential field
+ok 294 - readiness client contract contains no credential field
+  ---
+  duration_ms: 0.745248
+  type: 'test'
+  ...
+# Subtest: long Preparation displays recent activity without rendering an unbounded journal
+ok 295 - long Preparation displays recent activity without rendering an unbounded journal
+  ---
+  duration_ms: 196.252124
+  type: 'test'
+  ...
+# Subtest: Preparation activities start collapsed and keep user expansion across stream updates
+ok 296 - Preparation activities start collapsed and keep user expansion across stream updates
+  ---
+  duration_ms: 12.343976
+  type: 'test'
+  ...
+# Subtest: article files expose committed and rejection counts through the disclosure
+ok 297 - article files expose committed and rejection counts through the disclosure
+  ---
+  duration_ms: 5.102854
+  type: 'test'
+  ...
+# Subtest: frontier counters use the latest recorded progress without inventing missing values
+ok 298 - frontier counters use the latest recorded progress without inventing missing values
+  ---
+  duration_ms: 1.252118
+  type: 'test'
+  ...
+# Subtest: preparation activity groups native work and settles terminal events
+ok 299 - preparation activity groups native work and settles terminal events
+  ---
+  duration_ms: 0.573563
+  type: 'test'
+  ...
+# Subtest: boundary completion reflects the authoritative preparation outcome
+ok 300 - boundary completion reflects the authoritative preparation outcome
+  ---
+  duration_ms: 0.311359
+  type: 'test'
+  ...
+# Subtest: preparation token usage deduplicates provider completion events
+ok 301 - preparation token usage deduplicates provider completion events
+  ---
+  duration_ms: 0.177684
+  type: 'test'
+  ...
+# Subtest: cancellation is terminal and settles every active preparation activity
+ok 302 - cancellation is terminal and settles every active preparation activity
+  ---
+  duration_ms: 0.130609
+  type: 'test'
+  ...
+# Subtest: article commit events retain per-file progress and replace retries without adding counts
+ok 303 - article commit events retain per-file progress and replace retries without adding counts
+  ---
+  duration_ms: 0.310266
+  type: 'test'
+  ...
+# Subtest: file events leave authoritative frontier counts intact
+ok 304 - file events leave authoritative frontier counts intact
+  ---
+  duration_ms: 0.140243
+  type: 'test'
+  ...
+# Subtest: budget PAUSED is distinct from failure and settles active work
+ok 305 - budget PAUSED is distinct from failure and settles active work
+  ---
+  duration_ms: 0.098786
+  type: 'test'
+  ...
+# Subtest: budget pause telemetry is visible before the history refresh
+ok 306 - budget pause telemetry is visible before the history refresh
+  ---
+  duration_ms: 0.215041
+  type: 'test'
+  ...
+# Subtest: expired API sessions redirect refresh flows back to sign-in with next path
+ok 307 - expired API sessions redirect refresh flows back to sign-in with next path
+  ---
+  duration_ms: 0.483291
+  type: 'test'
+  ...
+# Subtest: problemJson and resultJson clear session cookie on accountSuspended, sessionInvalid, and authRequired
+ok 308 - problemJson and resultJson clear session cookie on accountSuspended, sessionInvalid, and authRequired
+  ---
+  duration_ms: 50.391317
+  type: 'test'
+  ...
+# Subtest: modal shell preserves Figma desktop geometry
+ok 309 - modal shell preserves Figma desktop geometry
+  ---
+  duration_ms: 4.1949
+  type: 'test'
+  ...
+# Subtest: General settings panel uses compact Figma rows, not legacy cards
+ok 310 - General settings panel uses compact Figma rows, not legacy cards
+  ---
+  duration_ms: 1.325426
+  type: 'test'
+  ...
+# Subtest: General settings panel wires language to the shared EN VI locale preference
+ok 311 - General settings panel wires language to the shared EN VI locale preference
+  ---
+  duration_ms: 0.83235
+  type: 'test'
+  ...
+# Subtest: Settings language select matches Figma trigger and option selected state
+ok 312 - Settings language select matches Figma trigger and option selected state
+  ---
+  duration_ms: 0.839874
+  type: 'test'
+  ...
+# Subtest: Account tab hides legacy account presentation and renders compact sessions
+ok 313 - Account tab hides legacy account presentation and renders compact sessions
+  ---
+  duration_ms: 0.691684
+  type: 'test'
+  ...
+# Subtest: Connectors tab matches provider-list structure without inline repository form
+ok 314 - Connectors tab matches provider-list structure without inline repository form
+  ---
+  duration_ms: 0.58981
+  type: 'test'
+  ...
+# Subtest: Git credential dialog matches Figma mode shell instead of generic compact dialog
+ok 315 - Git credential dialog matches Figma mode shell instead of generic compact dialog
+  ---
+  duration_ms: 0.729995
+  type: 'test'
+  ...
+# Subtest: provider credential reauthentication is routed to the existing Settings flow
+ok 316 - provider credential reauthentication is routed to the existing Settings flow
+  ---
+  duration_ms: 3.493432
+  type: 'test'
+  ...
+# Subtest: provider credential request preserves requiredAction from the API problem
+ok 317 - provider credential request preserves requiredAction from the API problem
+  ---
+  duration_ms: 0.883851
+  type: 'test'
+  ...
+# Subtest: Settings repository section contains credential-only controls and safe status
+ok 318 - Settings repository section contains credential-only controls and safe status
+  ---
+  duration_ms: 5.055949
+  type: 'test'
+  ...
+# Subtest: Settings repository section supports provider rows and never renders a stored PAT
+ok 319 - Settings repository section supports provider rows and never renders a stored PAT
+  ---
+  duration_ms: 0.678217
+  type: 'test'
+  ...
+# Subtest: provider credential input is isolated in the credential dialog
+ok 320 - provider credential input is isolated in the credential dialog
+  ---
+  duration_ms: 0.555471
+  type: 'test'
+  ...
+# Subtest: initial configure and rotation refresh the shared provider credential status query
+ok 321 - initial configure and rotation refresh the shared provider credential status query
+  ---
+  duration_ms: 0.688129
+  type: 'test'
+  ...
+# Subtest: successful credential submission clears the plaintext PAT without exposing it
+ok 322 - successful credential submission clears the plaintext PAT without exposing it
+  ---
+  duration_ms: 0.545944
+  type: 'test'
+  ...
+# Subtest: reauthentication retries the pending credential update
+ok 323 - reauthentication retries the pending credential update
+  ---
+  duration_ms: 0.586036
+  type: 'test'
+  ...
+# Subtest: provider credential dialog has explicit connect, manage, and update modes
+ok 324 - provider credential dialog has explicit connect, manage, and update modes
+  ---
+  duration_ms: 0.801224
+  type: 'test'
+  ...
+# Subtest: provider rows select mode from configured status and disconnected GitHub has no active update action
+ok 325 - provider rows select mode from configured status and disconnected GitHub has no active update action
+  ---
+  duration_ms: 0.613763
+  type: 'test'
+  ...
+# Subtest: provider credential dialog uses provider-specific Figma titles, not generic copy
+ok 326 - provider credential dialog uses provider-specific Figma titles, not generic copy
+  ---
+  duration_ms: 1.534011
+  type: 'test'
+  ...
+# Subtest: manage and update modes do not fabricate PAT, username, or repository scopes
+ok 327 - manage and update modes do not fabricate PAT, username, or repository scopes
+  ---
+  duration_ms: 0.829355
+  type: 'test'
+  ...
+# Subtest: credential mutation submits only provider and credential
+ok 328 - credential mutation submits only provider and credential
+  ---
+  duration_ms: 1.718806
+  type: 'test'
+  ...
+# Subtest: credential dialog uses Figma desktop shell and right-aligned footer buttons
+ok 329 - credential dialog uses Figma desktop shell and right-aligned footer buttons
+  ---
+  duration_ms: 0.529625
+  type: 'test'
+  ...
+# Subtest: all 4 git providers are supported in connector list and disabled state respects option.supported
+ok 330 - all 4 git providers are supported in connector list and disabled state respects option.supported
+  ---
+  duration_ms: 0.505962
+  type: 'test'
+  ...
+# Subtest: root layout mounts one next-themes provider for the full app tree
+ok 331 - root layout mounts one next-themes provider for the full app tree
+  ---
+  duration_ms: 4.216947
+  type: 'test'
+  ...
+# Subtest: theme preferences support light dark and system without a parallel store
+ok 332 - theme preferences support light dark and system without a parallel store
+  ---
+  duration_ms: 1.298252
+  type: 'test'
+  ...
+# Subtest: settings owns the reusable theme preference control
+ok 333 - settings owns the reusable theme preference control
+  ---
+  duration_ms: 0.781152
+  type: 'test'
+  ...
+# Subtest: semantic tokens define light and dark palettes plus brand role
+ok 334 - semantic tokens define light and dark palettes plus brand role
+  ---
+  duration_ms: 0.853956
+  type: 'test'
+  ...
+# Subtest: portaled toaster and recent filters inherit the root theme tokens
+ok 335 - portaled toaster and recent filters inherit the root theme tokens
+  ---
+  duration_ms: 0.534654
+  type: 'test'
+  ...
+# Subtest: theme changes do not introduce shell state ownership or collapsed sidebar regressions
+ok 336 - theme changes do not introduce shell state ownership or collapsed sidebar regressions
+  ---
+  duration_ms: 0.892641
+  type: 'test'
+  ...
+# Subtest: major public and auth shells no longer pin one visual theme
+ok 337 - major public and auth shells no longer pin one visual theme
+  ---
+  duration_ms: 0.587933
+  type: 'test'
+  ...
+# Subtest: theme retrofit does not duplicate light or dark component trees
+ok 338 - theme retrofit does not duplicate light or dark component trees
+  ---
+  duration_ms: 0.567504
+  type: 'test'
+  ...
+# Subtest: workspace BFF route requests upstream /auth/profile instead of deleted /workspace
+ok 339 - workspace BFF route requests upstream /auth/profile instead of deleted /workspace
+  ---
+  duration_ms: 4.109102
+  type: 'test'
+  ...
+# Subtest: toWorkspaceOutcome normalizes profile with display_name null using email fallback
+ok 340 - toWorkspaceOutcome normalizes profile with display_name null using email fallback
+  ---
+  duration_ms: 0.22969
+  type: 'test'
+  ...
+# Subtest: toWorkspaceOutcome preserves explicit display_name when present
+ok 341 - toWorkspaceOutcome preserves explicit display_name when present
+  ---
+  duration_ms: 0.099864
+  type: 'test'
+  ...
+# Subtest: toWorkspaceOutcome redirects to sign-in on 401 or sessionInvalid problem
+ok 342 - toWorkspaceOutcome redirects to sign-in on 401 or sessionInvalid problem
+  ---
+  duration_ms: 0.093439
+  type: 'test'
+  ...
+# Subtest: toWorkspaceOutcome redirects to MFA verify when mfaRequired problem occurs
+ok 343 - toWorkspaceOutcome redirects to MFA verify when mfaRequired problem occurs
+  ---
+  duration_ms: 0.113744
+  type: 'test'
+  ...
+# Subtest: workspace runtime parser preserves canonical ALS/AES and event-only activity
+ok 344 - workspace runtime parser preserves canonical ALS/AES and event-only activity
+  ---
+  duration_ms: 8.610995
+  type: 'test'
+  ...
+# Subtest: workspace runtime fingerprint ignores emission time for identical canonical state
+ok 345 - workspace runtime fingerprint ignores emission time for identical canonical state
+  ---
+  duration_ms: 0.181507
+  type: 'test'
+  ...
+1..345
+# tests 345
+# suites 0
+# pass 345
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23916.202649

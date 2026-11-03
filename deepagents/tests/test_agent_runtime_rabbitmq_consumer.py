@@ -624,6 +624,7 @@ def test_configure_channel_declares_durable_retry_queue_back_to_original_queue()
         "lcsp.agent_runtime.test.test_boundary",
         "lcsp.agent_runtime.test.test_boundary.retry.30000ms",
         "lcsp.agent_runtime.test.test_boundary.retry.2000ms",
+        "lcsp.agent_runtime.test.test_boundary.retry.15000ms",
     }
     assert channel.deleted == []
     assert channel.bound == [

@@ -196,6 +196,7 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
 
 const OUTBOX_STATUS_TO_PRISMA = {
   [OUTBOX_STATUSES.pending]: PrismaOutboxStatus.PENDING,
+  [OUTBOX_STATUSES.ownedPending]: PrismaOutboxStatus.OWNED_PENDING,
   [OUTBOX_STATUSES.published]: PrismaOutboxStatus.PUBLISHED,
   [OUTBOX_STATUSES.failed]: PrismaOutboxStatus.FAILED,
   [OUTBOX_STATUSES.dlq]: PrismaOutboxStatus.DLQ,
@@ -204,6 +205,7 @@ const OUTBOX_STATUS_TO_PRISMA = {
 
 const PRISMA_OUTBOX_STATUS_TO_CONTRACT = {
   [PrismaOutboxStatus.PENDING]: OUTBOX_STATUSES.pending,
+  [PrismaOutboxStatus.OWNED_PENDING]: OUTBOX_STATUSES.ownedPending,
   [PrismaOutboxStatus.PUBLISHED]: OUTBOX_STATUSES.published,
   [PrismaOutboxStatus.FAILED]: OUTBOX_STATUSES.failed,
   [PrismaOutboxStatus.DLQ]: OUTBOX_STATUSES.dlq,

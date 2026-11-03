@@ -1,0 +1,47 @@
+{
+  "vhost": "lcsp-sync-20261028",
+  "brokerConnections": [
+    {
+      "vhost": "lcsp-sync-20261028",
+      "channels": 1,
+      "peer_port": 59038
+    },
+    {
+      "vhost": "lcsp-sync-20261028",
+      "channels": 1,
+      "peer_port": 34274
+    }
+  ],
+  "ownedFrontSockets": [
+    {
+      "localPort": 52008,
+      "pid": 3887598,
+      "role": "API",
+      "peer": "127.0.0.1:5672"
+    },
+    {
+      "localPort": 49854,
+      "pid": 3887683,
+      "role": "BRIDGE",
+      "peer": "127.0.0.1:5672"
+    }
+  ],
+  "dockerProxyBackSockets": [
+    {
+      "localPort": 34274,
+      "pid": 37497,
+      "role": "DOCKER_PROXY",
+      "peer": "172.18.0.3:5672"
+    },
+    {
+      "localPort": 59038,
+      "pid": 37497,
+      "role": "DOCKER_PROXY",
+      "peer": "172.18.0.3:5672"
+    }
+  ],
+  "publicAmqpBind": false,
+  "allLocalClientProcessesOwned": true,
+  "correlation": "TWO_OWNED_LOOPBACK_CLIENTS_AND_TWO_DOCKER_PROXY_BACK_CONNECTIONS",
+  "nativeRuntimeRevision": "44dba336f332d566d3fee9fc0d32642a402d024e"
+}

@@ -14,6 +14,7 @@ import {
   OUTBOX_ERROR_CODES,
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
+import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { jest } from "@jest/globals";
@@ -29,12 +30,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 describe("OutboxDlqService", () => {
   let service: OutboxDlqService;
   let findDlqMessages: jest.MockedFunction<OutboxRepository["findDlqMessages"]>;
-  let findMessageById: jest.MockedFunction<OutboxRepository["findMessageById"]>;
-  let resetMessageForReplay: jest.MockedFunction<
-    OutboxRepository["resetMessageForReplay"]
-  >;
-  let deleteMessage: jest.MockedFunction<OutboxRepository["deleteMessage"]>;
   let writeAudit: jest.MockedFunction<AuditWriterService["write"]>;
+  let writeAuditInTx: jest.MockedFunction<AuditWriterService["writeInTx"]>;
   let repositoryScanJobFindUnique: ReturnType<
     typeof jest.fn<() => Promise<Record<string, unknown> | null>>
   >;
@@ -44,20 +41,63 @@ describe("OutboxDlqService", () => {
   let technicalProfileFindUnique: ReturnType<
     typeof jest.fn<() => Promise<Record<string, unknown> | null>>
   >;
+  let currentMessageRow: Record<string, unknown> | null = null;
+  let txMock: Record<string, unknown>;
 
   beforeEach(async () => {
     findDlqMessages = jest.fn<OutboxRepository["findDlqMessages"]>();
-    findMessageById = jest.fn<OutboxRepository["findMessageById"]>();
-    resetMessageForReplay =
-      jest.fn<OutboxRepository["resetMessageForReplay"]>();
-    deleteMessage = jest.fn<OutboxRepository["deleteMessage"]>();
     writeAudit = jest.fn<AuditWriterService["write"]>();
+    writeAuditInTx = jest.fn<AuditWriterService["writeInTx"]>();
     repositoryScanJobFindUnique =
       jest.fn<() => Promise<Record<string, unknown> | null>>();
     technicalEvidenceReportFindUnique =
       jest.fn<() => Promise<Record<string, unknown> | null>>();
     technicalProfileFindUnique =
       jest.fn<() => Promise<Record<string, unknown> | null>>();
+
+    currentMessageRow = null;
+    txMock = {
+      $executeRaw: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+      $queryRaw: jest
+        .fn<(strings: TemplateStringsArray) => Promise<any>>()
+        .mockImplementation((strings: TemplateStringsArray) => {
+          const text = Array.isArray(strings)
+            ? strings.join("")
+            : String(strings);
+          if (text.includes('"AssessmentRootCapacity"')) {
+            return Promise.resolve([{ id: "singleton" }]);
+          }
+          if (text.includes('"OutboxMessage"')) {
+            return Promise.resolve(
+              currentMessageRow ? [currentMessageRow] : [],
+            );
+          }
+          return Promise.resolve([]);
+        }),
+      assessmentRootAdmissionRequest: {
+        findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+          commandId: "1",
+          assessmentId: "123",
+        }),
+      },
+      assessment: {
+        findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+          lifecycleState: "ACTIVE",
+          runtime: {
+            executionState: "FAILED",
+            leaseToken: null,
+          },
+        }),
+      },
+      assessmentRootExecutionSlot: {
+        count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+      },
+      repositoryScanJob: { findUnique: repositoryScanJobFindUnique },
+      technicalEvidenceReport: {
+        findUnique: technicalEvidenceReportFindUnique,
+      },
+      technicalProfile: { findUnique: technicalProfileFindUnique },
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -66,18 +106,19 @@ describe("OutboxDlqService", () => {
           provide: OutboxRepository,
           useValue: {
             findDlqMessages,
-            findMessageById,
-            resetMessageForReplay,
-            deleteMessage,
           },
         },
         {
           provide: AuditWriterService,
-          useValue: { write: writeAudit, writeInTx: jest.fn() },
+          useValue: { write: writeAudit, writeInTx: writeAuditInTx },
         },
         {
           provide: PrismaService,
           useValue: {
+            $transaction: jest.fn(
+              (callback: (tx: typeof txMock) => Promise<unknown>) =>
+                callback(txMock),
+            ),
             repositoryScanJob: { findUnique: repositoryScanJobFindUnique },
             technicalEvidenceReport: {
               findUnique: technicalEvidenceReportFindUnique,
@@ -102,18 +143,18 @@ describe("OutboxDlqService", () => {
   });
 
   it("replays a valid DLQ message and writes audit", async () => {
-    findMessageById.mockResolvedValue({
+    currentMessageRow = {
       id: "1",
       aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
       status: OUTBOX_STATUSES.dlq,
       eventType: "TEST",
       aggregateId: "123",
-    } as OutboxMessageEntity);
+      errorMessage: null,
+    };
 
     await service.replayMessage("1", "actor-1", "corr-1");
 
-    expect(resetMessageForReplay).toHaveBeenCalledWith("1");
-    expect(writeAudit).toHaveBeenCalledWith(
+    expect(writeAuditInTx).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqReplayed,
         actorId: "actor-1",
@@ -124,40 +165,46 @@ describe("OutboxDlqService", () => {
           aggregateId: "123",
         },
       }),
+      txMock,
     );
   });
 
   it("rejects replay when the message is not in the DLQ", async () => {
-    findMessageById.mockResolvedValue({
+    currentMessageRow = {
       id: "1",
       aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
       status: OUTBOX_STATUSES.failed,
-    } as OutboxMessageEntity);
+      eventType: "TEST",
+      aggregateId: "123",
+      errorMessage: null,
+    };
 
     await expect(
       service.replayMessage("1", "actor-1", "corr-1"),
     ).rejects.toThrow(NotFoundException);
-    expect(resetMessageForReplay).not.toHaveBeenCalled();
+    expect(writeAuditInTx).not.toHaveBeenCalled();
   });
 
   it("rejects replay when the message does not exist", async () => {
-    findMessageById.mockResolvedValue(null);
+    currentMessageRow = null;
 
     await expect(
       service.replayMessage("1", "actor-1", "corr-1"),
     ).rejects.toThrow(NotFoundException);
+    expect(writeAuditInTx).not.toHaveBeenCalled();
   });
 
   it.each(eventPolicy.retired)(
     "never replays the retired V1 event %s",
     async (eventType) => {
-      findMessageById.mockResolvedValue({
+      currentMessageRow = {
         id: "1",
         aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
         status: OUTBOX_STATUSES.dlq,
         eventType,
         aggregateId: "123",
-      } as OutboxMessageEntity);
+        errorMessage: null,
+      };
 
       await expect(
         service.replayMessage("1", "actor-1", "corr-1"),
@@ -166,7 +213,7 @@ describe("OutboxDlqService", () => {
           problem: { code: OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget },
         },
       });
-      expect(resetMessageForReplay).not.toHaveBeenCalled();
+      expect(writeAuditInTx).not.toHaveBeenCalled();
       expect(writeAudit).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqReplayDenied,
@@ -177,13 +224,14 @@ describe("OutboxDlqService", () => {
   );
 
   it("rejects replay for a terminal repository scan job", async () => {
-    findMessageById.mockResolvedValue({
+    currentMessageRow = {
       id: "1",
       aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
       status: OUTBOX_STATUSES.dlq,
       eventType: "TEST",
       aggregateId: "scan-job-1",
-    } as OutboxMessageEntity);
+      errorMessage: null,
+    };
     repositoryScanJobFindUnique.mockResolvedValue({
       status: REPOSITORY_SCAN_JOB_STATUSES.completed,
     });
@@ -195,7 +243,7 @@ describe("OutboxDlqService", () => {
         problem: { code: OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget },
       },
     });
-    expect(resetMessageForReplay).not.toHaveBeenCalled();
+    expect(writeAuditInTx).not.toHaveBeenCalled();
     expect(writeAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqReplayDenied,
@@ -206,37 +254,74 @@ describe("OutboxDlqService", () => {
   });
 
   it("deletes a valid DLQ message and writes audit", async () => {
-    findMessageById.mockResolvedValue({
+    currentMessageRow = {
       id: "1",
       aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
       status: OUTBOX_STATUSES.dlq,
       eventType: "TEST",
       aggregateId: "123",
-    } as OutboxMessageEntity);
+    };
 
     await service.deleteMessage("1", "actor-1", "corr-2");
 
-    expect(deleteMessage).toHaveBeenCalledWith("1");
-    expect(writeAudit).toHaveBeenCalledWith(
+    expect(writeAuditInTx).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqDiscarded,
         actorId: "actor-1",
         decision: AUDIT_DECISIONS.allow,
         correlationId: "corr-2",
+        payload: {
+          originalEventType: "TEST",
+          aggregateId: "123",
+        },
       }),
+      txMock,
     );
   });
 
   it("rejects deletion when the message is not in the DLQ", async () => {
-    findMessageById.mockResolvedValue({
+    currentMessageRow = {
       id: "1",
       aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
       status: OUTBOX_STATUSES.published,
-    } as OutboxMessageEntity);
+      eventType: "TEST",
+      aggregateId: "123",
+    };
 
     await expect(
       service.deleteMessage("1", "actor-1", "corr-2"),
     ).rejects.toThrow(NotFoundException);
-    expect(deleteMessage).not.toHaveBeenCalled();
+    expect(writeAuditInTx).not.toHaveBeenCalled();
+  });
+
+  it("rejects discard and records dlqDiscardDenied when a Root has a held execution slot", async () => {
+    currentMessageRow = {
+      id: "1",
+      aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+      status: OUTBOX_STATUSES.dlq,
+      eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+      aggregateId: "123",
+    };
+    (
+      txMock.assessmentRootExecutionSlot as {
+        count: jest.Mock<() => Promise<number>>;
+      }
+    ).count.mockResolvedValueOnce(1);
+
+    await expect(
+      service.deleteMessage("1", "actor-1", "corr-discard-deny"),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: OUTBOX_ERROR_CODES.dlqDiscardUnsafeTarget },
+      },
+    });
+    expect(writeAuditInTx).not.toHaveBeenCalled();
+    expect(writeAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqDiscardDenied,
+        decision: AUDIT_DECISIONS.deny,
+        correlationId: "corr-discard-deny",
+      }),
+    );
   });
 });

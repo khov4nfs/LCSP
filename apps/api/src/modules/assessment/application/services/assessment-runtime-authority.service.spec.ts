@@ -9,6 +9,7 @@ describe("AssessmentRuntimeAuthority selected rule membership", () => {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
   const assessmentRuleId = "RULE-3";
   const correlationId = randomUUID();
