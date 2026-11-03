@@ -542,9 +542,7 @@ export function criterionPresentation(
 }
 
 export function decisionReferenceLabels(
-  refs:
-    | RulePresentation["decisionReferences"]
-    | RulePresentation["criterionDecisions"][number]["references"],
+  refs: RulePresentation["decisionReferences"],
   reference: ReportReferenceIndex,
 ): string[] {
   const labels = new Set<string>();
