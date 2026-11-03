@@ -109,23 +109,31 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-if [[ -f "scripts/check-migration-privilege-preflight.mjs" ]]; then
-  echo "==> Verify migration credentials and privilege separation preflight (before drain)"
-  node scripts/check-migration-privilege-preflight.mjs \
-    --env-file "${APP}/.env.pm2" \
-    --migration-env-file "$MIGRATION_ENV_FILE" \
-    --production
-else
-  echo "==> Bootstrap preflight check for initial upgrade"
-  if [[ ! -f "$MIGRATION_ENV_FILE" ]]; then
-    echo "Production deployment requires dedicated migration credentials file: $MIGRATION_ENV_FILE" >&2
-    exit 1
-  fi
-  if grep -q "MIGRATION_DATABASE_URL" "${APP}/.env.pm2" 2>/dev/null; then
-    echo "MIGRATION_DATABASE_URL must not appear in runtime environment (${APP}/.env.pm2)" >&2
-    exit 1
-  fi
+echo "==> Fetch target revision without modifying working tree"
+git fetch origin
+
+if ! git cat-file -e "${LCSP_DEPLOY_EXPECTED_SHA}^{commit}" 2>/dev/null; then
+  echo "Target revision ${LCSP_DEPLOY_EXPECTED_SHA} is missing in git repository" >&2
+  exit 1
 fi
+
+echo "==> Verify migration credentials and privilege separation preflight pinned to ${LCSP_DEPLOY_EXPECTED_SHA} (before drain)"
+mkdir -p "${APP}/.cache"
+readonly BOOTSTRAP_PREFLIGHT="${APP}/.cache/check-migration-privilege-preflight.bootstrap.${LCSP_DEPLOY_EXPECTED_SHA}.mjs"
+git show "${LCSP_DEPLOY_EXPECTED_SHA}:scripts/check-migration-privilege-preflight.mjs" > "$BOOTSTRAP_PREFLIGHT"
+
+cleanup_bootstrap_preflight() {
+  rm -f "$BOOTSTRAP_PREFLIGHT"
+}
+trap cleanup_bootstrap_preflight EXIT
+
+node "$BOOTSTRAP_PREFLIGHT" \
+  --env-file "${APP}/.env.pm2" \
+  --migration-env-file "$MIGRATION_ENV_FILE" \
+  --production
+
+rm -f "$BOOTSTRAP_PREFLIGHT"
+trap - EXIT
 
 echo "==> Drain actual native execution before changing source or persistence"
 node scripts/drain-agent-runtime.mjs

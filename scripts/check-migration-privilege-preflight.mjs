@@ -39,6 +39,19 @@ function sanitizeUrl(rawUrl) {
   }
 }
 
+function extractDatabaseTarget(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return {
+      host: parsed.hostname,
+      port: parsed.port || "5432",
+      database: parsed.pathname.replace(/^\//u, ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Business purpose: Validate strict least-privilege separation between DDL migration credentials and DML runtime credentials before deployment.
  *
@@ -46,26 +59,28 @@ function sanitizeUrl(rawUrl) {
  * - Production deployments require an isolated migration secret file containing MIGRATION_DATABASE_URL.
  * - Runtime configuration (.env.pm2) must provide DATABASE_URL for runtime services and must not contain MIGRATION_DATABASE_URL.
  * - In production, MIGRATION_DATABASE_URL and DATABASE_URL must authenticate under distinct database users.
+ * - Migration and runtime credentials must target the exact same PostgreSQL database instance, host, port, and database name.
  * - Migration user identity must possess CREATE/DDL privileges on the target schema.
  * - Runtime user identity must NOT possess CREATE/DDL privileges on the target schema (least-privilege DML boundary).
  *
  * Execution flow:
  * 1. Parse command-line options and locate environment configuration files.
  * 2. Validate existence of required environment files and reject any leaked migration credentials in runtime config.
- * 3. Enforce distinct URLs in production mode.
- * 4. Probe PostgreSQL via MIGRATION_DATABASE_URL to confirm DDL schema privilege.
- * 5. Probe PostgreSQL via DATABASE_URL to confirm least-privilege restriction (no DDL schema privilege in production).
+ * 3. Enforce distinct users and matching target host, port, and database name across migration and runtime URLs.
+ * 4. Probe PostgreSQL via MIGRATION_DATABASE_URL to confirm target database identity and DDL schema privilege.
+ * 5. Probe PostgreSQL via DATABASE_URL to confirm matching database identity and least-privilege restriction (no DDL schema privilege in production).
  * 6. Emit a sanitized validation receipt and exit cleanly.
  *
  * Failure cases:
  * - Missing migration credentials file in production fails deployment preflight.
  * - Leaked MIGRATION_DATABASE_URL in runtime configuration aborts with least-privilege violation.
  * - Identical migration and runtime URLs in production aborts with least-privilege violation.
+ * - Migration and runtime URLs pointing to different hosts, ports, or databases aborts with target mismatch error.
  * - Database connection failure or missing DDL privilege on migration role exits with code 1.
  * - Runtime identity having DDL privileges in production exits with code 1.
  *
  * Side effects:
- * - Read-only queries to pg_catalog metadata (current_user, has_schema_privilege); zero state or table mutations.
+ * - Read-only queries to pg_catalog metadata (current_database, current_user, has_schema_privilege); zero state or table mutations.
  */
 export async function checkMigrationPrivilegePreflight(argv = process.argv) {
   const options = parseArgs(argv);
@@ -120,6 +135,35 @@ export async function checkMigrationPrivilegePreflight(argv = process.argv) {
     }
   }
 
+  if (migrationUrl && runtimeUrl) {
+    const migrationParsed = extractDatabaseTarget(migrationUrl);
+    const runtimeParsed = extractDatabaseTarget(runtimeUrl);
+    if (migrationParsed && runtimeParsed) {
+      const normalizeHost = (h) => (h === "localhost" ? "127.0.0.1" : h);
+      if (
+        normalizeHost(migrationParsed.host) !== normalizeHost(runtimeParsed.host) ||
+        migrationParsed.port !== runtimeParsed.port
+      ) {
+        throw new Error(
+          `Database host/port mismatch: MIGRATION_DATABASE_URL connects to ` +
+            `'${migrationParsed.host}:${migrationParsed.port}' while runtime DATABASE_URL connects to ` +
+            `'${runtimeParsed.host}:${runtimeParsed.port}'. Both connection URLs must target the same PostgreSQL host and port.`,
+        );
+      }
+      if (
+        migrationParsed.database &&
+        runtimeParsed.database &&
+        migrationParsed.database !== runtimeParsed.database
+      ) {
+        throw new Error(
+          `Database target mismatch: MIGRATION_DATABASE_URL specifies database '${migrationParsed.database}' ` +
+            `while runtime DATABASE_URL specifies database '${runtimeParsed.database}'. ` +
+            "Both connection URLs must target the exact same database.",
+        );
+      }
+    }
+  }
+
   if (options.dryRun || (!migrationUrl && !runtimeUrl)) {
     return {
       status: "SKIPPED",
@@ -142,6 +186,7 @@ export async function checkMigrationPrivilegePreflight(argv = process.argv) {
 
   let migrationUser = null;
   let migrationCanDdl = null;
+  let migrationDb = null;
   if (migrationUrl) {
     const migrationClient = new Client({
       connectionString: migrationUrl,
@@ -150,8 +195,9 @@ export async function checkMigrationPrivilegePreflight(argv = process.argv) {
     try {
       await migrationClient.connect();
       const res = await migrationClient.query(
-        "SELECT current_user AS user, session_user, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create;",
+        "SELECT current_database() AS db_name, current_user AS user, session_user, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create;",
       );
+      migrationDb = res.rows[0]?.db_name;
       migrationUser = res.rows[0]?.user;
       migrationCanDdl = Boolean(res.rows[0]?.can_create);
     } finally {
@@ -168,6 +214,7 @@ export async function checkMigrationPrivilegePreflight(argv = process.argv) {
 
   let runtimeUser = null;
   let runtimeCanDdl = null;
+  let runtimeDb = null;
   if (runtimeUrl) {
     const runtimeClient = new Client({
       connectionString: runtimeUrl,
@@ -176,8 +223,9 @@ export async function checkMigrationPrivilegePreflight(argv = process.argv) {
     try {
       await runtimeClient.connect();
       const res = await runtimeClient.query(
-        "SELECT current_user AS user, session_user, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create;",
+        "SELECT current_database() AS db_name, current_user AS user, session_user, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create;",
       );
+      runtimeDb = res.rows[0]?.db_name;
       runtimeUser = res.rows[0]?.user;
       runtimeCanDdl = Boolean(res.rows[0]?.can_create);
     } finally {
@@ -192,17 +240,28 @@ export async function checkMigrationPrivilegePreflight(argv = process.argv) {
     }
   }
 
+  if (migrationDb && runtimeDb && migrationDb !== runtimeDb) {
+    throw new Error(
+      `Database target mismatch: MIGRATION_DATABASE_URL authenticated against database '${migrationDb}' ` +
+        `while runtime DATABASE_URL authenticated against database '${runtimeDb}'. ` +
+        "Both connection URLs must authenticate against the exact same database.",
+    );
+  }
+
   const receipt = {
     observedAt: new Date().toISOString(),
     status: "PASS",
     production: isProduction,
+    targetDatabase: migrationDb || runtimeDb || null,
     migrationIdentity: {
       user: migrationUser,
+      database: migrationDb,
       canDdl: migrationCanDdl,
       target: migrationUrl ? sanitizeUrl(migrationUrl) : null,
     },
     runtimeIdentity: {
       user: runtimeUser,
+      database: runtimeDb,
       canDdl: runtimeCanDdl,
       target: runtimeUrl ? sanitizeUrl(runtimeUrl) : null,
     },

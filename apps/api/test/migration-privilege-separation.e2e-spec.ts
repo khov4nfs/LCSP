@@ -66,6 +66,19 @@ describe("Prisma configuration fail-closed resolution", () => {
     );
   });
 
+  it("fails closed in production migration mode when MIGRATION_DATABASE_URL and DATABASE_URL target different databases", () => {
+    process.env.NODE_ENV = "production";
+    process.env.PRISMA_MIGRATION_MODE = "true";
+    process.env.MIGRATION_DATABASE_URL =
+      "postgresql://migration_admin:pass@127.0.0.1:5432/lcsp_migrations";
+    process.env.DATABASE_URL =
+      "postgresql://runtime_api:pass@127.0.0.1:5432/lcsp_prod";
+
+    expect(() => resolveDatasourceUrl()).toThrow(
+      /Both connection URLs must target the exact same database/,
+    );
+  });
+
   it("resolves MIGRATION_DATABASE_URL in production when distinct migration credentials are provided", () => {
     process.env.NODE_ENV = "production";
     process.env.PRISMA_MIGRATION_MODE = "true";

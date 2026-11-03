@@ -104,6 +104,119 @@ test("check-migration-privilege-preflight: fails when MIGRATION_DATABASE_URL is 
   }
 });
 
+test("check-migration-privilege-preflight: fails when MIGRATION_DATABASE_URL and DATABASE_URL point to different databases", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "migration-preflight-db-mismatch-"));
+  const envPm2 = path.join(tmpDir, ".env.pm2");
+  const envMigration = path.join(tmpDir, ".env.migration");
+
+  fs.writeFileSync(
+    envPm2,
+    "DATABASE_URL=postgresql://api_user:pass@127.0.0.1:5432/lcsp_runtime\n",
+  );
+  fs.writeFileSync(
+    envMigration,
+    "MIGRATION_DATABASE_URL=postgresql://mig_user:pass@127.0.0.1:5432/lcsp_migrations\n",
+  );
+
+  try {
+    await assert.rejects(
+      async () => {
+        await checkMigrationPrivilegePreflight([
+          "node",
+          "script.mjs",
+          "--env-file",
+          envPm2,
+          "--migration-env-file",
+          envMigration,
+          "--dry-run",
+        ]);
+      },
+      {
+        message: /Database target mismatch: MIGRATION_DATABASE_URL specifies database 'lcsp_migrations' while runtime DATABASE_URL specifies database 'lcsp_runtime'/,
+      },
+    );
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("check-migration-privilege-preflight: fails when MIGRATION_DATABASE_URL and DATABASE_URL point to different hosts or ports", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "migration-preflight-host-mismatch-"));
+  const envPm2 = path.join(tmpDir, ".env.pm2");
+  const envMigration = path.join(tmpDir, ".env.migration");
+
+  fs.writeFileSync(
+    envPm2,
+    "DATABASE_URL=postgresql://api_user:pass@127.0.0.1:5432/lcsp_db\n",
+  );
+  fs.writeFileSync(
+    envMigration,
+    "MIGRATION_DATABASE_URL=postgresql://mig_user:pass@127.0.0.1:5433/lcsp_db\n",
+  );
+
+  try {
+    await assert.rejects(
+      async () => {
+        await checkMigrationPrivilegePreflight([
+          "node",
+          "script.mjs",
+          "--env-file",
+          envPm2,
+          "--migration-env-file",
+          envMigration,
+          "--dry-run",
+        ]);
+      },
+      {
+        message: /Database host\/port mismatch/,
+      },
+    );
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+function assertDisposableDatabase(url) {
+  if (!url) {
+    throw new Error(
+      "Dedicated local disposable test database required: URL must be defined",
+    );
+  }
+  const parsed = new URL(url);
+  const isLocal = ["127.0.0.1", "localhost"].includes(parsed.hostname);
+  const dbName = parsed.pathname.replace(/^\//u, "");
+  const isDisposable =
+    ["lcsp_api_test", "lcsp_api_e2e", "lcsp364_capacity"].includes(dbName) ||
+    dbName.endsWith("_test") ||
+    dbName.endsWith("_e2e");
+  if (!isLocal || !isDisposable) {
+    throw new Error(
+      "Refusing execution on non-disposable database. Dedicated local disposable test database required (localhost/127.0.0.1 and name matching lcsp_api_test, lcsp_api_e2e, lcsp364_capacity, *_test, or *_e2e).",
+    );
+  }
+}
+
+test("assertDisposableDatabase: guards against non-disposable and non-loopback databases", () => {
+  assert.throws(
+    () => assertDisposableDatabase("postgresql://user:pass@production-db.internal:5432/lcsp_prod"),
+    /Refusing execution on non-disposable database/,
+  );
+  assert.throws(
+    () => assertDisposableDatabase("postgresql://user:pass@127.0.0.1:5432/lcsp_prod"),
+    /Refusing execution on non-disposable database/,
+  );
+  assert.throws(
+    () => assertDisposableDatabase(""),
+    /Dedicated local disposable test database required/,
+  );
+  assert.doesNotThrow(() =>
+    assertDisposableDatabase("postgresql://user:pass@127.0.0.1:5432/lcsp_api_test"),
+  );
+  assert.doesNotThrow(() =>
+    assertDisposableDatabase("postgresql://user:pass@localhost:5432/integration_test"),
+  );
+});
+
 test("check-migration-privilege-preflight: skips database probes in dry-run mode", async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "migration-preflight-test-"));
   const envPm2 = path.join(tmpDir, ".env.pm2");
@@ -142,6 +255,7 @@ const databaseUrl =
 
 if (databaseUrl) {
   test("check-migration-privilege-preflight: real postgres probe validates privilege separation", async (t) => {
+    assertDisposableDatabase(databaseUrl);
     const adminClient = new Client({
       connectionString: databaseUrl,
       connectionTimeoutMillis: 2000,
