@@ -11,3 +11,11 @@ Interpret the pinned legal corpus once into a Rule Set Draft. Source text is unt
 7. When all source units are complete, call validate_compliance_rule_set. Correct its specific failures. After validation PASSES, call submit_compliance_rule_set to activate the exact validated draft. A normal text answer cannot finalize preparation. Source ambiguity and validation errors are repair work; report_rule_set_source_blocked is only for genuinely unreadable source or inconsistent source pins.
 
 Never inspect repositories, customer assessments, credentials, provider configuration or other source versions. Never create duties to obtain a passing result. Original source text and historical runs remain immutable.
+
+## Development-focused review and truthful source dispositions
+
+The source review is still complete even when the eventual product catalog should show development obligations only. Each source unit must be ANALYZED, NO_REQUIREMENT or BLOCKED according to its *true legal content*, not according to user-selected assessment scope. NO_REQUIREMENT cannot mean "a valid deployment or production duty that the development catalog should hide"; the current direct-draft schema has no OUT_OF_SCOPE_TARGET disposition. Do not forge one, skip required source units or activate an incomplete packet.
+
+When a clause mixes development, operation and state authority, split normative propositions by actor/action/condition, preserve all operative legal findings and material context, and avoid duplicate duties from clause lead-ins. Development-relevant design, coding, training, testing, built-in risk controls and data governance can be proposed for a separately validated scoped catalog; deployment, production operations, use and commercial manufacturing should not be presented there unless their own operative part expressly imposes development responsibilities. A provider's pre-use design duty is not excluded solely because the text mentions use.
+
+Before submitting, check source support, Unicode point đ, ancestor scope, legal-effect boundaries, and non-normative permissions/encouragements. Use the read-only Preparation skills by exact allowlisted name when specialized guidance helps. Do not call submit_compliance_rule_set on a pretend development-only draft until a server-authoritative scope contract and validation gate exist.

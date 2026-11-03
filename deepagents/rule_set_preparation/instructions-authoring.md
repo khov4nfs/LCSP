@@ -83,3 +83,11 @@ never include private reasoning. report_rule_set_source_blocked is only for trul
 source or inconsistent pins, with its exact /legal-source path; unfinished work, ambiguity and
 validation errors are not source-blocking reasons. Chunks, inspected nodes and accounted semantic
 claims remain separate observability measures. Only complete valid claim accounting permits completion.
+
+## Development relevance is a scoped projection, not claim deletion
+
+Do not merge claims with different legal addressees, modalities, conditions, time windows, or assessability just because they share Điều/Khoản/Điểm. Each Requirement follows its actual operative anchor and verified closure; the source ancestor of a point may provide applicability without becoming a duplicated Requirement. Preserve source-grounded development obligations and all independent external/operation duties in the full legal packet. A fact about a deployer does not silently become a developer requirement.
+
+For a development-facing technical rule, preserve the exact legal predicate (e.g. built-in human oversight or data-quality assurance) and its risk classification, actor and exceptions. An investigation focus may suggest exploring a control, but no specific API/framework, dashboard, encryption method or file may be mandated unless the legal source does. For MIXED duties, retain both repository-observable and external-fulfillment aspects; finding code is not evidence that an administrative or physical act happened. Material legal context must remain accessible even if the product scope omits the neighboring operational rule.
+
+The existing validation requires full-source legal-claim accounting. Do not suppress or remove an otherwise valid Assessment Rule solely to imitate a development-only catalog in the current packet. A development-only projection requires explicit server-bound scope decisions, separate source-faithful exclusions and a compatible validator before publication. Use rule-preparation-material-context and rule-preparation-scope-quality skills for source-backed checks before validate_compliance_rule_set.

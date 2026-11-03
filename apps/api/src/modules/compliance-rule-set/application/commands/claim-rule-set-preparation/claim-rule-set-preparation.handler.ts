@@ -184,6 +184,9 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         : await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
       executionContract: run.executionContract,
+      // The current production validator requires complete source accounting.
+      // Do not enable DEVELOPMENT_ONLY until scope decisions/projections are validated server-side.
+      targetActivityScope: "FULL_SOURCE",
       ...(run.targetDate
         ? { targetDate: run.targetDate.toISOString().slice(0, 10) }
         : {}),

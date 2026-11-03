@@ -286,7 +286,7 @@ def run_rule_set_preparation(
         _fail(api, run_id, SOURCE_VERSION_UNAVAILABLE)
         return {"state": "FAILED", "submission": None, "failureReason": SOURCE_VERSION_UNAVAILABLE}
 
-    context = RuleSetPreparationContext(run_id=run_id, api=api, direct_draft=bundle.get("executionContract") == "DIRECT_DRAFT_V1", target_date=bundle.get("targetDate"))
+    context = RuleSetPreparationContext(run_id=run_id, api=api, direct_draft=bundle.get("executionContract") == "DIRECT_DRAFT_V1", target_date=bundle.get("targetDate"), target_activity_scope=bundle.get("targetActivityScope", "FULL_SOURCE"))
     with tempfile.TemporaryDirectory(prefix="lcsp-rule-set-preparation-") as scratch:
         root = work_dir or Path(scratch)
         failure_stage = "SOURCE_MATERIALIZATION"

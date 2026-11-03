@@ -350,9 +350,9 @@ class PreparationCompletionMiddleware(AgentMiddleware):
 # The parent only coordinates discovery: it cannot read source or write/commit claim files itself. Measured: a parent that did the
 # authors' work (read 6 articles, write 6 files, commit) carried a context growing from 6k to 155k tokens per turn and spent 75% of a
 # run's tokens; the claim-author children hold small, per-assignment contexts.
-DISCOVERY_TOOLS = frozenset({"write_todos", "task", "discovery_status", "finalize_semantic_claim_inventory", "conclude_no_operative_obligations",
+DISCOVERY_TOOLS = frozenset({"list_preparation_skills", "load_preparation_skill", "write_todos", "task", "discovery_status", "finalize_semantic_claim_inventory", "conclude_no_operative_obligations",
     "report_rule_set_source_blocked", "record_preparation_progress", "get_applicable_legal_state"})
-AUTHORING_TOOLS = frozenset({"ls", "glob", "grep", "read_file", "write_todos", "start_rule_authoring", "reopen_semantic_claim_inventory",
+AUTHORING_TOOLS = frozenset({"list_preparation_skills", "load_preparation_skill", "ls", "glob", "grep", "read_file", "write_todos", "start_rule_authoring", "reopen_semantic_claim_inventory",
     "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_applicable_legal_state",
     "author_legal_requirement", "author_assessment_rule", "remove_rule_candidate", "validate_compliance_rule_set", "submit_compliance_rule_set",
     "report_rule_set_source_blocked", "record_preparation_progress"})
@@ -375,11 +375,14 @@ def phase_instructions(context):
     Side effects:
     - Reads local instruction files and returns text; it does not mutate run or legal-source state.
     """
-    if context.direct_draft:
-        return Path(__file__).with_name("instructions-direct.md").read_text()
-    part = "authoring" if context.inventory and context.inventory.frozen else "discovery"
     base = Path(__file__).parent
-    prompt = (base / "instructions-common.md").read_text() + "\n" + (base / f"instructions-{part}.md").read_text()
+    if context.direct_draft:
+        prompt = (base / "instructions-direct.md").read_text()
+    else:
+        part = "authoring" if context.inventory and context.inventory.frozen else "discovery"
+        prompt = (base / "instructions-common.md").read_text() + "\n" + (base / f"instructions-{part}.md").read_text()
+    from rule_set_preparation.preparation_skills import development_scope_overlay
+    prompt += development_scope_overlay(getattr(context, "target_activity_scope", "FULL_SOURCE"))
     if context.discovery_only:
         prompt += "\nDISCOVERY ONLY: finalize then STOP at CLAIM_INVENTORY_READY. No Rule authoring, validation or submission."
     return prompt
@@ -407,7 +410,7 @@ class PreparationPhaseMiddleware(AgentMiddleware):
         Side effects:
         - Constructs an in-memory model request; it does not execute tools or change persisted state.
         """
-        allowed = ({*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "write_todos", "get_next_legal_analysis_package", "get_rule_set_draft_candidate", "submit_rule_set_draft_candidates", "correct_rule_set_draft_submission", "get_applicable_legal_state", "validate_compliance_rule_set", "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked"}
+        allowed = ({*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "list_preparation_skills", "load_preparation_skill", "write_todos", "get_next_legal_analysis_package", "get_rule_set_draft_candidate", "submit_rule_set_draft_candidates", "correct_rule_set_draft_submission", "get_applicable_legal_state", "validate_compliance_rule_set", "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked"}
                    if self.context.direct_draft else AUTHORING_TOOLS if self.context.inventory and self.context.inventory.frozen else DISCOVERY_TOOLS)
         from langchain_core.messages import SystemMessage
         system = request.system_message.content if request.system_message else ""

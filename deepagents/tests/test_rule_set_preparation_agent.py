@@ -255,6 +255,13 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
             continue
         if tool.name == "remove_from_packet_draft":
             continue
+        if tool.name == "list_preparation_skills":
+            assert not schema["properties"]
+            continue
+        if tool.name == "load_preparation_skill":
+            assert "name" in schema["required"]
+            assert "locale" in schema["properties"]
+            continue
         if tool.name == "record_preparation_progress":
             assert set(schema["required"]) == {
                 "establishedFindings",
