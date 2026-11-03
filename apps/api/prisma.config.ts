@@ -53,7 +53,9 @@ export function resolveDatasourceUrl(): string {
       } catch (err: unknown) {
         if (
           err instanceof Error &&
-          err.message.includes("Both connection URLs must target the exact same database")
+          err.message.includes(
+            "Both connection URLs must target the exact same database",
+          )
         ) {
           throw err;
         }
