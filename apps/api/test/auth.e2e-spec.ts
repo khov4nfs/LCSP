@@ -1493,6 +1493,104 @@ describe("Auth workspace (e2e)", () => {
     }
   });
 
+  it("rejects a second MFA rotation when its earlier request clock precedes the committed candidate", async () => {
+    const a = await signInApprovedUser();
+    const initial = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${a.session_token}`)
+      .expect(201);
+    const activeSecret = totpSecretFromUri(
+      successBody<EnrollMfaSuccess>(initial).totp_uri,
+    );
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: a.session_token,
+        otp: totpForTime(activeSecret, Date.now()),
+      })
+      .expect(201);
+
+    const b = await signInApprovedUser();
+    await httpRequest(app)
+      .post("/auth/mfa/verify-otp")
+      .send({
+        session_token: b.session_token,
+        otp: totpForTime(activeSecret, Date.now() + 30_000),
+      })
+      .expect(201);
+
+    for (const token of [a.session_token, b.session_token]) {
+      await httpRequest(app)
+        .post("/auth/re-auth/password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          session_token: token,
+          password: "CorrectHorseBatteryStaple!",
+        })
+        .expect(201);
+    }
+
+    const first = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${a.session_token}`)
+      .expect(201);
+    const candidate = successBody<EnrollMfaSuccess>(first);
+    const initiated = (
+      await prisma.authRecord.findMany({
+        where: {
+          userId: fixture.approvedUser.id,
+          type: AUTH_RECORD_TYPE.session,
+        },
+      })
+    ).find((record) => {
+      const meta = record.metadata as Record<string, unknown>;
+      return meta.mfaRotationInitiator === true;
+    });
+    assert.ok(initiated, "the first session must persist its staged rotation");
+
+    const originalMeta = initiated.metadata as Record<string, unknown>;
+    const originalCandidate = originalMeta.candidateMfaEnrollment as Record<
+      string,
+      unknown
+    >;
+    assert.ok(originalCandidate);
+
+    // Simulate B's clock being captured before A acquired the account lock.
+    // A staged candidate with a later timestamp must NEVER be treated as expired.
+    const futureTimestamp = Date.now() + 30_000;
+    await prisma.authRecord.update({
+      where: { id: initiated.id },
+      data: {
+        metadata: {
+          ...originalMeta,
+          candidateMfaEnrollment: {
+            ...originalCandidate,
+            enrolledAt: futureTimestamp,
+          },
+        },
+      },
+    });
+
+    const second = await httpRequest(app)
+      .post("/auth/mfa/enroll")
+      .set("Authorization", `Bearer ${b.session_token}`)
+      .expect(403);
+    assert.equal(problemCode(second), AUTH_ERROR_CODES.mfaRequired);
+
+    const remaining = await prisma.authRecord.findUniqueOrThrow({
+      where: { id: initiated.id },
+    });
+    const remainingMeta = remaining.metadata as Record<string, unknown>;
+    const remainingCandidate = remainingMeta.candidateMfaEnrollment as Record<
+      string,
+      unknown
+    >;
+    assert.equal(remainingCandidate.generationId, originalCandidate.generationId);
+    assert.equal(remainingCandidate.enrolledAt, futureTimestamp);
+    assert.equal(remainingMeta.mfaRotationInitiator, true);
+    assert.ok(candidate.recovery_codes.length > 0);
+  });
+
   it("rolls back MFA rotation, active backup codes and multi-session proof invalidation on audit failure", async () => {
     const sessionA = await signInApprovedUser();
     const initial = await httpRequest(app)
