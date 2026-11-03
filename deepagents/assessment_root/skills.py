@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import hashlib
-from tools.common.capabilities.agent_runtime.skill_loader import load_project_skill
+from tools.common.capabilities.agent_runtime.skill_loader import load_project_skill_for_locale
+from orchestration.context import resolve_response_language
 
 CATALOG = (
     ("assessment-system-boundaries", "Map actual system boundaries and source execution."),
@@ -12,9 +13,16 @@ CATALOG = (
     ("assessment-controls-and-claims", "Verify relevant safeguards and product claims."),
 )
 ALLOWED = frozenset(name for name, _ in CATALOG)
+CATALOG_VI = {
+    "assessment-system-boundaries": "Lập bản đồ ranh giới hệ thống và đường thực thi trong source.",
+    "assessment-automated-outcomes": "Truy vết tác động của tự động hóa và giám sát của con người.",
+    "assessment-model-integrity": "Kiểm tra mô hình AI/ML và diễn giải kết quả inference khi liên quan rule.",
+    "assessment-data-lifecycle": "Điều tra vòng đời dữ liệu trong phạm vi nghĩa vụ đã chọn.",
+    "assessment-controls-and-claims": "Xác minh biện pháp bảo vệ và tuyên bố tính năng có liên quan.",
+}
 
 
-def list_skills() -> list[dict[str, str]]:
+def list_skills(locale: str = "en") -> list[dict[str, str]]:
     """Business purpose:
     List reusable, allowlisted investigation methods for selected-rule reasoning.
 
@@ -30,10 +38,12 @@ def list_skills() -> list[dict[str, str]]:
     Side effects:
     - Read-only metadata; neither files nor Assessment state change.
     """
-    return [{"name": name, "when_relevant": when} for name, when in CATALOG]
+    normalized = resolve_response_language(locale)
+    return [{"name": name, "when_relevant": CATALOG_VI[name] if normalized == "vi" else when}
+            for name, when in CATALOG]
 
 
-def load_skill(name: str) -> dict[str, object]:
+def load_skill(name: str, locale: str = "en") -> dict[str, object]:
     """Business purpose:
     Load a checked-in assessment investigation method by canonical name.
 
@@ -51,9 +61,10 @@ def load_skill(name: str) -> dict[str, object]:
     """
     if name not in ALLOWED:
         return {"ok": False, "code": "UNKNOWN_ASSESSMENT_SKILL"}
-    body = load_project_skill(name)
+    normalized = resolve_response_language(locale)
+    body = load_project_skill_for_locale(name, normalized)
     return {
-        "ok": True, "name": name,
+        "ok": True, "name": name, "locale": normalized,
         "contentSha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
         "authority": "NON_NORMATIVE_INVESTIGATION_GUIDANCE",
         "instructions": body,

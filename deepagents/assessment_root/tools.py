@@ -556,7 +556,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         Side effects:
         - Read-only response; no evidence or legal decisions are persisted.
         """
-        return {"ok": True, "skills": list_skills()}
+        return {"ok": True, "locale": run.response_language, "skills": list_skills(run.response_language)}
 
     def load_assessment_skill(name: str) -> dict[str, Any]:
         """Business purpose:
@@ -574,7 +574,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         Side effects:
         - May publish the existing skill usage event; no Assessment domain writes.
         """
-        return load_skill(name)
+        return load_skill(name, run.response_language)
 
     def get_assessment_context() -> dict[str, Any]:
         """Business purpose:
@@ -1226,7 +1226,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return StructuredTool.from_function(
             func=_guard(func),
             name=name,
-            description=describe_tool(name, (func.__doc__ or name).strip()),
+            description=describe_tool(name, (func.__doc__ or name).strip(), locale=run.response_language),
             args_schema=schema,
             infer_schema=schema is None,
             handle_validation_error=_validation_feedback,

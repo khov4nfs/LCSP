@@ -17,7 +17,7 @@ from langchain.agents.middleware import AgentMiddleware, AgentState, TodoListMid
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
-from assessment_root.researcher import RESEARCHER_NAME, RESEARCHER_PROMPT, researcher_subagent
+from assessment_root.researcher import RESEARCHER_NAME, researcher_prompt_for_locale, researcher_subagent
 from assessment_root.tool_contracts import describe_tool
 from assessment_root.tools import RootRun, build_root_tools
 from rule_set_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
@@ -25,6 +25,7 @@ from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.logging import get_logger
 
 ROOT_INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
+ROOT_INSTRUCTIONS_VI = (Path(__file__).with_name("instructions.vi.md")).read_text(encoding="utf-8")
 ASSESSMENT_ROOT_ROLE = "assessment-root"
 # Graph tools search; governed Root tools mint accepted source references.
 _GRAPH_TOOL_NAMES = {"search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
@@ -87,12 +88,20 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
                     execution_id=self.run.execution_id, lifecycle_state=context["lifecycleState"])
         return {
             "messages": [HumanMessage(content=(
-                "The API has not confirmed this assessment COMPLETE. Continue this same "
-                "assessment and preserve accepted evidence and decisions. Reload governed "
-                "context, resolve remaining authorized rules, request_finalization, then "
-                "submit_final_report only for a FULL_RULE_SET request when the Completion Gate permits it. Use native tools, "
-                "not tool-call text. Use the native human request interrupt for missing "
-                "customer facts; do not infer lifecycle completion from your response."
+                ("API chưa xác nhận assessment COMPLETE. Tiếp tục đúng assessment này, giữ nguyên "
+                 "evidence và decision đã được chấp nhận. Nạp lại context qua tool được quản trị, "
+                 "xử lý các rule còn trong phạm vi được phép, gọi request_finalization; chỉ gọi "
+                 "submit_final_report với FULL_RULE_SET khi Completion Gate cho phép. "
+                 "Dùng native tool call, không viết văn bản giả dạng tool call. "
+                 "Thiếu fact khách hàng thì dùng native human request interrupt; "
+                 "không suy ra đã hoàn thành từ câu trả lời."
+                 if self.run.response_language == "vi" else
+                 "The API has not confirmed this assessment COMPLETE. Continue this same "
+                 "assessment and preserve accepted evidence and decisions. Reload governed "
+                 "context, resolve remaining authorized rules, request_finalization, then "
+                 "submit_final_report only for a FULL_RULE_SET request when the Completion Gate permits it. Use native tools, "
+                 "not tool-call text. Use the native human request interrupt for missing "
+                 "customer facts; do not infer lifecycle completion from your response.")
             ))],
             "jump_to": "model",
         }
@@ -121,7 +130,7 @@ def root_permissions() -> list[FilesystemPermission]:
     ]
 
 
-def _graph_tools() -> list[Any]:
+def _graph_tools(locale: str = "en") -> list[Any]:
     """Business purpose:
     Select approved read-only repository graph tools with decision-authority caveats.
 
@@ -140,7 +149,7 @@ def _graph_tools() -> list[Any]:
     from tools.common.codebase_memory_graph import CODEBASE_MEMORY_GRAPH_TOOLS
 
     return [
-        tool.model_copy(update={"description": describe_tool(tool.name, tool.description)})
+        tool.model_copy(update={"description": describe_tool(tool.name, tool.description, locale=locale)})
         for tool in CODEBASE_MEMORY_GRAPH_TOOLS if tool.name in _GRAPH_TOOL_NAMES
     ]
 
@@ -185,13 +194,16 @@ def create_assessment_root_agent(
         governance = [AgentRoleMiddleware(ASSESSMENT_ROOT_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE]
     from middleware.localization import ResponseLocalizationMiddleware
     from middleware.model_governance import governed_summarization_middleware
-    from orchestration.context import LCSPRunContext
+    from orchestration.context import LCSPRunContext, resolve_response_language
 
-    tools = graph_tools if graph_tools is not None else _graph_tools()
+    runtime_locale = resolve_response_language(run.response_language)
+    root_prompt = ROOT_INSTRUCTIONS_VI if runtime_locale == "vi" else ROOT_INSTRUCTIONS
+    researcher_prompt = researcher_prompt_for_locale(runtime_locale)
+    tools = graph_tools if graph_tools is not None else _graph_tools(runtime_locale)
     summary_backend = CompositeBackend(default=run.backend, routes={}, artifacts_root="/.lcsp/agent")
     researcher_middleware = [*governance, governed_summarization_middleware(
         model, backend=summary_backend, role=RESEARCHER_NAME, governance=governance,
-        system_prompt=RESEARCHER_PROMPT,
+        system_prompt=researcher_prompt,
     )]
     # The default general-purpose subagent would inherit the governed tools; disable it so the
     # researcher is the only delegate and it holds none of them.
@@ -200,13 +212,13 @@ def create_assessment_root_agent(
             name="lcsp-assessment-root",
             model=model,
             backend=run.backend,
-            system_prompt=ROOT_INSTRUCTIONS,
+            system_prompt=root_prompt,
             tools=[*build_root_tools(run), *tools],
-            subagents=[researcher_subagent(tools, middleware=researcher_middleware)],
+            subagents=[researcher_subagent(tools, middleware=researcher_middleware, locale=runtime_locale)],
             permissions=root_permissions(),
             middleware=[TodoListMiddleware(), ResponseLocalizationMiddleware(), *governance,
                         governed_summarization_middleware(model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
-                                                         system_prompt=ROOT_INSTRUCTIONS),
+                                                         system_prompt=root_prompt),
                         AssessmentCompletionMiddleware(run), *middleware],
             context_schema=LCSPRunContext,
             checkpointer=checkpointer,

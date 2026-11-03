@@ -33,3 +33,28 @@ decisions, model mapping and retrieval gaps. Compare applicability correctness,
 criterion coverage, evidence line precision, over-questioning, false positives
 and token cost before promotion. Never release based solely on prompt length
 or a green structural test. No production deployment is included.
+
+
+## English / Vietnamese prompt versions
+
+Assessment Root chooses language from the server-authoritative assessment responseLanguage
+(or locale) using resolve_response_language. English is stored at
+assessment_root/instructions.md (kept for backwards compatibility); Vietnamese
+at assessment_root/instructions.vi.md. Both encode identical governance, legal
+authority, selected-scope rules, human resolution and Completion Gate contracts.
+Default locale is vi. The Root's resumed native continuation and compaction
+system prompt use the same language.
+
+Repository researcher uses researcher.en.md / researcher.vi.md. The read-only
+researcher and its own compaction are constructed using the Root's normalized locale;
+it never has access to governed decision tools. All five checked-in skills have
+SKILL.md (en) and SKILL.vi.md (vi), selected on trusted run locale, with fail-closed
+missing-file handling and content hashes. list_assessment_skills and the additional
+tool authority notes are also localized, while canonical tool names, JSON keys,
+legal statuses, evidence IDs and enums always remain unchanged.
+Runtime locale selection is NOT based on language guessed from repository text.
+
+The localized-contents regression suite checks presence and matching legal invariants
+in both language packs, build-time prompt selection, skill and graph tool binding,
+and stable canonical domain enum identifiers. Provider-free tests are not evidence
+of semantic equivalence in a live multi-repository assessment.
