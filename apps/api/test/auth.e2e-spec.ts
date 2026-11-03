@@ -1585,7 +1585,10 @@ describe("Auth workspace (e2e)", () => {
       string,
       unknown
     >;
-    assert.equal(remainingCandidate.generationId, originalCandidate.generationId);
+    assert.equal(
+      remainingCandidate.generationId,
+      originalCandidate.generationId,
+    );
     assert.equal(remainingCandidate.enrolledAt, futureTimestamp);
     assert.equal(remainingMeta.mfaRotationInitiator, true);
     assert.ok(candidate.recovery_codes.length > 0);
