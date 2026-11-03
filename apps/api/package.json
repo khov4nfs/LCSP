@@ -10,7 +10,7 @@
     "build": "pnpm run prisma:generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prisma:generate": "cross-env XDG_CACHE_HOME=.cache prisma generate",
-    "prisma:migrate:deploy": "cross-env XDG_CACHE_HOME=.cache prisma migrate deploy",
+    "prisma:migrate:deploy": "cross-env XDG_CACHE_HOME=.cache PRISMA_MIGRATION_MODE=true prisma migrate deploy",
     "start": "nest start",
     "start:dev": "cross-env NODE_OPTIONS=--experimental-strip-types nest start --watch",
     "start:debug": "nest start --debug --watch",

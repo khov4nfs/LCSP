@@ -11,9 +11,13 @@ const PATH = [
   "/bin"
 ].filter(Boolean).join(":");
 
+// Defense-in-depth: Never propagate privileged migration credentials to runtime processes
+delete process.env.MIGRATION_DATABASE_URL;
+
 const commonEnv = {
   NODE_ENV: "production",
-  PATH
+  PATH,
+  MIGRATION_DATABASE_URL: undefined
 };
 
 module.exports = {

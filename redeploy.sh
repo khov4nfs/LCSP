@@ -3,6 +3,7 @@ set -euo pipefail
 
 readonly APP=/srv/apps/LCSP
 readonly ECOSYSTEM_FILE=ecosystem.config.cjs
+readonly MIGRATION_ENV_FILE="${APP}/.env.migration"
 readonly API_HEALTH_URL=http://127.0.0.1:8080/health
 readonly WEB_HEALTH_URL=http://127.0.0.1:3002/
 readonly LEGACY_PM2_APPS=(
@@ -108,6 +109,12 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+echo "==> Verify migration credentials and privilege separation preflight (before drain)"
+node scripts/check-migration-privilege-preflight.mjs \
+  --env-file "${APP}/.env.pm2" \
+  --migration-env-file "$MIGRATION_ENV_FILE" \
+  --production
+
 echo "==> Drain actual native execution before changing source or persistence"
 node scripts/drain-agent-runtime.mjs
 
@@ -141,7 +148,7 @@ echo "==> Build API"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/api build
 
 echo "==> Apply database migrations"
-dotenv -e .env.pm2 -- pnpm --filter @lcsp/api prisma:migrate:deploy
+dotenv -e .env.pm2 -e "$MIGRATION_ENV_FILE" -- pnpm --filter @lcsp/api prisma:migrate:deploy
 
 echo "==> Build Web"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/web build
