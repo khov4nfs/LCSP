@@ -1589,6 +1589,36 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(remainingCandidate.enrolledAt, futureTimestamp);
     assert.equal(remainingMeta.mfaRotationInitiator, true);
     assert.ok(candidate.recovery_codes.length > 0);
+
+    // The rejected contender must neither stage its own rotation nor replace
+    // the winning candidate's backup-code batch.
+    const sessionRecords = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.session,
+      },
+    });
+    assert.equal(
+      sessionRecords.filter(
+        (record) =>
+          (record.metadata as Record<string, unknown>).mfaRotationInitiator ===
+          true,
+      ).length,
+      1,
+    );
+    const remainingCodes = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        revokedAt: null,
+        usedAt: null,
+        metadata: {
+          path: ["mfaGenerationId"],
+          equals: String(originalCandidate.generationId),
+        },
+      },
+    });
+    assert.equal(remainingCodes.length, candidate.recovery_codes.length);
   });
 
   it("rolls back MFA rotation, active backup codes and multi-session proof invalidation on audit failure", async () => {
