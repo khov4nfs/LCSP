@@ -307,27 +307,47 @@ describe("AssessmentPdfRenderer", () => {
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
     await parser.destroy();
+    const normalizedPdfText = extracted.text
+      .normalize("NFC")
+      .replace(/\s+/gu, "")
+      .toLocaleUpperCase("vi-VN");
+    const normalizeExpected = (value: string) =>
+      value.normalize("NFC").replace(/\s+/gu, "").toLocaleUpperCase("vi-VN");
     expect(extracted.total).toBeGreaterThan(1);
-    expect(extracted.text).toContain("ĐÁNH GIÁ DỰA TRÊN NGUỒN VÀ BẰNG CHỨNG");
-    expect(extracted.text).toContain(
-      "Không áp dụng không đồng nghĩa với Đáp ứng.",
+    expect(normalizedPdfText).toContain(
+      normalizeExpected("ĐÁNH GIÁ DỰA TRÊN NGUỒN VÀ BẰNG CHỨNG"),
     );
-    expect(extracted.text).toContain("KẾT QUẢ ĐÁNH GIÁ");
-    expect(extracted.text).toContain("Kho mã nguồn được đánh giá");
-    expect(extracted.text).toContain("Phiên bản báo cáo");
-    expect(extracted.text).toContain("Mã đánh giá:");
-    expect(extracted.text).not.toContain("Publication state");
-    expect(extracted.text).not.toContain("Traceability IDs");
-    expect(extracted.text).toContain("DỮ KIỆN LIÊN QUAN ĐIỀU KIỆN ÁP DỤNG");
-    expect(extracted.text).toContain("CHI TIẾT TỪNG NGHĨA VỤ");
-    expect(extracted.text).toMatch(/rul(?:e|\u1eb9)-1/);
-    expect(extracted.text).toMatch(/rul(?:e|\u1eb9)-2/);
-    expect(extracted.text).toMatch(/art(?:icle|.{1,4})-2/);
+    expect(normalizedPdfText).toContain(
+      normalizeExpected("Không áp dụng không đồng nghĩa với Đáp ứng."),
+    );
+    expect(normalizedPdfText).toContain(normalizeExpected("KẾT QUẢ ĐÁNH GIÁ"));
+    expect(normalizedPdfText).toContain(
+      normalizeExpected("Kho mã nguồn được đánh giá"),
+    );
+    expect(normalizedPdfText).toContain(normalizeExpected("Phiên bản báo cáo"));
+    expect(normalizedPdfText).toContain(normalizeExpected("Mã đánh giá:"));
+    expect(normalizedPdfText).not.toContain(
+      normalizeExpected("Publication state"),
+    );
+    expect(normalizedPdfText).not.toContain(
+      normalizeExpected("Traceability IDs"),
+    );
+    expect(normalizedPdfText).toContain(
+      normalizeExpected("DỮ KIỆN LIÊN QUAN ĐIỀU KIỆN ÁP DỤNG"),
+    );
+    expect(normalizedPdfText).toContain(
+      normalizeExpected("CHI TIẾT TỪNG NGHĨA VỤ"),
+    );
+    expect(normalizedPdfText).toContain(normalizeExpected("rule-1"));
+    expect(normalizedPdfText).toContain(normalizeExpected("rule-2"));
+    expect(normalizedPdfText).toContain(normalizeExpected("article-2"));
     expect(extracted.text.replace(/\s+/gu, "")).toContain(sha);
-    expect(extracted.text).toContain(
-      "Chưa xác định được chế độ áp dụng trong định nghĩa quy tắc",
+    expect(normalizedPdfText).toContain(
+      normalizeExpected(
+        "Chưa xác định được chế độ áp dụng trong định nghĩa quy tắc",
+      ),
     );
-    expect(extracted.text).toMatch(/Kh.ng áp d/);
+    expect(normalizedPdfText).toContain(normalizeExpected("Không áp dụng"));
     await assertFooterPagination(bytes);
   });
 
