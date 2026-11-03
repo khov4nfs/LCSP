@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   ASSESSMENT_LIFECYCLE_STATES,
   AGENT_EXECUTION_STATES,
@@ -16,6 +17,8 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES,
   ASSESSMENT_FACT_AUTHORITIES,
+  RULE_AUDIT_SCOPE_MODES,
+  submitRuleDecisionRequestSchema,
 } from "@lcsp/contracts/assessment-domain";
 import {
   contentHash,
@@ -54,7 +57,7 @@ const ok = (actual, message) => {
   assert.ok(actual, message);
   checks++;
 };
-const http = async (method, route, body, token, worker = false) => {
+const http = async (method, route, body, token, worker = false, lease) => {
   const claim = route.match(/^\/internal\/assessment-runtime\/([^/]+)\/claim$/);
   if (claim && worker) body = await stack.admission.prepare(claim[1], body, { manual: true });
   const res = await fetch(`${base}${route}`, {
@@ -63,6 +66,7 @@ const http = async (method, route, body, token, worker = false) => {
       "content-type": "application/json",
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...(worker ? { "x-worker-api-key": workerKey } : {}),
+      ...(lease ? { "x-assessment-lease": lease } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -144,7 +148,9 @@ try {
   );
   eq(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
   const { hashSecret } = await import(
-    path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
+    pathToFileURL(
+      path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js"),
+    ).href,
   );
   const password = "CorrectHorseBatteryStaple!";
   const customer = async (email) => {
@@ -163,7 +169,7 @@ try {
   };
   const owner = await customer("assessment-owner@acme.test"),
     other = await customer("assessment-other@acme.test");
-  const create = async (name) => {
+  const create = async (name, auditMode = "LEGACY_FULL") => {
     const created = await http("POST", "/assessments", { name }, owner.token);
     eq(created.status, 201, JSON.stringify(created.body));
     const id = created.body.data.assessment_id ?? created.body.data.id,
@@ -177,6 +183,10 @@ try {
       `INSERT INTO "RepositorySnapshot"(id,"assessmentId","connectionId","repositoryId","repositoryFullName","commitSha","providerMetadata","actorId") VALUES ($1,$2,$3,$4,'acme/repo',$5,'{}',$6)`,
       [snapshot, id, connection, `repo-${id}`, "c".repeat(40), owner.id],
     );
+    await q(
+      `UPDATE "AssessmentCase" SET "auditMode"=$2 WHERE "assessmentId"=$1`,
+      [id, auditMode],
+    );
     const setup = await http(
       "POST",
       `/assessments/${id}/repository-setup/complete`,
@@ -189,7 +199,242 @@ try {
   // BROWSER customer Stop/Continue uses native checkpoints of the Root, separate from human waits.
   const pausedAssessment = await create(
     "BROWSER native Root Stop and Continue",
+    "CUSTOMER_SELECTED",
   );
+  const ruleCatalog = await http(
+    "GET",
+    `/assessments/${pausedAssessment}/rules?offset=0&limit=100`,
+    undefined,
+    owner.token,
+  );
+  eq(ruleCatalog.status, 200, JSON.stringify(ruleCatalog.body));
+  const selectedRule = ruleCatalog.body.data.rules[0];
+  const selectedAudit = await http(
+    "POST",
+    `/assessments/${pausedAssessment}/rule-audits`,
+    {
+      idempotencyKey: randomUUID(),
+      expectedAuditRevision: ruleCatalog.body.data.auditRevision,
+      ruleSetVersionId: ruleCatalog.body.data.ruleSetVersionId,
+      ruleSetDigest: ruleCatalog.body.data.ruleSetDigest,
+      repositorySnapshotId: ruleCatalog.body.data.repositorySnapshotId,
+      repositoryCommit: ruleCatalog.body.data.repositoryCommit,
+      scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+      rules: [
+        {
+          assessmentRuleId: selectedRule.assessmentRuleId,
+          assessmentRuleVersion: selectedRule.assessmentRuleVersion,
+        },
+      ],
+    },
+    owner.token,
+  );
+  eq(selectedAudit.status, 201, JSON.stringify(selectedAudit.body));
+  eq(selectedAudit.body.data.requested, 1);
+
+  // Internal worker writes must enforce this request's membership even when a rule has old coverage.
+  const scopeAssessment = await create(
+    "Selected scope API write authorization",
+    "CUSTOMER_SELECTED",
+  );
+  const scopeCatalog = await http(
+    "GET",
+    `/assessments/${scopeAssessment}/rules?offset=0&limit=100`,
+    undefined,
+    owner.token,
+  );
+  eq(scopeCatalog.status, 200, JSON.stringify(scopeCatalog.body));
+  const scopeRule = scopeCatalog.body.data.rules[0];
+  const excludedRule = scopeCatalog.body.data.rules[1];
+  const scopeAudit = await http(
+    "POST",
+    `/assessments/${scopeAssessment}/rule-audits`,
+    {
+      idempotencyKey: randomUUID(),
+      expectedAuditRevision: scopeCatalog.body.data.auditRevision,
+      ruleSetVersionId: scopeCatalog.body.data.ruleSetVersionId,
+      ruleSetDigest: scopeCatalog.body.data.ruleSetDigest,
+      repositorySnapshotId: scopeCatalog.body.data.repositorySnapshotId,
+      repositoryCommit: scopeCatalog.body.data.repositoryCommit,
+      scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+      rules: [
+        {
+          assessmentRuleId: scopeRule.assessmentRuleId,
+          assessmentRuleVersion: scopeRule.assessmentRuleVersion,
+        },
+      ],
+    },
+    owner.token,
+  );
+  eq(scopeAudit.status, 201, JSON.stringify(scopeAudit.body));
+  const scopeClaim = await http(
+    "POST",
+    `/internal/assessment-runtime/${scopeAssessment}/claim`,
+    {},
+    undefined,
+    true,
+  );
+  eq(scopeClaim.status, 200, JSON.stringify(scopeClaim.body));
+  const lease = scopeClaim.body.data.leaseToken;
+  await q(
+    `INSERT INTO "AssessmentDecisionCoverage"("assessmentId","assessmentRuleId","ruleSetVersionId","assessmentRuleVersion","resolutionState","updatedAt")
+     SELECT $1,r."assessmentRuleId",c."ruleSetVersionId",r."assessmentRuleVersion",'PENDING',now()
+     FROM "AssessmentCase" c JOIN "AssessmentRule" r ON r."ruleSetVersionId"=c."ruleSetVersionId"
+     WHERE c."assessmentId"=$1 AND r."assessmentRuleId"=$2`,
+    [scopeAssessment, excludedRule.assessmentRuleId],
+  );
+  const expectedCaseRevision = Number((
+    await q(
+      `SELECT "caseRevision" AS revision FROM "AssessmentCase" WHERE "assessmentId"=$1`,
+      [scopeAssessment],
+    )
+  ).rows[0].revision);
+  const historicalDecisionId = randomUUID();
+  const historicalDecision = {
+    assessmentRuleId: excludedRule.assessmentRuleId,
+    assessmentRuleVersion: excludedRule.assessmentRuleVersion,
+    scopeId: "prior-audit-scope",
+    ruleSetVersionId: scopeCatalog.body.data.ruleSetVersionId,
+    repositorySnapshotId: scopeCatalog.body.data.repositorySnapshotId,
+    repositoryCommit: scopeCatalog.body.data.repositoryCommit,
+    caseRevision: expectedCaseRevision,
+    legalContextRefs: [{ legalContextId: "LR-HISTORICAL-FIXTURE" }],
+    applicability: "NOT_APPLICABLE",
+    rationale: "Historical accepted fixture result.",
+    references: [],
+    criteria: [],
+    compliance: null,
+  };
+  await q(
+    `INSERT INTO "AssessmentRuleDecision"("decisionId","assessmentId","ruleSetVersionId","assessmentRuleId","assessmentRuleVersion","scopeId","decisionRevision","state","applicability","repositoryCommit","caseRevision","idempotencyKey","requestDigest","decision")
+     VALUES ($1,$2,$3,$4,$5,$6,1,'ACCEPTED','NOT_APPLICABLE',$7,$8,$9,$10,$11::jsonb)`,
+    [
+      historicalDecisionId,
+      scopeAssessment,
+      scopeCatalog.body.data.ruleSetVersionId,
+      excludedRule.assessmentRuleId,
+      excludedRule.assessmentRuleVersion,
+      historicalDecision.scopeId,
+      scopeCatalog.body.data.repositoryCommit,
+      expectedCaseRevision,
+      randomUUID(),
+      "historical-fixture-digest",
+      JSON.stringify(historicalDecision),
+    ],
+  );
+  for (const resolutionState of ["RESOLVED", "INVALIDATED", "INVESTIGATING"]) {
+    if (resolutionState === "INVESTIGATING")
+      await q(
+        `UPDATE "AssessmentDecisionCoverage" SET "resolutionState"='INVESTIGATING' WHERE "assessmentId"=$1 AND "assessmentRuleId"=$2`,
+        [scopeAssessment, excludedRule.assessmentRuleId],
+      );
+    else if (resolutionState === "INVALIDATED")
+      await q(
+        `UPDATE "AssessmentDecisionCoverage" SET "resolutionState"='INVALIDATED' WHERE "assessmentId"=$1 AND "assessmentRuleId"=$2`,
+        [scopeAssessment, excludedRule.assessmentRuleId],
+      );
+    else {
+      await q(
+        `UPDATE "AssessmentDecisionCoverage" SET "resolutionState"='INVESTIGATING' WHERE "assessmentId"=$1 AND "assessmentRuleId"=$2`,
+        [scopeAssessment, excludedRule.assessmentRuleId],
+      );
+      await q(
+        `UPDATE "AssessmentDecisionCoverage" SET "resolutionState"='RESOLVED',"currentDecisionId"=$3,"decisionRevision"=1 WHERE "assessmentId"=$1 AND "assessmentRuleId"=$2`,
+        [scopeAssessment, excludedRule.assessmentRuleId, historicalDecisionId],
+      );
+    }
+    const investigate = await http(
+      "POST",
+      `/internal/assessment-runtime/${scopeAssessment}/investigations`,
+      { assessmentRuleId: excludedRule.assessmentRuleId },
+      undefined,
+      true,
+      lease,
+    );
+    eq(investigate.status, 403, JSON.stringify(investigate.body));
+    eq(
+      investigate.body.problem.code,
+      ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    );
+    const decisionPayload = {
+      expectedDecisionRevision: 0,
+      idempotencyKey: randomUUID(),
+      decision: {
+        assessmentRuleId: excludedRule.assessmentRuleId,
+        assessmentRuleVersion: excludedRule.assessmentRuleVersion,
+        scopeId: `scope-${resolutionState}`,
+        ruleSetVersionId: scopeCatalog.body.data.ruleSetVersionId,
+        repositorySnapshotId: scopeCatalog.body.data.repositorySnapshotId,
+        repositoryCommit: scopeCatalog.body.data.repositoryCommit,
+        caseRevision: expectedCaseRevision,
+        legalContextRefs: [{ legalContextId: "LR-OUT-OF-SCOPE" }],
+        applicability: "NOT_APPLICABLE",
+        rationale: "Scope authorization regression fixture.",
+        references: [{ type: "ASSESSMENT_EVIDENCE", evidenceId: randomUUID() }],
+        criteria: [],
+        compliance: null,
+      },
+    };
+    const parsedDecision = submitRuleDecisionRequestSchema.safeParse(decisionPayload);
+    ok(parsedDecision.success, JSON.stringify(parsedDecision));
+    const decision = await http(
+      "POST",
+      `/internal/assessment-runtime/${scopeAssessment}/decisions`,
+      decisionPayload,
+      undefined,
+      true,
+      lease,
+    );
+    eq(decision.status, 403, JSON.stringify(decision.body));
+    eq(
+      decision.body.problem.code,
+      ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    );
+    const coverageState = (
+      await q(
+        `SELECT "resolutionState" AS state FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1 AND "assessmentRuleId"=$2`,
+        [scopeAssessment, excludedRule.assessmentRuleId],
+      )
+    ).rows[0].state;
+    eq(
+      coverageState,
+      resolutionState,
+      "nonmember writes do not mutate historical coverage",
+    );
+  }
+  const humanRequest = await http(
+    "POST",
+    `/internal/assessment-runtime/${scopeAssessment}/human-requests`,
+    {
+      assessmentRuleId: excludedRule.assessmentRuleId,
+      criterionIds: [],
+      question: "Who owns the excluded rule's process?",
+      unresolvedFact: "The owner is unknown.",
+      decisionImpact: ["Ownership decides the applicable duty."],
+      resolutionAttempts: ["Reviewed the available repository evidence."],
+      controlType: "FREE_TEXT",
+      choices: [],
+      expectedCaseRevision,
+      idempotencyKey: randomUUID(),
+    },
+    undefined,
+    true,
+    lease,
+  );
+  eq(humanRequest.status, 403, JSON.stringify(humanRequest.body));
+  eq(
+    humanRequest.body.problem.code,
+    ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+  );
+  const releaseScopeLease = await http(
+    "POST",
+    `/internal/assessment-runtime/${scopeAssessment}/finish`,
+    { state: AGENT_EXECUTION_STATES.FAILED },
+    undefined,
+    true,
+    lease,
+  );
+  eq(releaseScopeLease.status, 200, JSON.stringify(releaseScopeLease.body));
   const controlScript = path.join(
     root,
     "deepagents/tests/vertical/root_control.py",
@@ -213,6 +458,14 @@ try {
     [ASSESSMENT_LIFECYCLE_STATES.PAUSED, AGENT_EXECUTION_STATES.PAUSED],
   );
   eq(pausedState.checkpoint, paused.result.checkpointId);
+  eq(
+    paused.graphConfig,
+    {
+      threadId: selectedAudit.body.data.requestId,
+      checkpointNamespace: "",
+    },
+    "selected Stop persists on its request's native root thread",
+  );
   const stopReplay = await http(
     "POST",
     `/assessments/${pausedAssessment}/runtime/stop`,
@@ -262,6 +515,11 @@ try {
   eq(
     [resumedControl.result.threadId, resumedControl.result.executionId],
     [paused.result.threadId, paused.result.executionId],
+  );
+  eq(
+    resumedControl.graphConfig,
+    paused.graphConfig,
+    "Continue reuses the selected request checkpoint thread",
   );
   ok(
     resumedControl.pid !== paused.pid,

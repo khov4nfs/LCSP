@@ -14,13 +14,18 @@ export const root = path.resolve(
   "../..",
 );
 export const apiDir = path.join(root, "apps/api");
-export const python = path.join(root, "deepagents/.venv/bin/python");
+export const python = path.join(
+  root,
+  process.platform === "win32"
+    ? "deepagents/.venv/Scripts/python.exe"
+    : "deepagents/.venv/bin/python",
+);
 export const workerKey =
   "compliance_rule_set-vertical-worker-key-at-least-32-chars";
 export const pythonPath = [
   path.join(root, "deepagents"),
   path.join(root, "deepagents/tests"),
-].join(":");
+].join(path.delimiter);
 export const sha = (text) => createHash("sha256").update(text).digest("hex");
 export const contentHash = (text) => `sha256:${sha(text)}`; // legalSource representation of chunk hashes
 const requireApi = createRequire(path.join(apiDir, "package.json"));
@@ -104,16 +109,21 @@ export async function startStack({
     await adminClient.end();
   }
   const migrate = spawnSync(
-    "pnpm",
+    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["--dir", apiDir, "exec", "prisma", "migrate", "deploy"],
     {
       cwd: root,
       encoding: "utf8",
       timeout: operationTimeoutMs,
+      shell: process.platform === "win32",
       env: { ...process.env, DATABASE_URL: databaseUrl },
     },
   );
-  assert.equal(migrate.status, 0, migrate.stdout + migrate.stderr);
+  assert.equal(
+    migrate.status,
+    0,
+    `${migrate.error?.message ?? ""}\n${migrate.stdout ?? ""}${migrate.stderr ?? ""}`,
+  );
 
   const db = new Client({
     connectionString: databaseUrl,
@@ -466,8 +476,18 @@ export async function runPython(
     const child = spawn(executable, [script, ...args], {
       cwd: root,
       detached: ownedProcessGroup,
-      env: { ...process.env, PYTHONPATH: pythonPath, ...env,
-        ...(prepared ? { LCSP_TEST_ROOT_RUNTIME_RUN_ID: prepared.runtimeRunId, LCSP_TEST_ROOT_INCARNATION_ID: prepared.runtimeIncarnationId } : {}) },
+      env: {
+        ...process.env,
+        PYTHONUTF8: "1",
+        PYTHONPATH: pythonPath,
+        ...env,
+        ...(prepared
+          ? {
+              LCSP_TEST_ROOT_RUNTIME_RUN_ID: prepared.runtimeRunId,
+              LCSP_TEST_ROOT_INCARNATION_ID: prepared.runtimeIncarnationId,
+            }
+          : {}),
+      },
     });
     let out = "",
       err = "",

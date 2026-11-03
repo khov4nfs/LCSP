@@ -19,6 +19,7 @@ from deepagents.backends import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 
+import assessment_root.runner as assessment_root_runner
 from assessment_root.client import AssessmentRuntimeClient
 from assessment_root.researcher import RESEARCHER_NAME
 from assessment_root.runner import run_assessment_root
@@ -61,7 +62,7 @@ class DynamicScriptedModel(ScriptedModel):
         return ChatResult(generations=[ChatGeneration(message=step(messages))])
 
 
-def full_script(captured: dict[str, Any]) -> list[Step]:
+def full_script(captured: dict[str, Any], first_rule: str = "ER-RET") -> list[Step]:
     def last(messages: list[Any]) -> dict[str, Any]:
         return _tool_results(messages)[-1]
 
@@ -132,12 +133,12 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
         lambda m: AIMessage(content="Findings: src/retention.py:3 sets keep_days. No other uses found."),
         lambda m: _call("record_search_coverage", {"known_gaps": ["dynamic configuration not traced"]}, "s6"),
         lambda m: (keep("coverage", m), _call("accept_case_fact", {"kind": "USE_CASE", "statement": "The system stores notices with a receipt timestamp.", "evidence_ids": [ev["source"]]}, "s7"))[1],
-        lambda m: (fact.__setitem__("use_case", keep("fact", m)["factId"]), _call("start_rule_investigation", {"assessment_rule_id": "ER-RET"}, "s8"))[1],
+        lambda m: (fact.__setitem__("use_case", keep("fact", m)["factId"]), _call("start_rule_investigation", {"assessment_rule_id": first_rule}, "s8"))[1],
         # A deliberately incomplete first attempt: the validator must reject it and say why.
         lambda m: _call(
             "submit_rule_decision",
             {
-                "assessment_rule_id": "ER-RET",
+                "assessment_rule_id": first_rule,
                 "applicability": "APPLICABLE",
                 "rationale": "Applies.",
                 "legal_context_ids": ["LR-NOT-LINKED"],
@@ -154,8 +155,8 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
             },
             "s9",
         ),
-        lambda m: (captured.__setitem__("rejected", last(m)), _call("get_assessment_rule", {"assessment_rule_id": "ER-RET"}, "scope-ret"))[1],
-        lambda m: (keep("scope_ER-RET", m), decide("ER-RET", applicable=True, outcome="MET", key="s10")(m))[1],
+        lambda m: (captured.__setitem__("rejected", last(m)), _call("get_assessment_rule", {"assessment_rule_id": first_rule}, "scope-first"))[1],
+        lambda m: (keep(f"scope_{first_rule}", m), decide(first_rule, applicable=True, outcome="MET", key="s10")(m))[1],
         lambda m: (captured.__setitem__("decision_ret", last(m)), _call("start_rule_investigation", {"assessment_rule_id": "ER-XREF"}, "s11"))[1],
         lambda m: _call("get_assessment_rule", {"assessment_rule_id": "ER-XREF"}, "scope-xref"),
         lambda m: (keep("scope_ER-XREF", m), decide("ER-XREF", applicable=True, outcome="NOT_MET", key="s12")(m))[1],
@@ -163,6 +164,16 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
         decide("ER-DEF", applicable=False, outcome=None, key="s14"),
         lambda m: (captured.__setitem__("decision_def", last(m)), AIMessage(content="All three rules decided."))[1],
     ]
+    return steps
+
+
+def selected_script(captured: dict[str, Any], rule_id: str) -> list[Step]:
+    """Accept exactly one selected rule and complete only that request's gate."""
+    steps = full_script(captured, first_rule=rule_id)[:12]
+    steps.extend([
+        lambda m: (captured.__setitem__("selected_decision", _tool_results(m)[-1]), _call("request_finalization", {}, "selected-finalization"))[1],
+        lambda m: (captured.__setitem__("selected_finalization", _tool_results(m)[-1]), AIMessage(content="The selected rule result is accepted."))[1],
+    ])
     return steps
 
 
@@ -179,7 +190,13 @@ def main() -> int:
     active_runtime_incarnation_id.set(os.getenv("LCSP_TEST_ROOT_INCARNATION_ID"))
     base, key, assessment_id, repo_dir, mode = sys.argv[1:6]
     captured: dict[str, Any] = {}
-    steps = full_script(captured) if mode in {"full", "complete"} else resume_script(captured)
+    steps = (
+        selected_script(captured, os.environ["ASSESSMENT_SELECTED_RULE_ID"])
+        if mode == "selected"
+        else full_script(captured)
+        if mode in {"full", "complete"}
+        else resume_script(captured)
+    )
     if mode == "complete":
         # The normal response above must continue in the same graph to the API-owned terminal.
         steps += [
@@ -192,6 +209,33 @@ def main() -> int:
         ]
     model = DynamicScriptedModel(responses=[], steps=steps)
     client = AssessmentRuntimeClient(base, key)
+    root_logger = assessment_root_runner.logger
+
+    class RootFailureCapture:
+        def __getattr__(self, name: str) -> Any:
+            return getattr(root_logger, name)
+
+        def error(self, event: str, *args: Any, **kwargs: Any) -> Any:
+            if event == "ASSESSMENT_ROOT_RUN_FAILED":
+                captured["rootError"] = {
+                    key: kwargs.get(key)
+                    for key in ("error_type", "error_message", "error_traceback")
+                }
+            return root_logger.error(event, *args, **kwargs)
+
+    assessment_root_runner.logger = RootFailureCapture()
+    root_graph_config = assessment_root_runner.agent_graph_config
+
+    def capture_graph_config(config=None):  # noqa: ANN001
+        graph_config = root_graph_config(config)
+        configurable = graph_config.get("configurable", {})
+        captured["graphConfig"] = {
+            "threadId": configurable.get("thread_id"),
+            "checkpointNamespace": configurable.get("checkpoint_ns"),
+        }
+        return graph_config
+
+    assessment_root_runner.agent_graph_config = capture_graph_config
     with PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
         saver.setup()
         result = run_assessment_root(

@@ -158,6 +158,7 @@ export class AssessmentProvenanceController {
       contentFingerprintSha256: artifact.contentFingerprintSha256,
       checksumSha256: artifact.checksumSha256,
       lifecycle: artifact.lifecycle,
+      auditScope: artifact.auditScope,
       pins: artifact.pins,
       runtime: artifact.runtime,
       acceptedFacts: artifact.acceptedFacts,
