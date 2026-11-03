@@ -192,7 +192,9 @@ jobs:
     name: API unit tests
     needs: changes
     if: needs.changes.outputs.release_gate == 'true'
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04's default AppArmor policy blocks Chromium's user-namespace sandbox.
+    # Keep the browser tests on 22.04 so the renderer runs with its sandbox enabled.
+    runs-on: ubuntu-22.04
     env:
       LCSP_TEST_POSTGRES_PORT: 55435
       LCSP_TEST_POSTGRES_DB: lcsp_api_test
@@ -473,7 +475,8 @@ jobs:
     name: Assessment Root vertical
     needs: changes
     if: needs.changes.outputs.release_gate == 'true'
-    runs-on: ubuntu-latest
+    # The PDF endpoint launches the same sandboxed Playwright Chromium as API unit tests.
+    runs-on: ubuntu-22.04
     services:
       rabbitmq:
         image: rabbitmq:4-management
