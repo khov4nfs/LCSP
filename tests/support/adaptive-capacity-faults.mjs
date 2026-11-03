@@ -164,6 +164,10 @@ export async function runAdaptiveCapacityFaults({
         `LCSP-364 ACTIVE FAULT synthetic ${label}`,
         actor,
       );
+      await stack.q(
+        `UPDATE "AssessmentCase" SET "auditMode"='LEGACY_FULL' WHERE "assessmentId"=$1`,
+        [assessment.id],
+      );
       const response = await fetch(
         `${stack.base}/assessments/${assessment.id}/repository-setup/complete`,
         { method: "POST", headers: { authorization: `Bearer ${actor.token}` } },

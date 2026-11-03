@@ -58,6 +58,10 @@ export async function runAdaptiveCapacityLoad({
           `LCSP-364 provider-free load ${count}/${i}`,
           actor,
         );
+        await stack.q(
+          `UPDATE "AssessmentCase" SET "auditMode"='LEGACY_FULL' WHERE "assessmentId"=$1`,
+          [assessment.id],
+        );
         const response = await fetch(
           `${stack.base}/assessments/${assessment.id}/repository-setup/complete`,
           {

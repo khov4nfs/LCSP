@@ -59,6 +59,26 @@ Following independent review `5746109761` (`CHANGES_REQUESTED`), two additional 
    - *Deadlock Assertion Rigor (Test 9):* Upgraded the concurrent interleaving deadlock test to verify concrete post-condition database state (outbox status transitions to `OWNED_PENDING` / `CANCELLED`, attempts reset to 0, and exact audit records persisted).
    - *Repository Tombstone Verification (Test 13):* Proves low-level `outboxRepository.deleteMessage()` marks Root commands with admission intent as `CANCELLED` without deleting admission history or live capacity.
 
+### Review ID 5746418610 Remediation: CI Database Allowlist, Repository Quiescence & Deterministic Race
+
+Following independent review `5746418610` (`CHANGES_REQUESTED`), the following findings were remediated:
+
+1. **P1 — E2E Database Allowlist CI Blocker:**
+   - *Root cause:* The CI workflow for API E2E uses the dedicated disposable test database `lcsp_api_e2e` (ending in `_e2e`, not `_test`). `assertDisposableDatabase()` rejected this verified database name, failing all 13 E2E tests during `beforeAll` and subsequently triggering a `TypeError` in `afterAll` when `$disconnect` was invoked on uninitialized clients.
+   - *Fix:* `assertDisposableDatabase()` now explicitly validates `["lcsp_api_test", "lcsp_api_e2e", "lcsp364_capacity"]` as well as any database name ending in `_test` or `_e2e` on `localhost`/`127.0.0.1`. In addition, error reporting omits raw credentials, and `afterAll` uses optional chaining (`prisma1?.$disconnect()`) with error suppression for resilient teardown.
+
+2. **P2 — Repository Quiescence Enforcement (`OutboxRepository.deleteMessage`):**
+   - *Root cause:* `OutboxRepository.deleteMessage()` bypassed the quiescence check present in `OutboxDlqService.deleteMessage()`, allowing a Root DLQ command with active physical execution slots (`releasedAt: null`) to be tombstoned to `CANCELLED`.
+   - *Fix:* Added an active execution slot check in `OutboxRepository.deleteMessage()`. If `heldSlots > 0`, it strictly rejects discard with `ROOT_EXECUTION_ACTIVE_CANNOT_DISCARD`. Both the low-level repository and high-level service now fail closed against non-quiescent execution.
+
+3. **P2 — Deterministic Slot Acquisition Race Regression (Test 12):**
+   - *Root cause:* Test 12 previously executed slot insertion and replay validation sequentially, rather than testing a true concurrent race.
+   - *Fix:* Rewrote Test 12 to use real lock coordination between two concurrent PostgreSQL sessions: Session 2 acquires `AssessmentRootCapacity FOR UPDATE`, inserts an unreleased execution slot, and holds the lock while Session 1 dispatches `dlqService1.replayMessage()`. PostgreSQL blocks Session 1 at the row lock level until Session 2 commits. Upon unblocking, Session 1 evaluates the newly committed slot and fails closed with `dlqReplayUnsafeTarget`, proving deterministic fence enforcement under true concurrency.
+
+4. **Integration Fix — Vertical Capacity Tests (`LEGACY_FULL` Mode):**
+   - *Root cause:* PR #443 defaulted newly created assessment cases to `auditMode = CUSTOMER_SELECTED`. As a result, `completeRepositorySetup` did not enqueue legacy full-scope Root outbox commands, causing `adaptive-capacity-load.mjs` to encounter an undefined command in `Assessment Root vertical`.
+   - *Fix:* Updated `adaptive-capacity-load.mjs` and `adaptive-capacity-faults.mjs` to explicitly set `auditMode = 'LEGACY_FULL'` prior to setup completion, matching the expected behavior for native load and fault runs.
+
 Confirmed security gap: the actual non-superuser Fogewise API login could UPDATE/DELETE enrollment, removing the canonical-row fence. The additive immutable-enrollment trigger now rejects this DML, TRUNCATE and impersonation, and validates new enrollment under the activation lock. [RED](final-isolation-red.log), [GREEN: 8/8](final-isolation-green.log). Existing production enrollments have not been modified.
 
 Active fault injection found two further defects. Identical redeliveries could occupy both polling workers and starve independent work; a bounded fingerprint guard now defers duplicates through the existing confirmed durable delay. A replacement could accept the previous lease/run ID and replay a model step whose external response was unknown. Registration now atomically revokes the old lease pair, claims require the current incarnation, and uncertain running work enters existing durable DLQ before another model invocation. Audited quiescent ADMIN replay preserves the same Root/checkpoint. [Original active failure](final-active-faults-red.json), [duplicate starvation](final-active-faults-duplicate-starvation.json), [10-scenario GREEN](final-active-faults.json).

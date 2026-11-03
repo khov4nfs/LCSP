@@ -31,13 +31,14 @@ function assertDisposableDatabase(databaseUrl: string | undefined): void {
   }
   const parsed = new URL(databaseUrl);
   const isLocal = ["127.0.0.1", "localhost"].includes(parsed.hostname);
+  const dbName = parsed.pathname.replace(/^\//u, "");
   const isDisposable =
-    parsed.pathname.includes("lcsp_api_test") ||
-    parsed.pathname.includes("lcsp364_capacity") ||
-    parsed.pathname.endsWith("_test");
+    ["lcsp_api_test", "lcsp_api_e2e", "lcsp364_capacity"].includes(dbName) ||
+    dbName.endsWith("_test") ||
+    dbName.endsWith("_e2e");
   if (!isLocal || !isDisposable) {
     throw new Error(
-      `Refusing execution on non-disposable database: ${databaseUrl}. Dedicated local disposable test database required (localhost/127.0.0.1 and name matching lcsp_api_test, lcsp364_capacity, or *_test).`,
+      "Refusing execution on non-disposable database. Dedicated local disposable test database required (localhost/127.0.0.1 and name matching lcsp_api_test, lcsp_api_e2e, lcsp364_capacity, *_test, or *_e2e).",
     );
   }
 }
@@ -144,9 +145,13 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
   });
 
   afterAll(async () => {
-    await cleanTrackedFixtures(true);
-    await prisma1.$disconnect();
-    await prisma2.$disconnect();
+    try {
+      await cleanTrackedFixtures(true);
+    } catch {
+      // Ignored if cleanup fails during error teardown
+    }
+    await prisma1?.$disconnect().catch(() => {});
+    await prisma2?.$disconnect().catch(() => {});
   });
 
   beforeEach(async () => {
@@ -794,31 +799,72 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     expect(audits[0].decision).toBe(AUDIT_DECISIONS.deny);
   });
 
-  // Test 12 — Race with slot acquisition: replay refused when slot acquired concurrently
-  it("Test 12: refuses replay when a physical execution slot is acquired before replay commits", async () => {
+  // Test 12 — Race with slot acquisition: deterministic concurrent race test
+  it("Test 12: refuses replay when a physical execution slot is acquired concurrently before replay commits", async () => {
     const fixture = await createQuarantinedRootFixture({ heldSlot: false });
 
-    // Acquire physical slot right before replay or during execution
-    const runId = randomUUID();
-    await prisma2.assessmentRootExecutionSlot.create({
-      data: {
-        runId,
-        assessmentId: fixture.assessmentId,
-        commandId: fixture.commandId,
-        incarnationId: randomUUID(),
-        requestedAt: new Date(),
-        admittedAt: new Date(),
-        releasedAt: null,
-      },
+    let notifyLockAcquired!: () => void;
+    const lockAcquired = new Promise<void>((resolve) => {
+      notifyLockAcquired = resolve;
     });
 
-    await expect(
-      dlqService1.replayMessage(
-        fixture.commandId,
-        "admin-race-slot",
-        "corr-race-slot",
-      ),
-    ).rejects.toMatchObject({
+    let allowCommit!: () => void;
+    const canCommit = new Promise<void>((resolve) => {
+      allowCommit = resolve;
+    });
+
+    // Session 2 acquires the capacity lock first to serialize execution deterministically
+    const slotAcquisitionPromise = prisma2.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
+        VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
+        ON CONFLICT ("id") DO NOTHING
+      `;
+      await tx.$queryRaw`
+        SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE
+      `;
+
+      // Insert held execution slot while holding capacity lock
+      await tx.assessmentRootExecutionSlot.create({
+        data: {
+          runId: randomUUID(),
+          assessmentId: fixture.assessmentId,
+          commandId: fixture.commandId,
+          incarnationId: randomUUID(),
+          requestedAt: new Date(),
+          admittedAt: new Date(),
+          releasedAt: null,
+        },
+      });
+
+      // Signal that capacity lock and unreleased execution slot are in place
+      notifyLockAcquired();
+
+      // Hold transaction open until replayMessage is in-flight and queued on the capacity lock
+      await canCommit;
+    });
+
+    // Wait until Session 2 has acquired the capacity lock and inserted the slot
+    await lockAcquired;
+
+    // Dispatch replayMessage in Session 1.
+    // dlqService1.replayMessage executes SELECT ... FROM "AssessmentRootCapacity" ... FOR UPDATE
+    // and blocks at the PostgreSQL row lock level waiting for Session 2 to commit.
+    const replayPromise = dlqService1.replayMessage(
+      fixture.commandId,
+      "admin-race-slot",
+      "corr-race-slot",
+    );
+
+    // Yield to the event loop so Session 1 reaches the blocked query
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Release Session 2 to commit its transaction and release the capacity lock
+    allowCommit();
+    await slotAcquisitionPromise;
+
+    // Session 1 now unblocks, evaluates the newly committed slot, and MUST refuse replay
+    await expect(replayPromise).rejects.toMatchObject({
       response: {
         problem: { code: OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget },
       },
@@ -839,16 +885,34 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     expect(audits[0].decision).toBe(AUDIT_DECISIONS.deny);
   });
 
-  // Test 13 — Repository deleteMessage tombstones Root DLQ command without cascading admission intent
-  it("Test 13: outboxRepository.deleteMessage tombstones Root DLQ command to CANCELLED without deleting intent", async () => {
+  // Test 13 — Repository deleteMessage strictly fails closed on held physical slot and tombstones once quiescent
+  it("Test 13: outboxRepository.deleteMessage strictly fails closed when physical slot is held and tombstones to CANCELLED once released", async () => {
     const fixture = await createQuarantinedRootFixture({ heldSlot: true });
 
-    await repo1.deleteMessage(fixture.commandId);
+    // While physical slot is held, deleteMessage must refuse discard
+    await expect(repo1.deleteMessage(fixture.commandId)).rejects.toThrow(
+      "ROOT_EXECUTION_ACTIVE_CANNOT_DISCARD",
+    );
 
-    const msg = await prisma1.outboxMessage.findUniqueOrThrow({
+    // Message must remain in DLQ
+    const msgBefore = await prisma1.outboxMessage.findUniqueOrThrow({
       where: { id: fixture.commandId },
     });
-    expect(msg.status).toBe(OUTBOX_STATUSES.cancelled);
+    expect(msgBefore.status).toBe(OUTBOX_STATUSES.dlq);
+
+    // Release the physical slot (reaching quiescence)
+    await prisma1.assessmentRootExecutionSlot.updateMany({
+      where: { assessmentId: fixture.assessmentId, releasedAt: null },
+      data: { releasedAt: new Date() },
+    });
+
+    // Now repository deleteMessage succeeds and tombstones the Root command
+    await repo1.deleteMessage(fixture.commandId);
+
+    const msgAfter = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixture.commandId },
+    });
+    expect(msgAfter.status).toBe(OUTBOX_STATUSES.cancelled);
 
     // Admission request remains intact (not deleted)
     const intent = await prisma1.assessmentRootAdmissionRequest.findUnique({

@@ -367,6 +367,15 @@ export class OutboxRepository {
         select: { commandId: true, assessmentId: true },
       });
       if (intent) {
+        const heldSlots = await client.assessmentRootExecutionSlot.count({
+          where: {
+            assessmentId: intent.assessmentId,
+            releasedAt: null,
+          },
+        });
+        if (heldSlots > 0) {
+          throw new Error("ROOT_EXECUTION_ACTIVE_CANNOT_DISCARD");
+        }
         const updated = await client.$executeRaw`
           UPDATE "OutboxMessage" SET "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled)}::"OutboxStatus"
           WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"

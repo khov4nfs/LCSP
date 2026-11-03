@@ -198,9 +198,13 @@ integration(
         where: { id: commandId },
         data: { status: OutboxStatus.DLQ },
       });
-      await new OutboxRepository(first as PrismaService).deleteMessage(
-        commandId,
+      const repository = new OutboxRepository(first as PrismaService);
+      await expect(repository.deleteMessage(commandId)).rejects.toThrow(
+        "ROOT_EXECUTION_ACTIVE_CANNOT_DISCARD",
       );
+      expect((await a.status()).active).toBe(1);
+      await a.release(one);
+      await repository.deleteMessage(commandId);
       expect(
         (
           await first.outboxMessage.findUniqueOrThrow({
@@ -208,8 +212,6 @@ integration(
           })
         ).status,
       ).toBe(OutboxStatus.CANCELLED);
-      expect((await a.status()).active).toBe(1);
-      await a.release(one);
       expect(
         await first.assessmentRootExecutionSlot.count({
           where: { assessmentId: one.assessmentId },
