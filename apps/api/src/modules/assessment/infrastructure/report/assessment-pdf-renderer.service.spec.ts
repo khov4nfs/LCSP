@@ -5,11 +5,16 @@ import {
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
 } from "@lcsp/contracts/assessment-domain";
 import {
+  buildAssessmentReportPresentation,
   assessmentFinalReportV2Schema,
   type AssessmentFinalReportV2,
 } from "@lcsp/contracts/assessment-report";
 import { AssessmentPdfRenderer } from "./assessment-pdf-renderer.service.js";
-import { legalLocator } from "./assessment-report-v2-pdf-presentation.js";
+import { assessmentReportV2Html } from "./assessment-report-v2-pdf-html.js";
+import {
+  legalDocumentName,
+  legalLocator,
+} from "./assessment-report-v2-pdf-presentation.js";
 
 const uuid = "11111111-1111-4111-8111-111111111111";
 const snapshotId = "22222222-2222-4222-8222-222222222222";
@@ -291,10 +296,20 @@ describe("AssessmentPdfRenderer", () => {
     expect(mainContent).not.toContain("NOT_APPLICABLE");
     expect(mainContent).not.toContain("LegalRequirement:");
     expect(mainContent).not.toMatch(/criterion_[a-f0-9]{8,}/iu);
-    expect(mainContent).toContain("Mã tiêu chí [TC-01]");
+    expect(mainContent).not.toMatch(/\b(?:QT|PL|TC|DK|BC|ND)-\d+\b/u);
+    expect(mainContent.replace(/\s+/gu, " ")).toContain(
+      "Nội dung giải thích pháp lý đầy đủ chưa được xác minh từ dữ liệu báo cáo hiện có.",
+    );
+    expect(mainContent).toContain("Nghĩa vụ và căn cứ pháp lý");
+    expect(mainContent).toContain("Phạm vi áp dụng");
+    expect(mainContent).toContain("Giải thích kết quả");
+    expect(mainContent).toContain("Hạng mục");
+    expect(mainContent).toContain("Nội dung");
+    expect(mainContent).not.toContain("Mã đối chiếu");
+    expect(mainContent).not.toContain("Mã tiêu chí [TC-");
     expect(extracted.text).toContain("Mã tiêu chí gốc");
     expect(extracted.text.replace(/\s+/gu, "")).toContain(sha);
-    expect(extracted.pages.at(-1)?.text.length).toBeGreaterThan(100);
+    expect(extracted.text).toContain("Nguyên văn cần đối chiếu");
   });
 
   it("preserves Vietnamese sections and canonical values in extracted PDF text", async () => {
@@ -307,6 +322,9 @@ describe("AssessmentPdfRenderer", () => {
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
     await parser.destroy();
+    const mainContent = extracted.text.split(
+      "Phụ lục — Bảng truy vết kỹ thuật",
+    )[0];
     const normalizedPdfText = extracted.text
       .normalize("NFC")
       .replace(/\s+/gu, "")
@@ -342,11 +360,15 @@ describe("AssessmentPdfRenderer", () => {
     expect(normalizedPdfText).toContain(normalizeExpected("rule-2"));
     expect(normalizedPdfText).toContain(normalizeExpected("article-2"));
     expect(extracted.text.replace(/\s+/gu, "")).toContain(sha);
-    expect(normalizedPdfText).toContain(
-      normalizeExpected(
-        "Chưa xác định được chế độ áp dụng trong định nghĩa quy tắc",
-      ),
+    expect(
+      mainContent
+        .normalize("NFC")
+        .replace(/\s+/gu, "")
+        .toLocaleUpperCase("vi-VN"),
+    ).not.toContain(
+      normalizeExpected("Áp dụng chung theo định nghĩa nghĩa vụ"),
     );
+    expect(extracted.text).toContain("Apply when relevant.");
     expect(normalizedPdfText).toContain(normalizeExpected("Không áp dụng"));
     await assertFooterPagination(bytes);
   });
@@ -374,7 +396,12 @@ describe("AssessmentPdfRenderer", () => {
 
     expect(mainContent).toContain("Nghĩa vụ bảo vệ dữ liệu");
     expect(mainContent).toContain("Có biện pháp bảo vệ dữ liệu phù hợp");
-    expect(mainContent).toContain("biện pháp đã được ghi nhận");
+    expect(mainContent).toContain("Hạng mục");
+    expect(mainContent).toContain("Nội dung");
+    expect(mainContent).not.toContain("Mã đối chiếu");
+    expect(mainContent.replace(/\s+/gu, " ")).toContain(
+      "biện pháp đã được ghi nhận",
+    );
     expect(mainContent).toContain(
       "Thông tin về biện pháp do khách hàng cung cấp",
     );
@@ -393,6 +420,223 @@ describe("AssessmentPdfRenderer", () => {
 
   it("formats Vietnamese legal point locators including đ", () => {
     expect(legalLocator("art-11::cl-1::pt-đ")).toBe("Điều 11, khoản 1, điểm đ");
+  });
+
+  it("uses verified Vietnamese legal titles and preserves a truthful fallback", () => {
+    expect(
+      legalDocumentName("luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan"),
+    ).toBe("Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15");
+    expect(legalDocumentName("luat-so-116-2025-qh15-luat-an-ninh-mang")).toBe(
+      "Luật An ninh mạng số 116/2025/QH15",
+    );
+    expect(legalDocumentName("luat-so-7-2025-qh1-unknown")).toBe(
+      "Luật số 7/2025/QH1",
+    );
+  });
+
+  it("omits an absent case revision from appendix metadata", () => {
+    const model = buildAssessmentReportPresentation(fixture());
+    if (!("scopeTraceability" in model)) {
+      throw new Error("The V2 fixture must produce a V2 presentation model");
+    }
+    expect(
+      Reflect.set(model.scopeTraceability, "caseRevision", undefined),
+    ).toBe(true);
+
+    expect(assessmentReportV2Html(model)).not.toContain("Lần hiệu chỉnh hồ sơ");
+  });
+
+  it("keeps applicability condition rows together across PDF page breaks", () => {
+    const model = buildAssessmentReportPresentation(fixture());
+    if (!("scopeTraceability" in model)) {
+      throw new Error("The V2 fixture must produce a V2 presentation model");
+    }
+    const html = assessmentReportV2Html(model);
+    expect(html).toContain(
+      `<tr class="keep-together"><td>\u0110i\u1ec1u ki\u1ec7n \u00e1p d\u1ee5ng</td>`,
+    );
+  });
+  it("deduplicates a legal basis in the customer-facing catalog", async () => {
+    const report = fixture();
+    report.legalRequirements[0].sourceRefs[0].locator = "art-1";
+    report.ruleDetails[0].sourceRefs[0].locator = "art-1";
+    const duplicateRequirement = structuredClone(report.legalRequirements[0]);
+    duplicateRequirement.legalRequirementId = "requirement-2";
+    report.legalRequirements.push(duplicateRequirement);
+    report.ruleDetails[0].legalRequirementIds.push("requirement-2");
+
+    const bytes = await render(report);
+    const parser = new PDFParse({ data: bytes });
+    const extracted = await parser.getText();
+    await parser.destroy();
+    const catalog = extracted.text
+      .split("03 — DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ")[1]
+      ?.split("04 — CHI TIẾT TỪNG NGHĨA VỤ")[0]
+      ?.normalize("NFC")
+      .replace(/\s+/gu, "")
+      .toLocaleUpperCase("vi-VN");
+    const legalBasis = "Tài liệu pháp lý — Điều 1."
+      .normalize("NFC")
+      .replace(/\s+/gu, "")
+      .toLocaleUpperCase("vi-VN");
+
+    expect(catalog).toBeDefined();
+    expect(catalog?.split(legalBasis)).toHaveLength(2);
+  });
+
+  it("keeps definition mode out of the accepted NOT_APPLICABLE explanation", async () => {
+    const report = sourceBackedFixture(1, ["NOT_APPLICABLE"]);
+    report.ruleDetails[0].applicabilityGuidance =
+      "Applicability mode: UNCONDITIONAL\nOperative proposition: Applies to a defined regulated operator.";
+    const bytes = await render(report, {
+      translations: {
+        "Accepted rationale":
+          "Dữ kiện được chấp nhận cho thấy chủ thể không thuộc nhóm đối tượng được quy định.",
+        "Accepted fact":
+          "Đơn vị vận hành là nhóm nghiên cứu mã nguồn mở do cá nhân thực hiện.",
+      },
+    });
+    const parser = new PDFParse({ data: bytes });
+    const extracted = await parser.getText();
+    await parser.destroy();
+    const main = extracted.text.split("Phụ lục — Bảng truy vết kỹ thuật")[0];
+
+    expect(main).toContain("Không áp dụng");
+    expect(main).toContain("Vì sao không áp dụng?");
+    expect(main.replace(/\s+/gu, " ")).toContain("không thuộc nhóm đối tượng");
+    expect(main).not.toContain("Áp dụng chung theo định nghĩa nghĩa vụ");
+    expect(extracted.text).toContain("UNCONDITIONAL");
+  });
+
+  it("groups legal points by law, article and clause without losing cross-article sources", async () => {
+    const report = fixture();
+    const law = "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan";
+    const base = report.ruleDetails[0].sourceRefs[0];
+    const makeSource = (locator: string) => ({
+      ...base,
+      documentId: law,
+      locator,
+    });
+    report.ruleDetails[0].sourceRefs = [
+      makeSource("art-16::cl-2::pt-b"),
+      makeSource("art-16::cl-2::pt-c"),
+      makeSource("art-16::cl-2::pt-đ"),
+      makeSource("art-16::cl-2::pt-c"),
+      makeSource("art-19::cl-1::pt-b"),
+      {
+        ...makeSource("art-17::cl-1::pt-đ"),
+        documentId: "luat-so-116-2025-qh15-luat-an-ninh-mang",
+      },
+    ];
+    const bytes = await render(report);
+    const parser = new PDFParse({ data: bytes });
+    const extracted = await parser.getText();
+    await parser.destroy();
+    const catalog = extracted.text
+      .split("03 — DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ")[1]
+      ?.split("04 — CHI TIẾT TỪNG NGHĨA VỤ")[0]
+      ?.normalize("NFC")
+      .replace(/\s+/gu, "")
+      .toLocaleUpperCase("vi-VN");
+    const normalize = (value: string) =>
+      value.normalize("NFC").replace(/\s+/gu, "").toLocaleUpperCase("vi-VN");
+
+    expect(catalog).toContain(normalize("Điều 16, khoản 2, điểm b, c và đ"));
+    expect(catalog).toContain(normalize("Điều 19, khoản 1, điểm b"));
+    expect(catalog).toContain(
+      normalize("Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15"),
+    );
+    expect(catalog).toContain(normalize("Luật An ninh mạng số 116/2025/QH15"));
+    expect(catalog?.match(/LUẬTBẢOVỆDỮLIỆUCÁNHÂN/g)).toHaveLength(1);
+    expect(catalog?.match(/LUẬTANNINHMẠNG/g)).toHaveLength(1);
+    expect(extracted.text).toContain("Mã tài liệu");
+  });
+
+  it("shows accepted evidence once with a single repository-scope limitation", async () => {
+    const report = sourceBackedFixture(1, ["NON_COMPLIANT"]);
+    const evidenceIds = [idFor(80), idFor(81), idFor(82)];
+    const locators = ["src/guard.py:1-10", "src/api.ts:20-40", "README.md:1-8"];
+    report.evidenceIndex = evidenceIds.map((evidenceId, index) => ({
+      evidenceId,
+      type: "REPOSITORY_FILE",
+      contentSha256: sha,
+      repositoryCommit: "a".repeat(40),
+      safeLocator: locators[index],
+    }));
+    report.ruleDetails[0].evidenceIds = evidenceIds;
+
+    const bytes = await render(report, {
+      translations: {
+        "Accepted rationale":
+          "Trong repository được kiểm tra chưa thấy biện pháp tương ứng; tiêu chí chưa đạt.",
+        "Accepted criterion rationale":
+          "Trong repository được kiểm tra chưa thấy biện pháp tương ứng.",
+      },
+    });
+    const parser = new PDFParse({ data: bytes });
+    const extracted = await parser.getText();
+    await parser.destroy();
+    const main = extracted.text.split("Phụ lục — Bảng truy vết kỹ thuật")[0];
+
+    expect(main).toContain("Nguồn đã kiểm tra");
+    expect(main).not.toContain("<code>");
+    for (const locator of locators) expect(main).toContain(locator);
+    expect(main.match(/Bằng chứng đã được ghi nhận/gu)).toHaveLength(1);
+    expect(
+      main
+        .replace(/\s+/gu, " ")
+        .match(/không xác nhận biện pháp vận hành bên ngoài repository/giu),
+    ).toHaveLength(1);
+    expect(main).not.toContain(
+      "đường dẫn hoặc loại nguồn tự nó không chứng minh",
+    );
+  });
+
+  it("keeps the accepted decision explanation and limitation in one continuation block", async () => {
+    const report = sourceBackedFixture(1, ["NON_COMPLIANT"]);
+    const rationale =
+      "Kết luận đã chấp nhận dựa trên tiêu chí chưa đạt trong phạm vi kho mã được kiểm tra.";
+    const bytes = await render(report, {
+      translations: { "Accepted rationale": rationale },
+    });
+    const parser = new PDFParse({ data: bytes });
+    const extracted = await parser.getText();
+    await parser.destroy();
+    const explanationPage = extracted.pages.find((page) =>
+      page.text.includes("Giải thích kết luận"),
+    );
+
+    expect(explanationPage).toBeDefined();
+    expect(explanationPage?.text.replace(/\s+/gu, " ")).toContain(rationale);
+    expect(explanationPage?.text).toContain("Giới hạn của kết luận");
+  });
+
+  it("distinguishes permitted legal circumstances from exceptions invoked by the decision", async () => {
+    const report = fixture();
+    report.legalRequirements[0].exceptions = [
+      "A permitted circumstance listed in the legal provision.",
+    ];
+    const bytes = await render(report, {
+      translations: {
+        "A permitted circumstance listed in the legal provision.":
+          "Trường hợp được quy định cho phép công khai dữ liệu.",
+        "Accepted rationale":
+          "Không có trường hợp ngoại lệ nào được viện dẫn trong quyết định đã chấp nhận.",
+      },
+    });
+    const parser = new PDFParse({ data: bytes });
+    const extracted = await parser.getText();
+    await parser.destroy();
+    const main = extracted.text.split("Phụ lục — Bảng truy vết kỹ thuật")[0];
+
+    expect(main).toContain("Ngoại lệ được nêu trong quy định");
+    const normalizedMain = main.replace(/\s+/gu, " ");
+    expect(normalizedMain).toContain(
+      "Trường hợp được quy định cho phép công khai dữ liệu",
+    );
+    expect(normalizedMain).toContain(
+      "Không có trường hợp ngoại lệ nào được viện dẫn",
+    );
   });
 
   it("projects the proposition from structured criterion source metadata", async () => {
@@ -435,7 +679,9 @@ describe("AssessmentPdfRenderer", () => {
     expect(mainContent).not.toContain(
       "Không có điều kiện riêng được ghi nhận.",
     );
-    expect(mainContent).toContain("Không đánh giá do nghĩa vụ không áp dụng");
+    expect(mainContent.replace(/\s+/gu, " ")).toContain(
+      "Không đánh giá do nghĩa vụ không áp dụng",
+    );
   });
 
   it("keeps publication-like fact text distinct from the publication label", async () => {

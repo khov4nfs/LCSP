@@ -242,9 +242,21 @@ export function localizedEvidenceType(value: string): string {
   return localizeReportText(value) ?? VIETNAMESE_LABELS.otherEvidence;
 }
 
+const VERIFIED_LEGAL_DOCUMENT_TITLES: Readonly<Record<string, string>> = {
+  "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan":
+    "Luật Bảo vệ dữ liệu cá nhân",
+  "luat-so-116-2025-qh15-luat-an-ninh-mang": "Luật An ninh mạng",
+};
+
 export function legalDocumentName(documentId: string): string {
   const law = documentId.match(/^luat-so-(\d+)-(\d+)-qh(\d+)\b/u);
-  if (law) return `Luật số ${law[1]}/${law[2]}/QH${law[3]}`;
+  if (law) {
+    const verifiedTitle = VERIFIED_LEGAL_DOCUMENT_TITLES[documentId];
+    const number = `${law[1]}/${law[2]}/QH${law[3]}`;
+    return verifiedTitle
+      ? `${verifiedTitle} số ${number}`
+      : `Luật số ${number}`;
+  }
   const decree = documentId.match(/^nghi-dinh-so-(\d+)-(\d+)-nd-cp\b/u);
   if (decree) return `Nghị định số ${decree[1]}/${decree[2]}/NĐ-CP`;
   return "Tài liệu pháp lý";
@@ -460,21 +472,26 @@ export function reportDecisionExplanation(rule: RulePresentation): string {
 
 export function ruleTitleInVietnamese(
   rule: RulePresentation,
-  reference: ReportReferenceIndex,
   translations: ReportTranslationCatalog = {},
 ): string {
   const title = rule.legalRequirements
     .map((item) => localizeReportText(item.title, translations))
     .find((item): item is string => Boolean(item));
-  if (title) return title;
+  if (title)
+    return title.replace(
+      / \(nguyên văn song ngữ được lưu trong phụ lục\)$/u,
+      "",
+    );
   const proposition = rule.legalRequirements
     .map((item) => localizeReportText(item.proposition, translations))
     .find((item): item is string => Boolean(item));
   if (proposition)
-    return proposition.split(/(?<=[.!?])\s/u, 1)[0] ?? proposition;
-  const source = rule.legalRequirements[0]?.title;
-  const sourceRef = source ? reference.textReference(source) : undefined;
-  return `Chưa có tiêu đề tiếng Việt đã xác minh${sourceRef ? ` (nguyên văn [${sourceRef}] ở phụ lục)` : ""}`;
+    return (
+      proposition
+        .replace(/ \(nguyên văn song ngữ được lưu trong phụ lục\)$/u, "")
+        .split(/(?<=[.!?])\s/u, 1)[0] ?? proposition
+    );
+  return "Chưa có tiêu đề nghĩa vụ tiếng Việt đã được xác minh.";
 }
 
 export function contentInVietnameseOrAppendix(
@@ -516,10 +533,7 @@ export function factPresentation(
 
 export function criterionPresentation(
   criterion: RulePresentation["criterionDecisions"][number],
-  reference: ReportReferenceIndex,
-  ruleReference: string,
   translations: ReportTranslationCatalog = {},
-  legalRequirements: RulePresentation["legalRequirements"] = [],
 ): string {
   const statement = localizeReportText(criterion.statement, translations);
   if (statement) return statement;
@@ -533,12 +547,7 @@ export function criterionPresentation(
       "",
     );
   if (proposition && hasVietnameseDiacritics(proposition)) return proposition;
-  const requirementProposition = legalRequirements
-    .map((item) => localizeReportText(item.proposition, translations))
-    .find((item): item is string => Boolean(item));
-  if (requirementProposition) return requirementProposition;
-  const original = reference.textReference(criterion.statement);
-  return `Chưa có bản dịch tiếng Việt đã xác minh cho tiêu chí ${ruleReference}${original ? ` (nguyên văn ${original} ở phụ lục)` : ""}`;
+  return "Mô tả tiêu chí chưa có bản tiếng Việt đã được xác minh; nguyên văn được giữ trong phụ lục.";
 }
 
 export function decisionReferenceLabels(
