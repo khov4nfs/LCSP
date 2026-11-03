@@ -233,115 +233,185 @@ export class OutboxDlqService {
    * Business purpose: Permanently discard or tombstone an operator-selected DLQ message and audit the decision.
    * Business rules:
    * - Only a message currently in DLQ status can be discarded.
+   * - Active executions with held physical slots or non-quiescent runtimes strictly reject discard.
    * - Commands referenced by durable admission bookkeeping become cancelled tombstones; unreferenced messages are physically removed.
    * - Discard audit (dlqDiscarded) must commit atomically with message deletion or tombstone. If audit fails, discard rolls back.
+   * - Ineligible discard attempts record an isolated dlqDiscardDenied audit event.
    * - Competing replay and discard serialize under the global capacity and outbox row locks.
    * Execution flow:
    * 1. Start a transaction using the application Prisma client.
    * 2. Lock the global capacity row (AssessmentRootCapacity) FOR UPDATE.
    * 3. Read and lock target OutboxMessage row FOR UPDATE.
    * 4. Verify message exists and is in DLQ status (throw 404 dlqMessageNotFound if missing or not DLQ).
-   * 5. Check whether durable admission bookkeeping exists for this command.
+   * 5. For Root commands, verify physical execution slots are completely released and runtime is not running.
    * 6. Conditionally update status to CANCELLED (if intent exists) or delete the row (if unreferenced).
    * 7. Write OUTBOX_AUDIT_EVENT_TYPES.dlqDiscarded using auditWriter.writeInTx(..., tx).
    * 8. Commit transaction.
    * Failure cases:
    * - Message missing or not in DLQ raises 404 NOT FOUND.
+   * - Held physical slots or running execution throws 409 CONFLICT dlqDiscardUnsafeTarget and writes dlqDiscardDenied audit.
    * - Injected audit failure or DB error aborts transaction; no discard or tombstone survives.
    * Side effects:
-   * - Removes DLQ visibility; records immutable discard audit.
+   * - Removes DLQ visibility; records immutable discard or denial audit.
    */
   async deleteMessage(
     id: string,
     actorId: string,
     correlationId: string,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      // Step 1: Acquire global capacity lock to serialize with admission, quiescence and replay
-      await tx.$executeRaw`
-        INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
-        VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
-        ON CONFLICT ("id") DO NOTHING
-      `;
-      await tx.$queryRaw`
-        SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE
-      `;
+    let messageSnapshot: { eventType: string; aggregateId: string } | undefined;
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Step 1: Acquire global capacity lock to serialize with admission, quiescence and replay
+        await tx.$executeRaw`
+          INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
+          VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
+          ON CONFLICT ("id") DO NOTHING
+        `;
+        await tx.$queryRaw`
+          SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE
+        `;
 
-      // Step 2: Read and lock current outbox message
-      const rows = await tx.$queryRaw<
-        Array<{
-          id: string;
-          status: string;
-          eventType: string;
-          aggregateType: string;
-          aggregateId: string;
-        }>
-      >`
-        SELECT "id", "status"::text AS "status", "eventType", "aggregateType"::text AS "aggregateType", "aggregateId"
-        FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
-      `;
-      const message = rows[0];
-      if (!message || message.status !== OUTBOX_STATUSES.dlq) {
-        throw problemException(
-          OUTBOX_ERROR_CODES.dlqMessageNotFound,
-          correlationId,
+        // Step 2: Read and lock current outbox message
+        const rows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            status: string;
+            eventType: string;
+            aggregateType: string;
+            aggregateId: string;
+          }>
+        >`
+          SELECT "id", "status"::text AS "status", "eventType", "aggregateType"::text AS "aggregateType", "aggregateId"
+          FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
+        `;
+        const message = rows[0];
+        if (!message || message.status !== OUTBOX_STATUSES.dlq) {
+          throw problemException(
+            OUTBOX_ERROR_CODES.dlqMessageNotFound,
+            correlationId,
+            {
+              status: HttpStatus.NOT_FOUND,
+            },
+          );
+        }
+        messageSnapshot = {
+          eventType: message.eventType,
+          aggregateId: message.aggregateId,
+        };
+
+        // Step 3: Check for durable admission bookkeeping
+        const intent = await tx.assessmentRootAdmissionRequest.findUnique({
+          where: { commandId: id },
+          select: { commandId: true, assessmentId: true },
+        });
+
+        // Step 4: If Root intent exists, check physical slot and execution quiescence
+        if (
+          intent ||
+          message.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED
+        ) {
+          const assessmentId = intent?.assessmentId ?? message.aggregateId;
+          const heldSlots = await tx.assessmentRootExecutionSlot.count({
+            where: {
+              assessmentId,
+              releasedAt: null,
+            },
+          });
+          if (heldSlots > 0) {
+            this.unsafeDiscard(correlationId);
+          }
+
+          const assessment = await tx.assessment.findUnique({
+            where: { id: assessmentId },
+            select: {
+              runtime: {
+                select: {
+                  executionState: true,
+                  leaseToken: true,
+                },
+              },
+            },
+          });
+          if (
+            assessment?.runtime?.executionState ===
+              AGENT_EXECUTION_STATES.RUNNING ||
+            assessment?.runtime?.leaseToken != null
+          ) {
+            this.unsafeDiscard(correlationId);
+          }
+        }
+
+        // Step 5: Conditionally tombstone or delete
+        if (intent) {
+          const updated = await tx.$executeRaw`
+            UPDATE "OutboxMessage" SET
+              "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled)}::"OutboxStatus"
+            WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+          `;
+          if (updated === 0) {
+            throw problemException(
+              OUTBOX_ERROR_CODES.dlqMessageNotFound,
+              correlationId,
+              { status: HttpStatus.NOT_FOUND },
+            );
+          }
+        } else {
+          const deleted = await tx.$executeRaw`
+            DELETE FROM "OutboxMessage"
+            WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+          `;
+          if (deleted === 0) {
+            throw problemException(
+              OUTBOX_ERROR_CODES.dlqMessageNotFound,
+              correlationId,
+              { status: HttpStatus.NOT_FOUND },
+            );
+          }
+        }
+
+        // Step 6: Atomically persist discard audit event inside the transaction
+        await this.auditWriter.writeInTx(
           {
-            status: HttpStatus.NOT_FOUND,
+            eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqDiscarded,
+            actorId,
+            resourceType: AUDIT_RESOURCE_TYPES.outbox,
+            resourceId: id,
+            decision: AUDIT_DECISIONS.allow,
+            correlationId,
+            payload: {
+              originalEventType: message.eventType,
+              aggregateId: message.aggregateId,
+            },
           },
+          tx,
         );
-      }
-
-      // Step 3: Check for durable admission bookkeeping
-      const intent = await tx.assessmentRootAdmissionRequest.findUnique({
-        where: { commandId: id },
-        select: { commandId: true },
       });
-
-      // Step 4: Conditionally tombstone or delete
-      if (intent) {
-        const updated = await tx.$executeRaw`
-          UPDATE "OutboxMessage" SET
-            "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled)}::"OutboxStatus"
-          WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
-        `;
-        if (updated === 0) {
-          throw problemException(
-            OUTBOX_ERROR_CODES.dlqMessageNotFound,
-            correlationId,
-            { status: HttpStatus.NOT_FOUND },
-          );
-        }
-      } else {
-        const deleted = await tx.$executeRaw`
-          DELETE FROM "OutboxMessage"
-          WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
-        `;
-        if (deleted === 0) {
-          throw problemException(
-            OUTBOX_ERROR_CODES.dlqMessageNotFound,
-            correlationId,
-            { status: HttpStatus.NOT_FOUND },
-          );
-        }
-      }
-
-      // Step 5: Atomically persist discard audit event inside the transaction
-      await this.auditWriter.writeInTx(
-        {
-          eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqDiscarded,
+    } catch (error) {
+      if (
+        messageSnapshot &&
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        (error as { response?: { problem?: { code?: string } } }).response
+          ?.problem?.code === OUTBOX_ERROR_CODES.dlqDiscardUnsafeTarget
+      ) {
+        await this.auditWriter.write({
+          eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqDiscardDenied,
           actorId,
           resourceType: AUDIT_RESOURCE_TYPES.outbox,
           resourceId: id,
-          decision: AUDIT_DECISIONS.allow,
+          decision: AUDIT_DECISIONS.deny,
           correlationId,
+          reasonCode: OUTBOX_ERROR_CODES.dlqDiscardUnsafeTarget,
           payload: {
-            originalEventType: message.eventType,
-            aggregateId: message.aggregateId,
+            originalEventType: messageSnapshot.eventType,
+            aggregateId: messageSnapshot.aggregateId,
           },
-        },
-        tx,
-      );
-    });
+        });
+      }
+      throw error;
+    }
   }
 
   /**
@@ -420,6 +490,27 @@ export class OutboxDlqService {
   private unsafeReplay(correlationId: string): never {
     throw problemException(
       OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget,
+      correlationId,
+      {
+        status: HttpStatus.CONFLICT,
+      },
+    );
+  }
+
+  /**
+   * Business purpose: Raise the standardized conflict response when operator discard targets an active or non-quiescent execution.
+   * Business rules:
+   * - Conflict error code dlqDiscardUnsafeTarget must be emitted with HTTP 409 status code.
+   * Execution flow:
+   * 1. Construct and throw the standardized problem exception.
+   * Failure cases:
+   * - Always throws problemException with CONFLICT status.
+   * Side effects:
+   * - Pure error construction; no database mutations or side effects.
+   */
+  private unsafeDiscard(correlationId: string): never {
+    throw problemException(
+      OUTBOX_ERROR_CODES.dlqDiscardUnsafeTarget,
       correlationId,
       {
         status: HttpStatus.CONFLICT,

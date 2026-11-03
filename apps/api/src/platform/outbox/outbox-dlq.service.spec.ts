@@ -14,6 +14,7 @@ import {
   OUTBOX_ERROR_CODES,
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
+import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { jest } from "@jest/globals";
@@ -291,5 +292,36 @@ describe("OutboxDlqService", () => {
       service.deleteMessage("1", "actor-1", "corr-2"),
     ).rejects.toThrow(NotFoundException);
     expect(writeAuditInTx).not.toHaveBeenCalled();
+  });
+
+  it("rejects discard and records dlqDiscardDenied when a Root has a held execution slot", async () => {
+    currentMessageRow = {
+      id: "1",
+      aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+      status: OUTBOX_STATUSES.dlq,
+      eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+      aggregateId: "123",
+    };
+    (
+      txMock.assessmentRootExecutionSlot as {
+        count: jest.Mock<() => Promise<number>>;
+      }
+    ).count.mockResolvedValueOnce(1);
+
+    await expect(
+      service.deleteMessage("1", "actor-1", "corr-discard-deny"),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: OUTBOX_ERROR_CODES.dlqDiscardUnsafeTarget },
+      },
+    });
+    expect(writeAuditInTx).not.toHaveBeenCalled();
+    expect(writeAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqDiscardDenied,
+        decision: AUDIT_DECISIONS.deny,
+        correlationId: "corr-discard-deny",
+      }),
+    );
   });
 });

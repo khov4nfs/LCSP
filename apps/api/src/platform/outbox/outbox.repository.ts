@@ -364,7 +364,7 @@ export class OutboxRepository {
       }
       const intent = await client.assessmentRootAdmissionRequest.findUnique({
         where: { commandId: id },
-        select: { commandId: true },
+        select: { commandId: true, assessmentId: true },
       });
       if (intent) {
         const updated = await client.$executeRaw`

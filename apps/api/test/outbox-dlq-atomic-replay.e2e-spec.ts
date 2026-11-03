@@ -22,10 +22,25 @@ import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 import { OutboxDlqService } from "../src/platform/outbox/outbox-dlq.service.js";
 import { AuditWriterService } from "../src/platform/audit/audit-writer.service.js";
-import {
-  TEST_DATABASE_URL,
-  pushPrismaSchema,
-} from "./support/auth-workspace-test-helpers.js";
+
+function assertDisposableDatabase(databaseUrl: string | undefined): void {
+  if (!databaseUrl) {
+    throw new Error(
+      "Dedicated local disposable test database required: DATABASE_URL must be defined",
+    );
+  }
+  const parsed = new URL(databaseUrl);
+  const isLocal = ["127.0.0.1", "localhost"].includes(parsed.hostname);
+  const isDisposable =
+    parsed.pathname.includes("lcsp_api_test") ||
+    parsed.pathname.includes("lcsp364_capacity") ||
+    parsed.pathname.endsWith("_test");
+  if (!isLocal || !isDisposable) {
+    throw new Error(
+      `Refusing execution on non-disposable database: ${databaseUrl}. Dedicated local disposable test database required (localhost/127.0.0.1 and name matching lcsp_api_test, lcsp364_capacity, or *_test).`,
+    );
+  }
+}
 
 describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real PostgreSQL)", () => {
   let prisma1: PrismaService;
@@ -38,9 +53,65 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
   let dlqService2: OutboxDlqService;
   let defaultOwnerId: string;
 
+  const trackedAssessmentIds = new Set<string>();
+  const trackedCommandIds = new Set<string>();
+  const trackedUserIds = new Set<string>();
+  const trackedScanJobIds = new Set<string>();
+  const trackedSnapshotIds = new Set<string>();
+  const trackedConnectionIds = new Set<string>();
+
+  async function cleanTrackedFixtures(includeUser = false) {
+    if (trackedCommandIds.size > 0) {
+      const commandIds = Array.from(trackedCommandIds);
+      await prisma1.auditEvent.deleteMany({
+        where: { resourceId: { in: commandIds } },
+      });
+      await prisma1.assessmentRootExecutionSlot.deleteMany({
+        where: { commandId: { in: commandIds } },
+      });
+      await prisma1.assessmentRootAdmissionRequest.deleteMany({
+        where: { commandId: { in: commandIds } },
+      });
+      await prisma1.outboxMessage.deleteMany({
+        where: { id: { in: commandIds } },
+      });
+    }
+    if (trackedScanJobIds.size > 0) {
+      await prisma1.repositoryScanJob.deleteMany({
+        where: { id: { in: Array.from(trackedScanJobIds) } },
+      });
+    }
+    if (trackedSnapshotIds.size > 0) {
+      await prisma1.repositorySnapshot.deleteMany({
+        where: { id: { in: Array.from(trackedSnapshotIds) } },
+      });
+    }
+    if (trackedConnectionIds.size > 0) {
+      await prisma1.repositoryConnection.deleteMany({
+        where: { id: { in: Array.from(trackedConnectionIds) } },
+      });
+    }
+    if (trackedAssessmentIds.size > 0) {
+      const assessmentIds = Array.from(trackedAssessmentIds);
+      await prisma1.assessmentRuntimeTurn.deleteMany({
+        where: { assessmentId: { in: assessmentIds } },
+      });
+      await prisma1.assessmentRuntime.deleteMany({
+        where: { assessmentId: { in: assessmentIds } },
+      });
+      await prisma1.assessment.deleteMany({
+        where: { id: { in: assessmentIds } },
+      });
+    }
+    if (includeUser && trackedUserIds.size > 0) {
+      await prisma1.user.deleteMany({
+        where: { id: { in: Array.from(trackedUserIds) } },
+      });
+    }
+  }
+
   beforeAll(async () => {
-    process.env.DATABASE_URL = TEST_DATABASE_URL;
-    pushPrismaSchema();
+    assertDisposableDatabase(process.env.DATABASE_URL);
     prisma1 = new PrismaService();
     prisma2 = new PrismaService();
 
@@ -59,6 +130,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     `;
 
     defaultOwnerId = `owner-${randomUUID()}`;
+    trackedUserIds.add(defaultOwnerId);
     await prisma1.user.create({
       data: {
         id: defaultOwnerId,
@@ -72,33 +144,13 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
   });
 
   afterAll(async () => {
-    await prisma1.auditEvent.deleteMany();
-    await prisma1.assessmentRootExecutionSlot.deleteMany();
-    await prisma1.assessmentRootAdmissionRequest.deleteMany();
-    await prisma1.outboxMessage.deleteMany();
-    await prisma1.assessmentRuntimeTurn.deleteMany();
-    await prisma1.assessmentRuntime.deleteMany();
-    await prisma1.repositoryScanJob.deleteMany();
-    await prisma1.repositorySnapshot.deleteMany();
-    await prisma1.repositoryConnection.deleteMany();
-    await prisma1.assessment.deleteMany();
-    await prisma1.user.deleteMany({ where: { id: defaultOwnerId } });
+    await cleanTrackedFixtures(true);
     await prisma1.$disconnect();
     await prisma2.$disconnect();
   });
 
   beforeEach(async () => {
-    // Clean up test tables
-    await prisma1.auditEvent.deleteMany();
-    await prisma1.assessmentRootExecutionSlot.deleteMany();
-    await prisma1.assessmentRootAdmissionRequest.deleteMany();
-    await prisma1.outboxMessage.deleteMany();
-    await prisma1.assessmentRuntimeTurn.deleteMany();
-    await prisma1.assessmentRuntime.deleteMany();
-    await prisma1.repositoryScanJob.deleteMany();
-    await prisma1.repositorySnapshot.deleteMany();
-    await prisma1.repositoryConnection.deleteMany();
-    await prisma1.assessment.deleteMany();
+    await cleanTrackedFixtures(false);
   });
 
   async function createQuarantinedRootFixture(
@@ -118,6 +170,9 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     const commandId = overrides.commandId ?? `cmd-${assessmentId}`;
     const threadId = randomUUID();
     const checkpointId = `cp-${randomUUID()}`;
+
+    trackedAssessmentIds.add(assessmentId);
+    trackedCommandIds.add(commandId);
 
     await prisma1.assessment.create({
       data: {
@@ -507,6 +562,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
   it("Test 8: non-Root events replay/discard cleanly without requiring Root admission bookkeeping", async () => {
     // 8A: Ordinary non-Root event
     const ordinaryId = `ordinary-${randomUUID()}`;
+    trackedCommandIds.add(ordinaryId);
     await prisma1.outboxMessage.create({
       data: {
         id: ordinaryId,
@@ -542,6 +598,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     // 8B: Terminal repository scan job -> replay denied
     const scanAssessment = await createQuarantinedRootFixture();
     const connId = `conn-${randomUUID()}`;
+    trackedConnectionIds.add(connId);
     await prisma1.repositoryConnection.create({
       data: {
         id: connId,
@@ -554,6 +611,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
       },
     });
     const snapId = `snap-${randomUUID()}`;
+    trackedSnapshotIds.add(snapId);
     await prisma1.repositorySnapshot.create({
       data: {
         id: snapId,
@@ -568,6 +626,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
       },
     });
     const scanJobId = `job-${randomUUID()}`;
+    trackedScanJobIds.add(scanJobId);
     await prisma1.repositoryScanJob.create({
       data: {
         id: scanJobId,
@@ -580,6 +639,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
       },
     });
     const scanJobMsgId = `msg-scan-${randomUUID()}`;
+    trackedCommandIds.add(scanJobMsgId);
     await prisma1.outboxMessage.create({
       data: {
         id: scanJobMsgId,
@@ -631,6 +691,64 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
         expect((r.reason as Error).message).not.toContain("deadlock detected");
       }
     }
+
+    // Verify all operations succeeded
+    expect(results[0].status).toBe("fulfilled");
+    expect(results[1].status).toBe("fulfilled");
+    expect(results[2].status).toBe("fulfilled");
+    expect(results[3].status).toBe("fulfilled");
+    expect(results[4].status).toBe("fulfilled");
+    expect(results[5].status).toBe("fulfilled");
+
+    // fixtures[0] was replayed: status must be PENDING/OWNED_PENDING, attempts reset
+    const msg0 = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixtures[0].commandId },
+    });
+    expect([OUTBOX_STATUSES.pending, OUTBOX_STATUSES.ownedPending]).toContain(
+      msg0.status,
+    );
+    expect(msg0.attempts).toBe(0);
+
+    // fixtures[1] was discarded: status must be CANCELLED tombstone
+    const msg1 = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixtures[1].commandId },
+    });
+    expect(msg1.status).toBe(OUTBOX_STATUSES.cancelled);
+
+    // fixtures[2] was replayed: status must be PENDING/OWNED_PENDING
+    const msg2 = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixtures[2].commandId },
+    });
+    expect([OUTBOX_STATUSES.pending, OUTBOX_STATUSES.ownedPending]).toContain(
+      msg2.status,
+    );
+    expect(msg2.attempts).toBe(0);
+
+    // fixtures[3] was discarded: status must be CANCELLED tombstone
+    const msg3 = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixtures[3].commandId },
+    });
+    expect(msg3.status).toBe(OUTBOX_STATUSES.cancelled);
+
+    // Verify all positive audit events were persisted
+    const [audit0, audit1, audit2, audit3] = await Promise.all([
+      prisma1.auditEvent.findMany({
+        where: { resourceId: fixtures[0].commandId },
+      }),
+      prisma1.auditEvent.findMany({
+        where: { resourceId: fixtures[1].commandId },
+      }),
+      prisma1.auditEvent.findMany({
+        where: { resourceId: fixtures[2].commandId },
+      }),
+      prisma1.auditEvent.findMany({
+        where: { resourceId: fixtures[3].commandId },
+      }),
+    ]);
+    expect(audit0[0].eventType).toBe(OUTBOX_AUDIT_EVENT_TYPES.dlqReplayed);
+    expect(audit1[0].eventType).toBe(OUTBOX_AUDIT_EVENT_TYPES.dlqDiscarded);
+    expect(audit2[0].eventType).toBe(OUTBOX_AUDIT_EVENT_TYPES.dlqReplayed);
+    expect(audit3[0].eventType).toBe(OUTBOX_AUDIT_EVENT_TYPES.dlqDiscarded);
   });
 
   // Test 10 — Repository resetMessageForReplay fails closed on non-DLQ or held slot
@@ -644,5 +762,99 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     await expect(
       repo1.resetMessageForReplay(fixture.commandId),
     ).rejects.toThrow("OUTBOX_MESSAGE_NOT_DLQ");
+  });
+
+  // Test 11 — Discard refused when physical slot is held or execution is running
+  it("Test 11: refuses discard and records denial audit when physical execution slot is held", async () => {
+    const fixture = await createQuarantinedRootFixture({ heldSlot: true });
+    await expect(
+      dlqService1.deleteMessage(
+        fixture.commandId,
+        "admin-1",
+        "corr-discard-held",
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: OUTBOX_ERROR_CODES.dlqDiscardUnsafeTarget },
+      },
+    });
+
+    // Outbox message remains DLQ
+    const msg = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixture.commandId },
+    });
+    expect(msg.status).toBe(OUTBOX_STATUSES.dlq);
+
+    // Exactly one denial audit recorded
+    const audits = await prisma1.auditEvent.findMany({
+      where: { resourceId: fixture.commandId },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0].eventType).toBe(OUTBOX_AUDIT_EVENT_TYPES.dlqDiscardDenied);
+    expect(audits[0].decision).toBe(AUDIT_DECISIONS.deny);
+  });
+
+  // Test 12 — Race with slot acquisition: replay refused when slot acquired concurrently
+  it("Test 12: refuses replay when a physical execution slot is acquired before replay commits", async () => {
+    const fixture = await createQuarantinedRootFixture({ heldSlot: false });
+
+    // Acquire physical slot right before replay or during execution
+    const runId = randomUUID();
+    await prisma2.assessmentRootExecutionSlot.create({
+      data: {
+        runId,
+        assessmentId: fixture.assessmentId,
+        commandId: fixture.commandId,
+        incarnationId: randomUUID(),
+        requestedAt: new Date(),
+        admittedAt: new Date(),
+        releasedAt: null,
+      },
+    });
+
+    await expect(
+      dlqService1.replayMessage(
+        fixture.commandId,
+        "admin-race-slot",
+        "corr-race-slot",
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget },
+      },
+    });
+
+    // Message must remain in DLQ
+    const msg = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixture.commandId },
+    });
+    expect(msg.status).toBe(OUTBOX_STATUSES.dlq);
+
+    // Denial audit must be recorded
+    const audits = await prisma1.auditEvent.findMany({
+      where: { resourceId: fixture.commandId },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0].eventType).toBe(OUTBOX_AUDIT_EVENT_TYPES.dlqReplayDenied);
+    expect(audits[0].decision).toBe(AUDIT_DECISIONS.deny);
+  });
+
+  // Test 13 — Repository deleteMessage tombstones Root DLQ command without cascading admission intent
+  it("Test 13: outboxRepository.deleteMessage tombstones Root DLQ command to CANCELLED without deleting intent", async () => {
+    const fixture = await createQuarantinedRootFixture({ heldSlot: true });
+
+    await repo1.deleteMessage(fixture.commandId);
+
+    const msg = await prisma1.outboxMessage.findUniqueOrThrow({
+      where: { id: fixture.commandId },
+    });
+    expect(msg.status).toBe(OUTBOX_STATUSES.cancelled);
+
+    // Admission request remains intact (not deleted)
+    const intent = await prisma1.assessmentRootAdmissionRequest.findUnique({
+      where: { commandId: fixture.commandId },
+    });
+    expect(intent).not.toBeNull();
+    expect(intent?.assessmentId).toBe(fixture.assessmentId);
   });
 });
