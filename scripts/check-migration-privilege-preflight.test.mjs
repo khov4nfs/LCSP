@@ -137,17 +137,26 @@ test("check-migration-privilege-preflight: skips database probes in dry-run mode
 });
 
 const databaseUrl =
-  process.env.LCSP328_TEST_DATABASE_URL || process.env.DATABASE_URL;
+  process.env.LCSP_TEST_PREFLIGHT_DATABASE_URL ||
+  process.env.LCSP328_TEST_DATABASE_URL;
 
 if (databaseUrl) {
-  test("check-migration-privilege-preflight: real postgres probe validates privilege separation", async () => {
-    const adminClient = new Client({ connectionString: databaseUrl });
+  test("check-migration-privilege-preflight: real postgres probe validates privilege separation", async (t) => {
+    const adminClient = new Client({
+      connectionString: databaseUrl,
+      connectionTimeoutMillis: 2000,
+    });
     const suffix = Math.random().toString(36).slice(2, 8);
     const migRole = `mig_preflight_${suffix}`;
     const apiRole = `api_preflight_${suffix}`;
     const password = `Pass_${suffix}!123`;
 
-    await adminClient.connect();
+    try {
+      await adminClient.connect();
+    } catch (err) {
+      t.skip(`PostgreSQL test database unavailable: ${err.message}`);
+      return;
+    }
 
     const parseUrl = new URL(databaseUrl);
     const host = parseUrl.hostname;
