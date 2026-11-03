@@ -122,6 +122,21 @@ def root_permissions() -> list[FilesystemPermission]:
 
 
 def _graph_tools() -> list[Any]:
+    """Business purpose:
+    Select approved read-only repository graph tools with decision-authority caveats.
+
+    Business rules:
+    - Only the existing four graph tools may be exposed; descriptions do not change capability.
+
+    Execution flow:
+    1. Select known tools and create copies with appended retrieval limitations.
+
+    Failure cases:
+    - Missing graph tools simply result in a smaller delegated search surface.
+
+    Side effects:
+    - Constructs tool specifications; cannot alter source, legal rules or decisions.
+    """
     from tools.common.codebase_memory_graph import CODEBASE_MEMORY_GRAPH_TOOLS
 
     return [

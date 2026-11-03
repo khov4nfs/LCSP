@@ -541,11 +541,39 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     client = run.client
 
     def list_assessment_skills() -> dict[str, Any]:
-        """List optional approved research methods; never authoritative legal evidence."""
+        """Business purpose:
+        Expose available generic investigation skill names to the Assessment Root.
+
+        Business rules:
+        - Skill metadata does not prove a repository feature or extend selected legal scope.
+
+        Execution flow:
+        1. Return the source-controlled allowlist and relevance hints.
+
+        Failure cases:
+        - There are no runtime lookups; an empty catalog would return empty options.
+
+        Side effects:
+        - Read-only response; no evidence or legal decisions are persisted.
+        """
         return {"ok": True, "skills": list_skills()}
 
     def load_assessment_skill(name: str) -> dict[str, Any]:
-        """Load one method for a selected-rule investigation, without granting rights."""
+        """Business purpose:
+        Retrieve one optional investigation method for the current selected-rule work.
+
+        Business rules:
+        - Only registered skill names, never arbitrary paths; skills remain non-normative.
+
+        Execution flow:
+        1. Validate the name and load versioned source-controlled instructions with hash.
+
+        Failure cases:
+        - Invalid names return a typed result; missing checked-in content raises a visible error.
+
+        Side effects:
+        - May publish the existing skill usage event; no Assessment domain writes.
+        """
         return load_skill(name)
 
     def get_assessment_context() -> dict[str, Any]:
@@ -1180,6 +1208,21 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return {"ok": True, **result}
 
     def tool(func, schema: type[BaseModel] | None, name: str) -> StructuredTool:
+        """Business purpose:
+        Build governed structured API tools with source-authority guidance.
+
+        Business rules:
+        - Preserve existing typed validation, feedback, tool names and API ownership.
+
+        Execution flow:
+        1. Wrap the bound callable and attach both its original description and tool contract.
+
+        Failure cases:
+        - Invalid model args keep existing feedback; tool rejection never fabricates facts.
+
+        Side effects:
+        - Constructs tool objects only; effects occur solely on later guarded invocation.
+        """
         return StructuredTool.from_function(
             func=_guard(func),
             name=name,

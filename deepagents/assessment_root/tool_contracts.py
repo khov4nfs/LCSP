@@ -29,5 +29,20 @@ GRAPH_CONTRACTS: dict[str, str] = {
 
 
 def describe_tool(name: str, original: str) -> str:
+    """Business purpose:
+    Append bounded authority guidance to a known Assessment or source-search tool.
+
+    Business rules:
+    - Preserve the original tool schema, name, permissions and server authority.
+
+    Execution flow:
+    1. Look up static guidance and combine it with the original description.
+
+    Failure cases:
+    - Unregistered tools retain their original descriptions without new assumptions.
+
+    Side effects:
+    - Pure description construction; no tool invocation or domain mutation.
+    """
     guidance = CONTRACTS.get(name) or GRAPH_CONTRACTS.get(name)
     return original.strip() + ("\n\nASSESSMENT TOOL CONTRACT: " + guidance if guidance else "")
