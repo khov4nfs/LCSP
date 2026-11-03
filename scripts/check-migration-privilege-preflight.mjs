@@ -51,7 +51,7 @@ function sanitizeUrl(rawUrl) {
  *
  * Execution flow:
  * 1. Parse command-line options and locate environment configuration files.
- * 2. Validate existence of required environment files and non-empty connection URLs.
+ * 2. Validate existence of required environment files and reject any leaked migration credentials in runtime config.
  * 3. Enforce distinct URLs in production mode.
  * 4. Probe PostgreSQL via MIGRATION_DATABASE_URL to confirm DDL schema privilege.
  * 5. Probe PostgreSQL via DATABASE_URL to confirm least-privilege restriction (no DDL schema privilege in production).
@@ -59,6 +59,7 @@ function sanitizeUrl(rawUrl) {
  *
  * Failure cases:
  * - Missing migration credentials file in production fails deployment preflight.
+ * - Leaked MIGRATION_DATABASE_URL in runtime configuration aborts with least-privilege violation.
  * - Identical migration and runtime URLs in production aborts with least-privilege violation.
  * - Database connection failure or missing DDL privilege on migration role exits with code 1.
  * - Runtime identity having DDL privileges in production exits with code 1.
@@ -88,6 +89,13 @@ export async function checkMigrationPrivilegePreflight(argv = process.argv) {
   const migrationEnv = fs.existsSync(migrationFilePath)
     ? dotenv.parse(fs.readFileSync(migrationFilePath))
     : {};
+
+  if (runtimeEnv.MIGRATION_DATABASE_URL) {
+    throw new Error(
+      `Least privilege security violation: MIGRATION_DATABASE_URL was found inside runtime configuration file '${envFilePath}'. ` +
+        "Privileged migration credentials must never be defined in runtime environment (.env.pm2).",
+    );
+  }
 
   const runtimeUrl = runtimeEnv.DATABASE_URL || process.env.DATABASE_URL;
   const migrationUrl =

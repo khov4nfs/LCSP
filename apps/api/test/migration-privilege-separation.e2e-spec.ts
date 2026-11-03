@@ -1,7 +1,33 @@
-import { describe, expect, it } from "@jest/globals";
+import { beforeAll, describe, expect, it } from "@jest/globals";
 import { Client } from "pg";
 import { randomUUID } from "node:crypto";
 import { resolveDatasourceUrl } from "../prisma.config.js";
+
+interface LedgerRow {
+  id: string;
+  balance: number;
+  description: string | null;
+}
+
+function assertDisposableDatabase(url: string | undefined): void {
+  if (!url) {
+    throw new Error(
+      "Dedicated local disposable test database required: DATABASE_URL must be defined",
+    );
+  }
+  const parsed = new URL(url);
+  const isLocal = ["127.0.0.1", "localhost"].includes(parsed.hostname);
+  const dbName = parsed.pathname.replace(/^\//u, "");
+  const isDisposable =
+    ["lcsp_api_test", "lcsp_api_e2e", "lcsp364_capacity"].includes(dbName) ||
+    dbName.endsWith("_test") ||
+    dbName.endsWith("_e2e");
+  if (!isLocal || !isDisposable) {
+    throw new Error(
+      "Refusing execution on non-disposable database. Dedicated local disposable test database required (localhost/127.0.0.1 and name matching lcsp_api_test, lcsp_api_e2e, lcsp364_capacity, *_test, or *_e2e).",
+    );
+  }
+}
 
 const databaseUrl =
   process.env.LCSP328_TEST_DATABASE_URL || process.env.DATABASE_URL;
@@ -73,6 +99,10 @@ describe("Prisma configuration fail-closed resolution", () => {
 });
 
 integration("PostgreSQL DDL/DML privilege separation", () => {
+  beforeAll(() => {
+    assertDisposableDatabase(databaseUrl);
+  });
+
   it("enforces that migration role can execute DDL while runtime role is restricted to DML only", async () => {
     const adminClient = new Client({ connectionString: databaseUrl });
     const suffix = randomUUID().replaceAll("-", "").slice(0, 12);
@@ -149,12 +179,12 @@ integration("PostgreSQL DDL/DML privilege separation", () => {
         );
 
         // DML: SELECT must succeed
-        const selectRes = await apiClient.query(
+        const selectRes = await apiClient.query<LedgerRow>(
           `SELECT "id", "balance", "description" FROM "${schemaName}"."account_ledger" WHERE "id" = $1;`,
           ["rec-1"],
         );
         expect(selectRes.rows).toHaveLength(1);
-        expect(selectRes.rows[0].balance).toBe(1000);
+        expect(selectRes.rows[0]?.balance).toBe(1000);
 
         // DML: UPDATE must succeed
         await apiClient.query(
@@ -174,10 +204,11 @@ integration("PostgreSQL DDL/DML privilege separation", () => {
           await apiClient.query(
             `CREATE TABLE "${schemaName}"."unauthorized_table" ("id" text PRIMARY KEY);`,
           );
-        } catch (error: any) {
+        } catch (error: unknown) {
           ddlFailed = true;
+          const pgError = error as { code?: string };
           // PostgreSQL error code 42501: insufficient_privilege
-          expect(error.code).toBe("42501");
+          expect(pgError.code).toBe("42501");
         }
         expect(ddlFailed).toBe(true);
 
@@ -185,9 +216,10 @@ integration("PostgreSQL DDL/DML privilege separation", () => {
         let dropFailed = false;
         try {
           await apiClient.query(`DROP TABLE "${schemaName}"."account_ledger";`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           dropFailed = true;
-          expect(error.code).toBe("42501");
+          const pgError = error as { code?: string };
+          expect(pgError.code).toBe("42501");
         }
         expect(dropFailed).toBe(true);
 
@@ -197,9 +229,10 @@ integration("PostgreSQL DDL/DML privilege separation", () => {
           await apiClient.query(
             `ALTER TABLE "${schemaName}"."account_ledger" ADD COLUMN "unauthorized_col" text;`,
           );
-        } catch (error: any) {
+        } catch (error: unknown) {
           alterFailed = true;
-          expect(error.code).toBe("42501");
+          const pgError = error as { code?: string };
+          expect(pgError.code).toBe("42501");
         }
         expect(alterFailed).toBe(true);
       } finally {

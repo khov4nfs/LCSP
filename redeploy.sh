@@ -109,11 +109,23 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-echo "==> Verify migration credentials and privilege separation preflight (before drain)"
-node scripts/check-migration-privilege-preflight.mjs \
-  --env-file "${APP}/.env.pm2" \
-  --migration-env-file "$MIGRATION_ENV_FILE" \
-  --production
+if [[ -f "scripts/check-migration-privilege-preflight.mjs" ]]; then
+  echo "==> Verify migration credentials and privilege separation preflight (before drain)"
+  node scripts/check-migration-privilege-preflight.mjs \
+    --env-file "${APP}/.env.pm2" \
+    --migration-env-file "$MIGRATION_ENV_FILE" \
+    --production
+else
+  echo "==> Bootstrap preflight check for initial upgrade"
+  if [[ ! -f "$MIGRATION_ENV_FILE" ]]; then
+    echo "Production deployment requires dedicated migration credentials file: $MIGRATION_ENV_FILE" >&2
+    exit 1
+  fi
+  if grep -q "MIGRATION_DATABASE_URL" "${APP}/.env.pm2" 2>/dev/null; then
+    echo "MIGRATION_DATABASE_URL must not appear in runtime environment (${APP}/.env.pm2)" >&2
+    exit 1
+  fi
+fi
 
 echo "==> Drain actual native execution before changing source or persistence"
 node scripts/drain-agent-runtime.mjs
@@ -146,6 +158,12 @@ docker build \
 
 echo "==> Build API"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/api build
+
+echo "==> Verify migration credentials and privilege separation preflight (updated checkout)"
+node scripts/check-migration-privilege-preflight.mjs \
+  --env-file "${APP}/.env.pm2" \
+  --migration-env-file "$MIGRATION_ENV_FILE" \
+  --production
 
 echo "==> Apply database migrations"
 dotenv -e .env.pm2 -e "$MIGRATION_ENV_FILE" -- pnpm --filter @lcsp/api prisma:migrate:deploy

@@ -68,6 +68,42 @@ test("check-migration-privilege-preflight: fails in production when MIGRATION_DA
   }
 });
 
+test("check-migration-privilege-preflight: fails when MIGRATION_DATABASE_URL is leaked inside runtime .env.pm2", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "migration-preflight-leak-test-"));
+  const envPm2 = path.join(tmpDir, ".env.pm2");
+  const envMigration = path.join(tmpDir, ".env.migration");
+
+  fs.writeFileSync(
+    envPm2,
+    "DATABASE_URL=postgresql://api_user:pass@127.0.0.1:5432/db\nMIGRATION_DATABASE_URL=postgresql://mig_user:pass@127.0.0.1:5432/db\n",
+  );
+  fs.writeFileSync(
+    envMigration,
+    "MIGRATION_DATABASE_URL=postgresql://mig_user:pass@127.0.0.1:5432/db\n",
+  );
+
+  try {
+    await assert.rejects(
+      async () => {
+        await checkMigrationPrivilegePreflight([
+          "node",
+          "script.mjs",
+          "--env-file",
+          envPm2,
+          "--migration-env-file",
+          envMigration,
+          "--dry-run",
+        ]);
+      },
+      {
+        message: /MIGRATION_DATABASE_URL was found inside runtime configuration file/,
+      },
+    );
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test("check-migration-privilege-preflight: skips database probes in dry-run mode", async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "migration-preflight-test-"));
   const envPm2 = path.join(tmpDir, ".env.pm2");

@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
@@ -13,12 +12,6 @@ if (process.env.NODE_ENV === "test") {
   dotenv.config({
     path: path.join(workspaceRoot, ".env.test"),
   });
-}
-
-// Load dedicated migration credentials if present in .env.migration
-const migrationEnvPath = path.join(workspaceRoot, ".env.migration");
-if (fs.existsSync(migrationEnvPath)) {
-  dotenv.config({ path: migrationEnvPath });
 }
 
 /**
