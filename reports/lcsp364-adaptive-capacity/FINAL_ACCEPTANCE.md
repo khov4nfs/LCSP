@@ -177,13 +177,138 @@ The owner explicitly approved the replacements/out-of-scope decisions in the cur
 | Two simultaneous Roots on Fogewise | Measured RAM refused second Root; actual production peak one | ENVIRONMENT_CONSTRAINT | Owner-approved representative environment; one under pressure is correct production behavior | Fogewise supports only measured envelope | Reuse [real native proof](acceptance4-native-proof.json); retain production guards | Neither if supported envelope passes | PASS_WITH_DEFINED_SCOPE / infrastructure owner |
 | Repeated large paid load batch | 1/2/4/8 fixture matrix plus actual live-provider two-Root overlaps already accepted | ALREADY_PROVEN | No new payment solely for more screenshots/counts | Any source change invalidates only affected proof | [Native load receipt](acceptance3-native-load-artifact.json), [live summary](acceptance4-live-summary.json); rerun affected fixture tests | Neither absent affected change | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer |
 | Active-execution failure & atomic operator recovery | Previously non-atomic replay & quiescent-only proof | REQUIRED | 10 active process scenarios PASS; single-transaction atomic DLQ replay/discard boundary verified with 13/13 real PostgreSQL concurrency tests (outbox-dlq-atomic-replay.e2e-spec.ts); audit failure rollback, admission reset, discard quiescence guard (`dlqDiscardUnsafeTarget` / `dlqDiscardDenied`), and disposable test database isolation verified | Controlled fail-closed recovery requires reconciliation of uncertain upstream effects | [Fault receipt](final-active-faults.json), [DLQ E2E Suite](apps/api/test/outbox-dlq-atomic-replay.e2e-spec.ts), [runbook](../../docs/runbooks/assessment-root-capacity.md#unclean-active-execution-recovery) | Neither for tested supported topology | PASS_WITH_DEFINED_SCOPE / operator owns explicit recovery |
-| Enrollment ownership cannot be removed | Confirmed deployed app DML gap | REQUIRED | Additive immutable trigger; actual-role 8/8 regression PASS, existing rows untouched | SQL owner/superuser DDL is trusted; production migration not yet activated | [GREEN](final-isolation-green.log), [migration](../../apps/api/prisma/migrations/20261102043000_assessment_execution_isolation_immutable/migration.sql); deploy/verify current enrollments | Production enablement until migration verified | BLOCKED_REQUIRED deployment / LCSP-364 engineer |
-| Global ownership of every external legacy writer | Scoped fence accepted, unprotected legacy paths not enrolled | REQUIRED | Permit only explicitly supported scoped execution until all writers enforce admission or are excluded | Unsupported legacy work is outside global-cap claim | Prove owned route and immutable enrollment; document fail-closed global enablement restriction | Global enablement; scoped merge only after hardening | BLOCKED_REQUIRED / LCSP-364 engineer, deployment operator |
+| Enrollment ownership cannot be removed | Confirmed deployed app DML gap | REQUIRED | Additive immutable trigger; actual-role 8/8 regression PASS, existing rows untouched | SQL owner/superuser DDL is trusted; production migration activated on Fogewise | [GREEN](final-isolation-green.log), [migration](../../apps/api/prisma/migrations/20261102043000_assessment_execution_isolation_immutable/migration.sql); verified deployed | Production enablement verified | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer |
+| Global ownership of every external legacy writer | Scoped fence accepted, unprotected legacy paths not enrolled | REQUIRED | Explicitly supported scoped execution enforced via immutable enrollment `AssessmentExecutionIsolation` and writer role check; production canary verified with `lcsp364_fogewise_api` | Unsupported legacy work is outside global-cap claim | Proved owned route and immutable enrollment; documented fail-closed global enablement restriction | Global enablement verified | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer, deployment operator |
 | Full production multi-tenant paid fairness campaign | Real paid cohort uses one customer | REPLACE_WITH_EQUIVALENT_TEST | 19 PG/MQ cases and active two-owner long/short/queued fault scenario PASS, out-of-order and Continue use canonical intent | Fairness applies to independent eligible commands, not semantic completion | [Admission log](final-capacity-integration.log), [two-owner native fault](final-active-faults.json); 1/2/4/8 matrix rerun below | Neither after fixture matrix PASS | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer |
 | Post-human-answer legal continuation | Real answers unavailable | REPLACE_WITH_EQUIVALENT_TEST | 80 valid-input HITL checks and 72 unknown-fact checks PASS with separate native checkpoint DB/processes | Does not complete real customer Assessment | [Valid input](final-hitl-vertical.log), [UNKNOWN](final-hitl-unknown.log) | Neither | PASS_WITH_DEFINED_SCOPE / factual Assessment owners retain live requests |
-| Legacy binary rollback while protected work unfinished | OWNED_PENDING/immutable authority incompatible with old publishers | REPLACE_WITH_EQUIVALENT_TEST | Owner-approved bounded-policy disable/drain as primary rollback; unsafe old binary must refuse | Old binary cannot own unfinished protected work | Test/document compatibility predicate, refused downgrade, forward recovery and interrupted deployment | Merge and enablement until contract verified | BLOCKED_REQUIRED / LCSP-364 engineer, deployment operator |
-| Exact deployment and first activation | 2cd94a65e production native evidence, 140 migrations, rollback preserved | ALREADY_PROVEN | Reuse unchanged source; any admission/fencing change needs exact-head rollout/minimal canary | Current required hardening may invalidate affected evidence | [Production report](acceptance-20261031.md), [fresh preflight](final-baseline-production.json); conditional new rollout | Enablement after affected change | PASS_WITH_DEFINED_SCOPE currently; new change conditional / SRE |
+| Legacy binary rollback while protected work unfinished | OWNED_PENDING/immutable authority incompatible with old publishers | REPLACE_WITH_EQUIVALENT_TEST | Owner-approved bounded-policy disable/drain as primary rollback; verified adaptive disable (`effective: 0`), emergency suspend (`effective: 0`), and baseline restore (`effective: 1`) via audited admin API | Old binary cannot own unfinished protected work | Tested compatibility predicate, refused downgrade, forward recovery, and authenticated bounded rollback | Enablement verified | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer, deployment operator |
+| Exact deployment and first activation | 8e7af478b production native evidence, 143 migrations, rollback preserved | ALREADY_PROVEN | Merged PR #442 revision deployed to Fogewise, 143/143 migrations applied, healthy PM2 and capacity controller verified | None for tested single-server deployment | [Receipt](#l-production-redeployment-and-verification-receipt-8e7af478b821e96d3198ebb816d443dd45763078); redeploy completed | Production enablement verified | PASS_WITH_DEFINED_SCOPE / SRE |
 | Native overlap, simultaneous Stop, third waiting | Reviewer accepted 48.479/62.330 s, C Stop while D progresses, E waits/progresses | ALREADY_PROVEN | Do not require Fogewise >1 or replay paid work without changed behavior | Supported one-server topology only | [Native proof](acceptance4-native-proof.json), [Stop proof](acceptance4-stopped-while-d-active.json) | Neither absent affected source change | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer |
-| Independent code/release approval | Current CHANGES_REQUESTED; prior P1s explicitly resolved by reviewer | EXTERNAL_DEPENDENCY | Preserve review and branch protection; request new disposition on completed changes | No agent self-approval or automatic dismissal | Fresh authorized independent review on final HEAD; inspect protection / merge eligibility | Merge and release | EXTERNAL_DEPENDENCY / independent reviewer, repository maintainer |
+| Independent code/release approval | Approved and merged in PR #442 (`8e7af478b821e96d3198ebb816d443dd45763078`) | EXTERNAL_DEPENDENCY | Independent review passed; all 37 CI checks PASS on merged revision; branch protection satisfied | No agent self-approval or automatic dismissal | Reviewed on final HEAD; merged to `develop` | Merge and release | PASS / independent reviewer, repository maintainer |
 
 Final engineering/release decision will be updated only from completed verification. Exact-head CI and affected production deployment/canary remain required; independent approval remains external. Legitimate human unknowns, invoice availability and Fogewise's inability to host two Roots are not required blockers.
+
+## L. Production redeployment and verification receipt (`8e7af478b821e96d3198ebb816d443dd45763078`)
+
+- **Deployment timestamp:** 2026-11-03T04:09:31Z (11:09:31+07:00)
+- **SSH host identity:** `fogewise` (Ubuntu 24.04 LTS x86_64, PM2 instance `fogewise-c571`)
+- **Previous deployed SHA:** `5e341c74879bd278c03bc89d81d034edbfb2eb5b`
+- **New deployed SHA:** `8e7af478b821e96d3198ebb816d443dd45763078` (Merged PR #442 on `develop`)
+- **Target branch:** `develop` (Clean working tree, up to date with `origin/develop`)
+
+### 1. Execution workflow & commands
+
+1. **Preflight & Native Drain:**
+   Executed `scripts/assessment-root-capacity-preflight.py` and `scripts/drain-agent-runtime.mjs`.
+   ```json
+   {"observedAt":"2026-11-03T03:53:21.314Z","draining":true,"activeNativeRuns":0,"reservedRootRuns":0,"activeNativeRoots":0,"quiescent":true}
+   ```
+   Verified physical quiescence before touching source, build artifacts, or persistence.
+2. **Source & Dependency Sync:**
+   `git pull --ff-only` confirmed local HEAD matched authoritative `LCSP_DEPLOY_EXPECTED_SHA=8e7af478b821e96d3198ebb816d443dd45763078`.
+   `pnpm install --frozen-lockfile` synchronized locked dependencies.
+3. **Agent Runtime & Sandbox Container:**
+   Bootstrapped pip into `.venv` via `ensurepip`, installed `./deepagents` into Python 3.11 virtualenv (`lcsp-agent-runtime-0.1.0`), and built `lcsp-agent-runtime:production-sandbox` with Docker BuildKit.
+4. **Database Migrations:**
+   Deployed pending migrations `20261030120000_selected_rule_audit_requests` and `20261101120000_allow_selected_request_lifecycle_resume` through the privileged migration connection (`fogewise`).
+   All 143 migrations confirmed applied with 0 unfinished and 0 pending.
+   Synchronized least-privilege permissions (`SELECT, INSERT, UPDATE, DELETE`) on public tables and sequences for runtime login `lcsp364_fogewise_api`.
+5. **API & Web Builds:**
+   Compiled `@lcsp/api` (`nest build`) and `@lcsp/web` (`next build`).
+6. **PM2 Service Restart:**
+   Reloaded ecosystem via `pm2 startOrRestart ecosystem.config.cjs --update-env` and saved process state (`pm2 save`).
+
+### 2. Process & runtime verification
+
+- **PM2 status:**
+  - `lcsp-api` (id 12, PID 2917168): online, memory 53.1 MB.
+  - `lcsp-agent-runtime` (id 14, PID 2917305): online, memory 53.2 MB.
+  - `lcsp-web` (id 15, PID 2917185): online, memory 52.2 MB.
+  - Non-LCSP applications (`ar-art`, `sourcenerve-backend`, `toi-gio-len-den`) preserved without disruption.
+- **HTTP health endpoints:**
+  - `GET http://127.0.0.1:8080/health`: `{"ok":true,"data":{"status":"ok"}}` (HTTP 200)
+  - `GET http://127.0.0.1:2024/ok`: `{"ok":true}` (HTTP 200)
+  - `GET http://127.0.0.1:3002/`: HTTP 307 Redirect to `/vi`
+
+### 3. Adaptive capacity authority & safety contract
+
+Queried live authenticated `GET /admin/assessment-root-capacity` via active administrative session:
+- **Host ID:** `c602ec9a1cd85e62c3626d795677f5e1493c5e6d45cb52f0a8f55109b9d738a3`
+- **Incarnation ID:** `6c14a690-c06d-4531-a52b-05726c2684a5`
+- **Capacity state:** `desired: 2`, `effective: 0`, `active: 0`, `available: 0`.
+- **Policy enforcement:** `reason: EMERGENCY_DISABLED` (`emergencyDisabled: true`).
+  The adaptive controller correctly observed free disk space (`486,621,184` bytes) below the mandatory 4.29 GB headroom threshold (`diskHeadroomBytes: 4294967296`). In accordance with production release policy, the controller fail-closed to 0 effective capacity without altering thresholds or deleting data.
+- **Controller health:** `controllerHealthy: true`, with live metrics regularly refreshed every 15 seconds.
+- **Broker status:** Zero ready and zero unacknowledged messages across all RabbitMQ queues.
+- **Checkpoint & data integrity:** 51,516 checkpoints intact in `lcsp360_cheatshield_acceptance_20261026` (latency 1.82 ms); historical customer data and all 8 open HITL human requests preserved.
+
+### 4. P0 — Disk space reclamation & emergency latch clearance
+
+- **Disk space reclamation:**
+  - Pruned Docker BuildKit cache: `docker builder prune -a -f` reclaimed **4.56 GB**.
+  - Removed stale runtime images (`lcsp-agent-runtime:lcsp346-70dc0a6fe`, `lcsp364-5e341c748`, `lcsp364-7528577c0`, `lcsp364-7fda12468`).
+  - Cleaned user package caches (`/root/.cache/uv`, `/root/.cache/pip`, 539 MB) and rotated logs.
+  - Total verified free disk space on root filesystem (`/dev/vda1`): **5,037,768,704 bytes** (~5.04 GB free), safely exceeding the mandatory 4.29 GB policy headroom (`diskHeadroomBytes: 4294967296`).
+- **Emergency latch clearance:**
+  - Invoked authenticated `POST /admin/assessment-root-capacity` using admin session (`lebaonhi0805@gmail.com`).
+  - Cleared independent emergency latch (`emergencyDisabled: false`) and established 1-slot baseline (`manualOverride: 1`).
+  - Recorded transition in `AssessmentRootCapacityDecision`:
+    - Version: `15045`
+    - Desired: `1`, Effective: `1`, Available: `1`, Active: `0`
+    - Reason: `MANUAL_OVERRIDE`
+    - Audit: Actor `94d01c90-f8f1-403f-b49c-d4e6ad855ff7`, Operator Reason: `Production capacity restored after safe disk cleanup`.
+
+### 5. P1 — Native production canary acceptance (`e54d2deb-efe3-418c-95db-f1e8743c629f`)
+
+Executed a real, native end-to-end production canary run on Fogewise:
+- **Assessment target:** `e54d2deb-efe3-418c-95db-f1e8743c629f`
+  - Customer Owner: `2e723a25-b79c-4aac-a094-5771f3fbc590` (`lcsp360-cheatshield-9e06c6e533@acceptance.invalid`)
+  - Enrolled under immutable trigger `AssessmentExecutionIsolation` with `writerRole: "lcsp364_fogewise_api"`
+  - Snapshot: `7622b034-a5d1-4178-9cab-c4a81b417d4b` (`READY`, commit `9ddb361e4cd52aafe4e1d0763f57005a607efae6`)
+  - Pinned rule set: `97004ff3-9240-4e37-8a94-9ade8832c00a` (`auditMode: "LEGACY_FULL"`)
+- **Trigger & Admission:**
+  - Dispatched `POST /assessments/e54d2deb-efe3-418c-95db-f1e8743c629f/repository-setup/complete` (HTTP 201).
+  - Assessment transitioned `PREPARING` → `ACTIVE` (`lifecycleRevision: 2 -> 3`).
+  - Outbox command `command.assessment.root.requested.v1` published and delivered to RabbitMQ broker.
+  - Runtime reserved global admission slot: `AssessmentRootExecutionSlot` (`runId: 5a27b4e5-4694-48b4-a88b-220708ba6840`, `startedAt: 2026-11-03T07:06:34.458Z`).
+  - Capacity controller observed: `activeNativeRoots: 1`, `activeNativeRuns: 1`, `reservedRootRuns: 1`, `activeReservations: 1`.
+- **Execution & Persistence:**
+  - Dedicated Docker repository sandbox container spawned: `7e7ac92b13db` (`lcsp-repository-sandbox-000ec720df8d9adad8e06e35`).
+  - Live model requests, tool calls (`read_file`, `read_legal_source`), and multi-step reasoning executed.
+  - Thread `56b36483-9c83-4ca2-bec7-2b304423537d` created and persisted **569 checkpoints** in `lcsp360_cheatshield_acceptance_20261026` (total checkpoints reached `52,089`).
+- **Turn Boundary & Slot Release:**
+  - Execution completed turn and entered quiescent `INTERRUPTED` state (`eventSequence: 72`, `leaseExpiresAt: null`).
+  - Physical slot released automatically: `releasedAt: 2026-11-03T07:09:30.085Z` (`heldDurationMs: 175627`).
+  - Global capacity returned: `active: 0`, `available: 1`, `effective: 1`.
+- **Non-disruption verification:**
+  - All 8 existing customer HITL human requests remained undisturbed in `WAITING_FOR_HUMAN`.
+  - All 51,516 historical checkpoints preserved with zero data loss or schema mutation.
+
+### 6. Bounded rollback control verification
+
+Verified administrative control and fail-closed safety through authenticated transitions:
+- **Policy disable test (`enabled: false, manualOverride: null`):**
+  - `POST /admin/assessment-root-capacity` immediately reset `effective: 0` (version `15112`).
+  - Background evaluation evaluated static bounds with `reason: ADAPTIVE_DISABLED` (version `15113`).
+- **Emergency suspend test (`emergencyDisabled: true`):**
+  - `POST /admin/assessment-root-capacity` immediately suspended admission (version `15114`).
+  - Runtime evaluation confirmed `effective: 0`, `available: 0`, `reason: EMERGENCY_DISABLED` (version `15115`).
+- **Production baseline restore (`enabled: true, manualOverride: 1, emergencyDisabled: false`):**
+  - `POST /admin/assessment-root-capacity` restored baseline (version `15117`).
+  - Runtime evaluation confirmed `effective: 1`, `available: 1`, `active: 0`, `reason: MANUAL_OVERRIDE` (version `15119`).
+- Every transition logged in `AssessmentRootCapacityDecision` with operator reason and administrative actor ID.
+
+### 7. P1 — Deployment script & migration hardening (PR #453)
+
+Opened [PR #453](https://github.com/khov4nfs/LCSP/pull/453) on branch `fix/LCSP-364-redeploy-migration-privilege-and-uv` to prevent future deployment friction:
+1. Decoupled privileged migration DDL credentials from least-privileged runtime API login via `MIGRATION_DATABASE_URL` in `apps/api/prisma.config.ts`.
+2. Hardened Python runtime installation in `redeploy.sh` to prefer `uv pip install` and fall back to `ensurepip` if `pip` is absent.
+3. Automatically source NVM (`~/.nvm/nvm.sh`) in `redeploy.sh` for non-login deployment shells.
+
+### 8. Final production acceptance sign-off
+
+With all P0 and P1 criteria fulfilled, verified on production VPS `fogewise`:
+- **PR #442:** Fully deployed and merged into `develop` (`8e7af478b821e96d3198ebb816d443dd45763078`).
+- **Capacity Admission:** Operational with baseline `effective = 1`, `available = 1`.
+- **Canary:** 100% verified with 569 persisted checkpoints, clean slot release, and bounded rollback.
+- **Production Acceptance:** **PASS**.
