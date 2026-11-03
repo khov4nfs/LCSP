@@ -84,6 +84,11 @@ restart_pm2() {
   assert_expected_pm2_apps
 }
 
+if [[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
+fi
+
 require_command curl
 require_command dotenv
 require_command docker
@@ -117,7 +122,14 @@ echo "==> Install Node dependencies"
 pnpm install --frozen-lockfile
 
 echo "==> Install LCSP Agent Runtime"
-.venv/bin/python -m pip install ./deepagents
+if command -v uv >/dev/null 2>&1; then
+  uv pip install --python .venv/bin/python ./deepagents
+elif ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+  .venv/bin/python -m ensurepip
+  .venv/bin/python -m pip install ./deepagents
+else
+  .venv/bin/python -m pip install ./deepagents
+fi
 
 echo "==> Build LCSP repository sandbox image"
 docker build \
