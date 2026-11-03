@@ -8,7 +8,7 @@ import { AssessmentReportActions } from "../src/features/assessment-runtime/comp
 
 setAppLocale("en");
 
-test("V1 report actions expose view and JSON only", () => {
+test("V1 report actions retain the report and expose a separate PDF download", () => {
   const html = renderToStaticMarkup(
     React.createElement(AssessmentReportActions, {
       assessmentId: "a 1",
@@ -23,7 +23,10 @@ test("V1 report actions expose view and JSON only", () => {
     html,
     /<a [^>]*href="\/api\/assessments\/a%201\/artifacts\/art%201\/download"[^>]*>[\s\S]*Download report/,
   );
-  assert.doesNotMatch(html, /data-report-action="download-pdf"/);
+  assert.match(
+    html,
+    /<a [^>]*href="\/api\/assessments\/a%201\/artifacts\/art%201\/report\.pdf"[^>]*>[\s\S]*Download PDF/,
+  );
   assert.doesNotMatch(html, /role=/);
 });
 
@@ -40,4 +43,20 @@ test("V2 report actions add PDF to the native JSON download link", () => {
     html,
     /<a [^>]*href="\/api\/assessments\/a%201\/artifacts\/art%201\/report\.pdf"[^>]*>[\s\S]*Download PDF/,
   );
+});
+
+test("PDF export action uses the Vietnamese label for Vietnamese users", () => {
+  setAppLocale("vi");
+  try {
+    const html = renderToStaticMarkup(
+      React.createElement(AssessmentReportActions, {
+        assessmentId: "assessment-1",
+        artifactId: "artifact-1",
+        pdfSupported: true,
+      }),
+    );
+    assert.match(html, /Tải PDF/);
+  } finally {
+    setAppLocale("en");
+  }
 });

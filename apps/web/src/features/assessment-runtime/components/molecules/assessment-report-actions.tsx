@@ -8,7 +8,7 @@ import { copy } from "../../utils/conversation-copy";
 export function AssessmentReportActions({
   assessmentId,
   artifactId,
-  pdfSupported = false,
+  pdfSupported = true,
   className,
 }: {
   assessmentId: string;

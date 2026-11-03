@@ -13,6 +13,7 @@ import type { Response } from "express";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   claimAssessmentRootRequestSchema,
 } from "@lcsp/contracts/assessment-domain";
@@ -103,17 +104,22 @@ export class AssessmentArtifactController {
     const parsed = assessmentFinalReportArtifactVersionedSchema.safeParse(
       JSON.parse(report.content.toString("utf8")),
     );
-    if (
-      !parsed.success ||
-      parsed.data.schemaVersion !== ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION
-    ) {
+    if (!parsed.success) {
       throw problemException(
         ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
         req.correlationId || randomUUID(),
         { status: 409 },
       );
     }
-    const content = await this.pdfRenderer.render(parsed.data);
+    const content =
+      parsed.data.schemaVersion === ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION
+        ? await this.pdfRenderer.renderLegacyV1(parsed.data)
+        : parsed.data.schemaVersion ===
+            ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION
+          ? await this.pdfRenderer.render(parsed.data)
+          : await Promise.reject(
+              new Error("Unsupported report schema version"),
+            );
     for (const [name, value] of Object.entries(
       buildPdfResponseHeaders(
         report.artifactId,

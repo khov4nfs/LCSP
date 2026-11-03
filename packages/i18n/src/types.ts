@@ -473,6 +473,10 @@ export type PagesMessages = {
         unavailable: string;
         empty: string;
         published: string;
+        applicable: string;
+        compliantResult: string;
+        nonCompliantResult: string;
+        publishedResult: string;
       };
       v1Compatibility: string;
     };

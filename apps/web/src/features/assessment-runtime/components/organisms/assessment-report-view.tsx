@@ -108,6 +108,13 @@ function V1Report({ model }: { model: AssessmentReportV1Presentation }) {
 
 function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
   const labels = (key: string) => copy(`labels.${key}`);
+  const applicabilityLabel = (value: string) =>
+    value === "APPLICABLE" ? labels("applicable") : labels("notApplicable");
+  const complianceLabel = (value: string | null) => {
+    if (value === "COMPLIANT") return labels("compliantResult");
+    if (value === "NON_COMPLIANT") return labels("nonCompliantResult");
+    return labels("notApplicable");
+  };
   return (
     <>
       <section
@@ -138,7 +145,7 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
         />
         <Field
           label={copy("labels.published")}
-          value={model.header.publicationState}
+          value={labels("publishedResult")}
         />
       </section>
       <section
@@ -228,18 +235,27 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
                   </td>
                   <td className="p-3">
                     <ul className="list-disc pl-5">
-                      {item.acceptedFactIds.map((id) => (
-                        <li key={id}>
-                          <code className="break-all text-xs">{id}</code>
+                      {item.facts.map((fact) => (
+                        <li key={fact.factId}>
+                          {fact.statement}{" "}
+                          <code className="break-all text-xs">
+                            [{fact.factId}]
+                          </code>
                         </li>
                       ))}
                     </ul>
                   </td>
                   <td className="p-3">
                     <ul className="list-disc pl-5">
-                      {item.acceptedEvidenceIds.map((id) => (
-                        <li key={id}>
-                          <code className="break-all text-xs">{id}</code>
+                      {item.evidence.map((evidence) => (
+                        <li key={evidence.evidenceId}>
+                          {evidence.type}
+                          {evidence.safeLocator
+                            ? ` · ${evidence.safeLocator}`
+                            : ""}{" "}
+                          <code className="break-all text-xs">
+                            [{evidence.evidenceId}]
+                          </code>
                         </li>
                       ))}
                     </ul>
@@ -271,7 +287,19 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
             <tbody>
               {model.obligationCatalog.map((item) => (
                 <tr key={item.assessmentRuleId} className="border-t">
-                  <td className="p-3">{item.legalRequirementIds.join(", ")}</td>
+                  <td className="p-3">
+                    {item.legalRequirements.map((requirement) => (
+                      <div key={requirement.id}>
+                        <div className="font-medium">{requirement.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {requirement.proposition}
+                        </div>
+                        <code className="break-all text-xs">
+                          {requirement.id}
+                        </code>
+                      </div>
+                    ))}
+                  </td>
                   <td className="p-3">
                     <a
                       className="underline"
@@ -280,8 +308,10 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
                       {item.assessmentRuleId}
                     </a>
                   </td>
-                  <td className="p-3">{item.applicability}</td>
-                  <td className="p-3">{item.compliance ?? labels("na")}</td>
+                  <td className="p-3">
+                    {applicabilityLabel(item.applicability)}
+                  </td>
+                  <td className="p-3">{complianceLabel(item.compliance)}</td>
                 </tr>
               ))}
             </tbody>
@@ -322,8 +352,10 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
                 <h4 className="text-xs text-muted-foreground">
                   {labels("applicability")}
                 </h4>
-                <p className="text-sm">{detail.applicability}</p>
-                <p className="text-sm">{detail.compliance ?? labels("na")}</p>
+                <p className="text-sm">
+                  {applicabilityLabel(detail.applicability)}
+                </p>
+                <p className="text-sm">{complianceLabel(detail.compliance)}</p>
               </div>
             </div>
             <div>
@@ -343,11 +375,59 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
             </div>
             <div>
               <h4 className="text-xs text-muted-foreground">
+                {labels("obligation")}
+              </h4>
+              <p className="text-sm">{detail.concept}</p>
+              <p className="text-sm">{detail.legalIntent}</p>
+            </div>
+            <div>
+              <h4 className="text-xs text-muted-foreground">
                 {labels("observedFacts")}
               </h4>
               <p className="break-words text-sm">
-                {detail.observedFactIds.join(", ") || labels("unavailable")}
+                {detail.observedFacts.length
+                  ? detail.observedFacts.map((fact) => (
+                      <span key={fact.factId} className="block">
+                        {fact.statement}{" "}
+                        <code className="break-all text-xs">
+                          [{fact.factId}]
+                        </code>
+                      </span>
+                    ))
+                  : labels("unavailable")}
               </p>
+            </div>
+            <div>
+              <h4 className="text-xs text-muted-foreground">
+                {labels("evidence")}
+              </h4>
+              {detail.evidence.length
+                ? detail.evidence.map((evidence) => (
+                    <p
+                      key={evidence.evidenceId}
+                      className="break-words text-sm"
+                    >
+                      {evidence.type}
+                      {evidence.safeLocator
+                        ? ` · ${evidence.safeLocator}`
+                        : ""}{" "}
+                      · {evidence.contentSha256} [{evidence.evidenceId}]
+                    </p>
+                  ))
+                : labels("unavailable")}
+            </div>
+            <div>
+              <h4 className="text-xs text-muted-foreground">
+                {labels("criteria")}
+              </h4>
+              {detail.criterionDecisions.length
+                ? detail.criterionDecisions.map((criterion) => (
+                    <p key={criterion.criterionId} className="text-sm">
+                      {criterion.statement} · {criterion.outcome} ·{" "}
+                      {criterion.rationale}
+                    </p>
+                  ))
+                : labels("unavailable")}
             </div>
             <div>
               <h4 className="text-xs text-muted-foreground">
@@ -461,7 +541,13 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
             label={labels("ruleSet")}
             value={`${model.scopeTraceability.ruleSetVersion} (${model.scopeTraceability.ruleSetVersionId})`}
           />
-          <Field label={labels("limitations")} value={labels("unavailable")} />
+          <Field
+            label={labels("limitations")}
+            value={
+              model.scopeTraceability.scopeLimitations.join("; ") ||
+              labels("unavailable")
+            }
+          />
         </dl>
         <p className="break-words text-xs text-muted-foreground">
           {labels("rule")}:{" "}
@@ -525,7 +611,7 @@ export function AssessmentReportView({
         <AssessmentReportActions
           assessmentId={assessmentId}
           artifactId={model.header.artifactId}
-          pdfSupported={!("legacy" in model)}
+          pdfSupported
         />
       </header>
       <h1 className="text-2xl font-semibold tracking-tight">{copy("title")}</h1>

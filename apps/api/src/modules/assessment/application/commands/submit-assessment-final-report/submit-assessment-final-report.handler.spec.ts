@@ -148,7 +148,26 @@ function buildHandler(
                 { criterionId: "C-1", statement: "Retention exists." },
               ],
             },
-            legalRequirementLinks: [{ legalRequirementRowId: "req-1" }],
+            legalRequirementLinks: [
+              {
+                legalRequirementRowId: "req-1",
+                legalRequirement: {
+                  legalRequirementId: "LR-1",
+                  title: "Retention requirement",
+                  applicabilityConditions: ["The system stores records."],
+                  qualifiers: [],
+                  exceptions: [],
+                  ordinal: 0,
+                  provenance: [
+                    {
+                      documentId: sourceChunk.documentId,
+                      locator: sourceChunk.locator,
+                      contentSha256: sourceChunk.contentSha256,
+                    },
+                  ],
+                },
+              },
+            ],
           },
         ]),
     },

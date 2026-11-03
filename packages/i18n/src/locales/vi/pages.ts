@@ -455,6 +455,10 @@ export const viPages = {
         unavailable: "Không có trong artifact này",
         empty: "Không có hành động được hỗ trợ nào được ghi nhận.",
         published: "Artifact cuối đã được xác minh toàn vẹn",
+        applicable: "Áp dụng",
+        compliantResult: "Tuân thủ",
+        nonCompliantResult: "Không tuân thủ",
+        publishedResult: "Đã phát hành và xác minh toàn vẹn",
       },
       v1Compatibility:
         "Báo cáo V1 lịch sử — chỉ hiển thị các trường có trong artifact gốc.",

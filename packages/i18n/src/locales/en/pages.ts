@@ -458,6 +458,10 @@ export const enPages = {
         unavailable: "Not available in this artifact",
         empty: "No supported actions were recorded.",
         published: "Integrity-verified final artifact",
+        applicable: "Applicable",
+        compliantResult: "Compliant",
+        nonCompliantResult: "Non-compliant",
+        publishedResult: "Published and integrity-verified",
       },
       v1Compatibility:
         "Historical V1 report — only fields present in the original artifact are shown.",

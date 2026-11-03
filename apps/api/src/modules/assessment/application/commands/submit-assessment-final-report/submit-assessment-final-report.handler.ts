@@ -12,7 +12,9 @@ import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
+  RULE_AUDIT_STATUSES,
   assessmentFinalReportResultSchema,
+  type AssessmentFinalReportArtifact,
   type AssessmentFinalReportResult,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";

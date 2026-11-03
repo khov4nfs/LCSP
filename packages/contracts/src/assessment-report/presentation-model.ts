@@ -8,6 +8,7 @@ import type {
   AssessmentFinalReportArtifactVersioned,
   AssessmentFinalReportV2,
 } from "./schemas.ts";
+import { ASSESSMENT_REPORT_PUBLICATION_STATES } from "./constants.ts";
 
 export const ASSESSMENT_REPORT_SECTION_IDS = {
   result: "RESULT",
@@ -48,7 +49,7 @@ export type AssessmentReportV2Presentation = {
     legalSourceVersion: string;
     ruleSetVersionId: string;
     ruleSetVersion: string;
-    publicationState: "PUBLISHED";
+    publicationState: typeof ASSESSMENT_REPORT_PUBLICATION_STATES.published;
   };
   sections: AssessmentReportSection[];
   summary: {
@@ -69,10 +70,27 @@ export type AssessmentReportV2Presentation = {
     conditions: string[];
     acceptedFactIds: string[];
     acceptedEvidenceIds: string[];
+    facts: Array<{
+      factId: string;
+      statement: string;
+      authority: string;
+      evidenceIds: string[];
+    }>;
+    evidence: Array<{
+      evidenceId: string;
+      type: string;
+      safeLocator: string | null;
+      contentSha256: string;
+    }>;
   }>;
   obligationCatalog: Array<{
     assessmentRuleId: string;
     legalRequirementIds: string[];
+    legalRequirements: Array<{
+      id: string;
+      title: string;
+      proposition: string;
+    }>;
     applicability: string;
     compliance: string | null;
   }>;
@@ -89,6 +107,20 @@ export type AssessmentReportV2Presentation = {
     applicabilityGuidance: string;
     observedFactIds: string[];
     evidenceIds: string[];
+    observedFacts: Array<{
+      factId: string;
+      statement: string;
+      authority: string;
+      evidenceIds: string[];
+    }>;
+    evidence: Array<{
+      evidenceId: string;
+      type: string;
+      safeLocator: string | null;
+      contentSha256: string;
+    }>;
+    concept: string;
+    legalIntent: string;
     applicability: string;
     compliance: string | null;
     rationale: string;
@@ -117,6 +149,7 @@ export type AssessmentReportV2Presentation = {
     assessmentRuleIds: string[];
     factIds: string[];
     evidenceIds: string[];
+    scopeLimitations: string[];
   };
 };
 
@@ -128,7 +161,7 @@ export type AssessmentReportV1Presentation = {
     schemaVersion: string;
     repositorySnapshotId: string;
     repositoryCommit: string;
-    publicationState: "PUBLISHED";
+    publicationState: typeof ASSESSMENT_REPORT_PUBLICATION_STATES.published;
   };
   sections: AssessmentReportSection[];
   legacy: {
@@ -167,7 +200,7 @@ function buildV1Presentation(
       schemaVersion: artifact.schemaVersion,
       repositorySnapshotId: artifact.pins.repositorySnapshotId,
       repositoryCommit: artifact.pins.repositoryCommit,
-      publicationState: "PUBLISHED",
+      publicationState: ASSESSMENT_REPORT_PUBLICATION_STATES.published,
     },
     sections: sections(),
     legacy: {
@@ -205,6 +238,25 @@ function buildV2Presentation(
     );
     const factIds = rule.factIds.filter((id) => facts.has(id));
     const evidenceIds = rule.evidenceIds.filter((id) => evidence.has(id));
+    const observedFacts = factIds
+      .map((id) => facts.get(id))
+      .filter((item): item is AssessmentFinalReportV2["factIndex"][number] =>
+        Boolean(item),
+      );
+    const evidenceDetails = evidenceIds
+      .map((id) =>
+        artifact.evidenceIndex.find((item) => item.evidenceId === id),
+      )
+      .filter(
+        (item): item is AssessmentFinalReportV2["evidenceIndex"][number] =>
+          Boolean(item),
+      )
+      .map((item) => ({
+        evidenceId: item.evidenceId,
+        type: item.type,
+        safeLocator: item.safeLocator ?? null,
+        contentSha256: item.contentSha256,
+      }));
     return {
       assessmentRuleId: rule.assessmentRuleId,
       legalRequirements: linkedRequirements.map((item) => ({
@@ -218,6 +270,10 @@ function buildV2Presentation(
       applicabilityGuidance: rule.applicabilityGuidance,
       observedFactIds: factIds,
       evidenceIds,
+      observedFacts,
+      evidence: evidenceDetails,
+      concept: rule.concept,
+      legalIntent: rule.legalIntent,
       applicability: rule.decision.applicability,
       compliance: rule.decision.compliance,
       rationale,
@@ -250,7 +306,7 @@ function buildV2Presentation(
       legalSourceVersion: artifact.pins.legalSourceVersion,
       ruleSetVersionId: artifact.pins.ruleSetVersionId,
       ruleSetVersion: artifact.pins.ruleSetVersion,
-      publicationState: "PUBLISHED",
+      publicationState: ASSESSMENT_REPORT_PUBLICATION_STATES.published,
     },
     sections: sections(),
     summary: {
@@ -266,6 +322,8 @@ function buildV2Presentation(
       conditions: detail.conditions,
       acceptedFactIds: detail.observedFactIds,
       acceptedEvidenceIds: detail.evidenceIds,
+      facts: detail.observedFacts,
+      evidence: detail.evidence,
     })),
     obligationCatalog: details.map((detail) => ({
       assessmentRuleId: detail.assessmentRuleId,
@@ -273,6 +331,7 @@ function buildV2Presentation(
         artifact.ruleDetails.find(
           (rule) => rule.assessmentRuleId === detail.assessmentRuleId,
         )?.legalRequirementIds ?? [],
+      legalRequirements: detail.legalRequirements,
       applicability: detail.applicability,
       compliance: detail.compliance,
     })),
@@ -303,6 +362,7 @@ function buildV2Presentation(
       assessmentRuleIds: details.map((item) => item.assessmentRuleId),
       factIds: artifact.factIndex.map((item) => item.factId),
       evidenceIds: artifact.evidenceIndex.map((item) => item.evidenceId),
+      scopeLimitations: artifact.boundedNarrative.scopeLimitations,
     },
   };
 }
