@@ -10,6 +10,38 @@ Verified at the start of this completion pass: local/GitHub PR #442 HEAD `1260e3
 
 The original fixed executor design and both reviewed P1 corrections remain described in the historical reports. The reviewer accepted both P1 fixes on `7528577c0`: exact eligibility is separate from the 10,000-row fairness window, and `/runs/wait` is removed.
 
+### Confirmed P1 remediation: Operator DLQ replay atomicity and state transition contract
+
+**Root cause:**
+Inspection of `OutboxDlqService.replayMessage()` and `OutboxRepository.resetMessageForReplay()` identified five concurrent failure vectors breaking atomic recovery:
+1. *Preflight validation outside the transaction:* Eligibility verification (`assertReplayTargetIsSafe`) executed before acquiring locks and outside the reset transaction in `outboxRepository.resetMessageForReplay(id)`.
+2. *Unconditional outbox status update:* If a physical execution slot was claimed concurrently between validation and transaction execution, the repository skipped resetting `AssessmentRootAdmissionRequest` but still updated `OutboxMessage` status to `PENDING` (or trigger-rewritten `OWNED_PENDING`), violating writer isolation.
+3. *Split audit persistence (Scenario A):* `AuditWriterService.write()` ran as an independent operation *after* the replay transaction committed. If audit persistence failed (transient network or DB fault), an authorized recovery command was released for publication with zero corresponding authorization audit record.
+4. *Concurrent ADMIN replay races (Scenario B):* Two administrators issuing simultaneous replay requests on the same DLQ message could both observe DLQ state during preflight and attempt competing resets.
+5. *Uncoordinated Replay vs Discard race (Scenario D):* `OutboxDlqService.deleteMessage()` and `OutboxRepository.deleteMessage()` checked message status outside the deletion boundary, allowing discard to overwrite an already reopened command, or stale replay to resurrect a discarded command. Furthermore, uncoordinated delete risked orphaning Root admission history.
+
+**Correction and single-transaction architecture:**
+The entire replay and discard workflows were refactored into strict, single-transaction boundaries with an explicit deadlock-free lock order:
+- **Lock ordering:**
+  1. `AssessmentRootCapacity` singleton row (`ROOT_CAPACITY_ID`) locked via `SELECT ... FOR UPDATE` (ensuring capacity authority serialization).
+  2. `OutboxMessage` row (`id`) locked via `SELECT ... FOR UPDATE` (ensuring exclusive message lock).
+  3. `Assessment` (`id`) and `AssessmentRuntime` (`assessmentId`).
+  4. `AssessmentRootExecutionSlot` (evaluating held slots).
+  5. `AssessmentRootAdmissionRequest` (conditional reset using `clock_timestamp()`).
+- **Fail-closed atomic transition:**
+  - In `replayMessage()`, message state is verified under the transaction lock to ensure `status === OUTBOX_STATUSES.dlq`.
+  - Safety assertions (`assertReplayTargetIsSafeInTx`) revalidate Assessment `ACTIVE`, runtime `FAILED`, `leaseToken === null`, held slot count === 0, and non-fenced error codes under the row lock.
+  - For Root commands, `AssessmentRootAdmissionRequest` is reset atomically (`completedAt = NULL`, `admittedRunId = NULL`, `deliveredAt = NULL`, `requestedAt = clock_timestamp()`). If no rows are updated, the transaction throws and rolls back.
+  - `OutboxMessage` update is strictly conditioned: `UPDATE ... WHERE id = $id AND status = 'DLQ'`. The database trigger `lcsp_assessment_execution_writer_fence` automatically enforces `OWNED_PENDING` isolation for enrolled Assessments.
+  - Positive audit `OUTBOX_AUDIT_EVENT_TYPES.dlqReplayed` is committed inside the exact same transaction via `auditWriter.writeInTx(..., tx)`. If audit persistence throws, the entire transaction rolls back cleanly.
+  - Denial audits (`OUTBOX_AUDIT_EVENT_TYPES.dlqReplayDenied`) are logged in an isolated transaction upon caught precondition rejections, preventing false success.
+- **Authoritative discard and tombstone semantics:**
+  - `deleteMessage()` executes within the same locking hierarchy. If a Root command is referenced by durable admission records, its status is conditionally transitioned to `CANCELLED` tombstone (`WHERE status = 'DLQ'`), preserving historical admission references and preventing resurrection. Unreferenced non-Root events are physically deleted.
+  - Discard audit `OUTBOX_AUDIT_EVENT_TYPES.dlqDiscarded` is written atomically in-transaction via `writeInTx`.
+- **Non-Root event regression protection:**
+  - Ordinary outbox messages replay and discard cleanly without requiring Root admission bookkeeping.
+  - Repository scan jobs with terminal states (`COMPLETED`, `FAILED`, `CANCELLED`) are strictly refused replay.
+
 Confirmed security gap: the actual non-superuser Fogewise API login could UPDATE/DELETE enrollment, removing the canonical-row fence. The additive immutable-enrollment trigger now rejects this DML, TRUNCATE and impersonation, and validates new enrollment under the activation lock. [RED](final-isolation-red.log), [GREEN: 8/8](final-isolation-green.log). Existing production enrollments have not been modified.
 
 Active fault injection found two further defects. Identical redeliveries could occupy both polling workers and starve independent work; a bounded fingerprint guard now defers duplicates through the existing confirmed durable delay. A replacement could accept the previous lease/run ID and replay a model step whose external response was unknown. Registration now atomically revokes the old lease pair, claims require the current incarnation, and uncertain running work enters existing durable DLQ before another model invocation. Audited quiescent ADMIN replay preserves the same Root/checkpoint. [Original active failure](final-active-faults-red.json), [duplicate starvation](final-active-faults-duplicate-starvation.json), [10-scenario GREEN](final-active-faults.json).
@@ -32,6 +64,11 @@ Local source-bound receipts:
 
 | Verification | Result | Receipt / scope |
 |---|---|---|
+| DLQ Atomic Replay / Concurrent Recovery Invariants | 10 PASS | [Test](apps/api/test/outbox-dlq-atomic-replay.e2e-spec.ts); real PostgreSQL concurrency (ports/pools), atomic rollback on audit failure, racing replay/discard, physical slot fencing, non-Root events, deadlock immunity |
+| Real PostgreSQL Global Admission / Capacity Integration | 18 PASS / 1 SKIP | [Test](apps/api/test/assessment-root-capacity.integration.spec.ts); dedicated `lcsp364_capacity` database, out-of-order 10k deferrals, independent API pools, terminal callback quiescence, tenant rotation, failover fences |
+| Outbox Platform Unit Suite | 86 PASS (6 suites) | [Suite](apps/api/src/platform/outbox/); DLQ controller/service, repository transaction propagation, RabbitMQ publisher, payload isolation |
+| Assessment Domain & Application Suite | 349 PASS (33 suites) | [Suite](apps/api/src/modules/assessment/); root capacity policy, admission gate, recovery services, tracking, provenance, legal source queries |
+| Python Adaptive Root Capacity Suite | 32 PASS | [Suite](deepagents/tests/test_adaptive_root_capacity.py); fault harness, path traversal prevention, cgroup memory limits, capacity refusal signals, incarnation fencing |
 | Full Python | 2,037 PASS / 26 SKIP | [Log](final-python-regression.log); includes usage/cache/failure/budget/semantic/runtime tests; skipped integrations are not PASS |
 | Full API | 1,575 PASS / 134 SKIP, 190 suites PASS | [Log](final-api-regression-green.log); actual dedicated migrated PostgreSQL, accounting/legal/provenance/isolation |
 | Distributed admission / 10,001 commands | 19 PASS | [Log](final-capacity-integration.log); real PG pools, HTTP, RabbitMQ retry/ACK, owner rotation and nonce fencing |
@@ -44,7 +81,7 @@ Local source-bound receipts:
 | Real broker / reconnect | 3 PASS, 1 fixture-only SKIP | [Log](final-broker-real.log); the skipped backlog test passes through the dedicated 19-case suite |
 | Native PostgreSQL reconnect | 1 PASS | [Log](final-postgres-reconnect.log); new connections, real thread lock, checkpoint/store continuity and scoped erasure |
 | Semantic oracle / drain | 7 / 4 PASS | [Oracle](final-semantic-oracle.log), [drain](final-drain.log) |
-| Source/static checks | PASS locally | API build/typecheck/changed-file lint, contract/import/billing/retired-authority gates, five documentation-checker tests; exact-head CI remains separate |
+| Source/static checks | PASS locally | API build/typecheck (`tsc --noEmit`), ESLint clean, check:business-logic-docs (932 conformant, 0 missing/invalid), test:business-logic-docs (5/5 PASS) |
 
 Setup-only failed attempts (unstarted default test DB, overlapping resettable fixture names and an obsolete fixture assertion against the deliberately cleared success resume pointer) were corrected without weakening product assertions. The completed checkpoint ancestry is verified against persisted native checkpoint rows. No fixture is claimed to prove paid-provider semantics or production faults.
 
@@ -84,7 +121,7 @@ The owner explicitly approved the replacements/out-of-scope decisions in the cur
 | Software monetary/admission conservation | Historical real usage plus current kernel/API/Python regressions | REQUIRED | Kernel grant/reversal conservation, atomic paid admission and UNKNOWN/cache/failure handling PASS; automatic uncertain replay refused | An explicit operator retry can incur a new external charge; upstream UNKNOWN remains UNKNOWN | [8-case kernel/role log](final-isolation-green.log), full suites, [active refusal](final-active-faults.json); minimal production receipt still required after changes | New production enablement pending | PASS_WITH_DEFINED_SCOPE locally / LCSP-364 engineer |
 | Two simultaneous Roots on Fogewise | Measured RAM refused second Root; actual production peak one | ENVIRONMENT_CONSTRAINT | Owner-approved representative environment; one under pressure is correct production behavior | Fogewise supports only measured envelope | Reuse [real native proof](acceptance4-native-proof.json); retain production guards | Neither if supported envelope passes | PASS_WITH_DEFINED_SCOPE / infrastructure owner |
 | Repeated large paid load batch | 1/2/4/8 fixture matrix plus actual live-provider two-Root overlaps already accepted | ALREADY_PROVEN | No new payment solely for more screenshots/counts | Any source change invalidates only affected proof | [Native load receipt](acceptance3-native-load-artifact.json), [live summary](acceptance4-live-summary.json); rerun affected fixture tests | Neither absent affected change | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer |
-| Active-execution failure/recovery | Previously only quiescent proof | REQUIRED | 10 real-process scenarios PASS; actual external fixture operation survives server death, no automatic model repeat; ADMIN denial/replay and ancestry verified | Controlled fail-closed recovery requires reconciliation of uncertain upstream effects | [Fault receipt](final-active-faults.json), [runbook](../../docs/runbooks/assessment-root-capacity.md#unclean-active-execution-recovery) | Neither for tested supported topology | PASS_WITH_DEFINED_SCOPE / operator owns explicit recovery |
+| Active-execution failure & atomic operator recovery | Previously non-atomic replay & quiescent-only proof | REQUIRED | 10 active process scenarios PASS; single-transaction atomic DLQ replay/discard boundary verified with 10/10 real PostgreSQL concurrency tests (outbox-dlq-atomic-replay.e2e-spec.ts); audit failure rollback and admission reset verified | Controlled fail-closed recovery requires reconciliation of uncertain upstream effects | [Fault receipt](final-active-faults.json), [DLQ E2E Suite](apps/api/test/outbox-dlq-atomic-replay.e2e-spec.ts), [runbook](../../docs/runbooks/assessment-root-capacity.md#unclean-active-execution-recovery) | Neither for tested supported topology | PASS_WITH_DEFINED_SCOPE / operator owns explicit recovery |
 | Enrollment ownership cannot be removed | Confirmed deployed app DML gap | REQUIRED | Additive immutable trigger; actual-role 8/8 regression PASS, existing rows untouched | SQL owner/superuser DDL is trusted; production migration not yet activated | [GREEN](final-isolation-green.log), [migration](../../apps/api/prisma/migrations/20261102043000_assessment_execution_isolation_immutable/migration.sql); deploy/verify current enrollments | Production enablement until migration verified | BLOCKED_REQUIRED deployment / LCSP-364 engineer |
 | Global ownership of every external legacy writer | Scoped fence accepted, unprotected legacy paths not enrolled | REQUIRED | Permit only explicitly supported scoped execution until all writers enforce admission or are excluded | Unsupported legacy work is outside global-cap claim | Prove owned route and immutable enrollment; document fail-closed global enablement restriction | Global enablement; scoped merge only after hardening | BLOCKED_REQUIRED / LCSP-364 engineer, deployment operator |
 | Full production multi-tenant paid fairness campaign | Real paid cohort uses one customer | REPLACE_WITH_EQUIVALENT_TEST | 19 PG/MQ cases and active two-owner long/short/queued fault scenario PASS, out-of-order and Continue use canonical intent | Fairness applies to independent eligible commands, not semantic completion | [Admission log](final-capacity-integration.log), [two-owner native fault](final-active-faults.json); 1/2/4/8 matrix rerun below | Neither after fixture matrix PASS | PASS_WITH_DEFINED_SCOPE / LCSP-364 engineer |

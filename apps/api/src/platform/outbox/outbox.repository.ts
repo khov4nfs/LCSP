@@ -265,63 +265,128 @@ export class OutboxRepository {
   /**
    * Business purpose: Replay an operator-approved failed delivery through its existing durable publisher.
    * Business rules:
-   * - The DLQ service retains authorization/lifecycle guards; replay cannot release physical Root occupancy.
+   * - The DLQ service retains authorization and lifecycle guards; replay cannot release physical Root occupancy.
    * - Only a quiescent Root command may reopen its operational admission intent; accepted domain work is unchanged.
    * - Explicit replay receives a new database-clock request time so an older completed turn cannot consume the new intent.
+   * - Replay is strictly conditional on current DLQ status; non-DLQ messages reject.
    * Execution flow:
-   * 1. Reset transport retry metadata and reopen quiescent admission bookkeeping in one transaction.
+   * 1. Lock the global capacity row and target outbox message FOR UPDATE.
+   * 2. Verify current status is DLQ (fail closed if not).
+   * 3. For Root commands, reset admission bookkeeping; fail closed if a physical slot is held or intent missing.
+   * 4. Conditionally transition outbox message from DLQ to PENDING.
    * Failure cases:
-   * - Missing message or persistence errors roll back both updates; live slots retain their existing authority.
+   * - Missing message, non-DLQ status, live slot or persistence errors roll back atomically.
    * Side effects:
-   * - Updates outbox/admission bookkeeping; the caller preserves the existing operator audit.
+   * - Updates outbox and admission bookkeeping; caller preserves operator audit.
    */
-  async resetMessageForReplay(id: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+  async resetMessageForReplay(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const run = async (client: Prisma.TransactionClient) => {
       // Serialize replay with admission whenever physical authority has been initialized.
-      await tx.$queryRaw`SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE`;
-      await tx.$executeRaw`
-        UPDATE "AssessmentRootAdmissionRequest" r SET "completedAt" = NULL,
-          "admittedRunId" = NULL, "deliveredAt" = NULL,
-          "requestedAt" = clock_timestamp()
-        WHERE r."commandId" = ${id} AND NOT EXISTS (
-          SELECT 1 FROM "AssessmentRootExecutionSlot" s
-          WHERE s."commandId" = r."commandId" AND s."releasedAt" IS NULL)`;
-      await tx.outboxMessage.update({
-        where: { id },
-        data: {
-          status: toPrismaOutboxStatus(OUTBOX_STATUSES.pending),
-          attempts: 0,
-          nextAttemptAt: null,
-          errorMessage: null,
-        },
-      });
-    });
+      await client.$executeRaw`
+        INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
+        VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
+        ON CONFLICT ("id") DO NOTHING
+      `;
+      await client.$queryRaw`SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE`;
+      const [msg] = await client.$queryRaw<OutboxRow[]>`
+        SELECT * FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
+      `;
+      if (!msg || msg.status !== OUTBOX_STATUSES.dlq) {
+        throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+      }
+      const isRoot =
+        msg.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED;
+      if (isRoot) {
+        const updated = await client.$executeRaw`
+          UPDATE "AssessmentRootAdmissionRequest" r SET "completedAt" = NULL,
+            "admittedRunId" = NULL, "deliveredAt" = NULL,
+            "requestedAt" = clock_timestamp()
+          WHERE r."commandId" = ${id} AND NOT EXISTS (
+            SELECT 1 FROM "AssessmentRootExecutionSlot" s
+            WHERE s."assessmentId" = r."assessmentId" AND s."releasedAt" IS NULL)`;
+        if (updated === 0) {
+          throw new Error(`ROOT_ADMISSION_RESET_FAILED: ${id}`);
+        }
+      }
+      const transitioned = await client.$executeRaw`
+        UPDATE "OutboxMessage" SET
+          "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.pending)}::"OutboxStatus",
+          "attempts" = 0,
+          "nextAttemptAt" = NULL,
+          "errorMessage" = NULL
+        WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+      `;
+      if (transitioned === 0) {
+        throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+      }
+    };
+    if (tx) {
+      await run(tx);
+    } else {
+      await this.prisma.$transaction(run);
+    }
   }
 
   /**
    * Business purpose: Discard an operator-selected DLQ delivery while retaining physical Root authority and audit links.
    * Business rules:
-   * - Root commands referenced by admission history become cancelled tombstones; their slots/history cannot cascade away.
+   * - Root commands referenced by admission history become cancelled tombstones; their slots and history cannot cascade away.
    * - Unreferenced transport messages keep the existing physical deletion behavior.
+   * - Discard is strictly conditional on current DLQ status; non-DLQ messages reject.
    * Execution flow:
-   * 1. Find admission bookkeeping and cancel its transport record, or delete an unreferenced message.
+   * 1. Lock the global capacity row and target outbox message FOR UPDATE.
+   * 2. Verify current status is DLQ (fail closed if not).
+   * 3. Find admission bookkeeping and cancel its transport record, or delete an unreferenced message.
    * Failure cases:
-   * - Missing message or database failure rejects atomically; discard never cancels a living native Root.
+   * - Missing message, non-DLQ status, or database failure rejects atomically; discard never cancels a living native Root.
    * Side effects:
-   * - Removes the message from DLQ visibility while preserving Root history; the caller records the discard audit.
+   * - Removes the message from DLQ visibility while preserving Root history; caller records discard audit.
    */
-  async deleteMessage(id: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const intent = await tx.assessmentRootAdmissionRequest.findUnique({
+  async deleteMessage(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const run = async (client: Prisma.TransactionClient) => {
+      await client.$executeRaw`
+        INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
+        VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
+        ON CONFLICT ("id") DO NOTHING
+      `;
+      await client.$queryRaw`SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE`;
+      const [msg] = await client.$queryRaw<OutboxRow[]>`
+        SELECT * FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
+      `;
+      if (!msg || msg.status !== OUTBOX_STATUSES.dlq) {
+        throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+      }
+      const intent = await client.assessmentRootAdmissionRequest.findUnique({
         where: { commandId: id },
         select: { commandId: true },
       });
-      if (intent)
-        await tx.outboxMessage.update({
-          where: { id },
-          data: { status: toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled) },
-        });
-      else await tx.outboxMessage.delete({ where: { id } });
-    });
+      if (intent) {
+        const updated = await client.$executeRaw`
+          UPDATE "OutboxMessage" SET "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled)}::"OutboxStatus"
+          WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+        `;
+        if (updated === 0) {
+          throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+        }
+      } else {
+        const deleted = await client.$executeRaw`
+          DELETE FROM "OutboxMessage" WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+        `;
+        if (deleted === 0) {
+          throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+        }
+      }
+    };
+    if (tx) {
+      await run(tx);
+    } else {
+      await this.prisma.$transaction(run);
+    }
   }
 }

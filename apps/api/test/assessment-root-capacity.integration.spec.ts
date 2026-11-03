@@ -122,7 +122,9 @@ integration(
       const repository = new OutboxRepository(first as PrismaService);
       const commandId = `fixture-command:${one.assessmentId}`;
       await a.reserve(one);
-      await repository.resetMessageForReplay(commandId);
+      await expect(
+        repository.resetMessageForReplay(commandId),
+      ).rejects.toThrow();
       expect(
         (
           await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
