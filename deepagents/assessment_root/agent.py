@@ -18,6 +18,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
 from assessment_root.researcher import RESEARCHER_NAME, RESEARCHER_PROMPT, researcher_subagent
+from assessment_root.tool_contracts import describe_tool
 from assessment_root.tools import RootRun, build_root_tools
 from rule_set_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
 from orchestration.graph_execution import agent_graph_config
@@ -123,7 +124,10 @@ def root_permissions() -> list[FilesystemPermission]:
 def _graph_tools() -> list[Any]:
     from tools.common.codebase_memory_graph import CODEBASE_MEMORY_GRAPH_TOOLS
 
-    return [tool for tool in CODEBASE_MEMORY_GRAPH_TOOLS if tool.name in _GRAPH_TOOL_NAMES]
+    return [
+        tool.model_copy(update={"description": describe_tool(tool.name, tool.description)})
+        for tool in CODEBASE_MEMORY_GRAPH_TOOLS if tool.name in _GRAPH_TOOL_NAMES
+    ]
 
 
 def create_assessment_root_agent(

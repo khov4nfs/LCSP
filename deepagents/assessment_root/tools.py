@@ -24,6 +24,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.learning import retrieve_shared_heuristics
+from assessment_root.skills import list_skills, load_skill
+from assessment_root.tool_contracts import describe_tool
 
 # Native/search tool names whose executions authenticate a search-coverage record.
 _SEARCH_TOOLS = {"ls", "glob", "grep", "search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
@@ -311,6 +313,10 @@ class ConditionRefArgs(_Args):
     index: int = Field(ge=0)
 
 
+class LoadAssessmentSkillArgs(_Args):
+    name: str = Field(description="Exact registered skill name, not a source path.")
+
+
 class ReadLegalSourceArgs(_Args):
     document_id: str = Field(description="documentId of a provision, as listed in the rule's legalSources.")
     locator: str = Field(description="locator of that provision.")
@@ -534,6 +540,14 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     """
     client = run.client
 
+    def list_assessment_skills() -> dict[str, Any]:
+        """List optional approved research methods; never authoritative legal evidence."""
+        return {"ok": True, "skills": list_skills()}
+
+    def load_assessment_skill(name: str) -> dict[str, Any]:
+        """Load one method for a selected-rule investigation, without granting rights."""
+        return load_skill(name)
+
     def get_assessment_context() -> dict[str, Any]:
         """Business purpose:
         Reload the accepted assessment state and source-view limits before continuing an investigation.
@@ -617,7 +631,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return {"ok": True, **client.rule_decisions(assessment_rule_id, revision)}
 
     def get_pinned_rule_set(offset: int = 0, limit: int = 25) -> dict[str, Any]:
-        """Business purpose: Discover every pinned AssessmentRule through complete, bounded catalog pages.
+        """Business purpose: Discover this request's selected AssessmentRules through bounded catalog pages.
 
         Business rules:
         - The API owns the immutable Rule Set; pagination changes visibility only, never coverage or rule membership.
@@ -1169,7 +1183,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return StructuredTool.from_function(
             func=_guard(func),
             name=name,
-            description=(func.__doc__ or name).strip(),
+            description=describe_tool(name, (func.__doc__ or name).strip()),
             args_schema=schema,
             infer_schema=schema is None,
             handle_validation_error=_validation_feedback,
@@ -1180,6 +1194,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
     return [
         retrieve_shared_heuristics,
+        tool(list_assessment_skills, _NoArgs, "list_assessment_skills"),
+        tool(load_assessment_skill, LoadAssessmentSkillArgs, "load_assessment_skill"),
         tool(get_assessment_context, _NoArgs, "get_assessment_context"),
         tool(get_pinned_rule_set, GetPinnedRuleSetArgs, "get_pinned_rule_set"),
         tool(get_assessment_rule, GetRuleArgs, "get_assessment_rule"),
@@ -1200,6 +1216,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
 ROOT_TOOL_NAMES = (
     "retrieve_shared_heuristics",
+    "list_assessment_skills",
+    "load_assessment_skill",
     "get_assessment_context",
     "get_pinned_rule_set",
     "get_assessment_rule",
