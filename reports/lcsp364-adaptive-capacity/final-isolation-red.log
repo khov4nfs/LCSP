@@ -1,0 +1,85 @@
+TAP version 13
+# Subtest: only the exact test customer and active admin can grant credit
+ok 1 - only the exact test customer and active admin can grant credit
+  ---
+  duration_ms: 495.337377
+  type: 'test'
+  ...
+# Subtest: audit failure rolls back kernel ledger and wallet projection together
+ok 2 - audit failure rolls back kernel ledger and wallet projection together
+  ---
+  duration_ms: 29.809008
+  type: 'test'
+  ...
+# Subtest: concurrent grants append once, project once, audit once and create no payment
+ok 3 - concurrent grants append once, project once, audit once and create no payment
+  ---
+  duration_ms: 40.913039
+  type: 'test'
+  ...
+# Subtest: unused-credit reversal preserves usage debit and is idempotent
+ok 4 - unused-credit reversal preserves usage debit and is idempotent
+  ---
+  duration_ms: 35.177128
+  type: 'test'
+  ...
+# Subtest: enrollment refuses a superuser and never transfers an existing execution
+ok 5 - enrollment refuses a superuser and never transfers an existing execution
+  ---
+  duration_ms: 51.132207
+  type: 'test'
+  ...
+# Subtest: old DB writer cannot claim, complete, move, delete or mutate an isolated Assessment
+ok 6 - old DB writer cannot claim, complete, move, delete or mutate an isolated Assessment
+  ---
+  duration_ms: 71.682726
+  type: 'test'
+  ...
+# Subtest: enrollment cannot be reassigned, removed, truncated or forged through SET ROLE
+not ok 7 - enrollment cannot be reassigned, removed, truncated or forged through SET ROLE
+  ---
+  duration_ms: 2.599817
+  type: 'test'
+  location: '/home/khovan/Workplaces/LCSP/scripts/lcsp364-acceptance.integration.test.mjs:378:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /LCSP_EXECUTION_ISOLATION_IMMUTABLE/. Input:
+    
+    'Error: UNPROTECTED_ENROLLMENT_MUTATION'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'UNPROTECTED_ENROLLMENT_MUTATION'
+  stack: |-
+    file:///home/khovan/Workplaces/LCSP/scripts/lcsp364-acceptance.integration.test.mjs:397:17
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Proxy._transactionWithCallback (/home/khovan/Workplaces/LCSP/node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client/runtime/client.js:75:4800)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///home/khovan/Workplaces/LCSP/scripts/lcsp364-acceptance.integration.test.mjs:392:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  operator: 'rejects'
+  stack: |-
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (file:///home/khovan/Workplaces/LCSP/scripts/lcsp364-acceptance.integration.test.mjs:392:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: isolated outbox survives old publishers, backoff, replicas and confirmed RabbitMQ delivery
+ok 8 - isolated outbox survives old publishers, backoff, replicas and confirmed RabbitMQ delivery
+  ---
+  duration_ms: 309.680632
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1232.983313

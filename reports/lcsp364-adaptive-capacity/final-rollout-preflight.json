@@ -1,0 +1,766 @@
+{
+  "observedAt": "2026-11-02T09:30:19.264848+00:00",
+  "readOnly": true,
+  "host": "fogewise",
+  "checkout": "/srv/apps/LCSP",
+  "revision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "branch": "feat/LCSP-364-adaptive-root-admission",
+  "dirtyPaths": [],
+  "cpuCount": 4,
+  "loadAverage": [
+    0.1591796875,
+    0.12939453125,
+    0.13330078125
+  ],
+  "memory": "total        used        free      shared  buff/cache   available\nMem:      8327135232  3546288128   423731200   280453120  5080887296  4780847104\nSwap:     2147479552   848183296  1299296256",
+  "disk": {
+    "totalBytes": 42155278336,
+    "usedBytes": 35246170112,
+    "freeBytes": 4745097216
+  },
+  "pressure": {
+    "cpu": "some avg10=0.09 avg60=0.20 avg300=0.15 total=41471619939\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=6437712349\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=4247374284",
+    "io": "some avg10=0.00 avg60=0.16 avg300=0.09 total=18001521579\nfull avg10=0.00 avg60=0.16 avg300=0.09 total=12484049282"
+  },
+  "configurationFingerprints": {
+    ".env.pm2": "fd98df1b7cc562d5f9884cdd7ebd36495a4cc574da7b9468b5bff308d099b471",
+    "ecosystem.config.cjs": "32085f597dc37e52a518b87df16c1a5a802dcdfda8b7ed24836888b74ed037f8",
+    "deepagents/uv.lock": "ea88f310b3ff72d4ab781ff0227bd7c0140cc693d30e9c82bcc1a1dd4a85bb10"
+  },
+  "runtimeSettings": {
+    "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS": "2",
+    "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH": "2"
+  },
+  "processes": [
+    {
+      "name": "lcsp-api",
+      "pid": 211220,
+      "status": "online",
+      "cwd": "/srv/apps/LCSP",
+      "restarts": 5,
+      "memoryBytes": 54661120,
+      "cpuPercent": 0
+    },
+    {
+      "name": "lcsp-agent-runtime",
+      "pid": 217682,
+      "status": "online",
+      "cwd": "/srv/apps/LCSP/deepagents",
+      "restarts": 3,
+      "memoryBytes": 54661120,
+      "cpuPercent": 0
+    },
+    {
+      "name": "lcsp-web",
+      "pid": 191592,
+      "status": "online",
+      "cwd": "/srv/apps/LCSP",
+      "restarts": 0,
+      "memoryBytes": 54845440,
+      "cpuPercent": 0
+    }
+  ],
+  "runtimeProcesses": [
+    {
+      "pid": 211220,
+      "role": "api",
+      "rssBytes": 54661120,
+      "capacitySettings": {}
+    },
+    {
+      "pid": 211253,
+      "role": "api",
+      "rssBytes": 307032064,
+      "capacitySettings": {
+        "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS": "2",
+        "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH": "2"
+      }
+    },
+    {
+      "pid": 217711,
+      "role": "server",
+      "rssBytes": 663154688,
+      "capacitySettings": {
+        "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS": "2",
+        "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH": "2",
+        "LCSP_AGENT_RUNTIME_MODE": "production"
+      }
+    },
+    {
+      "pid": 217712,
+      "role": "bridge",
+      "rssBytes": 195334144,
+      "capacitySettings": {
+        "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS": "2",
+        "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH": "2",
+        "LCSP_AGENT_RUNTIME_MODE": "production"
+      }
+    }
+  ],
+  "authoritySources": {
+    "api": "PROC_ENV",
+    "checkpoints": "PROC_ENV"
+  },
+  "sandboxes": [
+    {
+      "idHash": "90b16a8e9801f844",
+      "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+      "status": "running",
+      "memoryLimitBytes": 2147483648,
+      "nanoCpuLimit": 2000000000
+    },
+    {
+      "idHash": "063a02134977ecd7",
+      "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+      "status": "running",
+      "memoryLimitBytes": 2147483648,
+      "nanoCpuLimit": 2000000000
+    },
+    {
+      "idHash": "f0b6f5c68d6113d4",
+      "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+      "status": "running",
+      "memoryLimitBytes": 2147483648,
+      "nanoCpuLimit": 2000000000
+    },
+    {
+      "idHash": "0f0519b016005f33",
+      "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+      "status": "running",
+      "memoryLimitBytes": 2147483648,
+      "nanoCpuLimit": 2000000000
+    },
+    {
+      "idHash": "7f8796180c35d0e5",
+      "imageId": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+      "status": "running",
+      "memoryLimitBytes": 2147483648,
+      "nanoCpuLimit": 2000000000
+    },
+    {
+      "idHash": "99220bac59573236",
+      "imageId": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+      "status": "running",
+      "memoryLimitBytes": 2147483648,
+      "nanoCpuLimit": 2000000000
+    },
+    {
+      "idHash": "5af2fb2d6c27ec14",
+      "imageId": "sha256:0039d8bc2a963bf5d517e7732297c30ef9d8ffd7c56caeacc29378e9852e14e5",
+      "status": "running",
+      "memoryLimitBytes": 2147483648,
+      "nanoCpuLimit": 2000000000
+    }
+  ],
+  "sandboxUsage": [
+    {
+      "cpuPercent": "0.01%",
+      "memory": "688KiB / 2GiB",
+      "pids": "2"
+    },
+    {
+      "cpuPercent": "0.01%",
+      "memory": "680KiB / 2GiB",
+      "pids": "2"
+    },
+    {
+      "cpuPercent": "0.01%",
+      "memory": "49.75MiB / 2GiB",
+      "pids": "2"
+    },
+    {
+      "cpuPercent": "0.00%",
+      "memory": "19.48MiB / 2GiB",
+      "pids": "2"
+    },
+    {
+      "cpuPercent": "0.00%",
+      "memory": "676KiB / 2GiB",
+      "pids": "2"
+    },
+    {
+      "cpuPercent": "0.01%",
+      "memory": "676KiB / 2GiB",
+      "pids": "2"
+    },
+    {
+      "cpuPercent": "0.01%",
+      "memory": "66.52MiB / 2GiB",
+      "pids": "2"
+    }
+  ],
+  "sandboxImage": {
+    "id": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+    "digests": [
+      "lcsp-agent-runtime@sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160"
+    ],
+    "revision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+    "createdAt": "2026-10-31T00:02:00.149970564+07:00"
+  },
+  "broker": {
+    "vhost": "lcsp-sync-20261028",
+    "queues": [
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.agent_runtime_health_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_source_ingest_requested.retry.600000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.audit_export_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_source_ingest_requested.retry.120000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_source_ingest_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_source_ingest_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.ocr_fallback_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.legal_retrieval_index_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.vbpl_effected_chunk_set_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_change_detection_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_change_detection_requested.retry.600000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.official_text_extraction_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.official_text_extraction_requested.retry.30000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_change_detection_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.rule-set-preparation.legalSource-activated.v1",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_change_detection_requested.retry.120000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.rule_set_preparation_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.reviewed_legal_source_input_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.managed_document_ingest_requested.retry.60000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.managed_document_ingest_requested.retry.300000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.legal_chunk_build_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.billing-sepay-reconcile.v1",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.audit_export_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.official_text_extraction_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.official_text_extraction_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.assessment_root_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14000,
+        "name": "lcsp.agent_runtime.boundary.assessment_root_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.managed_document_ingest_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.ocr_fallback_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_retrieval_index_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_retrieval_index_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.agent_runtime_health_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_chunk_build_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.rule_set_preparation_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.audit_export_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.vbpl_effected_chunk_set_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.official_text_extraction_requested.retry.120000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.chunk_integrity_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.ocr_quality_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 22344,
+        "name": "lcsp.agent_runtime.boundary.assessment_root_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.vbpl_effected_chunk_set_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.reviewed_legal_source_input_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.chunk_integrity_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.ocr_quality_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.reviewed_legal_source_input_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.rule_set_preparation_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.agent_runtime_health_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_source_ingest_requested.retry.30000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.managed_document_ingest_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.official_text_extraction_requested.retry.600000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_change_detection_requested.retry.30000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.legal_chunk_build_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.legal_source_ingest_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.legal_change_detection_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.chunk_integrity_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.managed_document_ingest_requested.retry.2000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 13984,
+        "name": "lcsp.agent_runtime.boundary.ocr_quality_requested.retry.15000ms",
+        "messages_unacknowledged": 0,
+        "consumers": 0,
+        "messages_ready": 0
+      },
+      {
+        "memory": 14144,
+        "name": "lcsp.agent_runtime.boundary.ocr_fallback_requested",
+        "messages_unacknowledged": 0,
+        "consumers": 1,
+        "messages_ready": 0
+      }
+    ]
+  },
+  "databases": {
+    "api": {
+      "database": "lcsp_dev",
+      "maxConnections": 100,
+      "usedConnections": 27,
+      "probeLatencyMs": 3.790498711168766,
+      "rootExecutionStates": [
+        [
+          "PAUSED",
+          1
+        ],
+        [
+          "RUNNING",
+          5
+        ],
+        [
+          "FAILED",
+          10
+        ],
+        [
+          "QUEUED",
+          3
+        ],
+        [
+          "INTERRUPTED",
+          7
+        ],
+        [
+          "SUCCEEDED",
+          6
+        ]
+      ],
+      "assessmentLifecycleStates": [
+        [
+          "WAITING_FOR_HUMAN",
+          6
+        ],
+        [
+          "PREPARING",
+          2
+        ],
+        [
+          "COMPLETE",
+          6
+        ],
+        [
+          "ACTIVE",
+          13
+        ],
+        [
+          "FINALIZING",
+          3
+        ],
+        [
+          "BLOCKED",
+          1
+        ],
+        [
+          "PAUSED",
+          1
+        ]
+      ],
+      "activeRootLeases": [
+        [
+          5
+        ]
+      ],
+      "expiredRunningLeases": [
+        [
+          5
+        ]
+      ],
+      "unfinishedMigrations": [],
+      "checkpointReadStatus": "ACCESS_DENIED_UNKNOWN"
+    },
+    "checkpoints": {
+      "database": "lcsp360_cheatshield_acceptance_20261026",
+      "maxConnections": 100,
+      "usedConnections": 27,
+      "probeLatencyMs": 25.35049431025982,
+      "rootExecutionStates": [
+        [
+          "RUNNING",
+          5
+        ],
+        [
+          "FAILED",
+          7
+        ],
+        [
+          "QUEUED",
+          2
+        ],
+        [
+          "INTERRUPTED",
+          1
+        ],
+        [
+          "SUCCEEDED",
+          5
+        ]
+      ],
+      "assessmentLifecycleStates": [
+        [
+          "ACTIVE",
+          10
+        ],
+        [
+          "FINALIZING",
+          3
+        ],
+        [
+          "WAITING_FOR_HUMAN",
+          1
+        ],
+        [
+          "COMPLETE",
+          5
+        ],
+        [
+          "PREPARING",
+          1
+        ]
+      ],
+      "activeRootLeases": [
+        [
+          5
+        ]
+      ],
+      "expiredRunningLeases": [
+        [
+          5
+        ]
+      ],
+      "unfinishedMigrations": [],
+      "checkpointRows": 51512,
+      "checkpointReadLatencyMs": 50.29766634106636,
+      "nativeTransportStates": [
+        [
+          "error",
+          2
+        ],
+        [
+          "success",
+          65
+        ]
+      ]
+    }
+  },
+  "health": {
+    "api": "200",
+    "web": "307",
+    "runtime": "200"
+  }
+}

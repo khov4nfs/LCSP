@@ -23,6 +23,19 @@ DEFAULT_AGENT_RUNTIME_JOBS_PER_WORKER = 8
 
 
 def main() -> int:
+    """Business purpose: Own the existing server/bridge children through safe process drain.
+
+    Business rules:
+    - SIGTERM stops new broker intake and lets each child finish its real in-flight work.
+    - Parent exit never kills a still-writing child merely because another child exited first.
+    Execution flow:
+    1. Start the configured existing runtime roles and forward stop signals once.
+    2. Observe child exit, request sibling drain and wait for every child before returning.
+    Failure cases:
+    - A failed child preserves its exit code; surviving children still drain rather than receiving an immediate kill.
+    Side effects:
+    - Starts/stops the existing processes and sandbox reaper; does not create new workflow authority.
+    """
     disable_langsmith_tracing_by_default()
     role = _agent_runtime_role()
     reaper_stop = threading.Event()
@@ -77,7 +90,7 @@ def main() -> int:
         reaper_stop.set()
         for process in processes:
             if process.poll() is None:
-                process.kill()
+                process.wait()
         if reaper_thread is not None:
             reaper_thread.join(timeout=2)
 

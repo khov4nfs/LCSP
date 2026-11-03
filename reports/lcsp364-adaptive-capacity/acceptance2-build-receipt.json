@@ -1,0 +1,90 @@
+{
+  "previousRevision": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "targetRevision": "7fda124687ea22cea4ae8fa14f684098b9338efc",
+  "startedAt": "2026-10-31T07:59:14.377980+00:00",
+  "buildDirectory": "/root/lcsp364-rollout/7fda124687ea22cea4ae8fa14f684098b9338efc",
+  "dockerfile": "deepagents/Dockerfile.dev",
+  "uvSha256": "6065104d08e2abd75d7d2411c64e270ebd26124bb85f0a3a7f5b5dada369bea7",
+  "steps": [
+    {
+      "step": "node-frozen-install",
+      "startedAt": "2026-10-31T07:59:14.681064+00:00",
+      "diskFreeBeforeBytes": 5046407168,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T07:59:15.012179+00:00",
+      "diskFreeAfterBytes": 5046403072
+    },
+    {
+      "step": "sandbox-image",
+      "startedAt": "2026-10-31T07:59:15.012864+00:00",
+      "diskFreeBeforeBytes": 5046398976,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T07:59:18.421340+00:00",
+      "diskFreeAfterBytes": 5046177792
+    },
+    {
+      "step": "host-frozen-sync",
+      "startedAt": "2026-10-31T07:59:18.422059+00:00",
+      "diskFreeBeforeBytes": 5046177792,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T07:59:18.636340+00:00",
+      "diskFreeAfterBytes": 5046173696
+    },
+    {
+      "step": "host-wheel",
+      "startedAt": "2026-10-31T07:59:18.637178+00:00",
+      "diskFreeBeforeBytes": 5046173696,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T07:59:19.602277+00:00",
+      "diskFreeAfterBytes": 5045891072
+    },
+    {
+      "step": "host-bytecode",
+      "startedAt": "2026-10-31T07:59:19.602882+00:00",
+      "diskFreeBeforeBytes": 5045891072,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T07:59:19.745619+00:00",
+      "diskFreeAfterBytes": 5045854208
+    },
+    {
+      "step": "shared-packages",
+      "startedAt": "2026-10-31T07:59:19.746798+00:00",
+      "diskFreeBeforeBytes": 5045854208,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T07:59:30.218186+00:00",
+      "diskFreeAfterBytes": 5045563392
+    },
+    {
+      "step": "prisma-generate",
+      "startedAt": "2026-10-31T07:59:30.218938+00:00",
+      "diskFreeBeforeBytes": 5045563392,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T07:59:33.596454+00:00",
+      "diskFreeAfterBytes": 5045551104
+    },
+    {
+      "step": "api-build",
+      "startedAt": "2026-10-31T07:59:33.597315+00:00",
+      "diskFreeBeforeBytes": 5045551104,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T08:00:14.476438+00:00",
+      "diskFreeAfterBytes": 5045145600
+    },
+    {
+      "step": "web-build",
+      "startedAt": "2026-10-31T08:00:14.478748+00:00",
+      "diskFreeBeforeBytes": 5045145600,
+      "exitCode": 0,
+      "endedAt": "2026-10-31T08:01:25.899341+00:00",
+      "diskFreeAfterBytes": 4990087168
+    }
+  ],
+  "endedAt": "2026-10-31T08:01:25.990347+00:00",
+  "imageId": "sha256:51a7a4351886effcc984bd5baa0cb0efdf1ec517c3b1e2839973bbb75d1e136d",
+  "imageDigests": [
+    "lcsp-agent-runtime@sha256:51a7a4351886effcc984bd5baa0cb0efdf1ec517c3b1e2839973bbb75d1e136d"
+  ],
+  "webBuildId": "p9hdvQw85F4_YmLSRZWwA",
+  "dirtyPaths": [],
+  "diskFreeBytes": 4990087168
+}

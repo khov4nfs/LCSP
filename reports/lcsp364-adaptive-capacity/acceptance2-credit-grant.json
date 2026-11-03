@@ -1,0 +1,28 @@
+{
+  "reference": "LCSP-364",
+  "action": "grant",
+  "replay": false,
+  "testAccountHash": "a6c5c8279d66930d",
+  "actorVerifiedAdmin": true,
+  "ledgerEntryId": "671dc8ab-bd44-4c32-acb5-086706f5aa1a",
+  "source": "INTERNAL_TEST_GRANT",
+  "idempotencyKey": "LCSP-364:test-credit:20261031:2e723a25-b79c-4aac-a094-5771f3fbc590:grant:1",
+  "deltaCredits": "1000000",
+  "before": {
+    "available": "0",
+    "reserved": "0",
+    "version": 0
+  },
+  "after": {
+    "available": "1000000",
+    "reserved": "0",
+    "version": 1
+  },
+  "grantCredits": "1000000",
+  "usedCredits": "0",
+  "remainingTestCredits": "1000000",
+  "operationCodeRevision": "585828b05467257b23bfa6b6a08ccd1825ca6842",
+  "operationSourceSha256": "0d2d1d88eef9ad49f3b0ecafd48245bb692929d1e3705a9fc9279fae1f93723c",
+  "runtimeKernelRevision": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "kernelSourceUnchangedFromPr": true
+}

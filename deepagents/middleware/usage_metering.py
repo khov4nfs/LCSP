@@ -45,7 +45,7 @@ from orchestration.agent_stream import (
     publish_agent_stream_event,
     remember_message_model_step,
 )
-from orchestration.runtime_control import cancellable_async, cancellable_sync
+from orchestration.runtime_control import cancellable_async, cancellable_sync, physical_to_thread
 from provider_credentials import llm_provider_timeout_seconds
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.callback_schemas import SettledUsagePayload
@@ -1199,6 +1199,8 @@ class UsageMeteringMiddleware(AgentMiddleware):
         Side effects:
         - Updates admission state and writes/delivers usage evidence; no provider replay.
         """
+        from tools.common.capabilities.agent_runtime.root_capacity import observe_provider_pressure
+        observe_provider_pressure(error)
         state = active_agent_run_state()
         if state is not None:
             if state.admission is not None:
@@ -1261,17 +1263,17 @@ class UsageMeteringMiddleware(AgentMiddleware):
         """
         request, model = self._prepare(request)
         invocation_id = str(uuid4())
-        request = await asyncio.to_thread(self._admit, request, invocation_id)
+        request = await physical_to_thread(self._admit, request, invocation_id)
         telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
             response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
             # Usage-only delivery must not block the graph's async cancellation
             # loop. This thread can finish telemetry after the turn is stopped.
-            await asyncio.to_thread(self._record, response, model, invocation_id)
+            await physical_to_thread(self._record, response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            await asyncio.to_thread(self._unknown, invocation_id, model, error)
+            await physical_to_thread(self._unknown, invocation_id, model, error)
             from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
             cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))

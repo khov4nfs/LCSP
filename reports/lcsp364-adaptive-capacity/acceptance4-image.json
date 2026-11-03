@@ -1,0 +1,9 @@
+{
+  "startedAt": "2026-10-31T10:39:12.494631+00:00",
+  "completedAt": "2026-10-31T10:39:59.152675+00:00",
+  "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+  "bytes": 1452593601,
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "scope": "Same actual Fogewise runtime/sandbox image, transferred without exporting a credential/environment archive",
+  "diskFreeAfterBytes": 8216932352
+}

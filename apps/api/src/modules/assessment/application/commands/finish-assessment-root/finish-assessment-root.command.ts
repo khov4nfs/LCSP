@@ -14,6 +14,7 @@ export class FinishAssessmentRootCommand extends Command<
     public readonly checkpointId?: string,
     public readonly requestIds?: string[],
     public readonly controlRequestId?: string,
+    public readonly recoveryRequired?: boolean,
   ) {
     super();
   }

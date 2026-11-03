@@ -1,0 +1,43 @@
+{
+  "scope": "ISOLATED_LIVE_PROVIDER_NATIVE_NOT_FOGEWISE_NOT_SCRIPTED_MODEL",
+  "attemptCount": 61,
+  "uniqueInvocations": true,
+  "uniqueKnownProviderResponses": true,
+  "knownReferenceTotalUsd": "0.13479441",
+  "assessments": [
+    {
+      "assessmentId": "e983847a-1a58-4397-a8c2-2013d9147499",
+      "completedSettledAttempts": 21,
+      "failedUnavailableAttempts": 0,
+      "knownTotalTokens": 1522406,
+      "knownReferenceUsd": "0.06194627",
+      "unknownUsageAndCostNotZero": false,
+      "chargedCredits": null,
+      "monetaryDisposition": "REFERENCE_ONLY_RETIRED_MODEL_CREDIT_DEBIT_NOT_PROVIDER_INVOICE"
+    },
+    {
+      "assessmentId": "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+      "completedSettledAttempts": 18,
+      "failedUnavailableAttempts": 0,
+      "knownTotalTokens": 1405444,
+      "knownReferenceUsd": "0.03170030",
+      "unknownUsageAndCostNotZero": false,
+      "chargedCredits": null,
+      "monetaryDisposition": "REFERENCE_ONLY_RETIRED_MODEL_CREDIT_DEBIT_NOT_PROVIDER_INVOICE"
+    },
+    {
+      "assessmentId": "9d7e6400-fbc7-44dc-a515-d2501e4045bb",
+      "completedSettledAttempts": 21,
+      "failedUnavailableAttempts": 1,
+      "knownTotalTokens": 1441621,
+      "knownReferenceUsd": "0.04114784",
+      "unknownUsageAndCostNotZero": true,
+      "chargedCredits": null,
+      "monetaryDisposition": "REFERENCE_ONLY_RETIRED_MODEL_CREDIT_DEBIT_NOT_PROVIDER_INVOICE"
+    }
+  ],
+  "providerInvoice": null,
+  "unknownUsageCostDisposition": "UNKNOWN_NOT_ZERO",
+  "modelCreditDebitsRetired": true,
+  "noSePayPayment": true
+}

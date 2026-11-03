@@ -1,0 +1,51 @@
+{
+  "at": "2026-11-02T04:28:42.544986+00:00",
+  "scope": "READ_ONLY_FINAL_PREFLIGHT",
+  "head": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "configSha256": "fd98df1b7cc562d5f9884cdd7ebd36495a4cc574da7b9468b5bff308d099b471",
+  "freeDiskBytes": 4799131648,
+  "roles": [
+    {
+      "login": "lcsp364_fogewise_api",
+      "superuser": false,
+      "createRole": false,
+      "bypassRls": false,
+      "isolationDml": {
+        "INSERT": true,
+        "UPDATE": true,
+        "DELETE": true,
+        "TRUNCATE": false
+      }
+    }
+  ],
+  "sessionUser": "lcsp364_fogewise_api",
+  "fenceRows": [
+    [
+      "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "lcsp364_fogewise_api",
+      "2026-10-31 08:13:10.151000+00:00"
+    ],
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "lcsp364_fogewise_api",
+      "2026-10-31 08:31:11.931000+00:00"
+    ]
+  ],
+  "tableOwner": "fogewise",
+  "isolationTriggers": [],
+  "migrations": 140,
+  "heldPhysicalSlots": 0,
+  "humanRequests": [
+    [
+      "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "OPEN",
+      4
+    ],
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "OPEN",
+      4
+    ]
+  ],
+  "apiHealth": 200
+}

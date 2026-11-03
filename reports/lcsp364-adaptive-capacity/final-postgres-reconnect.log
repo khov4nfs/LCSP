@@ -1,0 +1,4 @@
+
+tests/test_agent_runtime_recovery.py::test_postgres_reconnection_preserves_run_and_checkpoint_and_erases_only_owned_records PASSED [100%]
+
+============================== 1 passed in 1.97s ===============================

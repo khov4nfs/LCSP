@@ -1,0 +1,181 @@
+{
+  "capturedAt": "2026-11-02T10:10:30.633Z",
+  "baseRevision": "1260e3e00a1950ef0559f1e313aeed6132e10739",
+  "sourceState": "PRE_COMMIT_CONTENT_HASHES",
+  "status": "PASS_LOCAL_NOT_PRODUCTION_OR_REVIEW",
+  "results": [
+    {
+      "gate": "FULL_PYTHON",
+      "status": "PASS",
+      "passed": 2037,
+      "skipped": 26,
+      "receipt": "final-python-regression.log",
+      "sha256": "cf518a7ab284e9906e661ab2ddc67db20f8a10a165646e7dce496dbb35ed5172"
+    },
+    {
+      "gate": "FULL_API",
+      "status": "PASS",
+      "passed": 1575,
+      "skipped": 134,
+      "receipt": "final-api-regression-green.log",
+      "sha256": "1b9c8e9f24c989b79888be9e160c5a3795b4a49cac183651f1698329f266aa6a"
+    },
+    {
+      "gate": "PG_MQ_ADMISSION",
+      "status": "PASS",
+      "passed": 19,
+      "skipped": 0,
+      "receipt": "final-capacity-integration.log",
+      "sha256": "b897fe3517cae803c151be9ab98323005159f8bf107b307cc7bca701dee7fd18"
+    },
+    {
+      "gate": "ENROLLMENT_OUTBOX_KERNEL",
+      "status": "PASS",
+      "passed": 8,
+      "skipped": 0,
+      "receipt": "final-isolation-green.log",
+      "sha256": "38abbc29d6e9b122ae8ce199d3e253550f11ef1a2dd9844a7ca147e11d806ef0"
+    },
+    {
+      "gate": "LEGAL_REPORT_FIXTURE",
+      "status": "PASS",
+      "passed": 149,
+      "skipped": 0,
+      "receipt": "final-legal-report-vertical.log",
+      "sha256": "cebb9b8ae13f6264d3b6b57edc4ae8947d42dd41c16e9e7d7399aa23b634e034"
+    },
+    {
+      "gate": "HITL_FIXTURE",
+      "status": "PASS",
+      "passed": 80,
+      "skipped": 0,
+      "receipt": "final-hitl-vertical.log",
+      "sha256": "4f609cf75dbfa0c2875a664da4f7fba8c43b1fa49dc96b2009f51d135ded3923"
+    },
+    {
+      "gate": "UNKNOWN_HITL_FIXTURE",
+      "status": "PASS",
+      "passed": 72,
+      "skipped": 0,
+      "receipt": "final-hitl-unknown.log",
+      "sha256": "6d615923a12aca778f190e7ae294e49ca2c632120742cee401ef2c4df90a311d"
+    },
+    {
+      "gate": "REAL_BROKER",
+      "status": "PASS",
+      "passed": 3,
+      "skipped": 1,
+      "receipt": "final-broker-real.log",
+      "sha256": "369c246447f7c6060966596e891fc8bcb998c0bbc9c1cc9b4c85567d2151db18"
+    },
+    {
+      "gate": "PG_NATIVE_RECONNECT",
+      "status": "PASS",
+      "passed": 1,
+      "skipped": 0,
+      "receipt": "final-postgres-reconnect.log",
+      "sha256": "ec371c5e966a208e985856a514548d2abbeaa9e6c072cedc7b145133261d5bbb"
+    },
+    {
+      "gate": "SEMANTIC_ORACLE",
+      "status": "PASS",
+      "passed": 7,
+      "skipped": 0,
+      "receipt": "final-semantic-oracle.log",
+      "sha256": "e55a5a0a3ec9852c1ece2949bc8b9b58b29f3d74b1adbbea4c873f14d0bf684a"
+    },
+    {
+      "gate": "DRAIN",
+      "status": "PASS",
+      "passed": 4,
+      "skipped": 0,
+      "receipt": "final-drain.log",
+      "sha256": "effe070e0d3ec043e1dac23c291141042be9bd615c78b28efe41ae9cb230ead2"
+    },
+    {
+      "gate": "DOCUMENTATION_CHECKER",
+      "status": "PASS",
+      "passed": 5,
+      "skipped": 0,
+      "receipt": "final-business-docs.log",
+      "sha256": "51512c37f12e36eb97d7d0cd41781967b5bc780e0ad954883defe9c5f53196da"
+    }
+  ],
+  "activeFaultScenarios": {
+    "activeGracefulBridgeDrain": "PASS",
+    "activeAbruptBridgeRedelivery": "PASS",
+    "twoOwnerFairBackpressure": "PASS",
+    "apiReplicaFailure": "PASS",
+    "liveLeaseExpiry": "PASS",
+    "staleLeaseAndClaimFencing": "PASS",
+    "uncertainModelReplayRefused": "PASS",
+    "lostQuiescenceRecovery": "PASS",
+    "queuedRootAfterCrash": "PASS",
+    "operatorRecoveryAndCheckpointAncestry": "PASS"
+  },
+  "nativeLoad": {
+    "submitted": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "actualPeaks": [
+      1,
+      2,
+      3,
+      3
+    ],
+    "paidProviderCalls": 0
+  },
+  "sourceSha256": {
+    ".github/workflows/test.yml": "9ed55be57265ddd04ed64221cdfafb8df2dc8252a5fa16d439c4c1ea263b551f",
+    "apps/api/prisma/migrations/20261102043000_assessment_execution_isolation_immutable/migration.sql": "644ec8ca9cdaca15b8ceed617537d06235bb0fcea8c61063f116a1b87875949b",
+    "apps/api/src/modules/assessment/application/commands/claim-assessment-root/claim-assessment-root.command.ts": "24ed906c41eb1c358a3620c8e8284a62b6535397a8032d4ca1d1c583613b5e5d",
+    "apps/api/src/modules/assessment/application/commands/claim-assessment-root/claim-assessment-root.handler.ts": "8a0ac9637eaf9115f473dabb8d12d95da171c3cea2a681ad92516672fa0e0825",
+    "apps/api/src/modules/assessment/application/commands/finish-assessment-root/finish-assessment-root.command.ts": "b74ed730e374bc6d1df0b40ae047a57396e59bffa9904b5af69a6c4cd18cbd0b",
+    "apps/api/src/modules/assessment/application/commands/finish-assessment-root/finish-assessment-root.handler.ts": "859c54e8d9c763d525c3365a6a6fb483f3743c62fe9d32e30a46ee7b21c084b4",
+    "apps/api/src/modules/assessment/application/services/assessment-root-capacity.service.ts": "a5ad9ae59a7835ecb57b92739550111048f21f925e78c16ca4ff0db17b8d7355",
+    "apps/api/src/modules/assessment/application/services/assessment-runtime-authority.service.ts": "eafe5dadd8df36374bfc50dd7462ed8548aead582b7e2694f9d2ef3511370ca3",
+    "apps/api/src/modules/assessment/presentation/http/assessment-domain.controller.ts": "469b353922e27a1147b6c6ba49732f3d6344144758073e744a0741d9e39c50f5",
+    "apps/api/src/platform/outbox/outbox-dlq.service.ts": "077eb1ff85a4356fd18fb3ddd8635308823a08a62517257f330830f8bfa41bb7",
+    "apps/api/src/platform/outbox/outbox.repository.ts": "4f37205f65bef3f3689e81087c92dfbbf33299b97ede82a29122b41fa4f4901e",
+    "apps/api/test/assessment-root-capacity.integration.spec.ts": "9b5b72eb13bbc29c1164087695f96734482beb1155c46d2b3655d06fc27cf5d7",
+    "deepagents/assessment_root/boundary.py": "87a7cafdf4e0e4c55a4b611b96cdf609272a830ddf3cbbe6a1e06c1a3f3a9567",
+    "deepagents/assessment_root/client.py": "7cb636a1402c2ea1c8e583a1111f0a3a0c8df9eea174aa7a5b59a7eed37fc23d",
+    "deepagents/assessment_root/runner.py": "09bed10936a6c19bb142049ef74945c878325c4be98e959566b2d76f4eedd041",
+    "deepagents/orchestration/runtime_control.py": "bf656f01ebb9010fe6a1ea0a8b052daf872d0b30dd623f994a0a5ed42734c69e",
+    "deepagents/tests/test_assessment_concurrency.py": "d9c9b729500c79c84a60f66ad7604a584cc2cbd2a252a54d6664b02a3cbaaaea",
+    "deepagents/tests/vertical/adaptive_capacity_faults.py": "ef368a9a6cd402f61eb0556083d5baaa0347587008c0dbc9d8b6996e82ee4f5e",
+    "deepagents/tests/vertical/adaptive_capacity_load.py": "9bb1c30ab402b1fb308205a2fbc57dcd4dcc8f12291dea7bbd370864670a52d7",
+    "deepagents/tests/vertical/hitl_root.py": "5ab2a6d6c51cc5ce3b1aa02f939d8b2d4d213ab39bfc80e25f1890eb36807b19",
+    "deepagents/tests/vertical/root_control.py": "4177532be0893875d0844db45b8d38e0e8680137e16f8e7ee174b12cdf7dfecd",
+    "deepagents/tests/vertical/scripted_root.py": "c90cd6de7659bf2825ebea82bff268c89255d6d279129377dff23577a9d3e63e",
+    "deepagents/tools/common/capabilities/agent_runtime/local_server.py": "b383d38ea2116fe1d296954fc7590329f15becd51c595c63337b58f63f072c4e",
+    "deepagents/tools/common/capabilities/agent_runtime/rabbitmq_consumer.py": "a9e8dad76a702403c8f33a1fab9bfd37363254b3bb40bc65f0369fdf91d7501c",
+    "packages/contracts/src/assessment-domain/schemas.ts": "2318e5b365ac64da812354246041dbe28100eac37565182f15164d66a9e47cdf",
+    "scripts/assessment-root-capacity-preflight.py": "54e73f0c5dc06b582e6380db6b55d266d463a12f24064087df41ba4c0ee04529",
+    "scripts/lcsp364-acceptance.integration.test.mjs": "162b94ac0ef8284a262408b3ebfda697538db28e557e1f86ffddde24ef3ec960",
+    "tests/assessment-domain-vertical.mjs": "8059c7333f708f36deeda00022a01a75a160c4984b42c0c489780ef4a093aea3",
+    "tests/support/adaptive-capacity-faults.mjs": "6d0b9e5446c2ab4e00002bae856fd78715015ba819a95d7dd8ed890834445859",
+    "tests/support/adaptive-capacity-load.mjs": "d65fc170337f4f48027e3c02c8263dfd470e6eeb47322d4f5f322fd6c2ba9151",
+    "tests/support/compliance-rule-set-stack.mjs": "f0c87ae01a7a0ef5e7d736e89cd9af83cce2670a6482f6ae0b6a607d3d284f23",
+    "tests/support/direct-root-admission.mjs": "87576e3a946f03c58f9c07e248d998af6e7676e4c4ca12ea99138f361db4f597"
+  },
+  "staticChecks": {
+    "apiBuild": "PASS",
+    "apiTypecheck": "PASS",
+    "changedApiLint": "PASS",
+    "businessDocumentation": "PASS",
+    "contractValues": "PASS",
+    "importPolicy": "PASS",
+    "billingSourceGate": "PASS",
+    "retiredAuthority": "PASS"
+  },
+  "limitations": [
+    "SKIP is not PASS",
+    "Synthetic legal/business facts only in isolated fixtures",
+    "Provider-free faults/load do not prove actual provider invoices",
+    "Production activation and independent review remain separate gates"
+  ]
+}

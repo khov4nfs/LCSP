@@ -25,6 +25,9 @@ def question(rule: str, suffix: str, criteria: dict) -> dict:
 
 
 def main() -> None:
+    from orchestration.runtime_control import active_runtime_run_id, active_runtime_incarnation_id
+    active_runtime_run_id.set(os.getenv("LCSP_TEST_ROOT_RUNTIME_RUN_ID"))
+    active_runtime_incarnation_id.set(os.getenv("LCSP_TEST_ROOT_INCARNATION_ID"))
     base, key, assessment_id, repo_dir, mode = sys.argv[1:6]
     steps = []
     criteria = {}

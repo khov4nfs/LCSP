@@ -1,0 +1,33 @@
+{
+  "implementationRevision": "7528577c08e23e991f62223558407d529d22babd",
+  "finalDeployedRevision": "44dba336f332d566d3fee9fc0d32642a402d024e",
+  "scope": "PRODUCTION_OPERATIONAL_ROLLOUT_NATIVE_CANARY_BLOCKED",
+  "sha256": {
+    "reports/lcsp364-adaptive-capacity/rollout-20261031.md": "966de5a085a71d39c32b5279ebb47285a0c8e226087bce250478e9dc5d780bcd",
+    "reports/lcsp364-adaptive-capacity/rollout-initial-preflight.json": "0e1e0b43ccef634bc726dbb816f190a734171a14dd11d83834c5639dd60550d1",
+    "reports/lcsp364-adaptive-capacity/rollout-cleanup-receipt.json": "893e6c44234f6be83859562f20c41cd5718ebf5265833d6e3d78535351d25332",
+    "reports/lcsp364-adaptive-capacity/rollout-build-cache-cleanup.json": "6c45ce66bba54902da32d70bced54cbf70e2c91a47a92dd8a96a3c2177f5ee64",
+    "reports/lcsp364-adaptive-capacity/rollout-additional-cache-cleanup.json": "24fa4c849533617330dd45f815fcec4c1a1117c3e1e99f85356b13476c20f0dc",
+    "reports/lcsp364-adaptive-capacity/rollout-rollback-backup-receipt.json": "d85969e1c39a0f3b513668a728f8629e76b31cb54f243e877f3970e5c124233e",
+    "reports/lcsp364-adaptive-capacity/rollout-database-backup-receipt.json": "1fc7029d152ef7464d2519569bae9ce545e8fb55fd0d64430433e67eeec0af44",
+    "reports/lcsp364-adaptive-capacity/rollout-first-quiescence.jsonl": "9deeda1a6e5f82e0773489f3fdae43478f4aa58a25798515754ead0e00d585ce",
+    "reports/lcsp364-adaptive-capacity/rollout-checkout.json": "69a72d965305a191d3b5ecb97775269fddab0771070846f624fe6e2a10ce0455",
+    "reports/lcsp364-adaptive-capacity/rollout-build-receipt.json": "3cb188afe56545bbb6ca4ebbecfaef452217bde1a5e00ca9218ac579af3981fe",
+    "reports/lcsp364-adaptive-capacity/rollout-activation-receipt.json": "11c5fce0b039eb5656d4fcae93c1777baf9d28d9b59817accf62da14b2abaa2a",
+    "reports/lcsp364-adaptive-capacity/rollout-capacity-timeline.jsonl": "73861aeb383bdd40b6cc551f892f58546f5625889c4e38ad1077cdf5cc681a6a",
+    "reports/lcsp364-adaptive-capacity/rollout-telemetry-summary.json": "fc69f6e5df437ec57c801fb96fcec860d0f2b7e6312d31e42661b48355d601ff",
+    "reports/lcsp364-adaptive-capacity/rollout-canary-a-failure.json": "5796b470eba399a4c9f1d5dcca64267f1b68904934ac86e04e1b6fc9323ee232",
+    "reports/lcsp364-adaptive-capacity/rollout-canary-a-failed.png": "d2ab8e1cffb8f72120adb142a5ce22c3c963f2a0c6f16c2395f05ed10f401ac3",
+    "reports/lcsp364-adaptive-capacity/rollout-capacity-derived.png": "32632ff230ef943b9c36f2f48334cdefabcbf32634317537cb9d5003e2f0287e",
+    "reports/lcsp364-adaptive-capacity/rollout-capacity-derived.svg": "655d9c9a093ac372cef5734abbc32deb89f5ab865d2fdc9f5421ba75624b3b00",
+    "reports/lcsp364-adaptive-capacity/rollout-before-binary-rollback-preflight.json": "3e4f8e456c41b4b9f730bee5422fbd3cb1f37e496f9f3b45e2fb902b2726bacd",
+    "reports/lcsp364-adaptive-capacity/rollout-authenticated-drain.jsonl": "613553f090e1c288486f40f144f4ccfba10cc5e337a9ebf14fa2b467270ca52b",
+    "reports/lcsp364-adaptive-capacity/rollout-binary-rollback-quiescence.jsonl": "429da6db99011029bdd73e19b363e8b2ced3f73ac7fdc94ce50ab9a484fbeaa8",
+    "reports/lcsp364-adaptive-capacity/rollout-rollback-receipt.json": "4fe476ba398e91731b2976fd3e40d8411560558616564f5a0d24c484d8a2cf45",
+    "reports/lcsp364-adaptive-capacity/rollout-after-binary-rollback-preflight.json": "f4bd2ace41c1d678beedf93cb00f4bdc893e2c7897249356235cd44c8d2be70a",
+    "reports/lcsp364-adaptive-capacity/rollout-transfer-cleanup.json": "dccacdd2b1e7ad29fef6b45359608d6250917a1f4409600c81fa598278ab2e92"
+  },
+  "privateBackupsPublished": false,
+  "customerTokensPublished": false,
+  "normalization": "SVG line-ending whitespace and drain receipt trailing blank lines removed for Git hygiene; captured values and rendered content unchanged."
+}

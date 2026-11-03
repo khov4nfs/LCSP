@@ -101,19 +101,49 @@ class AssessmentRuntimeClient:
     # ---- lifecycle of one Root execution -------------------------------------------------------
 
     def claim(self, assessment_id: str) -> dict[str, Any]:
-        from orchestration.runtime_control import active_runtime_run_id
+        """Business purpose: Claim the canonical Root only within this native server's physical authority.
+
+        Business rules:
+        - The API validates both physical run and incarnation; an old or missing owner cannot reclaim a replacement lease.
+        Execution flow:
+        1. Bind this client to the Assessment and transmit the native execution context.
+        2. Retain only the API-issued lease for subsequent Root operations.
+        Failure cases:
+        - API ownership, capacity and lifecycle problems propagate without starting investigation.
+        Side effects:
+        - Requests the existing transactional lease; creates no model call or decision.
+        """
+        from orchestration.runtime_control import active_runtime_run_id, active_runtime_incarnation_id
 
         self.assessment_id = assessment_id
         runtime_run_id = active_runtime_run_id.get()
-        claim = self._call("POST", "/claim", {"runtimeRunId": runtime_run_id} if runtime_run_id else {}, with_lease=False)
+        body = {"runtimeRunId": runtime_run_id} if runtime_run_id else {}
+        incarnation_id = active_runtime_incarnation_id.get()
+        if incarnation_id:
+            body["runtimeIncarnationId"] = incarnation_id
+        claim = self._call("POST", "/claim", body, with_lease=False)
         self.lease_token = claim["leaseToken"]
         return claim
 
     def heartbeat(self) -> dict[str, Any]:
         return self._call("POST", "/heartbeat")
 
-    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None) -> dict[str, Any]:
+    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None, recovery_required: bool = False) -> dict[str, Any]:
+        """Business purpose: Settle one leased Root segment, retaining uncertain work for operator recovery.
+
+        Business rules:
+        - The API owns transitions and native checkpoint validation; recovery quarantine is permitted only for FAILED.
+        Execution flow:
+        1. Submit the terminal state and any checkpoint/control/human bindings with the current lease.
+        2. Clear the local token only after the API accepts settlement.
+        Failure cases:
+        - Stale leases and invalid state/checkpoint combinations propagate without local success.
+        Side effects:
+        - Settles runtime/event records and optional durable DLQ quarantine; never releases physical occupancy itself.
+        """
         body: dict[str, Any] = {"state": state}
+        if recovery_required:
+            body["recoveryRequired"] = True
         if checkpoint_id is not None:
             body["checkpointId"] = checkpoint_id
         if request_ids is not None:

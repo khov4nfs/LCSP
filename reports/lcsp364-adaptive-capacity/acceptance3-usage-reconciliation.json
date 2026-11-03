@@ -1,0 +1,95 @@
+{
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "capturedAt": "2026-10-31T09:03:10.435495+00:00",
+  "provider": "INCEPTION",
+  "model": "mercury-3",
+  "pricingSource": "https://www.inceptionlabs.ai/models",
+  "summaries": [
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "attempts": 31,
+      "settledCompleted": 29,
+      "failedUnavailable": 2,
+      "startedUnterminated": 0,
+      "uniqueInvocationIdentities": true,
+      "uniqueKnownProviderResponseIdentities": true,
+      "knownUsageAlgebraReconciled": true,
+      "knownReferencePriceAlgebraReconciled": true,
+      "knownTokenSums": {
+        "inputTokens": 268492,
+        "inputTokensIncludingCache": 1988043,
+        "cachedInputTokens": 1719551,
+        "outputTokens": 26162,
+        "reasoningTokens": 18655,
+        "totalTokens": 2014205
+      },
+      "knownReferenceCostUsd": "0.05320141",
+      "failedUsageDisposition": "UNKNOWN",
+      "usageCurrency": "USD_REFERENCE_ONLY",
+      "pricingVersions": [
+        "inception:mercury-3:launch:2026-10-29"
+      ],
+      "noInvoiceOrActualProviderDebitClaim": true,
+      "nullFinancialFields": {
+        "chargedCredits": 31,
+        "providerCostCredits": 31,
+        "customerChargeVnd": 31,
+        "reservationId": 31
+      },
+      "completeReferenceCostKnown": false,
+      "completeActualProviderInvoiceKnown": false
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "attempts": 26,
+      "settledCompleted": 26,
+      "failedUnavailable": 0,
+      "startedUnterminated": 0,
+      "uniqueInvocationIdentities": true,
+      "uniqueKnownProviderResponseIdentities": true,
+      "knownUsageAlgebraReconciled": true,
+      "knownReferencePriceAlgebraReconciled": true,
+      "knownTokenSums": {
+        "inputTokens": 490765,
+        "inputTokensIncludingCache": 2252536,
+        "cachedInputTokens": 1761771,
+        "outputTokens": 27646,
+        "reasoningTokens": 18178,
+        "totalTokens": 2280182
+      },
+      "knownReferenceCostUsd": "0.07637031",
+      "failedUsageDisposition": "NO_FAILED_ATTEMPTS",
+      "usageCurrency": "USD_REFERENCE_ONLY",
+      "pricingVersions": [
+        "inception:mercury-3:launch:2026-10-29"
+      ],
+      "noInvoiceOrActualProviderDebitClaim": true,
+      "nullFinancialFields": {
+        "chargedCredits": 26,
+        "providerCostCredits": 26,
+        "customerChargeVnd": 26,
+        "reservationId": 26
+      },
+      "completeReferenceCostKnown": true,
+      "completeActualProviderInvoiceKnown": false
+    }
+  ],
+  "grantCredits": "1000000",
+  "ledgerConsumedCredits": "0",
+  "ledgerRemainingCredits": "1000000",
+  "wallet": [
+    {
+      "availableCredits": 1000000,
+      "reservedCredits": 0,
+      "version": 1
+    }
+  ],
+  "paymentCounts": [
+    {
+      "billingOrders": 0,
+      "paymentTransactions": 0
+    }
+  ],
+  "referenceCostIsNotCustomerChargeOrProviderInvoice": true,
+  "unknownsNeverZeroed": true
+}
