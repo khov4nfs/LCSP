@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: only the exact test customer and active admin can grant credit
+ok 1 - only the exact test customer and active admin can grant credit
+  ---
+  duration_ms: 447.765884
+  type: 'test'
+  ...
+# Subtest: audit failure rolls back kernel ledger and wallet projection together
+ok 2 - audit failure rolls back kernel ledger and wallet projection together
+  ---
+  duration_ms: 32.000836
+  type: 'test'
+  ...
+# Subtest: concurrent grants append once, project once, audit once and create no payment
+ok 3 - concurrent grants append once, project once, audit once and create no payment
+  ---
+  duration_ms: 50.800175
+  type: 'test'
+  ...
+# Subtest: unused-credit reversal preserves usage debit and is idempotent
+ok 4 - unused-credit reversal preserves usage debit and is idempotent
+  ---
+  duration_ms: 36.49038
+  type: 'test'
+  ...
+# Subtest: enrollment refuses a superuser and never transfers an existing execution
+ok 5 - enrollment refuses a superuser and never transfers an existing execution
+  ---
+  duration_ms: 54.453868
+  type: 'test'
+  ...
+# Subtest: old DB writer cannot claim, complete, move, delete or mutate an isolated Assessment
+ok 6 - old DB writer cannot claim, complete, move, delete or mutate an isolated Assessment
+  ---
+  duration_ms: 75.2528
+  type: 'test'
+  ...
+# Subtest: isolated outbox survives old publishers, backoff, replicas and confirmed RabbitMQ delivery
+ok 7 - isolated outbox survives old publishers, backoff, replicas and confirmed RabbitMQ delivery
+  ---
+  duration_ms: 256.231849
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1154.380809

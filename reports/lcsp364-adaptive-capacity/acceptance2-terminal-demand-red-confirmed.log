@@ -1,0 +1,25 @@
+(node:28754) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL test/assessment-root-capacity.integration.spec.ts
+  ● LCSP-364 real PostgreSQL global admission and worker HTTP boundary › does not let a legacy completed failed command strand independent demand or a new continuation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      420 |         where: { assessmentId: ended.assessmentId },
+      421 |       });
+    > 422 |       expect((await a.reserve(next)).admitted).toBe(true);
+          |                                                ^
+      423 |       expect(await b.reserve(ended)).toMatchObject({
+      424 |         admitted: false,
+      425 |         obsolete: true,
+
+      at Object.<anonymous> (test/assessment-root-capacity.integration.spec.ts:422:48)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 17 skipped, 1 passed, 19 total
+Snapshots:   0 total
+Time:        1.42 s, estimated 2 s
+Ran all test suites within paths "test/assessment-root-capacity.integration.spec.ts".

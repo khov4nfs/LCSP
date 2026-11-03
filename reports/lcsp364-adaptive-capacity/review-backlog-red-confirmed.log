@@ -1,0 +1,31 @@
+(node:487733) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:487733) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+FAIL test/assessment-root-capacity.integration.spec.ts (25.189 s)
+  ● LCSP-364 real PostgreSQL global admission and worker HTTP boundary › defers an eligible out-of-order command beyond 10000 candidates and later admits its owner
+
+    expect(received).not.toHaveProperty(path, value)
+
+    Expected path: "obsolete"
+
+    Expected value: not true
+
+      395 |       expect(await first.assessmentRootAdmissionRequest.count()).toBe(10_001);
+      396 |       const deferred = await b.reserve(tail);
+    > 397 |       expect(deferred).not.toHaveProperty("obsolete", true);
+          |                            ^
+      398 |       expect(deferred).toMatchObject({ admitted: false, reason: Reasons.fairness });
+      399 |       expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
+      400 |       expect(await a.reserve(head)).toMatchObject({ admitted: true });
+
+      at Object.<anonymous> (test/assessment-root-capacity.integration.spec.ts:397:28)
+
+  ● LCSP-364 real PostgreSQL global admission and worker HTTP boundary › preserves a delivery beyond 10000 candidates through real SDK HTTP and RabbitMQ retry settlement
+
+    Command failed: /home/khovan/Workplaces/LCSP/deepagents/.venv/bin/python -m pytest -q -s tests/test_assessment_concurrency_rabbitmq.py::test_large_postgres_backlog_delivery_preserves_durable_retry
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 15 skipped, 17 total
+Snapshots:   0 total
+Time:        25.341 s
+Ran all test suites within paths "test/assessment-root-capacity.integration.spec.ts".

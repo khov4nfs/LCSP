@@ -1,0 +1,18 @@
+[
+  {
+    "role": "api",
+    "format": "POSTGRES_CUSTOM",
+    "bytes": 34646312,
+    "sha256": "9d560ff893e0045e1a0b94d82c5334c2eec51b05a2892e0e78080e90eea85c89",
+    "location": "PRIVATE_OFF_HOST_ARCHIVE",
+    "publicArtifact": false
+  },
+  {
+    "role": "checkpoints",
+    "format": "POSTGRES_CUSTOM",
+    "bytes": 174617265,
+    "sha256": "d10e9b782cb24a7f09d4d1779ea8d2a1df67cff10969b9945bb3ab89eee99021",
+    "location": "PRIVATE_OFF_HOST_ARCHIVE",
+    "publicArtifact": false
+  }
+]

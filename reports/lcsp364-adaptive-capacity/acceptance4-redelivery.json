@@ -1,0 +1,212 @@
+{
+  "sourceRevision": "31f27042970b5aa6945e612af283a6e61aee3fa2",
+  "scope": "ISOLATED_LIVE_PROVIDER_NATIVE_QUIESCENT_REDELIVERY_NOT_ACTIVE_CRASH",
+  "at": "2026-11-02T03:40:09.549300+00:00",
+  "events": [
+    {
+      "event": "OWNED_BRIDGES_QUIESCENT_SIGTERM",
+      "at": "2026-11-02T03:39:54.261567+00:00"
+    },
+    {
+      "event": "ACTUAL_UNACKNOWLEDGED_CHANNEL_LOSS_AND_REDELIVERY",
+      "at": "2026-11-02T03:39:54.289322+00:00",
+      "firstDeliveryTag": 1,
+      "newChannelDeliveryTag": 1,
+      "redelivered": true,
+      "payloadSha256": "d2f522116d01fa679b4be8c0fdf00da061f6c431f49a57975c3a6859f66e3eaf"
+    }
+  ],
+  "originalRootCommands": 4,
+  "brokerConsumersAfter": 2,
+  "before": {
+    "fingerprints": {
+      "Assessment": {
+        "rows": 3,
+        "sha256": "7ab6f747f41615f45784dac55491c64c4f3fffb3b97ed4b83c4d774a282070c7"
+      },
+      "AssessmentArtifact": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "AssessmentCase": {
+        "rows": 3,
+        "sha256": "b478520052da42ce851379a0556b0d48a9130a035a6b2c32fda95beca61919a9"
+      },
+      "AssessmentCaseFact": {
+        "rows": 5,
+        "sha256": "36577dd03ff62db4582cc8eb42d59b5f09ad672f3be344a2eb21e95a746992d6"
+      },
+      "AssessmentCaseFactEvidence": {
+        "rows": 18,
+        "sha256": "bb39c61740e92df61f632581c658d0debd3b92e995a06eac82974216c08dfdc9"
+      },
+      "AssessmentDecisionCoverage": {
+        "rows": 729,
+        "sha256": "95444d7c9e38c0992fe16dc5499d91eb93ca46a4e8043fc0b0e6521bbd0e1e8a"
+      },
+      "AssessmentEvent": {
+        "rows": 199,
+        "sha256": "261a3d7b55e4cc58891b707f5dfdc8d7e83238142d050fce6bf0b0aede415d69"
+      },
+      "AssessmentEvidence": {
+        "rows": 16,
+        "sha256": "5579a38997ef44673f8d2bc5d5448a9eb32c7aebe9460d318d6eb0f83b7b9afa"
+      },
+      "AssessmentExecutionIsolation": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "AssessmentHumanRequest": {
+        "rows": 9,
+        "sha256": "f3cf6ce8e29a1bf48ad9abe4fc94f044362d6dda081758810ccfd687ff7cf47f"
+      },
+      "AssessmentRootAdmissionRequest": {
+        "rows": 4,
+        "sha256": "1c56c0e9ecc8627d050fbba104c99cf4abc6e040a37cd80d17545ba4b13c2ab2"
+      },
+      "AssessmentRootExecutionSlot": {
+        "rows": 4,
+        "sha256": "713ebf78953557144dfd319e2f9b6fded3ed933a1d1184c8c6ce0f7cb414f7f6"
+      },
+      "AssessmentRuleDecision": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "AssessmentRuntime": {
+        "rows": 3,
+        "sha256": "5d9f64a5d29e094ab51394e1f39be56a23a8da29897d90625f539fe9b5cea469"
+      },
+      "AssessmentRuntimeEvent": {
+        "rows": 222,
+        "sha256": "f355669e9b0da371d108afa4bf3902680bc885f17758807273181c6fd8435840"
+      },
+      "AssessmentRuntimeTurn": {
+        "rows": 3,
+        "sha256": "2acca8e92b7ab8d1da2c09566388b1eb863430e4ff6b0a3de1fe7f2d80a58a3c"
+      },
+      "BillingReservation": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "GitHubAppInstallState": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "LlmUsageEvent": {
+        "rows": 61,
+        "sha256": "2da6b9781e94190de7b19fae1d9ccbffee322c26e7afe393676276d6f279ac58"
+      },
+      "RepositoryConnection": {
+        "rows": 3,
+        "sha256": "b645dfccc76bf82292a6343a57285b21a62c0e70e4eed009b84facf630254882"
+      },
+      "RepositoryScanJob": {
+        "rows": 3,
+        "sha256": "b31e179f3187bb5e36e4b588ca3d94d111eb03a695fca34b7dd91a9ca7c29d39"
+      },
+      "RepositorySnapshot": {
+        "rows": 3,
+        "sha256": "942b09dd7d398d287f6ce3bc1d74f3f3b8bfbe89b1f1008de8ce52db5eb10e91"
+      }
+    },
+    "usageRows": 61,
+    "slotRows": 4
+  },
+  "after": {
+    "fingerprints": {
+      "Assessment": {
+        "rows": 3,
+        "sha256": "7ab6f747f41615f45784dac55491c64c4f3fffb3b97ed4b83c4d774a282070c7"
+      },
+      "AssessmentArtifact": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "AssessmentCase": {
+        "rows": 3,
+        "sha256": "b478520052da42ce851379a0556b0d48a9130a035a6b2c32fda95beca61919a9"
+      },
+      "AssessmentCaseFact": {
+        "rows": 5,
+        "sha256": "36577dd03ff62db4582cc8eb42d59b5f09ad672f3be344a2eb21e95a746992d6"
+      },
+      "AssessmentCaseFactEvidence": {
+        "rows": 18,
+        "sha256": "bb39c61740e92df61f632581c658d0debd3b92e995a06eac82974216c08dfdc9"
+      },
+      "AssessmentDecisionCoverage": {
+        "rows": 729,
+        "sha256": "95444d7c9e38c0992fe16dc5499d91eb93ca46a4e8043fc0b0e6521bbd0e1e8a"
+      },
+      "AssessmentEvent": {
+        "rows": 199,
+        "sha256": "261a3d7b55e4cc58891b707f5dfdc8d7e83238142d050fce6bf0b0aede415d69"
+      },
+      "AssessmentEvidence": {
+        "rows": 16,
+        "sha256": "5579a38997ef44673f8d2bc5d5448a9eb32c7aebe9460d318d6eb0f83b7b9afa"
+      },
+      "AssessmentExecutionIsolation": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "AssessmentHumanRequest": {
+        "rows": 9,
+        "sha256": "f3cf6ce8e29a1bf48ad9abe4fc94f044362d6dda081758810ccfd687ff7cf47f"
+      },
+      "AssessmentRootAdmissionRequest": {
+        "rows": 4,
+        "sha256": "1c56c0e9ecc8627d050fbba104c99cf4abc6e040a37cd80d17545ba4b13c2ab2"
+      },
+      "AssessmentRootExecutionSlot": {
+        "rows": 4,
+        "sha256": "713ebf78953557144dfd319e2f9b6fded3ed933a1d1184c8c6ce0f7cb414f7f6"
+      },
+      "AssessmentRuleDecision": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "AssessmentRuntime": {
+        "rows": 3,
+        "sha256": "5d9f64a5d29e094ab51394e1f39be56a23a8da29897d90625f539fe9b5cea469"
+      },
+      "AssessmentRuntimeEvent": {
+        "rows": 222,
+        "sha256": "f355669e9b0da371d108afa4bf3902680bc885f17758807273181c6fd8435840"
+      },
+      "AssessmentRuntimeTurn": {
+        "rows": 3,
+        "sha256": "2acca8e92b7ab8d1da2c09566388b1eb863430e4ff6b0a3de1fe7f2d80a58a3c"
+      },
+      "BillingReservation": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "GitHubAppInstallState": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "LlmUsageEvent": {
+        "rows": 61,
+        "sha256": "2da6b9781e94190de7b19fae1d9ccbffee322c26e7afe393676276d6f279ac58"
+      },
+      "RepositoryConnection": {
+        "rows": 3,
+        "sha256": "b645dfccc76bf82292a6343a57285b21a62c0e70e4eed009b84facf630254882"
+      },
+      "RepositoryScanJob": {
+        "rows": 3,
+        "sha256": "b31e179f3187bb5e36e4b588ca3d94d111eb03a695fca34b7dd91a9ca7c29d39"
+      },
+      "RepositorySnapshot": {
+        "rows": 3,
+        "sha256": "942b09dd7d398d287f6ce3bc1d74f3f3b8bfbe89b1f1008de8ce52db5eb10e91"
+      }
+    },
+    "usageRows": 61,
+    "slotRows": 4
+  },
+  "canonicalTablesUnchanged": true,
+  "additionalModelAttempts": 0,
+  "additionalPhysicalReservations": 0
+}

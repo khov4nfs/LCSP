@@ -1,0 +1,75 @@
+{
+  "targetRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "startedAt": "2026-10-31T08:47:45.748611+00:00",
+  "steps": [
+    {
+      "step": "activate-sandbox-image",
+      "code": 0,
+      "at": "2026-10-31T08:47:45.918751+00:00"
+    },
+    {
+      "step": "start-lcsp-only",
+      "code": 0,
+      "at": "2026-10-31T08:47:46.267507+00:00"
+    },
+    {
+      "step": "save-process-state",
+      "code": 0,
+      "at": "2026-10-31T08:47:56.174439+00:00"
+    }
+  ],
+  "environmentBeforeSha256": "fd98df1b7cc562d5f9884cdd7ebd36495a4cc574da7b9468b5bff308d099b471",
+  "verifiedMigrationChecksums": 140,
+  "isolatedWriterRole": "lcsp364_fogewise_api",
+  "environmentAfterSha256": "fd98df1b7cc562d5f9884cdd7ebd36495a4cc574da7b9468b5bff308d099b471",
+  "changedConfigurationKeys": [
+    "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS",
+    "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH",
+    "LCSP_AGENT_SERVER_MAX_CONCURRENT_JOBS",
+    "LCSP_ROOT_CAPACITY_RABBITMQ_MANAGEMENT_URL",
+    "LCSP_REPOSITORY_SANDBOX_CLEANUP_ON_START",
+    "DATABASE_URL_LOGIN"
+  ],
+  "runtimeCapacity": {
+    "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS": "2",
+    "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH": "2",
+    "LCSP_AGENT_SERVER_MAX_CONCURRENT_JOBS": "2",
+    "LCSP_ROOT_CAPACITY_RABBITMQ_MANAGEMENT_URL": "http://127.0.0.1:15672",
+    "LCSP_REPOSITORY_SANDBOX_CLEANUP_ON_START": "false"
+  },
+  "apiHealth": 200,
+  "webHealth": 200,
+  "runtimeHealth": 200,
+  "processes": [
+    {
+      "name": "lcsp-api",
+      "pid": 191580,
+      "status": "online",
+      "killTimeout": 15000
+    },
+    {
+      "name": "lcsp-agent-runtime",
+      "pid": 191581,
+      "status": "online",
+      "killTimeout": 2147483647
+    },
+    {
+      "name": "lcsp-web",
+      "pid": 191592,
+      "status": "online",
+      "killTimeout": 15000
+    }
+  ],
+  "migrationCount": 140,
+  "unfinishedMigrations": 0,
+  "historicalExpiredRunningLabels": 6,
+  "endedAt": "2026-10-31T08:47:56.266463+00:00",
+  "imageId": "sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160",
+  "imageDigests": [
+    "lcsp-agent-runtime@sha256:dbdcb42c039f99a2343de952c7cc7b73f106766eb0199811f64738cf66bb2160"
+  ],
+  "imageRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "diskFreeBytes": 4979757056,
+  "unrelatedProcessIdsPreserved": true,
+  "configurationKeyListInterpretation": "Retained rollout configuration from 7fda; before/after fingerprint on this activation is unchanged."
+}

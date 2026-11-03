@@ -1,0 +1,76 @@
+{
+  "targetRevision": "7528577c08e23e991f62223558407d529d22babd",
+  "startedAt": "2026-10-30T17:08:31.073955+00:00",
+  "steps": [
+    {
+      "step": "migrate-deploy",
+      "code": 0,
+      "at": "2026-10-30T17:08:33.542920+00:00"
+    },
+    {
+      "step": "activate-sandbox-image",
+      "code": 0,
+      "at": "2026-10-30T17:08:33.659516+00:00"
+    },
+    {
+      "step": "start-lcsp-only",
+      "code": 0,
+      "at": "2026-10-30T17:08:34.037261+00:00"
+    },
+    {
+      "step": "save-process-state",
+      "code": 0,
+      "at": "2026-10-30T17:08:45.155977+00:00"
+    }
+  ],
+  "environmentBeforeSha256": "130b397dc63725e28efe1450d41305504acf00163ba2c609226abb91b12a49a3",
+  "environmentAfterSha256": "64fc9acd867d585d463f6edbd947ee5812519cee01855aa4cb2f9b7978c357f9",
+  "changedConfigurationKeys": [
+    "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS",
+    "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH",
+    "LCSP_AGENT_SERVER_MAX_CONCURRENT_JOBS",
+    "LCSP_ROOT_CAPACITY_RABBITMQ_MANAGEMENT_URL",
+    "LCSP_REPOSITORY_SANDBOX_CLEANUP_ON_START"
+  ],
+  "runtimeCapacity": {
+    "LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS": "2",
+    "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH": "2",
+    "LCSP_AGENT_SERVER_MAX_CONCURRENT_JOBS": "2",
+    "LCSP_ROOT_CAPACITY_RABBITMQ_MANAGEMENT_URL": "http://127.0.0.1:15672",
+    "LCSP_REPOSITORY_SANDBOX_CLEANUP_ON_START": "false"
+  },
+  "apiHealth": 200,
+  "webHealth": 200,
+  "runtimeHealth": 200,
+  "processes": [
+    {
+      "name": "lcsp-api",
+      "pid": 3785253,
+      "status": "online",
+      "killTimeout": 15000
+    },
+    {
+      "name": "lcsp-agent-runtime",
+      "pid": 3785254,
+      "status": "online",
+      "killTimeout": 2147483647
+    },
+    {
+      "name": "lcsp-web",
+      "pid": 3785265,
+      "status": "online",
+      "killTimeout": 15000
+    }
+  ],
+  "migrationCount": 139,
+  "unfinishedMigrations": 0,
+  "historicalExpiredRunningLabels": 5,
+  "endedAt": "2026-10-30T17:08:45.268640+00:00",
+  "imageId": "sha256:28f9aafc97f5884aff5b7ccd7ee9438c04f9cc3956d0b51d7dde4f5aa4a74ee0",
+  "imageDigests": [
+    "lcsp-agent-runtime@sha256:28f9aafc97f5884aff5b7ccd7ee9438c04f9cc3956d0b51d7dde4f5aa4a74ee0"
+  ],
+  "imageRevision": "7528577c08e23e991f62223558407d529d22babd",
+  "diskFreeBytes": 5080625152,
+  "unrelatedProcessIdsPreserved": true
+}

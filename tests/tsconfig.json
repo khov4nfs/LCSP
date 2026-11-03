@@ -13,6 +13,7 @@
   "include": [
     "./**/*.ts",
     "./support/compliance-rule-set-stack.mjs",
+    "./support/direct-root-admission.mjs",
     "./support/live-evaluation-controls.mjs"
   ],
   "references": [

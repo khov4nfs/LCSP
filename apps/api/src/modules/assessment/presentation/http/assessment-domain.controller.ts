@@ -118,6 +118,13 @@ export class AssessmentDomainController {
     );
   }
 
+  /**
+   * Business purpose: Issue authority for exactly one admitted Assessment Root segment.
+   * Business rules: Worker authentication, validated input and the current physical server incarnation remain required.
+   * Execution flow: 1. Validate the Assessment/transport identity; 2. delegate canonical lease admission.
+   * Failure cases: Old/missing incarnation, capacity, lifecycle and held-lease problems retain their shared API envelopes.
+   * Side effects: Delegates transactional Root lease/turn creation; does not invoke a model.
+   */
   @Post("claim")
   @HttpCode(200)
   async claim(
@@ -136,6 +143,7 @@ export class AssessmentDomainController {
           assessmentId,
           this.correlation(req),
           request?.runtimeRunId,
+          request?.runtimeIncarnationId,
         ),
       ),
     );
@@ -164,6 +172,13 @@ export class AssessmentDomainController {
     );
   }
 
+  /**
+   * Business purpose: Settle an authorized Root execution and preserve a recoverable command after uncertain crash work.
+   * Business rules: A valid lease is mandatory; recoveryRequired only permits FAILED, never legal completion or physical release.
+   * Execution flow: 1. Validate settlement input; 2. delegate runtime/checkpoint and optional DLQ quarantine atomically.
+   * Failure cases: Invalid leases or incompatible checkpoints/transitions reject without partial settlement.
+   * Side effects: Delegates runtime/event/outbox persistence; never starts another Root or changes accepted decisions.
+   */
   @Post("finish")
   @UseGuards(AssessmentLeaseGuard)
   @HttpCode(200)
@@ -188,6 +203,7 @@ export class AssessmentDomainController {
           body.checkpointId,
           body.requestIds,
           body.controlRequestId,
+          body.recoveryRequired,
         ),
       ),
     );

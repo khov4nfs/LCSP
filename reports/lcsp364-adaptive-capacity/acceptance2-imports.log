@@ -1,0 +1,2 @@
+$ node scripts/check-import-policy.mjs
+Import policy check passed.

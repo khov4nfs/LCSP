@@ -1,0 +1,164 @@
+{
+  "capturedAt": "2026-11-02T03:53:24.091565+00:00",
+  "sourceRevision": "31f27042970b5aa6945e612af283a6e61aee3fa2",
+  "nativeImageSourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "scope": "REAL_ISOLATED_NATIVE_AND_SEPARATE_FOGEWISE_READ_ONLY_FACT_STATUS",
+  "secretsExactValueScan": "PASS_PRIVATE_VALUES_NOT_RETAINED",
+  "artifacts": [
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance-20261102.md",
+      "bytes": 17004,
+      "sha256": "21ce73f1f8585220e2c960fbaff0e480fbc2da6667e0b87a34993a476fc069d1"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-human-unknown.json",
+      "bytes": 2983,
+      "sha256": "da9d516e90df864b9d6261c740683583f33d2fd9ba3f7fb1b1d8f51e145aa27e"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-seed-import.json",
+      "bytes": 1630,
+      "sha256": "8090aba1d41f54c8dc708ae4bf18bceb82081158004114be37d8ffba44883926"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-api-build.log",
+      "bytes": 732,
+      "sha256": "82f2b33c49c78701dea945a1776deb4188c113d767dde534fc07bbde857ce0be"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-image.json",
+      "bytes": 439,
+      "sha256": "4a69c62c81c40180ea79f611f5ee2f231d11dadc2eb83392a131d7c64e185665"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-model-policy.json",
+      "bytes": 336,
+      "sha256": "7983bda0b5ee3729295c9b9e5c3dda5b059499fab6454af5076d2aab76e6589f"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-services-20261102.json",
+      "bytes": 1079,
+      "sha256": "e4a000ff8b0a92629b97fa8c8c4b5d85cf96c28dda482ef0364720615f0c3a62"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-repository-credential.json",
+      "bytes": 242,
+      "sha256": "8364103b9cdb7958f64ef3acd40870dcb7e4666491cb5478506803b70fdd35f1"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-test-credit-grant.json",
+      "bytes": 824,
+      "sha256": "fdce785957e0269f694a7e7ac4fbbc869ba727b5754813e4edc6b943591eeb78"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-test-credit-reversal.json",
+      "bytes": 633,
+      "sha256": "d728565ab82d3dd70753ae04515594d59af125a44390d42cbd14098b7b2fbc54"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-before-stop.json",
+      "bytes": 501,
+      "sha256": "3a262e3c4122238e6b57f6ac15be2169d6ea30c0144969729d8c17823028e361"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-stopped-while-d-active.json",
+      "bytes": 1729,
+      "sha256": "0a2330da544241d025104730bfedd4a71b9e480bfcd207b8320b3cd16c38f8ef"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-capacity-timeline.jsonl",
+      "bytes": 813058,
+      "sha256": "cf7664b8942a0c8939510ea5eaaf88f1eefd3601ba0373ccc6be6895f06d462b"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-authority-timeline.jsonl",
+      "bytes": 708753,
+      "sha256": "3720fb4a04ecf942191e57176a74fbc27b336614a93ca99cda4e4f1b855771ec"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-api-replica-trace.json",
+      "bytes": 19122,
+      "sha256": "85ad6f3dd231cfe68f0d21c74979e8e43191d6741020be6ea97f737514bd078e"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-native-proof.json",
+      "bytes": 12884,
+      "sha256": "18053e813844912b79a10194fe676229d8176ede6030338fdbed4026fc82723f"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-usage-attempts.json",
+      "bytes": 100980,
+      "sha256": "1317f6c1e5185b175ac11f67b5475c1d7a449fadc818f797d5ba98b7571493ab"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-usage-reconciliation.json",
+      "bytes": 1558,
+      "sha256": "062eda373c6b0d09f0f445a07df5d599d72057ebb1cb0afe3af1d157cce17663"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-source-parity.json",
+      "bytes": 562,
+      "sha256": "07adc124121ec1e9cf005da7a1d5d944cf93f0b03c1f9bc95a7629a59371e558"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-bounded-rollback.json",
+      "bytes": 400,
+      "sha256": "fb370a6f35a7ff221419a93c59db3b37ec63a3710d3371bef65bd274e1886f0d"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-final-status.json",
+      "bytes": 46830,
+      "sha256": "6b3feb0aa25aa1cdb12468b5c365878748ab75292f8c258a654720338312e41b"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-redelivery.json",
+      "bytes": 7366,
+      "sha256": "ff6019c2d38df411ba458822e51651d400f87dfaba2b5fbe6b9a900ec0e39337"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-fogewise-legal-status.json",
+      "bytes": 1551,
+      "sha256": "54916968a88e490c137714bace29280d419f870460dce033b6334f93426b86cd"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-live-summary.json",
+      "bytes": 3312,
+      "sha256": "e254cd7c1ebacd845ff99e994a610440d4a33603e9b92126feed6c2c68831ad7"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-capacity-derived.png",
+      "bytes": 278443,
+      "sha256": "7c9a5741490a5fdf25998f74a333205596490b98532dcd15190d20f0929993a2"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-capacity-derived.svg",
+      "bytes": 147788,
+      "sha256": "75316848ac57c2f270c28714b5506d8ec4af2fa1f29e8fc9c5e0ec9a1e91211d"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-quiescent-shutdown.json",
+      "bytes": 807,
+      "sha256": "5bb789aa45aef4a3429f7f9535e71d535b27a577f9f82cfe4b0a7ba602b62316"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-experiment-source-ci.json",
+      "bytes": 14603,
+      "sha256": "d8f05f82c3e0ea740a5f153d175b6c2e0750453c3561c5f64fb779c5a6943283"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/acceptance4-plot.py",
+      "bytes": 7012,
+      "sha256": "2b76a1a8f261adadcc032a79cce54da7fd0cbe5d31ef8d22fc168748fa3543a5"
+    },
+    {
+      "path": "reports/lcsp364-adaptive-capacity/README.md",
+      "bytes": 18644,
+      "sha256": "d64aba15c25a6101b2726ce1cb7b12a3da5d4e4f37e8a82f1ccddda9c92b9bb2"
+    },
+    {
+      "path": "docs/runbooks/assessment-root-capacity.md",
+      "bytes": 17010,
+      "sha256": "fc1907394173279b9ca7be8be96b8bea0082837cb4c254ba18fb6e6d42d98101"
+    }
+  ]
+}

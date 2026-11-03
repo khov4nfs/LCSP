@@ -1,0 +1,14 @@
+{
+  "ledgerId": "671dc8ab-bd44-4c32-acb5-086706f5aa1a",
+  "ledgerCreatedAtUtc": "2026-10-31 07:13:02.356000",
+  "deltaCredits": "1000000",
+  "source": "INTERNAL_TEST_GRANT",
+  "referenceId": "LCSP-364",
+  "projectedAvailable": "1000000",
+  "projectedReserved": "0",
+  "walletVersion": 1,
+  "auditEvents": 1,
+  "ledgerSum": "1000000",
+  "BillingOrderCountForTestAccount": 0,
+  "PaymentTransactionCountForTestAccount": 0
+}

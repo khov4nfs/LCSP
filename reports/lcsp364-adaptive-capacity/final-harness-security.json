@@ -1,0 +1,33 @@
+{
+  "baseRevision": "1094527d45135da79b1931670cf42c8794db90dc",
+  "scope": "HARNESS_ONLY_NO_PRODUCTION_RUNTIME_CHANGE",
+  "codeqlAlert": {
+    "checkRun": 125215893228,
+    "severity": "HIGH",
+    "rule": "py/path-injection",
+    "disposition": "PRECONSTRUCTED_MARKER_MAPPING_PENDING_EXACT_HEAD_SCAN",
+    "source": "HTTP fixture assessmentId used in release-marker path",
+    "previousUnclosedCheckRun": 125221285957
+  },
+  "focusedTests": {
+    "passed": 32,
+    "failed": 0,
+    "receipt": "final-harness-security.log"
+  },
+  "activeFaultScenarios": {
+    "activeGracefulBridgeDrain": "PASS",
+    "activeAbruptBridgeRedelivery": "PASS",
+    "twoOwnerFairBackpressure": "PASS",
+    "apiReplicaFailure": "PASS",
+    "liveLeaseExpiry": "PASS",
+    "staleLeaseAndClaimFencing": "PASS",
+    "uncertainModelReplayRefused": "PASS",
+    "lostQuiescenceRecovery": "PASS",
+    "queuedRootAfterCrash": "PASS",
+    "operatorRecoveryAndCheckpointAncestry": "PASS"
+  },
+  "sourceSha256": {
+    "deepagents/tests/vertical/adaptive_capacity_faults.py": "f268b931d59c8b9cced80095611047dd28a646634cee2ac41192b6d1b5cd2ad7",
+    "deepagents/tests/test_adaptive_root_capacity.py": "97c9307c1e53ff9389112e9ed8006ecabe2c38d02b668ed0b32cb8a58504c840"
+  }
+}

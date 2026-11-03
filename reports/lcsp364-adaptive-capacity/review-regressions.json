@@ -1,0 +1,118 @@
+{
+  "capturedAt": "2026-10-30T11:37:04.819995+00:00",
+  "reviewBaseline": "b360cfb306ce370f5fe72537fe34ec3df4d1a013",
+  "scope": "LOCAL_PROVIDER_FREE_REVIEW_REGRESSIONS_NOT_PRODUCTION",
+  "sourceSha256": {
+    ".github/workflows/test.yml": "979af1d1d5b4d7a4e74014f963684a5070c1cd4b23f21aa3b958abb940075426",
+    "apps/api/src/modules/assessment/application/services/assessment-root-capacity.service.ts": "baa27314db3ecdaa6f8e146a39534c3a61920b12200d2e8ab95223e91cb8025c",
+    "apps/api/test/assessment-root-capacity.integration.spec.ts": "8a91df0de47c94489797ebd363d22ffe930e212cd2abb5afa7e089c58953da55",
+    "deepagents/tests/test_adaptive_root_capacity.py": "86e130967342b5e23ef8db75b0df9eb9cb40b4b74ff013aa678535617ead7c72",
+    "deepagents/tests/test_assessment_concurrency_rabbitmq.py": "782dea16e033ebf00e563c0ba60f62669f3e232a2b6b63b5b9a64419d7c3e5f8",
+    "deepagents/tools/common/capabilities/agent_runtime/local_server.py": "e9b733942d0657f59e702a4d26730b0c5cf5ec36bf9e2b5ae85890b7309bc09d",
+    "docs/adr/LCSP-364-adaptive-root-admission.md": "32b9608ef21a70dcd6890923c78b62df4da052bfd27a07a0c4ae218be5df2a72",
+    "docs/runbooks/assessment-root-capacity.md": "68e600a09c9242d391265ef88e388d3ceaba3e3f991b14a9c595f613a05f3026",
+    "reports/lcsp364-adaptive-capacity/README.md": "2e340cb168ad0a26ec954226b4ed53aea0b994f04fb1d075ac0ee46df9e1fe37",
+    "reports/lcsp364-adaptive-capacity/review-regressions.md": "f57dcd4816148b48e0c93822f42a7f62804f868cfbf8dc294abff6e1a22c380c"
+  },
+  "sourceSetSha256": "df67b1e2b53476fd72c07747d6407ec0d72e21023a64949a56daf3bf94f2599e",
+  "receipts": [
+    {
+      "label": "review-http-red",
+      "expectedDisposition": "FAIL_ON_BASELINE",
+      "observedAt": "2026-10-30T11:09:50.406789+00:00",
+      "summary": [
+        "======================= 2 failed, 27 deselected in 2.42s ======================="
+      ],
+      "sanitizedLogSha256": "4a99925f0b2ee117f947e571284d206edf881f0901b8ae644e1d1f0f8c4257c9",
+      "normalization": "Trailing whitespace removed for Git diff hygiene; test results unchanged."
+    },
+    {
+      "label": "review-backlog-red-confirmed",
+      "expectedDisposition": "FAIL_ON_BASELINE",
+      "observedAt": "2026-10-30T11:16:57.911663+00:00",
+      "summary": [
+        "Test Suites: 1 failed, 1 total",
+        "Tests:       2 failed, 15 skipped, 17 total"
+      ],
+      "sanitizedLogSha256": "c863eb1d8d2bac17d16fe1094cd17631345033411d3737ecf7212a323ceacc2a",
+      "normalization": "Trailing whitespace removed for Git diff hygiene; test results unchanged."
+    },
+    {
+      "label": "review-api-focused",
+      "expectedDisposition": "PASS",
+      "observedAt": "2026-10-30T11:33:18.781197+00:00",
+      "summary": [
+        "{\"gate\": \"LCSP364_BACKLOG_BROKER_PASS\", \"originalAcks\": 2, \"durableRetryCopies\": 1, \"attempt\": 3, \"nativeExecutions\": 0}",
+        "============================== 1 passed in 2.28s ===============================",
+        "Test Suites: 5 passed, 5 total",
+        "Tests:       107 passed, 107 total"
+      ],
+      "sanitizedLogSha256": "9a18b79f0c67388df6757073aaed731088b85fd1d4d4b80a8775ac4b5cd24f2c",
+      "normalization": "Trailing whitespace removed for Git diff hygiene; test results unchanged."
+    },
+    {
+      "label": "review-python-focused",
+      "expectedDisposition": "PASS",
+      "observedAt": "2026-10-30T11:33:02.356171+00:00",
+      "summary": [
+        "======================== 98 passed, 1 skipped in 3.81s ========================="
+      ],
+      "sanitizedLogSha256": "60a4c20fd377f7cf8c1e03c4bd085fba76ad9e56100dce3fcd3655146eb497af",
+      "normalization": "Trailing whitespace removed for Git diff hygiene; test results unchanged."
+    },
+    {
+      "label": "review-eslint",
+      "expectedDisposition": "PASS",
+      "observedAt": "2026-10-30T11:26:06.257524+00:00",
+      "summary": [
+        "Changed API ESLint completed with exit 0."
+      ],
+      "sanitizedLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "review-static",
+      "expectedDisposition": "PASS",
+      "observedAt": "2026-10-30T11:26:18.086543+00:00",
+      "summary": [
+        "Import policy check passed.",
+        "Contract literal policy passed.",
+        "check:legal-v1-retired OK (1434 current production/build/CI files, 27 retired patterns, 0 references)"
+      ],
+      "sanitizedLogSha256": "d34dafe681e24ea2f4b73e758e7f50bab07096098b8aeed743791e2578e829c9"
+    },
+    {
+      "label": "review-docs-final",
+      "expectedDisposition": "PASS",
+      "observedAt": "2026-10-30T11:32:59.099166+00:00",
+      "summary": [
+        "Business logic documentation: 3028 functions in 775 production source files; 921 conformant; 2107 unchanged legacy; 0 missing/invalid."
+      ],
+      "sanitizedLogSha256": "78d3f68d93f78c3b9a32b20faf585eefc9b765e5237210e4a8d7842b5d4959c5"
+    },
+    {
+      "label": "review-doc-tests",
+      "expectedDisposition": "PASS",
+      "observedAt": "2026-10-30T11:22:37.166200+00:00",
+      "summary": [
+        "# tests 5",
+        "# pass 5",
+        "# fail 0",
+        "# skipped 0"
+      ],
+      "sanitizedLogSha256": "1ed61a60b5f426c683e690816c1eb0ca9a9bfe19f339270b1eebfe4479eda718"
+    },
+    {
+      "label": "review-runtime-packages",
+      "expectedDisposition": "PASS",
+      "observedAt": "2026-10-30T11:22:41.523206+00:00",
+      "summary": [
+        "Contracts and i18n builds completed with exit 0."
+      ],
+      "sanitizedLogSha256": "111311cf86ef9c041a7fa71a42f83b12580187dc9c4dba20db3ca935b81c879b"
+    }
+  ],
+  "ci": "EXACT_NEW_HEAD_REQUIRED",
+  "independentReview": "REQUIRED",
+  "productionAcceptance": "BLOCKED",
+  "productionMutationsPerformed": false
+}

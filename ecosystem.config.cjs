@@ -107,7 +107,8 @@ module.exports = {
       exec_mode: "fork",
       autorestart: true,
       restart_delay: 3000,
-      kill_timeout: 15000
+      // Operators drain before replacement; PM2 must not kill a Root after 15 seconds.
+      kill_timeout: 2147483647
     }
   ]
 };

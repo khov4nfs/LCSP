@@ -1,0 +1,1680 @@
+{
+  "capturedAt": "2026-10-31T09:10:41.328298+00:00",
+  "sourceRevision": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "assessments": [
+    {
+      "id": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "lifecycleRevision": 3,
+      "updatedAt": "2026-10-31 08:56:43.517000"
+    },
+    {
+      "id": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "lifecycleRevision": 5,
+      "updatedAt": "2026-10-31 08:59:30.487000"
+    }
+  ],
+  "slots": [
+    {
+      "runId": "70f9547f-5d7a-46ce-9dea-ad3469b6a192",
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "incarnationId": "defc74df-487a-4c4c-833e-0b95ff62cc8a",
+      "commandId": "outbox:7ceee5d1d8fe519e4ad43b8f36097f1674725b648776086a490132941cdaa344",
+      "requestedAt": "2026-10-31 08:51:59.126000+00:00",
+      "admittedAt": "2026-10-31 08:52:00.224000+00:00",
+      "startedAt": "2026-10-31 08:52:00.427000+00:00",
+      "releasedAt": "2026-10-31 08:53:33.611000+00:00"
+    },
+    {
+      "runId": "5adb9f26-1f4c-4048-9300-e37d94ccd63c",
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "incarnationId": "defc74df-487a-4c4c-833e-0b95ff62cc8a",
+      "commandId": "outbox:bf3b854dfc03a53b4753c9e7e9f9d25468005c01f6ddcc03b621f23db958d98c",
+      "requestedAt": "2026-10-31 08:52:39.404000+00:00",
+      "admittedAt": "2026-10-31 08:53:40.732000+00:00",
+      "startedAt": "2026-10-31 08:53:40.836000+00:00",
+      "releasedAt": "2026-10-31 08:56:43.906000+00:00"
+    },
+    {
+      "runId": "30d011c7-5f4b-4909-a97c-ca5aa767c24d",
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "incarnationId": "defc74df-487a-4c4c-833e-0b95ff62cc8a",
+      "commandId": "outbox:d94bd114b242361ab21e10c63e31515ba99ea3b1d6b92ebd57d9275cc7c87bf3",
+      "requestedAt": "2026-10-31 08:57:25.677000+00:00",
+      "admittedAt": "2026-10-31 08:58:10.970000+00:00",
+      "startedAt": "2026-10-31 08:58:11.089000+00:00",
+      "releasedAt": "2026-10-31 08:59:32.204000+00:00"
+    }
+  ],
+  "admissionRequests": [
+    {
+      "commandId": "outbox:7ceee5d1d8fe519e4ad43b8f36097f1674725b648776086a490132941cdaa344",
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "requestedAt": "2026-10-31 08:51:59.126000+00:00",
+      "admittedRunId": "70f9547f-5d7a-46ce-9dea-ad3469b6a192",
+      "deliveredAt": "2026-10-31 08:52:00.192000+00:00",
+      "completedAt": "2026-10-31 08:53:33.611000+00:00"
+    },
+    {
+      "commandId": "outbox:bf3b854dfc03a53b4753c9e7e9f9d25468005c01f6ddcc03b621f23db958d98c",
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "requestedAt": "2026-10-31 08:52:39.404000+00:00",
+      "admittedRunId": "5adb9f26-1f4c-4048-9300-e37d94ccd63c",
+      "deliveredAt": "2026-10-31 08:52:40.222000+00:00",
+      "completedAt": "2026-10-31 08:56:43.906000+00:00"
+    },
+    {
+      "commandId": "outbox:d94bd114b242361ab21e10c63e31515ba99ea3b1d6b92ebd57d9275cc7c87bf3",
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "requestedAt": "2026-10-31 08:57:25.677000+00:00",
+      "admittedRunId": "30d011c7-5f4b-4909-a97c-ca5aa767c24d",
+      "deliveredAt": "2026-10-31 08:57:25.753000+00:00",
+      "completedAt": "2026-10-31 08:59:32.204000+00:00"
+    }
+  ],
+  "turns": [
+    {
+      "id": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "threadId": "1f039d1f-8daa-4cd1-a6e8-02938f3e3b98",
+      "boundary": "ASSESSMENT_ROOT",
+      "logicalRunId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "state": "COMPLETED",
+      "requestId": "ddaad27f-6f4d-4794-be9a-4867a6cd50b3",
+      "runtimeRunId": "30d011c7-5f4b-4909-a97c-ca5aa767c24d",
+      "checkpointId": "1f1d5096-232a-6f04-8261-6f728b7b651a",
+      "createdAt": "2026-10-31 08:52:00.439000",
+      "updatedAt": "2026-10-31 08:59:32.135000"
+    },
+    {
+      "id": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "threadId": "619454fb-1ebc-44bc-aaa3-fcfef52ff0bc",
+      "boundary": "ASSESSMENT_ROOT",
+      "logicalRunId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "state": "COMPLETED",
+      "requestId": null,
+      "runtimeRunId": "5adb9f26-1f4c-4048-9300-e37d94ccd63c",
+      "checkpointId": "1f1d508f-eab1-67b5-820d-95ef69f78247",
+      "createdAt": "2026-10-31 08:53:40.843000",
+      "updatedAt": "2026-10-31 08:56:43.846000"
+    }
+  ],
+  "decisionIdentities": [],
+  "wallet": [
+    {
+      "availableCredits": 0,
+      "reservedCredits": 0,
+      "version": 2
+    }
+  ],
+  "paymentCounts": [
+    {
+      "billingOrders": 0,
+      "paymentTransactions": 0
+    }
+  ],
+  "isolation": [
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "writerRole": "lcsp364_fogewise_api",
+      "createdAt": "2026-10-31 08:13:10.151000+00:00"
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "writerRole": "lcsp364_fogewise_api",
+      "createdAt": "2026-10-31 08:31:11.931000+00:00"
+    }
+  ],
+  "localOutstandingSlots": 0,
+  "usageSummary": {
+    "b19a1fc4-1c69-4009-804a-ad7cfa5d512d / SETTLED / COMPLETED / None": 29,
+    "b19a1fc4-1c69-4009-804a-ad7cfa5d512d / UNAVAILABLE / FAILED / APIStatusError": 2,
+    "719a1e49-4fb0-4c30-a2b6-46bea28874b0 / SETTLED / COMPLETED / None": 26
+  },
+  "eventTypes": [
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 1,
+      "timestamp": "2026-10-30 17:14:34.453000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 1,
+      "timestamp": "2026-10-31 08:28:20.483000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 2,
+      "timestamp": "2026-10-31 08:51:59.092000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 3,
+      "timestamp": "2026-10-31 08:52:00.447000+00:00",
+      "eventType": "EXECUTION_STATE_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 4,
+      "timestamp": "2026-10-31 08:52:17.535000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 5,
+      "timestamp": "2026-10-31 08:52:21.368000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 6,
+      "timestamp": "2026-10-31 08:52:29.370000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 7,
+      "timestamp": "2026-10-31 08:52:31.910000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 8,
+      "timestamp": "2026-10-31 08:52:34.052000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 9,
+      "timestamp": "2026-10-31 08:52:34.399000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 10,
+      "timestamp": "2026-10-31 08:52:34.557000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 11,
+      "timestamp": "2026-10-31 08:52:34.742000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 12,
+      "timestamp": "2026-10-31 08:52:36.926000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 13,
+      "timestamp": "2026-10-31 08:52:37.275000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 14,
+      "timestamp": "2026-10-31 08:52:37.430000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 15,
+      "timestamp": "2026-10-31 08:52:37.591000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 2,
+      "timestamp": "2026-10-31 08:52:39.396000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 16,
+      "timestamp": "2026-10-31 08:52:40.078000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 17,
+      "timestamp": "2026-10-31 08:52:40.453000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 18,
+      "timestamp": "2026-10-31 08:52:40.633000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 19,
+      "timestamp": "2026-10-31 08:52:40.803000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 20,
+      "timestamp": "2026-10-31 08:52:43.080000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 21,
+      "timestamp": "2026-10-31 08:52:43.487000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 22,
+      "timestamp": "2026-10-31 08:52:43.663000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 23,
+      "timestamp": "2026-10-31 08:52:43.823000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 24,
+      "timestamp": "2026-10-31 08:52:46.214000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 25,
+      "timestamp": "2026-10-31 08:52:46.584000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 26,
+      "timestamp": "2026-10-31 08:52:46.736000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 27,
+      "timestamp": "2026-10-31 08:52:46.900000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 28,
+      "timestamp": "2026-10-31 08:52:47.076000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 29,
+      "timestamp": "2026-10-31 08:52:50.290000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 30,
+      "timestamp": "2026-10-31 08:52:50.625000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 31,
+      "timestamp": "2026-10-31 08:52:50.798000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 32,
+      "timestamp": "2026-10-31 08:52:50.950000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 33,
+      "timestamp": "2026-10-31 08:52:51.114000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 34,
+      "timestamp": "2026-10-31 08:52:55.354000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 35,
+      "timestamp": "2026-10-31 08:52:55.681000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 36,
+      "timestamp": "2026-10-31 08:52:55.849000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 37,
+      "timestamp": "2026-10-31 08:52:56.022000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 38,
+      "timestamp": "2026-10-31 08:52:56.177000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 39,
+      "timestamp": "2026-10-31 08:52:56.372000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 40,
+      "timestamp": "2026-10-31 08:52:56.536000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 41,
+      "timestamp": "2026-10-31 08:53:00.065000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 42,
+      "timestamp": "2026-10-31 08:53:00.403000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 43,
+      "timestamp": "2026-10-31 08:53:00.560000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 44,
+      "timestamp": "2026-10-31 08:53:00.706000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 45,
+      "timestamp": "2026-10-31 08:53:04.976000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 46,
+      "timestamp": "2026-10-31 08:53:05.303000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 47,
+      "timestamp": "2026-10-31 08:53:05.434000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 48,
+      "timestamp": "2026-10-31 08:53:05.585000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 49,
+      "timestamp": "2026-10-31 08:53:05.730000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 50,
+      "timestamp": "2026-10-31 08:53:05.885000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 51,
+      "timestamp": "2026-10-31 08:53:08.131000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 52,
+      "timestamp": "2026-10-31 08:53:08.439000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 53,
+      "timestamp": "2026-10-31 08:53:14.167000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 54,
+      "timestamp": "2026-10-31 08:53:16.434000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 55,
+      "timestamp": "2026-10-31 08:53:19.780000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 56,
+      "timestamp": "2026-10-31 08:53:22.877000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 57,
+      "timestamp": "2026-10-31 08:53:25.838000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 58,
+      "timestamp": "2026-10-31 08:53:28.946000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 59,
+      "timestamp": "2026-10-31 08:53:33.371000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 60,
+      "timestamp": "2026-10-31 08:53:33.541000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 61,
+      "timestamp": "2026-10-31 08:53:33.560000+00:00",
+      "eventType": "EXECUTION_STATE_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 3,
+      "timestamp": "2026-10-31 08:53:40.848000+00:00",
+      "eventType": "EXECUTION_STATE_CHANGED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 4,
+      "timestamp": "2026-10-31 08:54:19.338000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 5,
+      "timestamp": "2026-10-31 08:54:22.039000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 6,
+      "timestamp": "2026-10-31 08:54:23.445000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 7,
+      "timestamp": "2026-10-31 08:54:25.629000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 8,
+      "timestamp": "2026-10-31 08:54:25.952000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 9,
+      "timestamp": "2026-10-31 08:54:26.125000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 10,
+      "timestamp": "2026-10-31 08:54:26.284000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 11,
+      "timestamp": "2026-10-31 08:54:26.457000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 12,
+      "timestamp": "2026-10-31 08:54:26.636000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 13,
+      "timestamp": "2026-10-31 08:54:28.912000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 14,
+      "timestamp": "2026-10-31 08:54:29.240000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 15,
+      "timestamp": "2026-10-31 08:54:29.405000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 16,
+      "timestamp": "2026-10-31 08:54:29.562000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 17,
+      "timestamp": "2026-10-31 08:54:29.704000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 18,
+      "timestamp": "2026-10-31 08:54:31.632000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 19,
+      "timestamp": "2026-10-31 08:54:31.938000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 20,
+      "timestamp": "2026-10-31 08:54:32.111000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 21,
+      "timestamp": "2026-10-31 08:54:32.289000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 22,
+      "timestamp": "2026-10-31 08:54:32.470000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 23,
+      "timestamp": "2026-10-31 08:54:32.615000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 24,
+      "timestamp": "2026-10-31 08:54:36.065000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 25,
+      "timestamp": "2026-10-31 08:54:36.378000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 26,
+      "timestamp": "2026-10-31 08:54:36.529000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 27,
+      "timestamp": "2026-10-31 08:54:36.685000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 28,
+      "timestamp": "2026-10-31 08:54:36.840000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 29,
+      "timestamp": "2026-10-31 08:54:36.997000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 30,
+      "timestamp": "2026-10-31 08:54:37.208000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 31,
+      "timestamp": "2026-10-31 08:54:41.136000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 32,
+      "timestamp": "2026-10-31 08:54:47.262000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 33,
+      "timestamp": "2026-10-31 08:54:55.853000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 34,
+      "timestamp": "2026-10-31 08:54:56.176000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 35,
+      "timestamp": "2026-10-31 08:54:56.340000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 36,
+      "timestamp": "2026-10-31 08:54:56.488000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 37,
+      "timestamp": "2026-10-31 08:54:56.648000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 38,
+      "timestamp": "2026-10-31 08:54:56.802000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 39,
+      "timestamp": "2026-10-31 08:54:56.955000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 40,
+      "timestamp": "2026-10-31 08:54:59.487000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 41,
+      "timestamp": "2026-10-31 08:54:59.808000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 42,
+      "timestamp": "2026-10-31 08:54:59.949000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 43,
+      "timestamp": "2026-10-31 08:55:00.110000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 44,
+      "timestamp": "2026-10-31 08:55:00.258000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 45,
+      "timestamp": "2026-10-31 08:55:00.405000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 46,
+      "timestamp": "2026-10-31 08:55:02.528000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 47,
+      "timestamp": "2026-10-31 08:55:02.843000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 48,
+      "timestamp": "2026-10-31 08:55:02.997000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 49,
+      "timestamp": "2026-10-31 08:55:03.150000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 50,
+      "timestamp": "2026-10-31 08:55:05.759000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 51,
+      "timestamp": "2026-10-31 08:55:06.136000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 52,
+      "timestamp": "2026-10-31 08:55:06.292000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 53,
+      "timestamp": "2026-10-31 08:55:06.543000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 54,
+      "timestamp": "2026-10-31 08:55:06.805000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 55,
+      "timestamp": "2026-10-31 08:55:06.981000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 56,
+      "timestamp": "2026-10-31 08:55:10.733000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 57,
+      "timestamp": "2026-10-31 08:55:11.061000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 58,
+      "timestamp": "2026-10-31 08:55:11.215000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 59,
+      "timestamp": "2026-10-31 08:55:18.292000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 60,
+      "timestamp": "2026-10-31 08:55:18.454000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 61,
+      "timestamp": "2026-10-31 08:55:21.238000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 62,
+      "timestamp": "2026-10-31 08:55:21.523000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 63,
+      "timestamp": "2026-10-31 08:55:21.732000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 64,
+      "timestamp": "2026-10-31 08:55:21.891000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 65,
+      "timestamp": "2026-10-31 08:55:22.052000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 66,
+      "timestamp": "2026-10-31 08:55:22.205000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 67,
+      "timestamp": "2026-10-31 08:55:22.381000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 68,
+      "timestamp": "2026-10-31 08:55:25.070000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 69,
+      "timestamp": "2026-10-31 08:55:25.233000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 70,
+      "timestamp": "2026-10-31 08:55:29.821000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 71,
+      "timestamp": "2026-10-31 08:55:41.682000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 72,
+      "timestamp": "2026-10-31 08:55:58.968000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 73,
+      "timestamp": "2026-10-31 08:56:06.969000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 74,
+      "timestamp": "2026-10-31 08:56:07.478000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 75,
+      "timestamp": "2026-10-31 08:56:11.071000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 76,
+      "timestamp": "2026-10-31 08:56:11.398000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 77,
+      "timestamp": "2026-10-31 08:56:11.571000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 78,
+      "timestamp": "2026-10-31 08:56:11.752000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 79,
+      "timestamp": "2026-10-31 08:56:14.548000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 80,
+      "timestamp": "2026-10-31 08:56:14.897000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 81,
+      "timestamp": "2026-10-31 08:56:15.061000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 82,
+      "timestamp": "2026-10-31 08:56:15.233000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 83,
+      "timestamp": "2026-10-31 08:56:15.406000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 84,
+      "timestamp": "2026-10-31 08:56:15.589000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 85,
+      "timestamp": "2026-10-31 08:56:17.980000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 86,
+      "timestamp": "2026-10-31 08:56:18.330000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 87,
+      "timestamp": "2026-10-31 08:56:18.505000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 88,
+      "timestamp": "2026-10-31 08:56:18.666000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 89,
+      "timestamp": "2026-10-31 08:56:18.847000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 90,
+      "timestamp": "2026-10-31 08:56:19.016000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 91,
+      "timestamp": "2026-10-31 08:56:21.395000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 92,
+      "timestamp": "2026-10-31 08:56:21.733000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 93,
+      "timestamp": "2026-10-31 08:56:21.902000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 94,
+      "timestamp": "2026-10-31 08:56:34.244000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 95,
+      "timestamp": "2026-10-31 08:56:43.291000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 96,
+      "timestamp": "2026-10-31 08:56:43.500000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 97,
+      "timestamp": "2026-10-31 08:56:43.523000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 98,
+      "timestamp": "2026-10-31 08:56:43.589000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 99,
+      "timestamp": "2026-10-31 08:56:43.663000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 100,
+      "timestamp": "2026-10-31 08:56:43.730000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "sequence": 101,
+      "timestamp": "2026-10-31 08:56:43.854000+00:00",
+      "eventType": "EXECUTION_STATE_CHANGED",
+      "executionId": "60ea825e-261f-426d-9b0d-bd5e21e5e35b",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 62,
+      "timestamp": "2026-10-31 08:58:11.114000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 63,
+      "timestamp": "2026-10-31 08:58:11.125000+00:00",
+      "eventType": "EXECUTION_STATE_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 64,
+      "timestamp": "2026-10-31 08:58:24.444000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 65,
+      "timestamp": "2026-10-31 08:58:34.032000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 66,
+      "timestamp": "2026-10-31 08:58:34.331000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 67,
+      "timestamp": "2026-10-31 08:58:34.504000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 68,
+      "timestamp": "2026-10-31 08:58:34.677000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 69,
+      "timestamp": "2026-10-31 08:58:34.838000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 70,
+      "timestamp": "2026-10-31 08:58:34.988000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 71,
+      "timestamp": "2026-10-31 08:58:35.145000+00:00",
+      "eventType": "EVIDENCE_ACCEPTED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 72,
+      "timestamp": "2026-10-31 08:58:39.125000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 73,
+      "timestamp": "2026-10-31 08:58:39.301000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 74,
+      "timestamp": "2026-10-31 08:58:39.353000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 75,
+      "timestamp": "2026-10-31 08:58:39.400000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 76,
+      "timestamp": "2026-10-31 08:58:39.443000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 77,
+      "timestamp": "2026-10-31 08:58:39.497000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 78,
+      "timestamp": "2026-10-31 08:58:45.953000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 79,
+      "timestamp": "2026-10-31 08:58:53.558000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 80,
+      "timestamp": "2026-10-31 08:59:02.754000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 81,
+      "timestamp": "2026-10-31 08:59:11.081000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 82,
+      "timestamp": "2026-10-31 08:59:20.049000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 83,
+      "timestamp": "2026-10-31 08:59:30.296000+00:00",
+      "eventType": "ACTIVITY_RECORDED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 84,
+      "timestamp": "2026-10-31 08:59:30.476000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 85,
+      "timestamp": "2026-10-31 08:59:30.492000+00:00",
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "executionId": null,
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 86,
+      "timestamp": "2026-10-31 08:59:30.561000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 87,
+      "timestamp": "2026-10-31 08:59:31.314000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 88,
+      "timestamp": "2026-10-31 08:59:32.004000+00:00",
+      "eventType": "HUMAN_RESOLUTION_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    },
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "sequence": 89,
+      "timestamp": "2026-10-31 08:59:32.140000+00:00",
+      "eventType": "EXECUTION_STATE_CHANGED",
+      "executionId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "checkpointId": null
+    }
+  ],
+  "ledger": [
+    {
+      "id": "671dc8ab-bd44-4c32-acb5-086706f5aa1a",
+      "source": "INTERNAL_TEST_GRANT",
+      "referenceId": "LCSP-364",
+      "deltaCredits": 1000000,
+      "billingOrderId": null,
+      "createdAt": "2026-10-31 07:13:02.356000"
+    },
+    {
+      "id": "f07eaa1b-a754-4d3e-99ab-53544990fd65",
+      "source": "INTERNAL_TEST_GRANT_REVERSAL",
+      "referenceId": "LCSP-364",
+      "deltaCredits": -1000000,
+      "billingOrderId": null,
+      "createdAt": "2026-10-31 09:08:35.751000"
+    }
+  ],
+  "checkpointMetadataCount": 1155,
+  "checkpointMetadataSha256": "602fc34424a58be3490fd7376ad3f07026c0466e20d250edabcd90143a8c44a4",
+  "checkpointMetadataMatchesNativeQuiescent": true,
+  "checkpointsReference": "acceptance3-native-quiescent.json"
+}

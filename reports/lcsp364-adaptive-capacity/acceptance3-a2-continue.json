@@ -1,0 +1,14 @@
+{
+  "httpStatus": 201,
+  "payload": {
+    "ok": true,
+    "data": {
+      "state": "RESUME_REQUESTED",
+      "targetRunId": "6f869774-db6d-4465-be46-87ebd34f682c",
+      "requestId": "ddaad27f-6f4d-4794-be9a-4867a6cd50b3"
+    }
+  },
+  "path": "/assessments/b19a1fc4-1c69-4009-804a-ad7cfa5d512d/runtime/continue",
+  "method": "POST",
+  "correlationId": "lcsp364-acceptance3-a2-continue-43076a2e-03fa-405a-ae96-8294c141362f"
+}

@@ -353,6 +353,7 @@ export type HumanRequestRecord = z.infer<typeof humanRequestRecordSchema>;
 export const claimAssessmentRootRequestSchema = z.strictObject({
   assessmentId: uuidSchema,
   runtimeRunId: uuidSchema.optional(),
+  runtimeIncarnationId: uuidSchema.optional(),
 });
 export const claimAssessmentRootExecutionRequestSchema =
   claimAssessmentRootRequestSchema.omit({ assessmentId: true }).optional();
@@ -365,8 +366,18 @@ export const finishAssessmentRootRequestSchema = z
     checkpointId: uuidSchema.optional(),
     controlRequestId: uuidSchema.optional(),
     requestIds: z.array(uuidSchema).min(1).max(100).optional(),
+    recoveryRequired: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
+    if (
+      value.recoveryRequired &&
+      value.state !== AGENT_EXECUTION_STATES.FAILED
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Uncertain native recovery must fail closed",
+      });
+    }
     if (
       value.state === AGENT_EXECUTION_STATES.INTERRUPTED &&
       (!value.checkpointId || !value.requestIds?.length)

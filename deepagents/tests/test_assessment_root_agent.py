@@ -821,7 +821,10 @@ def test_root_checkpointer_drops_the_prisma_schema_query_parameter(monkeypatch) 
     monkeypatch.setattr(PostgresSaver, "from_conn_string", staticmethod(fake_from_conn_string))
     with postgres_checkpointer():
         pass
-    assert opened == ["postgresql://u:p@db:5432/lcsp?sslmode=disable"]
+    from psycopg.conninfo import conninfo_to_dict
+    assert len(opened) == 1
+    assert conninfo_to_dict(opened[0]) == {"user": "u", "password": "p", "dbname": "lcsp", "host": "db", "port": "5432",
+        "sslmode": "disable", "application_name": "lcsp-assessment-root-checkpoint"}
 
 
 def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):

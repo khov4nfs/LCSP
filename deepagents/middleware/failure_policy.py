@@ -92,8 +92,21 @@ class PaidAdmissionError(AgentRunBudgetExceeded):
     """Terminal bounded-inference denial; safe metadata only, never a provider fault."""
 
     def __init__(self, reason: str, run_id: str, attempt_id: str | None = None):
+        """Business purpose: Expose a terminal paid-admission refusal to existing governance and capacity telemetry.
+
+        Business rules:
+        - A denial never authorizes retry/fallback or implies zero provider exposure.
+        Execution flow:
+        1. Keep the established safe error identity and observe an aggregate budget-pressure event.
+        Failure cases:
+        - The constructed exception remains terminal under existing provider/broker policy.
+        Side effects:
+        - Records a bounded process-local denial counter; performs no paid call or settlement.
+        """
         self.reason, self.run_id, self.attempt_id = reason, run_id, attempt_id
         super().__init__(f"Paid inference admission stopped: {reason}")
+        from tools.common.capabilities.agent_runtime.root_capacity import observe_provider_pressure
+        observe_provider_pressure(self)
 
 
 def is_paid_admission_error(error: BaseException) -> bool:

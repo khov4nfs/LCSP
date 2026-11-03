@@ -1,0 +1,77 @@
+{
+  "at": "2026-10-31T08:55:57.947096+00:00",
+  "slots": [
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "70f9547f-5d7a-46ce-9dea-ad3469b6a192",
+      "2026-10-31 08:52:00.224000+00:00",
+      "2026-10-31 08:52:00.427000+00:00",
+      "2026-10-31 08:53:33.611000+00:00"
+    ],
+    [
+      "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "5adb9f26-1f4c-4048-9300-e37d94ccd63c",
+      "2026-10-31 08:53:40.732000+00:00",
+      "2026-10-31 08:53:40.836000+00:00",
+      null
+    ]
+  ],
+  "usageGroups": [
+    [
+      "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "INCEPTION",
+      "mercury-3",
+      "SETTLED",
+      "COMPLETED",
+      null,
+      18,
+      "233688",
+      "12397",
+      "1096288",
+      "8131",
+      0
+    ],
+    [
+      "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "INCEPTION",
+      "mercury-3",
+      "UNAVAILABLE",
+      "STARTED",
+      null,
+      1,
+      null,
+      null,
+      null,
+      null,
+      1
+    ],
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "INCEPTION",
+      "mercury-3",
+      "SETTLED",
+      "COMPLETED",
+      null,
+      20,
+      "108179",
+      "7660",
+      "822533",
+      "3410",
+      0
+    ],
+    [
+      "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "INCEPTION",
+      "mercury-3",
+      "UNAVAILABLE",
+      "FAILED",
+      "APIStatusError",
+      2,
+      null,
+      null,
+      null,
+      null,
+      2
+    ]
+  ]
+}

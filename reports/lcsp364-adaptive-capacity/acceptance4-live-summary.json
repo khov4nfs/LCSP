@@ -1,0 +1,127 @@
+{
+  "scope": "ISOLATED_LIVE_PROVIDER_NATIVE_NOT_FOGEWISE_NOT_SCRIPTED_MODEL",
+  "sourceRevision": "31f27042970b5aa6945e612af283a6e61aee3fa2",
+  "measurementSamples": 257,
+  "observerErrors": 0,
+  "controllerUnhealthySampleCount": 4,
+  "actualPeakNativeRoots": 2,
+  "peakDirectNativeRootObservation": 2,
+  "maximumAdmitted": 2,
+  "physicalNativeSegments": 4,
+  "independentAssessments": 3,
+  "overlaps": [
+    {
+      "assessmentIds": [
+        "e983847a-1a58-4397-a8c2-2013d9147499",
+        "1dbfa6d0-49a7-40a2-b5d8-81a42744881e"
+      ],
+      "start": "2026-11-02T03:31:34.169000+00:00",
+      "end": "2026-11-02T03:32:22.648000+00:00",
+      "seconds": 48.479
+    },
+    {
+      "assessmentIds": [
+        "1dbfa6d0-49a7-40a2-b5d8-81a42744881e",
+        "9d7e6400-fbc7-44dc-a515-d2501e4045bb"
+      ],
+      "start": "2026-11-02T03:32:34.300000+00:00",
+      "end": "2026-11-02T03:33:36.630000+00:00",
+      "seconds": 62.33
+    }
+  ],
+  "automaticScaleUpAt": "2026-11-02T03:31:35.300802+00:00",
+  "automaticScaleDownAt": "2026-11-02T03:34:26.037366+00:00",
+  "scaleUpReason": "BACKLOG_HEADROOM",
+  "scaleDownReason": "LOW_DEMAND",
+  "initialQueueWaitToPhysicalStartMs": [
+    604.0,
+    46340.0,
+    106266.0
+  ],
+  "initialQueueWaitP50Ms": 46340.0,
+  "initialQueueWaitP95Ms": 100273.4,
+  "allSegmentsWaitP50Ms": 30857.0,
+  "allSegmentsWaitP95Ms": 97277.09999999998,
+  "queueWaitSampleCount": 3,
+  "actualCompletedAssessmentThroughput": null,
+  "throughputDisposition": "Three genuine WAITING_FOR_HUMAN outcomes; no completed Assessment or final report throughput claim",
+  "nativeSegmentDurationsSeconds": [
+    94.452,
+    122.461,
+    125.371,
+    37.264
+  ],
+  "resourceRanges": {
+    "memoryAvailableBytes": {
+      "minimum": 7057522688,
+      "maximum": 8586403840
+    },
+    "cgroupMemoryAvailableBytes": {
+      "minimum": 8000237568,
+      "maximum": 8371847168
+    },
+    "diskAvailableBytes": {
+      "minimum": 7932825600,
+      "maximum": 8986169344
+    },
+    "sandboxMemoryBytes": {
+      "minimum": 0,
+      "maximum": 563323338.752
+    },
+    "sandboxCpuCores": {
+      "minimum": 0,
+      "maximum": 1.0413
+    },
+    "activeSandboxes": {
+      "minimum": 0,
+      "maximum": 3
+    },
+    "cpuPressure": {
+      "minimum": 0.0016,
+      "maximum": 0.0204
+    },
+    "diskPressure": {
+      "minimum": 0,
+      "maximum": 0.0382
+    },
+    "processRssBytes": {
+      "minimum": 197038080,
+      "maximum": 562991104
+    },
+    "checkpointLatencyMs": {
+      "minimum": 1.2443720002011105,
+      "maximum": 52.02669499976764
+    },
+    "checkpointFailureRate": {
+      "minimum": 0,
+      "maximum": 0
+    },
+    "provider429Count": {
+      "minimum": 0,
+      "maximum": 0
+    },
+    "budgetDenialCount": {
+      "minimum": 0,
+      "maximum": 0
+    },
+    "dbUsedConnections": {
+      "minimum": 9,
+      "maximum": 26
+    },
+    "dbConnectionRatio": {
+      "minimum": 0.09,
+      "maximum": 0.26
+    },
+    "dbLatencyMs": {
+      "minimum": 1.7068610000424087,
+      "maximum": 10.98955599986948
+    },
+    "activeModelRequests": {
+      "minimum": 0,
+      "maximum": 2
+    }
+  },
+  "timelineSha256": "cf7664b8942a0c8939510ea5eaaf88f1eefd3601ba0373ccc6be6895f06d462b",
+  "chartLabel": "Derived from captured measurements, not a live screenshot",
+  "fogewiseConcurrency2Claim": false
+}

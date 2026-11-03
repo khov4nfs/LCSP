@@ -1,0 +1,222 @@
+{
+  "runtimeUnderAcceptance": "2cd94a65e26397a1bb486a6ba4de2c168d152192",
+  "capturedManifestAt": "2026-10-31T09:25:08.595831+00:00",
+  "note": "Artifact revisions/scopes are recorded within each receipt. Pre-update baseline, local checks, CI fixtures and real production are distinct. This manifest excludes itself.",
+  "artifacts": [
+    {
+      "file": "README.md",
+      "bytes": 18451,
+      "sha256": "20e5e8ea52d6626e74ccba9430a11ba0ad6db7d344ff0e05ae925195299dc48d"
+    },
+    {
+      "file": "acceptance-20261031.md",
+      "bytes": 20857,
+      "sha256": "78588bc90c9561fcd00a7b6b54122dc1d49410097614146c977add2c474ab88d"
+    },
+    {
+      "file": "acceptance3-a2-continue.json",
+      "bytes": 425,
+      "sha256": "91e6a915ad4fc1a6c7b8b7b949a241322805b7b344fe53e01b719d4779fea00e"
+    },
+    {
+      "file": "acceptance3-a2-stop.json",
+      "bytes": 415,
+      "sha256": "60e67ea8218cb28f0c554ae1ff48cbfc6b87ba35cc8e928e0848bf91e80a55c1"
+    },
+    {
+      "file": "acceptance3-access-denial.json",
+      "bytes": 593,
+      "sha256": "e1df9be63660f619976230a66a5621999a5977d859c87603a956ad7d69b669e6"
+    },
+    {
+      "file": "acceptance3-activation-events.jsonl",
+      "bytes": 2391,
+      "sha256": "928d08a2d566c630b185e982322a790397e8667c43036769e10585041d994797"
+    },
+    {
+      "file": "acceptance3-activation-receipt.json",
+      "bytes": 2420,
+      "sha256": "f228819eb20164ca767900cd21cb022ab7e5898568568d01a9cdb967fb4e736c"
+    },
+    {
+      "file": "acceptance3-after-stop.json",
+      "bytes": 1400,
+      "sha256": "bfce94d46e004fff2befa943b8e068eab9321ebec9b076247caf09243a731cf8"
+    },
+    {
+      "file": "acceptance3-before-update-preflight.json",
+      "bytes": 19723,
+      "sha256": "d7ba27610f9a081b773756271b4a04ef65eca8ac723a4da99d4d2f594ad96df8"
+    },
+    {
+      "file": "acceptance3-bounded-rollback.json",
+      "bytes": 968,
+      "sha256": "30a1c9e5ecaa84afbf30e15f66632ac3b711ea89ce52f2f69ebeb94660dff4fc"
+    },
+    {
+      "file": "acceptance3-build-events.jsonl",
+      "bytes": 3257,
+      "sha256": "a6490b40d6b35ae5629d7cf5519e07566749e9e88ec5e1c136a181405008264c"
+    },
+    {
+      "file": "acceptance3-build-receipt.json",
+      "bytes": 3044,
+      "sha256": "cf3f367041260b9845ca088f21b886566a440ac4c9e01803e326942e9ae9e88b"
+    },
+    {
+      "file": "acceptance3-business-docs-check.log",
+      "bytes": 180,
+      "sha256": "78d3f68d93f78c3b9a32b20faf585eefc9b765e5237210e4a8d7842b5d4959c5"
+    },
+    {
+      "file": "acceptance3-business-docs-tests.log",
+      "bytes": 1310,
+      "sha256": "c284cfe3b71a6d01e98979302adbdb97d3f62cb0713342bc8dbb63226c1bcd35"
+    },
+    {
+      "file": "acceptance3-canary-a2-resumed-hitl.png",
+      "bytes": 44881,
+      "sha256": "69da6a8bab9ea8e00a40c5f6392ea41251e58ac09d1ec892fd2806a07c27f33e"
+    },
+    {
+      "file": "acceptance3-canary-a2-runtime-details.png",
+      "bytes": 22167,
+      "sha256": "1ed01490438e258a2987b6855acd6be53a9f47601219b7fb956f205b221681d9"
+    },
+    {
+      "file": "acceptance3-canary-b-hitl.png",
+      "bytes": 42354,
+      "sha256": "766c8e3184811480c5cfe829b7f886ef8604ec3126fe85f008befff3ee0219c2"
+    },
+    {
+      "file": "acceptance3-capacity-derived.png",
+      "bytes": 308323,
+      "sha256": "fb9cdd619a17b6f4f769a6206454c0a92241dbbdd9fdbd6e63c26108e184b360"
+    },
+    {
+      "file": "acceptance3-capacity-derived.svg",
+      "bytes": 158900,
+      "sha256": "b6bbd8ae6258bfbca2c865766552f4c302322574e58fdcfc30663635ed5d003d"
+    },
+    {
+      "file": "acceptance3-capacity-timeline.jsonl",
+      "bytes": 406225,
+      "sha256": "81d3f132d4a3cb96e8fff0ada154739f98e03f1116dd55debd5a53b58276ea6e"
+    },
+    {
+      "file": "acceptance3-checkout.json",
+      "bytes": 307,
+      "sha256": "7b3e8286632f640169a5f8e3a26b6a83de178a811b698d16247c4e0052438503"
+    },
+    {
+      "file": "acceptance3-checkpoint-lineage.json",
+      "bytes": 27322,
+      "sha256": "c9367c9d6c3a727e1ce374387c262f3abe1caa68be3909d3818f1a477b213436"
+    },
+    {
+      "file": "acceptance3-ci-2cd94a65e.json",
+      "bytes": 13381,
+      "sha256": "ab03c1a0f581a9db419dd15556c9e0b3f9459d0388f10021009900654a968257"
+    },
+    {
+      "file": "acceptance3-emergency-drain.json",
+      "bytes": 966,
+      "sha256": "25fb7872599246d73d34bf57c0b38cc2c0ce92c2edb77690df3039b812a9e6ff"
+    },
+    {
+      "file": "acceptance3-final-status.json",
+      "bytes": 33705,
+      "sha256": "903a4aea2bf77389dd24b45645015860b2725bef88c84c31fc80805cd6b18d35"
+    },
+    {
+      "file": "acceptance3-migration-inventory.json",
+      "bytes": 81,
+      "sha256": "e1ef2407067692fde07acb2e7b39b3a9ef5ecb33583736bf5d09378dcc811cf6"
+    },
+    {
+      "file": "acceptance3-native-before-stop.json",
+      "bytes": 785,
+      "sha256": "a93534686a74060595dcaafbbf18d58a711574879295baec1d574679dea43f0e"
+    },
+    {
+      "file": "acceptance3-native-load-artifact.json",
+      "bytes": 542,
+      "sha256": "21584a4640f3cf0e36fffaebf9cd8b8a0ce3a1c20809c6b4a0364780d0556668"
+    },
+    {
+      "file": "acceptance3-native-load-ci.json",
+      "bytes": 287807,
+      "sha256": "64db0c747ba79dde087f37fdfc8cb5c3f07eb49165e5fb01556ca22c60d25d3c"
+    },
+    {
+      "file": "acceptance3-native-mode.json",
+      "bytes": 337,
+      "sha256": "6c7bd6a84b928410787b86d061fbdabdb7be8780a00918854d5df355cdcf3e24"
+    },
+    {
+      "file": "acceptance3-native-quiescent.json",
+      "bytes": 441437,
+      "sha256": "e5b22b6afdaea1d4a8dc0b82530badcc62e92848db61c014f0fb0994e671dfd0"
+    },
+    {
+      "file": "acceptance3-native-state-after-restart.json",
+      "bytes": 1257,
+      "sha256": "9d2be485dcc74a243a9269af802c63fd5c04a54599860d61a6f3a4d53cc42040"
+    },
+    {
+      "file": "acceptance3-pins-provenance.json",
+      "bytes": 3397,
+      "sha256": "4e033b6460a196afd253c98fbe276600d4d431356d7bd016d89c5a3af30b6f9f"
+    },
+    {
+      "file": "acceptance3-post-rollback.json",
+      "bytes": 59241,
+      "sha256": "0d1ca3344b2df5b1516306ff8c2773e81a1d54b34452749a64d952ccd185a3c3"
+    },
+    {
+      "file": "acceptance3-production-summary.json",
+      "bytes": 1857,
+      "sha256": "95c3ac440d2ac49eb2ee19e29e2682de96e6f95c33a1f6b38a06a89b39c3d606"
+    },
+    {
+      "file": "acceptance3-quiescence.jsonl",
+      "bytes": 3123,
+      "sha256": "90d96cf44d2bca05fbd5b065aa2c803df02f759e47666dd487dcccc13a6f6caf"
+    },
+    {
+      "file": "acceptance3-quiescent-restart.jsonl",
+      "bytes": 9898,
+      "sha256": "e1a774c4e476792bffe77d7110b5e752e9fc5784d0e5d7384136f0e7dbe65d41"
+    },
+    {
+      "file": "acceptance3-recover-adaptive.json",
+      "bytes": 967,
+      "sha256": "2800206a3aae6501cffc8785df968afa9a168d57f1760bbfc9f808158731d15f"
+    },
+    {
+      "file": "acceptance3-redelivery.json",
+      "bytes": 18197,
+      "sha256": "f87fd395654c3560a470378a12dee9ac8d003a3f7ae45c5df1a83d16baa7ae13"
+    },
+    {
+      "file": "acceptance3-resume-admission.jsonl",
+      "bytes": 140,
+      "sha256": "e72a03c745b3fe96590084cc612207076a5209f6220940cc03d30071c3144f61"
+    },
+    {
+      "file": "acceptance3-stale-incarnation.json",
+      "bytes": 2121,
+      "sha256": "9344307a366021ff6676b4b2c9cbf6ef8e952ef8e38bed16d83d8cb137157a6e"
+    },
+    {
+      "file": "acceptance3-test-credit-reversal.json",
+      "bytes": 815,
+      "sha256": "42f1644dbc80c0f797df7ef031f10d128750517fb7bda89ed6d936ed2374ceff"
+    },
+    {
+      "file": "acceptance3-usage-reconciliation.json",
+      "bytes": 2963,
+      "sha256": "a9f4e7b41a22ff92fc5fc10560a1c50c7ea5f7582ae3549a1df06ff31c3ad09f"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "scope": "LOCAL_TEST_HOST_NOT_PRODUCTION",
+  "observedAt": "2026-10-30T04:02:53.405977Z",
+  "reason": "DISK_PRESSURE",
+  "effective": 0,
+  "diskAvailableBytes": 2368548864,
+  "requiredDefaultDiskHeadroomBytes": 4294967296,
+  "activeReservations": 0,
+  "source": "actual API controller report and procfs/statvfs collector",
+  "result": "REFUSED_SAFE"
+}

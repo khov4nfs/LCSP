@@ -1,0 +1,2 @@
+$ node scripts/check-business-logic-docs.mjs
+Business logic documentation: 3028 functions in 775 production source files; 921 conformant; 2107 unchanged legacy; 0 missing/invalid.

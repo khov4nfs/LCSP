@@ -16,6 +16,11 @@ import {
 } from "../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
+import {
+  ASSESSMENT_ROOT_COMMAND_TYPES,
+  ROOT_CAPACITY_ID,
+} from "@lcsp/contracts/assessment-domain";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 
 interface OutboxRow {
   id: string;
@@ -45,16 +50,17 @@ export class OutboxRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Inserts a new pending outbox message; the publisher poller delivers it separately.
-   *
-   * The insert is an upsert on the deterministic id derived from the idempotency key:
-   * a unique-violation catch would leave the surrounding interactive transaction
-   * aborted (PostgreSQL keeps the transaction in failed state after a constraint
-   * error), so replaying a duplicate enqueue must not raise at all.
-   *
-   * @param input - Aggregate and event payload to enqueue.
-   * @param tx - Optional existing Prisma transaction in which the enqueue must participate.
-   * @returns Identifier of the newly created outbox message.
+   * Business purpose: Durably enqueue an idempotent command/event and its Root admission intent.
+   * Business rules:
+   * - Retired events remain forbidden; duplicate deterministic IDs must not abort the caller's transaction.
+   * - Root demand commits in the same transaction as its canonical outbox command, including Continue.
+   * Execution flow:
+   * 1. Reject retired event types and ensure Root enqueue uses a transaction.
+   * 2. Upsert the canonical message and, for a Root request, its durable admission bookkeeping.
+   * Failure cases:
+   * - Persistence failure rolls back both command and admission intent; duplicate enqueue never reopens consumed work.
+   * Side effects:
+   * - Persists outbox/admission intent only; broker delivery, Root decisions and paid calls remain separate authorities.
    */
   async enqueue(
     input: OutboxMessageInput,
@@ -63,10 +69,14 @@ export class OutboxRepository {
     // CUTOVER fence: a retired V1 command/event must never be created again, whatever code path asks.
     if (isRetiredOutboxEventType(input.eventType))
       throw new Error(`OUTBOX_EVENT_TYPE_RETIRED: ${input.eventType}`);
+    const isRoot =
+      input.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED;
+    if (isRoot && !tx)
+      return this.prisma.$transaction((client) => this.enqueue(input, client));
     const client = tx ?? this.prisma;
     const message = OutboxMessageEntity.create(input);
 
-    await client.outboxMessage.upsert({
+    const persisted = await client.outboxMessage.upsert({
       where: { id: message.id },
       update: {},
       create: {
@@ -80,17 +90,32 @@ export class OutboxRepository {
         createdAt: message.createdAt,
       },
     });
+    if (isRoot)
+      await client.assessmentRootAdmissionRequest.upsert({
+        where: { commandId: message.id },
+        update: {},
+        create: {
+          commandId: message.id,
+          assessmentId: message.aggregateId,
+          requestedAt: persisted.createdAt,
+        },
+      });
 
     return message.id;
   }
 
   /**
-   * Locks an eligible pending batch with `FOR UPDATE SKIP LOCKED` and executes a handler before the transaction commits.
-   * The row locks remain held while `handler` runs, preventing another publisher instance from selecting the same messages concurrently.
-   *
-   * @param batchSize - Maximum number of deliverable messages to lock in one transaction.
-   * @param handler - Callback that processes the locked entities using the same Prisma transaction.
-   * @returns The handler result, or null when no eligible outbox messages are available.
+   * Business purpose: Publish durable events through their authorized deployment without losing broker confirmation.
+   * Business rules:
+   * - Legacy publishers cannot select OWNED_PENDING; isolated Assessment events require their enrolled DB login.
+   * - Every retry respects its UTC backoff and row locks remain held until the publication handler finishes.
+   * Execution flow:
+   * 1. Lock a bounded, oldest-first batch of ordinary or authorized isolated deliveries with SKIP LOCKED.
+   * 2. Rehydrate and handle each event in that transaction, or return null for an empty batch.
+   * Failure cases:
+   * - A handler/DB failure rolls back publication state; redelivery retains the original idempotency identity.
+   * Side effects:
+   * - Holds only the selected outbox row locks; the caller confirms broker publication before marking success.
    */
   async withPendingBatch<T>(
     batchSize: number,
@@ -109,6 +134,15 @@ export class OutboxRepository {
             -- column. Compare against a UTC timestamp without zone to avoid
             -- treating future retries as due on servers with a non-UTC TZ.
             AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC'))
+          )
+          OR (
+            status = ${OUTBOX_STATUSES.ownedPending}
+            AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC'))
+            AND EXISTS (
+              SELECT 1 FROM "AssessmentExecutionIsolation" isolation
+              WHERE isolation."assessmentId" = "OutboxMessage"."aggregateId"
+                AND isolation."writerRole" = session_user
+            )
           )
         ORDER BY "createdAt" ASC
         LIMIT ${batchSize}
@@ -230,32 +264,157 @@ export class OutboxRepository {
   }
 
   /**
-   * Resets a DLQ message to a clean pending state so the publisher can replay it.
-   *
-   * @param id - Outbox message identifier to reset.
-   * @returns A promise that resolves after retry metadata is cleared.
+   * Business purpose: Replay an operator-approved failed delivery through its existing durable publisher.
+   * Business rules:
+   * - The DLQ service retains authorization and lifecycle guards; replay cannot release physical Root occupancy.
+   * - Only a quiescent Root command may reopen its operational admission intent; accepted domain work is unchanged.
+   * - Explicit replay receives a new database-clock request time so an older completed turn cannot consume the new intent.
+   * - Replay is strictly conditional on current DLQ status; non-DLQ messages reject.
+   * Execution flow:
+   * 1. Lock the global capacity row and target outbox message FOR UPDATE.
+   * 2. Verify current status is DLQ (fail closed if not).
+   * 3. For Root commands, reset admission bookkeeping; fail closed if a physical slot is held or intent missing.
+   * 4. Conditionally transition outbox message from DLQ to PENDING.
+   * Failure cases:
+   * - Missing message, non-DLQ status, live slot or persistence errors roll back atomically.
+   * Side effects:
+   * - Updates outbox and admission bookkeeping; caller preserves operator audit.
    */
-  async resetMessageForReplay(id: string): Promise<void> {
-    await this.prisma.outboxMessage.update({
-      where: { id },
-      data: {
-        status: toPrismaOutboxStatus(OUTBOX_STATUSES.pending),
-        attempts: 0,
-        nextAttemptAt: null,
-        errorMessage: null,
-      },
-    });
+  async resetMessageForReplay(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const run = async (client: Prisma.TransactionClient) => {
+      // Serialize replay with admission whenever physical authority has been initialized.
+      await client.$executeRaw`
+        INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
+        VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
+        ON CONFLICT ("id") DO NOTHING
+      `;
+      await client.$queryRaw`SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE`;
+      const [msg] = await client.$queryRaw<OutboxRow[]>`
+        SELECT * FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
+      `;
+      if (!msg || msg.status !== OUTBOX_STATUSES.dlq) {
+        throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+      }
+      const isRoot =
+        msg.eventType === ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED;
+      if (isRoot) {
+        const updated = await client.$executeRaw`
+          UPDATE "AssessmentRootAdmissionRequest" r SET "completedAt" = NULL,
+            "admittedRunId" = NULL, "deliveredAt" = NULL,
+            "requestedAt" = clock_timestamp()
+          WHERE r."commandId" = ${id} AND NOT EXISTS (
+            SELECT 1 FROM "AssessmentRootExecutionSlot" s
+            WHERE s."assessmentId" = r."assessmentId" AND s."releasedAt" IS NULL)`;
+        if (updated === 0) {
+          throw new Error(`ROOT_ADMISSION_RESET_FAILED: ${id}`);
+        }
+      }
+      const transitioned = await client.$executeRaw`
+        UPDATE "OutboxMessage" SET
+          "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.pending)}::"OutboxStatus",
+          "attempts" = 0,
+          "nextAttemptAt" = NULL,
+          "errorMessage" = NULL
+        WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+      `;
+      if (transitioned === 0) {
+        throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+      }
+    };
+    if (tx) {
+      await run(tx);
+    } else {
+      await this.prisma.$transaction(run);
+    }
   }
 
   /**
-   * Permanently removes an outbox message by identifier.
-   *
-   * @param id - Outbox message identifier to delete.
-   * @returns A promise that resolves after the row is removed.
+   * Business purpose: Discard an operator-selected DLQ delivery while retaining physical Root authority and audit links.
+   * Business rules:
+   * - Root commands referenced by admission history become cancelled tombstones; their slots and history cannot cascade away.
+   * - Discard strictly rejects if physical execution slots are held or runtime is active/leased.
+   * - Unreferenced transport messages keep the existing physical deletion behavior.
+   * - Discard is strictly conditional on current DLQ status; non-DLQ messages reject.
+   * Execution flow:
+   * 1. Lock the global capacity row and target outbox message FOR UPDATE.
+   * 2. Verify current status is DLQ (fail closed if not).
+   * 3. Find admission bookkeeping and verify physical slots and runtime are completely quiescent.
+   * 4. Cancel its transport record, or delete an unreferenced message.
+   * Failure cases:
+   * - Missing message, non-DLQ status, active execution, or database failure rejects atomically; discard never cancels a living native Root.
+   * Side effects:
+   * - Removes the message from DLQ visibility while preserving Root history; caller records discard audit.
    */
-  async deleteMessage(id: string): Promise<void> {
-    await this.prisma.outboxMessage.delete({
-      where: { id },
-    });
+  async deleteMessage(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const run = async (client: Prisma.TransactionClient) => {
+      await client.$executeRaw`
+        INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
+        VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
+        ON CONFLICT ("id") DO NOTHING
+      `;
+      await client.$queryRaw`SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE`;
+      const [msg] = await client.$queryRaw<OutboxRow[]>`
+        SELECT * FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
+      `;
+      if (!msg || msg.status !== OUTBOX_STATUSES.dlq) {
+        throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+      }
+      const intent = await client.assessmentRootAdmissionRequest.findUnique({
+        where: { commandId: id },
+        select: { commandId: true, assessmentId: true },
+      });
+      if (intent) {
+        const heldSlots = await client.assessmentRootExecutionSlot.count({
+          where: {
+            assessmentId: intent.assessmentId,
+            releasedAt: null,
+          },
+        });
+        const assessment = await client.assessment.findUnique({
+          where: { id: intent.assessmentId },
+          select: {
+            runtime: {
+              select: {
+                executionState: true,
+                leaseToken: true,
+              },
+            },
+          },
+        });
+        if (
+          heldSlots > 0 ||
+          assessment?.runtime?.executionState ===
+            AGENT_EXECUTION_STATES.RUNNING ||
+          assessment?.runtime?.leaseToken != null
+        ) {
+          throw new Error("ROOT_EXECUTION_ACTIVE_CANNOT_DISCARD");
+        }
+        const updated = await client.$executeRaw`
+          UPDATE "OutboxMessage" SET "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled)}::"OutboxStatus"
+          WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+        `;
+        if (updated === 0) {
+          throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+        }
+      } else {
+        const deleted = await client.$executeRaw`
+          DELETE FROM "OutboxMessage" WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
+        `;
+        if (deleted === 0) {
+          throw new Error(`OUTBOX_MESSAGE_NOT_DLQ: ${id}`);
+        }
+      }
+    };
+    if (tx) {
+      await run(tx);
+    } else {
+      await this.prisma.$transaction(run);
+    }
   }
 }

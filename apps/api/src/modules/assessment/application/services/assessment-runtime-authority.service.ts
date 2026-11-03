@@ -21,11 +21,12 @@ import {
   ASSESSMENT_DOMAIN_LIMITS,
   ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_ROOT_COMMAND_TYPES,
+  ROOT_CAPACITY_REASONS,
   type AssessmentRootClaim,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, OutboxStatus } from "@prisma/client";
 
 function extractSavedLocale(data: unknown): string | undefined {
   if (typeof data === "string") {
@@ -50,6 +51,7 @@ import { problemException } from "../../../../platform/http/filters/error.factor
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
 import { AssessmentEventAppender } from "./assessment-event-appender.service.js";
+import { AssessmentRootCapacityService } from "./assessment-root-capacity.service.js";
 
 export interface AuthorizedRootRun {
   assessmentId: string;
@@ -82,6 +84,7 @@ export class AssessmentRuntimeAuthority {
     private readonly prisma: PrismaService,
     private readonly events: AssessmentEventAppender,
     private readonly coordinator: AssessmentLifecycleCoordinator,
+    private readonly capacity: AssessmentRootCapacityService,
   ) {}
 
   /**
@@ -96,6 +99,8 @@ export class AssessmentRuntimeAuthority {
    *   assessment, runtime, boundary, agent, and timestamp provenance.
    * - Missing or inconsistent checkpoint IDs and metadata grant no checkpoint authority.
    * - Human interrupts, safe pauses, and authenticated transport recovery retain their existing lifecycle guards.
+   * - A fresh physical reservation must bind this exact native transport run; lease expiry never releases capacity.
+   * - Both the native run and its server incarnation must match the live reservation, including during recovery.
    *
    * Execution flow:
    * 1. Lock the assessment/runtime and load the current Root turn.
@@ -114,6 +119,7 @@ export class AssessmentRuntimeAuthority {
     assessmentId: string;
     correlationId: string;
     runtimeRunId?: string;
+    runtimeIncarnationId?: string;
   }): Promise<AssessmentRootClaim> {
     return this.prisma.$transaction(async (tx) => {
       const row = await lockAssessmentAndRuntime(tx, input.assessmentId);
@@ -306,6 +312,13 @@ export class AssessmentRuntimeAuthority {
       }
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
+      await this.capacity.bindInTx(
+        tx,
+        input.assessmentId,
+        input.runtimeRunId,
+        input.correlationId,
+        input.runtimeIncarnationId,
+      );
       const recoveringStop = row.currentExecutionId
         ? await tx.assessmentRuntimeTurn.findFirst({
             where: {
@@ -620,17 +633,20 @@ export class AssessmentRuntimeAuthority {
   }
 
   /**
-   * Business purpose: Settle one leased Root execution while preserving the selected request's own state.
+   * Business purpose: Settle one leased Root execution segment without declaring a legal outcome or releasing physical occupancy, preserving selected request state.
    * Business rules:
+   * - A valid current lease and exact native checkpoint/human/control bindings remain required.
+   * - Uncertain crash work may only settle FAILED and parks its existing command in durable operator-controlled DLQ.
    * - SUCCEEDED requires a completed selected request or full report; failure and human wait keep accepted sibling decisions.
    * Execution flow:
-   * 1. Recheck the lease and native interruption/checkpoint evidence.
-   * 2. Release the runtime lease and update request state for failure or human wait.
-   * 3. Persist turn, lifecycle acknowledgement and runtime event together.
+   * 1. Lock and authorize the Root; validate terminal/control/checkpoint requirements.
+   * 2. Recheck the lease and native interruption/checkpoint evidence; update request state for failure or human wait.
+   * 3. Persist runtime/turn settlement and, for uncertain recovery, quarantine the exact admitted command.
+   * 4. Append the normal execution-state event; the native future must separately prove physical termination.
    * Failure cases:
-   * - Unproven success, mismatched checkpoint or stale lease aborts settlement transactionally.
+   * - Invalid lease, transition, checkpoint, unproven success, or recovery reservation rolls back all settlement changes.
    * Side effects:
-   * - Updates execution, request and event records without changing accepted decision packets.
+   * - Updates runtime/turn/outbox/event records only; accepted decisions, pins, usage and legal Completion Gate stay authoritative.
    */
   async finishExecution(input: {
     assessmentId: string;
@@ -640,6 +656,7 @@ export class AssessmentRuntimeAuthority {
     checkpointId?: string;
     requestIds?: string[];
     controlRequestId?: string;
+    recoveryRequired?: boolean;
   }): Promise<{ executionState: AgentExecutionState }> {
     return this.prisma.$transaction(async (tx) => {
       const run = await this.authorizeInTx(tx, {
@@ -662,6 +679,38 @@ export class AssessmentRuntimeAuthority {
         );
       }
       let pauseRequestId: string | null = null;
+      if (input.recoveryRequired) {
+        const turn = await tx.assessmentRuntimeTurn.findUnique({
+          where: { id: run.executionId },
+        });
+        const runtimeRunId = (turn?.contextJson as Prisma.JsonObject | null)
+          ?.runtimeRunId;
+        const slot =
+          typeof runtimeRunId === "string"
+            ? await tx.assessmentRootExecutionSlot.findFirst({
+                where: {
+                  runId: runtimeRunId,
+                  assessmentId: input.assessmentId,
+                  releasedAt: null,
+                },
+              })
+            : null;
+        if (input.toState !== AGENT_EXECUTION_STATES.FAILED || !slot) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        await tx.outboxMessage.update({
+          where: { id: slot.commandId },
+          data: {
+            status: OutboxStatus.DLQ,
+            errorMessage: ROOT_CAPACITY_REASONS.fenced,
+            nextAttemptAt: null,
+          },
+        });
+      }
       if (input.toState === AGENT_EXECUTION_STATES.PAUSED) {
         const turn = await tx.assessmentRuntimeTurn.findUnique({
           where: { id: run.executionId },

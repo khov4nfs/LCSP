@@ -103,9 +103,10 @@ def test_run_request_is_durable_before_executor_submission():
     runtime = LocalAgentRuntime(store=store)
 
     class Executor:
-        def submit(self, target, thread, run, payload):
+        def submit(self, context_run, target, thread, run, payload):
             assert store.get((RUN_NAMESPACE, thread), run).value["payload"] == payload
-            return SimpleNamespace()
+            from concurrent.futures import Future
+            return Future()
 
         def shutdown(self, **kwargs):
             pass

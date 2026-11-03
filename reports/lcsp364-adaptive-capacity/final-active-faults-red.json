@@ -1,0 +1,838 @@
+{
+  "scope": "ISOLATED_PROVIDER_FREE_ACTIVE_REAL_PROCESSES_PG_MQ_NATIVE_ROOT",
+  "status": "FAILED",
+  "errorType": "AssertionError",
+  "error": "A running Root repeated an uncertain model step automatically after server crash",
+  "paidProviderCalls": 0,
+  "modelAdapter": "OWNED_EXTERNAL_HTTP_FIXTURE_SURVIVES_SERVER_DEATH",
+  "scenarios": {
+    "activeGracefulBridgeDrain": "PASS",
+    "activeAbruptBridgeRedelivery": "PASS",
+    "twoOwnerFairBackpressure": "PASS",
+    "apiReplicaFailure": "PASS",
+    "liveLeaseExpiry": "PASS",
+    "staleLeaseAndClaimFencing": "FAILED",
+    "uncertainModelReplayRefused": "FAILED"
+  },
+  "events": [
+    {
+      "at": 1793596233.2447078,
+      "event": "BRIDGE_SIGTERM_DURING_ACTIVE_MODEL",
+      "pid": 192520
+    },
+    {
+      "at": 1793596233.2601585,
+      "event": "BRIDGE_SIGKILL_DURING_ACTIVE_MODEL",
+      "pid": 192520
+    },
+    {
+      "at": 1793596250.473043,
+      "event": "QUEUED_ROOT_PROGRESS_WITH_LONG_ROOT_ALIVE"
+    },
+    {
+      "at": 1793596250.488939,
+      "event": "API_PROCESS_KILLED_OTHER_REPLICA_AVAILABLE",
+      "pid": 192130
+    },
+    {
+      "at": 1793596250.842514,
+      "event": "EXPIRED_LEASE_DID_NOT_RELEASE_LIVE_PHYSICAL_ROOT"
+    },
+    {
+      "at": 1793596251.2759283,
+      "event": "SERVER_SIGKILL_EXTERNAL_FIXTURE_REQUESTS_SURVIVE",
+      "pid": 192489,
+      "heldSlots": 2
+    },
+    {
+      "at": 1793596253.0336792,
+      "event": "STALE_REQUESTS_BEFORE_REPLACEMENT_ROOT_RECLAIM",
+      "heartbeatStatus": 200,
+      "compatibilityClaimStatus": 200,
+      "oldIncarnationQuiesceStatus": 409
+    }
+  ],
+  "fixtureModelRequests": [
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 0,
+      "serverPid": 192489,
+      "invocationId": "7c88911c-92a5-4e14-b090-995c4eb2c484",
+      "startedAt": 1793596232.6584299,
+      "finishedAt": 1793596253.3445816
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 0,
+      "serverPid": 192489,
+      "invocationId": "24d1a7fc-f5cb-4240-9383-fc7f9ee3aec1",
+      "startedAt": 1793596232.6619773,
+      "finishedAt": 1793596233.762768
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 1,
+      "serverPid": 192489,
+      "invocationId": "288f5e54-2e09-460f-a396-6d6800ed7467",
+      "startedAt": 1793596233.8831248,
+      "finishedAt": 1793596233.883129
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 2,
+      "serverPid": 192489,
+      "invocationId": "d7d4ff9e-4bc1-414e-be36-f9a342750f0f",
+      "startedAt": 1793596234.0036159,
+      "finishedAt": 1793596234.0036197
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 3,
+      "serverPid": 192489,
+      "invocationId": "d630d533-6bc0-46bf-8fcf-309e64a07402",
+      "startedAt": 1793596234.1440558,
+      "finishedAt": 1793596234.14406
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 4,
+      "serverPid": 192489,
+      "invocationId": "19247c25-45ea-4ba2-9305-19063c9642cb",
+      "startedAt": 1793596234.2794292,
+      "finishedAt": 1793596234.2794335
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 5,
+      "serverPid": 192489,
+      "invocationId": "2e3a8cec-773e-4758-9d32-d3228231e17f",
+      "startedAt": 1793596234.3798265,
+      "finishedAt": 1793596234.3798304
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 6,
+      "serverPid": 192489,
+      "invocationId": "233b0f7e-73c9-43a6-a10c-534caf176fce",
+      "startedAt": 1793596234.45882,
+      "finishedAt": 1793596234.4588244
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 7,
+      "serverPid": 192489,
+      "invocationId": "54569665-4b67-42ff-9236-4982808d3b93",
+      "startedAt": 1793596234.5945077,
+      "finishedAt": 1793596234.5945113
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 8,
+      "serverPid": 192489,
+      "invocationId": "e7072053-d7aa-4add-8aef-ebdfaab5fb64",
+      "startedAt": 1793596234.7303426,
+      "finishedAt": 1793596234.7303452
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 9,
+      "serverPid": 192489,
+      "invocationId": "91ac6763-1bed-4391-a188-4ad8b7ad3736",
+      "startedAt": 1793596234.8917143,
+      "finishedAt": 1793596234.8917177
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 10,
+      "serverPid": 192489,
+      "invocationId": "5fda69fe-2eec-4a37-b85a-e35d977beee1",
+      "startedAt": 1793596235.0200517,
+      "finishedAt": 1793596235.0200555
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 11,
+      "serverPid": 192489,
+      "invocationId": "581f1e7d-8a97-4df6-9c9c-b0df5c9c6519",
+      "startedAt": 1793596235.1748934,
+      "finishedAt": 1793596235.174897
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 12,
+      "serverPid": 192489,
+      "invocationId": "2539b343-3f1d-4e78-a563-93066f666061",
+      "startedAt": 1793596235.325607,
+      "finishedAt": 1793596235.3256114
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 13,
+      "serverPid": 192489,
+      "invocationId": "768702c6-3b83-44bd-85b8-9d79d20217bb",
+      "startedAt": 1793596235.483055,
+      "finishedAt": 1793596235.4830585
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 14,
+      "serverPid": 192489,
+      "invocationId": "21f904ec-9688-4cf9-a44f-f8ceeeae8178",
+      "startedAt": 1793596235.6703203,
+      "finishedAt": 1793596235.6703236
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 15,
+      "serverPid": 192489,
+      "invocationId": "484799e4-078a-4325-9b97-b8daf7330e36",
+      "startedAt": 1793596235.8243399,
+      "finishedAt": 1793596235.8243434
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 16,
+      "serverPid": 192489,
+      "invocationId": "09b7cb52-7ba8-4b88-ba22-52bb5578865d",
+      "startedAt": 1793596235.9764776,
+      "finishedAt": 1793596235.976481
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 17,
+      "serverPid": 192489,
+      "invocationId": "326bf650-aa7d-4b12-9a4f-966a072cb280",
+      "startedAt": 1793596236.1085563,
+      "finishedAt": 1793596236.10856
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 18,
+      "serverPid": 192489,
+      "invocationId": "266168f0-b79c-4b5a-8898-c2a988306aa8",
+      "startedAt": 1793596236.2125394,
+      "finishedAt": 1793596236.2125423
+    },
+    {
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "step": 19,
+      "serverPid": 192489,
+      "invocationId": "35c8a622-2208-4a7a-952e-c8e4d7856ae8",
+      "startedAt": 1793596236.3834453,
+      "finishedAt": 1793596236.3834498
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 0,
+      "serverPid": 192489,
+      "invocationId": "7a126352-bbb6-448a-8c68-ebcf4f4e26fc",
+      "startedAt": 1793596247.5974474,
+      "finishedAt": 1793596247.5974512
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 1,
+      "serverPid": 192489,
+      "invocationId": "8fc87ba1-a324-4492-b2a4-e1c9ef595e16",
+      "startedAt": 1793596247.7341776,
+      "finishedAt": 1793596247.7341812
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 2,
+      "serverPid": 192489,
+      "invocationId": "f05b6488-d2db-40ec-aa02-445acb75d8b3",
+      "startedAt": 1793596247.9168777,
+      "finishedAt": 1793596247.9168813
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 3,
+      "serverPid": 192489,
+      "invocationId": "c0405a86-b1c3-40c0-97ff-989b42004c54",
+      "startedAt": 1793596248.0415862,
+      "finishedAt": 1793596248.04159
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 4,
+      "serverPid": 192489,
+      "invocationId": "16e1f9db-7c58-4f67-8f71-21e77b5ef601",
+      "startedAt": 1793596248.185182,
+      "finishedAt": 1793596248.185186
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 5,
+      "serverPid": 192489,
+      "invocationId": "5254c141-1d5e-4408-8a60-b163885786dd",
+      "startedAt": 1793596248.2698379,
+      "finishedAt": 1793596248.2698414
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 6,
+      "serverPid": 192489,
+      "invocationId": "fe90fba2-a6f9-4c79-8dab-bd7abd9f4388",
+      "startedAt": 1793596248.348472,
+      "finishedAt": 1793596248.3484757
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 7,
+      "serverPid": 192489,
+      "invocationId": "66e6da1f-8f3f-459e-ae65-7b5928b4b595",
+      "startedAt": 1793596248.4829705,
+      "finishedAt": 1793596248.482974
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 8,
+      "serverPid": 192489,
+      "invocationId": "08873a91-e153-42f7-b242-48be26994436",
+      "startedAt": 1793596248.6192966,
+      "finishedAt": 1793596248.6193004
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 9,
+      "serverPid": 192489,
+      "invocationId": "002aaaf1-b980-45ad-abc5-7251541b167e",
+      "startedAt": 1793596248.7521312,
+      "finishedAt": 1793596248.7521353
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 10,
+      "serverPid": 192489,
+      "invocationId": "1197c8cc-e226-40ef-ab11-f61c5a1bd2e0",
+      "startedAt": 1793596248.9058683,
+      "finishedAt": 1793596248.905872
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 11,
+      "serverPid": 192489,
+      "invocationId": "ec245cc3-ed64-437b-a16e-dc9bc2c29e13",
+      "startedAt": 1793596249.0568218,
+      "finishedAt": 1793596249.0568259
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 12,
+      "serverPid": 192489,
+      "invocationId": "2cd6b3f9-7a3c-4361-ae08-4c3b7b243e45",
+      "startedAt": 1793596249.2085705,
+      "finishedAt": 1793596249.208574
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 13,
+      "serverPid": 192489,
+      "invocationId": "0da4a241-2a53-4cd6-abf4-041e08b2160f",
+      "startedAt": 1793596249.3473468,
+      "finishedAt": 1793596249.3473504
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 14,
+      "serverPid": 192489,
+      "invocationId": "f839ab4d-2e93-40d5-8173-a68bd17a1fbf",
+      "startedAt": 1793596249.5012722,
+      "finishedAt": 1793596249.5012763
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 15,
+      "serverPid": 192489,
+      "invocationId": "25ad6fb0-a7a5-48e9-ad21-15331d1dcf80",
+      "startedAt": 1793596249.6416826,
+      "finishedAt": 1793596249.641686
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 16,
+      "serverPid": 192489,
+      "invocationId": "ec9994c6-3a82-457f-84d9-0060b153b676",
+      "startedAt": 1793596249.78568,
+      "finishedAt": 1793596249.7856834
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 17,
+      "serverPid": 192489,
+      "invocationId": "2708af95-0ea4-4bd6-889a-d843c6e5c89f",
+      "startedAt": 1793596249.912167,
+      "finishedAt": 1793596249.9121706
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 18,
+      "serverPid": 192489,
+      "invocationId": "d96a222f-bff5-4274-979d-30a0b047fcd8",
+      "startedAt": 1793596250.0110044,
+      "finishedAt": 1793596250.0110085
+    },
+    {
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "step": 19,
+      "serverPid": 192489,
+      "invocationId": "893ea2cf-117f-411f-a598-5dcb93ab7200",
+      "startedAt": 1793596250.1874185,
+      "finishedAt": 1793596250.1874213
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 0,
+      "serverPid": 192489,
+      "invocationId": "34dbd567-7ce2-42f4-a43b-7ce1caabc532",
+      "startedAt": 1793596251.1826563,
+      "finishedAt": 1793596253.3448293
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 0,
+      "serverPid": 193097,
+      "invocationId": "86e77101-1336-41b6-b035-9430a9cfd847",
+      "startedAt": 1793596253.2860494,
+      "finishedAt": 1793596253.346779
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 0,
+      "serverPid": 193097,
+      "invocationId": "612dca60-decc-4887-ae09-e844e91120bc",
+      "startedAt": 1793596253.2891562,
+      "finishedAt": 1793596253.3498495
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 1,
+      "serverPid": 193097,
+      "invocationId": "5e30bc4a-c1c4-426e-8b63-c4c1a450e665",
+      "startedAt": 1793596253.5015655,
+      "finishedAt": 1793596253.501569
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 1,
+      "serverPid": 193097,
+      "invocationId": "3c97c01c-349c-4534-921e-576ff42b2637",
+      "startedAt": 1793596253.5044973,
+      "finishedAt": 1793596253.5045006
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 2,
+      "serverPid": 193097,
+      "invocationId": "d06760f8-d107-43c4-b9fa-7c1218d3127f",
+      "startedAt": 1793596253.6869564,
+      "finishedAt": 1793596253.68696
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 2,
+      "serverPid": 193097,
+      "invocationId": "ddd6b289-8aca-4158-8c56-87c07552cda0",
+      "startedAt": 1793596253.690245,
+      "finishedAt": 1793596253.6902485
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 3,
+      "serverPid": 193097,
+      "invocationId": "4a16fcc6-ebfb-4102-a5e3-271ab44a9d9e",
+      "startedAt": 1793596253.8098505,
+      "finishedAt": 1793596253.809853
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 3,
+      "serverPid": 193097,
+      "invocationId": "88ad5553-0739-4d38-8072-01d98bcf53b0",
+      "startedAt": 1793596253.8100836,
+      "finishedAt": 1793596253.8100867
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 4,
+      "serverPid": 193097,
+      "invocationId": "72bc0a24-95ac-4a86-84a6-e89f74b05d43",
+      "startedAt": 1793596253.9596457,
+      "finishedAt": 1793596253.9596496
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 4,
+      "serverPid": 193097,
+      "invocationId": "fbad86f8-df59-4fde-9f63-1257dc3837bd",
+      "startedAt": 1793596253.959907,
+      "finishedAt": 1793596253.9599097
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 5,
+      "serverPid": 193097,
+      "invocationId": "a6202e38-7ed5-4152-8245-7c320c41e3e9",
+      "startedAt": 1793596254.0605402,
+      "finishedAt": 1793596254.060544
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 5,
+      "serverPid": 193097,
+      "invocationId": "398a26a2-622e-4836-8378-7aa7527502f3",
+      "startedAt": 1793596254.0634048,
+      "finishedAt": 1793596254.0634077
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 6,
+      "serverPid": 193097,
+      "invocationId": "f9d2792e-ec2d-4905-9c99-7febb93c4d03",
+      "startedAt": 1793596254.1595461,
+      "finishedAt": 1793596254.15955
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 6,
+      "serverPid": 193097,
+      "invocationId": "c356a300-fecc-418f-b7b7-77ddfc4cd392",
+      "startedAt": 1793596254.1609669,
+      "finishedAt": 1793596254.160969
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 7,
+      "serverPid": 193097,
+      "invocationId": "3631c173-d211-4f03-b9c8-880290acce0e",
+      "startedAt": 1793596254.29662,
+      "finishedAt": 1793596254.2966237
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 7,
+      "serverPid": 193097,
+      "invocationId": "6893de44-7c9e-48f7-9d50-eb497832ac1c",
+      "startedAt": 1793596254.297151,
+      "finishedAt": 1793596254.2971559
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 8,
+      "serverPid": 193097,
+      "invocationId": "a7203092-e0a0-49f4-a49a-42cbc31003cc",
+      "startedAt": 1793596254.4419749,
+      "finishedAt": 1793596254.4419787
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 8,
+      "serverPid": 193097,
+      "invocationId": "9131fe6c-df88-4bf6-b138-1c04f398a242",
+      "startedAt": 1793596254.442617,
+      "finishedAt": 1793596254.4426193
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 9,
+      "serverPid": 193097,
+      "invocationId": "79b037eb-1384-417a-921a-c708c0dc5b11",
+      "startedAt": 1793596254.5828898,
+      "finishedAt": 1793596254.5828934
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 9,
+      "serverPid": 193097,
+      "invocationId": "5882f9cc-8b04-4f59-8503-34bbc82ef1d0",
+      "startedAt": 1793596254.5865457,
+      "finishedAt": 1793596254.5865483
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 10,
+      "serverPid": 193097,
+      "invocationId": "cf7a7a32-5326-4f33-918d-65ae92bf524d",
+      "startedAt": 1793596254.723035,
+      "finishedAt": 1793596254.7230387
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 10,
+      "serverPid": 193097,
+      "invocationId": "6d03fab5-e2ff-45af-b94e-092e005065ae",
+      "startedAt": 1793596254.7234643,
+      "finishedAt": 1793596254.7234676
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 11,
+      "serverPid": 193097,
+      "invocationId": "2cdcce18-1a9c-4e14-b6d0-4db69b375703",
+      "startedAt": 1793596254.8871846,
+      "finishedAt": 1793596254.8871891
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 11,
+      "serverPid": 193097,
+      "invocationId": "e6ed229a-c35f-460d-92db-9b50c6f704b2",
+      "startedAt": 1793596254.8960717,
+      "finishedAt": 1793596254.8960752
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 12,
+      "serverPid": 193097,
+      "invocationId": "81ee6fea-ec33-4c2c-bb6c-c8194afb294d",
+      "startedAt": 1793596255.0436285,
+      "finishedAt": 1793596255.0436323
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 12,
+      "serverPid": 193097,
+      "invocationId": "50e79233-88da-4150-a809-d748118078d9",
+      "startedAt": 1793596255.0470142,
+      "finishedAt": 1793596255.0470161
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 13,
+      "serverPid": 193097,
+      "invocationId": "35832cee-68d1-4837-883a-cc10fc0313ac",
+      "startedAt": 1793596255.1810725,
+      "finishedAt": 1793596255.1810768
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 13,
+      "serverPid": 193097,
+      "invocationId": "ecc93249-3940-41ae-b0c8-33d2e22c5cfe",
+      "startedAt": 1793596255.1934874,
+      "finishedAt": 1793596255.1934915
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 14,
+      "serverPid": 193097,
+      "invocationId": "ee1205dd-3fe5-4faf-b104-c701cfc0f347",
+      "startedAt": 1793596255.3395295,
+      "finishedAt": 1793596255.3395333
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 14,
+      "serverPid": 193097,
+      "invocationId": "81184c53-d49f-4de1-9918-d2a25dd04254",
+      "startedAt": 1793596255.3428185,
+      "finishedAt": 1793596255.342822
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 15,
+      "serverPid": 193097,
+      "invocationId": "499f0daf-6b6e-4203-8f78-f55f09a5bb7c",
+      "startedAt": 1793596255.5184572,
+      "finishedAt": 1793596255.5184612
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 15,
+      "serverPid": 193097,
+      "invocationId": "b273646d-54a7-44a3-be4f-f5b3b71463a8",
+      "startedAt": 1793596255.5187817,
+      "finishedAt": 1793596255.5187845
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 16,
+      "serverPid": 193097,
+      "invocationId": "449a3575-2323-4203-bb5e-78ef91a93079",
+      "startedAt": 1793596255.678883,
+      "finishedAt": 1793596255.6788874
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 16,
+      "serverPid": 193097,
+      "invocationId": "f4246e06-d642-4b45-9ccd-fe44cdffeb96",
+      "startedAt": 1793596255.6790946,
+      "finishedAt": 1793596255.679098
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 17,
+      "serverPid": 193097,
+      "invocationId": "e8fc2584-1dbc-482e-b983-d324e5c9385f",
+      "startedAt": 1793596255.85281,
+      "finishedAt": 1793596255.8528144
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 17,
+      "serverPid": 193097,
+      "invocationId": "fd3be7fe-00e1-4791-9f22-a2b82a2f4162",
+      "startedAt": 1793596255.8575294,
+      "finishedAt": 1793596255.8575318
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 18,
+      "serverPid": 193097,
+      "invocationId": "85ddc0fc-ce9b-4b21-b152-7949c80ee92a",
+      "startedAt": 1793596255.9906237,
+      "finishedAt": 1793596255.990628
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 18,
+      "serverPid": 193097,
+      "invocationId": "17b83ba7-a358-4c38-b464-f30162b33a36",
+      "startedAt": 1793596255.9947054,
+      "finishedAt": 1793596255.994709
+    },
+    {
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "step": 19,
+      "serverPid": 193097,
+      "invocationId": "72114dbc-72f2-4523-903a-e6ccc11313bf",
+      "startedAt": 1793596256.1625712,
+      "finishedAt": 1793596256.1625748
+    },
+    {
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "step": 19,
+      "serverPid": 193097,
+      "invocationId": "5d1413dd-e5b1-4104-b6dd-b85068b9fb45",
+      "startedAt": 1793596256.1660461,
+      "finishedAt": 1793596256.16605
+    }
+  ],
+  "physicalSlots": [
+    {
+      "runId": "2b156253-6235-40f7-a40f-8389a074cf11",
+      "commandId": "outbox:c7c3040465918d8bcad633307b9fbbe182bd75ccc614ee3fbc230929fb203b45",
+      "startedAt": "2026-11-02T05:10:32.383+00:00",
+      "admittedAt": "2026-11-02T05:10:32.29+00:00",
+      "releasedAt": "2026-11-02T05:10:56.415+00:00",
+      "requestedAt": "2026-11-02T05:10:27.751+00:00",
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "incarnationId": "7cf2f593-18c7-498c-b154-d905613d2ef3"
+    },
+    {
+      "runId": "f173ca3a-35af-409f-83b8-299c9cc1b7a8",
+      "commandId": "outbox:597bfef463be5d54f58698a26a332afe1b823c942702741d2aacbd754a82e68c",
+      "startedAt": "2026-11-02T05:10:32.394+00:00",
+      "admittedAt": "2026-11-02T05:10:32.351+00:00",
+      "releasedAt": "2026-11-02T05:10:36.589+00:00",
+      "requestedAt": "2026-11-02T05:10:27.884+00:00",
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "incarnationId": "b57b084f-ad2c-4493-939b-34efe26934c6"
+    },
+    {
+      "runId": "778036ce-e2db-42ac-ab73-c12ccd3de412",
+      "commandId": "outbox:45e54b05bb79f48ed9a7118e2937315c33235c5a48d601352859493e748ceff6",
+      "startedAt": "2026-11-02T05:10:47.459+00:00",
+      "admittedAt": "2026-11-02T05:10:47.407+00:00",
+      "releasedAt": "2026-11-02T05:10:50.366+00:00",
+      "requestedAt": "2026-11-02T05:10:28.014+00:00",
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "incarnationId": "b57b084f-ad2c-4493-939b-34efe26934c6"
+    },
+    {
+      "runId": "712f23a3-e08f-4c9e-bbc3-a09eaefb7037",
+      "commandId": "outbox:aa16d9d7412abb59d3189c4d7626439bf72bea2481437ce9f7800ce0f229bc54",
+      "startedAt": "2026-11-02T05:10:50.994+00:00",
+      "admittedAt": "2026-11-02T05:10:50.941+00:00",
+      "releasedAt": "2026-11-02T05:10:57.071+00:00",
+      "requestedAt": "2026-11-02T05:10:28.138+00:00",
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "incarnationId": "7cf2f593-18c7-498c-b154-d905613d2ef3"
+    }
+  ],
+  "runtime": [
+    {
+      "threadId": "101ffbb7-2aaa-4c3f-b46c-f0c250577e6b",
+      "createdAt": "2026-11-02T05:10:27.613+00:00",
+      "startedAt": "2026-11-02T05:10:53.097+00:00",
+      "updatedAt": "2026-11-02T05:10:56.372+00:00",
+      "assessmentId": "06d9211f-e444-4c4f-9541-0acac6d3e788",
+      "checkpointId": null,
+      "eventSequence": 19,
+      "lastResumedAt": "2026-11-02T05:10:53.097+00:00",
+      "executionState": "SUCCEEDED",
+      "leaseExpiresAt": null,
+      "rootAgentVersion": "assessment-root-v2",
+      "currentExecutionId": "2a39e746-9d1e-4a49-82ef-6008053ce5ea",
+      "checkpointNamespace": "06d9211f-e444-4c4f-9541-0acac6d3e788"
+    },
+    {
+      "threadId": "047ba657-5212-44b9-8c49-65eabb3b052c",
+      "createdAt": "2026-11-02T05:10:28.187+00:00",
+      "startedAt": null,
+      "updatedAt": "2026-11-02T05:10:28.263+00:00",
+      "assessmentId": "01d3b01f-b840-4a2a-bb53-7ad191a1671e",
+      "checkpointId": null,
+      "eventSequence": 2,
+      "lastResumedAt": null,
+      "executionState": "QUEUED",
+      "leaseExpiresAt": null,
+      "rootAgentVersion": "assessment-root-v2",
+      "currentExecutionId": null,
+      "checkpointNamespace": "01d3b01f-b840-4a2a-bb53-7ad191a1671e"
+    },
+    {
+      "threadId": "b4262a3b-faa7-4c28-8a88-4d66d8ef5744",
+      "createdAt": "2026-11-02T05:10:27.8+00:00",
+      "startedAt": "2026-11-02T05:10:32.393+00:00",
+      "updatedAt": "2026-11-02T05:10:36.563+00:00",
+      "assessmentId": "cd75ac9f-4984-4a16-b837-0f12ef6817b1",
+      "checkpointId": null,
+      "eventSequence": 19,
+      "lastResumedAt": "2026-11-02T05:10:32.393+00:00",
+      "executionState": "SUCCEEDED",
+      "leaseExpiresAt": null,
+      "rootAgentVersion": "assessment-root-v2",
+      "currentExecutionId": "7b0acc52-748e-41af-ae04-07e929d36556",
+      "checkpointNamespace": "cd75ac9f-4984-4a16-b837-0f12ef6817b1"
+    },
+    {
+      "threadId": "d1b64ef9-889b-46b7-b2cf-99056a893400",
+      "createdAt": "2026-11-02T05:10:27.931+00:00",
+      "startedAt": "2026-11-02T05:10:47.457+00:00",
+      "updatedAt": "2026-11-02T05:10:50.337+00:00",
+      "assessmentId": "7650524d-ff6c-449a-a400-7116abe4fd95",
+      "checkpointId": null,
+      "eventSequence": 19,
+      "lastResumedAt": "2026-11-02T05:10:47.457+00:00",
+      "executionState": "SUCCEEDED",
+      "leaseExpiresAt": null,
+      "rootAgentVersion": "assessment-root-v2",
+      "currentExecutionId": "3425b46c-15d3-431b-88ed-f76c5110f7bd",
+      "checkpointNamespace": "7650524d-ff6c-449a-a400-7116abe4fd95"
+    },
+    {
+      "threadId": "252ce3a2-8cea-4224-9b85-9bd15b658dac",
+      "createdAt": "2026-11-02T05:10:28.055+00:00",
+      "startedAt": "2026-11-02T05:10:53.084+00:00",
+      "updatedAt": "2026-11-02T05:10:56.369+00:00",
+      "assessmentId": "c693eac0-2f04-4799-b52e-57fee754a994",
+      "checkpointId": null,
+      "eventSequence": 19,
+      "lastResumedAt": "2026-11-02T05:10:53.084+00:00",
+      "executionState": "SUCCEEDED",
+      "leaseExpiresAt": null,
+      "rootAgentVersion": "assessment-root-v2",
+      "currentExecutionId": "4a0a842d-d9fa-43f4-a44d-20f12c7f5401",
+      "checkpointNamespace": "c693eac0-2f04-4799-b52e-57fee754a994"
+    }
+  ],
+  "timeline": [],
+  "limitations": [
+    "Synthetic legal/business facts and model responses",
+    "Local repository filesystem, not production sandbox workload",
+    "No paid provider or production failure injection claim"
+  ]
+}

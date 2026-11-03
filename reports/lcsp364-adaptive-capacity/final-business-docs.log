@@ -1,0 +1,43 @@
+$ node scripts/check-business-logic-docs.mjs
+Business logic documentation: 3029 functions in 775 production source files; 929 conformant; 2100 unchanged legacy; 0 missing/invalid.
+$ node --test scripts/check-business-logic-docs.test.mjs
+TAP version 13
+# Subtest: documents are required in shared business directories, not unit tests or technical Prisma clients
+ok 1 - documents are required in shared business directories, not unit tests or technical Prisma clients
+  ---
+  duration_ms: 2.295307
+  type: 'test'
+  ...
+# Subtest: all five meaningful sections are validated in a JSDoc comment
+ok 2 - all five meaningful sections are validated in a JSDoc comment
+  ---
+  duration_ms: 2.352375
+  type: 'test'
+  ...
+# Subtest: checks a decorated handler method, a function and a named arrow function
+ok 3 - checks a decorated handler method, a function and a named arrow function
+  ---
+  duration_ms: 13.248332
+  type: 'test'
+  ...
+# Subtest: freezes only unchanged undocumented methods; changed and newly added functions fail
+ok 4 - freezes only unchanged undocumented methods; changed and newly added functions fail
+  ---
+  duration_ms: 3.056494
+  type: 'test'
+  ...
+# Subtest: Python AST requires a structured docstring as the function's first statement
+ok 5 - Python AST requires a structured docstring as the function's first statement
+  ---
+  duration_ms: 54.002377
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 633.046583

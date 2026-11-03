@@ -1,0 +1,29 @@
+{
+  "scope": "Local provider-free verification only; production not yet activated for this revision",
+  "baselineHead": "d68f748882f3999512276a4794defbc135b7b95f",
+  "develop": "aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b",
+  "tests": {
+    "newPostgresRabbitMqAccounting": 7,
+    "globalAdmissionPostgres": 17,
+    "realBrokerChild": 1,
+    "policyOutbox": 98,
+    "businessDocsChecker": 5,
+    "fullApi": {
+      "passed": 1561,
+      "skipped": 146,
+      "suitesPassed": 187,
+      "suitesSkipped": 15,
+      "durationSeconds": 343.419
+    }
+  },
+  "sourceSha256": {
+    ".github/workflows/test.yml": "994b712d2620d5f219ae6be4a56140805704567c02125f858b5dd63eec07f564",
+    "apps/api/prisma/schema.prisma": "9221b1bf0dd4af2f7d9d3e5b67e049643a2abe6c8634cea7df3b8fec66ddf096",
+    "apps/api/prisma/migrations/20261031120000_assessment_execution_isolation/migration.sql": "9c14725f74e88dd802b90fdb063a2d4cfff9675d2ede445cacc00f1c26229a86",
+    "apps/api/src/platform/outbox/outbox.repository.ts": "eec34ca7746ca31fbb065ad2e97c2b936f2143ce1365d1ed97e20f7ee24fcd05",
+    "apps/api/src/operations.ts": "208bf21acee5509bc9aec85748c1f28973a111f8c6d89a33727c69ad19f9ae47",
+    "scripts/lcsp364-test-credit.mjs": "0d2d1d88eef9ad49f3b0ecafd48245bb692929d1e3705a9fc9279fae1f93723c",
+    "scripts/lcsp364-enroll-canary.mjs": "77291fde997ff6441afd95c2e4f78e80ef03c15c504a8e805208e1d871248acf",
+    "scripts/lcsp364-acceptance.integration.test.mjs": "2943672054183152b0a068c1cbd0e81b76f9fc8cd90a3196af888f6a98d22237"
+  }
+}

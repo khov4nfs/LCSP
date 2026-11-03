@@ -1,0 +1,103 @@
+{
+  "sourceUserStatement": "chưa biết",
+  "statementSha256": "d10c5721afa1c0961791fd20904220c1edca674fcf9512d08246a1d07604f0b8",
+  "transport": "Existing doesNotKnow=true contract; no asserted factual answer",
+  "assessments": [
+    {
+      "assessmentId": "b19a1fc4-1c69-4009-804a-ad7cfa5d512d",
+      "caseRevisionBefore": 5,
+      "acceptedFactCountBefore": 5,
+      "answers": [
+        {
+          "requestId": "652c7e25-12f1-4dbc-bcc8-8858703e22b8",
+          "requestRevision": 1,
+          "caseRevision": 5,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        },
+        {
+          "requestId": "39163c70-6681-4bc8-b154-4389a1554b3e",
+          "requestRevision": 1,
+          "caseRevision": 5,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        },
+        {
+          "requestId": "ed07cb1f-cd82-4c47-b41c-84321cd8f9e9",
+          "requestRevision": 1,
+          "caseRevision": 5,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        },
+        {
+          "requestId": "5714ce90-4919-40e8-b159-c3d8681cee7a",
+          "requestRevision": 1,
+          "caseRevision": 5,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        }
+      ],
+      "lifecycleAfter": "WAITING_FOR_HUMAN",
+      "acceptedFactCountAfter": 5,
+      "canonicalThreadUnchanged": true,
+      "checkpointUnchanged": true,
+      "openRequestsAfter": 4
+    },
+    {
+      "assessmentId": "719a1e49-4fb0-4c30-a2b6-46bea28874b0",
+      "caseRevisionBefore": 1,
+      "acceptedFactCountBefore": 1,
+      "answers": [
+        {
+          "requestId": "d9e8dd8c-8c7c-4489-94f7-b80359701679",
+          "requestRevision": 1,
+          "caseRevision": 1,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        },
+        {
+          "requestId": "f7ced307-b68b-49d2-996c-27a036ecc356",
+          "requestRevision": 1,
+          "caseRevision": 1,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        },
+        {
+          "requestId": "5a51ec05-739a-417e-8bef-681f776f7934",
+          "requestRevision": 1,
+          "caseRevision": 1,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        },
+        {
+          "requestId": "c496c973-c966-45f4-af38-f0fe0d4ad4fb",
+          "requestRevision": 1,
+          "caseRevision": 1,
+          "status": "OPEN",
+          "factId": null,
+          "resumed": false,
+          "replayed": false
+        }
+      ],
+      "lifecycleAfter": "WAITING_FOR_HUMAN",
+      "acceptedFactCountAfter": 1,
+      "canonicalThreadUnchanged": true,
+      "checkpointUnchanged": true,
+      "openRequestsAfter": 4
+    }
+  ]
+}

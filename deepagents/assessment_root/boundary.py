@@ -8,7 +8,7 @@ from typing import Any
 from langgraph.config import get_store
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
-from assessment_root.runner import run_assessment_root
+from assessment_root.runner import run_assessment_root, NativeRootRecoveryRequired
 from tools.common.capabilities.agent_runtime.boundary import (
     AgentBoundaryBase,
     NonRetryableAgentBoundaryError,
@@ -67,15 +67,27 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
 
 @contextlib.contextmanager
 def postgres_checkpointer():
-    """Production HITL requires the durable LangGraph checkpointer on the server thread."""
+    """Business purpose: Persist the Root's canonical checkpoints with measured database health.
+
+    Business rules:
+    - Production HITL uses the existing PostgreSQL saver and unchanged native thread/ancestry.
+    Execution flow:
+    1. Resolve the shared checkpoint URL and open/setup the measured native saver.
+    2. Yield it for the Root lifetime and close it after execution drains.
+    Failure cases:
+    - Missing persistence or saver failure prevents native execution; failures never count as healthy metrics.
+    Side effects:
+    - Opens native persistence and records aggregate operation timing without copying checkpoint contents.
+    """
     # The same normalization the Agent Server applies: production shares Prisma's DATABASE_URL, whose
     # `?schema=public` query parameter libpq/psycopg rejects ("invalid URI query parameter").
     url = checkpoint_database_url(os.getenv("LANGGRAPH_CHECKPOINT_DATABASE_URL"))
     if not url:
         raise RuntimeError("LANGGRAPH_CHECKPOINT_DATABASE_URL is required for Assessment Root")
-    from langgraph.checkpoint.postgres import PostgresSaver
+    from tools.common.capabilities.agent_runtime.root_capacity import MeasuredPostgresSaver
 
-    with PostgresSaver.from_conn_string(url) as saver:
+    from psycopg.conninfo import make_conninfo
+    with MeasuredPostgresSaver.from_conn_string(make_conninfo(url, application_name="lcsp-assessment-root-checkpoint")) as saver:
         saver.setup()
         yield saver
 
@@ -95,6 +107,19 @@ class AssessmentRootBoundary(AgentBoundaryBase):
         self._runner = runner or run_assessment_root
 
     def handle(self, message: dict[str, Any], correlationId: str) -> dict[str, Any]:
+        """Business purpose: Deliver one Root command through canonical API and checkpoint authority.
+
+        Business rules:
+        - Held/stale commands do not duplicate work; uncertain crash steps remain quarantined for explicit operator replay.
+        - Legal decisions, paid admission and physical quiescence keep their existing independent guards.
+        Execution flow:
+        1. Validate Assessment identity and open the existing native saver/store.
+        2. Execute or safely settle the Root; surface an operator-required recovery as terminal transport failure.
+        Failure cases:
+        - Invalid identity and unsafe recovery are non-retryable; transient API failures preserve durable retry.
+        Side effects:
+        - May execute the native Root and settle its API state; never creates another workflow authority.
+        """
         assessment_id = message.get("assessmentId")
         if not isinstance(assessment_id, str) or not assessment_id.strip():
             # A malformed command can never become valid by redelivery.
@@ -108,13 +133,16 @@ class AssessmentRootBoundary(AgentBoundaryBase):
                     if os.getenv("LCSP_AGENT_RUNTIME_MODE") == "production":
                         raise
                     store = None
-                return self._runner(
+                result = self._runner(
                     self._client_factory(),
                     assessment_id.strip(),
                     backend_factory=sandbox_backend_factory,
                     checkpointer=saver,
                     store=store,
                 )
+                if result.get("errorType") == NativeRootRecoveryRequired.__name__:
+                    raise NonRetryableAgentBoundaryError(NativeRootRecoveryRequired.__name__)
+                return result
         except AssessmentApiError as error:
             if error.code in {_LEASE_HELD, _NOT_ACTIVE}:
                 # Already running, or no longer ACTIVE: a duplicate/stale delivery, not an error.

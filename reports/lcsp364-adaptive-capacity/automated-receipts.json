@@ -1,0 +1,257 @@
+{
+  "capturedAt": "2026-10-30T09:29:49.294380+00:00",
+  "basedOnCommit": "0e2a8d65baa79e2b760fda1bfd36edfa32ae832b",
+  "scope": "Precommit source-content fingerprint; final PR HEAD CI is recorded in PR checks and Jira, not inferred from these receipts.",
+  "codeSha256": {
+    ".env.example": "2539799f3363bf79a8ffa63ba65ae173eea758e451eef568fa280999ae3a7dc9",
+    ".github/workflows/test.yml": "4b40fdf20dfada92c850b3d0296e2cd7561862ddd1c47fdf11dad132bce38d4e",
+    "apps/api/prisma/migrations/20261029120000_adaptive_root_capacity/migration.sql": "c0a2bd6ef1a4401c24cf6d2adc39a310ec4acd9671138c97b631aa2a93c52d0d",
+    "apps/api/prisma/schema.prisma": "907385a97d705fb30c6de345d91fe669865ffce215673ff96aaa2244fcc40568",
+    "apps/api/src/app.routes.allowlist.json": "673afc984ddd65fbcef2059a95de8feb87c9ac420ef0ceeb2ab189c5e3311b73",
+    "apps/api/src/modules/assessment/application/commands/publish-agent-stream-event/publish-agent-stream-event.handler.spec.ts": "1459c917bb68a4cce8b001cc0636e39357263c55d662ae44ed74c013024907b8",
+    "apps/api/src/modules/assessment/application/services/assessment-root-capacity.service.ts": "d0d82969580285ba89c203c856120c5fa1127b95a46bae94d969c01e91b7e8dc",
+    "apps/api/src/modules/assessment/application/services/assessment-runtime-authority.service.ts": "e411b427f9d50dd1cf9738bdfdf335d432b58fbd601abb9827e84a823b65e2b7",
+    "apps/api/src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts": "48458d5f37a14a8eeb6e4c63fe3be0cbe4eebd0d30531eba437ec1fd9dd0730b",
+    "apps/api/src/modules/assessment/application/services/root-capacity-policy.spec.ts": "6abde3e1e33e20fbb85b2ed6f9d6e43ef2d98328ec93f630757a710e88b4f74b",
+    "apps/api/src/modules/assessment/application/services/root-capacity-policy.ts": "721dc1fa10f8edd8ad4263d5dd60ac5bacac8881fcc115b2b69a01e0609a4606",
+    "apps/api/src/modules/assessment/assessment.module.ts": "303d4fe9977f094b27020e0780062db9cbe29c4860768a1cdf59a75483f2289e",
+    "apps/api/src/modules/assessment/presentation/http/assessment-root-capacity.controller.ts": "4e3a6f5de75c65bf6a1313ed8251865e3b862e699b3d7c92afc177f62ae46562",
+    "apps/api/src/platform/outbox/outbox.repository.spec.ts": "6514bd4afd87923a59ff29d0c6c42135ba5fcc24adbb4482fe6337c1815597cd",
+    "apps/api/src/platform/outbox/outbox.repository.ts": "76c012be134d5865a5cd3d9f21764bf8860aebb289c4f66d2f708f62e8a75742",
+    "apps/api/test/assessment-root-capacity.integration.spec.ts": "600ba0d38f4f08e144dce108574c094e9d0595e0b7d3672e829c66945c52b194",
+    "deepagents/assessment_root/boundary.py": "5869601eb403ec5646c6bcde097432bb4bd939173935f4d134ba4ef37f998770",
+    "deepagents/entrypoint.py": "a2577e668ab2726f6a3335fe23f45b0d3d99b03c12c2ad554327f3a505fe12fb",
+    "deepagents/middleware/failure_policy.py": "bb1a5876a575cec826b266d3165881610130fe8219248ec7791a226c4b0d6458",
+    "deepagents/middleware/usage_metering.py": "6be6ae0d2f186c490fa13e59b5ffefa4b9baaf2ec2cf5956c087e24944327025",
+    "deepagents/orchestration/runtime_control.py": "b57f51849e8e07dd2353fa7594247ef5bf28ff51700163d32b4c650472cab287",
+    "deepagents/tests/integration/test_production_agent_server_image_e2e.py": "026d81c685dc0ed66e5a17d729caec6d9a1c83ae567f3b9c546795fcf5f109e3",
+    "deepagents/tests/test_adaptive_root_capacity.py": "9dcffa0dbc272fa6de157a1179ddc1b5873e60e05175a4baede644d731bd0014",
+    "deepagents/tests/test_agent_runtime_rabbitmq_consumer.py": "678d4a5c8d9dc1e6370eb225ba3bfea1ba7c7471824109e1b369ee2e7255662c",
+    "deepagents/tests/test_agent_runtime_recovery.py": "1a891aa1f1ac2291888eb878c1d45c9ef2375a854b12341665e99a49ba02e789",
+    "deepagents/tests/test_agent_server_client.py": "6568dc2ccf8317742703452259fa575459e67556625f6c8f29730d0b2d46b5cc",
+    "deepagents/tests/test_assessment_concurrency_rabbitmq.py": "aade83a9c24584addba2fc25cdec5e82c64d532bb574a2e300a4d37f9c86079c",
+    "deepagents/tests/test_assessment_root_agent.py": "d1b01d7704cb7132775214d57f362b979c0c41e6eb906d960bf26e7ee5062e94",
+    "deepagents/tests/test_entrypoint.py": "50e87e95b86e3c9ba6ae2ca0a57244153f77bbc600f7b12c998fc87c36b72977",
+    "deepagents/tests/test_worker_config_residue.py": "49bab5d50ea7b32763ddb1874d5c1a8efc05b1b943e8699429a2f0cc5280b729",
+    "deepagents/tests/vertical/adaptive_capacity_load.py": "3dca9ac32763154e195b25bec9b8e07dc58a4685f93f25c579f4b68acee84bc8",
+    "deepagents/tests/vertical/hitl_root.py": "03abdd541216c9ab59793203eac171652ccefe068be57a176017283c45ecae20",
+    "deepagents/tests/vertical/root_control.py": "299461b0e05f2a9ddabcf71ba6c1feccc83b09784d6c881cd71be64d1252a428",
+    "deepagents/tests/vertical/scripted_root.py": "a002167b1b8b3e44a288660201a5462d19242c5a160c1abcb9c002fd5e07cd14",
+    "deepagents/tools/common/capabilities/agent_runtime/agent_server_client.py": "d3645cf67733a11f6187cd14b73d9ab4a7691fb59494a31968e20f2a2e5844d1",
+    "deepagents/tools/common/capabilities/agent_runtime/local_server.py": "d53ac5d5d7959abd70db434770daa8446523c3b5902f169fe81105db155c7ee2",
+    "deepagents/tools/common/capabilities/agent_runtime/rabbitmq_consumer.py": "bfee274d548ac31c757025ae1b9882e65292b397b371b0a1452059519b48d2dc",
+    "deepagents/tools/common/capabilities/agent_runtime/root_capacity.py": "9a3c6bf2c033cbc6d7fa5730ef0150f321e0933e73c45413942372452900f076",
+    "docs/adr/LCSP-364-adaptive-root-admission.md": "13f071b83d441230f2e20c3c8470cbca2e7f27692cf87fd276ae14a542fc9d48",
+    "docs/runbooks/assessment-root-capacity.md": "4a6e4405a852c89095d4cc8187c9aa3244ef0ee98d5e1f97bd2a5e2f992c80d8",
+    "ecosystem.config.cjs": "32085f597dc37e52a518b87df16c1a5a802dcdfda8b7ed24836888b74ed037f8",
+    "packages/contracts/src/assessment-domain/capacity.ts": "afcc058d544e5a132838e2ccbb93155c8c28c02c20ef6b68cc19fd75e1adb0c0",
+    "packages/contracts/src/assessment-domain/index.ts": "aca693639be3db40cc45112f22d9be87aa73372c6f3347cade451e410c6b8cef",
+    "redeploy.sh": "cc24adfd8786a271c1f6fa31a6009a8005a071caad7257db63a87e5586bd530f",
+    "scripts/assessment-root-capacity-preflight.py": "1cf040a41d33f2b348a53a15f9e350b058af42285e01ab05bd1204080d766ec5",
+    "scripts/drain-agent-runtime.mjs": "dc7dce33ed47b7181e36191ab22f837a55e0608cfc2277d743abe8a7619dc185",
+    "scripts/drain-agent-runtime.test.mjs": "3165e39b4826aa57ee155c55ca5d1212a546f04d173576baf81881e6b4d2fedf",
+    "scripts/plot-assessment-root-capacity.py": "a6ece6b9a7253f4490cf6f6f4b7944e081f87ad996dcb9210ab49d3b716401b8",
+    "tests/assessment-domain-vertical.mjs": "0528fc427b43186ebd75e0e1cd5bf860d3598237bf9b8cf19289dd7a87d0fb72",
+    "tests/assessment-hitl-vertical.mjs": "9f357d4a08b8e005c87cdfc3430eea0ce62bc3a0fddb2c28b2cb07ec4bde83b2",
+    "tests/support/adaptive-capacity-load.mjs": "eb4bd273613f5a2623f09268c085fd06f1dcc167e11185f8143dc62e59941102",
+    "tests/support/compliance-rule-set-stack.mjs": "176671833d5f6766dd7afe1bb5376eb1116a05d75b2ea76cf465818b30530ad2",
+    "tests/support/consume-direct-rule-set.mjs": "b78171ca96ecc55109068141e7baa71ab9da1682d7c52bb7380a4602158af53e",
+    "tests/support/direct-root-admission.mjs": "c861e42a0455a03de56a969759bc66d800ed7a6bdd391e0a40abae6513d03a7c",
+    "tests/tsconfig.json": "7905151f33d0709a946f05921dfd158ff32da904508db5ec2d4f98702855556a"
+  },
+  "sourceSetSha256": "2d55868b9e1e3957fd92ac799154675c44f620f91088946fbda042eb9d99257d",
+  "receipts": [
+    {
+      "label": "admission-and-policy",
+      "observedAt": "2026-10-30T07:03:14.896021+00:00",
+      "summary": [
+        "Test Suites: 5 passed, 5 total",
+        "Tests:       105 passed, 105 total",
+        "Snapshots:   0 total",
+        "Time:        5.245 s, estimated 6 s"
+      ],
+      "sanitizedFullLogSha256": "d26cbcdbe23405a36c52385355c8234a385529f476061c1c10a5530285ef022f",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "runtime-focused",
+      "observedAt": "2026-10-30T09:28:35.098136+00:00",
+      "summary": [
+        "======================== 96 passed, 1 skipped in 4.11s ========================="
+      ],
+      "sanitizedFullLogSha256": "045441d1d5287b1cf27843ec653d60862f714b6520d8971c8a4a70fcb488416b",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "python-full",
+      "observedAt": "2026-10-30T07:23:48.159268+00:00",
+      "summary": [
+        "================= 2026 passed, 25 skipped in 143.22s (0:02:23) ================="
+      ],
+      "sanitizedFullLogSha256": "dd90e87d65e82bbb4603f4443b9ca5f12c22519954807dbc73569f4855d259d5",
+      "scopeNote": "Earlier broad Python regression before final host-identity validation; final exact-head CI supplies the final broad receipt. Skipped integrations are not acceptance PASS."
+    },
+    {
+      "label": "api-full",
+      "observedAt": "2026-10-30T04:22:35.650579+00:00",
+      "summary": [
+        "Test Suites: 12 skipped, 190 passed, 190 of 202 total",
+        "Tests:       127 skipped, 1554 passed, 1681 total",
+        "Snapshots:   0 total",
+        "Time:        341.812 s"
+      ],
+      "sanitizedFullLogSha256": "1bc2941826f0fdf5b88a78cde8e5628461a7080425019e79a09e30f46f1d4bc5",
+      "scopeNote": "Full API regression predates final fencing/DLQ changes; affected suites and exact-head CI provide later verification."
+    },
+    {
+      "label": "assessment-vertical",
+      "observedAt": "2026-10-30T06:27:48.542343+00:00",
+      "summary": [
+        "PASS: 148 ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on lcsp_assessment_vertical"
+      ],
+      "sanitizedFullLogSha256": "4cc20a01d348a8949fd2e795ae4f6c0398ed1f2ea9ffed55fb8d5660f76bd57b",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "hitl-separate-checkpoints",
+      "observedAt": "2026-10-30T06:46:07.094011+00:00",
+      "summary": [
+        "{\"gate\":\"ASSESSMENT HITL mechanics\",\"checks\":80,\"result\":\"PASS\",\"sameThread\":\"0ac9d56c-be30-44dc-a228-c4adda356b89\",\"checkpoint\":\"1f1d42d8-6053-6cc3-801c-dbb67d2571e0\",\"crashThread\":\"2ae8a8dd-28cd-493c-820d-55473ae29973\",\"proof\":\"real migrated DB/API/PostgresSaver; scripted model; separate processes\"}",
+        "{\"gate\":\"SEPARATE_CHECKPOINT_DATABASE\",\"apiCheckpointTable\":null,\"nativeDatabase\":\"lcsp_assessment_hitl_checkpoint_final\",\"result\":\"PASS\",\"model\":\"SCRIPTED\"}"
+      ],
+      "sanitizedFullLogSha256": "f262483b92c5b4b6c43f47e70663de89039b342dd1f300e2079f12d1fb452896",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "hitl-unresolvable",
+      "observedAt": "2026-10-30T06:27:51.474348+00:00",
+      "summary": [
+        "{\"gate\":\"ASSESSMENT unresolvable human fact mechanics\",\"checks\":72,\"result\":\"PASS\",\"sameThread\":\"a79ef982-c164-43ec-b15c-c8bc56f44e76\",\"checkpoint\":\"1f1d42af-890e-62eb-801c-fa77928d7f2e\",\"crashThread\":\"aedfc392-601e-42b0-bbf0-46e563372ea5\",\"proof\":\"real migrated DB/API/PostgresSaver; scripted model; separate processes\"}"
+      ],
+      "sanitizedFullLogSha256": "c47f51daaed78415f2e5b244817bc1759a17158beeff7d288d25782e453e8a2c",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "broker-integration",
+      "observedAt": "2026-10-30T04:01:42.754245+00:00",
+      "summary": [
+        "============================== 3 passed in 3.46s ==============================="
+      ],
+      "sanitizedFullLogSha256": "4260f385b58ed98bbf849772a648d1df0f3e4804b5c82d140a702d8a2d7066a9",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "drain-script",
+      "observedAt": "2026-10-30T03:57:18.167982+00:00",
+      "summary": [
+        "# tests 4",
+        "# pass 4",
+        "# fail 0",
+        "# skipped 0"
+      ],
+      "sanitizedFullLogSha256": "849d9ee2f561e8154e05f4e8852165787edc8f61f7bb95312033a0fa9f71f64e",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "business-docs",
+      "observedAt": "2026-10-30T07:52:58.515623+00:00",
+      "summary": [
+        "Business logic documentation: 3026 functions in 775 production source files; 909 conformant; 2117 unchanged legacy; 0 missing/invalid."
+      ],
+      "sanitizedFullLogSha256": "d1f3ddd4cc2c935dc86c5b2ffc9a0494ccdb200513e868fefa6bfffa49e57004",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "business-doc-tests",
+      "observedAt": "2026-10-30T07:52:56.791617+00:00",
+      "summary": [
+        "# tests 5",
+        "# pass 5",
+        "# fail 0",
+        "# skipped 0"
+      ],
+      "sanitizedFullLogSha256": "26556e054293fff5998a39553aab6d9acf871a7b9ecda7e6296da7ff737fd430",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "source-guards",
+      "observedAt": "2026-10-30T07:53:02.925640+00:00",
+      "summary": [
+        "Import policy check passed.",
+        "Contract literal policy passed.",
+        "check:legal-v1-retired OK (1434 current production/build/CI files, 27 retired patterns, 0 references)"
+      ],
+      "sanitizedFullLogSha256": "f8150ee391ace133734fe08c3ae6c21ca71193c74ffb1fc0bafa679566ca0b2b",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "api-build",
+      "observedAt": "2026-10-30T07:03:23.484049+00:00",
+      "summary": [
+        "Built contracts, i18n, generated Prisma client and API successfully."
+      ],
+      "sanitizedFullLogSha256": "58cf872ef8d62f7377f0ee438dc66343650d533a9eccafeccf5af5a787ff8cb9",
+      "scopeNote": "Local provider-free verification; skips are not acceptance PASS."
+    },
+    {
+      "label": "api-changed-eslint",
+      "observedAt": "2026-10-30T07:58:43.524945+00:00",
+      "summary": [
+        "ESLint completed with exit 0 for all 11 changed API TypeScript files."
+      ],
+      "sanitizedFullLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scopeNote": "Provider-free local verification after CI test-type corrections; final exact-head remote CI remains separate."
+    },
+    {
+      "label": "api-ci-fixture-types",
+      "observedAt": "2026-10-30T07:58:02.069787+00:00",
+      "summary": [
+        "Test Suites: 3 passed, 3 total",
+        "Tests: 58 passed, 58 total"
+      ],
+      "sanitizedFullLogSha256": "315596413449b59f43637bbe0018eb4031a7b9fd688461af8f24b16e3f8d8327",
+      "scopeNote": "Provider-free local verification after CI test-type corrections; final exact-head remote CI remains separate."
+    },
+    {
+      "label": "runtime-packages-merged",
+      "observedAt": "2026-10-30T09:04:32.460642+00:00",
+      "summary": [
+        "Command completed with exit 0 after integrating verified develop aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b."
+      ],
+      "sanitizedFullLogSha256": "111311cf86ef9c041a7fa71a42f83b12580187dc9c4dba20db3ca935b81c879b",
+      "scopeNote": "Merged-source local verification; exact final remote CI is recorded in PR and Jira."
+    },
+    {
+      "label": "source-gates-merged",
+      "observedAt": "2026-10-30T09:05:45.279806+00:00",
+      "summary": [
+        "Import policy check passed.",
+        "Contract literal policy passed.",
+        "check:legal-v1-retired OK (1434 current production/build/CI files, 27 retired patterns, 0 references)",
+        "Command completed with exit 0 after integrating verified develop aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b."
+      ],
+      "sanitizedFullLogSha256": "d22dcb1b06d0de15647c21bf4f411a3d6592816151ddf3834fe016e448bb3997",
+      "scopeNote": "Merged-source local verification; exact final remote CI is recorded in PR and Jira."
+    },
+    {
+      "label": "business-docs-merged",
+      "observedAt": "2026-10-30T09:05:13.383734+00:00",
+      "summary": [
+        "Business logic documentation: 3030 functions in 775 production source files; 921 conformant; 2109 unchanged legacy; 0 missing/invalid.",
+        "Command completed with exit 0 after integrating verified develop aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b."
+      ],
+      "sanitizedFullLogSha256": "26a376fbbd2f080d191dd8b12ed9d9042074f13bc581d1f3b0b75f02338ed081",
+      "scopeNote": "Merged-source local verification; exact final remote CI is recorded in PR and Jira."
+    },
+    {
+      "label": "business-docs-identity",
+      "observedAt": "2026-10-30T09:28:32.763129+00:00",
+      "summary": [
+        "3030 functions; 921 conformant; 2109 unchanged legacy; 0 missing/invalid."
+      ],
+      "sanitizedFullLogSha256": "26a376fbbd2f080d191dd8b12ed9d9042074f13bc581d1f3b0b75f02338ed081",
+      "scopeNote": "Local business documentation gate after final host-identity validation."
+    }
+  ],
+  "integratedDevelop": "aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b"
+}

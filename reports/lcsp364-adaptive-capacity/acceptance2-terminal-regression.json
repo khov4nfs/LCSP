@@ -1,0 +1,21 @@
+{
+  "baselineDeployedRevision": "7fda124687ea22cea4ae8fa14f684098b9338efc",
+  "scope": "Provider-free PostgreSQL regression; no new native or paid production execution yet",
+  "red": {
+    "failed": 1,
+    "passed": 1,
+    "skipped": 17,
+    "failure": "independent demand.admitted expected true, received false"
+  },
+  "green": {
+    "postgresPassed": 19,
+    "brokerChildPassed": 1
+  },
+  "historicalRowsRewritten": false,
+  "livePhysicalSlotsPrematurelyReleased": false,
+  "sameMillisecondContinuationPreserved": true,
+  "sourceSha256": {
+    "apps/api/src/modules/assessment/application/services/assessment-root-capacity.service.ts": "6a0afe36f8b31672a142d718bac862d07d7ba300605b610544db326285e9a770",
+    "apps/api/test/assessment-root-capacity.integration.spec.ts": "7f3010501abbd81cea7251afd3f57702e7c7652e47eac203806a2242747b6659"
+  }
+}
