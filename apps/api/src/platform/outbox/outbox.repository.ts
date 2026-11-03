@@ -20,6 +20,7 @@ import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ROOT_CAPACITY_ID,
 } from "@lcsp/contracts/assessment-domain";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 
 interface OutboxRow {
   id: string;
@@ -334,14 +335,16 @@ export class OutboxRepository {
    * Business purpose: Discard an operator-selected DLQ delivery while retaining physical Root authority and audit links.
    * Business rules:
    * - Root commands referenced by admission history become cancelled tombstones; their slots and history cannot cascade away.
+   * - Discard strictly rejects if physical execution slots are held or runtime is active/leased.
    * - Unreferenced transport messages keep the existing physical deletion behavior.
    * - Discard is strictly conditional on current DLQ status; non-DLQ messages reject.
    * Execution flow:
    * 1. Lock the global capacity row and target outbox message FOR UPDATE.
    * 2. Verify current status is DLQ (fail closed if not).
-   * 3. Find admission bookkeeping and cancel its transport record, or delete an unreferenced message.
+   * 3. Find admission bookkeeping and verify physical slots and runtime are completely quiescent.
+   * 4. Cancel its transport record, or delete an unreferenced message.
    * Failure cases:
-   * - Missing message, non-DLQ status, or database failure rejects atomically; discard never cancels a living native Root.
+   * - Missing message, non-DLQ status, active execution, or database failure rejects atomically; discard never cancels a living native Root.
    * Side effects:
    * - Removes the message from DLQ visibility while preserving Root history; caller records discard audit.
    */
@@ -373,7 +376,23 @@ export class OutboxRepository {
             releasedAt: null,
           },
         });
-        if (heldSlots > 0) {
+        const assessment = await client.assessment.findUnique({
+          where: { id: intent.assessmentId },
+          select: {
+            runtime: {
+              select: {
+                executionState: true,
+                leaseToken: true,
+              },
+            },
+          },
+        });
+        if (
+          heldSlots > 0 ||
+          assessment?.runtime?.executionState ===
+            AGENT_EXECUTION_STATES.RUNNING ||
+          assessment?.runtime?.leaseToken != null
+        ) {
           throw new Error("ROOT_EXECUTION_ACTIVE_CANNOT_DISCARD");
         }
         const updated = await client.$executeRaw`

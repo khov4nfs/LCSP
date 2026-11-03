@@ -770,7 +770,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
   });
 
   // Test 11 — Discard refused when physical slot is held or execution is running
-  it("Test 11: refuses discard and records denial audit when physical execution slot is held", async () => {
+  it("Test 11: refuses discard and records denial audit when physical execution slot is held or runtime is active", async () => {
     const fixture = await createQuarantinedRootFixture({ heldSlot: true });
     await expect(
       dlqService1.deleteMessage(
@@ -797,6 +797,23 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     expect(audits).toHaveLength(1);
     expect(audits[0].eventType).toBe(OUTBOX_AUDIT_EVENT_TYPES.dlqDiscardDenied);
     expect(audits[0].decision).toBe(AUDIT_DECISIONS.deny);
+
+    // Also refuses discard when heldSlots is 0 but runtime is active (RUNNING)
+    const runningFixture = await createQuarantinedRootFixture({
+      heldSlot: false,
+      executionState: AgentExecutionState.RUNNING,
+    });
+    await expect(
+      dlqService1.deleteMessage(
+        runningFixture.commandId,
+        "admin-1",
+        "corr-discard-running",
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: OUTBOX_ERROR_CODES.dlqDiscardUnsafeTarget },
+      },
+    });
   });
 
   // Test 12 — Race with slot acquisition: deterministic concurrent race test
@@ -806,11 +823,6 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     let notifyLockAcquired!: () => void;
     const lockAcquired = new Promise<void>((resolve) => {
       notifyLockAcquired = resolve;
-    });
-
-    let allowCommit!: () => void;
-    const canCommit = new Promise<void>((resolve) => {
-      allowCommit = resolve;
     });
 
     // Session 2 acquires the capacity lock first to serialize execution deterministically
@@ -840,8 +852,27 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
       // Signal that capacity lock and unreleased execution slot are in place
       notifyLockAcquired();
 
-      // Hold transaction open until replayMessage is in-flight and queued on the capacity lock
-      await canCommit;
+      // Deterministically wait until PostgreSQL confirms Session 1 is actively blocked in pg_locks
+      const start = Date.now();
+      let blockedWaiterConfirmed = false;
+      while (Date.now() - start < 5000) {
+        const rows = await tx.$queryRaw<Array<{ count: number }>>`
+          SELECT count(*)::int AS count
+          FROM pg_locks
+          WHERE NOT granted
+        `;
+        if (rows[0]?.count > 0) {
+          blockedWaiterConfirmed = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+
+      if (!blockedWaiterConfirmed) {
+        throw new Error(
+          "PostgreSQL waiter failed to block on AssessmentRootCapacity row lock within timeout",
+        );
+      }
     });
 
     // Wait until Session 2 has acquired the capacity lock and inserted the slot
@@ -856,11 +887,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
       "corr-race-slot",
     );
 
-    // Yield to the event loop so Session 1 reaches the blocked query
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    // Release Session 2 to commit its transaction and release the capacity lock
-    allowCommit();
+    // Await Session 2 transaction completion (which commits only AFTER confirming Session 1 is blocked in pg_locks)
     await slotAcquisitionPromise;
 
     // Session 1 now unblocks, evaluates the newly committed slot, and MUST refuse replay
@@ -920,5 +947,14 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     });
     expect(intent).not.toBeNull();
     expect(intent?.assessmentId).toBe(fixture.assessmentId);
+
+    // Repository deleteMessage also strictly rejects when runtime is RUNNING
+    const runningFixture = await createQuarantinedRootFixture({
+      heldSlot: false,
+      executionState: AgentExecutionState.RUNNING,
+    });
+    await expect(repo1.deleteMessage(runningFixture.commandId)).rejects.toThrow(
+      "ROOT_EXECUTION_ACTIVE_CANNOT_DISCARD",
+    );
   });
 });
