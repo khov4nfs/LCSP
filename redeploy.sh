@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly APP=/srv/apps/LCSP
+readonly APP="${APP:-/srv/apps/LCSP}"
 readonly ECOSYSTEM_FILE=ecosystem.config.cjs
+readonly MIGRATION_ENV_FILE="${APP}/.env.migration"
 readonly API_HEALTH_URL=http://127.0.0.1:8080/health
 readonly WEB_HEALTH_URL=http://127.0.0.1:3002/
 readonly LEGACY_PM2_APPS=(
@@ -84,6 +85,11 @@ restart_pm2() {
   assert_expected_pm2_apps
 }
 
+if [[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
+fi
+
 require_command curl
 require_command dotenv
 require_command docker
@@ -103,6 +109,51 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+if git remote get-url origin >/dev/null 2>&1; then
+  echo "==> Fetch target revision without modifying working tree"
+  git fetch origin
+fi
+
+if ! git cat-file -e "${LCSP_DEPLOY_EXPECTED_SHA}^{commit}" 2>/dev/null; then
+  echo "Target revision ${LCSP_DEPLOY_EXPECTED_SHA} is missing in git repository" >&2
+  exit 1
+fi
+
+echo "==> Verify origin/develop matches expected SHA before drain"
+readonly ORIGIN_DEVELOP_SHA="$(git rev-parse origin/develop 2>/dev/null || true)"
+if [[ -n "$ORIGIN_DEVELOP_SHA" && "$ORIGIN_DEVELOP_SHA" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
+  echo "origin/develop (${ORIGIN_DEVELOP_SHA}) does not match expected SHA (${LCSP_DEPLOY_EXPECTED_SHA}); aborting before drain" >&2
+  exit 1
+fi
+
+if [[ "${LCSP_REDEPLOY_BOOTSTRAPPED:-}" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
+  echo "==> Bootstrap: ensuring redeploy.sh is running exactly from revision ${LCSP_DEPLOY_EXPECTED_SHA}"
+  mkdir -p "${APP}/.cache"
+  readonly BOOTSTRAP_REDEPLOY="${APP}/.cache/redeploy.bootstrap.${LCSP_DEPLOY_EXPECTED_SHA}.sh"
+  git show "${LCSP_DEPLOY_EXPECTED_SHA}:redeploy.sh" > "$BOOTSTRAP_REDEPLOY"
+  chmod +x "$BOOTSTRAP_REDEPLOY"
+  export LCSP_REDEPLOY_BOOTSTRAPPED="$LCSP_DEPLOY_EXPECTED_SHA"
+  exec bash "$BOOTSTRAP_REDEPLOY" "$@"
+fi
+
+echo "==> Verify migration credentials and privilege separation preflight pinned to ${LCSP_DEPLOY_EXPECTED_SHA} (before drain)"
+mkdir -p "${APP}/.cache"
+readonly BOOTSTRAP_PREFLIGHT="${APP}/.cache/check-migration-privilege-preflight.bootstrap.${LCSP_DEPLOY_EXPECTED_SHA}.mjs"
+git show "${LCSP_DEPLOY_EXPECTED_SHA}:scripts/check-migration-privilege-preflight.mjs" > "$BOOTSTRAP_PREFLIGHT"
+
+cleanup_bootstrap_preflight() {
+  rm -f "$BOOTSTRAP_PREFLIGHT"
+}
+trap cleanup_bootstrap_preflight EXIT
+
+node "$BOOTSTRAP_PREFLIGHT" \
+  --env-file "${APP}/.env.pm2" \
+  --migration-env-file "$MIGRATION_ENV_FILE" \
+  --production
+
+rm -f "$BOOTSTRAP_PREFLIGHT"
+trap - EXIT
+
 echo "==> Drain actual native execution before changing source or persistence"
 node scripts/drain-agent-runtime.mjs
 
@@ -117,7 +168,14 @@ echo "==> Install Node dependencies"
 pnpm install --frozen-lockfile
 
 echo "==> Install LCSP Agent Runtime"
-.venv/bin/python -m pip install ./deepagents
+if command -v uv >/dev/null 2>&1; then
+  uv pip install --python .venv/bin/python ./deepagents
+elif ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+  .venv/bin/python -m ensurepip
+  .venv/bin/python -m pip install ./deepagents
+else
+  .venv/bin/python -m pip install ./deepagents
+fi
 
 echo "==> Build LCSP repository sandbox image"
 docker build \
@@ -128,8 +186,14 @@ docker build \
 echo "==> Build API"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/api build
 
+echo "==> Verify migration credentials and privilege separation preflight (updated checkout)"
+node scripts/check-migration-privilege-preflight.mjs \
+  --env-file "${APP}/.env.pm2" \
+  --migration-env-file "$MIGRATION_ENV_FILE" \
+  --production
+
 echo "==> Apply database migrations"
-dotenv -e .env.pm2 -- pnpm --filter @lcsp/api prisma:migrate:deploy
+dotenv -e .env.pm2 -e "$MIGRATION_ENV_FILE" -- pnpm --filter @lcsp/api prisma:migrate:deploy
 
 echo "==> Build Web"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/web build
