@@ -20,7 +20,8 @@ describe("Prisma configuration fail-closed resolution", () => {
     process.env.NODE_ENV = "production";
     process.env.PRISMA_MIGRATION_MODE = "true";
     delete process.env.MIGRATION_DATABASE_URL;
-    process.env.DATABASE_URL = "postgresql://runtime_api:pass@127.0.0.1:5432/lcsp_prod";
+    process.env.DATABASE_URL =
+      "postgresql://runtime_api:pass@127.0.0.1:5432/lcsp_prod";
 
     expect(() => resolveDatasourceUrl()).toThrow(
       /MIGRATION_DATABASE_URL must be explicitly configured for production migrations/,
@@ -183,9 +184,7 @@ integration("PostgreSQL DDL/DML privilege separation", () => {
         // API runtime role cannot drop table
         let dropFailed = false;
         try {
-          await apiClient.query(
-            `DROP TABLE "${schemaName}"."account_ledger";`,
-          );
+          await apiClient.query(`DROP TABLE "${schemaName}"."account_ledger";`);
         } catch (error: any) {
           dropFailed = true;
           expect(error.code).toBe("42501");
