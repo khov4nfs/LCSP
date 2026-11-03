@@ -126,9 +126,27 @@ take the obsolete ACK path. Owner history is aggregated once for fair selection.
    its historical receipt does not authorize skipping quiescence on a later release.
 5. Keep the old checkout/image as rollback targets. The updated `redeploy.sh`
    requires exact `LCSP_DEPLOY_EXPECTED_SHA`, clean checkout and fast-forward
-   pull; it drains before source/build/migration changes. A failed restart does
-   not kill the PM2 daemon or unrelated services. Use the existing exact-revision
+   pull; it executes preflight before drain, and drains before source/build/migration changes.
+   A failed restart does not kill the PM2 daemon or unrelated services. Use the existing exact-revision
    checkout/pull workflow; never run a reset/clean to overwrite server changes.
+
+   **Upgrading from older revisions lacking bootstrap preflight:**
+   When upgrading an existing production deployment whose disk checkout has an older `redeploy.sh` (such as merge commit `8e7af478b`), do not invoke the disk `./redeploy.sh` directly because older scripts drain native execution prior to credential preflight and git pull. Instead, execute the revision-pinned bootstrap runner from the target commit without altering the working tree:
+   ```bash
+   git fetch origin develop
+   export LCSP_DEPLOY_EXPECTED_SHA="$(git rev-parse origin/develop)"
+   mkdir -p .cache
+   git show "${LCSP_DEPLOY_EXPECTED_SHA}:redeploy.sh" > .cache/redeploy-bootstrap.sh
+   chmod +x .cache/redeploy-bootstrap.sh
+   LCSP_DEPLOY_EXPECTED_SHA="$LCSP_DEPLOY_EXPECTED_SHA" .cache/redeploy-bootstrap.sh
+   ```
+   Or invoke `scripts/bootstrap-redeploy.sh` extracted from target:
+   ```bash
+   git fetch origin develop
+   export LCSP_DEPLOY_EXPECTED_SHA="$(git rev-parse origin/develop)"
+   git show "${LCSP_DEPLOY_EXPECTED_SHA}:scripts/bootstrap-redeploy.sh" | bash
+   ```
+   This verifies `origin/develop` matches `LCSP_DEPLOY_EXPECTED_SHA` and proves PostgreSQL DDL privilege separation and database identity before any drain or checkout mutation occurs.
 6. Start the single server, inspect new incarnation and bounded recovery, then
    validate health **and** the revision-bound native canary. Registration pins
    host identity; automatic cross-host takeover is forbidden. An API restart

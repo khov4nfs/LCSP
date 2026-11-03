@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly APP=/srv/apps/LCSP
+readonly APP="${APP:-/srv/apps/LCSP}"
 readonly ECOSYSTEM_FILE=ecosystem.config.cjs
 readonly MIGRATION_ENV_FILE="${APP}/.env.migration"
 readonly API_HEALTH_URL=http://127.0.0.1:8080/health
@@ -109,12 +109,31 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-echo "==> Fetch target revision without modifying working tree"
-git fetch origin
+if git remote get-url origin >/dev/null 2>&1; then
+  echo "==> Fetch target revision without modifying working tree"
+  git fetch origin
+fi
 
 if ! git cat-file -e "${LCSP_DEPLOY_EXPECTED_SHA}^{commit}" 2>/dev/null; then
   echo "Target revision ${LCSP_DEPLOY_EXPECTED_SHA} is missing in git repository" >&2
   exit 1
+fi
+
+echo "==> Verify origin/develop matches expected SHA before drain"
+readonly ORIGIN_DEVELOP_SHA="$(git rev-parse origin/develop 2>/dev/null || true)"
+if [[ -n "$ORIGIN_DEVELOP_SHA" && "$ORIGIN_DEVELOP_SHA" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
+  echo "origin/develop (${ORIGIN_DEVELOP_SHA}) does not match expected SHA (${LCSP_DEPLOY_EXPECTED_SHA}); aborting before drain" >&2
+  exit 1
+fi
+
+if [[ "${LCSP_REDEPLOY_BOOTSTRAPPED:-}" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
+  echo "==> Bootstrap: ensuring redeploy.sh is running exactly from revision ${LCSP_DEPLOY_EXPECTED_SHA}"
+  mkdir -p "${APP}/.cache"
+  readonly BOOTSTRAP_REDEPLOY="${APP}/.cache/redeploy.bootstrap.${LCSP_DEPLOY_EXPECTED_SHA}.sh"
+  git show "${LCSP_DEPLOY_EXPECTED_SHA}:redeploy.sh" > "$BOOTSTRAP_REDEPLOY"
+  chmod +x "$BOOTSTRAP_REDEPLOY"
+  export LCSP_REDEPLOY_BOOTSTRAPPED="$LCSP_DEPLOY_EXPECTED_SHA"
+  exec bash "$BOOTSTRAP_REDEPLOY" "$@"
 fi
 
 echo "==> Verify migration credentials and privilege separation preflight pinned to ${LCSP_DEPLOY_EXPECTED_SHA} (before drain)"
