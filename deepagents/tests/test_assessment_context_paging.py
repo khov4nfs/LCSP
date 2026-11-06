@@ -437,7 +437,8 @@ class DescriptionProbeArgs(BaseModel):
     pattern: str = Field(min_length=1)
 
 
-def _description_probe_tool(name, calls):
+def _description_probe_tool(name, calls, *, return_direct):
+    """Build an offline probe for both native loop-control modes in the preservation test."""
     def sync_probe(pattern):
         calls.append(("sync", name, pattern))
         return {"tool": name, "pattern": pattern, "matched": pattern == "literal"}
@@ -451,8 +452,17 @@ def _description_probe_tool(name, calls):
 
     return StructuredTool.from_function(
         func=sync_probe, coroutine=async_probe, name=name,
-        description=f"Original framework help for {name}. " * 100,
-        args_schema=DescriptionProbeArgs, return_direct=True,
+        description=(
+            "Offline contract probe for middleware tests. Given a non-empty pattern, record "
+            "whether the synchronous or asynchronous callable ran and return a deterministic "
+            "mapping containing the probe name, unchanged pattern, and whether it equals literal. "
+            "The probe reads no repository files, writes no customer state, uses no credentials, "
+            "and calls no external service. Tests compare original and description-projected "
+            "tools across both native loop-control modes. The argument schema, callable identities, "
+            "metadata, tags, validation handling, response format and returned values must remain "
+            "identical after projecting the shorter model-facing description."
+        ),
+        args_schema=DescriptionProbeArgs, return_direct=return_direct,
         metadata={"authority": "source", "tool": name}, tags=["source-read"],
         handle_validation_error=invalid_pattern, handle_tool_error=True,
     )
@@ -460,10 +470,11 @@ def _description_probe_tool(name, calls):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["sync", "async"])
-async def test_description_projection_preserves_every_tool_contract_and_invokes_governance_once(mode):
+@pytest.mark.parametrize("return_direct", [False, True], ids=["continue-loop", "return-direct"])
+async def test_description_projection_preserves_every_tool_contract_and_invokes_governance_once(mode, return_direct):
     calls = []
-    known = [_description_probe_tool(name, calls) for name in _REVIEWED_TOOL_NAMES]
-    unknown = _description_probe_tool("unreviewed_tool", calls)
+    known = [_description_probe_tool(name, calls, return_direct=return_direct) for name in _REVIEWED_TOOL_NAMES]
+    unknown = _description_probe_tool("unreviewed_tool", calls, return_direct=return_direct)
     provider_tool = {"type": "provider-native-search", "provider_options": {"bounded": True}}
     original = [*known, unknown, provider_tool]
     descriptions = [tool.description for tool in known]
@@ -508,7 +519,7 @@ async def test_description_projection_preserves_every_tool_contract_and_invokes_
         for field in ("args_schema", "func", "coroutine", "metadata", "tags",
                       "handle_validation_error", "handle_tool_error"):
             assert getattr(after, field) is getattr(before, field)
-        assert after.return_direct is before.return_direct
+        assert after.return_direct is before.return_direct is return_direct
         assert after.response_format == before.response_format
         assert after.args_schema.model_json_schema() == before.args_schema.model_json_schema()
         if mode == "sync":
