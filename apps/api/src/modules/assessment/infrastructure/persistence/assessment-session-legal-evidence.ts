@@ -1,5 +1,13 @@
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
+type SessionRuleSetPin = {
+  id?: string;
+  ruleSetVersionId?: string;
+  ruleSetId?: string;
+  version?: string;
+  ruleSetVersion?: string;
+};
+
 /**
  * Loads pinned review legal evidence from the database for session export.
  */
@@ -16,7 +24,7 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
  */
 export async function loadPinnedReviewLegalEvidence(
   prisma: PrismaService,
-  pinnedRuleSet: any,
+  pinnedRuleSet: SessionRuleSetPin | null | undefined,
 ) {
   if (!pinnedRuleSet) {
     return {

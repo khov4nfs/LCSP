@@ -7,7 +7,60 @@ import { LLM_USAGE_STATUSES } from "@lcsp/contracts/billing";
 import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   isAssessmentAgentStreamEventType,
+  type AssessmentAgentStreamEventType,
 } from "@lcsp/contracts/evidence";
+import { asRecord } from "@lcsp/contracts/shared/type-guards";
+
+type SessionTurnObservation = {
+  id?: string;
+  logicalRunId?: string;
+  threadId?: string;
+  state?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+type SessionLifecycleObservation = {
+  eventType?: string;
+  payload?: unknown;
+  timestamp?: unknown;
+};
+
+type SessionAssessmentClock = {
+  runtime?: { startedAt?: unknown } | null;
+  lifecycleState?: string | null;
+  updatedAt?: unknown;
+};
+
+type SessionTokenMeasurements = {
+  inputTokens?: unknown;
+  outputTokens?: unknown;
+  totalTokens?: unknown;
+  cachedInputTokens?: unknown;
+  reasoningTokens?: unknown;
+};
+
+type SessionTokenObservation = SessionTokenMeasurements & {
+  status?: unknown;
+};
+
+type SessionJournalObservation = {
+  runId?: string | null;
+  sequence?: number;
+  toolName?: string | null;
+  outputSummaryJson?: unknown;
+  durationMs?: number | null;
+};
+
+type SessionToolExecution = {
+  runId: SessionJournalObservation["runId"];
+  sequence: SessionJournalObservation["sequence"];
+  eventType: AssessmentAgentStreamEventType;
+  toolCallId: string | null;
+  toolName: string | null;
+  durationMs: number | null;
+  status: string | null;
+};
 
 /**
  * Business purpose: Read a persisted timestamp without treating missing or invalid data as an epoch measurement.
@@ -37,9 +90,9 @@ function timestampOrNull(value: unknown): number | null {
  * Side effects: Pure calculation; no assessment state or persisted records change.
  */
 export function summarizeSessionDurations(
-  turns: any[],
-  events: any[],
-  assessment: any,
+  turns: readonly SessionTurnObservation[],
+  events: readonly SessionLifecycleObservation[],
+  assessment: SessionAssessmentClock | null,
 ) {
   const starts = turns
     .map((turn) => timestampOrNull(turn.createdAt))
@@ -51,7 +104,7 @@ export function summarizeSessionDurations(
     (event) =>
       event.eventType ===
         AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED &&
-      event.payload?.toState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+      asRecord(event.payload)?.toState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
   );
   const completedAtMs = timestampOrNull(completeEvent?.timestamp);
   const wallDurationMs =
@@ -118,7 +171,10 @@ export function summarizeSessionDurations(
  * Failure cases: Missing status/data, unavailable usage or overflow leaves the complete total null.
  * Side effects: None; persisted provider records are neither changed nor inferred.
  */
-function summarizeTokenMetric(usages: any[], field: string) {
+function summarizeTokenMetric(
+  usages: readonly SessionTokenObservation[],
+  field: keyof SessionTokenMeasurements,
+) {
   let reportedEvents = 0;
   let invalidEvents = 0;
   let total = 0;
@@ -165,7 +221,9 @@ function summarizeTokenMetric(usages: any[], field: string) {
  * Failure cases: Empty, unavailable, partially measured or unsafe values remain incomplete.
  * Side effects: Pure reduction; does not change billing, usage records or assessment state.
  */
-export function summarizeSessionTokenUsage(usages: any[]) {
+export function summarizeSessionTokenUsage(
+  usages: readonly SessionTokenObservation[] | null | undefined,
+) {
   const rows = usages ?? [];
   const input = summarizeTokenMetric(rows, "inputTokens");
   const output = summarizeTokenMetric(rows, "outputTokens");
@@ -213,7 +271,9 @@ export function summarizeSessionTokenUsage(usages: any[]) {
  * Failure cases: Unclassified or incomplete rows remain in raw history and coverage, never fabricated calls or successes.
  * Side effects: Pure aggregation; tool arguments are not copied into the summary.
  */
-export function summarizeSessionTools(journal: any[]) {
+export function summarizeSessionTools(
+  journal: readonly SessionJournalObservation[] | null | undefined,
+) {
   const rows = journal ?? [];
   const toolTypes = new Set<string>([
     ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolCall,
@@ -229,13 +289,13 @@ export function summarizeSessionTools(journal: any[]) {
     ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed,
     ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout,
   ]);
-  const toolExecutions: any[] = [];
+  const toolExecutions: SessionToolExecution[] = [];
   const identities = new Set<string>();
   let unidentifiedToolEvents = 0;
   let unclassifiedJournalRows = 0;
   let observedModelEvents = 0;
   for (const row of rows) {
-    const event = row.outputSummaryJson?.agentStreamEvent;
+    const event = asRecord(asRecord(row.outputSummaryJson)?.agentStreamEvent);
     if (!event || !isAssessmentAgentStreamEventType(event.eventType)) {
       unclassifiedJournalRows++;
       continue;

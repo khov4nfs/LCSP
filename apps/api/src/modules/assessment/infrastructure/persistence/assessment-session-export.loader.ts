@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import type { AuthUserRole } from "@lcsp/contracts/auth";
+import { asRecord } from "@lcsp/contracts/shared/type-guards";
 import {
   ARTIFACT_LIFECYCLE_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
@@ -63,8 +64,8 @@ function isUnavailableFinalReport(error: unknown): boolean {
   ) {
     return false;
   }
-  const res: any = error.getResponse();
-  const problem = res?.problem ?? res;
+  const response = asRecord(error.getResponse());
+  const problem = asRecord(response?.problem ?? response);
   return problem?.code === ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID;
 }
 
@@ -162,12 +163,14 @@ export class AssessmentSessionExportLoader {
       );
 
     const finalReportArtifact = source.artifacts?.find(
-      (a: any) =>
+      (a) =>
         a.kind === ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT &&
         a.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
     );
 
-    let finalReport: any = null;
+    let finalReport: Awaited<
+      ReturnType<AssessmentReportLoader["load"]>
+    > | null = null;
     let finalReportStatus: AssessmentSessionReportState =
       ASSESSMENT_SESSION_REPORT_STATES.UNAVAILABLE;
 
@@ -216,7 +219,7 @@ export class AssessmentSessionExportLoader {
 
     const uniqueModels = Array.from(
       new Map(
-        usages.map((u: any) => [
+        usages.map((u) => [
           `${u.provider}:${u.model}`,
           { provider: u.provider, model: u.model },
         ]),
@@ -241,21 +244,26 @@ export class AssessmentSessionExportLoader {
     const humanInteraction = {
       requests: humanRequests,
       resolvedCount: humanRequests.filter(
-        (r: any) => r.status === HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED,
+        (r) => r.status === HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED,
       ).length,
       openCount: humanRequests.filter(
-        (r: any) => r.status === HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+        (r) => r.status === HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
       ).length,
     };
 
-    const humanAnswerHistory = humanRequests.map((r: any) => ({
-      requestId: r.requestId,
-      assessmentRuleId: r.assessmentRuleId,
-      dependencies: r.dependencies,
-      answers:
-        r.answers ??
-        (r.answer ? [{ answer: r.answer, answeredAt: r.answeredAt }] : []),
-    }));
+    const humanAnswerHistory = humanRequests.map((request) => {
+      const legacy = asRecord(request);
+      return {
+        requestId: request.requestId,
+        assessmentRuleId: request.assessmentRuleId,
+        dependencies: request.dependencies,
+        answers:
+          request.answers ??
+          (legacy?.answer
+            ? [{ answer: legacy.answer, answeredAt: legacy.answeredAt }]
+            : []),
+      };
+    });
 
     const assessmentResults = {
       finalReportStatus,
@@ -268,10 +276,10 @@ export class AssessmentSessionExportLoader {
     };
 
     const executionHistory = {
-      runtimeEvents: journal.map((ev: any) => sanitizeAgentStreamValue(ev)),
+      runtimeEvents: journal.map((ev) => sanitizeAgentStreamValue(ev)),
       executionSegments: durations.executionSegments,
       fileAccessObservations: fileEvidence.fileAccessObservations,
-      modelUsageEvents: usages.map((usage: any) => ({
+      modelUsageEvents: usages.map((usage) => ({
         runId: usage.runId ?? null,
         invocationId: usage.invocationId ?? null,
         provider: usage.provider,
@@ -285,8 +293,8 @@ export class AssessmentSessionExportLoader {
         reasoningTokens: usage.reasoningTokens?.toString() ?? null,
       })),
       errors: journal
-        .filter((ev: any) => ev.errorSummary)
-        .map((ev: any) => ({
+        .filter((ev) => ev.errorSummary)
+        .map((ev) => ({
           runId: ev.runId,
           sequence: ev.sequence,
           errorSummary: sanitizeAgentStreamText(ev.errorSummary),
@@ -367,7 +375,7 @@ export class AssessmentSessionExportLoader {
         completedAt,
       },
       decisions: source.decisions ?? [],
-      report: finalReport?.report ?? finalReport,
+      report: asRecord(finalReport)?.report ?? finalReport,
       telemetry: {
         tokenUsage,
         metrics: executionMetrics,

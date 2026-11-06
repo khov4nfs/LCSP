@@ -215,8 +215,14 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
       $transaction: (fn: (value: typeof tx) => unknown) => fn(tx),
     } as never,
     {
-      requireSelectedRuleMembershipInTx:
-        AssessmentRuntimeAuthority.prototype.requireSelectedRuleMembershipInTx,
+      requireSelectedRuleMembershipInTx: (
+        ...args: Parameters<
+          AssessmentRuntimeAuthority["requireSelectedRuleMembershipInTx"]
+        >
+      ) =>
+        AssessmentRuntimeAuthority.prototype.requireSelectedRuleMembershipInTx(
+          ...args,
+        ),
       authorizeInTx: () => ({
         assessmentId,
         auditRequestId: selectedRuleIds === null ? null : "audit-current",

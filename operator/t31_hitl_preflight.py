@@ -348,7 +348,7 @@ def main() -> None:
         details and set the process exit status; no service or provider calls.
     """
     parser = argparse.ArgumentParser(description="Canonical Operator Preflight Validator")
-    parser.add_argument("--submissions", type=Path, default=Path("T31_V2_0_1_CANONICAL_SUBMISSIONS.json"))
+    parser.add_argument("--submissions", type=Path, default=Path(__file__).resolve().parents[1] / "reports/t31-history/T31_V2_0_1_CANONICAL_SUBMISSIONS.json")
     parser.add_argument("--output", type=Path, default=Path("T31_V2_0_1_CANONICAL_VALIDATION.json"))
     opts = parser.parse_args()
 

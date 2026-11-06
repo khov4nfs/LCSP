@@ -22,7 +22,7 @@ retry = load("selected_audit_retry", ROOT / "deepagents/scripts/run_resume_turn.
 
 
 def test_real_three_row_source_is_never_described_as_a_complete_49_answer_audit():
-    rows = json.loads((ROOT / "hitl_ledger_raw.json").read_text())
+    rows = json.loads((ROOT / "reports/t31-history/hitl_ledger_raw.json").read_text())
     assert len(rows) == 3
     result = ledger.render_ledger(rows, "fixture-digest")
     assert "Supplied request count: 3" in result

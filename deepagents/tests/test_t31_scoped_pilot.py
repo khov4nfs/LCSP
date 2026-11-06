@@ -92,7 +92,10 @@ def test_utf8_measurement_covers_system_messages_and_real_tool_schemas():
         return path
     model = native()
     req = request(model, "ứng dụng")
-    req = req.override(tools=[StructuredTool.from_function(read_selection)])
+    req = req.override(tools=[StructuredTool.from_function(
+        read_selection,
+        description="Return the provided source path for this test's serialized tool schema measurement.",
+    )])
     measured = measure_request(req)
     assert measured["messageCount"] == 2 and measured["toolCount"] == 1
     assert measured["framingUnits"] == 1024 + 2 * 128 + 256
@@ -308,6 +311,33 @@ def isolated_routing_project(monkeypatch, tmp_path):
     return source, directory
 
 
+@pytest.fixture
+def isolated_runtime_project(isolated_routing_project, monkeypatch):
+    """Provide representative source/build bytes without requiring an API build for digest unit tests."""
+    source, directory = isolated_routing_project
+    project = source.parents[2]
+    files = {
+        "deepagents/assessment_root/agent.py": "# Root source fixture\n",
+        "deepagents/middleware/admission.py": "# Admission source fixture\n",
+        "deepagents/orchestration/runtime.py": "# Runtime source fixture\n",
+        "deepagents/tools/common/tool.py": "# Tool source fixture\n",
+        "apps/api/dist/main.js": "export const apiFixture = true;\n",
+        "packages/contracts/dist/index.js": "export const contractFixture = true;\n",
+        "deepagents/model_policy.py": "# Model policy source fixture\n",
+        "deepagents/provider_credentials.py": "# Credential boundary source fixture\n",
+        "deepagents/assessment_root/instructions.md": "# Reviewed Root instructions fixture\n",
+        "deepagents/scripts/run_t31_scoped_pilot.py": "# Pilot source fixture\n",
+        "deepagents/scripts/t31_native_runtime.py": "# Native runtime wrapper fixture\n",
+    }
+    for relative, body in files.items():
+        target = project / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(source))
+    load_model_routes.cache_clear()
+    return project, directory
+
+
 def test_default_route_selection_keeps_project_bindings_and_creates_no_copy(isolated_routing_project):
     source, directory = isolated_routing_project
     original = source.read_bytes()
@@ -434,11 +464,12 @@ def test_selected_google_route_binds_real_native_models_and_frozen_budget(monkey
             asyncio.run(model.client.aio.aclose())
 
 
-def test_runtime_digest_defaults_match_and_selected_copy_bytes_are_bound(monkeypatch, tmp_path):
+def test_runtime_digest_defaults_match_and_selected_copy_bytes_are_bound(monkeypatch, isolated_runtime_project):
+    _, directory = isolated_runtime_project
     default_digest = runtime_code_digest()
     monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE")
     assert runtime_code_digest() == default_digest
-    profile = select_pilot_routes(tmp_path, "fallback-01")
+    profile = select_pilot_routes(directory, "fallback-01")
     assert runtime_code_digest() == default_digest
     monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", profile["routesFile"])
     selected_digest = runtime_code_digest()
@@ -449,9 +480,12 @@ def test_runtime_digest_defaults_match_and_selected_copy_bytes_are_bound(monkeyp
 
 
 @pytest.mark.parametrize("drift", ["bytes", "missing", "symlink"])
-def test_selected_copy_drift_is_denied_by_runtime_admission_before_dispatch(monkeypatch, tmp_path, drift):
+def test_selected_copy_drift_is_denied_by_runtime_admission_before_dispatch(
+    monkeypatch, tmp_path, isolated_runtime_project, drift,
+):
     import scripts.run_t31_scoped_pilot as pilot
-    profile = select_pilot_routes(tmp_path, "fallback-01")
+    project, directory = isolated_runtime_project
+    profile = select_pilot_routes(directory, "fallback-01")
     monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", profile["routesFile"])
     load_model_routes.cache_clear()
     model = native("fallback-01")
@@ -466,7 +500,7 @@ def test_selected_copy_drift_is_denied_by_runtime_admission_before_dispatch(monk
         target.unlink()
     else:
         target.unlink()
-        target.symlink_to(DEFAULT_ROUTES_FILE)
+        target.symlink_to(project / "deepagents/config/model_routes.yaml")
     try:
         with pytest.raises(PaidAdmissionError, match="RUNTIME_CODE_CHANGED"):
             state.admission.admit("changed-copy", identity)
@@ -480,25 +514,20 @@ def test_selected_copy_drift_is_denied_by_runtime_admission_before_dispatch(monk
         asyncio.run(model.client.aio.aclose())
 
 @pytest.mark.parametrize("drift", ["bytes", "missing"])
-def test_root_instruction_drift_is_denied_before_provider_dispatch(monkeypatch, tmp_path, drift):
+def test_root_instruction_drift_is_denied_before_provider_dispatch(tmp_path, isolated_runtime_project, drift):
     import scripts.run_t31_scoped_pilot as pilot
 
+    project, _ = isolated_runtime_project
     model = native("fallback-01")
     state = state_for(tmp_path, model)
     state.admission.runtime_code_sha256 = runtime_code_digest()
     identity = request_identity(model, SALT)
     token = pilot._INPUT_MEASUREMENT.set(measure_request(request(model)))
-    instructions = pilot.ROOT / "deepagents/assessment_root/instructions.md"
-    original_read = Path.read_bytes
-
-    def changed_instruction_bytes(path):
-        if path == instructions:
-            if drift == "missing":
-                raise FileNotFoundError("reviewed Root instructions are unavailable")
-            return original_read(path) + b"\\nChanged instruction after review.\\n"
-        return original_read(path)
-
-    monkeypatch.setattr(Path, "read_bytes", changed_instruction_bytes)
+    instructions = project / "deepagents/assessment_root/instructions.md"
+    if drift == "missing":
+        instructions.unlink()
+    else:
+        instructions.write_bytes(instructions.read_bytes() + b"\nChanged instruction after review.\n")
     try:
         with pytest.raises(PaidAdmissionError, match="RUNTIME_CODE_CHANGED"):
             state.admission.admit("changed-instructions", identity)
@@ -510,3 +539,14 @@ def test_root_instruction_drift_is_denied_before_provider_dispatch(monkeypatch, 
         pilot._INPUT_MEASUREMENT.reset(token)
         model.client.close()
         asyncio.run(model.client.aio.aclose())
+
+
+
+@pytest.mark.parametrize("relative", ["apps/api/dist", "packages/contracts/dist"])
+def test_runtime_digest_rejects_missing_built_roots(isolated_runtime_project, relative):
+    project, _ = isolated_runtime_project
+    runtime_code_digest()
+    built_root = project / relative
+    built_root.rename(built_root.with_name("dist-unavailable"))
+    with pytest.raises(ValueError, match="required built runtime is unavailable"):
+        runtime_code_digest()

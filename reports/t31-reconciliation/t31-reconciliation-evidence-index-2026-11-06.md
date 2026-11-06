@@ -4,11 +4,13 @@
 
 Bộ tích hợp này đối chiếu toàn bộ thay đổi cục bộ đã thu thập với `develop` tại `711ad063878c034db57662feb53852a69bddb14d`, trên nền nhánh PR tại `fbaf95713625165f5f91326d2a557bbcac4d711f`. Manifest ban đầu có 120 tệp; ảnh chụp làm việc hiện tại có thêm hai kiểm thử web, thành **122 tệp đầu vào**. Các tệp hỗ trợ, kiểm thử và chỉ mục mới được tạo trong lượt tích hợp nằm ngoài con số đầu vào đó.
 
-Tất cả 122 đường dẫn đầu vào được liệt kê trong [bản kê máy đọc](../implementation-artifacts/t31-reconciliation-evidence-index-20261106.json). Bộ này giữ cả mã nguồn cần đối chiếu, tài liệu và lịch sử kiểm chứng; phạm vi không bị giới hạn vào danh sách 10 tệp của PR trước.
+Tất cả 122 đường dẫn đầu vào được liệt kê trong [bản kê máy đọc](t31-reconciliation-evidence-index-20261106.json). Bộ này giữ cả mã nguồn cần đối chiếu, tài liệu và lịch sử kiểm chứng; phạm vi không bị giới hạn vào danh sách 10 tệp của PR trước.
 
 **Các báo cáo lịch sử không chứng nhận bản tích hợp hiện tại hoặc một lần chạy T31 mới.** Những chữ `PASS`, `COMPLETE`, `SUCCEEDED`, số lượng kiểm thử và kết luận pháp lý bên trong các tài liệu cũ chỉ mô tả hoặc khẳng định kết quả ở thời điểm được ghi. Các giới hạn về phạm vi nguồn, bằng chứng và đánh giá pháp lý được ghi rõ bên dưới. Lượt đối chiếu này không chạy mô hình trả phí, không tự trả lời HITL, không tăng ngân sách, không đặt lại sổ sử dụng và không kích hoạt candidate Rule Set.
 
 ## Cách đọc lịch sử được giữ lại
+
+Các bằng chứng lịch sử nằm trong `reports/t31-history/`, giữ cấu trúc đường dẫn gốc bên dưới. Trường `publishedPath` trong bản kê ánh xạ từng đường dẫn đầu vào sang vị trí công bố. Đây là vị trí báo cáo lịch sử đã được quy ước sẵn trong repo; bộ kiểm tra thuật ngữ và các quy tắc phân loại không thay đổi.
 
 Có **29 tệp bằng chứng lịch sử** trong đầu vào. **28 tệp được giữ nguyên từng byte**. Một báo cáo đã thay đúng hai lần xuất hiện của email tài khoản khách hàng bằng `[REDACTED_CUSTOMER_ACCOUNT]`; nội dung đánh giá còn lại được giữ nguyên. Bản kê máy đọc ghi SHA256 gốc, SHA256 được công bố và loại bằng chứng của từng tệp.
 
@@ -22,7 +24,7 @@ Có **29 tệp bằng chứng lịch sử** trong đầu vào. **28 tệp đư�
 | Kiểm chứng kỹ thuật Phase 2, nâng cấp và các mốc ngày 04/11 | Các tài liệu `t31-phase2-*`, `t31-next-milestones-*` và các receipt JSON tương ứng | Bằng chứng kỹ thuật lịch sử trên dữ liệu đại diện, mô hình lập sẵn và mã nguồn được ghi trong receipt. Số migrations và số assertions cũ không phải số của develop hiện tại. |
 | Preflight và các pilot ngày 04–06/11 | Các tài liệu `t31-live-preflight-*`, `t31-live-pilot-*`, `t31-google-pilot-*`, `t31-compact-context-*` và receipt JSON tương ứng | Giữ các lỗi/điểm dừng thực tế: Docker hoặc chuẩn bị nguồn, allowance nhà cung cấp, admission và giới hạn input. Những receipt này ghi `semanticAcceptance: NOT_EVALUATED`; không được diễn giải thành nghiệm thu 243 rule. |
 
-[Hướng dẫn xuất Assessment Session JSON](assessment-session-json-export.md) là tài liệu tính năng hiện tại, được cập nhật cùng API/CLI xuất dữ liệu. Tài liệu đó không thuộc 29 tệp lịch sử bất biến.
+[Hướng dẫn xuất Assessment Session JSON](../../docs/implementation/assessment-session-json-export.md) là tài liệu tính năng hiện tại, được cập nhật cùng API/CLI xuất dữ liệu. Tài liệu đó không thuộc 29 tệp lịch sử bất biến.
 
 ## Các thay đổi tương thích cần thiết cho pilot
 
@@ -86,6 +88,14 @@ Lượt HITL `r6` kết thúc thành công lúc **2026-11-06 13:40:23 UTC**, exi
 Các log và receipt cục bộ ở `.cache/t31/reconcile-all-20261106/`; các hash trên ràng buộc kết quả vào đúng đầu vào và bằng chứng đã quan sát. Chúng không thay thế CI của commit được công bố.
 
 Ca `GRACEFUL_FAILED_REVIEW_CHECKPOINT_RETRY` kiểm tra **phục hồi qua transport trong fixture không gọi nhà cung cấp**. Với trạng thái legacy `FAILED` + `WAITING_FOR_HUMAN`, các route owner/UI hiện có chưa cung cấp thao tác retry này. Fixture phải chứng minh demand đã tiêu thụ bị từ chối, sau đó tạo một command tổng hợp mới theo mẫu transport của fixture và đi qua reserve/claim thông thường. Nó không mở lại demand cũ, sửa trạng thái case, checkpoint hoặc câu trả lời. Kết quả kỹ thuật của ca này không chứng nhận một luồng retry dành cho người dùng đã tồn tại.
+
+### Kiểm tra sau khi đẩy bản tích hợp
+
+CI của commit đầu tiên đã chạy thành công 23 bài Chromium, gồm tải attachment một lần với cookie phiên, đúng bytes, dọn anchor tạm và không có lỗi trang/console. [Log job trình duyệt](https://github.com/khov4nfs/LCSP/actions/runs/42227960449/job/127926266301) gắn với commit được ghi trong bản kê.
+
+Các lỗi CI đã được sửa và kiểm chứng lại: 91 test API PASS; typecheck, build và ESLint toàn bộ 840 tệp API PASS, không lỗi/cảnh báo; 88 test scoped/native pilot PASS, cùng sáu ca digest cũ chạy được khi checkout không có API build. Production vẫn từ chối thiếu artifact build; các test digest dùng cây fixture riêng và có hai ca từ chối build root thiếu.
+
+Báo cáo lịch sử được đặt đúng vùng báo cáo đã có của repository. Bộ kiểm tra thuật ngữ không đổi: 3.075 tệp được quét, không có lỗi thuật ngữ hiện hành; canary thuật ngữ cũ vẫn bị từ chối. Các byte lịch sử và ngoại lệ lược bỏ email đã ghi ở trên vẫn giữ nguyên.
 
 Các tệp log chi tiết được giữ trong vùng kiểm chứng cục bộ; bản kê máy đọc ghi loại kiểm tra và phạm vi. CI và receipt tích hợp cuối của nhánh là nguồn trạng thái cho toàn bộ thay đổi, bao gồm các phần API/Web/source do các nhóm tương ứng kiểm tra.
 

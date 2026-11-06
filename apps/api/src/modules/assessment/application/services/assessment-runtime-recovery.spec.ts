@@ -1196,13 +1196,19 @@ describe("unknown response review on the existing native thread", () => {
       assessmentId: f.assessmentId,
       status: RULE_AUDIT_STATUSES.WAITING_FOR_CUSTOMER,
     };
-    const membership = jest.fn(async () => [{ assessmentRuleId: "RULE-A" }]);
+    const membership = jest
+      .fn<() => Promise<Array<{ assessmentRuleId: string }>>>()
+      .mockResolvedValue([{ assessmentRuleId: "RULE-A" }]);
     Object.assign(f.tx, {
       assessmentRuleAuditItem: { findMany: membership },
       assessmentRuleAuditRequest: {
-        findUnique: jest.fn(async () => audit),
-        findUniqueOrThrow: jest.fn(async () => audit),
-        update: jest.fn(async () => audit),
+        findUnique: jest
+          .fn<() => Promise<typeof audit>>()
+          .mockResolvedValue(audit),
+        findUniqueOrThrow: jest
+          .fn<() => Promise<typeof audit>>()
+          .mockResolvedValue(audit),
+        update: jest.fn<() => Promise<typeof audit>>().mockResolvedValue(audit),
       },
     });
     return { ...f, auditRequestId, membership };

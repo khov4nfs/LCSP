@@ -98,83 +98,97 @@ function fixture() {
     connection: { provider: CredentialProvider.GITHUB },
   };
   const provenance = {
-    load: jest.fn(async () => source),
+    load: jest.fn(() => Promise.resolve(source)),
   };
-  const reports = { load: jest.fn(async () => null) };
+  const reports = { load: jest.fn(() => Promise.resolve(null)) };
   const prisma = {
     assessment: {
-      findUnique: jest.fn(async () => ({
-        id: assessmentId,
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-        updatedAt: new Date("2026-11-01T02:00:00.000Z"),
-        // A newer snapshot must never label an earlier pinned assessment.
-        repositorySnapshots: [
-          {
-            id: "newer-snapshot",
-            repositoryFullName: "org/newer-repo",
-            commitSha: "b".repeat(40),
-            branch: "next",
-          },
-        ],
-      })),
-    },
-    repositorySnapshot: {
-      findFirst: jest.fn(
-        async (_args: Prisma.RepositorySnapshotFindFirstArgs) => snapshot,
+      findUnique: jest.fn(() =>
+        Promise.resolve({
+          id: assessmentId,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+          updatedAt: new Date("2026-11-01T02:00:00.000Z"),
+          // A newer snapshot must never label an earlier pinned assessment.
+          repositorySnapshots: [
+            {
+              id: "newer-snapshot",
+              repositoryFullName: "org/newer-repo",
+              commitSha: "b".repeat(40),
+              branch: "next",
+            },
+          ],
+        }),
       ),
     },
+    repositorySnapshot: {
+      findFirst: jest
+        .fn<
+          (
+            args: Prisma.RepositorySnapshotFindFirstArgs,
+          ) => Promise<typeof snapshot | null>
+        >()
+        .mockResolvedValue(snapshot),
+    },
     assessmentRuntimeTurn: {
-      findMany: jest.fn(async () => [
-        {
-          id: "turn-1",
-          logicalRunId: "run-1",
-          threadId: "thread-1",
-          state: "COMPLETED",
-          createdAt: new Date("2026-11-01T00:00:00.000Z"),
-          updatedAt: new Date("2026-11-01T00:30:00.000Z"),
-        },
-      ]),
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            id: "turn-1",
+            logicalRunId: "run-1",
+            threadId: "thread-1",
+            state: "COMPLETED",
+            createdAt: new Date("2026-11-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-11-01T00:30:00.000Z"),
+          },
+        ]),
+      ),
     },
     assessmentRuntimeEvent: {
-      findMany: jest.fn(async () => [
-        {
-          runId: "run-1",
-          sequence: 1,
-          toolName: "agent_stream_semantic",
-          durationMs: 100,
-          outputSummaryJson: {
-            agentStreamEvent: {
-              eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.toolResult,
-              toolName: "read_file",
-              toolCallId: "call-1",
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            runId: "run-1",
+            sequence: 1,
+            toolName: "agent_stream_semantic",
+            durationMs: 100,
+            outputSummaryJson: {
+              agentStreamEvent: {
+                eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.toolResult,
+                toolName: "read_file",
+                toolCallId: "call-1",
+              },
             },
           },
-        },
-      ]),
+        ]),
+      ),
     },
     llmUsageEvent: {
-      findMany: jest.fn(async () => [
-        {
-          status: LLM_USAGE_STATUSES.SETTLED,
-          provider: "anthropic",
-          model: "fixture-model",
-          inputTokens: 1000n,
-          outputTokens: 500n,
-          totalTokens: 1500n,
-        },
-      ]),
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            status: LLM_USAGE_STATUSES.SETTLED,
+            provider: "anthropic",
+            model: "fixture-model",
+            inputTokens: 1000n,
+            outputTokens: 500n,
+            totalTokens: 1500n,
+          },
+        ]),
+      ),
     },
     assessmentEvent: {
-      findMany: jest.fn(async () => [
-        {
-          eventType:
-            AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
-          payload: { toState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE },
-          timestamp: new Date("2026-11-01T02:00:00.000Z"),
-        },
-      ]),
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            eventType:
+              AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
+            payload: { toState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE },
+            timestamp: new Date("2026-11-01T02:00:00.000Z"),
+          },
+        ]),
+      ),
     },
-    assessmentRule: { findMany: jest.fn(async () => []) },
+    assessmentRule: { findMany: jest.fn(() => Promise.resolve([])) },
   };
   const loader = new AssessmentSessionExportLoader(
     prisma as never,
@@ -244,7 +258,7 @@ describe("AssessmentSessionExportLoader", () => {
 
   it("fails closed when the provenance-pinned snapshot is missing", async () => {
     const f = fixture();
-    f.prisma.repositorySnapshot.findFirst.mockResolvedValueOnce(null as never);
+    f.prisma.repositorySnapshot.findFirst.mockResolvedValueOnce(null);
     await expect(f.loader.load(f.input)).rejects.toThrow();
   });
 

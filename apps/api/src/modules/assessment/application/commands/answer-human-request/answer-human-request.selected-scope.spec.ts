@@ -73,82 +73,92 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
     );
   const tx = {
     assessmentRuleAuditItem: {
-      findMany: jest.fn(async () =>
-        selectedRules.map((assessmentRuleId) => ({ assessmentRuleId })),
+      findMany: jest.fn(() =>
+        Promise.resolve(
+          selectedRules.map((assessmentRuleId) => ({ assessmentRuleId })),
+        ),
       ),
     },
     assessmentHumanRequest: {
-      findFirst: jest.fn(async () => request),
-      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) =>
-        Object.assign(request, data),
+      findFirst: jest.fn(() => Promise.resolve(request)),
+      update: jest.fn(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve(Object.assign(request, data)),
       ),
-      count: jest.fn(
-        async ({ where }: { where: RequestFilter }) => matching(where).length,
+      count: jest.fn(({ where }: { where: RequestFilter }) =>
+        Promise.resolve(matching(where).length),
       ),
-      findMany: jest.fn(async ({ where }: { where: RequestFilter }) =>
-        matching(where),
+      findMany: jest.fn(({ where }: { where: RequestFilter }) =>
+        Promise.resolve(matching(where)),
       ),
     },
     assessmentHumanRequestDependency: {
       count: jest.fn(
-        async ({
+        ({
           where,
         }: {
           where: { assessmentRuleId: string; request: { status: string } };
         }) =>
-          requests.filter(
-            (row: RequestRow) =>
-              row.status === where.request.status &&
-              row.dependencies.some(
-                (dependency) =>
-                  dependency.assessmentRuleId === where.assessmentRuleId,
-              ),
-          ).length,
+          Promise.resolve(
+            requests.filter(
+              (row: RequestRow) =>
+                row.status === where.request.status &&
+                row.dependencies.some(
+                  (dependency) =>
+                    dependency.assessmentRuleId === where.assessmentRuleId,
+                ),
+            ).length,
+          ),
       ),
     },
-    assessmentCase: { update: jest.fn(async () => ({})) },
-    assessmentEvidence: { create: jest.fn(async () => ({})) },
-    assessmentCaseFact: { create: jest.fn(async () => ({})) },
-    assessmentCaseFactEvidence: { create: jest.fn(async () => ({})) },
+    assessmentCase: { update: jest.fn(() => Promise.resolve({})) },
+    assessmentEvidence: { create: jest.fn(() => Promise.resolve({})) },
+    assessmentCaseFact: { create: jest.fn(() => Promise.resolve({})) },
+    assessmentCaseFactEvidence: { create: jest.fn(() => Promise.resolve({})) },
     assessmentDecisionCoverage: {
-      updateMany: jest.fn(
-        async (_args: Prisma.AssessmentDecisionCoverageUpdateManyArgs) => ({
-          count: 1,
-        }),
-      ),
+      updateMany: jest
+        .fn<
+          (
+            args: Prisma.AssessmentDecisionCoverageUpdateManyArgs,
+          ) => Promise<{ count: number }>
+        >()
+        .mockResolvedValue({ count: 1 }),
     },
   };
-  const outbox = { enqueue: jest.fn(async () => ({})) };
-  const coordinator = { transitionVerifiedInTx: jest.fn(async () => ({})) };
+  const outbox = { enqueue: jest.fn(() => Promise.resolve({})) };
+  const coordinator = {
+    transitionVerifiedInTx: jest.fn(() => Promise.resolve({})),
+  };
   const handler = new AnswerHumanRequestHandler(
     { $transaction: (run: (value: typeof tx) => unknown) => run(tx) } as never,
     {
-      requireOwner: async () => ({
-        ownerId,
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN,
-        lifecycleRevision: 1,
-        blockerReason: null,
-        blockerReference: null,
-        runtime: {
-          threadId,
-          checkpointId,
-          currentAuditRequestId: auditRequestId,
-          executionState: AGENT_EXECUTION_STATES.INTERRUPTED,
-        },
-      }),
+      requireOwner: () =>
+        Promise.resolve({
+          ownerId,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN,
+          lifecycleRevision: 1,
+          blockerReason: null,
+          blockerReference: null,
+          runtime: {
+            threadId,
+            checkpointId,
+            currentAuditRequestId: auditRequestId,
+            executionState: AGENT_EXECUTION_STATES.INTERRUPTED,
+          },
+        }),
     } as never,
     {
-      lockCase: async () => undefined,
-      loadPins: async () => ({
-        caseRevision: 3,
-        repositoryCommit: "a".repeat(40),
-      }),
+      lockCase: () => Promise.resolve(undefined),
+      loadPins: () =>
+        Promise.resolve({
+          caseRevision: 3,
+          repositoryCommit: "a".repeat(40),
+        }),
     } as never,
-    { appendInTx: async () => undefined } as never,
-    { invalidateCaseRevisionInTx: async () => [] } as never,
+    { appendInTx: () => Promise.resolve(undefined) } as never,
+    { invalidateCaseRevisionInTx: () => Promise.resolve([]) } as never,
     coordinator as never,
     outbox as never,
-    { writeInTx: async () => undefined } as never,
+    { writeInTx: () => Promise.resolve(undefined) } as never,
   );
   const input = (doesNotKnow: boolean) =>
     ({
