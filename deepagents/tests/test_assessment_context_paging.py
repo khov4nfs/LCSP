@@ -460,16 +460,7 @@ def _description_probe_tool(name, calls, *, return_direct):
 
     return StructuredTool.from_function(
         func=sync_probe, coroutine=async_probe, name=name,
-        description=(
-            "Offline contract probe for middleware tests. Given a non-empty pattern, record "
-            "whether the synchronous or asynchronous callable ran and return a deterministic "
-            "mapping containing the probe name, unchanged pattern, and whether it equals literal. "
-            "The probe reads no repository files, writes no customer state, uses no credentials, "
-            "and calls no external service. Tests compare original and description-projected "
-            "tools across both native loop-control modes. The argument schema, callable identities, "
-            "metadata, tags, validation handling, response format and returned values must remain "
-            "identical after projecting the shorter model-facing description."
-        ),
+        description='Offline contract probe for middleware tests. Given a non-empty pattern, record whether the synchronous or asynchronous callable ran and return a deterministic mapping containing the probe name, unchanged pattern, and whether it equals literal. The probe reads no repository files, writes no customer state, uses no credentials, and calls no external service. Tests compare original and description-projected tools across both native loop-control modes. The argument schema, callable identities, metadata, tags, validation handling, response format and returned values must remain identical after projecting the shorter model-facing description.',
         args_schema=DescriptionProbeArgs, return_direct=return_direct,
         metadata={"authority": "source", "tool": name}, tags=["source-read"],
         handle_validation_error=invalid_pattern, handle_tool_error=True,
