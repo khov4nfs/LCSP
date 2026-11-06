@@ -236,8 +236,11 @@ def main() -> int:
         return graph_config
 
     assessment_root_runner.agent_graph_config = capture_graph_config
+    print("PHASE_START CHECKPOINT_SETUP", flush=True)
     with PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
         saver.setup()
+        print("PHASE_COMPLETE CHECKPOINT_SETUP", flush=True)
+        print("PHASE_START AGENT_RUNTIME_WAIT", flush=True)
         result = run_assessment_root(
             client,
             assessment_id,
@@ -246,6 +249,8 @@ def main() -> int:
             checkpointer=saver,
             governance=(),
         )
+        print("PHASE_COMPLETE AGENT_RUNTIME_WAIT", flush=True)
+    print("PHASE_COMPLETE CHECKPOINT_SHUTDOWN", flush=True)
     print(json.dumps({"result": result, "captured": captured, "remainingSteps": len(model.steps)}))
     return 0
 

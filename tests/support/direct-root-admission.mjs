@@ -19,6 +19,7 @@ export function directRootAdmissionFixture({
   databaseUrl,
   workerKey,
   apiDir,
+  requestTimeoutMs = 0,
 }) {
   const q = async (sql, values) => (await query(sql, values)).rows;
   const target = new URL(databaseUrl);
@@ -43,9 +44,37 @@ export function directRootAdmissionFixture({
   let reporting = Promise.resolve();
   const manualRuns = new Map();
 
+  async function timedFetch(phase, url, options) {
+    const requestOptions = requestTimeoutMs
+      ? { ...options, signal: AbortSignal.timeout(requestTimeoutMs) }
+      : options;
+    if (requestTimeoutMs) {
+      console.log(
+        `[ASSESSMENT_VERTICAL] START HTTP_REQUEST_WAIT ${phase} deadlineMs=${requestTimeoutMs}`,
+      );
+    }
+    try {
+      const response = await fetch(url, requestOptions);
+      if (requestTimeoutMs) {
+        console.log(
+          `[ASSESSMENT_VERTICAL] COMPLETE HTTP_REQUEST_WAIT ${phase} status=${response.status}`,
+        );
+      }
+      return response;
+    } catch (error) {
+      if (requestTimeoutMs) {
+        console.error(
+          `[ASSESSMENT_VERTICAL] FAILED HTTP_REQUEST_WAIT ${phase} error=${error.name}`,
+        );
+      }
+      throw error;
+    }
+  }
+
   async function call(action, payload) {
     if (action === "report") {
-      const response = await fetch(
+      const response = await timedFetch(
+        "direct-root-capacity-registration",
         `${base}/internal/assessment-root-capacity/registration`,
         {
           headers: { "x-worker-api-key": workerKey },
@@ -56,7 +85,8 @@ export function directRootAdmissionFixture({
       assert.equal(current.ok, true);
       payload = { ...payload, expectedVersion: current.data.version };
     }
-    const response = await fetch(
+    const response = await timedFetch(
+      `direct-root-capacity-${action}`,
       `${base}/internal/assessment-root-capacity/${action}`,
       {
         method: "POST",

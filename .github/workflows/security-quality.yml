@@ -94,7 +94,8 @@ jobs:
 
   api-coverage:
     name: API coverage
-    runs-on: ubuntu-latest
+    # Match API unit tests: Ubuntu 24.04 blocks Chromium's user-namespace sandbox by default.
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -133,6 +134,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium for API coverage tests
+        run: pnpm --filter @lcsp/api exec playwright install --with-deps chromium
 
       - name: Build runtime packages
         run: pnpm run build:runtime-packages
