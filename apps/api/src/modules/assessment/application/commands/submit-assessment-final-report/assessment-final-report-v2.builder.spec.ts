@@ -95,6 +95,9 @@ function buildInput(
           id: legalSourceVersionId,
           version: "source-v1",
           integrityManifestRef: null,
+          documents: [
+            { documentId: "DOC-1", title: "Verified synthetic law title" },
+          ],
         },
       }),
     },
@@ -217,6 +220,7 @@ describe("buildAssessmentFinalReportV2", () => {
     expect(report.ruleDetails[0].sourceRefs[0]).toMatchObject({
       legalSourceVersionId,
       documentId: "DOC-1",
+      documentTitle: "Verified synthetic law title",
       locator: "article-1",
       contentSha256: hash,
     });

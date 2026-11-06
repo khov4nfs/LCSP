@@ -5,10 +5,10 @@ import {
 } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_FACT_AUTHORITIES } from "@lcsp/contracts/assessment-domain";
 import type { AssessmentReportV2Presentation } from "@lcsp/contracts/assessment-report";
+import { legalDocumentDisplayName } from "@lcsp/contracts/legal-source";
 import {
   buildReportReferenceIndex,
   criterionPresentation,
-  legalDocumentName,
   legalLocator,
   localizeReportText,
   localizedApplicability,
@@ -69,6 +69,7 @@ function legalBases(rule: RulePresentation) {
   };
   type DocumentGroup = {
     documentId: string;
+    documentTitle?: string;
     locators: Map<string, LocatorGroup>;
   };
   const documents = new Map<string, DocumentGroup>();
@@ -80,8 +81,16 @@ function legalBases(rule: RulePresentation) {
     ].join("\u0000");
     let document = documents.get(documentKey);
     if (!document) {
-      document = { documentId: source.documentId, locators: new Map() };
+      document = {
+        documentId: source.documentId,
+        ...(source.documentTitle
+          ? { documentTitle: source.documentTitle }
+          : {}),
+        locators: new Map(),
+      };
       documents.set(documentKey, document);
+    } else if (!document.documentTitle && source.documentTitle) {
+      document.documentTitle = source.documentTitle;
     }
     const article = source.locator.match(/(?:^|::)art-(\d+)/u)?.[1];
     const clause = source.locator.match(/(?:^|::)cl-(\d+)/u)?.[1];
@@ -126,7 +135,7 @@ function legalBases(rule: RulePresentation) {
         ? `${base} (bao gồm ${pointText})`
         : `${base}, ${pointText}`;
     });
-    return `${legalDocumentName(document.documentId)} — ${locators.join("; ")}.`;
+    return `${legalDocumentDisplayName(document.documentId, document.documentTitle)} — ${locators.join("; ")}.`;
   });
 }
 

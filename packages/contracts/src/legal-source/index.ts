@@ -5,5 +5,6 @@ export * from "./risk-levels.ts";
 export * from "./statuses.ts";
 export * from "./management.ts";
 export * from "./document-graph.ts";
+export * from "./document-display.ts";
 
 export * from "./review-frontier.ts";

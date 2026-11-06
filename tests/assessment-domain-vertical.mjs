@@ -41,7 +41,7 @@ import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/as
 import {
   contentHash,
   root,
-  runPython,
+  runPython as runPythonUnbounded,
   startStack,
   workerKey,
 } from "./support/compliance-rule-set-stack.mjs";
@@ -54,6 +54,56 @@ const {
   AssessmentArtifactKind,
 } = requireApi("@prisma/client");
 const { PDFParse } = requireApi("pdf-parse");
+
+const PYTHON_PHASE_DEADLINE_MS = 10 * 60 * 1000;
+const HTTP_PHASE_DEADLINE_MS = 60 * 1000;
+const PDF_PHASE_DEADLINE_MS = 3 * 60 * 1000;
+let activePhase = "SCRIPT_SETUP";
+const logPhase = (phase, state, detail = "") => {
+  if (state === "START") activePhase = phase;
+  console.log(
+    `[ASSESSMENT_VERTICAL] ${state} ${phase}${detail ? ` ${detail}` : ""}`,
+  );
+};
+const runPython = (script, args, options = {}) => {
+  const phase = path.basename(script);
+  const timeoutMs = options.timeoutMs ?? PYTHON_PHASE_DEADLINE_MS;
+  const ownedProcessGroup =
+    options.ownedProcessGroup ?? process.platform !== "win32";
+  logPhase(`PYTHON_SUBPROCESS_WAIT:${phase}`, "START", `deadlineMs=${timeoutMs}`);
+  return runPythonUnbounded(script, args, {
+    ...options,
+    timeoutMs,
+    ownedProcessGroup,
+  })
+    .then((result) => {
+      logPhase(`PYTHON_SUBPROCESS_WAIT:${phase}`, "COMPLETE");
+      return result;
+    })
+    .catch((error) => {
+      logPhase(`PYTHON_SUBPROCESS_WAIT:${phase}`, "FAILED", `error=${error.name}`);
+      throw error;
+    });
+};
+async function fetchWithDeadline(
+  phase,
+  url,
+  options = {},
+  timeoutMs = HTTP_PHASE_DEADLINE_MS,
+) {
+  logPhase(`HTTP_REQUEST_WAIT:${phase}`, "START", `deadlineMs=${timeoutMs}`);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: options.signal ?? AbortSignal.timeout(timeoutMs),
+    });
+    logPhase(`HTTP_REQUEST_WAIT:${phase}`, "COMPLETE", `status=${response.status}`);
+    return response;
+  } catch (error) {
+    logPhase(`HTTP_REQUEST_WAIT:${phase}`, "FAILED", `error=${error.name}`);
+    throw error;
+  }
+}
 
 const database = process.env.LCSP_ASSESSMENT_TEST_DATABASE ?? "lcsp_assessment_vertical";
 assert.match(database, /^lcsp_assessment_[a-z0-9_]+$/);
@@ -168,6 +218,7 @@ const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, 
   database,
   apiPort,
   checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
+  operationTimeoutMs: 2 * 60 * 1000,
 });
 const { hashSecret } = await import(
   pathToFileURL(
@@ -184,16 +235,20 @@ const { canonicalJson } = await import(
 async function http(method, route, { body, token, worker, lease } = {}) {
   const claim = route.match(/^\/internal\/assessment-runtime\/([^/]+)\/claim$/);
   if (claim && worker !== false) body = await admission.prepare(claim[1], body, { manual: true });
-  const response = await fetch(`${base}${route}`, {
-    method,
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(worker === false ? {} : { "x-worker-api-key": workerKey }),
-      ...(lease ? { "x-assessment-lease": lease } : {}),
+  const response = await fetchWithDeadline(
+    `${method} ${route.split("?")[0]}`,
+    `${base}${route}`,
+    {
+      method,
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(worker === false ? {} : { "x-worker-api-key": workerKey }),
+        ...(lease ? { "x-assessment-lease": lease } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  );
   if (response.ok && route.endsWith("/finish")) await admission.finishManual(route.split("/")[3]);
   return {
     status: response.status,
@@ -210,7 +265,9 @@ const customerHttp = (method, route, token, body) =>
   http(method, route, { body, token, worker: false });
 
 try {
+  logPhase("DATABASE_AND_API_READY", "COMPLETE");
   // ---- compliance rule set P1 (legalSource A) through the real COMPLIANCE_RULE_SET path ---------------------------------
+  logPhase("RULE_SET_P1", "START");
   const seedLegalSourceVersion = (name, variant, status) => {
     const sourceBytes = Buffer.from(LOCATORS.map((locator) => contentFor(locator, variant)).join("\n") + "\n", "utf8");
     const lines = sourceBytes.toString("utf8").split("\n");
@@ -443,6 +500,7 @@ try {
   );
 
   // ---- the REAL Root on assessment A -------------------------------------------------------------
+  logPhase("ASSESSMENT_ROOT_INITIAL", "START");
   const script = path.join(root, "deepagents/tests/vertical/scripted_root.py");
   const rootOptions = {
     env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: checkpointDatabaseUrl },
@@ -537,6 +595,7 @@ try {
   eq(facts, [{ kind: "USE_CASE", authority: "EVIDENCE_CITED", rev: 1 }]);
 
   // ---- events: one ordered stream, one thread, researcher lineage -------------------------------
+  logPhase("ROOT_EVENT_AND_RESEARCHER_CHECKS", "START");
   const events = (
     await q(
       `SELECT sequence, "eventType" AS type, "actorType" AS actor, "threadId" AS thread, "executionId" AS exec, "parentExecutionId" AS parent, "taskId" AS task FROM "AssessmentEvent" WHERE "assessmentId"=$1 ORDER BY sequence`,
@@ -575,6 +634,7 @@ try {
   );
 
   // ---- restart: retain native state on the SAME thread and reload server authority -----------
+  logPhase("ASSESSMENT_ROOT_RESUME", "START");
   const failedCheckpoint = (await q(
     `SELECT "checkpointId" AS checkpoint FROM "AssessmentRuntime" WHERE "assessmentId"=$1`,
     [A.id],
@@ -644,6 +704,7 @@ try {
   );
 
   // ---- selected batches: one rule result is visible, then a fresh request adds another ----------
+  logPhase("SELECTED_RULE_BATCHES", "START");
   const legalSourceTwenty = await seedLegalSourceVersion(
     "assessment-twenty-rule",
     "a",
@@ -794,6 +855,7 @@ try {
   ]);
 
   // ---- isolation: B has its own thread, namespace and lease; A's data is invisible to it ---------
+  logPhase("ASSESSMENT_ISOLATION", "START");
   const B = await newAssessment("ASSESSMENT vertical B");
   await q(
     `UPDATE "AssessmentCase" SET "auditMode"='LEGACY_FULL' WHERE "assessmentId"=$1`,
@@ -978,6 +1040,7 @@ try {
   );
 
   // ---- legal basis supersession: A keeps its pin, a NEW assessment pins the new ACTIVE rule set -
+  logPhase("LEGAL_SOURCE_SUPERSESSION", "START");
   const ruleSet2 = await prepareRuleSet(legalSourceB);
   ok(ruleSet2 !== ruleSet1, "new ruleSet");
   const C = await newAssessment("ASSESSMENT vertical C");
@@ -1012,6 +1075,7 @@ try {
   // a completed selected request cannot issue another worker lease for readback.
 
   // ---- database guarantees on the real migrated schema ------------------------------------------
+  logPhase("DATABASE_INTEGRITY_CHECKS", "START");
   const rejects = async (label, text, values, pattern) => {
     await assert.rejects(
       () => q(text, values),
@@ -1126,6 +1190,7 @@ try {
   );
 
   // ---- ASSESSMENT Completion Gate and immutable Root-authored report ------------------------------------
+  logPhase("FINAL_REPORT_AND_COMPLETION", "START");
   const finalizer = (await runtime(A.id, "claim")).body.data;
   ok(finalizer.leaseToken, "Root lease is required for finalization");
   const finalization = await runtime(A.id, "finalization", {
@@ -1209,7 +1274,12 @@ try {
     artifact.hash.replace(/^sha256:/u, ""),
   );
   // BROWSER customer consumer: exact immutable bytes and canonical read state, with no report generation.
-  const download = await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/download`, { headers: { authorization: `Bearer ${owner.token}` } });
+  logPhase("ARTIFACT_DOWNLOAD_AND_PDF_RENDER", "START");
+  const download = await fetchWithDeadline(
+    "ARTIFACT_DOWNLOAD",
+    `${base}/assessments/${A.id}/artifacts/${artifact.id}/download`,
+    { headers: { authorization: `Bearer ${owner.token}` } },
+  );
   eq(download.status, 200);
   eq(await download.text(), content);
   eq(download.headers.get("etag"), `"${artifact.hash.replace(/^sha256:/u, "")}"`);
@@ -1219,8 +1289,25 @@ try {
   eq(detailRead.body.data.lifecycle.state, ASSESSMENT_LIFECYCLE_STATES.COMPLETE);
   eq(detailRead.body.data.case.artifacts[0].artifactId, artifact.id);
   ok(!Object.hasOwn(detailRead.body.data, "readiness_state") && !Object.hasOwn(detailRead.body.data, "status"));
-  eq((await fetch(`${base}/assessments/${B.id}/artifacts/${artifact.id}/download`, { headers: { authorization: `Bearer ${owner.token}` } })).status, 404);
-  eq((await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/download`)).status, 401);
+  eq(
+    (
+      await fetchWithDeadline(
+        "FOREIGN_OWNER_ARTIFACT_DOWNLOAD",
+        `${base}/assessments/${B.id}/artifacts/${artifact.id}/download`,
+        { headers: { authorization: `Bearer ${owner.token}` } },
+      )
+    ).status,
+    404,
+  );
+  eq(
+    (
+      await fetchWithDeadline(
+        "UNAUTHENTICATED_ARTIFACT_DOWNLOAD",
+        `${base}/assessments/${A.id}/artifacts/${artifact.id}/download`,
+      )
+    ).status,
+    401,
+  );
   const reportArtifact = assessmentFinalReportArtifactVersionedSchema.parse(JSON.parse(content));
   eq(
     [
@@ -1290,7 +1377,12 @@ try {
   ok(reportArtifact.legalRequirements.length >= 3, "V2 preserves normalized LegalRequirements");
   ok(reportArtifact.ruleDetails.every(({ sourceRefs }) => sourceRefs.every(({ legalSourceVersionId, documentId, locator, contentSha256 }) => legalSourceVersionId && documentId === DOC && locator && /^sha256:[a-f0-9]{64}$/u.test(contentSha256))), "V2 preserves exact legal provenance");
   ok(reportArtifact.factIndex.every(({ evidenceIds }) => evidenceIds.every((id) => reportArtifact.evidenceIndex.some((evidence) => evidence.evidenceId === id))), "V2 fact/evidence indexes resolve");
-  const pdfResponse = await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/report.pdf`, { headers: { authorization: `Bearer ${owner.token}` } });
+  const pdfResponse = await fetchWithDeadline(
+    "PDF_REPORT_DOWNLOAD",
+    `${base}/assessments/${A.id}/artifacts/${artifact.id}/report.pdf`,
+    { headers: { authorization: `Bearer ${owner.token}` } },
+    PDF_PHASE_DEADLINE_MS,
+  );
   const pdfBytes = Buffer.from(await pdfResponse.arrayBuffer());
   eq(pdfResponse.status, 200);
   eq(pdfResponse.headers.get("content-type"), "application/pdf");
@@ -1306,8 +1398,28 @@ try {
     ok(pdfText.text.includes(heading) || pdfText.text.includes(heading.normalize("NFD").replace(/[\u0300-\u036f]/gu, "")), `PDF contains section ${heading}`);
   }
   for (const id of [A.id, artifact.id, "ER-RET", "LR-RET", "art-1", "source"]) ok(pdfText.text.includes(id), `PDF contains canonical identifier ${id}`);
-  eq((await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/report.pdf`)).status, 401);
-  eq((await fetch(`${base}/assessments/${B.id}/artifacts/${artifact.id}/report.pdf`, { headers: { authorization: `Bearer ${owner.token}` } })).status, 404);
+  eq(
+    (
+      await fetchWithDeadline(
+        "UNAUTHENTICATED_PDF_DOWNLOAD",
+        `${base}/assessments/${A.id}/artifacts/${artifact.id}/report.pdf`,
+        {},
+        PDF_PHASE_DEADLINE_MS,
+      )
+    ).status,
+    401,
+  );
+  eq(
+    (
+      await fetchWithDeadline(
+        "FOREIGN_OWNER_PDF_DOWNLOAD",
+        `${base}/assessments/${B.id}/artifacts/${artifact.id}/report.pdf`,
+        { headers: { authorization: `Bearer ${owner.token}` } },
+        PDF_PHASE_DEADLINE_MS,
+      )
+    ).status,
+    404,
+  );
   eq(Boolean(artifact.requestDigest), true);
   await rejects(
     "published final artifact is immutable",
@@ -1396,6 +1508,7 @@ try {
   eq(legacyCallback.status, 404);
 
   // RELEASE zero-retention DELETE uses the canonical domain records produced above.
+  logPhase("ASSESSMENT_DELETION", "START");
   const otherOwner = await customer("release-deletion-other@acme.test");
   const survivorCreated = await customerHttp("POST", "/assessments", otherOwner.token, {
     name: "Synthetic protected assessment",
@@ -1494,6 +1607,9 @@ try {
     `PASS: ${checks} ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
   );
   }
+} catch (error) {
+  logPhase(activePhase || "UNKNOWN", "FAILED", `error=${error.name}`);
+  throw error;
 } finally {
   await stop();
   rmSync(artifactStoragePath, { recursive: true, force: true });

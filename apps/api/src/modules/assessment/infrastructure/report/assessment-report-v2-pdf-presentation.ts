@@ -8,6 +8,7 @@ import {
   RULE_DECISION_CRITERION_OUTCOMES,
   RULE_DECISION_REFERENCE_TYPES,
 } from "@lcsp/contracts/assessment";
+import { legalDocumentDisplayName } from "@lcsp/contracts/legal-source";
 import type { AssessmentReportV2Presentation } from "@lcsp/contracts/assessment-report";
 
 type RulePresentation =
@@ -242,26 +243,6 @@ export function localizedEvidenceType(value: string): string {
   return localizeReportText(value) ?? VIETNAMESE_LABELS.otherEvidence;
 }
 
-const VERIFIED_LEGAL_DOCUMENT_TITLES: Readonly<Record<string, string>> = {
-  "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan":
-    "Luật Bảo vệ dữ liệu cá nhân",
-  "luat-so-116-2025-qh15-luat-an-ninh-mang": "Luật An ninh mạng",
-};
-
-export function legalDocumentName(documentId: string): string {
-  const law = documentId.match(/^luat-so-(\d+)-(\d+)-qh(\d+)\b/u);
-  if (law) {
-    const verifiedTitle = VERIFIED_LEGAL_DOCUMENT_TITLES[documentId];
-    const number = `${law[1]}/${law[2]}/QH${law[3]}`;
-    return verifiedTitle
-      ? `${verifiedTitle} số ${number}`
-      : `Luật số ${number}`;
-  }
-  const decree = documentId.match(/^nghi-dinh-so-(\d+)-(\d+)-nd-cp\b/u);
-  if (decree) return `Nghị định số ${decree[1]}/${decree[2]}/NĐ-CP`;
-  return "Tài liệu pháp lý";
-}
-
 export function legalLocator(locator: string): string {
   const parts: string[] = [];
   const article = locator.match(/(?:^|::)art-(\d+)/u);
@@ -426,7 +407,10 @@ export function buildReportReferenceIndex(
     textReference: (text) => rawTextLabels.get(text.trim()) ?? "",
     sources: [...sourceRecords.entries()].map(([key, source]) => ({
       reference: sourceLabels.get(key) ?? "",
-      documentName: legalDocumentName(source.documentId),
+      documentName: legalDocumentDisplayName(
+        source.documentId,
+        source.documentTitle,
+      ),
       locator: legalLocator(source.locator),
       sourceLocator: source.locator,
       documentId: source.documentId,

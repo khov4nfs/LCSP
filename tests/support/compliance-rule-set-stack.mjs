@@ -65,13 +65,34 @@ export async function startStack({
 
   const adminClient = new Client({
     connectionString: `postgresql://postgres:postgres@${host}:${dbPort}/postgres`,
+    ...(operationTimeoutMs
+      ? {
+          connectionTimeoutMillis: operationTimeoutMs,
+          query_timeout: operationTimeoutMs,
+          statement_timeout: operationTimeoutMs,
+        }
+      : {}),
   });
+  console.log(
+    `[ASSESSMENT_VERTICAL] START DATABASE_WAIT connect host=${host} port=${dbPort}`,
+  );
   await adminClient.connect();
+  console.log("[ASSESSMENT_VERTICAL] COMPLETE DATABASE_WAIT connect");
+  const adminQuery = async (...args) => {
+    try {
+      return await adminClient.query(...args);
+    } catch (error) {
+      console.error(
+        `[ASSESSMENT_VERTICAL] FAILED DATABASE_WAIT admin-query code=${error.code ?? "UNKNOWN"}`,
+      );
+      throw error;
+    }
+  };
   try {
     signal?.throwIfAborted();
     if (createOnlyDatabase) {
       assert.match(database, /^lcsp360_final_[a-z0-9_]+$/);
-      const existing = await adminClient.query(
+      const existing = await adminQuery(
         "SELECT 1 FROM pg_database WHERE datname=$1",
         [database],
       );
@@ -80,14 +101,14 @@ export async function startStack({
         0,
         "Create-only evaluation database already exists; preserve it",
       );
-      await adminClient.query(`CREATE DATABASE "${database}"`);
+      await adminQuery(`CREATE DATABASE "${database}"`);
     } else if (resetDatabase) {
-      await adminClient.query(
+      await adminQuery(
         `DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`,
       );
-      await adminClient.query(`CREATE DATABASE "${database}"`);
+      await adminQuery(`CREATE DATABASE "${database}"`);
     } else {
-      const existing = await adminClient.query(
+      const existing = await adminQuery(
         "SELECT 1 FROM pg_database WHERE datname=$1",
         [database],
       );
@@ -98,17 +119,18 @@ export async function startStack({
       );
     }
     if (checkpointDatabase !== database) {
-      const existing = await adminClient.query(
+      const existing = await adminQuery(
         "SELECT 1 FROM pg_database WHERE datname=$1",
         [checkpointDatabase],
       );
       if (!existing.rowCount) {
-        await adminClient.query(`CREATE DATABASE "${checkpointDatabase}"`);
+        await adminQuery(`CREATE DATABASE "${checkpointDatabase}"`);
       }
     }
   } finally {
     await adminClient.end();
   }
+  console.log("[ASSESSMENT_VERTICAL] START DATABASE_WAIT prisma-migrate-deploy");
   const migrate = spawnSync(
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["--dir", apiDir, "exec", "prisma", "migrate", "deploy"],
@@ -125,18 +147,33 @@ export async function startStack({
     0,
     `${migrate.error?.message ?? ""}\n${migrate.stdout ?? ""}${migrate.stderr ?? ""}`,
   );
+  console.log("[ASSESSMENT_VERTICAL] COMPLETE DATABASE_WAIT prisma-migrate-deploy");
 
   const db = new Client({
     connectionString: databaseUrl,
     ...(operationTimeoutMs
       ? {
+          connectionTimeoutMillis: operationTimeoutMs,
           query_timeout: operationTimeoutMs,
           statement_timeout: operationTimeoutMs,
         }
       : {}),
   });
+  console.log("[ASSESSMENT_VERTICAL] START DATABASE_WAIT runtime-connect");
   await db.connect();
-  const q = (text, values = []) => db.query(text, values);
+  console.log("[ASSESSMENT_VERTICAL] COMPLETE DATABASE_WAIT runtime-connect");
+  const q = async (text, values = []) => {
+    try {
+      return await db.query(text, values);
+    } catch (error) {
+      const timedOut =
+        error.code === "57014" || /timed? ?out|timeout/iu.test(error.message ?? "");
+      console.error(
+        `[ASSESSMENT_VERTICAL] ${timedOut ? "FAILED DATABASE_WAIT" : "DATABASE_QUERY_ERROR"} postgres-query code=${error.code ?? "UNKNOWN"}`,
+      );
+      throw error;
+    }
+  };
 
   if (signal?.aborted) {
     await db.end();
@@ -182,8 +219,31 @@ export async function startStack({
   const stop = async () => {
     signal?.removeEventListener("abort", abortServer);
     if (server.exitCode === null && server.signalCode === null) {
+      console.log("[ASSESSMENT_VERTICAL] START CLEANUP_WAIT api-shutdown");
+      const waitForExit = (timeoutMs) =>
+        new Promise((resolve) => {
+          const onExit = () => {
+            clearTimeout(timer);
+            resolve(true);
+          };
+          const timer = setTimeout(() => {
+            server.removeListener("exit", onExit);
+            resolve(false);
+          }, timeoutMs);
+          server.once("exit", onExit);
+        });
       server.kill("SIGTERM");
-      await new Promise((resolve) => server.once("exit", resolve));
+      const exited = await waitForExit(15_000);
+      if (!exited && server.exitCode === null && server.signalCode === null) {
+        server.kill("SIGKILL");
+        const killed = await waitForExit(5_000);
+        if (!killed) {
+          console.error(
+            "[ASSESSMENT_VERTICAL] FAILED CLEANUP_WAIT api-process-exit",
+          );
+        }
+      }
+      console.log("[ASSESSMENT_VERTICAL] COMPLETE CLEANUP_WAIT api-shutdown");
     }
     await directRootFixtures.get(base)?.close();
     directRootFixtures.delete(base);
@@ -196,7 +256,8 @@ export async function startStack({
       signal.throwIfAborted();
     }
     try {
-      if ((await fetch(`${base}/health`)).ok) break;
+      const response = await fetch(`${base}/health`, { signal: AbortSignal.timeout(2_000) });
+      if (response.ok) break;
     } catch {
       /* not up yet */
     }
@@ -204,8 +265,10 @@ export async function startStack({
       await stop();
       assert.fail(`API did not become healthy:\n${log.join("").slice(-2000)}`);
     }
+    if (i === 0) console.log("[ASSESSMENT_VERTICAL] START API_STARTUP_WAIT health");
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
+  console.log("[ASSESSMENT_VERTICAL] COMPLETE API_STARTUP_WAIT health");
 
   const call = async (method, route, body, key) => {
     const response = await fetch(
@@ -432,7 +495,14 @@ export async function startStack({
         .pop(),
     );
   };
-  const admission = directRootAdmissionFixture({ q, base, databaseUrl, workerKey, apiDir });
+  const admission = directRootAdmissionFixture({
+    q,
+    base,
+    databaseUrl,
+    workerKey,
+    apiDir,
+    requestTimeoutMs: operationTimeoutMs,
+  });
   directRootFixtures.set(base, admission);
   return {
     admission,
@@ -491,6 +561,7 @@ export async function runPython(
       },
     });
     let out = "",
+      phaseOutput = "",
       err = "",
       failure;
     const kill = () => {
@@ -513,7 +584,16 @@ export async function runPython(
         }, timeoutMs)
       : null;
     child.stdout.on("data", (d) => {
-      out += d;
+      const text = String(d);
+      out += text;
+      phaseOutput += text;
+      const lines = phaseOutput.split(/\r?\n/u);
+      phaseOutput = lines.pop() ?? "";
+      for (const line of lines) {
+        if (/^PHASE_(?:START|COMPLETE) [A-Z_]+$/u.test(line.trim())) {
+          console.log(`[ASSESSMENT_VERTICAL] ${line.trim()}`);
+        }
+      }
     });
     child.stderr.on("data", (d) => {
       err += d;
@@ -522,6 +602,9 @@ export async function runPython(
       failure = error;
     });
     child.on("close", (code, exitSignal) => {
+      if (/^PHASE_(?:START|COMPLETE) [A-Z_]+$/u.test(phaseOutput.trim())) {
+        console.log(`[ASSESSMENT_VERTICAL] ${phaseOutput.trim()}`);
+      }
       if (timer) clearTimeout(timer);
       signal?.removeEventListener("abort", abort);
       if (failure || code !== 0)

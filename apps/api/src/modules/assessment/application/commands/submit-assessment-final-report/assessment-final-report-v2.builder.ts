@@ -158,10 +158,11 @@ function safeLocator(type: string, payload: unknown): string | null {
  *
  * Business rules:
  * - Preserve source version, document, locator, and content hash from the immutable provenance records.
+ * - Copy a non-empty display title only from the pinned LegalSourceDocument metadata for this source version.
  *
  * Execution flow:
  * 1. Combine the pinned source identity with the selected chunk's citation fields.
- * 2. Return the traceable source reference used by the V2 artifact.
+ * 2. Add the pinned document title when it is available and return the traceable V2 source reference.
  *
  * Failure cases:
  * - Missing required values are rejected by upstream provenance/schema validation rather than replaced.
@@ -173,6 +174,7 @@ function sourceRef(
   source: { id: string; version: string },
   chunk: {
     documentId: string;
+    documentTitle?: string;
     locator: string;
     contentSha256: string;
   },
@@ -181,6 +183,7 @@ function sourceRef(
     legalSourceVersionId: source.id,
     legalSourceVersion: source.version,
     documentId: chunk.documentId,
+    ...(chunk.documentTitle ? { documentTitle: chunk.documentTitle } : {}),
     locator: chunk.locator,
     contentSha256: chunk.contentSha256,
   };
@@ -242,7 +245,12 @@ export async function buildAssessmentFinalReportV2(input: {
       version: true,
       ruleSetDigest: true,
       legalSourceVersion: {
-        select: { id: true, version: true, integrityManifestRef: true },
+        select: {
+          id: true,
+          version: true,
+          integrityManifestRef: true,
+          documents: { select: { documentId: true, title: true } },
+        },
       },
     },
   });
@@ -289,6 +297,11 @@ export async function buildAssessmentFinalReportV2(input: {
     throw new Error("Pinned rule-set source is unavailable");
   }
   const source = ruleSet.legalSourceVersion;
+  const documentTitleById = new Map(
+    source.documents
+      .filter((document) => document.title.trim().length > 0)
+      .map((document) => [document.documentId, document.title.trim()]),
+  );
   const chunkIds = [
     ...new Set(rules.flatMap((rule) => sourceChunkIds(rule.contract))),
   ];
@@ -387,7 +400,10 @@ export async function buildAssessmentFinalReportV2(input: {
       if (!chunk || chunk.legalSourceVersionId !== source.id) {
         throw new Error("Rule source chunk could not be verified");
       }
-      return sourceRef(source, chunk);
+      return sourceRef(source, {
+        ...chunk,
+        documentTitle: documentTitleById.get(chunk.documentId),
+      });
     });
     if (sourceRefs.length === 0) {
       throw new Error("Rule has no verified source references");
@@ -472,7 +488,12 @@ export async function buildAssessmentFinalReportV2(input: {
       : [],
     nonRepositoryDuty: requirement.nonRepositoryDuty,
     coverageState: requirement.coverageState,
-    sourceRefs: requirement.provenance.map((ref) => sourceRef(source, ref)),
+    sourceRefs: requirement.provenance.map((ref) =>
+      sourceRef(source, {
+        ...ref,
+        documentTitle: documentTitleById.get(ref.documentId),
+      }),
+    ),
   }));
 
   const factIndex = [...facts]

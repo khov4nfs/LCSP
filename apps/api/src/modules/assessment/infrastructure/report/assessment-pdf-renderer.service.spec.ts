@@ -9,12 +9,10 @@ import {
   assessmentFinalReportV2Schema,
   type AssessmentFinalReportV2,
 } from "@lcsp/contracts/assessment-report";
+import { legalDocumentDisplayName } from "@lcsp/contracts/legal-source";
 import { AssessmentPdfRenderer } from "./assessment-pdf-renderer.service.js";
 import { assessmentReportV2Html } from "./assessment-report-v2-pdf-html.js";
-import {
-  legalDocumentName,
-  legalLocator,
-} from "./assessment-report-v2-pdf-presentation.js";
+import { legalLocator } from "./assessment-report-v2-pdf-presentation.js";
 
 const uuid = "11111111-1111-4111-8111-111111111111";
 const snapshotId = "22222222-2222-4222-8222-222222222222";
@@ -424,12 +422,18 @@ describe("AssessmentPdfRenderer", () => {
 
   it("uses verified Vietnamese legal titles and preserves a truthful fallback", () => {
     expect(
-      legalDocumentName("luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan"),
+      legalDocumentDisplayName(
+        "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+        "Luật Bảo vệ dữ liệu cá nhân",
+      ),
     ).toBe("Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15");
-    expect(legalDocumentName("luat-so-116-2025-qh15-luat-an-ninh-mang")).toBe(
-      "Luật An ninh mạng số 116/2025/QH15",
-    );
-    expect(legalDocumentName("luat-so-7-2025-qh1-unknown")).toBe(
+    expect(
+      legalDocumentDisplayName(
+        "luat-so-116-2025-qh15-luat-an-ninh-mang",
+        "Luật An ninh mạng",
+      ),
+    ).toBe("Luật An ninh mạng số 116/2025/QH15");
+    expect(legalDocumentDisplayName("luat-so-7-2025-qh1-unknown")).toBe(
       "Luật số 7/2025/QH1",
     );
   });
@@ -515,6 +519,7 @@ describe("AssessmentPdfRenderer", () => {
     const makeSource = (locator: string) => ({
       ...base,
       documentId: law,
+      documentTitle: "Luật Bảo vệ dữ liệu cá nhân",
       locator,
     });
     report.ruleDetails[0].sourceRefs = [
@@ -526,8 +531,17 @@ describe("AssessmentPdfRenderer", () => {
       {
         ...makeSource("art-17::cl-1::pt-đ"),
         documentId: "luat-so-116-2025-qh15-luat-an-ninh-mang",
+        documentTitle: "Luật An ninh mạng",
       },
     ];
+    const projected = buildAssessmentReportPresentation(report);
+    if (!("obligationDetails" in projected)) {
+      throw new Error("The V2 fixture must produce a V2 presentation model");
+    }
+    const projectedTitles = projected.obligationDetails
+      .flatMap((rule) => rule.legalReferences)
+      .map((source) => source.documentTitle);
+    expect(projectedTitles).toContain("Luật Bảo vệ dữ liệu cá nhân");
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();

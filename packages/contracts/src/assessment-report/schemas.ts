@@ -27,6 +27,8 @@ const sourceReferenceSchema = z.strictObject({
   legalSourceVersionId: uuidSchema,
   legalSourceVersion: boundedTextSchema,
   documentId: identifierSchema,
+  /** Display title copied from the immutable LegalSourceDocument pinned to this report. */
+  documentTitle: boundedTextSchema.optional(),
   locator: boundedTextSchema,
   contentSha256: sha256Schema,
 });
