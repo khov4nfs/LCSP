@@ -1397,7 +1397,8 @@ try {
   for (const heading of ["KẾT QUẢ ĐÁNH GIÁ", "DỮ KIỆN LIÊN QUAN ĐIỀU KIỆN ÁP DỤNG", "DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ", "CHI TIẾT TỪNG NGHĨA VỤ", "KẾ HOẠCH HÀNH ĐỘNG", "PHẠM VI, GIỚI HẠN VÀ NGUỒN TRUY VẾT"]) {
     ok(pdfText.text.includes(heading) || pdfText.text.includes(heading.normalize("NFD").replace(/[\u0300-\u036f]/gu, "")), `PDF contains section ${heading}`);
   }
-  for (const id of [A.id, artifact.id, "ER-RET", "LR-RET", "art-1", "source"]) ok(pdfText.text.includes(id), `PDF contains canonical identifier ${id}`);
+  for (const id of [A.id, artifact.id, "ER-RET", "LR-RET", "art-1", DOC])
+    ok(pdfText.text.includes(id), `PDF contains canonical identifier ${id}`);
   eq(
     (
       await fetchWithDeadline(
