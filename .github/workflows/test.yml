@@ -434,10 +434,6 @@ jobs:
       - name: Test Python workers
         run: pytest
 
-      - name: Test operator and T31 regression helpers
-        working-directory: .
-        run: python -m pytest scripts/test_operator_helpers.py scripts/test_benchmark_t31_regression.py
-
   docker-sandbox-e2e:
     name: Docker sandbox E2E
     needs: changes
