@@ -19,7 +19,7 @@ import {
 function timestampOrNull(value: unknown): number | null {
   if (!(value instanceof Date) && (typeof value !== "string" || !value.trim()))
     return null;
-  const timestamp = new Date(value as string | Date).getTime();
+  const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
