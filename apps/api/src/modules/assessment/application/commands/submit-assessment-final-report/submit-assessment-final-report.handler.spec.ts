@@ -129,6 +129,12 @@ function buildHandler(
             id: legalSourceId,
             version: "source-v1",
             integrityManifestRef: null,
+            documents: [
+              {
+                documentId: "DOC-1",
+                title: "Tài liệu kiểm thử về lưu trữ",
+              },
+            ],
           },
         }),
     },
