@@ -189,12 +189,17 @@ test("Python AST requires a structured docstring as the function's first stateme
   ].join("\n");
   const script = resolve("scripts/business-logic-docs-python.py");
   assert.ok(readFileSync(script, "utf8").includes("ast.parse"));
-  const result = spawnSync("python3", [script], {
-    encoding: "utf8",
-    input: JSON.stringify({
-      files: [{ path: "deepagents/auth/registration.py", source: py }],
-    }),
-  });
+  const result = spawnSync(
+    process.platform === "win32" ? "python" : "python3",
+    [script],
+    {
+      encoding: "utf8",
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      input: JSON.stringify({
+        files: [{ path: "deepagents/auth/registration.py", source: py }],
+      }),
+    },
+  );
   assert.equal(result.status, 0, result.stderr);
   const entries = JSON.parse(result.stdout);
   assert.deepEqual(

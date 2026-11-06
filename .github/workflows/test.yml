@@ -192,7 +192,9 @@ jobs:
     name: API unit tests
     needs: changes
     if: needs.changes.outputs.release_gate == 'true'
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04's default AppArmor policy blocks Chromium's user-namespace sandbox.
+    # Keep the browser tests on 22.04 so the renderer runs with its sandbox enabled.
+    runs-on: ubuntu-22.04
     env:
       LCSP_TEST_POSTGRES_PORT: 55435
       LCSP_TEST_POSTGRES_DB: lcsp_api_test
@@ -211,6 +213,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium for PDF renderer tests
+        run: pnpm --filter @lcsp/api exec playwright install --with-deps chromium
 
       - name: Generate Prisma client
         run: pnpm --filter @lcsp/api prisma:generate
@@ -470,7 +475,8 @@ jobs:
     name: Assessment Root vertical
     needs: changes
     if: needs.changes.outputs.release_gate == 'true'
-    runs-on: ubuntu-latest
+    # The PDF endpoint launches the same sandboxed Playwright Chromium as API unit tests.
+    runs-on: ubuntu-22.04
     services:
       rabbitmq:
         image: rabbitmq:4-management
@@ -517,6 +523,9 @@ jobs:
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium for report PDF vertical
+        run: pnpm --filter @lcsp/api exec playwright install --with-deps chromium
 
       - name: Install Python dependencies
         working-directory: deepagents

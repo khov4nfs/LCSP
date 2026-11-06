@@ -28,6 +28,15 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install --frozen-lockfile
+
+# Package the pinned Playwright browser in the image so report generation is
+# offline at runtime. Keep the browser payload at a stable, shared path.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN pnpm --dir apps/api exec playwright install --with-deps chromium \
+    && useradd --uid 10001 --create-home --shell /usr/sbin/nologin lcsp-api \
+    && mkdir -p /tmp/lcsp-pdf /tmp/lcsp-cache \
+    && chown 10001:10001 /tmp/lcsp-pdf /tmp/lcsp-cache /home/lcsp-api \
+    && chmod 0755 /ms-playwright
 # Prisma 7 loads prisma.config.ts during client generation and therefore requires
 # DATABASE_URL to be present even though `prisma generate` does not connect to the
 # database. Use a non-secret, build-only placeholder; production DATABASE_URL is
@@ -38,6 +47,8 @@ RUN DATABASE_URL='postgresql://fogewise_build:fogewise_build@127.0.0.1:5432/foge
 
 ENV NODE_ENV=production
 ENV PORT=8080
+ENV HOME=/home/lcsp-api
+ENV XDG_CACHE_HOME=/tmp/lcsp-cache
 ENV GITHUB_CLI_EXECUTABLE_PATH=/usr/bin/gh
 ENV GITLAB_CLI_EXECUTABLE_PATH=/usr/bin/glab
 ENV BITBUCKET_CLI_EXECUTABLE_PATH=/usr/bin/bb
@@ -49,3 +60,5 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=6 \
   CMD node -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["sh", "-c", "pnpm --filter @lcsp/api prisma:migrate:deploy && exec pnpm --filter @lcsp/api start:prod"]
+
+USER 10001:10001

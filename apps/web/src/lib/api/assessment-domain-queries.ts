@@ -4,7 +4,6 @@ import {
   ASSESSMENT_EVENTS_PAGE_LIMIT,
   assessmentDetailSchema,
   assessmentEventsPageSchema,
-  assessmentFinalReportArtifactSchema,
   assessmentHumanRequestsResultSchema,
   assessmentProvenanceArtifactSchema,
   assessmentRepositorySetupSchema,
@@ -13,6 +12,7 @@ import {
   answerAssessmentHumanRequestResultSchema,
   type AnswerAssessmentHumanRequest,
 } from "@lcsp/contracts/assessment-domain";
+import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 import { apiValidated } from "./api-request";
 
@@ -204,14 +204,50 @@ export function useAnswerAnyHumanRequestMutation(id: string) {
   });
 }
 
-/** The stored final report of one assessment, parsed against the artifact contract. */
-export function useAssessmentReportQuery(id: string, artifactId: string | null) {
+/**
+ * Business purpose: Load an assessment's stored final-report artifact for the authorized report view.
+ *
+ * Business rules:
+ * - Key the cached result by assessment and artifact identity and validate the response against the versioned immutable report contract.
+ * - Do not request until both the assessment ID and artifact ID are available.
+ *
+ * Execution flow:
+ * 1. Construct a stable report query key.
+ * 2. Request the selected artifact through the shared API client.
+ * 3. Enable the query only when both identities are present.
+ *
+ * Failure cases:
+ * - Upstream API errors and invalid envelopes are surfaced by apiValidated; unavailable IDs keep the query disabled.
+ *
+ * Side effects:
+ * - Performs a read-only API request and updates the query cache.
+ */
+export function useAssessmentReportQuery(
+  id: string,
+  artifactId: string | null,
+) {
   return useQuery({
     queryKey: ["assessment", id, "report", artifactId] as const,
+    /**
+     * Business purpose: Retrieve only the report artifact identified by the active assessment view.
+     *
+     * Business rules:
+     * - Encode route identifiers and require the shared client to validate the immutable, versioned artifact contract.
+     *
+     * Execution flow:
+     * 1. Build the report download API path from the assessment and artifact IDs.
+     * 2. Parse the success envelope with the report artifact schema.
+     *
+     * Failure cases:
+     * - Invalid responses and API problems reject the query and are handled by the report view's query state.
+     *
+     * Side effects:
+     * - Performs a read-only API request; no report data is modified.
+     */
     queryFn: () =>
       apiValidated(
         `/api/assessments/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId ?? "")}/report`,
-        assessmentFinalReportArtifactSchema,
+        assessmentFinalReportArtifactVersionedSchema,
       ),
     enabled: Boolean(id) && artifactId !== null,
   });

@@ -5,18 +5,13 @@ import {
   AGENTIC_RUNTIME_TRANSITION_GUARDS,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
-  RULE_DECISION_REFERENCE_TYPES,
-  ruleDecisionReferences,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_DOMAIN_ERROR_CODES,
-  ASSESSMENT_EVIDENCE_TYPES,
-  ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   RULE_AUDIT_STATUSES,
-  assessmentFinalReportArtifactSchema,
   assessmentFinalReportResultSchema,
-  type AssessmentFinalReportArtifact,
   type AssessmentFinalReportResult,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
@@ -36,7 +31,13 @@ import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecy
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import { ROOT_AUDIT_ACTOR } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { canonicalJson, sha256Hex } from "../../../domain/domain-ids.js";
+import { decisionFingerprint } from "../../../domain/decision-fingerprint.js";
 import { SubmitAssessmentFinalReportCommand } from "./submit-assessment-final-report.command.js";
+import { buildAssessmentFinalReportV2 } from "./assessment-final-report-v2.builder.js";
+import {
+  assessmentFinalReportArtifactVersionedSchema,
+  type AssessmentFinalReportV2,
+} from "@lcsp/contracts/assessment-report";
 
 const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
@@ -56,184 +57,6 @@ function deterministicUuid(value: string): string {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = bytes.toString("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-type Tx = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
-
-/**
- * Business purpose: Project stored textual applicability conditions, qualifiers and
- *   exceptions into report legal-basis entries.
- *
- * Business rules:
- * - Only string members of an array are retained, verbatim and in their stored order; this is
- *   shape normalization rather than legal interpretation.
- *
- * Execution flow:
- * 1. Filter an array to its string entries, otherwise return an empty list.
- *
- * Failure cases:
- * - Absent or non-array JSON produces an empty list; non-string members are omitted rather
- *   than rendered as legal text.
- *
- * Side effects:
- * - None: returns a new list without changing persisted legal requirements.
- */
-const textList = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-
-/**
- * Business purpose: Attach the pinned source-derived legal basis to each requested report
- *   finding.
- *
- * Business rules:
- * - Read only requested AssessmentRules within the supplied Rule Set; retain linked
- *   LegalRequirement identities, applicability text and exact source provenance.
- * - Order requirements and their provenance by stored ordinals; do not substitute the
- *   currently active Rule Set.
- *
- * Execution flow:
- * 1. Load requested pinned rules with linked requirements and ordered provenance.
- * 2. Normalize the stored text lists and order requirement entries.
- * 3. Return a map keyed by AssessmentRule identity for report assembly.
- *
- * Failure cases:
- * - Missing rules have no map entry and are not fabricated; database errors propagate and
- *   report-schema validation remains the caller’s responsibility.
- *
- * Side effects:
- * - Read-only queries through the supplied transaction; no legal or report state is mutated.
- */
-async function loadLegalBasis(
-  tx: Tx,
-  ruleSetVersionId: string,
-  assessmentRuleIds: string[],
-) {
-  const rules = await tx.assessmentRule.findMany({
-    where: { ruleSetVersionId, assessmentRuleId: { in: assessmentRuleIds } },
-    select: {
-      assessmentRuleId: true,
-      concept: true,
-      legalIntent: true,
-      applicabilityGuidance: true,
-      legalRequirementLinks: {
-        select: {
-          legalRequirement: {
-            select: {
-              legalRequirementId: true,
-              title: true,
-              applicabilityConditions: true,
-              qualifiers: true,
-              exceptions: true,
-              ordinal: true,
-              provenance: {
-                orderBy: { ordinal: "asc" },
-                select: {
-                  documentId: true,
-                  locator: true,
-                  contentSha256: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-  return new Map(
-    rules.map((rule) => [
-      rule.assessmentRuleId,
-      {
-        concept: rule.concept,
-        legalIntent: rule.legalIntent,
-        applicabilityGuidance: rule.applicabilityGuidance,
-        legalRequirements: rule.legalRequirementLinks
-          .map((link) => link.legalRequirement)
-          .sort((a, b) => a.ordinal - b.ordinal)
-          .map((requirement) => ({
-            legalRequirementId: requirement.legalRequirementId,
-            title: requirement.title,
-            applicabilityConditions: textList(
-              requirement.applicabilityConditions,
-            ),
-            qualifiers: textList(requirement.qualifiers),
-            exceptions: textList(requirement.exceptions),
-            sources: requirement.provenance,
-          })),
-      },
-    ]),
-  );
-}
-
-/**
- * Business purpose: Include the accepted frozen evidence and facts that a particular report
- *   decision cites.
- *
- * Business rules:
- * - Resolve references solely from the completion snapshot; include supporting evidence of
- *   cited facts as well as directly cited evidence.
- * - Retain stored commit and source locations without creating citations for missing records.
- *
- * Execution flow:
- * 1. Collect the decision’s evidence and fact identities.
- * 2. Select cited snapshot facts and add their supporting evidence identities.
- * 3. Project matching frozen evidence and facts for the finding.
- *
- * Failure cases:
- * - References missing from the snapshot produce no invented record; upstream completion
- *   validation owns rejection of incomplete authority.
- *
- * Side effects:
- * - None: pure projection of the supplied decision and frozen snapshot.
- */
-function citedRecords(
-  decision: AssessmentFinalReportArtifact["findings"][number]["decision"],
-  snapshot: {
-    evidence: Array<{
-      evidenceId: string;
-      type: string;
-      repositoryCommit: string;
-      source: { path: string; startLine: number; endLine: number } | null;
-    }>;
-    facts: Array<{
-      factId: string;
-      kind: string;
-      authority: string;
-      statement: string;
-      evidenceIds: string[];
-    }>;
-  },
-) {
-  const evidenceIds = new Set<string>();
-  const factIds = new Set<string>();
-  for (const reference of ruleDecisionReferences(decision)) {
-    if (reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
-      evidenceIds.add(reference.evidenceId);
-    } else {
-      factIds.add(reference.factId);
-    }
-  }
-  const facts = snapshot.facts.filter((fact) => factIds.has(fact.factId));
-  for (const fact of facts) {
-    for (const evidenceId of fact.evidenceIds) evidenceIds.add(evidenceId);
-  }
-  return {
-    evidence: snapshot.evidence
-      .filter((item) => evidenceIds.has(item.evidenceId))
-      .map((item) => ({
-        evidenceId: item.evidenceId,
-        type: item.type,
-        repositoryCommit: item.repositoryCommit,
-        ...(item.source ?? {}),
-      })),
-    facts: facts.map((fact) => ({
-      factId: fact.factId,
-      kind: fact.kind,
-      authority: fact.authority,
-      statement: fact.statement,
-    })),
-  };
 }
 
 /**
@@ -262,16 +85,38 @@ function citedRecords(
  * - Pure validation function; no persistence or state mutations.
  */
 function rejectUnresolvedLanguage(
-  report: AssessmentFinalReportArtifact,
+  report: unknown,
   correlationId: string,
 ): void {
+  const value = report as {
+    summary?: unknown;
+    findings?: Array<{ summary?: unknown; recommendations?: unknown[] }>;
+    boundedNarrative?: { summary?: unknown; actionPlan?: unknown[] };
+    ruleDetails?: Array<{
+      narrative?: { summary?: unknown; recommendations?: unknown[] };
+    }>;
+  };
   const text = [
-    report.summary,
-    ...report.findings.flatMap((finding) => [
-      finding.summary,
-      finding.decision.rationale,
-      ...finding.decision.criteria.map((criterion) => criterion.rationale),
-      ...finding.recommendations,
+    ...(typeof value.summary === "string" ? [value.summary] : []),
+    ...(typeof value.boundedNarrative?.summary === "string"
+      ? [value.boundedNarrative.summary]
+      : []),
+    ...(value.findings ?? []).flatMap((finding) => [
+      ...(typeof finding.summary === "string" ? [finding.summary] : []),
+      ...(finding.recommendations?.filter(
+        (item): item is string => typeof item === "string",
+      ) ?? []),
+    ]),
+    ...(value.boundedNarrative?.actionPlan?.filter(
+      (item): item is string => typeof item === "string",
+    ) ?? []),
+    ...(value.ruleDetails ?? []).flatMap((rule) => [
+      ...(typeof rule.narrative?.summary === "string"
+        ? [rule.narrative.summary]
+        : []),
+      ...(rule.narrative?.recommendations?.filter(
+        (item): item is string => typeof item === "string",
+      ) ?? []),
     ]),
   ];
   if (
@@ -286,6 +131,39 @@ function rejectUnresolvedLanguage(
       { status: HttpStatus.UNPROCESSABLE_ENTITY },
     );
   }
+}
+
+/**
+ * Business purpose: Verify that an immutable report still represents its accepted decision history.
+ *
+ * Business rules:
+ * - Prefer V2 rule details and fall back to V1 findings; fingerprint identities, revisions, and decisions in report order.
+ *
+ * Execution flow:
+ * 1. Read the report's supported decision collection.
+ * 2. Delegate canonical hashing to the shared decision fingerprint function.
+ *
+ * Failure cases:
+ * - Empty or malformed collections are fingerprinted as supplied and rejected by artifact validation or immutable replay checks.
+ *
+ * Side effects:
+ * - None: computes an in-memory fingerprint without changing the artifact.
+ */
+function decisionFingerprintForReport(report: unknown): string {
+  const value = report as {
+    findings?: Array<{
+      decisionId: string;
+      decisionRevision: number;
+      decision: unknown;
+    }>;
+    ruleDetails?: Array<{
+      decisionId: string;
+      decisionRevision: number;
+      decision: unknown;
+    }>;
+  };
+  const decisions = value.ruleDetails ?? value.findings ?? [];
+  return decisionFingerprint(decisions);
 }
 
 @CommandHandler(SubmitAssessmentFinalReportCommand)
@@ -367,20 +245,37 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           JSON.parse(existing.storageRef) as unknown,
         );
         const stored = await this.storage.readAndReconstruct(manifest);
-        const report = assessmentFinalReportArtifactSchema.parse(
+        const report = assessmentFinalReportArtifactVersionedSchema.parse(
           JSON.parse(stored) as unknown,
         );
-        const expectedFingerprint = `sha256:${sha256Hex(
-          canonicalJson(
-            report.findings.map(
-              ({ decisionId, decisionRevision, decision }) => ({
-                decisionId,
-                decisionRevision,
-                decision,
-              }),
-            ),
-          ),
-        )}`;
+        if ("identity" in report) {
+          const pinnedRuleSet = await tx.complianceRuleSetVersion.findUnique({
+            where: { id: existing.ruleSetVersionId },
+            select: {
+              id: true,
+              version: true,
+              ruleSetDigest: true,
+              legalSourceVersion: { select: { id: true, version: true } },
+            },
+          });
+          if (
+            !pinnedRuleSet ||
+            report.identity.repositorySnapshotId !==
+              report.pins.repositorySnapshotId ||
+            report.identity.repositoryCommit.toLowerCase() !==
+              report.pins.repositoryCommit.toLowerCase() ||
+            report.pins.ruleSetVersionId !== pinnedRuleSet.id ||
+            report.pins.ruleSetVersion !== pinnedRuleSet.version ||
+            report.pins.ruleSetDigest !== pinnedRuleSet.ruleSetDigest ||
+            report.pins.legalSourceVersionId !==
+              pinnedRuleSet.legalSourceVersion.id ||
+            report.pins.legalSourceVersion !==
+              pinnedRuleSet.legalSourceVersion.version
+          ) {
+            throw new Error("Persisted final report pin mismatch");
+          }
+        }
+        const expectedFingerprint = decisionFingerprintForReport(report);
         if (
           manifest.artifact_id !== existing.artifactId ||
           report.artifactId !== existing.artifactId ||
@@ -462,52 +357,26 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         );
       }
 
-      const legalBasis = await loadLegalBasis(
-        tx,
-        snapshot.pins.ruleSetVersionId,
-        snapshot.decisions.map(({ decision }) => decision.assessmentRuleId),
-      );
       const artifactId = deterministicUuid(
         `${command.assessmentId}:${requestDigest}`,
       );
-      const decisionFingerprint = `sha256:${sha256Hex(
-        canonicalJson(snapshot.decisions),
-      )}`;
-      const report = assessmentFinalReportArtifactSchema.parse({
-        schemaVersion: ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
-        artifactId,
-        assessmentId: command.assessmentId,
-        kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
-        pins: snapshot.pins,
-        caseRevision: snapshot.caseRevision,
-        decisionFingerprint,
-        summary: command.request.summary,
-        findings: snapshot.decisions.map((item) => {
-          const narrative = narratives.get(item.decision.assessmentRuleId);
-          if (!narrative) {
-            throw new Error(
-              "Completion snapshot and report narratives diverged",
-            );
-          }
-          return {
-            assessmentRuleId: item.decision.assessmentRuleId,
-            ...item,
-            summary: narrative.summary,
-            recommendations: narrative.recommendations,
-            legalBasis: legalBasis.get(item.decision.assessmentRuleId),
-            ...citedRecords(item.decision, snapshot),
-          };
-        }),
-        provenance: {
-          evidenceIds: snapshot.evidence.map((item) => item.evidenceId),
-          factIds: snapshot.facts.map((item) => item.factId),
-          searchCoverageEvidenceIds: snapshot.evidence
-            .filter(
-              (item) => item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
-            )
-            .map((item) => item.evidenceId),
-        },
-      });
+      rejectUnresolvedLanguage(command.request, command.correlationId);
+      let report: AssessmentFinalReportV2;
+      try {
+        report = await buildAssessmentFinalReportV2({
+          tx,
+          assessmentId: command.assessmentId,
+          artifactId,
+          request: command.request,
+          snapshot,
+        });
+      } catch {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+          command.correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
       rejectUnresolvedLanguage(report, command.correlationId);
 
       const content = canonicalJson(report);
@@ -530,7 +399,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           repositorySnapshotId: snapshot.pins.repositorySnapshotId,
           repositoryCommit: snapshot.pins.repositoryCommit,
           caseRevision: snapshot.caseRevision,
-          schemaVersion: ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+          schemaVersion: ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
           reportRequestDigest: requestDigest,
         },
       });
