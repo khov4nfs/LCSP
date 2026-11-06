@@ -440,10 +440,18 @@ class DescriptionProbeArgs(BaseModel):
 def _description_probe_tool(name, calls, *, return_direct):
     """Build an offline probe for both native loop-control modes in the preservation test."""
     def sync_probe(pattern):
+        """Return the probe name, unchanged pattern and exact literal-match result.
+
+        Record this synchronous offline invocation in memory only; perform no external actions.
+        """
         calls.append(("sync", name, pattern))
         return {"tool": name, "pattern": pattern, "matched": pattern == "literal"}
 
     async def async_probe(pattern):
+        """Return the probe name, unchanged pattern and exact literal-match result.
+
+        Record this asynchronous offline invocation in memory only; perform no external actions.
+        """
         calls.append(("async", name, pattern))
         return {"tool": name, "pattern": pattern, "matched": pattern == "literal"}
 
