@@ -558,6 +558,7 @@ model RepositorySnapshot {
   ref                String?
   commitSha          String
   providerMetadata   Json
+  sourcePathPrefix   String?
   actorId            String
   status             RepositorySnapshotStatus @default(READY)
   createdAt          DateTime                 @default(now())
@@ -2019,6 +2020,7 @@ model AssessmentDecisionCoverage {
   updatedAt             DateTime                @updatedAt @db.Timestamptz(3)
   assessmentCase        AssessmentCase          @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
   assessmentRule        AssessmentRule          @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
+  humanRequestDependencies AssessmentHumanRequestDependency[]
   currentDecision       AssessmentRuleDecision? @relation(fields: [currentDecisionId, assessmentId], references: [decisionId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
 
   @@id([assessmentId, assessmentRuleId])
@@ -2055,8 +2057,40 @@ model AssessmentHumanRequest {
   assessmentCase     AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   runtime            AssessmentRuntime            @relation(fields: [assessmentId, threadId], references: [assessmentId, threadId], onDelete: Cascade, onUpdate: Restrict)
 
+  dependencies       AssessmentHumanRequestDependency[]
+  registrations      AssessmentHumanRequestRegistration[]
+
+  @@unique([requestId, assessmentId])
   @@unique([assessmentId, idempotencyKey])
   @@index([assessmentId, status])
+}
+
+// Each canonical factual question can independently block several pinned rules.
+model AssessmentHumanRequestDependency {
+  requestId        String @db.Uuid
+  assessmentId     String
+  assessmentRuleId String
+  criterionIds     Json
+  request          AssessmentHumanRequest @relation(fields: [requestId, assessmentId], references: [requestId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  coverage         AssessmentDecisionCoverage @relation(fields: [assessmentId, assessmentRuleId], references: [assessmentId, assessmentRuleId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([requestId, assessmentRuleId])
+  @@index([assessmentId, assessmentRuleId])
+}
+
+// Source registration has its own durable replay identity without duplicating the question.
+model AssessmentHumanRequestRegistration {
+  assessmentId    String
+  idempotencyKey  String
+  requestId       String @db.Uuid
+  requestDigest   String
+  caseRevision    Int
+  requestRevision Int
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  request         AssessmentHumanRequest @relation(fields: [requestId, assessmentId], references: [requestId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([assessmentId, idempotencyKey])
+  @@index([requestId])
 }
 
 /// Artifact metadata only; bytes live in the one protected blob store. Assessment Root owns generation.

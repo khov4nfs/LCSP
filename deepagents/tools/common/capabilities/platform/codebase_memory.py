@@ -76,11 +76,25 @@ def ensure_codebase_memory_index(
     *,
     lifecycle: CodebaseMemoryLifecycle | None = None,
 ) -> bool:
-    """Index the hydrated repository unless the current snapshot already is.
+    """Business purpose: Ensure the hydrated assessment repository is indexed in Codebase Memory so the Root agent can perform graph queries.
 
-    Returns False when no repository is hydrated in this sandbox (boundaries
-    that do not work on source). Raises CodebaseMemoryIndexError when indexing
-    fails, so a dispatch never silently runs without the graph.
+    Business rules:
+    - If no repository is hydrated in the sandbox, return False without indexing.
+    - If an existing index stamp matches the repository metadata stamp and the project is listed, reuse the index.
+    - Reindex a changed repository marker, including a changed immutable source prefix, before graph investigation.
+    - The indexing service owns its locks and process state; this boundary cannot infer that a lock is stale.
+
+    Execution flow:
+    1. Inspect the backend for executable capability and repository metadata stamp.
+    2. Check existing index stamp; if identical and project is registered, set active index context and return True.
+    3. Run one-shot index_repository CLI command in full mode without deleting service-owned lock state.
+    4. Validate exit code and output for indexed status; update the index stamp and active context only after success.
+
+    Failure cases:
+    - Raises CodebaseMemoryIndexError if indexing fails or does not emit "status":"indexed"; lock contention preserves the prior index and stops dispatch.
+
+    Side effects:
+    - Emits lifecycle events, invokes sandbox indexing, writes the successful index stamp and sets the active index ContextVar; never deletes daemon locks or unrelated state.
     """
     execute = getattr(backend, "execute", None)
     if not callable(execute):

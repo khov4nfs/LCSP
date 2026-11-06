@@ -6,6 +6,10 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
 } from "@lcsp/contracts/assessment-domain";
+import {
+  isCanonicalRepositorySourcePath,
+  isRepositoryPathInSourceScope,
+} from "@lcsp/contracts/github-integration";
 import { HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
@@ -37,6 +41,25 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
     private readonly events: AssessmentEventAppender,
   ) {}
 
+  /**
+   * Business purpose: Accept source or search evidence only for the assessment's immutable commit and approved source directory.
+   *
+   * Business rules:
+   * - The current Root lease and complete server-owned snapshot pins authorize the write.
+   * - Every source path and every search scope, inspected entry point and fallback path must be canonical and inside the pinned directory.
+   * - Scope validation precedes replay lookup so an existing evidence identifier cannot bypass the boundary.
+   *
+   * Execution flow:
+   * 1. Authorize the Root and load the case's exact snapshot scope.
+   * 2. Reject a commit mismatch or any out-of-scope evidence path.
+   * 3. Derive the evidence identity and return its existing receipt or atomically persist the evidence and event.
+   *
+   * Failure cases:
+   * - Invalid lease or pins, a wrong commit, ambiguous path or sibling/outside directory rejects before replay or persistence.
+   *
+   * Side effects:
+   * - A new accepted evidence row and audit/event are written transactionally; a valid replay is read-only.
+   */
   async execute(
     input: AcceptAssessmentEvidenceCommand,
   ): Promise<AcceptAssessmentEvidenceResult> {
@@ -52,6 +75,29 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
       if (request.repositoryCommit !== pins.repositoryCommit) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_PIN_MISMATCH,
+          input.correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
+      const pathsAllowed =
+        request.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE
+          ? isCanonicalRepositorySourcePath(request.path) &&
+            isRepositoryPathInSourceScope(request.path, pins.sourcePathPrefix)
+          : request.scopes.every((scope) =>
+              isRepositoryPathInSourceScope(scope.path, pins.sourcePathPrefix),
+            ) &&
+            request.inspectedEntryPoints.every((path) =>
+              isRepositoryPathInSourceScope(path, pins.sourcePathPrefix),
+            ) &&
+            request.directSourceFallbacks.every((fallback) =>
+              isRepositoryPathInSourceScope(
+                fallback.path,
+                pins.sourcePathPrefix,
+              ),
+            );
+      if (!pathsAllowed) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_SOURCE_SCOPE_MISMATCH,
           input.correlationId,
           { status: HttpStatus.UNPROCESSABLE_ENTITY },
         );

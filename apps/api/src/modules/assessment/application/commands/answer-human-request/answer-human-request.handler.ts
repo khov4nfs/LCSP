@@ -42,13 +42,19 @@ import { OutboxRepository } from "../../../../../platform/outbox/outbox.reposito
 import { canonicalJson, sha256Hex } from "../../../domain/domain-ids.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { AssessmentHumanRequestSupport } from "../../../infrastructure/persistence/assessment-human-request-support.service.js";
+import { humanRequestDependenciesOf } from "../../../infrastructure/persistence/assessment-human-request-dependencies.js";
+import {
+  humanRequestScopeWhere,
+  loadHumanRequestRuleScopeInTx,
+} from "../../../infrastructure/persistence/assessment-human-request-scope.js";
+import { buildHumanAnswerReviewAuthorization } from "../../services/assessment-human-answer-review.js";
 import { AssessmentEventAppender } from "../../services/assessment-event-appender.service.js";
 import { AssessmentEvidenceInvalidation } from "../../services/assessment-evidence-invalidation.service.js";
 import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
 import { AnswerHumanRequestCommand } from "./answer-human-request.command.js";
 
 /** Facts only. Owner/request/case CAS, answer history, evidence/fact and conditional same-thread
- * resume commit atomically. Unknown answers never resolve the request or enqueue a resume. */
+ * resume commit atomically. Unknown answers remain unresolved and may schedule a review-only Root continuation. */
 @CommandHandler(AnswerHumanRequestCommand)
 export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanRequestCommand> {
   constructor(
@@ -70,11 +76,14 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    * - Exact idempotent replays preserve the original result; a conflicting payload or actor is rejected.
    * - A known answer supplies human-owned text, while the agent-authored question remains explicitly labelled context rather than a customer assertion.
    * - Unknown answers keep the request open and create no accepted fact or case revision.
+   * - Once every open dependency has an unknown response at the current checkpoint, enqueue one review-only continuation while preserving WAITING_FOR_HUMAN.
+   * - A shared request resolves one fact; only dependencies in the current audit return to investigation after their other open requests resolve.
+   * - Historical requests outside selected membership neither authorize an answer nor block this audit's continuation.
    *
    * Execution flow:
    * 1. Lock the owned Assessment, validate replay identity, revisions, checkpoint and any selected choice.
    * 2. For a known answer, advance the case revision, invalidate affected current decisions, and persist answer evidence and a provenance-labelled fact.
-   * 3. Append answer history and audit events, update the request and coverage, and enqueue same-thread resume only after all human blockers resolve.
+   * 3. Append checkpoint-bound answer history, update each dependent rule's coverage, and enqueue normal resume after all blockers resolve or a review-only continuation after all open dependencies have replied UNKNOWN.
    *
    * Failure cases:
    * - Missing, closed, stale, conflicting or checkpoint-mismatched requests are rejected with the existing domain problem codes.
@@ -97,6 +106,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
       const assessment = await this.support.requireOwner(tx, input, true);
       const row = await tx.assessmentHumanRequest.findFirst({
         where: { assessmentId: input.assessmentId, requestId: input.requestId },
+        include: { dependencies: true },
       });
       if (!row)
         throw problemException(
@@ -105,23 +115,25 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           { status: HttpStatus.NOT_FOUND },
         );
       const auditRequestId = assessment.runtime?.currentAuditRequestId;
-      if (auditRequestId) {
-        const member = await tx.assessmentRuleAuditItem.findUnique({
-          where: {
-            requestId_assessmentRuleId: {
-              requestId: auditRequestId,
-              assessmentRuleId: row.assessmentRuleId,
-            },
-          },
-          select: { assessmentRuleId: true },
-        });
-        if (!member)
-          throw problemException(
-            ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
-            input.correlationId,
-            { status: HttpStatus.FORBIDDEN },
-          );
-      }
+      const ruleScope = await loadHumanRequestRuleScopeInTx(tx, {
+        assessmentId: input.assessmentId,
+        auditRequestId,
+        correlationId: input.correlationId,
+      });
+      const activeDependencies = humanRequestDependenciesOf(row).filter(
+        (dependency) =>
+          ruleScope === null || ruleScope.includes(dependency.assessmentRuleId),
+      );
+      if (activeDependencies.length === 0)
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+          input.correlationId,
+          { status: HttpStatus.FORBIDDEN },
+        );
+      const humanRequestWhere = humanRequestScopeWhere(
+        input.assessmentId,
+        ruleScope,
+      );
       const answers = z.array(humanAnswerAuditSchema).parse(row.answers);
       const replay = answers.find(
         (answer) => answer.idempotencyKey === input.request.idempotencyKey,
@@ -264,29 +276,34 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
               requestRevision,
               doesNotKnow: answer === null,
               answer,
+              checkpointId: row.checkpointId,
             },
           ],
           ...(factId ? { resolvedFactId: factId, resolvedAt: new Date() } : {}),
         },
       });
-      if (
-        factId &&
-        !(await tx.assessmentHumanRequest.count({
-          where: {
-            assessmentId: input.assessmentId,
-            assessmentRuleId: row.assessmentRuleId,
-            status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-          },
-        }))
-      ) {
-        await tx.assessmentDecisionCoverage.updateMany({
-          where: {
-            assessmentId: input.assessmentId,
-            assessmentRuleId: row.assessmentRuleId,
-            resolutionState: DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT,
-          },
-          data: { resolutionState: DECISION_RESOLUTION_STATES.INVESTIGATING },
-        });
+      if (factId) {
+        for (const dependency of activeDependencies) {
+          const remaining = await tx.assessmentHumanRequestDependency.count({
+            where: {
+              assessmentId: input.assessmentId,
+              assessmentRuleId: dependency.assessmentRuleId,
+              request: { status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN },
+            },
+          });
+          if (remaining === 0) {
+            await tx.assessmentDecisionCoverage.updateMany({
+              where: {
+                assessmentId: input.assessmentId,
+                assessmentRuleId: dependency.assessmentRuleId,
+                resolutionState: DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT,
+              },
+              data: {
+                resolutionState: DECISION_RESOLUTION_STATES.INVESTIGATING,
+              },
+            });
+          }
+        }
       }
       if (factId)
         await this.events.appendInTx(tx, {
@@ -325,7 +342,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
       let resumed = false;
       const openCount = await tx.assessmentHumanRequest.count({
         where: {
-          assessmentId: input.assessmentId,
+          ...humanRequestWhere,
           status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
         },
       });
@@ -339,7 +356,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         blocker.data.reason === BLOCKER_REASONS.HUMAN_FACT_UNRESOLVABLE &&
         (await tx.assessmentHumanRequest.count({
           where: {
-            assessmentId: input.assessmentId,
+            ...humanRequestWhere,
             requestId: blocker.data.reference.humanResolutionRequestId,
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED,
           },
@@ -399,6 +416,55 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           tx,
         );
         resumed = true;
+      }
+      if (
+        !resumed &&
+        openCount > 0 &&
+        assessment.lifecycleState ===
+          ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN &&
+        runtime.executionState === AGENT_EXECUTION_STATES.INTERRUPTED
+      ) {
+        const review = buildHumanAnswerReviewAuthorization(
+          await tx.assessmentHumanRequest.findMany({
+            where: {
+              ...humanRequestWhere,
+              status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            },
+          }),
+          {
+            assessmentId: input.assessmentId,
+            threadId: runtime.threadId,
+            checkpointId: runtime.checkpointId,
+          },
+        );
+        if (review) {
+          await this.outbox.enqueue(
+            buildOutboxMessageInput({
+              aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+              aggregateId: input.assessmentId,
+              assessmentId: input.assessmentId,
+              eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+              correlationId: input.correlationId,
+              causationId: input.correlationId,
+              actor,
+              result: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+              redactionStatus: AUDIT_REDACTION_STATUSES.none,
+              idempotencyKey: `human-review:${input.assessmentId}:${runtime.checkpointId}`,
+              payload: {
+                assessmentId: input.assessmentId,
+                ...(input.responseLanguage
+                  ? {
+                      responseLanguage: resolveResponseLanguage(
+                        input.responseLanguage,
+                      ),
+                    }
+                  : {}),
+              },
+            }),
+            tx,
+          );
+          resumed = true;
+        }
       }
       return {
         requestId: row.requestId,

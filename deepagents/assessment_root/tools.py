@@ -24,7 +24,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.learning import retrieve_shared_heuristics
-from tools.common.capabilities.platform.repository_sandbox import validate_source_path_prefix
+from tools.common.capabilities.platform.repository_sandbox import (
+    source_path_in_scope,
+    validate_source_path_prefix,
+)
 
 # Native/search tool names whose executions authenticate a search-coverage record.
 _SEARCH_TOOLS = {"ls", "glob", "grep", "search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
@@ -199,6 +202,45 @@ class RootRun:
     # (legalRequirementId, kind, index) -> legal source text, per rule, for anchoring findings and questions.
     rule_elements: dict[str, dict[tuple[str, str, int], str]] = field(default_factory=dict)
     response_language: str = "en"
+    human_answer_review_checkpoint_id: str | None = None
+    human_answer_review_request_ids: set[str] = field(default_factory=set)
+
+    def authorize_human_answer_review(self, claim: dict[str, Any], context: dict[str, Any]) -> bool:
+        """Business purpose: Permit investigation of unknown human responses without accepting them as case facts.
+
+        Business rules:
+        - Only an explicit server claim authorizes review on its exact human-wait checkpoint.
+        - Every open request must have a latest unknown answer bound to that checkpoint and no resolved fact.
+        Execution flow:
+        1. Clear prior local review authority and inspect the server claim.
+        2. Validate every open dependency against the authoritative request and answer audit.
+        3. Retain only those request identities and the bound checkpoint for this execution.
+        Failure cases:
+        - Missing authorization returns false; incomplete or mismatched review authority raises before graph resume.
+        Side effects:
+        - Updates execution-local review authority only; creates no fact, answer, decision or lifecycle transition.
+        """
+        self.human_answer_review_checkpoint_id = None
+        self.human_answer_review_request_ids = set()
+        if claim.get("humanAnswerReviewRequired") is not True:
+            return False
+        checkpoint = claim.get("resumeCheckpointId")
+        request_ids = set(context["openHumanRequestIds"])
+        rows = {row["requestId"]: row for row in context.get("humanRequests", [])}
+        if not isinstance(checkpoint, str) or not checkpoint or not request_ids or context["lifecycleState"] != "WAITING_FOR_HUMAN":
+            raise RuntimeError("human answer review lacks bound human-wait authority")
+        for request_id in request_ids:
+            row = rows.get(request_id)
+            answers = row.get("answers", []) if row else []
+            latest = answers[-1] if answers else {}
+            if (not row or row.get("status") != "OPEN" or row.get("resolvedFactId") is not None
+                    or latest.get("doesNotKnow") is not True or latest.get("answer") is not None
+                    or latest.get("checkpointId") != checkpoint or row.get("checkpointId") != checkpoint
+                    or latest.get("requestRevision") != row.get("requestRevision")):
+                raise RuntimeError("human answer review does not match every latest unknown response")
+        self.human_answer_review_checkpoint_id = checkpoint
+        self.human_answer_review_request_ids = request_ids
+        return True
 
     def adopt_context(self, context: dict[str, Any]) -> None:
         """Business purpose: Bind one leased Root to the latest server-owned scope and decision revision.
@@ -386,9 +428,22 @@ class SubmitDecisionArgs(_Args):
     compliance: Literal["COMPLIANT", "NON_COMPLIANT"] | None = None
 
 
+class HumanRequestDependencyArgs(_Args):
+    assessment_rule_id: str
+    criterion_ids: list[str] = Field(default_factory=list)
+
+
+class ReportExistingUnresolvableHumanFactArgs(_Args):
+    request_id: str = Field(min_length=1, description="Existing requestId from governed humanRequests context.")
+    unavailability_rationale: str = Field(min_length=1, description="Why accepted evidence proves permanent unavailability; UNKNOWN alone is insufficient.")
+    evidence_ids: list[str] = Field(min_length=1, description="Accepted evidence supporting permanent unavailability.")
+
+
 class OpenHumanRequestArgs(_Args):
     assessment_rule_id: str
     criterion_ids: list[str] = Field(default_factory=list)
+    dependencies: list[HumanRequestDependencyArgs] = Field(default_factory=list, description="Other rule/criterion dependencies on this same material fact.")
+    source_request_id: str | None = Field(default=None, description="Explicit existing request identity for server-validated sharing of the exact same fact.")
     question: str = Field(min_length=1, description="Customer-safe wording; no file paths, hashes or internal IDs.")
     unresolved_fact: str = Field(min_length=1)
     decision_impact: list[str] = Field(min_length=1)
@@ -493,6 +548,32 @@ def _applicability_elements(requirements: list[dict[str, Any]]) -> list[dict[str
         for requirement in requirements
         for index, operative in enumerate(requirement.get("operativePropositions") or [])
     ]
+
+
+def _source_evidence_path(run: RootRun, value: Any) -> str | None:
+    """Business purpose: Bind a source observation to the selected repository path without aliases.
+
+    Business rules:
+    - Scoped evidence permits the native virtual leading slash but no other path rewriting.
+    - Legacy full-repository runs retain their existing path interpretation.
+
+    Execution flow:
+    1. Obtain the repository-relative path used by the evidence API.
+    2. Verify scoped input is canonical and lies within the immutable selected prefix.
+
+    Failure cases:
+    - Out-of-scope or ambiguous scoped input returns none before source I/O or evidence creation.
+
+    Side effects:
+    - Pure validation; creates no source read, search trace or accepted evidence.
+    """
+    normalized = _repo_path(value)
+    if run.source_path_prefix is None:
+        return normalized
+    literal = value[1:] if isinstance(value, str) and value.startswith("/") else value
+    if literal != normalized or not source_path_in_scope(normalized, run.source_path_prefix):
+        return None
+    return normalized
 
 
 def _repository_view(run: RootRun) -> dict[str, Any]:
@@ -1163,12 +1244,33 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return {"ok": True, **client.start_investigation(assessment_rule_id)}
 
     def cite_repository_source(path: str, start_line: int, end_line: int) -> dict[str, Any]:
-        """Verify a line range in the pinned repository and mint its accepted evidence ID."""
+        """Business purpose: Accept an exact source excerpt from the assessment's selected repository view.
+
+        Business rules:
+        - Scoped paths must be canonical and remain under the API-owned immutable prefix.
+        - The runtime reads and hashes the actual line range; the model cannot supply its evidence hash.
+
+        Execution flow:
+        1. Bind context, reject paths outside the selection and verify scoped runtime metadata.
+        2. Read the source range, compute its digest and submit the pinned evidence to the API.
+
+        Failure cases:
+        - Invalid scope, missing source and invalid ranges never create evidence.
+        - Conflicting runtime scope metadata stops investigation before reading source.
+
+        Side effects:
+        - Reads permitted source, records the read trace and asks the API to accept source evidence.
+        """
         if not run.pins:
             run.adopt_context(client.context())
-        normalized = _repo_path(path)
+        normalized = _source_evidence_path(run, path)
+        if normalized is None:
+            return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "sourcePathPrefix": run.source_path_prefix,
+                    "hint": f"Use a canonical source path under {run.source_path_prefix!r}; repeat native searches with that explicit path."}
         if normalized == "." or end_line < start_line:
             return {"ok": False, "code": "INVALID_RANGE"}
+        if run.source_path_prefix is not None:
+            _repository_view(run)
         downloaded = run.backend.download_files([f"/{normalized}"])
         item = downloaded[0] if downloaded else None
         content = getattr(item, "content", None)
@@ -1198,9 +1300,34 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         known_gaps: list[str] | None = None,
         direct_source_fallbacks: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
-        """Record trace-authenticated searches plus Root-authored descriptive coverage caveats."""
+        """Business purpose: Record only searches and reads attributable to the selected source view.
+
+        Business rules:
+        - Paths come from runtime tool traces; Root-authored caveats do not prove a search occurred.
+        - Scoped native searches must explicitly target the selected prefix or a descendant.
+        - Graph coverage uses the same verified, scope-stamped hydrated view and retains original source paths.
+
+        Execution flow:
+        1. Bind the source scope and reject explicit caveat paths outside it.
+        2. Verify scoped runtime metadata and convert executed reads/searches into bounded source observations.
+        3. Reject an out-of-scope trace before submitting the authenticated coverage record.
+
+        Failure cases:
+        - Missing activity or out-of-scope paths produce feedback without accepting coverage.
+        - Runtime scope conflicts stop the operation; truncated traces remain explicit limitations.
+
+        Side effects:
+        - Consumes the execution-local trace and submits a coverage record only after all scope guards pass.
+        """
         if not run.pins:
             run.adopt_context(client.context())
+        if run.source_path_prefix is not None:
+            supplied_paths = [*(inspected_entry_points or []),
+                              *(item.get("path") for item in (direct_source_fallbacks or []))]
+            if any(_source_evidence_path(run, path) is None for path in supplied_paths):
+                return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "sourcePathPrefix": run.source_path_prefix,
+                    "hint": f"Use a canonical source path under {run.source_path_prefix!r}; repeat native searches with that explicit path."}
+            _repository_view(run)
         entries, dropped_count = run.trace.snapshot_and_reset()
         scopes: dict[tuple[str, str], None] = {}
         queries: list[dict[str, Any]] = []
@@ -1217,14 +1344,21 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 if entry.get("failed"):
                     trace_gaps.append(f"The {tool} read did not return a usable result.")
                     continue
-                path = _repo_path(args.get("file_path") or args.get("path"))
+                path = _source_evidence_path(run, args.get("file_path") or args.get("path"))
+                if path is None:
+                    return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "sourcePathPrefix": run.source_path_prefix,
+                    "hint": f"Use a canonical source path under {run.source_path_prefix!r}; repeat native searches with that explicit path."}
                 read_paths.add(path)
                 scopes[(_SCOPE_FILE, path)] = None
                 continue
             if tool in {"ls", "glob", "grep"}:
-                scopes[(_SCOPE_DIRECTORY, _repo_path(args.get("path") or args.get("directory") or "."))] = None
+                path = _source_evidence_path(run, args.get("path") or args.get("directory") or ".")
+                if path is None:
+                    return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "sourcePathPrefix": run.source_path_prefix,
+                    "hint": f"Use a canonical source path under {run.source_path_prefix!r}; repeat native searches with that explicit path."}
+                scopes[(_SCOPE_DIRECTORY, path)] = None
             else:
-                scopes[(_SCOPE_GRAPH, ".")] = None
+                scopes[(_SCOPE_GRAPH, run.source_path_prefix or ".")] = None
             queries.append(
                 {
                     "tool": tool,
@@ -1437,7 +1571,23 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         criterion_ids: list[str] | None = None,
         control_type: str = "FREE_TEXT",
         choices: list[dict[str, str]] | None = None,
+        dependencies: list[dict[str, Any]] | None = None,
+        source_request_id: str | None = None,
     ) -> dict[str, Any]:
+        """Business purpose: Persist one idempotent material question and its shared rule dependencies.
+
+        Business rules:
+        - Server validation owns source-request equivalence, accepted facts and dependency eligibility.
+        - Exact semantic content and explicit source identity determine replay identity on this Root thread.
+        Execution flow:
+        1. Serialize the question and optional dependency/source references.
+        2. Bind current case revision and a stable thread/content idempotency key.
+        3. Return only the authoritative server result.
+        Failure cases:
+        - Rejected sharing, stale revisions or invalid dependencies propagate as governed tool feedback.
+        Side effects:
+        - May persist a new request or attach validated dependencies to an existing request.
+        """
         content = {
             "assessmentRuleId": assessment_rule_id,
             "criterionIds": criterion_ids or [],
@@ -1447,6 +1597,11 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "resolutionAttempts": list(resolution_attempts),
             "controlType": control_type,
             "choices": choices or [],
+            **({"dependencies": [
+                {"assessmentRuleId": dependency.assessment_rule_id, "criterionIds": dependency.criterion_ids}
+                for dependency in (HumanRequestDependencyArgs.model_validate(row) for row in dependencies)
+            ]} if dependencies else {}),
+            **({"sourceRequestId": source_request_id} if source_request_id else {}),
         }
         # Native interrupt replays this tool. Stable server-thread/content identity makes the
         # pre-interrupt request write idempotent across new processes and execution attempts.
@@ -1458,13 +1613,100 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         })
 
     def resolved_human_request(result: dict[str, Any]) -> dict[str, Any]:
-        # Resume values are not facts: only the authenticated API ledger is authoritative.
+        """Business purpose: Reload a human dependency as an accepted resolution or explicitly authorized unknown review.
+
+        Business rules:
+        - Resume values never establish facts; the authenticated API ledger is authoritative.
+        - OPEN requests can return only non-factual UNKNOWN feedback under exact checkpoint-bound review authority.
+        Execution flow:
+        1. Reload current context and adopt server case pins.
+        2. Validate an open request against this execution's authorized unknown-answer checkpoint.
+        3. Return unresolved review feedback or accepted facts for a closed dependency.
+        Failure cases:
+        - An open request without matching review authority raises instead of inventing a resolution.
+        Side effects:
+        - Read-only API retrieval and execution-local cache refresh; no fact or lifecycle writes.
+        """
         context = client.context()
         run.adopt_context(context)
-        if result["requestId"] in context["openHumanRequestIds"]:
-            raise RuntimeError("human request resumed without an authoritative resolution")
-        return {"ok": True, "requestId": result["requestId"], "caseRevision": run.case_revision,
-                "facts": context["facts"], "instruction": "Continue investigation using the accepted facts; re-evaluate stale decisions."}
+        request_id = result["requestId"]
+        if request_id in context["openHumanRequestIds"]:
+            row = next((row for row in context.get("humanRequests", []) if row["requestId"] == request_id), None)
+            answers = row.get("answers", []) if row else []
+            latest = answers[-1] if answers else {}
+            if (request_id not in run.human_answer_review_request_ids or not row
+                    or row.get("status") != "OPEN" or row.get("resolvedFactId") is not None
+                    or latest.get("doesNotKnow") is not True or latest.get("answer") is not None
+                    or latest.get("checkpointId") != run.human_answer_review_checkpoint_id
+                    or row.get("checkpointId") != run.human_answer_review_checkpoint_id
+                    or latest.get("requestRevision") != row.get("requestRevision")):
+                raise RuntimeError("human request resumed without an authoritative resolution or answer review")
+            return {"ok": True, "requestId": request_id, "caseRevision": run.case_revision,
+                    "resolved": False, "responseKind": "UNKNOWN", "humanRequest": row,
+                    "facts": context["facts"],
+                    "instruction": "This UNKNOWN response is not a fact or verdict. Investigate accepted evidence; report permanent unavailability only if supported, otherwise call wait_for_human_requests."}
+        return {"ok": True, "requestId": request_id, "caseRevision": run.case_revision,
+                "resolved": True, "facts": context["facts"],
+                "instruction": "Continue investigation using the accepted facts; re-evaluate stale decisions."}
+
+    def wait_for_human_requests() -> dict[str, Any]:
+        """Business purpose: Retain unresolved human dependencies after reviewing an unknown response.
+
+        Business rules:
+        - Unknown responses do not close requests or authorize compliance decisions.
+        - The next wait uses the complete authoritative open-request set and a native checkpoint.
+        Execution flow:
+        1. Reload the authoritative open dependencies.
+        2. Interrupt when any remain, preserving their identities without creating another question.
+        3. On authorized resume, return the server-owned resolution or unknown feedback.
+        Failure cases:
+        - An unauthorized resume of an open dependency fails rather than accepting a fabricated fact.
+        Side effects:
+        - Persists a native interrupt checkpoint; no question, fact, answer or lifecycle writes.
+        """
+        context = client.context()
+        run.adopt_context(context)
+        request_ids = sorted(set(context["openHumanRequestIds"]))
+        if request_ids:
+            interrupt({"requestIds": request_ids})
+            return {"ok": True, "requests": [resolved_human_request({"requestId": request_id}) for request_id in request_ids]}
+        return {"ok": True, "requests": [], "facts": context["facts"], "caseRevision": run.case_revision}
+
+    def report_existing_human_fact_unresolvable(
+        request_id: str, unavailability_rationale: str, evidence_ids: list[str],
+    ) -> dict[str, Any]:
+        """Business purpose: Report proven permanent unavailability for an existing question without creating a duplicate.
+
+        Business rules:
+        - Only a current server-owned OPEN request may be classified; unknown alone is insufficient.
+        - Accepted evidence and the API validate permanent unavailability and retain the unresolved dependency.
+        Execution flow:
+        1. Reload the exact request and its current revision from governed context.
+        2. Submit evidence and rationale against that request at the current case revision.
+        3. Preserve all open dependencies in a native wait even when the claim is rejected.
+        Failure cases:
+        - A missing request returns HUMAN_REQUEST_NOT_FOUND; rejected unavailability evidence remains checkpoint feedback and never creates a fact.
+        Side effects:
+        - May persist the API's unavailable-fact classification and a native checkpoint; creates no duplicate question.
+        """
+        context = client.context()
+        run.adopt_context(context)
+        row = next((row for row in context.get("humanRequests", []) if row["requestId"] == request_id), None)
+        if row is None:
+            return {"ok": False, "code": "HUMAN_REQUEST_NOT_FOUND", "hint": "Reload governed humanRequests context."}
+        if request_id not in context["openHumanRequestIds"]:
+            return resolved_human_request({"requestId": request_id})
+        pending: dict[str, Any] = {"requestIds": sorted(set(context["openHumanRequestIds"]))}
+        try:
+            client.report_unresolvable_human_fact({
+                "humanResolutionRequestId": request_id, "expectedCaseRevision": run.case_revision,
+                "expectedRequestRevision": row["requestRevision"], "rationale": unavailability_rationale,
+                "evidenceIds": sorted(set(evidence_ids)),
+            })
+        except Exception as error:
+            pending["claimRejected"] = {"code": error.code if isinstance(error, AssessmentApiError) else type(error).__name__}
+        interrupt(pending)
+        return resolved_human_request({"requestId": request_id})
 
     def open_human_request(
         assessment_rule_id: str,
@@ -1476,14 +1718,17 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         control_type: str = "FREE_TEXT",
         choices: list[dict[str, str]] | None = None,
         condition_ref: dict[str, Any] | None = None,
+        dependencies: list[dict[str, Any]] | None = None,
+        source_request_id: str | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Ask the customer for a material missing fact after investigating the repository and pinned legal sources.
 
         Business rules:
         - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
+        - Explicit source sharing and extra dependencies require server validation; an accepted resolved source needs no new wait.
         Execution flow:
         1. Verify the question’s criterion or condition anchor.
-        2. Persist the governed human request and interrupt the native graph with its request identity.
+        2. Persist or explicitly share the governed question; return a resolved source or interrupt with the open request identity.
         3. On an authorized resume, return the server-owned resolution of that same request.
         Failure cases:
         - Invalid anchors return feedback; an open request keeps the assessment waiting instead of forcing completion.
@@ -1494,7 +1739,10 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         if isinstance(impact, dict):
             return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
-            impact, resolution_attempts, criterion_ids, control_type, choices)
+            impact, resolution_attempts, criterion_ids, control_type, choices, dependencies, source_request_id)
+        context = client.context()
+        if source_request_id and result["requestId"] not in context["openHumanRequestIds"]:
+            return resolved_human_request(result)
         interrupt({"requestIds": [result["requestId"]]})
         return resolved_human_request(result)
 
@@ -1510,6 +1758,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         control_type: str = "FREE_TEXT",
         choices: list[dict[str, str]] | None = None,
         condition_ref: dict[str, Any] | None = None,
+        dependencies: list[dict[str, Any]] | None = None,
+        source_request_id: str | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Record evidence that a material customer fact is permanently unavailable without inventing an unknown verdict.
 
@@ -1530,7 +1780,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
             impact, [*resolution_attempts, unavailability_rationale],
-            criterion_ids, control_type, choices)
+            criterion_ids, control_type, choices, dependencies, source_request_id)
         # A later valid answer replays this native tool. Resolution is server-owned and must
         # clear the old dependency instead of reapplying the historical blocker claim.
         context = client.context()
@@ -1638,17 +1888,21 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         tool(start_rule_investigation, StartInvestigationArgs, "start_rule_investigation",
              "Mark a pinned rule as being investigated through the governed API; no applicability or compliance verdict is created."),
         tool(cite_repository_source, CiteRepositorySourceArgs, "cite_repository_source",
-             "Accept an exact source excerpt read and hashed from the pinned repository. Use repository-relative paths and the smallest supporting line range. Missing or unavailable source cannot become evidence."),
+             "Accept an exact source excerpt read and hashed from the pinned repository. Use canonical paths within sourcePathPrefix and the smallest supporting line range. Missing, out-of-scope or unavailable source cannot become evidence."),
         tool(record_search_coverage, RecordSearchCoverageArgs, "record_search_coverage",
-             "Accept coverage from searches and reads actually recorded by the runtime. Use explicit repository paths; retain truncation and gaps. Your caveats do not prove a search ran, and a coverage record alone never proves absence."),
+             "Accept coverage from searches and reads actually recorded by the runtime. Use explicit source-scope paths; retain truncation and gaps. Your caveats do not prove a search ran, and a coverage record alone never proves absence."),
         tool(accept_case_fact, AcceptFactArgs, "accept_case_fact",
              "Record only what accepted source evidence supports, preserving scope and uncertainty. Code capability or a README claim does not establish real operator practice. Success advances caseRevision and invalidates older decisions; acceptance is not semantic certification."),
         tool(submit_rule_decision, SubmitDecisionArgs, "submit_rule_decision",
              "Submit supported findings for one pinned rule at current revisions. Address every material applicability element; NOT_ESTABLISHED supports neither verdict. APPLICABLE needs every criterion and consistent compliance. The API validates pins, references and revisions without choosing the conclusion."),
         tool(open_human_request, OpenHumanRequestArgs, "open_human_request",
-             "Ask for a material missing fact after investigating sources and accepted facts. Anchor it to a criterion or legal element, using customer-safe wording and no requested legal verdict. The governed request pauses natively for a factual answer."),
+             "Ask for a material missing fact after investigating sources and accepted facts. Anchor it to a criterion or legal element, using customer-safe wording and no requested legal verdict. The governed request pauses natively; explicit source sharing needs server validation."),
         tool(report_human_fact_unresolvable, ReportUnresolvableHumanFactArgs, "report_human_fact_unresolvable",
              "Report accepted evidence proving a material anchored fact permanently unobtainable. An unknown answer is insufficient. Retain the native human dependency even if the API rejects the claim; never manufacture a fact or verdict."),
+        tool(report_existing_human_fact_unresolvable, ReportExistingUnresolvableHumanFactArgs, "report_existing_human_fact_unresolvable",
+             "Report evidence proving permanent unavailability for the exact existing OPEN request from humanRequests. Do not duplicate the question; unknown alone is insufficient. Preserve all open dependencies in a native wait, including when the claim is rejected."),
+        tool(wait_for_human_requests, _NoArgs, "wait_for_human_requests",
+             "After authorized review of unknown answers, preserve all authoritative open requests at a native checkpoint. Create no repeated questions or assumed facts; unresolved feedback never authorizes a decision."),
         tool(request_finalization, _NoArgs, "request_finalization",
              "Ask the API gate to check the current authorized rules and dependencies. A completed SELECTED_RULES request ends a partial audit; FULL_RULE_SET may enter FINALIZING. The gate never chooses or repairs legal conclusions."),
         tool(submit_final_report, SubmitFinalReportArgs, "submit_final_report",
@@ -1673,6 +1927,8 @@ ROOT_TOOL_NAMES = (
     "submit_rule_decision",
     "open_human_request",
     "report_human_fact_unresolvable",
+    "report_existing_human_fact_unresolvable",
+    "wait_for_human_requests",
     "request_finalization",
     "submit_final_report",
 )

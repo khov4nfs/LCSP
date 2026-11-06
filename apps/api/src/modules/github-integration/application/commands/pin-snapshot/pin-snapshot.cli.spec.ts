@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { HttpException } from "@nestjs/common";
 import {
   GITHUB_CREDENTIAL_ERROR_CODES,
+  GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_AUTHENTICATION_MODES,
   REPOSITORY_CONNECTION_STATUSES,
@@ -302,5 +303,52 @@ describe("PinSnapshotHandler CLI routing", () => {
       HttpException,
     );
     expect(fixture.resolveForConnection).not.toHaveBeenCalled();
+  });
+});
+
+describe("PinSnapshotHandler source scope", () => {
+  it.each([
+    "../chatbot",
+    "chatbot/",
+    "chatbot//src",
+    "chatbot%2Fsrc",
+    " chatbot",
+    "chatbot\\src",
+  ])(
+    "rejects ambiguous prefix %s before resolving provider credentials",
+    async (sourcePathPrefix) => {
+      const f = build();
+      const input = Object.assign(command(), { sourcePathPrefix });
+      await expect(f.handler.execute(input)).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: GITHUB_INTEGRATION_ERROR_CODES.sourcePathPrefixInvalid,
+            status: 400,
+          },
+        },
+      });
+      expect(f.resolveForConnection).not.toHaveBeenCalled();
+      expect(f.cliResolve).not.toHaveBeenCalled();
+      expect(f.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it("pins the exact approved prefix and returns it to the caller", async () => {
+    const f = build();
+    const input = Object.assign(command(), {
+      sourcePathPrefix: "apps/Chat bôt",
+    });
+    const result = await f.handler.execute(input);
+    expect(f.save.mock.calls[0]?.[0]).toMatchObject({
+      sourcePathPrefix: "apps/Chat bôt",
+    });
+    expect(result).toMatchObject({ source_path_prefix: "apps/Chat bôt" });
+  });
+
+  it("keeps an omitted prefix explicitly null for whole-repository compatibility", async () => {
+    const f = build();
+    expect(await f.handler.execute(command())).toMatchObject({
+      source_path_prefix: null,
+    });
   });
 });

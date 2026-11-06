@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-04",
+  "milestone": "T31_POPULATED_UPGRADE_AND_PRISMA_UTC",
+  "result": "PASS",
+  "scope": "Local isolated populated-upgrade validation and API PostgreSQL session correction. No staging or production deployment; no production-data copy or historical timestamp mutation.",
+  "implementation": {
+    "productionFile": "apps/api/src/infrastructure/prisma/prisma.service.ts",
+    "regressionFile": "tests/assessment-hitl-phase2-upgrade.mjs",
+    "rootCause": "Installed @prisma/adapter-pg 7.8.0 serializes UTC clock text without an offset and normalizes returned timestamptz by replacing its offset with +00:00. With a non-UTC database session, the stored instant can shift while the ORM readback appears correct. AssessmentRuntime.leaseExpiresAt is already TIMESTAMPTZ(3); the SQL live-lease comparison is not the cause.",
+    "sourceEvidence": [
+      {
+        "path": "node_modules/.pnpm/@prisma+adapter-pg@7.8.0/node_modules/@prisma/adapter-pg/dist/index.js",
+        "symbols": [
+          "formatDateTime",
+          "normalize_timestamptz",
+          "mapArg"
+        ]
+      },
+      {
+        "path": "node_modules/.pnpm/pg@8.22.0/node_modules/pg/lib/connection-parameters.js",
+        "behavior": "Parsed URL configuration overrides PoolConfig, then PGOPTIONS supplies only an absent/falsy options value."
+      }
+    ],
+    "fix": "Resolve existing startup options using the driver's URL-over-PGOPTIONS precedence, append -c timezone=UTC, and embed enforced options in the URL plus fallback PoolConfig. Preserve credentials and unrelated options. Do not alter PostgreSQL server/role/database defaults or weaken the lease/checkpoint guard.",
+    "historicalData": "No automatic repair of timestamps previously written under a non-UTC Prisma session was attempted."
+  },
+  "beforeFixRegression": {
+    "expected": "FAIL",
+    "exitCode": 1,
+    "stdout": "{\"phase\":\"BEFORE_FIX\",\"database\":\"lcsp360_final_timezone_before_04b69d7287654975957297df9ed1f6e7\",\"timezone\":\"Asia/Ho_Chi_Minh\",\"expectedMs\":1793803518208,\"prismaReadMs\":1793803518208,\"rawStoredMs\":1793778318208,\"driftMs\":-25200000,\"sqlLeaseLive\":false}\n",
+    "stderr": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: Persisted timestamp must preserve the requested instant under non-UTC server timezone\n+ actual - expected\n\n+ 1793778318208\n- 1793803518208\n      ^\n\n    at file:///Users/nguyenanh/Documents/Capstone/LCSP/[eval1]:23:9\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: 1793778318208,\n  expected: 1793803518208,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.15.0\n",
+    "finding": "A future timestamp was stored 25,200,000 ms early (7 hours); Prisma readback masked the shift and raw PostgreSQL considered the lease expired."
+  },
+  "populatedUpgrade": {
+    "command": "LCSP_TEST_PG_PORT=64303 node tests/assessment-hitl-phase2-upgrade.mjs",
+    "temporaryDirectoryPolicy": "All baseline migration copies, generated Prisma config, and task database files are under ignored .cache paths.",
+    "receipt": {
+      "gate": "PHASE2_POPULATED_UPGRADE_AND_PRISMA_TIMEZONE",
+      "result": "PASS",
+      "assertions": 59,
+      "database": "lcsp360_final_hitl_upgrade_b797c82fc2e9406e96fdba6cc5ab88c7",
+      "serverTimezone": "Asia/Ho_Chi_Minh",
+      "baselineMigrations": 138,
+      "finalMigrations": 140,
+      "representativeRequests": 8,
+      "originalHistorySha256": "10f71e7ca5e4c967bc86630b2d191a0ffb1a692548988bee2a1f27592dc06353",
+      "backfilledDependencies": 8,
+      "timezoneCases": [
+        {
+          "databaseTimezone": "UTC",
+          "inheritedOptions": "-c timezone=Asia/Ho_Chi_Minh -c statement_timeout=17000",
+          "expectedTimeout": "17s",
+          "sessionTimezone": "UTC",
+          "futureDriftMs": 0,
+          "expiredDriftMs": 0
+        },
+        {
+          "databaseTimezone": "Asia/Ho_Chi_Minh",
+          "inheritedOptions": "",
+          "expectedTimeout": "0",
+          "sessionTimezone": "UTC",
+          "futureDriftMs": 0,
+          "expiredDriftMs": 0
+        },
+        {
+          "databaseTimezone": "Asia/Ho_Chi_Minh",
+          "inheritedOptions": "-c statement_timeout=17000",
+          "urlOptions": "-c timezone=America/New_York -c statement_timeout=19000",
+          "expectedTimeout": "19s",
+          "sessionTimezone": "UTC",
+          "futureDriftMs": 0,
+          "expiredDriftMs": 0
+        }
+      ],
+      "migrationLog": {
+        "baseline": [
+          "    └─ migration.sql",
+          "",
+          "All migrations have been successfully applied."
+        ],
+        "upgrade": [
+          "",
+          "migrations/",
+          "  └─ 20261104120000_shared_human_request_dependencies/",
+          "    └─ migration.sql",
+          "  └─ 20261104130000_human_answer_review_checkpoint_binding/",
+          "    └─ migration.sql",
+          "",
+          "All migrations have been successfully applied."
+        ]
+      },
+      "scope": "Local isolated representative data; real migrations and built PrismaService. Not a staging deployment or production-data upgrade.",
+      "sourceFiles": [
+        {
+          "path": "apps/api/src/infrastructure/prisma/prisma.service.ts",
+          "sha256": "26db8cbe7463a8f84122a198e6c518f304516a7bcb5b8f818ae6bb7be62151ec"
+        },
+        {
+          "path": "tests/assessment-hitl-phase2-upgrade.mjs",
+          "sha256": "72f1eddfb1abe28f9e25f91a110ea85243cd27af5128f5026c15556ff50699ec"
+        },
+        {
+          "path": "apps/api/prisma/migrations/20261104120000_shared_human_request_dependencies/migration.sql",
+          "sha256": "329ece67d9e35451060069890e56b4820bba0b177d9a87368531b442cfeb2b96"
+        },
+        {
+          "path": "apps/api/prisma/migrations/20261104130000_human_answer_review_checkpoint_binding/migration.sql",
+          "sha256": "5884a1e0af593dde095ecab4164782708ff1313b126d8bcd8f456c9f864d17d6"
+        }
+      ]
+    },
+    "process": {
+      "sessionId": "1cf7e273-f470-4fc4-871a-59a5cc2cf34a",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    "invariants": [
+      "138 actual historical migrations are deployed before representative rows are created; both new Phase2 migrations are then applied to populated tables.",
+      "Eight requests span OPEN without answers, OPEN UNKNOWN histories, RESOLVED after UNKNOWN with one accepted fact/evidence, CANCELLED, SUPERSEDED, and separate ownership/expired/unreviewed cases.",
+      "Pre-upgrade JSON snapshots of request history, case pins/revisions, facts, evidence, links, coverage, runtime and turn bindings are identical immediately after upgrade and migration replay.",
+      "Each of the eight original questions receives exactly its original primary dependency, including closed questions; no registration receipts are invented.",
+      "Same-assessment foreign keys and unique dependency/registration identities reject foreign or duplicate rows.",
+      "Authorized unchanged UNKNOWN checkpoint rebinding works under a live lease; expired, absent or stale review authority is rejected.",
+      "UTC and Asia/Ho_Chi_Minh database defaults, plus conflicting URL/PGOPTIONS timezone settings, all preserve exact stored instants and expired/live lease decisions while unrelated statement timeouts retain precedence."
+    ]
+  },
+  "fullStackRegression": {
+    "command": "TMPDIR=\"$PWD/.cache/t31-phase2-upgrade-20261104/tmp\" LCSP_TEST_PG_PORT=64303 node tests/assessment-hitl-phase2-vertical.mjs",
+    "scenarios": 7,
+    "assertions": 206,
+    "result": "PASS",
+    "server": {
+      "serverTimezone": "Asia/Ho_Chi_Minh",
+      "version": "14.20 (Homebrew)",
+      "migrations": {
+        "finished": 140,
+        "unfinished": 0
+      }
+    },
+    "paidProviderCalls": 0,
+    "process": {
+      "sessionId": "e5d31f37-c6b2-46bc-8af2-298590b8473d",
+      "exitCode": 0,
+      "stderr": "",
+      "stdout": "{\"scenario\":\"UNKNOWN_ACCEPTED_EVIDENCE_BLOCKED_KNOWN_RECOVERY\",\"result\":\"PASS\",\"checks\":51}\n{\"scenario\":\"UNKNOWN_UNSUPPORTED_NATIVE_REWAIT_KNOWN_RECOVERY\",\"result\":\"PASS\",\"checks\":80}\n{\"scenario\":\"SHARED_TWO_RULES_ONE_FACT\",\"result\":\"PASS\",\"checks\":98}\n{\"scenario\":\"CRASH_BEFORE_FINISH_WAIT\",\"result\":\"PASS\",\"checks\":127}\n{\"scenario\":\"CRASH_BEFORE_FINISH_BLOCK\",\"result\":\"PASS\",\"checks\":156}\n{\"scenario\":\"GRACEFUL_FAILED_REVIEW_CHECKPOINT_RETRY\",\"result\":\"PASS\",\"checks\":189}\n{\"gate\":\"PHASE2_HITL_REVIEW_SHARED_FACTS\",\"result\":\"PASS\",\"checks\":206,\"database\":\"lcsp360_final_hitl_phase2_d13b6f35b27b494eb395e934b28e094f\",\"checkpointDatabase\":\"lcsp_assessment_phase2_d13b6f35b27b494eb395e934b28e094f\",\"proof\":\"real migrated API/PostgresSaver and separate worker processes; scripted model only\",\"threads\":[\"e259ff6b-11d9-4d66-8688-750db919adf3\",\"0a16b1d8-5360-4dc3-b351-38df6cfa74dc\",\"7eeb1727-f44b-4cd4-9ce6-5772a54ccd35\"]}\n"
+    },
+    "sourceScope": "Same synthetic source/real runtime sanitizer and filesystem boundary scope as the prior phase2 gate; no live T31 semantic acceptance."
+  },
+  "otherVerification": {
+    "build": {
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "\n✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 293ms\n\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\n\n\n",
+      "stderr": "$ pnpm --dir ../.. run build:runtime-packages\n$ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build\n$ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force\n$ tsc -b tsconfig.json --force\n$ pnpm run prisma:generate && nest build\n$ cross-env XDG_CACHE_HOME=.cache prisma generate\nLoaded Prisma config from prisma.config.ts.\n\nPrisma schema loaded from prisma/schema.prisma.\n"
+    },
+    "apiTests": {
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "(node:14725) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nPASS src/modules/assessment/presentation/http/assessment-human-resolution.controller.spec.ts\nPASS src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts\nPASS src/modules/assessment/application/commands/open-human-request/open-human-request.handler.spec.ts\nPASS src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.spec.ts\nPASS src/modules/assessment/application/queries/get-root-context/get-root-context.handler.spec.ts\nPASS src/modules/assessment/infrastructure/persistence/assessment-provenance.loader.spec.ts\nPASS src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts\nPASS src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.spec.ts\nPASS src/modules/assessment/application/services/assessment-human-answer-review.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       146 passed, 146 total\nSnapshots:   0 total\nTime:        1.487 s, estimated 2 s\nRan all test suites within paths \"src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts\", \"src/modules/assessment/application/services/assessment-human-answer-review.spec.ts\", \"src/modules/assessment/application/commands/open-human-request/open-human-request.handler.spec.ts\", \"src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.spec.ts\", \"src/modules/assessment/infrastructure/persistence/assessment-provenance.loader.spec.ts\", \"src/modules/assessment/application/queries/get-root-context/get-root-context.handler.spec.ts\", \"src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts\", \"src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.spec.ts\", \"src/modules/assessment/presentation/http/assessment-human-resolution.controller.spec.ts\".\n"
+    },
+    "docs": {
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "Business logic documentation: 3005 functions in 777 production source files; 886 conformant; 2119 unchanged legacy; 0 missing/invalid.\n",
+      "stderr": "$ node scripts/check-business-logic-docs.mjs\n"
+    },
+    "docsTests": {
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "✔ documents are required in shared business directories, not unit tests or technical Prisma clients (0.800334ms)\n✔ all five meaningful sections are validated in a JSDoc comment (0.739833ms)\n✔ checks a decorated handler method, a function and a named arrow function (4.155208ms)\n✔ freezes only unchanged undocumented methods; changed and newly added functions fail (0.706958ms)\n✔ Python AST requires a structured docstring as the function's first statement (28.213791ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 173.170083\n",
+      "stderr": "$ node --test scripts/check-business-logic-docs.test.mjs\n"
+    },
+    "lint": {
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "types": {
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "diff": {
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  },
+  "cleanup": {
+    "ownedPostgres": {
+      "port": 64303,
+      "sessionId": "9edd8413-a50c-4d30-bbce-ab5c793ad363",
+      "status": "Stopped using SourceNerve process API; port verified closed."
+    },
+    "testSessions": "Both completed upgrade test sessions and the non-UTC full-stack E2E session were reaped. API and Python workers exited through harness cleanup.",
+    "retainedState": "Only task-created database files and temporary fixture copies remain under ignored .cache. No pre-existing service or database was reset, dropped or modified."
+  }
+}

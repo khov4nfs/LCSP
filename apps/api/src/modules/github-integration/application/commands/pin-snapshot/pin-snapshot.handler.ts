@@ -15,6 +15,7 @@ import {
   GITHUB_CREDENTIAL_OPERATIONS,
   REPOSITORY_AUTHENTICATION_MODES,
   REPOSITORY_CONNECTION_STATUSES,
+  repositorySourcePathPrefixSchema,
   type GitHubCredentialErrorCode,
 } from "@lcsp/contracts/github-integration";
 import {
@@ -83,11 +84,24 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
   ) {}
 
   /**
-   * Validates RBAC scope and revision syntax, resolves the exact GitHub commit, persists the immutable snapshot, and audits the result.
+   * Business purpose: Pin the customer's authorized repository revision and source directory as immutable assessment inputs.
    *
-   * @param command - Assessment, actor/RBAC, repository connection, revision selectors, and correlation context.
-   * @returns Persisted snapshot metadata including the immutable commit SHA.
-   * @throws When the connection/assessment is unavailable, authorization fails, or the requested revision cannot be safely resolved.
+   * Business rules:
+   * - Only the assessment's customer owner may use an active owned repository connection.
+   * - A non-null source prefix must be canonical and is preserved exactly; invalid input never widens to the repository root.
+   * - Commit resolution must remain inside the authorized repository.
+   *
+   * Execution flow:
+   * 1. Validate ownership, connection, exact source prefix and revision selectors.
+   * 2. Resolve the authorized provider revision to its commit.
+   * 3. Persist the snapshot and outbox event, audit the pin, and return the commit and source scope.
+   *
+   * Failure cases:
+   * - Missing ownership or connection rejects before provider access.
+   * - Invalid source scope or revision syntax rejects without creating a snapshot; provider failures preserve their mapped problem.
+   *
+   * Side effects:
+   * - Resolves provider metadata and writes the snapshot, transactional outbox event and pin audit.
    */
   async execute(command: PinSnapshotCommand): Promise<PinSnapshotDto> {
     const connectionId = clean(command.connectionId);
@@ -142,6 +156,22 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       );
     }
 
+    const sourcePathPrefix = command.sourcePathPrefix ?? null;
+    if (
+      sourcePathPrefix !== null &&
+      !repositorySourcePathPrefixSchema.safeParse(sourcePathPrefix).success
+    ) {
+      await this.auditDenied(
+        command,
+        GITHUB_INTEGRATION_ERROR_CODES.sourcePathPrefixInvalid,
+      );
+      throw problemException(
+        GITHUB_INTEGRATION_ERROR_CODES.sourcePathPrefixInvalid,
+        command.correlationId,
+        { status: HttpStatus.BAD_REQUEST },
+      );
+    }
+
     const branch = clean(command.branch);
     const ref = clean(command.ref);
     const commitSha = clean(command.commitSha);
@@ -191,6 +221,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       branch,
       ref,
       commitSha: resolved.sha,
+      sourcePathPrefix,
       providerMetadata: {
         authorDate: resolved.authorDate,
         committerDate: resolved.committerDate,
@@ -247,6 +278,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       snapshot_id: snapshot.id,
       repository_full_name: snapshot.repositoryFullName,
       commit_sha: snapshot.commitSha,
+      source_path_prefix: snapshot.sourcePathPrefix,
       branch: snapshot.branch,
       status: snapshot.status,
       created_at: snapshot.createdAt.toISOString(),

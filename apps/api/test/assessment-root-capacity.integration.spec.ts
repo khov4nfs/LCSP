@@ -13,6 +13,10 @@ import {
 } from "@jest/globals";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
+  BLOCKER_REASONS,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
+} from "@lcsp/contracts/assessment";
+import {
   PrismaClient,
   AgentExecutionState,
   AssessmentLifecycleState,
@@ -28,6 +32,10 @@ import request from "supertest";
 import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ASSESSMENT_ROOT_BOUNDARY,
+  ASSESSMENT_AUDIT_MODES,
+  HUMAN_RESOLUTION_CONTROL_TYPES,
+  RULE_AUDIT_SCOPE_MODES,
+  RULE_AUDIT_STATUSES,
   ROOT_CAPACITY_ID,
   ROOT_CAPACITY_REASONS as Reasons,
   ROOT_CAPACITY_METRIC_SOURCES as Sources,
@@ -355,6 +363,628 @@ integration(
         incarnationId,
       };
     }
+
+    async function enqueueHumanReview(
+      options: {
+        selected?: boolean;
+        answered?: boolean;
+        latest?: Record<string, unknown>;
+      } = {},
+    ) {
+      const demand = await enqueue();
+      const runtime = await first.assessmentRuntime.findUniqueOrThrow({
+        where: { assessmentId: demand.assessmentId },
+      });
+      const checkpointId = randomUUID();
+      const turnId = randomUUID();
+      const auditRequestId = options.selected ? randomUUID() : null;
+      const ruleId = "review-selected-rule";
+      await first.assessmentCase.create({
+        data: {
+          assessmentId: demand.assessmentId,
+          auditMode: options.selected
+            ? ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED
+            : ASSESSMENT_AUDIT_MODES.LEGACY_FULL,
+        },
+      });
+      if (auditRequestId) {
+        await first.assessmentRuleAuditRequest.create({
+          data: {
+            requestId: auditRequestId,
+            assessmentId: demand.assessmentId,
+            requestRevision: 1,
+            idempotencyKey: randomUUID(),
+            requestDigest: "a".repeat(64),
+            scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+            status: RULE_AUDIT_STATUSES.WAITING_FOR_CUSTOMER,
+            ruleSetVersionId: "capacity-fixture-rule-set",
+            ruleSetDigest: "b".repeat(64),
+            repositorySnapshotId: "capacity-fixture-snapshot",
+            repositoryCommit: "c".repeat(40),
+            rules: {
+              create: {
+                assessmentRuleId: ruleId,
+                assessmentRuleVersion: "1",
+                ordinal: 0,
+              },
+            },
+          },
+        });
+      }
+      const contextJson = auditRequestId
+        ? { auditRequestId, checkpointThreadId: auditRequestId }
+        : { checkpointThreadId: runtime.threadId };
+      await first.assessmentRuntimeTurn.create({
+        data: {
+          id: turnId,
+          assessmentId: demand.assessmentId,
+          threadId: runtime.threadId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: turnId,
+          correlationId: randomUUID(),
+          state: AssessmentRuntimeControlState.COMPLETED,
+          contextJson,
+          checkpointJson: { checkpointId },
+        },
+      });
+      await first.assessmentRuntime.update({
+        where: { assessmentId: demand.assessmentId },
+        data: {
+          executionState: AgentExecutionState.INTERRUPTED,
+          checkpointId,
+          currentExecutionId: turnId,
+          currentAuditRequestId: auditRequestId,
+        },
+      });
+      await first.assessment.update({
+        where: { id: demand.assessmentId },
+        data: { lifecycleState: AssessmentLifecycleState.WAITING_FOR_HUMAN },
+      });
+
+      async function addRequest(
+        assessmentRuleId = ruleId,
+        answered = true,
+        latest: Record<string, unknown> = {},
+      ) {
+        const requestId = randomUUID();
+        await first.assessmentHumanRequest.create({
+          data: {
+            requestId,
+            assessmentId: demand.assessmentId,
+            threadId: runtime.threadId,
+            assessmentRuleId,
+            criterionIds: ["criterion"],
+            question: "Confirm an external fact",
+            unresolvedFact: "external-fact",
+            decisionImpact: [],
+            resolutionAttempts: [],
+            controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT,
+            choices: [],
+            caseRevision: 0,
+            checkpointId,
+          },
+        });
+        if (answered) {
+          await first.assessmentHumanRequest.update({
+            where: { requestId },
+            data: {
+              requestRevision: 1,
+              answers: [
+                {
+                  idempotencyKey: randomUUID(),
+                  requestDigest: "d".repeat(64),
+                  actorId: owners[0],
+                  answeredAt: new Date().toISOString(),
+                  caseRevision: 0,
+                  requestRevision: 1,
+                  doesNotKnow: true,
+                  answer: null,
+                  checkpointId,
+                  ...latest,
+                },
+              ] as never,
+            },
+          });
+        }
+        return requestId;
+      }
+      const requestId = await addRequest(
+        ruleId,
+        options.answered !== false,
+        options.latest,
+      );
+      const commandKey = `human-review:${demand.assessmentId}:${checkpointId}`;
+      const commandId = randomUUID();
+      await first.outboxMessage.create({
+        data: {
+          id: commandId,
+          aggregateType: OutboxAggregateType.ASSESSMENT,
+          aggregateId: demand.assessmentId,
+          eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+          status: OutboxStatus.PUBLISHED,
+          payload: {
+            assessmentId: demand.assessmentId,
+            idempotencyKey: commandKey,
+          },
+        },
+      });
+      await first.assessmentRootAdmissionRequest.create({
+        data: {
+          commandId,
+          assessmentId: demand.assessmentId,
+          requestedAt: new Date(),
+        },
+      });
+      return {
+        reservation: { ...demand, commandKey },
+        requestId,
+        checkpointId,
+        turnId,
+        auditRequestId,
+        contextJson,
+        addRequest,
+      };
+    }
+
+    it.each([false, true])(
+      "admits an exact UNKNOWN review before a grant exists (selected=%s)",
+      async (selected) => {
+        const review = await enqueueHumanReview({ selected });
+        const before = await first.assessmentRuntime.findUniqueOrThrow({
+          where: { assessmentId: review.reservation.assessmentId },
+        });
+        expect(await a.reserve(review.reservation)).toMatchObject({
+          admitted: true,
+        });
+        expect(
+          await first.assessmentRuntime.findUniqueOrThrow({
+            where: { assessmentId: review.reservation.assessmentId },
+          }),
+        ).toEqual(before);
+        const human = await first.assessmentHumanRequest.findUniqueOrThrow({
+          where: { requestId: review.requestId },
+        });
+        expect(human.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+        expect(human.resolvedFactId).toBeNull();
+        expect(review.contextJson).not.toHaveProperty("humanAnswerReview");
+        expect(
+          (
+            await first.assessmentCase.findUniqueOrThrow({
+              where: { assessmentId: review.reservation.assessmentId },
+            })
+          ).caseRevision,
+        ).toBe(0);
+      },
+    );
+
+    it.each([
+      ["wrong audit", { auditRequestId: randomUUID() }],
+      ["wrong native thread", { checkpointThreadId: randomUUID() }],
+    ])("rejects selected UNKNOWN review with %s", async (_label, changes) => {
+      const review = await enqueueHumanReview({ selected: true });
+      await first.assessmentRuntimeTurn.update({
+        where: { id: review.turnId },
+        data: { contextJson: { ...review.contextJson, ...changes } },
+      });
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+      expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
+    });
+
+    it.each(["threadId", "checkpointJson"])(
+      "rejects UNKNOWN review with a foreign turn %s",
+      async (field) => {
+        const review = await enqueueHumanReview();
+        await first.assessmentRuntimeTurn.update({
+          where: { id: review.turnId },
+          data:
+            field === "threadId"
+              ? { threadId: randomUUID() }
+              : { checkpointJson: { checkpointId: randomUUID() } },
+        });
+        expect(await a.reserve(review.reservation)).toMatchObject({
+          admitted: false,
+          obsolete: true,
+        });
+      },
+    );
+
+    it.each([
+      ["stale answer checkpoint", { checkpointId: randomUUID() }],
+      ["stale answer revision", { requestRevision: 2 }],
+      ["newest answer is known", { doesNotKnow: false, answer: "Known fact" }],
+    ])("rejects UNKNOWN review with %s", async (_label, latest) => {
+      const review = await enqueueHumanReview({ latest });
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+    });
+
+    it("requires every current open dependency to have a newest UNKNOWN response", async () => {
+      const review = await enqueueHumanReview({ answered: false });
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+      const second = await enqueueHumanReview({ selected: true });
+      await second.addRequest("review-selected-rule", false);
+      expect(await a.reserve(second.reservation)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+    });
+
+    it("ignores historical unselected open questions when admitting the current selected review", async () => {
+      const review = await enqueueHumanReview({ selected: true });
+      await review.addRequest("historical-unselected-rule", false);
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: true,
+      });
+    });
+
+    it("does not admit a direct INTERRUPTED review on a BLOCKED human-fact case", async () => {
+      const review = await enqueueHumanReview();
+      await first.assessment.update({
+        where: { id: review.reservation.assessmentId },
+        data: {
+          lifecycleState: AssessmentLifecycleState.BLOCKED,
+          blockerReason: BLOCKER_REASONS.HUMAN_FACT_UNRESOLVABLE,
+          blockerReference: { humanResolutionRequestId: review.requestId },
+        },
+      });
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+    });
+
+    it("keeps UNKNOWN review under the same owner fairness and physical-slot rules", async () => {
+      const firstInQueue = await enqueue(owners[1], 120);
+      const review = await enqueueHumanReview({ selected: true });
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: false,
+        reason: Reasons.fairness,
+      });
+      expect(await b.reserve(firstInQueue)).toMatchObject({ admitted: true });
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: true,
+      });
+      expect(
+        await b.reserve({ ...review.reservation, runId: randomUUID() }),
+      ).toMatchObject({ admitted: false, reason: Reasons.held });
+    });
+
+    type ReviewProof = {
+      checkpointId: string;
+      requests: Array<{ requestId: string; requestRevision: number }>;
+    };
+    type FailedReviewFixtureOptions = {
+      selected?: boolean;
+      blocked?: boolean;
+      foreignBlocker?: boolean;
+      receipt?: (proof: ReviewProof) => unknown;
+      context?: Record<string, unknown>;
+      wrongAdvancedCheckpoint?: boolean;
+      changedAnswerRevision?: boolean;
+      extraRequestRule?: string;
+      staleDemand?: boolean;
+      consumedOnly?: boolean;
+      liveLease?: boolean;
+    };
+
+    async function enqueueFailedHumanReview(
+      options: FailedReviewFixtureOptions = {},
+    ) {
+      const review = await enqueueHumanReview({ selected: options.selected });
+      expect(await a.reserve(review.reservation)).toMatchObject({
+        admitted: true,
+      });
+      await first.$transaction((tx) =>
+        a.bindInTx(
+          tx,
+          review.reservation.assessmentId,
+          review.reservation.runId,
+          randomUUID(),
+          incarnationId,
+        ),
+      );
+      const proof: ReviewProof = {
+        checkpointId: review.checkpointId,
+        requests: [{ requestId: review.requestId, requestRevision: 1 }],
+      };
+      const advancedCheckpointId = randomUUID();
+      const failedTurnId = randomUUID();
+      const failedTurn = await first.assessmentRuntimeTurn.create({
+        data: {
+          id: failedTurnId,
+          assessmentId: review.reservation.assessmentId,
+          threadId: (
+            await first.assessmentRuntime.findUniqueOrThrow({
+              where: { assessmentId: review.reservation.assessmentId },
+            })
+          ).threadId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: failedTurnId,
+          correlationId: randomUUID(),
+          state: AssessmentRuntimeControlState.COMPLETED,
+          createdAt: new Date(Date.now() - 5000),
+          contextJson: {
+            ...review.contextJson,
+            runtimeRunId: review.reservation.runId,
+            humanAnswerReview: options.receipt ? options.receipt(proof) : proof,
+            ...options.context,
+          } as never,
+          checkpointJson: {
+            checkpointId: options.wrongAdvancedCheckpoint
+              ? randomUUID()
+              : advancedCheckpointId,
+          },
+        },
+      });
+      await first.assessmentRuntime.update({
+        where: { assessmentId: review.reservation.assessmentId },
+        data: {
+          executionState: AgentExecutionState.FAILED,
+          currentExecutionId: failedTurnId,
+          checkpointId: advancedCheckpointId,
+          leaseToken: options.liveLease ? randomUUID() : null,
+          leaseExpiresAt: options.liveLease
+            ? new Date(Date.now() + 60000)
+            : null,
+        },
+      });
+      if (review.auditRequestId) {
+        await first.assessmentRuleAuditRequest.update({
+          where: { requestId: review.auditRequestId },
+          data: { status: RULE_AUDIT_STATUSES.FAILED },
+        });
+      }
+      if (options.blocked) {
+        await first.assessment.update({
+          where: { id: review.reservation.assessmentId },
+          data: {
+            lifecycleState: AssessmentLifecycleState.BLOCKED,
+            blockerReason: BLOCKER_REASONS.HUMAN_FACT_UNRESOLVABLE,
+            blockerReference: {
+              humanResolutionRequestId: options.foreignBlocker
+                ? randomUUID()
+                : review.requestId,
+            },
+          },
+        });
+      }
+      if (options.changedAnswerRevision) {
+        const request = await first.assessmentHumanRequest.findUniqueOrThrow({
+          where: { requestId: review.requestId },
+        });
+        await first.assessmentHumanRequest.update({
+          where: { requestId: review.requestId },
+          data: {
+            requestRevision: 2,
+            answers: [
+              ...(request.answers as unknown[]),
+              {
+                idempotencyKey: randomUUID(),
+                requestDigest: "e".repeat(64),
+                actorId: owners[0],
+                answeredAt: new Date().toISOString(),
+                caseRevision: 0,
+                requestRevision: 2,
+                doesNotKnow: true,
+                answer: null,
+                checkpointId: review.checkpointId,
+              },
+            ] as never,
+          },
+        });
+      }
+      if (options.extraRequestRule)
+        await review.addRequest(options.extraRequestRule, true);
+      await a.release(review.reservation);
+      const [consumed] = await first.assessmentRootAdmissionRequest.findMany({
+        where: { admittedRunId: review.reservation.runId },
+      });
+      expect(consumed.completedAt).not.toBeNull();
+      if (options.consumedOnly) {
+        return {
+          review,
+          consumed,
+          failedTurn,
+          advancedCheckpointId,
+          reservation: { ...review.reservation, runId: randomUUID() },
+        };
+      }
+      const commandId = randomUUID();
+      const commandKey = `fixture-root-retry:${commandId}`;
+      await first.outboxMessage.create({
+        data: {
+          id: commandId,
+          aggregateType: OutboxAggregateType.ASSESSMENT,
+          aggregateId: review.reservation.assessmentId,
+          eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+          status: OutboxStatus.PUBLISHED,
+          payload: {
+            assessmentId: review.reservation.assessmentId,
+            idempotencyKey: commandKey,
+          },
+        },
+      });
+      await first.assessmentRootAdmissionRequest.create({
+        data: {
+          commandId,
+          assessmentId: review.reservation.assessmentId,
+          requestedAt: options.staleDemand
+            ? new Date(failedTurn.createdAt.getTime() + 1)
+            : new Date(),
+        },
+      });
+      return {
+        review,
+        consumed,
+        failedTurn,
+        advancedCheckpointId,
+        reservation: { ...review.reservation, commandKey, runId: randomUUID() },
+      };
+    }
+
+    it.each([
+      { selected: false, blocked: false },
+      { selected: true, blocked: false },
+      { selected: false, blocked: true },
+      { selected: true, blocked: true },
+    ])(
+      "admits a new failed-review command with both checkpoint identities (selected=$selected, blocked=$blocked)",
+      async (options) => {
+        const failed = await enqueueFailedHumanReview(options);
+        const beforeRuntime = await first.assessmentRuntime.findUniqueOrThrow({
+          where: { assessmentId: failed.reservation.assessmentId },
+        });
+        expect(await a.reserve(failed.reservation)).toMatchObject({
+          admitted: true,
+        });
+        expect(
+          await first.assessmentRuntime.findUniqueOrThrow({
+            where: { assessmentId: failed.reservation.assessmentId },
+          }),
+        ).toEqual(beforeRuntime);
+        expect(beforeRuntime.checkpointId).toBe(failed.advancedCheckpointId);
+        expect(
+          (
+            await first.assessmentHumanRequest.findUniqueOrThrow({
+              where: { requestId: failed.review.requestId },
+            })
+          ).checkpointId,
+        ).toBe(failed.review.checkpointId);
+        expect(failed.advancedCheckpointId).not.toBe(
+          failed.review.checkpointId,
+        );
+        expect(
+          await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
+            where: { commandId: failed.consumed.commandId },
+          }),
+        ).toEqual(failed.consumed);
+      },
+    );
+
+    const invalidReviewReceipts: Array<
+      [string, (proof: ReviewProof) => unknown]
+    > = [
+      ["missing grant", () => null],
+      ["nonarray request list", (proof) => ({ ...proof, requests: {} })],
+      [
+        "wrong original checkpoint",
+        (proof) => ({ ...proof, checkpointId: randomUUID() }),
+      ],
+      [
+        "wrong request identity",
+        (proof) => ({
+          ...proof,
+          requests: [{ requestId: randomUUID(), requestRevision: 1 }],
+        }),
+      ],
+      [
+        "wrong saved revision",
+        (proof) => ({
+          ...proof,
+          requests: [{ ...proof.requests[0], requestRevision: 2 }],
+        }),
+      ],
+      [
+        "extra saved request",
+        (proof) => ({
+          ...proof,
+          requests: [
+            ...proof.requests,
+            { requestId: randomUUID(), requestRevision: 1 },
+          ],
+        }),
+      ],
+    ];
+    it.each(invalidReviewReceipts)(
+      "rejects failed review with %s",
+      async (_label, receipt) => {
+        const failed = await enqueueFailedHumanReview({ receipt });
+        expect(await a.reserve(failed.reservation)).toMatchObject({
+          admitted: false,
+          obsolete: true,
+        });
+        expect(
+          await first.assessmentRootExecutionSlot.count({
+            where: { releasedAt: null },
+          }),
+        ).toBe(0);
+      },
+    );
+
+    const invalidFailedReviewStates: Array<
+      [string, FailedReviewFixtureOptions]
+    > = [
+      ["wrong current advanced checkpoint", { wrongAdvancedCheckpoint: true }],
+      ["changed latest UNKNOWN revision", { changedAnswerRevision: true }],
+      [
+        "new open scoped dependency",
+        { extraRequestRule: "review-selected-rule" },
+      ],
+      ["stale request issued before failure", { staleDemand: true }],
+      ["unreleased lease", { liveLease: true }],
+      ["foreign blocked request", { blocked: true, foreignBlocker: true }],
+      [
+        "wrong selected audit",
+        { selected: true, context: { auditRequestId: randomUUID() } },
+      ],
+      [
+        "wrong selected checkpoint thread",
+        { selected: true, context: { checkpointThreadId: randomUUID() } },
+      ],
+    ];
+    it.each(invalidFailedReviewStates)(
+      "rejects failed review with %s",
+      async (_label, options) => {
+        const failed = await enqueueFailedHumanReview(options);
+        expect(await a.reserve(failed.reservation)).toMatchObject({
+          admitted: false,
+          obsolete: true,
+        });
+      },
+    );
+
+    it("never revives the consumed failed-review command even with a valid saved proof", async () => {
+      const failed = await enqueueFailedHumanReview({ consumedOnly: true });
+      expect(await a.reserve(failed.reservation)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+      expect(
+        await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
+          where: { commandId: failed.consumed.commandId },
+        }),
+      ).toEqual(failed.consumed);
+    });
+
+    it("keeps historical unselected requests outside the failed review receipt set", async () => {
+      const failed = await enqueueFailedHumanReview({
+        selected: true,
+        extraRequestRule: "historical-unselected-rule",
+      });
+      expect(await a.reserve(failed.reservation)).toMatchObject({
+        admitted: true,
+      });
+    });
+
+    it("does not let a malformed failed-review receipt abort an independent customer's fair admission", async () => {
+      const failed = await enqueueFailedHumanReview({
+        receipt: (proof) => ({ ...proof, requests: {} }),
+      });
+      const independent = await enqueue(owners[1], 120);
+      expect(await b.reserve(independent)).toMatchObject({ admitted: true });
+      expect(await a.reserve(failed.reservation)).toMatchObject({
+        admitted: false,
+        obsolete: true,
+      });
+    });
 
     async function enqueueLargeBacklog() {
       const requestedAt = Date.now() - 60_000;

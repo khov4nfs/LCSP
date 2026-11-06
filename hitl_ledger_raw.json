@@ -1,0 +1,29 @@
+[
+  {
+    "requestId": "fbbb7120-b2ce-4772-997f-070e9d82efdf",
+    "ruleId": "ar-luat134-art14-cl1-pt-c-technical-records-logs",
+    "question": "Please describe how the Hudson AI customer-support chatbot is actually operated and offered. Specifically: (1) Is the application currently made available to and used by real end users/customers, or is it only an internal demonstration/prototype? (2) Under whose name or brand is it provided or put into use? (3) In which sector or field is it used (for example, general customer service, healthcare, finance/credit, education, recruitment, or public services), and at roughly what scale (number of users)? (4) Has the system been classified under Vietnam's AI risk-classification framework, and does it fall within any specifically-designated high-risk AI system category?",
+    "answer": "SYN Support Services put this customer support chatbot into production on its public website on September 23, 2026 as a live self-service FAQ assistant for website visitors (go-live date self-reported; no formal release sign-off log in repository). The service is operated by SYN Support Services (an enterprise registered in Vietnam) under the brand name 'Hudson IT Consulting'. It is used for general customer service (IT consulting inquiries and Upwork engagements) at a scale of roughly 50-100 website visitors per month. It is not used in healthcare, finance, education, recruitment, or public services. Risk self-classification was not completed prior to go-live on September 23, 2026, and remains not completed as of October 16, 2026 (missing evidence).",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-31 18:47:27.759000+00:00",
+    "resolvedAt": "2026-10-31 18:48:27.827000+00:00"
+  },
+  {
+    "requestId": "f7c02fae-a118-4c85-8e64-3a38c849ce05",
+    "ruleId": "ar-luat134-art12-cl2a-technical-measures",
+    "question": "Has any serious incident occurred in the AI customer-support chatbot that caused or threatened significant harm to human life, health, or property, a major security or data breach, or serious disruption affecting public interests, such that urgent technical remediation, temporary suspension, recall, or notification to a competent authority was required?",
+    "answer": "No signed incident or complaint register has been provided by the operator. It is unknown whether any serious incident has occurred, and the operator cannot substantiate a claim that no incidents have occurred. Therefore, the incident history must be treated as unknown rather than absent.",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-31 18:47:28.470000+00:00",
+    "resolvedAt": "2026-10-31 18:48:50.812000+00:00"
+  },
+  {
+    "requestId": "63e0d763-e2e2-4d91-aa1b-ff7db4b2c6e2",
+    "ruleId": "rule-art3-cl2-scope-purpose",
+    "question": "Does the operator of this AI customer-support chatbot collect or process any personal data of individuals (for example, message text that can identify a person, names, contact details, or API credentials) while providing the service, and which entity provides the service to which users? If personal data is processed, in what role (for example, as the party deciding how data is processed) and in which country/territory are the data subjects located?",
+    "answer": "The chatbot application was developed under a bring-your-own-key (BYOK) architecture where visitors enter their own API key per session. In the application source code, message text and credentials are held only in Streamlit's in-memory session state and are not designed for long-term server-side persistence. However, end-user text entered into the chat input is transmitted to third-party external LLM APIs (xAI, OpenAI, Anthropic, Google, Ollama). Whether the third-party providers or upstream network proxies log or retain this data has not been verified with documentation. The operator (SYN Support Services, registered in Vietnam) provides the service on its public website, accessible to users in Vietnam and internationally. No consent mechanism, privacy notice, or data processing agreement is presented before chat interaction.",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-31 18:47:28.891000+00:00",
+    "resolvedAt": "2026-10-31 18:49:26.485000+00:00"
+  }
+]

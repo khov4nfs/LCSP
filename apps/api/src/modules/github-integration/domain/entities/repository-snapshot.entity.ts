@@ -21,6 +21,7 @@ type RepositorySnapshotProps = {
   branch: string | null;
   ref: string | null;
   commitSha: string;
+  sourcePathPrefix?: string | null;
   providerMetadata: RepositorySnapshotProviderMetadata;
   actorId: string;
   status: RepositorySnapshotStatus;
@@ -45,16 +46,28 @@ export class RepositorySnapshot {
   }
 
   /**
-   * Creates a ready repository snapshot for an exact resolved commit.
+   * Business purpose: Bind an assessment to one immutable repository revision and its approved source directory.
    *
-   * @param input - Assessment/connection/repository identity, requested revision metadata, commit SHA, and actor.
-   * @returns Newly created repository snapshot in the ready lifecycle state.
+   * Business rules:
+   * - The caller supplies an authorized commit and a validated exact directory prefix.
+   * - Omitted legacy scope is represented explicitly as null, preserving whole-repository access.
+   *
+   * Execution flow:
+   * 1. Copy the resolved identity and source scope without trimming or rewriting the prefix.
+   * 2. Allocate a ready snapshot with its creation time.
+   *
+   * Failure cases:
+   * - Authorization and canonical path validation are enforced by the pin handler before aggregate creation.
+   *
+   * Side effects:
+   * - Creates an in-memory snapshot identifier and timestamp; persistence occurs in the repository.
    */
   static create(
     input: Omit<RepositorySnapshotProps, "id" | "status" | "createdAt">,
   ): RepositorySnapshot {
     return new RepositorySnapshot({
       ...input,
+      sourcePathPrefix: input.sourcePathPrefix ?? null,
       status: REPOSITORY_SNAPSHOT_STATUSES.ready,
       createdAt: new Date(),
     });
@@ -112,6 +125,25 @@ export class RepositorySnapshot {
   /** @returns The exact immutable commit SHA pinned by the snapshot. */
   get commitSha(): string {
     return this.props.commitSha;
+  }
+
+  /**
+   * Business purpose: Expose the immutable directory boundary used for repository evidence.
+   *
+   * Business rules:
+   * - A null or omitted legacy prefix means the whole repository.
+   *
+   * Execution flow:
+   * 1. Return the stored prefix, using null only for legacy records without the field.
+   *
+   * Failure cases:
+   * - This read does not perform authorization or modify an invalid stored prefix.
+   *
+   * Side effects:
+   * - Read-only access to immutable aggregate metadata.
+   */
+  get sourcePathPrefix(): string | null {
+    return this.props.sourcePathPrefix ?? null;
   }
 
   /** @returns A defensive copy of provider metadata describing the resolved GitHub commit. */

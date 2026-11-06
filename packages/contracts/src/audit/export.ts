@@ -18,4 +18,12 @@ export const AUDIT_ERROR_CODES = {
 
 export const AUDIT_EVENT_TYPES = {
   exportGenerated: "AUDIT_EXPORT_GENERATED",
+  sessionExported: "ASSESSMENT_SESSION_EXPORTED",
 } as const;
+
+/** Published audit export formats recorded in the audit ledger. */
+export const AUDIT_EXPORT_KINDS = {
+  sessionJson: "SESSION_JSON",
+} as const;
+export type AuditExportKind =
+  (typeof AUDIT_EXPORT_KINDS)[keyof typeof AUDIT_EXPORT_KINDS];

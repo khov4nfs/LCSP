@@ -9,6 +9,18 @@ export class GetHumanRequestsHandler implements IQueryHandler<GetHumanRequestsQu
     private readonly prisma: PrismaService,
     private readonly support: AssessmentHumanRequestSupport,
   ) {}
+  /**
+   * Business purpose: Return an owner's canonical questions with every dependent rule.
+   * Business rules:
+   * - Ownership is verified before exposing request and case revisions.
+   * Execution flow:
+   * 1. Authorize the owner and read the current case revision.
+   * 2. Load questions and normalized dependencies, then project them in the requested locale.
+   * Failure cases:
+   * - Missing or unauthorized assessments are rejected by the ownership guard.
+   * Side effects:
+   * - Read-only database access and localized presentation; no facts or dependencies are changed.
+   */
   execute(input: GetHumanRequestsQuery) {
     return this.prisma.$transaction(async (tx) => {
       await this.support.requireOwner(tx, input);
@@ -18,6 +30,7 @@ export class GetHumanRequestsHandler implements IQueryHandler<GetHumanRequestsQu
       const rows = await tx.assessmentHumanRequest.findMany({
         where: { assessmentId: input.assessmentId },
         orderBy: { createdAt: "asc" },
+        include: { dependencies: true },
       });
       return {
         caseRevision: current.caseRevision,

@@ -1,0 +1,349 @@
+{
+  "metadata": {
+    "artifactType": "COMPLIANCE_RULESET_CANDIDATE_CORRECTION",
+    "candidateVersion": "lcsp-360-official-eight-document-acceptance-corpus.v2.candidate-p1",
+    "predecessorRuleSetVersionId": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+    "legalSourceVersionId": "ea43540c-513e-4b76-969a-8415f06696f2",
+    "lifecycleStatus": "LEGAL_REVIEW_PENDING",
+    "createdAt": "2026-11-03T10:34:11.172Z",
+    "preparedBy": "Senior Software Architect & Legal Rule Set Quality Reviewer",
+    "governanceNotice": "DO NOT ACTIVATE IN PRODUCTION DATABASE WITHOUT FORMAL QUALIFIED INDEPENDENT LEGAL APPROVAL."
+  },
+  "defectCount": 17,
+  "corrections": [
+    {
+      "legalRequirementId": "luat134-art11-cl2-machine-readable-marking",
+      "statutoryCitation": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao#art-11::cl-2; luat-so-134-2025-qh15-luat-tri-tue-nhan-tao#art-3::cl-4; luat-so-134-2025-qh15-luat-tri-tue-nhan-tao#art-3::cl-2",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo tạo ra nội dung đầu ra là âm thanh, hình ảnh hoặc video."
+        ],
+        "exceptions": [
+          "Không bắt buộc thực hiện đánh dấu kỹ thuật ở định dạng máy đọc đối với nội dung đầu ra là văn bản theo quy định tại khoản 1 Điều 17 Nghị định 142/2026/NĐ-CP, trừ trường hợp pháp luật có quy định khác."
+        ]
+      },
+      "statutoryBasis": "Điều 11 Khoản 2 Luật Trí tuệ nhân tạo số 134/2025/QH15 & Điều 17 Khoản 1 Nghị định số 142/2026/NĐ-CP (Loại trừ văn bản thuần túy khỏi nghĩa vụ đánh dấu định dạng máy đọc)"
+    },
+    {
+      "legalRequirementId": "art17-cl1-mark-ai-content",
+      "statutoryCitation": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat#art-17::cl-1; nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat#art-17::cl-5; nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat#art-17::cl-5::pt-a; nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat#art-17::cl-5::pt-b",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": [
+          "Nhà cung cấp không bắt buộc phải thực hiện đánh dấu kỹ thuật ở định dạng máy đọc đối với nội dung đầu ra là văn bản, trừ trường hợp pháp luật có quy định khác.",
+          "Trường hợp hệ thống trí tuệ nhân tạo được cung cấp dưới dạng mã nguồn mở hoặc cung cấp miễn phí, nhà cung cấp được coi là đã thực hiện nghĩa vụ quy định tại khoản 1 Điều 17 khi tích hợp sẵn chức năng đánh dấu kỹ thuật hoặc công bố công khai công cụ, cấu hình tiêu chuẩn, giao diện lập trình ứng dụng hoặc tài liệu kỹ thuật cho phép bên triển khai cấu hình và vận hành chức năng đánh dấu."
+        ]
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo tạo ra nội dung đầu ra là âm thanh, hình ảnh hoặc video."
+        ],
+        "exceptions": [
+          "Nhà cung cấp không bắt buộc phải thực hiện đánh dấu kỹ thuật ở định dạng máy đọc đối với nội dung đầu ra là văn bản, trừ trường hợp pháp luật có quy định khác.",
+          "Trường hợp hệ thống trí tuệ nhân tạo được cung cấp dưới dạng mã nguồn mở hoặc cung cấp miễn phí, nhà cung cấp được coi là đã thực hiện nghĩa vụ quy định tại khoản 1 Điều 17 khi tích hợp sẵn chức năng đánh dấu kỹ thuật hoặc công bố công khai công cụ, cấu hình tiêu chuẩn, giao diện lập trình ứng dụng hoặc tài liệu kỹ thuật cho phép bên triển khai cấu hình và vận hành chức năng đánh dấu."
+        ]
+      },
+      "statutoryBasis": "Điều 11 Khoản 2 Luật Trí tuệ nhân tạo số 134/2025/QH15 & Điều 17 Khoản 1 Nghị định số 142/2026/NĐ-CP (Loại trừ văn bản thuần túy khỏi nghĩa vụ đánh dấu định dạng máy đọc)"
+    },
+    {
+      "legalRequirementId": "art3-cl1-pta-safety-by-design",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-1::pt-a",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl1-ptb-quality-assurance",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-1::pt-b",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl1-ptc-human-oversight",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-1::pt-c",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl1-ptd-resilience",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-1::pt-d",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl1-pte-security",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-1::pt-e",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl2-pta-human-rights",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-2::pt-a",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl2-ptb-fairness",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-2::pt-b",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl2-ptc-transparency",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-2::pt-c",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl2-ptd-explainability",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-2::pt-d",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl3-pta-social-benefit",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-3::pt-a",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl3-ptb-inclusive-design",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-3::pt-b",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl3-ptc-sustainability",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-3::pt-c",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl3-ptd-cultural-values",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-3::pt-d",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl3-ptd-prohibition-discriminatory-content",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-3::pt-d",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    },
+    {
+      "legalRequirementId": "art3-cl4-ptb-social-responsibility",
+      "statutoryCitation": "thong-tu-so-05-2026-tt-bkhcn-khung-dao-duc-tri-tue-nhan-tao#art-3::cl-4::pt-b",
+      "baseline": {
+        "applicabilityMode": "UNCONDITIONAL",
+        "applicabilityConditions": [],
+        "exceptions": []
+      },
+      "candidate": {
+        "applicabilityMode": "CONDITIONAL",
+        "applicabilityConditions": [
+          "Hệ thống trí tuệ nhân tạo phục vụ hoạt động quản lý nhà nước hoặc cung cấp dịch vụ công (khoản 2 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ],
+        "exceptions": [
+          "Tổ chức, cá nhân khác chỉ được khuyến khích áp dụng và không chịu nghĩa vụ bắt buộc cưỡng chế (khoản 3 Điều 1 Thông tư số 05/2026/TT-BKHCN)."
+        ]
+      },
+      "statutoryBasis": "Điều 1 Khoản 2 & 3 Thông tư số 05/2026/TT-BKHCN (Giới hạn phạm vi bắt buộc đối với cơ quan nhà nước / dịch vụ công; tổ chức cá nhân khác chỉ khuyến khích áp dụng)"
+    }
+  ],
+  "impactSummary": {
+    "privateSectorChatbotsAffected": true,
+    "textOnlyGenAIAffected": true,
+    "baselineT31Violations": 77,
+    "candidateT31Violations": 61,
+    "falsePositivesEliminated": 16
+  }
+}

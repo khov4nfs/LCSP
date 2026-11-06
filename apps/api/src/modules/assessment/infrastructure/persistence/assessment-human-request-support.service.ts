@@ -3,7 +3,12 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { assessmentHumanRequestViewSchema } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { Prisma, type AssessmentHumanRequest } from "@prisma/client";
+import {
+  Prisma,
+  type AssessmentHumanRequest,
+  type AssessmentHumanRequestDependency,
+} from "@prisma/client";
+import { humanRequestDependenciesOf } from "./assessment-human-request-dependencies.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
@@ -62,7 +67,24 @@ export class AssessmentHumanRequestSupport {
     return assessment;
   }
 
-  async view(row: AssessmentHumanRequest, targetLocale?: string | null) {
+  /**
+   * Business purpose: Present one factual question and all its rule dependencies in the reader's locale.
+   * Business rules:
+   * - Localized text never changes canonical request, answer, rule or choice identities.
+   * Execution flow:
+   * 1. Resolve presentation projections for customer-facing text.
+   * 2. Validate the projected view including normalized dependency identities.
+   * Failure cases:
+   * - Invalid persisted request values fail contract parsing; unavailable translations retain canonical text.
+   * Side effects:
+   * - Read-only projection and translation-cache access; no assessment records are mutated.
+   */
+  async view(
+    row: AssessmentHumanRequest & {
+      dependencies?: AssessmentHumanRequestDependency[];
+    },
+    targetLocale?: string | null,
+  ) {
     const locale = targetLocale ? resolveResponseLanguage(targetLocale) : null;
     let question = row.question;
     let unresolvedFact = row.unresolvedFact;
@@ -121,6 +143,7 @@ export class AssessmentHumanRequestSupport {
       status: row.status,
       assessmentRuleId: row.assessmentRuleId,
       criterionIds: row.criterionIds,
+      dependencies: humanRequestDependenciesOf(row),
       question,
       unresolvedFact,
       decisionImpact,

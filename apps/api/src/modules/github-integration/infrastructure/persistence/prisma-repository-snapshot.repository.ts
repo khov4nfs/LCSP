@@ -25,11 +25,21 @@ export class PrismaRepositorySnapshotRepository implements RepositorySnapshotRep
   ) {}
 
   /**
-   * Atomically persists an immutable repository snapshot and its corresponding creation event.
+   * Business purpose: Persist the exact assessment repository revision and source boundary together with its creation event.
    *
-   * @param snapshot - Resolved snapshot aggregate containing exact repository revision metadata.
-   * @param event - Outbox event announcing the newly created snapshot.
-   * @returns A promise that resolves after both writes commit successfully.
+   * Business rules:
+   * - Source scope belongs to the immutable snapshot; null preserves an explicitly unscoped legacy snapshot.
+   * - The snapshot and outbox event must commit together.
+   *
+   * Execution flow:
+   * 1. Insert the snapshot identity, commit, source prefix and provider metadata.
+   * 2. Enqueue its creation event in the same transaction.
+   *
+   * Failure cases:
+   * - Database validation, immutable-scope constraints or outbox failure roll back both writes.
+   *
+   * Side effects:
+   * - Creates one snapshot and one transactional outbox message.
    */
   async saveWithCreatedEvent(
     snapshot: RepositorySnapshot,
@@ -46,6 +56,7 @@ export class PrismaRepositorySnapshotRepository implements RepositorySnapshotRep
           branch: snapshot.branch,
           ref: snapshot.ref,
           commitSha: snapshot.commitSha,
+          sourcePathPrefix: snapshot.sourcePathPrefix,
           providerMetadata: snapshot.providerMetadata,
           actorId: snapshot.actorId,
           status: toPrismaRepositorySnapshotStatus(snapshot.status),

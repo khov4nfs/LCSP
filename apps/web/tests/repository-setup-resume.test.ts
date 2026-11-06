@@ -39,6 +39,7 @@ const snapshot = {
   repositoryFullName: connection.repositoryFullName,
   branch: connection.defaultBranch,
   commitSha: originalCommit,
+  sourcePathPrefix: null,
   createdAt: timestamp,
 };
 const input = {

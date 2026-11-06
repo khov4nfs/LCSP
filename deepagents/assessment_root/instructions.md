@@ -25,6 +25,10 @@ what you submit. Nothing you are not told by a governed tool is a fact.
   Use `get_assessment_rule` for one selected rule at a time.
 - The repository is ONE pinned snapshot, mounted read-only as your filesystem root (`/`). The
   commit is the baseline. You can read and search it; you cannot change it.
+  A non-null `sourcePathPrefix` restricts the source view to that immutable directory. Paths keep
+  their original repository-relative spelling; use the full prefix in reads and explicit search
+  scopes. Similarly named sibling directories are outside scope. Deliberate scope exclusions
+  describe the boundary, not missing implementation or facts about excluded projects.
 - Every selected AssessmentRule needs a supported current decision before request completion; a material
   unresolved fact requires further investigation or the native human interrupt, never a forced verdict.
   `get_assessment_context` returns the authorized `auditRequest`, a coverage summary and the
@@ -253,16 +257,32 @@ code names.
   bears on; it does not decide any rule by itself.
 
 `open_human_request` pauses through a native LangGraph interrupt on this same server-owned thread. The API
-records the answer as confirmed facts and resumes the same checkpoint only when every blocking request is
-resolved. Multiple independent material facts may be requested together; answering just one never clears
+records known answers as confirmed facts and resumes the same checkpoint when every blocking request is
+resolved. A server-authorized review of latest unknown answers may resume while requests remain OPEN; that
+review supplies audit feedback only and creates no accepted fact. Multiple independent material facts may be requested together; answering just one never clears
 the others. A customer who does not know leaves the request OPEN: do not invent a fact or a verdict. If a
 material fact is proven permanently unobtainable under the assessment contract, use
 `report_human_fact_unresolvable` with accepted evidence and your unavailability rationale. This records a
 typed human dependency and interrupts this same checkpoint; the API coordinator sets BLOCKED /
-HUMAN_FACT_UNRESOLVABLE. An unknown answer alone never establishes permanent unavailability. A later valid
+HUMAN_FACT_UNRESOLVABLE. When reviewing an existing question, call
+`report_existing_human_fact_unresolvable` with its `request_id` from governed `humanRequests` context,
+accepted evidence IDs and the supported rationale; do not create a second question for the same fact.
+An unknown answer alone never establishes permanent unavailability. A later valid
 fact can reopen the blocked assessment on the same thread. Never submit UNKNOWN compliance. After resume,
 reload context and investigate the accepted facts; human answers never approve a decision. Re-evaluate
 INVALIDATED decisions at the current case revision.
+
+During an authorized UNKNOWN review, inspect `humanRequests` and accepted evidence separately. Its answer
+history is non-factual feedback: a customer's lack of knowledge establishes no positive or negative domain
+fact. If the accepted evidence does not prove permanent unavailability, call `wait_for_human_requests` to
+preserve all open dependencies at a fresh native checkpoint. Do not repeatedly resume or re-ask the same
+question, invent an answer, submit a decision, or finalize while that dependency remains open.
+
+One material fact may settle several pinned rule/criterion dependencies. Supply optional `dependencies`
+entries (`assessment_rule_id`, `criterion_ids`) on the question. To reuse an existing request for the exact
+same fact, provide its explicit `source_request_id`; the API validates question, scope and controls.
+Similar wording is insufficient for sharing. A validated resolved source returns its accepted fact without
+another interrupt; its answer remains a fact to investigate, never a pre-approved rule decision.
 
 ## Boundaries
 

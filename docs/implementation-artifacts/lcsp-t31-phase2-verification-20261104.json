@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-04",
+  "scope": "T31 Phase 2 technical hardening: P1 UNKNOWN lifecycle, P2 explicit shared facts, scoped full-stack regression",
+  "result": "TECHNICAL_HARDENING_VERIFIED",
+  "repository": {
+    "branch": "develop",
+    "baseHead": "aa2ce4f3f7c5b1b6375eaf659bee0197aa61803b",
+    "workingTree": "existing dirty tree preserved; changes uncommitted"
+  },
+  "checks": [
+    {
+      "name": "targeted_api_tests",
+      "command": "pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config ./jest.config.ts --cacheDirectory .cache/jest-t31-phase2 --watchman=false --runInBand --runTestsByPath src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts src/modules/assessment/application/services/assessment-human-answer-review.spec.ts src/modules/assessment/application/commands/open-human-request/open-human-request.handler.spec.ts src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.spec.ts src/modules/assessment/infrastructure/persistence/assessment-provenance.loader.spec.ts src/modules/assessment/application/queries/get-root-context/get-root-context.handler.spec.ts src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.spec.ts src/modules/assessment/presentation/http/assessment-human-resolution.controller.spec.ts",
+      "tests": 146,
+      "suites": 9,
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "(node:64426) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nPASS src/modules/assessment/presentation/http/assessment-human-resolution.controller.spec.ts\nPASS src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts\nPASS src/modules/assessment/application/queries/get-root-context/get-root-context.handler.spec.ts\nPASS src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.spec.ts\nPASS src/modules/assessment/application/commands/open-human-request/open-human-request.handler.spec.ts\nPASS src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts\nPASS src/modules/assessment/infrastructure/persistence/assessment-provenance.loader.spec.ts\nPASS src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.spec.ts\nPASS src/modules/assessment/application/services/assessment-human-answer-review.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       146 passed, 146 total\nSnapshots:   0 total\nTime:        1.551 s, estimated 2 s\nRan all test suites within paths \"src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts\", \"src/modules/assessment/application/services/assessment-human-answer-review.spec.ts\", \"src/modules/assessment/application/commands/open-human-request/open-human-request.handler.spec.ts\", \"src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.spec.ts\", \"src/modules/assessment/infrastructure/persistence/assessment-provenance.loader.spec.ts\", \"src/modules/assessment/application/queries/get-root-context/get-root-context.handler.spec.ts\", \"src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts\", \"src/modules/assessment/application/commands/submit-assessment-final-report/submit-assessment-final-report.handler.spec.ts\", \"src/modules/assessment/presentation/http/assessment-human-resolution.controller.spec.ts\".\n"
+    },
+    {
+      "name": "targeted_python_tests",
+      "command": "./.venv/bin/python -m pytest -q tests/test_assessment_root_agent.py tests/test_assessment_root_completion.py tests/test_assessment_root_reliability.py tests/test_assessment_root_checkpoint_durability.py",
+      "tests": 106,
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "\ntests/test_assessment_root_agent.py::test_cite_repository_source_mints_only_through_the_server_with_a_verified_hash PASSED [  0%]\ntests/test_assessment_root_agent.py::test_cite_rejects_missing_files_and_out_of_range_without_calling_the_api PASSED [  1%]\ntests/test_assessment_root_agent.py::test_search_trace_marks_result_truncation_and_reports_dropped_calls PASSED [  2%]\ntests/test_assessment_root_agent.py::test_repository_tool_activity_never_exposes_arguments_or_source PASSED [  3%]\ntests/test_assessment_root_agent.py::test_search_trace_requires_affirmative_truncation_metadata[{\"has_more\":false,\"truncated\":false}-False] PASSED [  4%]\ntests/test_assessment_root_agent.py::test_search_trace_requires_affirmative_truncation_metadata[{\"hasMore\":true,\"results\":[]}-True] PASSED [  5%]\ntests/test_assessment_root_agent.py::test_search_trace_requires_affirmative_truncation_metadata[{\"note\":\"not truncated\",\"has_more\":false}-False] PASSED [  6%]\ntests/test_assessment_root_agent.py::test_search_trace_requires_affirmative_truncation_metadata[[truncated; narrow the query]-True] PASSED [  7%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[No matches found-0] PASSED [  8%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[No files found-0] PASSED [  9%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[(no results)-0] PASSED [ 10%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[[]-0] PASSED [ 11%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[['/README.md', '/src/notices.py']-2] PASSED [ 12%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[[\"/README.md\", \"/src/notices.py\"]-2] PASSED [ 13%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[/README.md\\n/src/notices.py-2] PASSED [ 14%]\ntests/test_assessment_root_agent.py::test_search_trace_counts_native_search_outputs[/src/notices.py:1: No matches found-1] PASSED [ 15%]\ntests/test_assessment_root_agent.py::test_search_coverage_rejects_agent_fabricated_scope_and_query_fields PASSED [ 16%]\ntests/test_assessment_root_agent.py::test_tool_schemas_expose_no_identity_pin_or_lifecycle_fields PASSED [ 16%]\ntests/test_assessment_root_agent.py::test_submit_decision_binds_pins_versions_and_idempotency_from_server_state PASSED [ 17%]\ntests/test_assessment_root_agent.py::test_rejected_decision_is_returned_as_structured_feedback_not_raised PASSED [ 18%]\ntests/test_assessment_root_agent.py::test_fact_tool_advances_the_local_case_revision_from_the_server_answer PASSED [ 19%]\ntests/test_assessment_root_agent.py::test_search_coverage_is_built_from_the_runtime_trace_not_from_model_text PASSED [ 20%]\ntests/test_assessment_root_agent.py::test_failed_search_is_recorded_as_a_coverage_gap PASSED [ 21%]\ntests/test_assessment_root_agent.py::test_production_root_filesystem_backend_keeps_permissions_without_shell PASSED [ 22%]\ntests/test_assessment_root_agent.py::test_root_backend_factory_indexes_the_hydrated_snapshot_for_graph_tools PASSED [ 23%]\ntests/test_assessment_root_agent.py::test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_tools PASSED [ 24%]\ntests/test_assessment_root_agent.py::test_runner_acknowledges_already_complete_recovery_without_model_or_repository_work PASSED [ 25%]\ntests/test_assessment_root_agent.py::test_root_reads_shared_generic_learning_through_its_native_store_only PASSED [ 26%]\ntests/test_assessment_root_agent.py::test_runner_binds_the_server_thread_and_settles_the_execution PASSED [ 27%]\ntests/test_assessment_root_agent.py::test_runner_rejects_transitional_wait_without_a_native_checkpoint PASSED [ 28%]\ntests/test_assessment_root_agent.py::test_runner_settles_a_crash_as_a_failed_execution_with_the_same_thread PASSED [ 29%]\ntests/test_assessment_root_agent.py::test_task_delegation_is_reported_as_subagent_activity_with_root_lineage PASSED [ 30%]\ntests/test_assessment_root_agent.py::test_boundary_is_registered_once_and_rejects_malformed_commands PASSED [ 31%]\ntests/test_assessment_root_agent.py::test_boundary_skips_a_held_lease_and_a_stale_delivery_without_error PASSED [ 32%]\ntests/test_assessment_root_agent.py::test_root_human_tool_uses_native_interrupt_and_replays_the_same_request PASSED [ 33%]\ntests/test_assessment_root_agent.py::test_unresolvable_fact_tool_blocks_then_resumes_without_reapplying_the_claim[False] PASSED [ 33%]\ntests/test_assessment_root_agent.py::test_unresolvable_fact_tool_blocks_then_resumes_without_reapplying_the_claim[True] PASSED [ 34%]\ntests/test_assessment_root_agent.py::test_production_root_requires_a_durable_checkpointer PASSED [ 35%]\ntests/test_assessment_root_agent.py::test_root_checkpointer_drops_the_prisma_schema_query_parameter PASSED [ 36%]\ntests/test_assessment_root_agent.py::test_root_stop_uses_native_checkpoint_and_same_execution_resume PASSED [ 37%]\ntests/test_assessment_root_agent.py::test_failed_root_attempt_persists_checkpoint_created_by_that_attempt PASSED [ 38%]\ntests/test_assessment_root_agent.py::test_failed_claim_does_not_resume_a_checkpoint_the_server_did_not_bind[missing-server-checkpoint] PASSED [ 39%]\ntests/test_assessment_root_agent.py::test_failed_claim_does_not_resume_a_checkpoint_the_server_did_not_bind[mismatched-server-checkpoint] PASSED [ 40%]\ntests/test_assessment_root_agent.py::test_failed_claim_does_not_resume_a_checkpoint_the_server_did_not_bind[unbound-checkpoint-without-pending-work] PASSED [ 41%]\ntests/test_assessment_root_agent.py::test_human_request_crash_before_interrupt_replays_only_with_server_human_wait[True-WAITING_FOR_HUMAN] PASSED [ 42%]\ntests/test_assessment_root_agent.py::test_human_request_crash_before_interrupt_replays_only_with_server_human_wait[True-BLOCKED] PASSED [ 43%]\ntests/test_assessment_root_agent.py::test_human_request_crash_before_interrupt_replays_only_with_server_human_wait[False-WAITING_FOR_HUMAN] PASSED [ 44%]\ntests/test_assessment_root_agent.py::test_human_request_crash_before_interrupt_replays_only_with_server_human_wait[False-BLOCKED] PASSED [ 45%]\ntests/test_assessment_root_agent.py::test_stop_arriving_during_model_response_pauses_before_tool_effects PASSED [ 46%]\ntests/test_assessment_root_agent.py::test_invalid_tool_arguments_come_back_as_feedback_and_do_not_end_the_run PASSED [ 47%]\ntests/test_assessment_root_agent.py::test_get_assessment_rule_exposes_each_legal_source_own_elements_and_sources[register-keepers] PASSED [ 48%]\ntests/test_assessment_root_agent.py::test_get_assessment_rule_exposes_each_legal_source_own_elements_and_sources[betreiber] PASSED [ 49%]\ntests/test_assessment_root_agent.py::test_the_pinned_legal_source_is_read_and_searched_through_the_governed_tools PASSED [ 50%]\ntests/test_assessment_root_agent.py::test_submit_rule_decision_carries_the_element_by_element_basis_only_when_given PASSED [ 50%]\ntests/test_assessment_root_agent.py::test_a_human_question_must_hang_on_a_legal_source_element_or_a_criterion PASSED [ 51%]\ntests/test_assessment_root_agent.py::test_an_anchored_human_question_carries_the_legal_source_wording_of_its_element PASSED [ 52%]\ntests/test_assessment_root_agent.py::test_generic_runtime_code_names_no_legal_role_category_or_instrument PASSED [ 53%]\ntests/test_assessment_root_agent.py::test_root_keeps_unknown_or_noncurrent_source_effect_out_of_current_obligation_reasoning PASSED [ 54%]\ntests/test_assessment_root_agent.py::test_final_report_never_invents_verified_findings_for_omitted_rules PASSED [ 55%]\ntests/test_assessment_root_agent.py::test_initial_context_failure_settles_claimed_root_without_hydrating_repository PASSED [ 56%]\ntests/test_assessment_root_agent.py::test_root_context_preserves_fact_authority_when_reloading_accepted_claims[EVIDENCE_CITED] PASSED [ 57%]\ntests/test_assessment_root_agent.py::test_root_context_preserves_fact_authority_when_reloading_accepted_claims[HUMAN_PROVIDED] PASSED [ 58%]\ntests/test_assessment_root_agent.py::test_root_context_exposes_runtime_view_limits_and_rejects_wrong_source_pins PASSED [ 59%]\ntests/test_assessment_root_agent.py::test_unknown_review_requires_server_flag_and_exact_answer_checkpoint[patch0] PASSED [ 60%]\ntests/test_assessment_root_agent.py::test_unknown_review_requires_server_flag_and_exact_answer_checkpoint[patch1] PASSED [ 61%]\ntests/test_assessment_root_agent.py::test_unknown_review_requires_latest_unknown_answer_for_every_open_request PASSED [ 62%]\ntests/test_assessment_root_agent.py::test_unknown_response_review_rewaits_without_fact_or_duplicate_question PASSED [ 63%]\ntests/test_assessment_root_agent.py::test_existing_unresolvable_report_uses_authoritative_request_without_opening_duplicate PASSED [ 64%]\ntests/test_assessment_root_agent.py::test_human_request_sharing_maps_dependencies_and_resolved_source_skips_interrupt PASSED [ 65%]\ntests/test_assessment_root_agent.py::test_runner_reviews_unknown_once_and_normal_redelivery_retains_new_wait PASSED [ 66%]\ntests/test_assessment_root_agent.py::test_unknown_review_rejects_stale_request_binding[request-patch0] PASSED [ 66%]\ntests/test_assessment_root_agent.py::test_unknown_review_rejects_stale_request_binding[answer-patch1] PASSED [ 67%]\ntests/test_assessment_root_agent.py::test_review_crash_after_new_checkpoint_recovers_by_settling_only[wait] PASSED [ 68%]\ntests/test_assessment_root_agent.py::test_review_crash_after_new_checkpoint_recovers_by_settling_only[report] PASSED [ 69%]\ntests/test_assessment_root_agent.py::test_review_checkpoint_recovery_rejects_foreign_or_unbound_native_wait[execution] PASSED [ 70%]\ntests/test_assessment_root_agent.py::test_review_checkpoint_recovery_rejects_foreign_or_unbound_native_wait[pins] PASSED [ 71%]\ntests/test_assessment_root_agent.py::test_review_checkpoint_recovery_rejects_foreign_or_unbound_native_wait[thread] PASSED [ 72%]\ntests/test_assessment_root_agent.py::test_review_checkpoint_recovery_rejects_foreign_or_unbound_native_wait[pending] PASSED [ 73%]\ntests/test_assessment_root_agent.py::test_review_checkpoint_recovery_rejects_foreign_or_unbound_native_wait[ancestor] PASSED [ 74%]\ntests/test_assessment_root_agent.py::test_review_checkpoint_recovery_rejects_foreign_or_unbound_native_wait[authority] PASSED [ 75%]\ntests/test_assessment_root_agent.py::test_failed_unknown_review_retries_native_work_under_new_execution PASSED [ 76%]\ntests/test_assessment_root_agent.py::test_failed_review_checkpoint_requires_prior_producer_and_continuation_authority[producer] PASSED [ 77%]\ntests/test_assessment_root_agent.py::test_failed_review_checkpoint_requires_prior_producer_and_continuation_authority[unfinished_without_review] PASSED [ 78%]\ntests/test_assessment_root_agent.py::test_blocked_report_side_effect_before_interrupt_replays_only_native_tool[graceful] PASSED [ 79%]\ntests/test_assessment_root_agent.py::test_blocked_report_side_effect_before_interrupt_replays_only_native_tool[abrupt] PASSED [ 80%]\ntests/test_assessment_root_agent.py::test_blocked_wait_recovery_excludes_other_native_tool_work[foreign_request] PASSED [ 81%]\ntests/test_assessment_root_agent.py::test_blocked_wait_recovery_excludes_other_native_tool_work[decision] PASSED [ 82%]\ntests/test_assessment_root_agent.py::test_blocked_wait_recovery_excludes_other_native_tool_work[mixed_batch] PASSED [ 83%]\ntests/test_assessment_root_agent.py::test_review_recovery_original_checkpoint_can_predate_unrelated_accepted_fact PASSED [ 83%]\ntests/test_assessment_root_completion.py::test_partial_work_and_pseudo_tools_continue_same_graph_until_server_complete PASSED [ 84%]\ntests/test_assessment_root_completion.py::test_runner_requires_authoritative_complete_even_if_graph_returns[ACTIVE] PASSED [ 85%]\ntests/test_assessment_root_completion.py::test_runner_requires_authoritative_complete_even_if_graph_returns[FINALIZING] PASSED [ 86%]\ntests/test_assessment_root_completion.py::test_runner_requires_authoritative_complete_even_if_graph_returns[COMPLETE] PASSED [ 87%]\ntests/test_assessment_root_completion.py::test_human_blocker_remains_native_interrupted_execution PASSED [ 88%]\ntests/test_assessment_root_completion.py::test_generic_conversational_root_accepts_one_natural_response PASSED [ 89%]\ntests/test_assessment_root_reliability.py::test_native_investigation_plan_survives_graph_reconstruction PASSED [ 90%]\ntests/test_assessment_root_reliability.py::test_native_scratch_permission_does_not_allow_editing_the_runtime_pin_marker PASSED [ 91%]\ntests/test_assessment_root_reliability.py::test_native_researcher_calls_use_the_roots_configured_governance PASSED [ 92%]\ntests/test_assessment_root_reliability.py::test_native_context_compaction_uses_existing_governed_summary_path[False] PASSED [ 93%]\ntests/test_assessment_root_reliability.py::test_native_context_compaction_uses_existing_governed_summary_path[True] PASSED [ 94%]\ntests/test_assessment_root_reliability.py::test_root_can_reload_one_original_decision_without_overwriting_its_revision PASSED [ 95%]\ntests/test_assessment_root_reliability.py::test_rule_catalog_can_be_read_in_bounded_complete_pages PASSED [ 96%]\ntests/test_assessment_root_reliability.py::test_captured_genuine_packet_can_be_reinvestigated_then_pause_for_human_facts PASSED [ 97%]\ntests/test_assessment_root_checkpoint_durability.py::test_checkpoint_writer_never_waits_for_a_later_superstep PASSED [ 98%]\ntests/test_assessment_root_checkpoint_durability.py::test_root_checkpoint_commit_precedes_next_step[False] PASSED [ 99%]\ntests/test_assessment_root_checkpoint_durability.py::test_root_checkpoint_commit_precedes_next_step[True] PASSED [100%]\n\n============================= 106 passed in 2.42s ==============================\n",
+      "stderr": "",
+      "workingDirectory": "deepagents",
+      "environment": {
+        "TMPDIR": "<repository>/.cache/t31/pytest-tmp"
+      }
+    },
+    {
+      "name": "api_build",
+      "command": "pnpm --filter @lcsp/api build (TMPDIR: repository .cache/t31/tmp)",
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "\n✔ Generated Prisma Client (v7.8.0) to ./../../node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.17__@types+_915d2f773918450a7a61df05b0d3a7ae/node_modules/@prisma/client in 354ms\n\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\n\n\n",
+      "stderr": "$ pnpm --dir ../.. run build:runtime-packages\n$ pnpm --filter @lcsp/contracts build && pnpm --filter @lcsp/i18n build\n$ tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force\n$ tsc -b tsconfig.json --force\n$ pnpm run prisma:generate && nest build\n$ cross-env XDG_CACHE_HOME=.cache prisma generate\nLoaded Prisma config from prisma.config.ts.\n\nPrisma schema loaded from prisma/schema.prisma.\n"
+    },
+    {
+      "name": "api_typescript",
+      "command": "pnpm --filter @lcsp/api exec tsc --noEmit --pretty false",
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "business_logic_documentation",
+      "command": "pnpm run check:business-logic-docs",
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "Business logic documentation: 3005 functions in 899 production source files; 886 conformant; 2119 unchanged legacy; 0 missing/invalid.\n",
+      "stderr": "$ node scripts/check-business-logic-docs.mjs\n"
+    },
+    {
+      "name": "contract_policy",
+      "command": "pnpm run check:contracts",
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "Contract literal policy passed.\n",
+      "stderr": "$ node scripts/check-contract-literals.mjs\n"
+    },
+    {
+      "name": "import_policy",
+      "command": "pnpm run check:imports",
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "Import policy check passed.\n",
+      "stderr": "$ node scripts/check-import-policy.mjs\n"
+    },
+    {
+      "name": "diff_whitespace",
+      "command": "git diff --check",
+      "result": "PASS",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "e2e": {
+    "path": "docs/implementation-artifacts/lcsp-t31-phase2-hitl-e2e-20261104.json",
+    "sha256": "534fb998f5ee73ebfcb696f2358e5b438fc9a2b8a1475fec47526ea02d8790b4",
+    "result": "PASS",
+    "scenarios": 7,
+    "assertions": 206,
+    "serverTimezone": "UTC",
+    "paidProviderCalls": 0
+  },
+  "fileManifest": [
+    {
+      "path": "packages/contracts/src/assessment-domain/schemas.ts",
+      "sha256": "1c291667aed28dc86723a961ca2e667396f9e4a5bb9d0b92362762160f26c941"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "sha256": "b97511b22564943c9f9a5dcb90a88505488aa20301ee99aab584c5de3b42accb"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261104120000_shared_human_request_dependencies/migration.sql",
+      "sha256": "329ece67d9e35451060069890e56b4820bba0b177d9a87368531b442cfeb2b96"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261104130000_human_answer_review_checkpoint_binding/migration.sql",
+      "sha256": "5884a1e0af593dde095ecab4164782708ff1313b126d8bcd8f456c9f864d17d6"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/commands/answer-human-request/answer-human-request.handler.ts",
+      "sha256": "8f8811854e4ddc4e39343f655a0260740402a8e5099023b331da975458c26f7b"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/commands/open-human-request/open-human-request.handler.ts",
+      "sha256": "86649980567d3e5021b319b9df3b6d201b106949b5f17b5b9131b54cc252cf27"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/commands/open-human-request/open-human-request.handler.spec.ts",
+      "sha256": "f5e49f76236aabc0d1c2728eaf5c1417e14be1dc2e61f4a66e204ad2b2cffab4"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/queries/get-human-requests/get-human-requests.handler.ts",
+      "sha256": "4c6a3e17e04dd4ff33620b6151cf7b75091e65c05efc3ff1676182932e283aeb"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/queries/get-root-context/get-root-context.handler.ts",
+      "sha256": "4400d5d9163a92e3da5412117581f4c4fba2ff1544d51f3fb0c22da4e76d528f"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/services/assessment-human-answer-review.ts",
+      "sha256": "4c57c290270ae81c1173a84e532b00172f4750d1dfefc348a4ba8f70253e0d98"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/services/assessment-human-answer-review.spec.ts",
+      "sha256": "c8dfae6417307e58f8fe6068f0eecf1c56cdf6149875a1d8176de7b126e42105"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/services/assessment-runtime-authority.service.ts",
+      "sha256": "eab20211a92e777a682d87ccf5a7f6c5832c023b91e14203eee86b924f3e94d3"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts",
+      "sha256": "bd13090448cae1a1fbde8b734186de3e4b7849c3daef5b92eaad09c8308990e4"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/infrastructure/persistence/assessment-human-request-dependencies.ts",
+      "sha256": "e73ddf15628a82538868c71b5cb4397c1683576825466217e2e04418dc3cfcc5"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.ts",
+      "sha256": "03de35f2bd5a70ca2403403eb02ee8ccb29a142de9dce38d70cf5f305ef595b8"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/infrastructure/persistence/assessment-human-request-support.service.spec.ts",
+      "sha256": "f6b1d7bdd2dc8fe0cc828ca32d824a2462b9f35604081305f4976e4c0b1676a6"
+    },
+    {
+      "path": "apps/api/src/modules/assessment/infrastructure/persistence/assessment-provenance.loader.ts",
+      "sha256": "4cb52fd32bf1518142424f117b72e511769f708d6fc686511de65a999a7f91b6"
+    },
+    {
+      "path": "deepagents/assessment_root/tools.py",
+      "sha256": "6de9a0b069419728bca38bc7e5106d3f8c4e1067e5666925eed86183834cc59b"
+    },
+    {
+      "path": "deepagents/assessment_root/runner.py",
+      "sha256": "97bf43fb23ad0c77dbe0734ad729ed6541f1a3db27509ef8c202de8462c375da"
+    },
+    {
+      "path": "deepagents/assessment_root/instructions.md",
+      "sha256": "6113ecdb17c4358dbacfb10c9fd13f16caf2fe3a7edb9e05e53a623d8e0e746b"
+    },
+    {
+      "path": "deepagents/tests/test_assessment_root_agent.py",
+      "sha256": "662f6aeee50712f16af925c3fecf48dbfb0a6350dea8de78bfea0124da312632"
+    },
+    {
+      "path": "deepagents/tests/vertical/hitl_phase2_root.py",
+      "sha256": "90ae7cd3cd50bdefd40711b1aca6bac7068741a7c8d549d75a879976487a2199"
+    },
+    {
+      "path": "tests/assessment-hitl-phase2-vertical.mjs",
+      "sha256": "d0cf1582620071b759bbb8fd1c80b1fff7d90990d704185c429d62f19428a599"
+    },
+    {
+      "path": "tests/assessment-hitl-vertical.mjs",
+      "sha256": "28358bdf3a553bdb4c6083e13987504f36fe87e90f101b7ce716775342b2d579"
+    }
+  ],
+  "limits": [
+    "Scripted model choices; no semantic legal acceptance or full 243-rule benchmark.",
+    "Synthetic source fixture exercised real sanitizer/runtime boundary; live T31 repository hydration not exercised.",
+    "Fresh isolated database migration verified; populated production upgrade and non-UTC database compatibility not verified.",
+    "No production database mutation, deployment, commit, or push.",
+    "Existing legal audit file remains LEGAL_REVIEW_PENDING/PARTIAL; its substantive legal conclusions were not validated in this technical task."
+  ]
+}

@@ -22,8 +22,10 @@ const mockProvenance: AssessmentProvenanceArtifact = {
   name: "SOC 2 Type II Assessment",
   ownerId: "user-1",
   generatedAt: "2026-10-17T12:00:00.000Z",
-  contentFingerprintSha256: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-  checksumSha256: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  contentFingerprintSha256:
+    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  checksumSha256:
+    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   correlationId: "corr-test-123",
   lifecycle: {
     state: "ACTIVE",
@@ -74,7 +76,8 @@ const mockProvenance: AssessmentProvenanceArtifact = {
       type: "REPOSITORY_SOURCE",
       state: "ACCEPTED",
       repositoryCommit: "0123456789abcdef0123456789abcdef01234567",
-      contentSha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      contentSha256:
+        "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       payload: { path: "server.conf" },
       createdAt: "2026-10-17T11:25:00.000Z",
     },
@@ -94,11 +97,13 @@ const mockProvenance: AssessmentProvenanceArtifact = {
       controlType: "FREE_TEXT",
       choices: [],
       checkpointId: null,
+      dependencies: [],
       resolvedFactId: "22222222-2222-4222-8222-222222222222",
       answers: [
         {
           idempotencyKey: "ans-key-1",
-          requestDigest: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          requestDigest:
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
           actorId: "user-1",
           caseRevision: 1,
           requestRevision: 1,
@@ -186,7 +191,8 @@ const mockProvenance: AssessmentProvenanceArtifact = {
       repositorySnapshotId: "snap-123",
       repositoryCommit: "0123456789abcdef0123456789abcdef01234567",
       caseRevision: 1,
-      contentSha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      contentSha256:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       sizeBytes: 1024,
       createdAt: "2026-10-17T11:55:00.000Z",
     },
@@ -243,7 +249,10 @@ test("AssessmentProvenanceView renders populated provenance with cryptographic c
   // Cryptographic integrity verification & content fingerprint
   assert.match(html, /Provenance integrity cryptographically verified/);
   assert.match(html, /Canonical content fingerprint/);
-  assert.match(html, /abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789/);
+  assert.match(
+    html,
+    /abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789/,
+  );
 
   // Download provenance button
   assert.match(

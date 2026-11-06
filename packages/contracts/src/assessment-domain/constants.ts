@@ -52,6 +52,34 @@ export type AssessmentDecisionRecordState =
 export const ASSESSMENT_ARTIFACT_KINDS = {
   FINAL_REPORT: "FINAL_REPORT",
 } as const;
+/** Availability of the validated final report within a telemetry/session export. */
+export const ASSESSMENT_SESSION_REPORT_STATES = {
+  AVAILABLE: "AVAILABLE",
+  UNAVAILABLE: "UNAVAILABLE",
+} as const;
+export type AssessmentSessionReportState =
+  (typeof ASSESSMENT_SESSION_REPORT_STATES)[keyof typeof ASSESSMENT_SESSION_REPORT_STATES];
+
+/** Availability of session duration measurements; turn timestamps do not prove active execution time. */
+export const ASSESSMENT_SESSION_DURATION_MEASUREMENTS = {
+  OBSERVED_TURN_SPANS: "OBSERVED_TURN_SPANS",
+  WALL_ONLY: "WALL_ONLY",
+  UNAVAILABLE: "UNAVAILABLE",
+} as const;
+export type AssessmentSessionDurationMeasurement =
+  (typeof ASSESSMENT_SESSION_DURATION_MEASUREMENTS)[keyof typeof ASSESSMENT_SESSION_DURATION_MEASUREMENTS];
+
+/** Mechanical presentation checks for an optional final-report review helper. */
+export const ASSESSMENT_FINAL_REPORT_QUALITY_FAILURE_REASONS = {
+  SUMMARY_PREFIX_MISSING_OR_INCORRECT: "SUMMARY_PREFIX_MISSING_OR_INCORRECT",
+  NON_COMPLIANT_RECOMMENDATION_MISSING: "NON_COMPLIANT_RECOMMENDATION_MISSING",
+  DECISION_TOTALS_MISSING_OR_INCORRECT: "DECISION_TOTALS_MISSING_OR_INCORRECT",
+  OVERALL_SUMMARY_CONTRADICTS_DECISIONS:
+    "OVERALL_SUMMARY_CONTRADICTS_DECISIONS",
+} as const;
+export type AssessmentFinalReportQualityFailureReason =
+  (typeof ASSESSMENT_FINAL_REPORT_QUALITY_FAILURE_REASONS)[keyof typeof ASSESSMENT_FINAL_REPORT_QUALITY_FAILURE_REASONS];
+
 export const ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION =
   "ASSESSMENT_FINAL_REPORT_V1" as const;
 export const ASSESSMENT_PROVENANCE_SCHEMA_VERSION =
@@ -142,6 +170,7 @@ export const ASSESSMENT_DOMAIN_ERROR_CODES = {
   CASE_REVISION_STALE: "ASSESSMENT_CASE_REVISION_STALE",
   DECISION_REVISION_STALE: "ASSESSMENT_DECISION_REVISION_STALE",
   EVIDENCE_PIN_MISMATCH: "ASSESSMENT_EVIDENCE_PIN_MISMATCH",
+  EVIDENCE_SOURCE_SCOPE_MISMATCH: "ASSESSMENT_EVIDENCE_SOURCE_SCOPE_MISMATCH",
   EVIDENCE_REFERENCE_INVALID: "ASSESSMENT_EVIDENCE_REFERENCE_INVALID",
   DECISION_VALIDATION_FAILED: "ASSESSMENT_DECISION_VALIDATION_FAILED",
   RULE_NOT_IN_RULE_SET: "ASSESSMENT_RULE_NOT_IN_RULE_SET",
@@ -287,3 +316,36 @@ export const TRACKING_IMPACT_REASONS = {
 } as const;
 export type TrackingImpactReason =
   (typeof TRACKING_IMPACT_REASONS)[keyof typeof TRACKING_IMPACT_REASONS];
+
+/** Advisory factual subjects used by the optional human-answer consistency helper. */
+export const HUMAN_FACT_TOPICS = {
+  SERIOUS_AI_INCIDENT: "SERIOUS_AI_INCIDENT",
+  SENSITIVE_DATA_BREACH: "SENSITIVE_DATA_BREACH",
+  FORMAL_SECURITY_LEVEL: "FORMAL_SECURITY_LEVEL",
+} as const;
+export type HumanFactTopic =
+  (typeof HUMAN_FACT_TOPICS)[keyof typeof HUMAN_FACT_TOPICS];
+
+/** Structured candidate interpretations; no value grants authority to create a fact. */
+export const HUMAN_FACT_CLAIMS = {
+  YES: "YES",
+  NO: "NO",
+  UNKNOWN: "UNKNOWN",
+  LEVEL_1: "LEVEL_1",
+  LEVEL_2: "LEVEL_2",
+  LEVEL_3: "LEVEL_3",
+  LEVEL_4: "LEVEL_4",
+  AMBIGUOUS: "AMBIGUOUS",
+} as const;
+export type HumanFactClaim =
+  (typeof HUMAN_FACT_CLAIMS)[keyof typeof HUMAN_FACT_CLAIMS];
+
+/** Mechanical consistency results returned to the optional helper's caller. */
+export const HUMAN_FACT_GUARD_FAILURES = {
+  UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW:
+    "UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW",
+  AMBIGUOUS_HUMAN_ANSWER: "AMBIGUOUS_HUMAN_ANSWER",
+  CONTRADICTS_PRIOR_HUMAN_FACT: "CONTRADICTS_PRIOR_HUMAN_FACT",
+} as const;
+export type HumanFactGuardFailure =
+  (typeof HUMAN_FACT_GUARD_FAILURES)[keyof typeof HUMAN_FACT_GUARD_FAILURES];

@@ -24,6 +24,8 @@ import {
   ROOT_CAPACITY_METRIC_SOURCES as Sources,
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ASSESSMENT_ROOT_BOUNDARY,
+  ASSESSMENT_AUDIT_MODES,
+  RULE_AUDIT_STATUSES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   rootCapacityPolicySchema,
   rootCapacityRuntimeMetricsSchema,
@@ -211,6 +213,11 @@ export class AssessmentRootCapacityService {
    * - Owner history is aggregated once; a large customer's backlog cannot multiply history scans under the global lock.
    * - A matching completed terminal Root settles its older command even when a legacy writer omitted admission bookkeeping.
    * - Held physical slots still defer redelivery; newer or timestamp-ambiguous continuation commands remain eligible.
+   * - An interrupted UNKNOWN-answer review needs its exact durable review command, completed current checkpoint turn and current audit binding.
+   * - Every open request in that scope must have the latest UNKNOWN answer at its current revision and authorized answer checkpoint.
+   * - Failed review recovery needs a fresh unconsumed command, the current completed advanced checkpoint and the exact saved review request set; it never revives the failed command.
+   * - A blocked failed review must still reference an open dependency of the same current scope; partial, changed or foreign receipts cannot enter the fair queue.
+   * - Initial review eligibility comes from persisted answers, never from a grant created only after admission; claim revalidates the complete answer schema.
    * Execution flow:
    * 1. Select current eligible Root commands, optionally restricted to one Assessment.
    * 2. Aggregate owner admission history once and order by that history/request age within the result ceiling.
@@ -236,12 +243,92 @@ export class AssessmentRootCapacityService {
       JOIN "Assessment" a ON a."id" = demand."assessmentId"
       JOIN "OutboxMessage" command ON command."id" = demand."commandId"
       JOIN "AssessmentRuntime" r ON r."assessmentId" = a."id"
+      LEFT JOIN "AssessmentCase" c ON c."assessmentId" = a."id"
       LEFT JOIN "AssessmentRuntimeTurn" t ON t."id" = r."currentExecutionId"::text
       LEFT JOIN owner_history ON owner_history."ownerId" = a."ownerId"
       WHERE command."aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
         AND command."aggregateId" = a."id"
         AND (a."lifecycleState"::text = ${Lifecycles.ACTIVE}
         OR (a."lifecycleState"::text = ${Lifecycles.PAUSED} AND t."state"::text = ${Controls.resumeRequested})
+        OR (
+          (
+            (a."lifecycleState"::text = ${Lifecycles.WAITING_FOR_HUMAN}
+              AND r."executionState"::text = ${Executions.INTERRUPTED}
+              AND command."payload"->>'idempotencyKey' =
+                'human-review:' || a."id" || ':' || r."checkpointId"::text)
+            OR (r."executionState"::text = ${Executions.FAILED}
+              AND r."leaseToken" IS NULL
+              AND demand."requestedAt" >= t."updatedAt"
+              AND command."eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
+              AND command."payload"->>'assessmentId' = a."id"
+              AND (a."lifecycleState"::text = ${Lifecycles.WAITING_FOR_HUMAN}
+                OR (a."lifecycleState"::text = ${Lifecycles.BLOCKED}
+                  AND a."blockerReason"::text = ${BLOCKER_REASONS.HUMAN_FACT_UNRESOLVABLE}))
+              AND jsonb_typeof(t."contextJson"->'humanAnswerReview') = 'object'
+              AND jsonb_typeof(t."contextJson"#>'{humanAnswerReview,checkpointId}') = 'string'
+              AND jsonb_typeof(t."contextJson"#>'{humanAnswerReview,requests}') = 'array')
+          )
+          AND r."checkpointId" IS NOT NULL
+          AND t."assessmentId" = a."id" AND t."threadId" = r."threadId"::text
+          AND t."boundary" = ${ASSESSMENT_ROOT_BOUNDARY}
+          AND t."state"::text = ${Controls.completed}
+          AND t."checkpointJson"->>'checkpointId' = r."checkpointId"::text
+          AND t."contextJson"->>'auditRequestId' IS NOT DISTINCT FROM r."currentAuditRequestId"::text
+          AND (
+            (c."auditMode"::text = ${ASSESSMENT_AUDIT_MODES.LEGACY_FULL}
+              AND r."currentAuditRequestId" IS NULL
+              AND (t."contextJson"->>'checkpointThreadId' IS NULL
+                OR t."contextJson"->>'checkpointThreadId' = r."threadId"::text))
+            OR (c."auditMode"::text = ${ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED}
+              AND r."currentAuditRequestId" IS NOT NULL
+              AND t."contextJson"->>'checkpointThreadId' = r."currentAuditRequestId"::text
+              AND EXISTS (SELECT 1 FROM "AssessmentRuleAuditRequest" audit
+                JOIN "AssessmentRuleAuditItem" member ON member."requestId" = audit."requestId"
+                WHERE audit."requestId" = r."currentAuditRequestId"
+                  AND audit."assessmentId" = a."id"
+                  AND audit."status"::text NOT IN (${RULE_AUDIT_STATUSES.COMPLETED}, ${RULE_AUDIT_STATUSES.CANCELLED}))))
+          AND COALESCE((
+            SELECT count(*) > 0
+              AND (r."executionState"::text <> ${Executions.FAILED}
+                OR count(*) = CASE
+                  WHEN jsonb_typeof(t."contextJson"#>'{humanAnswerReview,requests}') = 'array'
+                  THEN jsonb_array_length(t."contextJson"#>'{humanAnswerReview,requests}')
+                  ELSE -1 END)
+              AND (a."lifecycleState"::text <> ${Lifecycles.BLOCKED}
+                OR bool_or(human."requestId"::text = a."blockerReference"->>'humanResolutionRequestId'))
+              AND bool_and(COALESCE(
+                human."threadId" = r."threadId"
+                AND human."checkpointId"::text = CASE
+                  WHEN r."executionState"::text = ${Executions.FAILED}
+                  THEN t."contextJson"#>>'{humanAnswerReview,checkpointId}'
+                  ELSE r."checkpointId"::text END
+                AND human."resolvedFactId" IS NULL
+                AND human."requestRevision" > 0
+                AND jsonb_typeof(human."answers") = 'array'
+                AND (human."answers" -> -1)->'doesNotKnow' = 'true'::jsonb
+                AND (human."answers" -> -1)->'answer' = 'null'::jsonb
+                AND (human."answers" -> -1)->'requestRevision' = to_jsonb(human."requestRevision")
+                AND (human."answers" -> -1)->>'checkpointId' = human."checkpointId"::text
+                AND (r."executionState"::text <> ${Executions.FAILED} OR EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(CASE
+                    WHEN jsonb_typeof(t."contextJson"#>'{humanAnswerReview,requests}') = 'array'
+                    THEN t."contextJson"#>'{humanAnswerReview,requests}'
+                    ELSE '[]'::jsonb END) receipt
+                  WHERE receipt->>'requestId' = human."requestId"::text
+                    AND receipt->'requestRevision' = to_jsonb(human."requestRevision"))),
+                FALSE))
+            FROM "AssessmentHumanRequest" human
+            WHERE human."assessmentId" = a."id"
+              AND human."status"::text = ${HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN}
+              AND (r."currentAuditRequestId" IS NULL OR EXISTS (
+                SELECT 1 FROM "AssessmentRuleAuditItem" member
+                WHERE member."requestId" = r."currentAuditRequestId"
+                  AND (member."assessmentRuleId" = human."assessmentRuleId" OR EXISTS (
+                    SELECT 1 FROM "AssessmentHumanRequestDependency" dependency
+                    WHERE dependency."requestId" = human."requestId"
+                      AND dependency."assessmentId" = a."id"
+                      AND dependency."assessmentRuleId" = member."assessmentRuleId"))))
+          ), FALSE))
         OR (r."executionState"::text = ${Executions.RUNNING} AND r."leaseExpiresAt" <= (now() AT TIME ZONE 'UTC')
           AND (a."lifecycleState"::text = ${Lifecycles.WAITING_FOR_HUMAN}
             OR (a."lifecycleState"::text = ${Lifecycles.BLOCKED}
