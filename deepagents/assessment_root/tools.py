@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.learning import retrieve_shared_heuristics
+from tools.common.capabilities.platform.repository_sandbox import validate_source_path_prefix
 
 # Native/search tool names whose executions authenticate a search-coverage record.
 _SEARCH_TOOLS = {"ls", "glob", "grep", "search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
@@ -32,6 +33,11 @@ _SCOPE_DIRECTORY = "SOURCE_DIRECTORY"
 _SCOPE_FILE = "SOURCE_FILE"
 _SCOPE_GRAPH = "GRAPH_INDEX"
 _MAX_TRACE = 400
+_COVERAGE_DEFAULT_PAGE_SIZE = 10
+_COVERAGE_MAX_PAGE_SIZE = 25
+_RULE_DETAIL_MAX_BYTES = 4096
+_RULE_CATALOG_MAX_BYTES = 4096
+_RULE_DETAIL_MAX_POINTER = 512
 
 
 def _repo_path(value: Any) -> str:
@@ -186,6 +192,7 @@ class RootRun:
     case_revision: int = 0
     audit_request: dict[str, Any] | None = None
     pins: dict[str, str] = field(default_factory=dict)
+    source_path_prefix: str | None = None
     decision_revisions: dict[str, int] = field(default_factory=dict)
     rule_versions: dict[str, str] = field(default_factory=dict)
     rule_criteria: dict[str, list[str]] = field(default_factory=dict)
@@ -198,17 +205,34 @@ class RootRun:
 
         Business rules:
         - Selected rule IDs and pins come only from API context; previous model memory grants no scope.
+        - Only initially absent/null audit metadata retains legacy full-rule scope; malformed or disappearing bound authority fails closed.
+        - Missing source prefix retains the full repository; an adopted prefix is immutable within this execution.
         Execution flow:
-        1. Save case revision and request.
+        1. Validate current request identity, explicit selection and optional source prefix, then save case revision and request.
         2. Bind pins and covered rule versions.
         3. Resolve response language.
         Failure cases:
-        - Missing required pins fail immediately; malformed revision does not become a default decision.
+        - Missing pins, malformed request metadata or revision, and a changed source prefix fail before further retrieval.
         Side effects:
         - Updates this run's in-memory caches only; no persisted audit record changes.
         """
+        audit_request = context.get("auditRequest")
+        if self.audit_request is not None and audit_request is None:
+            raise RuntimeError("audit request scope disappeared within the Root execution")
+        if audit_request is not None:
+            if (not isinstance(audit_request, dict)
+                    or not isinstance(audit_request.get("requestId"), str) or not audit_request["requestId"]
+                    or audit_request.get("scopeMode") not in {"SELECTED_RULES", "FULL_RULE_SET"}
+                    or not isinstance(audit_request.get("status"), str) or not audit_request["status"]
+                    or not isinstance(audit_request.get("selectedRuleIds"), list) or not audit_request["selectedRuleIds"]
+                    or any(not isinstance(rule_id, str) or not rule_id for rule_id in audit_request["selectedRuleIds"])):
+                raise RuntimeError("audit request metadata does not define an authorized rule scope")
+        source_path_prefix = validate_source_path_prefix(context.get("sourcePathPrefix"))
+        if self.pins and self.source_path_prefix != source_path_prefix:
+            raise RuntimeError("assessment source scope changed within the Root execution")
+        self.source_path_prefix = source_path_prefix
         self.case_revision = int(context["caseRevision"])
-        self.audit_request = context.get("auditRequest")
+        self.audit_request = audit_request
         self.pins = {
             "ruleSetVersionId": context["ruleSetVersionId"],
             "repositorySnapshotId": context["repositorySnapshotId"],
@@ -268,7 +292,27 @@ class GetRuleArgs(_Args):
 
 class GetPinnedRuleSetArgs(_Args):
     offset: int = Field(default=0, ge=0, description="Catalog offset; follow nextOffset until null to discover every rule.")
-    limit: int = Field(default=25, ge=1, le=50, description="Maximum rule summaries in this page; use get_assessment_rule for full details.")
+    limit: int = Field(default=10, ge=1, le=50, description="Maximum summaries requested; the response byte bound may return fewer. Follow actual nextOffset and use get_assessment_rule for full details.")
+
+
+class GetAssessmentRuleDetailArgs(GetRuleArgs):
+    detail_token: str = Field(pattern=r"^[0-9a-f]{64}$", description="detailToken returned by an oversized get_assessment_rule result.")
+    pointer: str = Field(default="", max_length=_RULE_DETAIL_MAX_POINTER, description="Exact JSON pointer from a detail index; empty selects the complete rule payload.")
+    offset: int = Field(default=0, ge=0, description="Follow nextOffset: entry index for indexes, Unicode code-point index for fragments.")
+    max_items: int = Field(default=10, ge=1, le=20, description="Maximum direct entries/items; nested VALUE content remains subject to the response byte bound.")
+    max_chars: int = Field(default=2000, ge=1, le=4000, description="Maximum Unicode code points for a direct string or JSON fragment; the response byte bound may shorten the page.")
+
+
+class GetAssessmentCoverageArgs(_Args):
+    snapshot_token: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="coverageSummary.snapshotToken from get_assessment_context; a stale snapshot must be reloaded.",
+    )
+    offset: int = Field(default=0, ge=0, description="Start at zero, then follow nextOffset until null for complete coverage.")
+    limit: int = Field(
+        default=_COVERAGE_DEFAULT_PAGE_SIZE, ge=1, le=_COVERAGE_MAX_PAGE_SIZE,
+        description="Maximum coverage rows in this page; partial pages never establish assessment completion.",
+    )
 
 
 class GetRuleDecisionArgs(GetRuleArgs):
@@ -456,7 +500,8 @@ def _repository_view(run: RootRun) -> dict[str, Any]:
     Disclose the pinned sandbox's source limitations before the investigator reasons from absence.
 
     Business rules:
-    - Only runtime metadata matching this assessment, snapshot and commit describes its source view.
+    - Only runtime metadata matching this assessment, snapshot, commit and source scope describes its source view.
+    - A scoped run requires matching coverage metadata; unavailable metadata never authorizes a wider source view.
     - Missing coverage metadata leaves completeness unknown and never establishes missing implementation.
 
     Execution flow:
@@ -473,14 +518,26 @@ def _repository_view(run: RootRun) -> dict[str, Any]:
     unavailable = {"coverageLimited": None, "reason": "RUNTIME_VIEW_METADATA_UNAVAILABLE"}
     files = run.backend.download_files(["/.lcsp/repository.json"])
     if not files or files[0].error or files[0].content is None:
+        if run.source_path_prefix is not None:
+            raise RuntimeError("scoped repository view metadata is unavailable")
         return unavailable
     marker = json.loads(files[0].content)
     expected = {"assessmentId": run.assessment_id, "snapshotId": run.pins["repositorySnapshotId"],
-                "commitSha": run.pins["repositoryCommit"]}
+                "commitSha": run.pins["repositoryCommit"], "sourcePathPrefix": run.source_path_prefix}
     if not isinstance(marker, dict) or any(marker.get(key) != value for key, value in expected.items()):
         raise RuntimeError("repository view pins do not match the assessment")
     coverage = marker.get("sourceCoverage")
-    return coverage if isinstance(coverage, dict) else unavailable
+    if isinstance(coverage, dict):
+        if validate_source_path_prefix(coverage.get("sourcePathPrefix")) != run.source_path_prefix:
+            raise RuntimeError("repository coverage scope does not match the assessment")
+        if run.source_path_prefix is not None:
+            # Intentional exclusions establish the boundary, not facts about sibling projects.
+            return {key: value for key, value in coverage.items()
+                    if key not in {"sourceScopeExcludedEntries", "sourceScopeExclusionsTruncated"}}
+        return coverage
+    if run.source_path_prefix is not None:
+        raise RuntimeError("scoped repository coverage metadata is unavailable")
+    return unavailable
 
 
 def _legal_sources(rule: dict[str, Any], requirements: list[dict[str, Any]], relations: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -517,6 +574,242 @@ def _guard(call):
     return run
 
 
+def _coverage_snapshot(run: RootRun, context: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+    """Business purpose: Bind complete coverage navigation to one authoritative assessment snapshot.
+
+    Business rules:
+    - Preserve every rule's version, resolution state and current decision identity and revision.
+    - Case revision alone is insufficient: investigation and decision changes also invalidate a page token.
+    - Bind the token to this assessment, thread, immutable pins, selected source scope and current audit request.
+
+    Execution flow:
+    1. Project every API coverage row and order it by the pinned rule identity.
+    2. Hash those rows together with the authoritative revisions and run identity.
+
+    Failure cases:
+    - Malformed required API fields fail retrieval instead of fabricating an incomplete coverage inventory.
+
+    Side effects:
+    - Pure in-memory projection and digest; no domain writes, provider calls or coverage filtering.
+    """
+    rows = sorted(
+        [{key: row[key] for key in (
+            "assessmentRuleId", "assessmentRuleVersion", "resolutionState",
+            "currentDecisionId", "decisionRevision",
+        )} for row in context["coverage"]],
+        key=lambda row: row["assessmentRuleId"],
+    )
+    binding = {
+        "assessmentId": run.assessment_id,
+        "threadId": run.thread_id,
+        "caseRevision": context["caseRevision"],
+        "pins": {key: context[key] for key in (
+            "ruleSetVersionId", "repositorySnapshotId", "repositoryCommit",
+        )},
+        "sourcePathPrefix": validate_source_path_prefix(context.get("sourcePathPrefix")),
+        "repositoryScanJobId": context.get("repositoryScanJobId"),
+        "decisionScopeId": context.get("decisionScopeId"),
+        "auditRequest": context.get("auditRequest"),
+        "coverage": rows,
+    }
+    token = hashlib.sha256(json.dumps(
+        binding, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    return rows, token
+
+
+def _rule_detail_pointer(payload: Any, pointer: str) -> Any:
+    """Business purpose: Retrieve exactly the legal-detail node selected from a governed rule index.
+
+    Business rules:
+    - JSON pointers address the immutable projected payload, never paths in a repository or filesystem.
+    - Object keys are literal; arrays accept only canonical non-negative decimal indexes.
+    Execution flow:
+    1. Validate and decode each JSON Pointer segment without accepting ambiguous escapes.
+    2. Descend through existing objects and arrays to return the selected node.
+    Failure cases:
+    - Missing members, malformed escapes and invalid array indexes raise INVALID_RULE_DETAIL_POINTER.
+    Side effects:
+    - Pure read of the supplied in-memory projection; no legal data, cache or case state changes.
+    """
+    if not pointer:
+        return payload
+    if not pointer.startswith("/") or len(pointer) > _RULE_DETAIL_MAX_POINTER:
+        raise ValueError("INVALID_RULE_DETAIL_POINTER")
+    current = payload
+    for encoded in pointer[1:].split("/"):
+        if re.search(r"~(?:[^01]|$)", encoded):
+            raise ValueError("INVALID_RULE_DETAIL_POINTER")
+        key = encoded.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        elif isinstance(current, list) and re.fullmatch(r"0|[1-9][0-9]*", key):
+            index = int(key)
+            if index >= len(current):
+                raise ValueError("INVALID_RULE_DETAIL_POINTER")
+            current = current[index]
+        else:
+            raise ValueError("INVALID_RULE_DETAIL_POINTER")
+    return current
+
+
+def _rule_detail_fragment(text: str, pointer: str, offset: int, max_chars: int, byte_limit: int, kind: str) -> dict[str, Any]:
+    """Business purpose: Expose every character of a large legal value without silently truncating it.
+
+    Business rules:
+    - Offsets and continuation count Unicode code points; concatenated pages preserve the exact original string.
+    - The whole-string digest identifies the value; a fragment is never a complete legal provision.
+    - JSON fragments must be fully concatenated and parsed before using the reconstructed value.
+    Execution flow:
+    1. Reject an offset beyond the string and bind its total length and digest.
+    2. Find the longest requested prefix whose complete serialized view fits the remaining reply budget.
+    3. Return the exact fragment and a continuation until every character is available.
+    Failure cases:
+    - Invalid offsets or metadata that cannot fit with one character return a bounded retrieval failure.
+    Side effects:
+    - Pure projection; no text rewriting, provider request or domain mutation.
+    """
+    if offset > len(text):
+        raise ValueError("INVALID_RULE_DETAIL_OFFSET")
+    base = {
+        "kind": kind, "pointer": pointer, "offsetUnit": "UNICODE_CODE_POINTS",
+        "offset": offset, "totalCharacters": len(text),
+        "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+    }
+    low, high, best = 0, min(max_chars, len(text) - offset), None
+    while low <= high:
+        length = (low + high) // 2
+        end = offset + length
+        candidate = {**base, "text": text[offset:end], "nextOffset": end if end < len(text) else None}
+        if len(json.dumps(candidate, ensure_ascii=False, default=str).encode("utf-8")) <= byte_limit:
+            best = candidate
+            low = length + 1
+        else:
+            high = length - 1
+    if best is None or (offset < len(text) and not best["text"]):
+        raise ValueError("RULE_DETAIL_METADATA_TOO_LARGE")
+    return best
+
+
+def _rule_detail_view(
+    value: Any, pointer: str, offset: int, max_items: int, max_chars: int, byte_limit: int,
+) -> dict[str, Any]:
+    """Business purpose: Keep complete rule data navigable through bounded values, indexes and exact text pages.
+
+    Business rules:
+    - A VALUE contains the complete selected node; indexes and fragments explicitly require further retrieval.
+    - Direct item and character maxima apply even when the value would fit the byte budget.
+    - Every child stays reachable; oversized pointer metadata falls back to a complete JSON stream at the parent.
+    Execution flow:
+    1. Return a complete small node when its direct limits and serialized reply budget permit.
+    2. Index a larger object or array with exact child pointers and bounded continuation.
+    3. Stream large text or an unindexable node as lossless Unicode fragments.
+    Failure cases:
+    - Offsets outside the selected view or unrepresentable metadata return typed retrieval feedback.
+    Side effects:
+    - Pure formatting of the authoritative projection; does not omit, reinterpret or persist any rule content.
+    """
+    direct_limit = (len(value) <= max_items if isinstance(value, (dict, list))
+                    else len(value) <= max_chars if isinstance(value, str) else True)
+    whole = {"kind": "VALUE", "pointer": pointer, "value": value}
+    if direct_limit and len(json.dumps(whole, ensure_ascii=False, default=str).encode("utf-8")) <= byte_limit:
+        if offset != 0:
+            raise ValueError("INVALID_RULE_DETAIL_OFFSET")
+        return whole
+    if isinstance(value, str):
+        return _rule_detail_fragment(value, pointer, offset, max_chars, byte_limit, "TEXT_FRAGMENT")
+    if isinstance(value, (dict, list)):
+        entries = []
+        pairs = value.items() if isinstance(value, dict) else enumerate(value)
+        kinds = {dict: "OBJECT", list: "ARRAY", str: "STRING", bool: "BOOLEAN",
+                 int: "NUMBER", float: "NUMBER", type(None): "NULL"}
+        for key, child in pairs:
+            child_pointer = pointer + "/" + str(key).replace("~", "~0").replace("/", "~1")
+            entries.append({
+                "key" if isinstance(value, dict) else "index": key,
+                "pointer": child_pointer, "kind": kinds[type(child)],
+                "serializedBytes": len(json.dumps(child, ensure_ascii=False, default=str).encode("utf-8")),
+            })
+        base = {
+            "kind": "OBJECT_INDEX" if isinstance(value, dict) else "ARRAY_INDEX",
+            "pointer": pointer, "offsetUnit": "ENTRIES", "offset": offset, "totalEntries": len(entries),
+        }
+        unindexable = any(
+            len(entry["pointer"]) > _RULE_DETAIL_MAX_POINTER or
+            len(json.dumps({**base, "offset": len(entries), "entries": [entry], "nextOffset": len(entries)}, ensure_ascii=False).encode("utf-8")) > byte_limit
+            for entry in entries
+        )
+        if not unindexable:
+            if offset > len(entries):
+                raise ValueError("INVALID_RULE_DETAIL_OFFSET")
+            page = {**base, "entries": [], "nextOffset": offset if offset < len(entries) else None}
+            for index in range(offset, min(offset + max_items, len(entries))):
+                candidate = {**page, "entries": [*page["entries"], entries[index]],
+                             "nextOffset": index + 1 if index + 1 < len(entries) else None}
+                if len(json.dumps(candidate, ensure_ascii=False).encode("utf-8")) > byte_limit:
+                    break
+                page = candidate
+            if offset < len(entries) and not page["entries"]:
+                raise ValueError("RULE_DETAIL_METADATA_TOO_LARGE")
+            if len(json.dumps(page, ensure_ascii=False).encode("utf-8")) > byte_limit:
+                raise ValueError("RULE_DETAIL_METADATA_TOO_LARGE")
+            return page
+    serialized = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return _rule_detail_fragment(serialized, pointer, offset, max_chars, byte_limit, "JSON_FRAGMENT")
+
+
+def _rule_detail_response(
+    run: RootRun, payload: dict[str, Any], *, detail_token: str | None = None,
+    pointer: str = "", offset: int = 0, max_items: int = 10, max_chars: int = 2000,
+) -> dict[str, Any]:
+    """Business purpose: Bind bounded legal-detail reads to the full pinned payload and preserve its authority.
+
+    Business rules:
+    - A consistency token binds this case, thread, pins, source scope, authorized audit request and every field of the rule projection.
+    - Foreign or changed content is rejected before returning a selected value or fragment.
+    - The complete serialized success reply, including identity metadata, must fit 4,096 UTF-8 bytes.
+    Execution flow:
+    1. Hash the authoritative full projection and compare any supplied token.
+    2. Resolve the exact selected node and reserve reply bytes for its identity envelope.
+    3. Return a bounded complete value, navigation index or lossless fragment.
+    Failure cases:
+    - Stale tokens, invalid pointers, invalid offsets and excessive metadata return structured feedback without content.
+    Side effects:
+    - Pure projection and hashing; no fact, evidence, decision, lifecycle or filesystem writes.
+    """
+    binding = {
+        "assessmentId": run.assessment_id, "threadId": run.thread_id,
+        "pins": run.pins, "sourcePathPrefix": run.source_path_prefix,
+        "auditRequest": run.audit_request, "payload": payload,
+    }
+    token = hashlib.sha256(json.dumps(
+        binding, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    if detail_token is not None and detail_token != token:
+        return {"ok": False, "code": "RULE_DETAIL_SNAPSHOT_STALE",
+                "hint": "Reload get_assessment_rule and use its current detailToken."}
+    rule = payload["assessmentRule"]
+    reply = {
+        "ok": True, "assessmentRuleId": rule["assessmentRuleId"],
+        "assessmentRuleVersion": rule["assessmentRuleVersion"],
+        "ruleSetVersionId": run.pins["ruleSetVersionId"], "detailRequired": True,
+        "detailToken": token, "detailTool": "get_assessment_rule_detail",
+    }
+    try:
+        value = _rule_detail_pointer(payload, pointer)
+        byte_limit = _RULE_DETAIL_MAX_BYTES - len(json.dumps(
+            {**reply, "detail": None}, ensure_ascii=False, default=str,
+        ).encode("utf-8")) + len("null")
+        reply["detail"] = _rule_detail_view(value, pointer, offset, max_items, max_chars, byte_limit)
+    except ValueError as error:
+        code = str(error)
+        if code not in {"INVALID_RULE_DETAIL_POINTER", "INVALID_RULE_DETAIL_OFFSET", "RULE_DETAIL_METADATA_TOO_LARGE"}:
+            raise
+        return {"ok": False, "code": code,
+                "hint": "Use an indexed pointer and its nextOffset; read a parent JSON fragment for oversized keys."}
+    if len(json.dumps(reply, ensure_ascii=False, default=str).encode("utf-8")) > _RULE_DETAIL_MAX_BYTES:
+        raise RuntimeError("rule detail reply exceeded its measured byte bound")
+    return reply
 def build_root_tools(run: RootRun) -> list[StructuredTool]:
     """Business purpose: Expose the governed investigation and reporting operations of one customer Assessment Root.
 
@@ -525,7 +818,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     - Schema validation and API failure feedback must not fabricate accepted evidence or positive verdicts.
     Execution flow:
     1. Bind context, legal-source, repository-evidence, decision, human-resolution and report functions to this run.
-    2. Wrap the named functions with their typed schemas and API problem feedback.
+    2. Wrap the named functions with concise model instructions, typed schemas and API problem feedback.
     3. Return only the Root tool surface, leaving repository researchers without decision authority.
     Failure cases:
     - Malformed arguments receive validation feedback; rejected API operations remain rejected.
@@ -542,10 +835,12 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         - Case pins, coverage, facts and evidence come from the API, not the model's memory.
         - Preserve each fact's authority so evidence-derived claims remain distinguishable from human-provided context.
         - Runtime source metadata must match those pins; incomplete visibility cannot establish absence.
+        - Coverage counts describe the authorized audit request, never a completion verdict; every visible row remains available through snapshot-bound pages.
 
         Execution flow:
-        1. Load and adopt the API's current case revision and immutable pins.
-        2. Verify the runtime source view and project accepted evidence, facts and per-rule coverage.
+        1. Load and adopt the API's complete case context, including every coverage row for revision caches.
+        2. Verify the runtime source view and retain the authorized audit request, accepted evidence, fact authority and human audit feedback.
+        3. Return coverage counts and a content-bound page token without repeating the full inventory in model history.
 
         Failure cases:
         - API failures remain rejection feedback; conflicting sandbox pins fail context retrieval.
@@ -555,23 +850,27 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         """
         context = client.context()
         run.adopt_context(context)
+        coverage, snapshot_token = _coverage_snapshot(run, context)
+        resolution_counts: dict[str, int] = {}
+        for row in coverage:
+            state = row["resolutionState"]
+            resolution_counts[state] = resolution_counts.get(state, 0) + 1
         return {
             "ok": True,
             "caseRevision": context["caseRevision"],
             "pins": run.pins,
+            "sourcePathPrefix": run.source_path_prefix,
             "repositoryView": _repository_view(run),
             "decisionScopeId": context["decisionScopeId"],
             "auditRequest": context.get("auditRequest"),
-            "coverage": [
-                {
-                    "assessmentRuleId": row["assessmentRuleId"],
-                    "assessmentRuleVersion": row["assessmentRuleVersion"],
-                    "resolutionState": row["resolutionState"],
-                    "currentDecisionId": row["currentDecisionId"],
-                    "decisionRevision": row["decisionRevision"],
-                }
-                for row in context["coverage"]
-            ],
+            "coverageSummary": {
+                "totalRuleCount": len(coverage),
+                "resolutionCounts": resolution_counts,
+                "snapshotToken": snapshot_token,
+                "pageTool": "get_assessment_coverage",
+                "defaultPageSize": _COVERAGE_DEFAULT_PAGE_SIZE,
+                "maxPageSize": _COVERAGE_MAX_PAGE_SIZE,
+            },
             "facts": [
                 {
                     "factId": f["factId"],
@@ -594,6 +893,50 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 for e in context["evidence"]
             ],
             "openHumanRequestIds": context["openHumanRequestIds"],
+            # Responses are audit feedback; only context facts have accepted fact authority.
+            "humanRequests": context.get("humanRequests", []),
+        }
+
+    def get_assessment_coverage(
+        snapshot_token: str, offset: int = 0, limit: int = _COVERAGE_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Business purpose: Retrieve complete per-rule coverage incrementally without mixing assessment snapshots.
+
+        Business rules:
+        - The supplied token must match the current leased API context for this assessment and thread.
+        - Any audit-request, coverage, case revision, pin or source-scope change requires a fresh context summary.
+        - Pages retain every row field and expose the total and continuation; a page is never proof of completion.
+
+        Execution flow:
+        1. Reload complete authoritative context and recompute its ordered coverage snapshot.
+        2. Reject a stale token or an offset past the inventory before returning any coverage rows.
+        3. Adopt the full context for revision caches and return the requested bounded page.
+
+        Failure cases:
+        - A changed or foreign token returns COVERAGE_SNAPSHOT_STALE; an excessive offset returns INVALID_COVERAGE_OFFSET.
+        - Schema validation rejects malformed tokens and page limits outside the supported range.
+
+        Side effects:
+        - Read-only API access and in-memory revision-cache refresh; no evidence, fact, decision or lifecycle writes.
+        """
+        context = client.context()
+        coverage, current_token = _coverage_snapshot(run, context)
+        if snapshot_token != current_token:
+            return {
+                "ok": False, "code": "COVERAGE_SNAPSHOT_STALE",
+                "hint": "Reload get_assessment_context and restart coverage paging with its snapshotToken.",
+            }
+        if offset > len(coverage):
+            return {
+                "ok": False, "code": "INVALID_COVERAGE_OFFSET",
+                "hint": "Start at offset zero or use the nextOffset returned by the previous page.",
+            }
+        run.adopt_context(context)
+        return {
+            "ok": True, "caseRevision": context["caseRevision"], "snapshotToken": current_token,
+            "totalRuleCount": len(coverage), "offset": offset, "limit": limit,
+            "nextOffset": offset + limit if offset + limit < len(coverage) else None,
+            "coverage": coverage[offset:offset + limit],
         }
 
     def get_rule_decision(assessment_rule_id: str, revision: int | None = None) -> dict[str, Any]:
@@ -616,25 +959,30 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         """
         return {"ok": True, **client.rule_decisions(assessment_rule_id, revision)}
 
-    def get_pinned_rule_set(offset: int = 0, limit: int = 25) -> dict[str, Any]:
-        """Business purpose: Discover every pinned AssessmentRule through complete, bounded catalog pages.
+    def get_pinned_rule_set(offset: int = 0, limit: int = 10) -> dict[str, Any]:
+        """Business purpose: Discover every authorized AssessmentRule through complete, bounded catalog pages.
 
         Business rules:
-        - The API owns the immutable Rule Set; pagination changes visibility only, never coverage or rule membership.
-        - Follow nextOffset until null; a single page does not describe the whole Assessment scope.
+        - The API owns the immutable Rule Set and current audit request; pagination never expands the authorized rule selection.
+        - Follow nextOffset until null for all selected rules; totalPinnedRuleCount is informational, not additional audit authority.
+        - The requested row limit is an upper bound; the complete serialized reply must also fit 4,096 UTF-8 bytes.
+        - A summary too large for one page retains its rule identity and an explicit link to complete governed details.
 
         Execution flow:
-        1. Load the pinned Rule Set and cache its server-provided rule versions and criterion identities.
-        2. Return the requested page of rule summaries with total counts and the next offset.
+        1. Refresh the leased request context, select its authorized rules and cache their server-provided versions and criteria.
+        2. Add complete summaries while both the row and reply-byte limits permit.
+        3. Return the actual continuation, or a detail link when a single summary needs bounded retrieval.
 
         Failure cases:
         - API failures remain structured feedback; an offset past the catalog returns an empty final page.
+        - An identity envelope that cannot fit returns RULE_CATALOG_METADATA_TOO_LARGE without skipping the rule.
 
         Side effects:
         - Read-only API access and in-memory identity caches; no domain state or legal judgments are changed.
         """
+        run.adopt_context(client.context())
         rule_set = client.rule_set()
-        selected = set(run.audit_request["selectedRuleIds"]) if run.audit_request else None
+        selected = set(run.audit_request["selectedRuleIds"]) if run.audit_request is not None else None
         visible_rules = [rule for rule in rule_set["assessmentRules"]
                          if selected is None or rule["assessmentRuleId"] in selected]
         for rule in visible_rules:
@@ -642,40 +990,63 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             run.rule_criteria[rule["assessmentRuleId"]] = [
                 c["criterionId"] for c in rule.get("criteria", [])
             ]
-        return {
-            "ok": True,
-            "ruleSetVersionId": rule_set["ruleSetVersionId"],
+        total = len(visible_rules)
+        result = {
+            "ok": True, "ruleSetVersionId": rule_set["ruleSetVersionId"],
             "legalRequirementCount": len(rule_set["legalRequirements"]),
-            "assessmentRuleCount": len(visible_rules),
-            "totalPinnedRuleCount": len(rule_set["assessmentRules"]),
-            "nextOffset": offset + limit if offset + limit < len(visible_rules) else None,
-            "assessmentRules": [
-                {
+            "assessmentRuleCount": total, "totalPinnedRuleCount": len(rule_set["assessmentRules"]),
+            "nextOffset": None, "assessmentRules": [],
+        }
+        for rule in visible_rules[offset:offset + limit]:
+            row = {
+                "assessmentRuleId": rule["assessmentRuleId"],
+                "assessmentRuleVersion": rule["assessmentRuleVersion"],
+                "concept": rule["concept"],
+                "legalRequirementIds": rule["legalRequirementIds"],
+                "criterionIds": [c["criterionId"] for c in rule.get("criteria", [])],
+            }
+            end = offset + len(result["assessmentRules"]) + 1
+            candidate = {**result, "assessmentRules": [*result["assessmentRules"], row],
+                         "nextOffset": end if end < total else None}
+            if len(json.dumps(candidate, ensure_ascii=False, default=str).encode("utf-8")) > _RULE_CATALOG_MAX_BYTES:
+                if result["assessmentRules"]:
+                    break
+                row = {
                     "assessmentRuleId": rule["assessmentRuleId"],
                     "assessmentRuleVersion": rule["assessmentRuleVersion"],
-                    "concept": rule["concept"],
-                    "legalRequirementIds": rule["legalRequirementIds"],
-                    "criterionIds": [c["criterionId"] for c in rule.get("criteria", [])],
+                    "detailRequired": True, "detailTool": "get_assessment_rule",
                 }
-                for rule in visible_rules[offset:offset + limit]
-            ],
-        }
+                candidate = {**result, "assessmentRules": [row],
+                             "nextOffset": end if end < total else None}
+                if len(json.dumps(candidate, ensure_ascii=False, default=str).encode("utf-8")) > _RULE_CATALOG_MAX_BYTES:
+                    return {"ok": False, "code": "RULE_CATALOG_METADATA_TOO_LARGE",
+                            "hint": "The pinned rule identity cannot fit a catalog reply; the inventory remains unresolved."}
+            result = candidate
+        if len(json.dumps(result, ensure_ascii=False, default=str).encode("utf-8")) > _RULE_CATALOG_MAX_BYTES:
+            return {"ok": False, "code": "RULE_CATALOG_METADATA_TOO_LARGE",
+                    "hint": "The pinned catalog identity cannot fit a reply; the inventory remains unresolved."}
+        return result
 
-    def get_assessment_rule(assessment_rule_id: str) -> dict[str, Any]:
+    def _read_assessment_rule(assessment_rule_id: str) -> dict[str, Any]:
         """Business purpose: Load one pinned rule together with the legal requirements and source-defined context needed to assess it.
 
         Business rules:
+        - Current leased audit-request membership is checked before any pinned rule content is retrieved.
         - Rules must belong to the pinned Rule Set; applicability addresses come from linked requirements, not guessed conditions.
         Execution flow:
-        1. Find the requested rule and collect its outgoing context relations and related requirements.
-        2. Cache the linked applicability addresses for anchored human questions.
-        3. Return the full rule, requirements, context, applicability elements and provisions worth reading.
+        1. Refresh server-owned request scope and reject a rule outside its explicit selection.
+        2. Find the requested rule and collect its outgoing context relations and related requirements.
+        3. Cache the linked applicability addresses for anchored human questions.
+        4. Return the full rule, requirements, context, applicability elements and provisions worth reading.
+
         Failure cases:
+        - A rule outside the current request returns RULE_NOT_IN_AUDIT_REQUEST before legal-content access.
         - An unknown identifier returns RULE_NOT_IN_RULE_SET without creating a replacement rule.
         Side effects:
-        - Reads the Rule Set API and updates only this execution’s applicability-element cache.
+        - Reads leased context and the Rule Set API; updates only execution-local scope, revision and applicability caches.
         """
-        if run.audit_request and assessment_rule_id not in run.audit_request["selectedRuleIds"]:
+        run.adopt_context(client.context())
+        if run.audit_request is not None and assessment_rule_id not in run.audit_request["selectedRuleIds"]:
             return {"ok": False, "code": "RULE_NOT_IN_AUDIT_REQUEST"}
         rule_set = client.rule_set()
         rule = next(
@@ -704,6 +1075,58 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             # search_legal_source to find the provisions that define or limit a term.
             "legalSources": _legal_sources(rule, requirements, relations),
         }
+
+    def get_assessment_rule(assessment_rule_id: str) -> dict[str, Any]:
+        """Business purpose: Load a pinned rule without forcing its complete legal contract into one model turn.
+
+        Business rules:
+        - Small results retain the complete prior projection; large results expose every field through governed detail reads.
+        - The full authoritative payload still populates applicability anchors; an index cannot support a legal verdict.
+
+        Execution flow:
+        1. Load the rule and all linked legal context through the existing governed API.
+        2. Return its full payload when it fits, otherwise return a content-bound navigation index.
+
+        Failure cases:
+        - Missing rules retain RULE_NOT_IN_RULE_SET; invalid legal metadata fails without inventing a substitute rule.
+
+        Side effects:
+        - Read-only API access and in-memory applicability caches; no domain or filesystem writes.
+        """
+        payload = _read_assessment_rule(assessment_rule_id)
+        if not payload["ok"] or len(json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")) <= _RULE_DETAIL_MAX_BYTES:
+            return payload
+        return _rule_detail_response(run, payload)
+
+    def get_assessment_rule_detail(
+        assessment_rule_id: str, detail_token: str, pointer: str = "", offset: int = 0,
+        max_items: int = 10, max_chars: int = 2000,
+    ) -> dict[str, Any]:
+        """Business purpose: Read complete selected legal fields incrementally from the pinned rule authority.
+
+        Business rules:
+        - Each read reloads and validates the current audit-request scope before returning any legal content.
+        - The token must match the same case, thread, audit request, pins and exact complete rule projection.
+        - Indexes and fragments are incomplete; reconstruct the selected normative value before interpreting it.
+        - All fields remain available, including criteria, inherited requirements, applicability elements and source references.
+
+        Execution flow:
+        1. Revalidate current audit membership, then reload the full pinned projection and its applicability anchors from the API.
+        2. Reject a changed token or return the requested bounded node, index or exact text fragment.
+
+        Failure cases:
+        - Unauthorized or missing rules, stale tokens and invalid pointers or offsets produce feedback without partial legal content.
+
+        Side effects:
+        - Read-only API access and in-memory applicability caches; never writes customer facts, verdicts or scratch files.
+        """
+        payload = _read_assessment_rule(assessment_rule_id)
+        if not payload["ok"]:
+            return payload
+        return _rule_detail_response(
+            run, payload, detail_token=detail_token, pointer=pointer, offset=offset,
+            max_items=max_items, max_chars=max_chars,
+        )
 
     def read_legal_source(document_id: str, locator: str) -> dict[str, Any]:
         """Business purpose: Read one original provision from the legal source pinned by this assessment’s Rule Set.
@@ -1165,11 +1588,27 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         )
         return {"ok": True, **result}
 
-    def tool(func, schema: type[BaseModel] | None, name: str) -> StructuredTool:
+    def tool(func, schema: type[BaseModel] | None, name: str, description: str) -> StructuredTool:
+        """Business purpose: Expose clear model instructions without repeatedly sending developer documentation.
+
+        Business rules:
+        - Explicit descriptions guide invocation; the full business documentation remains on each implementation.
+        - Typed argument validation, governed implementations and API failure feedback retain their existing authority.
+
+        Execution flow:
+        1. Bind the named implementation and its reviewed model-facing description.
+        2. Attach the existing argument schema and structured rejection handlers.
+
+        Failure cases:
+        - Invalid tool configuration fails construction; argument and API errors retain their existing feedback.
+
+        Side effects:
+        - Constructs a tool object only; no domain state or provider request is changed during construction.
+        """
         return StructuredTool.from_function(
             func=_guard(func),
             name=name,
-            description=(func.__doc__ or name).strip(),
+            description=description,
             args_schema=schema,
             infer_schema=schema is None,
             handle_validation_error=_validation_feedback,
@@ -1180,29 +1619,50 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
     return [
         retrieve_shared_heuristics,
-        tool(get_assessment_context, _NoArgs, "get_assessment_context"),
-        tool(get_pinned_rule_set, GetPinnedRuleSetArgs, "get_pinned_rule_set"),
-        tool(get_assessment_rule, GetRuleArgs, "get_assessment_rule"),
-        tool(get_rule_decision, GetRuleDecisionArgs, "get_rule_decision"),
-        tool(read_legal_source, ReadLegalSourceArgs, "read_legal_source"),
-        tool(search_legal_source, SearchLegalSourceArgs, "search_legal_source"),
-        tool(start_rule_investigation, StartInvestigationArgs, "start_rule_investigation"),
-        tool(cite_repository_source, CiteRepositorySourceArgs, "cite_repository_source"),
-        tool(record_search_coverage, RecordSearchCoverageArgs, "record_search_coverage"),
-        tool(accept_case_fact, AcceptFactArgs, "accept_case_fact"),
-        tool(submit_rule_decision, SubmitDecisionArgs, "submit_rule_decision"),
-        tool(open_human_request, OpenHumanRequestArgs, "open_human_request"),
-        tool(report_human_fact_unresolvable, ReportUnresolvableHumanFactArgs, "report_human_fact_unresolvable"),
-        tool(request_finalization, _NoArgs, "request_finalization"),
-        tool(submit_final_report, SubmitFinalReportArgs, "submit_final_report"),
+        tool(get_assessment_context, _NoArgs, "get_assessment_context",
+             "Reload API-owned audit request, pins, source-view limits, accepted facts/evidence with authority, human audit feedback and selected coverage summary. Call first. Read per-rule coverage with get_assessment_coverage; counts never authorize completion."),
+        tool(get_assessment_coverage, GetAssessmentCoverageArgs, "get_assessment_coverage",
+             "Read a bounded page of the current audit request\'s per-rule coverage using coverageSummary.snapshotToken. Follow nextOffset until null for the complete inventory. A stale token requires reloading context; this read cannot decide or finalize a rule."),
+        tool(get_pinned_rule_set, GetPinnedRuleSetArgs, "get_pinned_rule_set",
+             "Discover only the audit request\'s authorized rules in pages capped at 4096 UTF-8 bytes. The requested limit is a maximum; follow the actual nextOffset until null. Rows with detailRequired retain identity only: use get_assessment_rule. Preserve progress; a page never defines the whole scope."),
+        tool(get_assessment_rule, GetRuleArgs, "get_assessment_rule",
+             "Load one authorized rule and its pinned legal context. Large results return detailRequired with a token and index; use get_assessment_rule_detail to read complete relevant criteria, requirements, applicabilityElements and legalSources. An index is not legal evidence."),
+        tool(get_assessment_rule_detail, GetAssessmentRuleDetailArgs, "get_assessment_rule_detail",
+             "Read an exact node from a pinned rule detail index. VALUE is complete; INDEX requires child reads. Concatenate TEXT_FRAGMENT/JSON_FRAGMENT pages in Unicode-code-point order until nextOffset=null; parse complete JSON fragments afterward. Never decide from partial legal text; stale tokens require reloading the rule."),
+        tool(get_rule_decision, GetRuleDecisionArgs, "get_rule_decision",
+             "Read a rule's newest or exact historical decision packet and references. Reconcile support against current sources and facts; structural acceptance never proves semantic correctness. This read does not roll back current revision authority."),
+        tool(read_legal_source, ReadLegalSourceArgs, "read_legal_source",
+             "Read one original provision and its provenance from this assessment's pinned legal source. Use its legalEffectStatus and source-defined scope; unavailable text cannot establish a legal duty."),
+        tool(search_legal_source, SearchLegalSourceArgs, "search_legal_source",
+             "Search pinned provision text for all query words. Inspect truncation and read relevant provisions; a text match alone determines neither applicability nor compliance."),
+        tool(start_rule_investigation, StartInvestigationArgs, "start_rule_investigation",
+             "Mark a pinned rule as being investigated through the governed API; no applicability or compliance verdict is created."),
+        tool(cite_repository_source, CiteRepositorySourceArgs, "cite_repository_source",
+             "Accept an exact source excerpt read and hashed from the pinned repository. Use repository-relative paths and the smallest supporting line range. Missing or unavailable source cannot become evidence."),
+        tool(record_search_coverage, RecordSearchCoverageArgs, "record_search_coverage",
+             "Accept coverage from searches and reads actually recorded by the runtime. Use explicit repository paths; retain truncation and gaps. Your caveats do not prove a search ran, and a coverage record alone never proves absence."),
+        tool(accept_case_fact, AcceptFactArgs, "accept_case_fact",
+             "Record only what accepted source evidence supports, preserving scope and uncertainty. Code capability or a README claim does not establish real operator practice. Success advances caseRevision and invalidates older decisions; acceptance is not semantic certification."),
+        tool(submit_rule_decision, SubmitDecisionArgs, "submit_rule_decision",
+             "Submit supported findings for one pinned rule at current revisions. Address every material applicability element; NOT_ESTABLISHED supports neither verdict. APPLICABLE needs every criterion and consistent compliance. The API validates pins, references and revisions without choosing the conclusion."),
+        tool(open_human_request, OpenHumanRequestArgs, "open_human_request",
+             "Ask for a material missing fact after investigating sources and accepted facts. Anchor it to a criterion or legal element, using customer-safe wording and no requested legal verdict. The governed request pauses natively for a factual answer."),
+        tool(report_human_fact_unresolvable, ReportUnresolvableHumanFactArgs, "report_human_fact_unresolvable",
+             "Report accepted evidence proving a material anchored fact permanently unobtainable. An unknown answer is insufficient. Retain the native human dependency even if the API rejects the claim; never manufacture a fact or verdict."),
+        tool(request_finalization, _NoArgs, "request_finalization",
+             "Ask the API gate to check the current authorized rules and dependencies. A completed SELECTED_RULES request ends a partial audit; FULL_RULE_SET may enter FINALIZING. The gate never chooses or repairs legal conclusions."),
+        tool(submit_final_report, SubmitFinalReportArgs, "submit_final_report",
+             "Submit authored findings for every decided rule only for FULL_RULE_SET after the Completion Gate permits it. Ground narrative in accepted evidence and decisions; omitted findings receive no invented positive text. The API validates and persists the final report."),
     ]
 
 
 ROOT_TOOL_NAMES = (
     "retrieve_shared_heuristics",
     "get_assessment_context",
+    "get_assessment_coverage",
     "get_pinned_rule_set",
     "get_assessment_rule",
+    "get_assessment_rule_detail",
     "get_rule_decision",
     "read_legal_source",
     "search_legal_source",

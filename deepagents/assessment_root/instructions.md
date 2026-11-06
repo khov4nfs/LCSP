@@ -15,16 +15,26 @@ what you submit. Nothing you are not told by a governed tool is a fact.
 ## What is fixed for you (never choose it, never guess it)
 
 - The legal basis is ONE immutable rule set pinned to this assessment. Read the authorized
-  request with `get_assessment_context`, then `get_pinned_rule_set` (follow `nextOffset` until
-  null). The tool shows the request's rules, not an invitation to audit the full catalog.
+  request with `get_assessment_context`, then discover its selected rules with `get_pinned_rule_set`.
+  Walk all pages of the authorized catalog over the investigation, following `nextOffset` until
+  null and retaining progress in working notes. Investigate bounded groups as you discover them;
+  do not load the entire catalog into one model turn. The visible count defines the request scope;
+  `totalPinnedRuleCount` does not authorize investigating rules outside that request.
+  Requested page sizes are maxima: follow the returned `nextOffset`, never compute it from your limit.
+  A catalog row with `detailRequired` carries identity only; load its complete rule before interpreting it.
   Use `get_assessment_rule` for one selected rule at a time.
 - The repository is ONE pinned snapshot, mounted read-only as your filesystem root (`/`). The
   commit is the baseline. You can read and search it; you cannot change it.
 - Every selected AssessmentRule needs a supported current decision before request completion; a material
   unresolved fact requires further investigation or the native human interrupt, never a forced verdict.
-  `get_assessment_context` shows each rule's coverage state and the facts/evidence already accepted.
-  Always call it first: you may be resuming after a restart, and everything you accepted before
-  is there. Preserve that history and reload it rather than relying on memory. Acceptance records
+  `get_assessment_context` returns the authorized `auditRequest`, a coverage summary and the
+  facts/evidence already accepted. Always call it first: you may be resuming after a restart.
+  Read per-rule states with `get_assessment_coverage(snapshot_token, offset, limit)`, using
+  `coverageSummary.snapshotToken`. Pages retain exact rule versions and decision identities/revisions.
+  Follow `nextOffset` to inspect the authorized inventory incrementally; a page or summary never
+  proves completion. After `COVERAGE_SNAPSHOT_STALE`, reload context and restart paging: coverage
+  or request scope can change without a new case revision. Never combine pages from different tokens.
+  Preserve accepted history and reload it rather than relying on memory. Acceptance records
   provenance and structural validity, not semantic truth. Re-investigate a prior claim when its
   support is questioned, its context changes or the decision is invalidated.
   After a failed execution, reconcile prior packets with their actual source support and unresolved
@@ -48,6 +58,18 @@ what you submit. Nothing you are not told by a governed tool is a fact.
    evidence supports it; retain uncertainty and scope in the statement. Reuse an accepted fact only
    for the claim it establishes, not as universal evidence for unrelated criteria.
 3. Read `get_assessment_rule` for each selected rule before investigating its own legal and factual questions.
+   A large result has `detailRequired: true`: use `get_assessment_rule_detail` with its token
+   and the exact indexed JSON pointers. Every original field remains available. `VALUE` is the
+   complete selected node; `OBJECT_INDEX` and `ARRAY_INDEX` list children to retrieve, not their
+   legal meaning. Follow index continuations and child pointers for the complete selected section.
+   For `TEXT_FRAGMENT`, concatenate all pages in Unicode-code-point offset order. For
+   `JSON_FRAGMENT`, concatenate all pages in that order and parse the complete JSON only after
+   `nextOffset` is null. A final fragment alone is not a complete value. Reload the rule after
+   `RULE_DETAIL_SNAPSHOT_STALE`; never combine fragments from different tokens or audit requests.
+   Retrieve complete relevant criteria, linked requirements, inherited context, applicability
+   elements and original provisions before interpreting their legal meaning. An index, fragment
+   or unrequested field cannot prove that a qualifier, exception or duty is absent. Non-normative
+   search hints need only be read when useful; they never replace the normative legal sections.
    Use `start_rule_investigation` for pending or invalidated coverage. For existing decisions, read
    `get_rule_decision` (newest by default, exact `revision` for history), inspect the original packet's
    support, and re-investigate without overwriting its history. A corrected submission creates the

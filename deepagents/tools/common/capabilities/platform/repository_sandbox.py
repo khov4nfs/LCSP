@@ -48,6 +48,56 @@ _ACTIVE_BACKEND: ContextVar[object | None] = ContextVar(
 _DOCKER_SANDBOX_MANAGER = DockerSandboxManager()
 RepositoryHydrationLifecycle = Callable[[str], None]
 
+_SOURCE_PATH_EDGE_WHITESPACE = " \t\n\v\f\r\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+
+def _canonical_source_path(value: object, *, maximum_length: int | None = None) -> bool:
+    """Business purpose: Recognize an unambiguous repository-relative source path.
+
+    Business rules:
+    - Preserve literal interior spaces and Unicode; never trim, decode or normalize a supplied path.
+    - Reject empty, absolute, traversal, repeated-separator and cross-platform ambiguous forms.
+    - The optional limit uses UTF-16 code units to match the shared JavaScript contract.
+
+    Execution flow:
+    1. Verify the path type, length and canonical characters.
+    2. Require every slash-delimited segment to name a real repository path component.
+
+    Failure cases:
+    - Noncanonical input returns false without resolving or accessing a filesystem.
+
+    Side effects:
+    - Pure validation; does not read, write or authorize source content.
+    """
+    if not isinstance(value, str) or not value or value != value.strip(_SOURCE_PATH_EDGE_WHITESPACE):
+        return False
+    if maximum_length is not None and len(value.encode("utf-16-le", errors="surrogatepass")) // 2 > maximum_length:
+        return False
+    if re.search(r"[\x00-\x1f\x7f\\\\:%]", value):
+        return False
+    return all(segment not in {"", ".", ".."} for segment in value.split("/"))
+
+def validate_source_path_prefix(value: object) -> str | None:
+    """Business purpose: Bind the runtime to the API's immutable source selection.
+
+    Business rules:
+    - Null selects the full repository for existing assessments.
+    - A scoped selection is an exact canonical repository path of at most 1,024 UTF-16 code units.
+
+    Execution flow:
+    1. Retain null or validate the supplied source prefix without transforming it.
+    2. Return the exact prefix used by hydration, evidence and checkpoint guards.
+
+    Failure cases:
+    - Invalid types or ambiguous paths raise before source materialization or evidence access.
+
+    Side effects:
+    - Pure validation; does not change snapshot identity or customer approval.
+    """
+    if value is None:
+        return None
+    if not _canonical_source_path(value, maximum_length=1024):
+        raise ValueError("sourcePathPrefix must be a canonical repository-relative path")
+    return value
 class AssessmentRepositoryBackend(SandboxBackendProtocol):
     """Expose the assessment repository itself as the Deep Agent filesystem root.
 
