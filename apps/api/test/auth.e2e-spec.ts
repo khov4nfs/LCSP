@@ -6,6 +6,7 @@ import {
   AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
+import type { Response } from "supertest";
 import { jest } from "@jest/globals";
 
 import type { INestApplication } from "@nestjs/common";
@@ -23,6 +24,13 @@ import {
 import { resolveMessage } from "@lcsp/i18n";
 
 import { AppModule } from "../src/app.module.js";
+import { MfaSecretCipherService } from "../src/modules/auth/infrastructure/security/mfa-secret-cipher.service.js";
+import { hashMfaRecoveryCode } from "../src/modules/auth/application/security/mfa-recovery-code.utils.js";
+import {
+  AUTH_MFA_LIFECYCLE_PERSISTENCE,
+  type MfaLifecyclePersistence,
+  type MfaEnrollmentCommit,
+} from "../src/modules/auth/application/ports/persistence/mfa-lifecycle.persistence.js";
 import { AuthAuditService } from "../src/modules/auth/application/services/auth/auth-audit.service.js";
 import type {
   EnrollMfaSuccess,
@@ -390,50 +398,132 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(new Set(body.recovery_codes).size, 10);
   });
 
-  it("concurrent first MFA enrollment commits one coherent secret and backup batch", async () => {
-    const signedIn = await signInApprovedUser();
-    const requests = await Promise.all([
-      httpRequest(app)
-        .post("/auth/mfa/enroll")
-        .set("Authorization", `Bearer ${signedIn.session_token}`)
-        .send({ session_token: signedIn.session_token }),
-      httpRequest(app)
-        .post("/auth/mfa/enroll")
-        .set("Authorization", `Bearer ${signedIn.session_token}`)
-        .send({ session_token: signedIn.session_token }),
-    ]);
-    assert.deepEqual(requests.map((r) => r.status).sort(), [201, 403]);
-    const successful = requests.find((r) => r.status === 201);
-    assert.ok(successful);
-    assert.equal(
-      successBody<EnrollMfaSuccess>(successful).recovery_codes.length,
-      10,
-    );
-    const stored = await prisma.user.findUniqueOrThrow({
-      where: { id: fixture.approvedUser.id },
-    });
-    assert.ok(stored.mfaEncryptedSecret);
-    const activeCodes = await prisma.authRecord.count({
-      where: {
-        userId: stored.id,
-        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
-        usedAt: null,
-        revokedAt: null,
-      },
-    });
-    assert.equal(activeCodes, 10);
-    const audits = await prisma.auditEvent.findMany({
-      where: { actorId: stored.id },
-    });
-    assert.equal(
-      audits.filter(
-        (a) =>
-          (a.payload as Record<string, unknown>).event_type ===
-          AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
-      ).length,
-      1,
-    );
-  });
+  it.each([1, 2, 3])(
+    "concurrent first MFA enrollment commits one coherent secret and backup batch (attempt %i)",
+    async () => {
+      const signedIn = await signInApprovedUser();
+      const lifecycle = app.get<MfaLifecyclePersistence>(
+        AUTH_MFA_LIFECYCLE_PERSISTENCE,
+      );
+      const enroll: MfaLifecyclePersistence["enroll"] =
+        lifecycle.enroll.bind(lifecycle);
+      const snapshots: MfaEnrollmentCommit[] = [];
+      let release!: () => void;
+      let reject!: (error: Error) => void;
+      const barrier = new Promise<void>((resolve, fail) => {
+        release = resolve;
+        reject = fail;
+      });
+      const timeout = setTimeout(
+        () =>
+          reject(
+            new Error("Both enrollment snapshots did not reach the barrier"),
+          ),
+        5000,
+      );
+      const spy = jest
+        .spyOn(lifecycle, "enroll")
+        .mockImplementation(async (input) => {
+          snapshots.push(input);
+          if (snapshots.length === 2) {
+            // Both handlers must hold the absent initial factor before either real
+            // transaction can acquire the account lock. Never log secret material.
+            if (
+              snapshots.every(
+                (snapshot) =>
+                  snapshot.userId === fixture.approvedUser.id &&
+                  snapshot.expectedEncryptedSecret === null,
+              )
+            ) {
+              release();
+            } else {
+              reject(
+                new Error(
+                  "Enrollment contenders did not capture the same initial generation",
+                ),
+              );
+            }
+          }
+          await barrier;
+          return enroll(input);
+        });
+      let requests: Response[];
+      try {
+        requests = await Promise.all([
+          httpRequest(app)
+            .post("/auth/mfa/enroll")
+            .set("Authorization", `Bearer ${signedIn.session_token}`)
+            .send({ session_token: signedIn.session_token }),
+          httpRequest(app)
+            .post("/auth/mfa/enroll")
+            .set("Authorization", `Bearer ${signedIn.session_token}`)
+            .send({ session_token: signedIn.session_token }),
+        ]);
+        assert.equal(snapshots.length, 2);
+      } finally {
+        clearTimeout(timeout);
+        release();
+        spy.mockRestore();
+      }
+      assert.deepEqual(requests.map((r) => r.status).sort(), [201, 403]);
+      const rejected = requests.find((r) => r.status === 403);
+      assert.ok(rejected);
+      assert.equal(problemCode(rejected), AUTH_ERROR_CODES.mfaRequired);
+      assert.doesNotMatch(
+        JSON.stringify(rejected.body),
+        /otpauth:|recovery_codes|encryptedSecret/,
+      );
+      const successful = requests.find((r) => r.status === 201);
+      assert.ok(successful);
+      assert.equal(
+        successBody<EnrollMfaSuccess>(successful).recovery_codes.length,
+        10,
+      );
+      const stored = await prisma.user.findUniqueOrThrow({
+        where: { id: fixture.approvedUser.id },
+      });
+      assert.ok(stored.mfaEncryptedSecret);
+      assert.ok(
+        app.get(MfaSecretCipherService).decrypt(stored.mfaEncryptedSecret) ===
+          totpSecretFromUri(successBody<EnrollMfaSuccess>(successful).totp_uri),
+        "Stored factor must belong to the winning enrollment",
+      );
+      const winningCodes =
+        successBody<EnrollMfaSuccess>(successful).recovery_codes;
+      assert.equal(
+        await prisma.authRecord.count({
+          where: {
+            userId: stored.id,
+            type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+            usedAt: null,
+            revokedAt: null,
+            secretHash: { in: winningCodes.map(hashMfaRecoveryCode) },
+          },
+        }),
+        10,
+      );
+      const activeCodes = await prisma.authRecord.count({
+        where: {
+          userId: stored.id,
+          type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+          usedAt: null,
+          revokedAt: null,
+        },
+      });
+      assert.equal(activeCodes, 10);
+      const audits = await prisma.auditEvent.findMany({
+        where: { actorId: stored.id },
+      });
+      assert.equal(
+        audits.filter(
+          (a) =>
+            (a.payload as Record<string, unknown>).event_type ===
+            AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
+        ).length,
+        1,
+      );
+    },
+  );
 
   it("rolls back MFA enrollment and backup issuance if transactional audit fails", async () => {
     const signedIn = await signInApprovedUser();
@@ -1202,6 +1292,21 @@ describe("Auth workspace (e2e)", () => {
     const s2 = successBody<EnrollMfaSuccess>(restartEnroll);
     assert.ok(s2.totp_uri);
     assert.ok(s2.recovery_codes.length > 0);
+    assert.ok(
+      s1.totp_uri !== s2.totp_uri,
+      "Restart must replace the initial factor",
+    );
+    assert.equal(
+      await prisma.authRecord.count({
+        where: {
+          userId: fixture.approvedUser.id,
+          type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+          revokedAt: null,
+          secretHash: { in: s1.recovery_codes.map(hashMfaRecoveryCode) },
+        },
+      }),
+      0,
+    );
   });
 
   it("rotation revokes S1 recovery codes and step-up proofs across A/B/C sessions", async () => {
