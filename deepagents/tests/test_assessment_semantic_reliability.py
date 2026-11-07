@@ -500,7 +500,8 @@ def test_model_compaction_preserves_legal_actor_distinctions(tmp_path, monkeypat
     assert operations
     summary_calls = [op for op in operations if "Context Extraction Assistant" in str(op.messages)]
     assert summary_calls
-    assert summary_calls[0].system_message.content == ROOT_INSTRUCTIONS
+    from runtime_instruction_bundle import runtime_instruction
+    assert summary_calls[0].system_message.content == runtime_instruction("assessment-root.system")
     assert "Strict Separation of Product Identity from Operator Legal Identity" in summary_calls[0].system_message.content
 
 

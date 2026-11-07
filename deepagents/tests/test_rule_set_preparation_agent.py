@@ -346,7 +346,11 @@ def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_to
     forbidden = {"write_file", "edit_file", "execute", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
     assert "task" in bound
-    assert preparation_agent.phase_instructions(RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"])) in model.prompts[0][0].content
+    from runtime_instruction_bundle import runtime_instruction
+    expected = "\n\n".join(runtime_instruction(identity) for identity in
+        ("preparation.common", "preparation.discovery", "preparation.presentation"))
+    expected += "\n\n" + json.loads(runtime_instruction("framework.injected-policy"))["todo_system"]
+    assert model.prompts[0][0].content == expected
 
 
 def test_progress_ledger_advances_for_findings_not_strategy_alone() -> None:

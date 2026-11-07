@@ -26,12 +26,12 @@ dependencies = [
   "urllib3>=2.8.0,<3.0.0",
   "chromadb==1.5.9",
   "pyyaml>=6.0,<7.0",
-  "pypdf>=6.21.2,<7",
+  "pypdf>=6.21.4,<7",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "langgraph-cli[inmem]>=0.4.31",
+  "langgraph-cli[inmem]>=0.4.32",
   "pytest==9.0.3",
   "pytest-asyncio==1.4.0",
   "pytest-mock==3.14.0",
@@ -48,3 +48,7 @@ allow-direct-references = true
 packages = [
   "tools",
 ]
+
+[tool.uv]
+# Security floors for existing transitive authentication and development-server dependencies.
+constraint-dependencies = ["pyasn1>=0.6.5", "oauthlib>=4.0.1", "joserfc>=1.7.6", "langgraph-api>=0.15.12"]

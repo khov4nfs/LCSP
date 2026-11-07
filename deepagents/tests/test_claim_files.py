@@ -317,10 +317,11 @@ def test_files_factory_uses_native_todos_shared_budget_and_exclusive_child_tools
     limit = next(m for m in child['middleware'] if isinstance(m, ModelCallLimitMiddleware))
     assert limit.run_limit == agent_module.CLAIM_AUTHOR_MODEL_CALLS and limit.exit_behavior == 'end'
     assert 'done: X articles, Y claims, Z waiting reference' in child['system_prompt']
-    assert (
-        'ONE line:' in child['system_prompt']
-        or 'đúng một dòng kỹ thuật:' in child['system_prompt']
-    )
+    from runtime_instruction_bundle import runtime_instruction
+    assert runtime_instruction("claim-author.system") in child['system_prompt']
+    assert "Return exactly one line" in child['system_prompt']
+    assert "Never delegate, finalize discovery, validate or submit" in child['system_prompt']
+
 
 
 
