@@ -1,3 +1,4 @@
+import { RuleCatalogGroupsService } from "../../infrastructure/persistence/rule-catalog-groups.service.js";
 import { ResumeRuleSetPreparationCommand } from "../../application/commands/resume-rule-set-preparation/resume-rule-set-preparation.command.js";
 import type { Server } from "node:http";
 import {
@@ -69,6 +70,10 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
     const module = await Test.createTestingModule({
       controllers: [ComplianceRuleSetAdminController],
       providers: [
+        {
+          provide: RuleCatalogGroupsService,
+          useValue: { get: jest.fn(), submit: jest.fn(), approve: jest.fn() },
+        },
         { provide: CommandBus, useValue: { execute } },
         { provide: QueryBus, useValue: { execute: jest.fn() } },
         {

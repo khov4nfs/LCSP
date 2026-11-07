@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from runtime_instruction_bundle import runtime_instruction
+
 import dataclasses
 import hashlib
 import json

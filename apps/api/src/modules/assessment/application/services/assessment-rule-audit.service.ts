@@ -209,7 +209,7 @@ export class AssessmentRuleAuditService {
             const members = memberships.filter(
               (row) => row.groupId === groupId,
             );
-            const first = members[0]!;
+            const first = members[0];
             return {
               groupId,
               taxonomyVersion: first.taxonomyVersion,

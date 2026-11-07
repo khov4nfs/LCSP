@@ -10,10 +10,10 @@ from evals.run_manifest import (
 
 
 def make_manifest(tmp_path, description="read canonical rule"):
-    skills = tmp_path / "skills" / "read-source"
+    skills = tmp_path / "skills" / "assessment-system-boundaries"
     skills.mkdir(parents=True, exist_ok=True)
     (skills / "SKILL.vi.md").write_text("Nguồn luật được pin", encoding="utf-8")
-    digest = checked_in_skill_hashes(["read-source"], "vi", tmp_path / "skills")
+    digest = checked_in_skill_hashes(["assessment-system-boundaries"], "vi", tmp_path / "skills")
     return build_runtime_manifest(
         run_id="execution-123", component="assessment-root", locale="vi",
         model=SimpleNamespace(model_name="pinned-model"),
@@ -34,8 +34,8 @@ def test_fingerprint_changes_with_tool_description(tmp_path):
 def test_manifest_is_immutable_and_never_invents_usage(tmp_path):
     manifest = make_manifest(tmp_path)
     assert manifest["usage"]["providerCost"] is None
-    skill_hash = manifest["availableSkillsSha256"]["read-source"]
-    frozen = settle_runtime_manifest(manifest, selected_skill_hashes={"read-source": skill_hash},
+    skill_hash = manifest["availableSkillsSha256"]["assessment-system-boundaries"]
+    frozen = settle_runtime_manifest(manifest, selected_skill_hashes={"assessment-system-boundaries": skill_hash},
         usage={"physicalAttempts": 2, "failedAttempts": 1, "cachedInputTokens": 25})
     receipt = tmp_path / "receipts" / "execution-123.json"
     save_runtime_manifest(receipt, frozen)
@@ -49,9 +49,10 @@ def test_manifest_is_immutable_and_never_invents_usage(tmp_path):
 def test_unversioned_or_drifted_skill_is_rejected(tmp_path):
     manifest = make_manifest(tmp_path)
     with pytest.raises(ValueError, match="SKILL_CHANGED"):
-        settle_runtime_manifest(manifest, selected_skill_hashes={"read-source": "0" * 64})
-    with pytest.raises(FileNotFoundError):
-        checked_in_skill_hashes(["read-source"], "en", tmp_path / "skills")
+        settle_runtime_manifest(manifest, selected_skill_hashes={"assessment-system-boundaries": "0" * 64})
+    from runtime_instruction_bundle import RuntimeInstructionBundleError
+    with pytest.raises(RuntimeInstructionBundleError, match="ENTRY_MISSING"):
+        checked_in_skill_hashes(["unregistered-skill"], "en", tmp_path / "skills")
 
 
 def test_journal_reconciliation_requires_same_run_and_authoritative_complete_source(tmp_path):

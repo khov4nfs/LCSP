@@ -28,10 +28,9 @@ def test_claim_author_receives_read_only_skills_and_bound_locale(monkeypatch, lo
     assert {"list_preparation_skills", "load_preparation_skill"} <= tools
     assert tools <= {"commit_claims", "list_preparation_skills", "load_preparation_skill"}
     assert "submit_compliance_rule_set" not in tools
-    if locale == "vi":
-        assert "Bạn chỉ phụ trách" in child["system_prompt"]
-        assert "## Tiếng Việt" in child["system_prompt"]
-    else:
-        assert "You own exactly one Article assignment" in child["system_prompt"]
-        assert "## Tiếng Việt" not in child["system_prompt"]
+    from runtime_instruction_bundle import runtime_instruction
+    assert runtime_instruction("claim-author.system") in child["system_prompt"]
+    assert child["system_prompt"] == module.claim_author_subagent(
+        context=RuleSetPreparationContext(run_id="offline", api=object(), response_language="en" if locale == "vi" else "vi"),
+        model=object(), backend=object(), budget=object())["system_prompt"]
     assert captured[0]["system_prompt"] == child["system_prompt"]

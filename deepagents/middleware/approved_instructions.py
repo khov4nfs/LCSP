@@ -55,6 +55,8 @@ def approved_tool_specs(tools, bundle):
             raise RuntimeInstructionBundleError("UNREGISTERED_MODEL_TOOL")
         name = function["name"]
         description = root.get(name) or preparation.get(name) or native.get("tool." + name)
+        if name == "delete":
+            description = bundle.instruction("framework.file-deletion")
         if not description:
             raise RuntimeInstructionBundleError("INSTRUCTION_ENTRY_MISSING:tool:" + name)
         function["description"] = description

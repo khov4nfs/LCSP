@@ -2,8 +2,8 @@
   "bundleSchemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
   "bundleId": "lcsp-347-vi-draft-r1",
   "approvalStatus": "PENDING",
-  "vietnameseInventorySha256": "4fc74861b460db5e574ab86d3a6dc2eeda8c3437e8cd2051c2b6076394d1a0ae",
-  "englishBundleSha256": "ccdb98ed4843bf7366a6ebd2eed5eae054527a03ce2a25b0ad4b90c77dfd1e7a",
+  "vietnameseInventorySha256": "4b702509ec92b1138c014d8ef39e9bca85c607b922d4541cd347e000502428c4",
+  "englishBundleSha256": "9ad6be4c4aa87cc29108195c2aa155b0e53352ee5b3a2794ee067a63a423de50",
   "entries": [
     {
       "sourceId": "assessment-root.continuation",
@@ -220,6 +220,14 @@
       "vietnameseSourceSha256": "7d7bc258431c305653e8a82d0e15d9044a64ed4cfa3f4789737fa0f72da54889",
       "englishRuntimePath": "instructions/candidates/r1/claim-author.system.txt",
       "englishRuntimeSha256": "00fc39ee921cb6eaf6e40cdf32f3e682f3bed8933c2b18733636fbf44365fc76"
+    },
+    {
+      "sourceId": "framework.file-deletion",
+      "vietnameseSourcePath": "instructions/vi/framework-file-deletion.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "13026989b49e35813c0309e99201645bffb833446dee7921ce14c8bfb1b8aded",
+      "englishRuntimePath": "instructions/candidates/r1/framework.file-deletion.txt",
+      "englishRuntimeSha256": "8134ad829c4559508256e4995298ea3fdff30566826df827109c485a1f7398b7"
     },
     {
       "sourceId": "framework.injected-policy",

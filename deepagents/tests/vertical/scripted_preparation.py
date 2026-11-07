@@ -291,7 +291,9 @@ def main() -> int:
         context = kwargs["context"]
         return real_create(**kwargs)
     # The offline model has no provider route; routing is covered by the SDK-backed governance tests.
+    from approved_bundle_fixture import offline_instruction_bundle
     with ExitStack() as stack:
+        stack.enter_context(offline_instruction_bundle())
         stack.enter_context(patch("rule_set_preparation.agent.MODEL_GOVERNANCE_MIDDLEWARE", ()))
         stack.enter_context(patch.object(runner_module, "create_rule_set_preparation_agent", create))
         if mode == "no-submit":

@@ -60,10 +60,10 @@ def test_preparation_skill_catalog_contains_only_allowlisted_local_skills():
             {"name": "rule-preparation-actor-stage"}
         )
     )
-    assert loaded["locale"] == "vi"
-    assert catalog["locale"] == "vi"
+    assert loaded["locale"] == "en"
+    assert catalog["locale"] == "en"
     assert len(loaded["sha256"]) == 64
-    assert "không" in loaded["body"].lower()
+    assert "not" in loaded["body"].lower()
 
 
 @pytest.mark.parametrize("locale", ["en", "vi"])
@@ -77,7 +77,7 @@ def test_every_preparation_skill_has_required_localized_content(locale):
     for name in names:
         item = read_preparation_skill(name, locale)
         assert item["name"] == name
-        assert item["locale"] == locale
+        assert item["locale"] == "en"
         assert len(item["body"]) > 500
         assert f"name: {name}" in item["body"]
         assert len(item["sha256"]) == 64
@@ -113,7 +113,9 @@ def test_direct_and_authoring_system_prompts_require_source_to_rule_traceability
 
 def test_preparation_quality_skills_explain_real_negative_controls_bilingually():
     en = read_preparation_skill("rule-preparation-scope-quality", "en")["body"]
-    vi = read_preparation_skill("rule-preparation-scope-quality", "vi")["body"]
+    from pathlib import Path
+    vi = (Path(__file__).parents[1] / "skills/rule-preparation-scope-quality/SKILL.vi.md").read_text(encoding="utf-8")
+    assert en == read_preparation_skill("rule-preparation-scope-quality", "vi")["body"]
     assert "bounding boxes" in en
     assert "không mặc định" in vi
     assert "external" in en.lower() and "ngoài" in vi.lower()
@@ -147,7 +149,9 @@ def test_deployment_only_articles_and_context_are_excluded_from_development_view
 
 def test_deployment_context_skill_locales_require_verified_material_link():
     en = read_preparation_skill("rule-preparation-material-context", "en")["body"]
-    vi = read_preparation_skill("rule-preparation-material-context", "vi")["body"]
+    from pathlib import Path
+    vi = (Path(__file__).parents[1] / "skills/rule-preparation-material-context/SKILL.vi.md").read_text(encoding="utf-8")
+    assert en == read_preparation_skill("rule-preparation-material-context", "vi")["body"]
     assert "Deployment-only context must not leak" in en
     assert "Loại triệt để context chỉ thuộc deploy" in vi
     assert "verified" in en
@@ -205,8 +209,8 @@ def test_prompt_reads_do_not_depend_on_default_encoding(monkeypatch, direct, fro
     context.response_language = locale
     prompt = phase_instructions(context)
     assert "Rule Set Preparation" in prompt
-    if locale == "vi":
-        assert "## Tiếng Việt" in prompt
+    from runtime_instruction_bundle import runtime_instruction
+    assert runtime_instruction("preparation.presentation") in prompt
 
 
 def test_preparation_language_overlay_and_skill_tools_are_server_bound():
@@ -215,8 +219,8 @@ def test_preparation_language_overlay_and_skill_tools_are_server_bound():
         preparation_locale_overlay,
     )
 
-    assert preparation_locale_overlay("en") == ""
-    assert "## Tiếng Việt" in preparation_locale_overlay("vi")
+    assert preparation_locale_overlay("en") == preparation_locale_overlay("vi")
+    assert "responseLanguage" in preparation_locale_overlay("en")
     with pytest.raises(ValueError, match="response language"):
         preparation_locale_overlay("fr")
     enforce_runtime_scope("FULL_SOURCE")
@@ -260,11 +264,11 @@ def test_claim_author_has_read_only_skills_but_no_parent_governed_actions():
 
 
 def test_preparation_skills_catalog_is_localized_by_trusted_run():
-    for locale, expected in (("vi", "chủ thể"), ("en", "Distinguish")):
+    for locale, expected in (("vi", "Distinguish"), ("en", "Distinguish")):
         run = RuleSetPreparationContext(run_id="t", api=object(), response_language=locale)
         tools = {tool.name: tool for tool in build_rule_set_tools(run)}
         catalog = json.loads(tools["list_preparation_skills"].invoke({}))
-        assert catalog["locale"] == locale
+        assert catalog["locale"] == "en"
         assert expected.lower() in catalog["skills"][0]["purpose"].lower()
 
 

@@ -6,7 +6,6 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import {
-  ASSESSMENT_FACT_AUTHORITIES,
   assessmentDetailSchema,
   assessmentListSchema,
 } from "@lcsp/contracts/assessment-domain";

@@ -104,9 +104,9 @@ export class AssessmentArtifactController {
         req.correlationId || randomUUID(),
       ),
     );
-    const canonical = JSON.parse(report.content.toString("utf8"));
+    const canonical: unknown = JSON.parse(report.content.toString("utf8"));
     const locale = req.headers?.["x-lcsp-locale"];
-    const document =
+    const document: unknown =
       typeof locale === "string"
         ? await this.localization.localizedReportDocument(
             assessmentId,

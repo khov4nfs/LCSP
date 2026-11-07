@@ -51,8 +51,8 @@ def test_root_has_full_en_and_vi_instructions_not_just_language_directive() -> N
 
 
 @pytest.mark.parametrize("locale,expected", [
-    ("en", RESEARCHER_PROMPT), ("vi", RESEARCHER_PROMPT_VI),
-    ("EN", RESEARCHER_PROMPT), ("VI", RESEARCHER_PROMPT_VI),
+    ("en", RESEARCHER_PROMPT), ("vi", RESEARCHER_PROMPT),
+    ("EN", RESEARCHER_PROMPT), ("VI", RESEARCHER_PROMPT),
 ])
 def test_researcher_prompt_selects_exact_checked_in_language(locale: str, expected: str) -> None:
     assert researcher_prompt_for_locale(locale) == expected
@@ -83,25 +83,23 @@ def test_missing_vi_skill_does_not_fall_back_to_english(monkeypatch, tmp_path) -
 def test_every_skill_locale_has_a_versioned_file_and_hash(locale: str) -> None:
     assert len(list_skills(locale)) == len(ALLOWED)
     for name in ALLOWED:
-        filename = "SKILL.vi.md" if locale == "vi" else "SKILL.md"
+        filename = "SKILL.md"
         content = (BASE / "skills" / name / filename).read_text(encoding="utf-8")
         loaded = load_skill(name, locale)
         assert loaded["ok"] is True
-        assert loaded["locale"] == locale
+        assert loaded["locale"] == "en"
         assert loaded["instructions"].strip() == content.strip()
         assert loaded["contentSha256"]
-        if locale == "vi":
-            assert "## Điều tra" in content
-            assert "## Không có thẩm quyền" in content
-        else:
-            assert "## Investigation" in content
-            assert "## Non-authority" in content
+        assert "## Investigation" in content
+        assert "## Non-authority" in content
 
 
 def test_tool_contracts_have_same_keys_en_vi_and_stable_names() -> None:
     assert CONTRACTS.keys() == CONTRACTS_VI.keys()
     assert GRAPH_CONTRACTS.keys() == GRAPH_CONTRACTS_VI.keys()
-    assert set(ROOT_TOOL_NAMES) - {"retrieve_shared_heuristics"} <= set(CONTRACTS)
+    from runtime_instruction_bundle import runtime_instruction
+    extra = json.loads(runtime_instruction("assessment-tools.upstream"))
+    assert set(ROOT_TOOL_NAMES) - {"retrieve_shared_heuristics"} <= set(CONTRACTS) | set(extra)
     en = describe_tool("submit_rule_decision", "Canonical API schema", "en")
     vi = describe_tool("submit_rule_decision", "Canonical API schema", "vi")
     assert en != vi
@@ -111,7 +109,7 @@ def test_tool_contracts_have_same_keys_en_vi_and_stable_names() -> None:
     assert "HITL" in vi
 
 
-@pytest.mark.parametrize("locale,expected_term", [("en", "Investigation"), ("vi", "Điều tra")])
+@pytest.mark.parametrize("locale,expected_term", [("en", "Investigation"), ("vi", "Investigation")])
 def test_root_tool_schema_remains_same_but_locale_guidance_changes(tmp_path, locale, expected_term):
     run = _run(tmp_path, FakeClient())
     run.response_language = locale
@@ -121,7 +119,7 @@ def test_root_tool_schema_remains_same_but_locale_guidance_changes(tmp_path, loc
     assert skills["locale"] == locale
     assert skills["skills"][0]["name"] in ALLOWED
     loaded = json.loads(tools["load_assessment_skill"].invoke({"name": "assessment-system-boundaries"}))
-    assert loaded["locale"] == locale
+    assert loaded["locale"] == "en"
     assert loaded["ok"]
     assert expected_term.lower() in loaded["instructions"].lower()
 
@@ -145,8 +143,9 @@ def test_root_graph_binds_locale_to_root_researcher_and_compaction(monkeypatch, 
     monkeypatch.setattr(module, "create_deep_agent", capture)
     model = RootScriptedModel(responses=complete_root_messages())
     module.create_assessment_root_agent(run=run, model=model, governance=(), graph_tools=[])
-    expected_root = ROOT_INSTRUCTIONS if locale == "en" else ROOT_INSTRUCTIONS_VI
-    expected_child = RESEARCHER_PROMPT if locale == "en" else RESEARCHER_PROMPT_VI
+    from runtime_instruction_bundle import runtime_instruction
+    expected_root = runtime_instruction("assessment-root.system")
+    expected_child = runtime_instruction("repository-researcher.system")
     assert captured["system_prompt"] == expected_root
     assert len(captured["subagents"]) == 1
     assert captured["subagents"][0]["system_prompt"] == expected_child

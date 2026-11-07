@@ -66,6 +66,24 @@ const fixture = () => {
       action: "Design an audit log",
       stage: "DEVELOPMENT",
       reason: "Design-time software obligation",
+      grouping: null,
+      evidence: {
+        targetObject: "Synthetic audit log",
+        triggerAndTiming: "Before release",
+        technicalDeliverable: "Audit-log implementation",
+        repositoryVerifiability: "Inspect source implementation",
+        externalFulfillment: null,
+        conditions: [],
+        exceptions: [],
+        materialContextClaimIds: ["condition"],
+        sourceSupport: [
+          {
+            sourceNodeId: node,
+            locator: "synthetic/dev",
+            rationale: "Synthetic developer design claim",
+          },
+        ],
+      },
     },
     {
       claimId: "operator",
@@ -76,6 +94,25 @@ const fixture = () => {
       action: "File an operations report",
       stage: "NON_DEVELOPMENT",
       reason: "Operator's external activity",
+      grouping: null,
+      evidence: {
+        targetObject: "Operations report",
+        triggerAndTiming: "During operation",
+        technicalDeliverable: null,
+        repositoryVerifiability:
+          "External filing cannot be verified from repository",
+        externalFulfillment: "Operator files the report",
+        conditions: [],
+        exceptions: [],
+        materialContextClaimIds: [],
+        sourceSupport: [
+          {
+            sourceNodeId: node,
+            locator: "synthetic/operator",
+            rationale: "Synthetic external filing claim",
+          },
+        ],
+      },
     },
   ] as PreparationClaimStageDecision[];
   return { graph, decisions };

@@ -28,11 +28,14 @@ function build(row: unknown) {
     void args;
     return Promise.resolve(row);
   });
-  const load = jest.fn((where: unknown, correlationId: string) => {
-    void where;
-    void correlationId;
-    return Promise.resolve(readModel);
-  });
+  const load = jest.fn(
+    (where: unknown, correlationId: string, locale?: string | null) => {
+      void locale;
+      void where;
+      void correlationId;
+      return Promise.resolve(readModel);
+    },
+  );
   const handler = new GetComplianceRuleSetResultHandler(
     { complianceRuleSetVersion: { findUnique } } as unknown as PrismaService,
     { load } as unknown as ComplianceRuleSetReadModelLoader,
@@ -83,7 +86,11 @@ describe("Admin rule set result", () => {
     expect(findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: RULE_SET } }),
     );
-    expect(load).toHaveBeenCalledWith({ id: RULE_SET }, "correlation");
+    expect(load).toHaveBeenCalledWith(
+      { id: RULE_SET },
+      "correlation",
+      undefined,
+    );
   });
 
   it("answers 404 for an unknown version without reading the rule set", async () => {

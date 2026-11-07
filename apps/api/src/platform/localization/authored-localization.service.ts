@@ -353,7 +353,7 @@ export class AuthoredLocalizationService
           },
         );
       }
-      result.set(text, ready[0]!.revision!.content);
+      result.set(text, ready[0].revision!.content);
     }
     for (const text of texts) if (!text.trim()) result.set(text, text);
     return result;

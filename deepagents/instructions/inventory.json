@@ -951,6 +951,35 @@
       }
     },
     {
+      "sourceId": "framework.file-deletion",
+      "runtimeRole": "shared-runtime",
+      "instructionKind": "TOOL_DESCRIPTION",
+      "vietnameseSourcePath": "instructions/vi/framework-file-deletion.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "runtimeEntryId": "framework.file-deletion",
+      "required": true,
+      "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
+      "sourceSha256": "13026989b49e35813c0309e99201645bffb833446dee7921ce14c8bfb1b8aded",
+      "englishCandidatePath": "instructions/candidates/r1/framework.file-deletion.txt",
+      "englishCandidateSha256": "8134ad829c4559508256e4995298ea3fdff30566826df827109c485a1f7398b7",
+      "candidateOriginSha256": "13026989b49e35813c0309e99201645bffb833446dee7921ce14c8bfb1b8aded",
+      "placeholderSchema": {},
+      "migrationReferences": [
+        "assessment_root/agent.py"
+      ],
+      "translationProvenance": {
+        "translator": "Implementation draft; independent review pending",
+        "translationRevision": "r1"
+      },
+      "consumers": [
+        {
+          "filePath": "middleware/approved_instructions.py",
+          "symbolName": "approved_tool_specs",
+          "integrationStatus": "BUNDLE_BOUND"
+        }
+      ]
+    },
+    {
       "sourceId": "framework.injected-policy",
       "runtimeRole": "shared-runtime",
       "instructionKind": "FRAMEWORK_OVERRIDE",
@@ -5207,9 +5236,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::KEYWORD_DESCRIPTION::93:7a7f27543614e628",
+      "siteId": "ast:middleware/approved_instructions.py::_request::KEYWORD_DESCRIPTION::95:7a7f27543614e628",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 93,
+      "lineNumber": 95,
       "symbolName": "_request",
       "constructionSha256": "7a7f27543614e6289a40a999a4e0c9f4fcb68001cfcf09542f7269cb4c578151",
       "evidence": "item[\"function\"][\"description\"]",
@@ -5227,9 +5256,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_HUMANMESSAGE::85:2a8e48080a9b9b4a",
+      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_HUMANMESSAGE::87:2a8e48080a9b9b4a",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 85,
+      "lineNumber": 87,
       "symbolName": "_request",
       "constructionSha256": "2a8e48080a9b9b4a934ed3460ae80d768f2f6b95849ef9d83b4b17b8b1243bdf",
       "evidence": "json.dumps({\"lcspTrustedRuntimeMetadata\": metadata}, sort_keys=True)",
@@ -5247,9 +5276,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_SYSTEMMESSAGE::106:1ca91208c6f47e14",
+      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_SYSTEMMESSAGE::108:1ca91208c6f47e14",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 106,
+      "lineNumber": 108,
       "symbolName": "_request",
       "constructionSha256": "1ca91208c6f47e1427ae6427ce950339c335770eac5b325d5784ea565b97868e",
       "evidence": "text",
@@ -5707,9 +5736,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::_observe::OBSERVATION_GUIDANCE::180:5c79e8171ef0502e",
+      "siteId": "ast:rule_set_preparation/agent.py::_observe::OBSERVATION_GUIDANCE::182:5c79e8171ef0502e",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 180,
+      "lineNumber": 182,
       "symbolName": "_observe",
       "constructionSha256": "5c79e8171ef0502e6ed028d0994cecaf08ec369b29ebc75a52de6414bfb7ff9a",
       "evidence": "\"This exact observation at this pinned source version was already obtained. \"\n                \"Novel information: NONE. Reuse existing evidence, inspect another location or \"\n                \"source, change strategy, or submit completion if no material work remains.\"",
@@ -5727,9 +5756,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::_observe::OBSERVATION_GUIDANCE::186:497c8cf139ea30d4",
+      "siteId": "ast:rule_set_preparation/agent.py::_observe::OBSERVATION_GUIDANCE::188:497c8cf139ea30d4",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 186,
+      "lineNumber": 188,
       "symbolName": "_observe",
       "constructionSha256": "497c8cf139ea30d49d44e7b89d98c3f1dae668e358691639eebe806527e4fd2c",
       "evidence": "\"The previous action produced no new evidence and did not advance preparation \"\n                \"state. Re-evaluate strategy; choose a different investigation action, reuse the \"\n                \"existing observation, or submit completion if no material work remains.\"",
@@ -5747,9 +5776,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::_request::MESSAGE_SYSTEMMESSAGE::420:8d92fbe8d1451121",
+      "siteId": "ast:rule_set_preparation/agent.py::_request::MESSAGE_SYSTEMMESSAGE::422:8d92fbe8d1451121",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 420,
+      "lineNumber": 422,
       "symbolName": "_request",
       "constructionSha256": "8d92fbe8d145112131cc2835852dfe669d9648bfcbcdca061cbbda4fbf801392",
       "evidence": "actual_prompt",
@@ -5767,33 +5796,13 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::after_model::INSTRUCTION_COMPOSITION::330:0937daf453866815",
+      "siteId": "ast:rule_set_preparation/agent.py::after_model::INSTRUCTION_COMPOSITION::332:0937daf453866815",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 330,
+      "lineNumber": 332,
       "symbolName": "after_model",
       "constructionSha256": "0937daf453866815b3508dd50c89fdce3cd18fb07793fb09c3cafc6f99fc490c",
       "evidence": "\"Use write_todos and task(claim-author), commit_claims, then discovery_status\"",
       "astKind": "INSTRUCTION_COMPOSITION",
-      "constructionType": "MAINTAINED_CONTINUATION",
-      "modelFacingConsumer": "rule_set_preparation/agent.py::after_model",
-      "runtimeRole": "rule-set-preparation",
-      "runtimePhase": "PREPARATION",
-      "contentAuthority": "LCSP_MAINTAINED",
-      "migrationDecision": "SHARED_SOURCE_CONSUMER",
-      "viSourceId": "preparation.continuation",
-      "existingSourcePath": "rule_set_preparation/agent.py",
-      "placeholderSchema": {},
-      "migrationStatus": "SHARED_SOURCE_CONSUMER",
-      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
-    },
-    {
-      "siteId": "ast:rule_set_preparation/agent.py::after_model::MESSAGE_HUMANMESSAGE::331:fe748fd5ec958e17",
-      "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 331,
-      "symbolName": "after_model",
-      "constructionSha256": "fe748fd5ec958e1720028ecfe408812958d97c5e76709b17cd2db6902c8f3592",
-      "evidence": "runtime_instruction(\"preparation.continuation\")",
-      "astKind": "MESSAGE_HUMANMESSAGE",
       "constructionType": "MAINTAINED_CONTINUATION",
       "modelFacingConsumer": "rule_set_preparation/agent.py::after_model",
       "runtimeRole": "rule-set-preparation",
@@ -5827,9 +5836,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::after_model::MESSAGE_HUMANMESSAGE::336:fe748fd5ec958e17",
+      "siteId": "ast:rule_set_preparation/agent.py::after_model::MESSAGE_HUMANMESSAGE::335:fe748fd5ec958e17",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 336,
+      "lineNumber": 335,
       "symbolName": "after_model",
       "constructionSha256": "fe748fd5ec958e1720028ecfe408812958d97c5e76709b17cd2db6902c8f3592",
       "evidence": "runtime_instruction(\"preparation.continuation\")",
@@ -5847,9 +5856,29 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::512:19a84112b87a2067",
+      "siteId": "ast:rule_set_preparation/agent.py::after_model::MESSAGE_HUMANMESSAGE::338:fe748fd5ec958e17",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 512,
+      "lineNumber": 338,
+      "symbolName": "after_model",
+      "constructionSha256": "fe748fd5ec958e1720028ecfe408812958d97c5e76709b17cd2db6902c8f3592",
+      "evidence": "runtime_instruction(\"preparation.continuation\")",
+      "astKind": "MESSAGE_HUMANMESSAGE",
+      "constructionType": "MAINTAINED_CONTINUATION",
+      "modelFacingConsumer": "rule_set_preparation/agent.py::after_model",
+      "runtimeRole": "rule-set-preparation",
+      "runtimePhase": "PREPARATION",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "preparation.continuation",
+      "existingSourcePath": "rule_set_preparation/agent.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::514:19a84112b87a2067",
+      "filePath": "rule_set_preparation/agent.py",
+      "lineNumber": 514,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "19a84112b87a2067f21960b5c44d79742c4ecd79b9dc22574b18331bae661ccf",
       "evidence": "phase_instructions(context) + \"\\n\" + runtime_instruction(\"claim-author.system\")",
@@ -5867,9 +5896,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::514:773412cc3dbeacb2",
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::516:773412cc3dbeacb2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 514,
+      "lineNumber": 516,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "773412cc3dbeacb25b2c0fd071c17c08962a2023cc5d2d64841d48b07313d3ac",
       "evidence": "\"\"",
@@ -5887,9 +5916,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::KEYWORD_SYSTEM_PROMPT::522:d3004e8eae0555d2",
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::KEYWORD_SYSTEM_PROMPT::524:d3004e8eae0555d2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 522,
+      "lineNumber": 524,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "d3004e8eae0555d2c9c95917628169d04c936c8a4c920a37b94a9cd77399a5bf",
       "evidence": "child_prompt + child_assignment",
@@ -5907,9 +5936,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::SCHEMA_DESCRIPTION::516:37caabe4c8f39534",
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::SCHEMA_DESCRIPTION::518:37caabe4c8f39534",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 516,
+      "lineNumber": 518,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "37caabe4c8f39534f257f73e7898387ca7f322bc7e195b064d33e962e288c7c5",
       "evidence": "\"Read one whole assigned Article, write its claim file and commit it; return one summary line.\"",
@@ -5927,9 +5956,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::INSTRUCTION_COMPOSITION::623:e1022e9eeb844779",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::INSTRUCTION_COMPOSITION::625:e1022e9eeb844779",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 623,
+      "lineNumber": 625,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "e1022e9eeb844779ceb0fa616624e60a548f7e4eaec2eadf4ff204969da17483",
       "evidence": "phase_instructions(context) + \"\\n<LCSP_PHASE_END>\"",
@@ -5947,9 +5976,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::636:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::638:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 636,
+      "lineNumber": 638,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -5967,9 +5996,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::640:da8c167e6be927c3",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::642:da8c167e6be927c3",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 640,
+      "lineNumber": 642,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "da8c167e6be927c367a7491977e201da219d6d9375c07da18aff7fc1ea9e84bf",
       "evidence": "json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"]",
@@ -5987,9 +6016,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::650:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::652:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 650,
+      "lineNumber": 652,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -6007,9 +6036,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::phase_instructions::INSTRUCTION_COMPOSITION::372:52beec6c880ed436",
+      "siteId": "ast:rule_set_preparation/agent.py::phase_instructions::INSTRUCTION_COMPOSITION::374:52beec6c880ed436",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 372,
+      "lineNumber": 374,
       "symbolName": "phase_instructions",
       "constructionSha256": "52beec6c880ed436bcfc10fac5947c6d41705ece1914e0ddbb176f709cd13e2d",
       "evidence": "runtime_instruction(\"preparation.direct\")",
@@ -6027,9 +6056,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::phase_instructions::INSTRUCTION_COMPOSITION::375:11d647d03c10b055",
+      "siteId": "ast:rule_set_preparation/agent.py::phase_instructions::INSTRUCTION_COMPOSITION::377:11d647d03c10b055",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 375,
+      "lineNumber": 377,
       "symbolName": "phase_instructions",
       "constructionSha256": "11d647d03c10b0555ded32e33653454f6875134671bf691fbdc1d7b5a2e0de0a",
       "evidence": "runtime_instruction(\"preparation.common\") + \"\\n\" + runtime_instruction(\"preparation.\" + part)",
@@ -6047,9 +6076,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::preparation_filesystem::KEYWORD_SYSTEM_PROMPT::484:26eba0501db8cb0f",
+      "siteId": "ast:rule_set_preparation/agent.py::preparation_filesystem::KEYWORD_SYSTEM_PROMPT::486:26eba0501db8cb0f",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 484,
+      "lineNumber": 486,
       "symbolName": "preparation_filesystem",
       "constructionSha256": "26eba0501db8cb0f6e7d9f34c629705368a5bcc60dd56ced75b3de9d735d69e6",
       "evidence": "native[\"filesystem_system\"]",
@@ -8007,7 +8036,7 @@
     {
       "siteId": "middleware/approved_instructions.py::_request::31aa99b0c33e5619::1",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 93,
+      "lineNumber": 95,
       "symbolName": "_request",
       "constructionSha256": "31aa99b0c33e56190b561c4f6d29c1612663fb88dbb83ee1498ada61575ee8a6",
       "evidence": "tools=[SimpleNamespace(name=item[\"function\"][\"name\"], description=item[\"function\"][\"description\"]) for item in tools],",
@@ -8026,7 +8055,7 @@
     {
       "siteId": "middleware/approved_instructions.py::_request::fab0055191977c11::1",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 85,
+      "lineNumber": 87,
       "symbolName": "_request",
       "constructionSha256": "fab0055191977c118c1b6a18647605fddc5a97e28063d93f22583fa1f2118b08",
       "evidence": "messages = [*request.messages, HumanMessage(content=json.dumps({\"lcspTrustedRuntimeMetadata\": metadata}, sort_keys=True))]",
@@ -8311,7 +8340,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::after_model::b93ccc161e1b089b::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 331,
+      "lineNumber": 333,
       "symbolName": "after_model",
       "constructionSha256": "b93ccc161e1b089b54ab9c7f53558ead1fc76ee6705dc256746d4198c30b0714",
       "evidence": "return {\"messages\": [HumanMessage(content=runtime_instruction(\"preparation.continuation\"))], \"jump_to\": \"model\"}",
@@ -8330,7 +8359,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::after_model::b93ccc161e1b089b::2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 333,
+      "lineNumber": 335,
       "symbolName": "after_model",
       "constructionSha256": "b93ccc161e1b089b54ab9c7f53558ead1fc76ee6705dc256746d4198c30b0714",
       "evidence": "return {\"messages\": [HumanMessage(content=runtime_instruction(\"preparation.continuation\"))], \"jump_to\": \"model\"}",
@@ -8349,7 +8378,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::after_model::cf8a7224da42d38b::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 335,
+      "lineNumber": 337,
       "symbolName": "after_model",
       "constructionSha256": "cf8a7224da42d38bbe7801dfbbc1794a42b90429f0202fc0ab3ace1f71828423",
       "evidence": "\"messages\": [HumanMessage(content=(",
@@ -8368,7 +8397,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::claim_author_subagent::e28730a0b3a1e351::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 522,
+      "lineNumber": 524,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "e28730a0b3a1e351a32bfcf320f1198aaa099ad448e245f98a36ac44fbc6ff9f",
       "evidence": "governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE, system_prompt=child_prompt + child_assignment),",
@@ -8387,7 +8416,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::844e8679a414eb1c::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 640,
+      "lineNumber": 642,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "844e8679a414eb1caacfa3a4e0fdcc8052cc3f56dd9912c262bbc1ab4c8ddb72",
       "evidence": "TodoListMiddleware(system_prompt=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"], tool_description=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"tool.write_todos\"]), PreparationPhaseMiddleware(context, model=model), budget,",
@@ -8406,7 +8435,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 636,
+      "lineNumber": 638,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -8425,7 +8454,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 650,
+      "lineNumber": 652,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -8444,7 +8473,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::preparation_filesystem::774448795114beea::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 484,
+      "lineNumber": 486,
       "symbolName": "preparation_filesystem",
       "constructionSha256": "774448795114beeade63becaafcd9849a7505e68d5f6841d6c17100ccb0ce2c1",
       "evidence": "system_prompt=native[\"filesystem_system\"], custom_tool_descriptions={name: text for key, text in native.items() if key.startswith(\"tool.\") for name in [key[5:]]})",
@@ -9021,6 +9050,7 @@
     "assessment-tools.descriptions",
     "assessment-tools.upstream",
     "claim-author.system",
+    "framework.file-deletion",
     "framework.injected-policy",
     "preparation-tools.descriptions",
     "preparation.authoring",

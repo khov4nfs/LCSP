@@ -1,3 +1,4 @@
+import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
 import { randomUUID } from "node:crypto";
 import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
 import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
@@ -102,7 +103,10 @@ function buildRuleSetUseCases(
   );
   const validate = new ValidateComplianceRuleSetHandler(prisma, legalSource);
   const active = new GetActiveComplianceRuleSetHandler(
-    new ComplianceRuleSetReadModelLoader(prisma),
+    new ComplianceRuleSetReadModelLoader(
+      prisma,
+      new AuthoredLocalizationService(prisma),
+    ),
   );
   return {
     startPreparation: async (i: Body & { requestedBy: string }) =>
