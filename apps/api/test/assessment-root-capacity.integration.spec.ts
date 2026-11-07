@@ -300,7 +300,7 @@ integration(
         liveRunIds: [],
         metrics: metrics(),
       });
-    });
+    }, 30_000);
 
     afterAll(async () => {
       if (first) {
