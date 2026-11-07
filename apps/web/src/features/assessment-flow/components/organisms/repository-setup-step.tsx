@@ -37,7 +37,6 @@ import {
   usePasswordReauthMutation,
 } from "@/lib/api/auth-queries";
 import { useProviderCredentialStatusesQuery } from "@/lib/api/github-repository-queries";
-import { apiQueryKeys } from "@/lib/api/query-keys";
 import {
   connectAssessmentRepository,
   getRepositorySetupState,

@@ -249,7 +249,9 @@ describe("AssessmentSessionExportLoader", () => {
       "PINNED_RULE_SET_CATALOG",
     );
     expect(result.assessmentResults.legalEvidence.catalogRulesCount).toBe(0);
-    expect(result.assessmentResults.legalEvidence.selectedAuditRuleCount).toBe(1);
+    expect(result.assessmentResults.legalEvidence.selectedAuditRuleCount).toBe(
+      1,
+    );
     expect(result.tokenUsage.totalTokens).toBe(1500);
     expect(result.tokenUsage.cachedTokens).toBeNull();
     expect(result.executionMetrics.activeDurationMs).toBeNull();
