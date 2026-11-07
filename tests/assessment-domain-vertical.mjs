@@ -685,7 +685,15 @@ try {
       ["ER-XREF", "RESOLVED"],
     ],
   );
-  eq([resumed.facts.length, resumed.evidence.length], [1, 2]);
+  eq(
+    [resumed.contextCollections.counts.facts, resumed.contextCollections.counts.evidence],
+    [1, 2],
+    "restart retains fact/evidence counts through bounded context collections",
+  );
+  ok(
+    !Object.hasOwn(resumed, "facts") && !Object.hasOwn(resumed, "evidence"),
+    "restart does not reintroduce unbounded facts/evidence into model-facing context",
+  );
   eq(resumed.pins.ruleSetVersionId, ruleSet1);
   eq(
     (
