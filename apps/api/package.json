@@ -47,14 +47,14 @@
     "@prisma/client": "7.8.0",
     "amqplib": "^2.0.1",
     "express": "^5.2.1",
-    "joi": "^18.2.3",
-    "nodemailer": "^10.0.9",
+    "joi": "^18.3.1",
+    "nodemailer": "^10.1.4",
     "pdfkit": "^0.20.2",
     "pg": "^8.22.0",
     "playwright": "1.63.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "4.0.17"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
