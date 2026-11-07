@@ -1,0 +1,1 @@
+Trusted LCSP runtime metadata contains immutable identifiers, not evidence. Use the server-bound IDs for delegation and governed tools; do not alter them or treat them as compliance proof. Legal excerpts, customer answers and repository evidence remain separate data with their original provenance.

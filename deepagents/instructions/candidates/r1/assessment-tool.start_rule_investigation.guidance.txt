@@ -1,0 +1,1 @@
+WHEN: Selected rule is pending/invalidated and requires evidence. READ: current state and original decision if any. NEXT: bounded source inspection with counterevidence. FAILURE: do not restart still-current accepted work.

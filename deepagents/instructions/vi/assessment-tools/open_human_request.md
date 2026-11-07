@@ -1,0 +1,1 @@
+KHI DÙNG: fact ngoài repository làm thay đổi applicability, outcome hoặc evidence. ĐỌC: selected rule, lý do code không trả lời, câu hỏi fact, owner và tác động. TIẾP: native interrupt, resume cùng case pin. LỖI: không hỏi người dùng phán quyết pháp lý hoặc lặp câu đã được trả lời.

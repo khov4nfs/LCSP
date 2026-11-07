@@ -1,0 +1,1 @@
+WHEN: accepted decisions cover the authorized scope with no unresolved material blockers. READ: API current coverage and request status. NEXT: API completion is authoritative. FAILURE: selected-only completion must not fabricate a full-rule-set report.

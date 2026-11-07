@@ -7,6 +7,115 @@ datasource db {
   // Safe schema comment to force PR webhook build trigger
 }
 
+enum AuthoredLocalizationState {
+  PENDING
+  READY
+  FAILED
+}
+
+enum AuthoredLocalizationLocale {
+  EN
+  VI
+}
+
+enum AuthoredLocalizationEntity {
+  LEGAL_REQUIREMENT
+  ASSESSMENT_RULE
+  DECISION
+  HUMAN_REQUEST
+  EVENT
+  REPORT
+}
+
+enum RuleCatalogGroupId {
+  ARCHITECTURE_SAFETY_BY_DESIGN
+  DATA_MODEL_LIFECYCLE
+  CYBERSECURITY_TECHNICAL_CONTROLS
+  TESTING_CHANGE_ASSURANCE
+  USER_FACING_TRANSPARENCY
+  HUMAN_OVERSIGHT_INTERVENTION
+}
+enum RuleCatalogReviewState {
+  DRAFT
+  APPROVED
+  REVIEW_REQUIRED
+}
+model RuleCatalogGroupMembership {
+  id String @id @default(uuid())
+  ruleSetVersionId String
+  assessmentRuleId String
+  assessmentRuleVersion String
+  groupId RuleCatalogGroupId
+  taxonomyVersion String
+  nameEn String
+  nameVi String
+  descriptionEn String
+  descriptionVi String
+  rationaleEn String
+  rationaleVi String
+  actor String
+  lifecycleStage String
+  sourceReferences Json
+  ordinal Int
+  state RuleCatalogReviewState @default(DRAFT)
+  submittedBy String
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([ruleSetVersionId, assessmentRuleId])
+  @@index([ruleSetVersionId, state, groupId, ordinal])
+}
+
+model AuthoredLocalizationRequest {
+  id String @id @default(uuid())
+  idempotencyKey String @unique
+  scopeId String
+  entityType AuthoredLocalizationEntity
+  entityId String
+  canonicalRevision String
+  canonicalDigest String
+  fieldPath String
+  locale AuthoredLocalizationLocale
+  originalLanguage AuthoredLocalizationLocale?
+  originSha256 String
+  originalContent String
+  translationRevision Int @default(1)
+  state AuthoredLocalizationState @default(PENDING)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseToken String?
+  leaseUntil DateTime?
+  errorCode String?
+  createdAt DateTime @default(now())
+  revision AuthoredLocalizedRevision?
+  @@index([state, nextAttemptAt, leaseUntil])
+  @@index([scopeId, originSha256, locale, state])
+}
+
+model AuthoredLocalizedRevision {
+  id String @id @default(uuid())
+  requestId String @unique
+  content String
+  contentSha256 String
+  engine String
+  engineVersion String
+  createdAt DateTime @default(now())
+  request AuthoredLocalizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+}
+
+model LocalizedReportArtifact {
+  id String @id @default(uuid())
+  scopeId String
+  sourceArtifactId String
+  sourceSha256 String
+  locale AuthoredLocalizationLocale
+  translationRevision Int
+  content Bytes
+  contentSha256 String
+  createdAt DateTime @default(now())
+  @@unique([scopeId, sourceArtifactId, locale, translationRevision])
+}
+
 model User {
   id                        String                        @id
   email                     String                        @unique
@@ -1393,6 +1502,9 @@ model LlmUsageEvent {
 
 model RuleSetPreparationRun {
   executionContract PreparationExecutionContract @default(CLAIM_INVENTORY_V1)
+  targetActivityScope PreparationTargetActivityScope @default(FULL_SOURCE)
+  scopeReviewRequested Boolean @default(false)
+  scopeReviews RuleSetPreparationScopeReview[]
   targetDate DateTime? @db.Date
   draftValidation Json?
   reviewOperationId String?
@@ -1425,6 +1537,7 @@ model RuleSetPreparationRun {
 }
 
 model ComplianceRuleSetVersion {
+  targetActivityScope PreparationTargetActivityScope @default(FULL_SOURCE)
   id                      String                                @id @default(uuid())
   version                 String                                @unique
   legalSourceVersionId    String
@@ -2190,6 +2303,7 @@ model RuleSetPreparationClaimInventory {
   reopenReason     String?
   createdAt        DateTime              @default(now())
   preparation      RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  scopeReview RuleSetPreparationScopeReview?
 
   @@id([preparationRunId, revision])
   @@index([preparationRunId, fingerprint])
@@ -2279,4 +2393,40 @@ model RuleSetPreparationSourceReview {
   @@index([claimIds], type: Gin)
   @@index([blockedReferenceIds], type: Gin)
   @@index([preparationRunId,inventoryRevision,structuralPath], map: "SourceReview_path_idx")
+}
+
+// Human governance for one fully accounted, frozen legal source inventory.
+// Always a review artifact: never rewrites the original claim inventory.
+enum PreparationTargetActivityScope {
+  FULL_SOURCE
+  DEVELOPMENT_ONLY
+}
+
+enum PreparationScopeReviewState {
+  DRAFT
+  APPROVED
+  REJECTED
+}
+
+model RuleSetPreparationScopeReview {
+  preparationRunId String
+  inventoryRevision Int
+  legalSourceVersionId String
+  revision Int @default(1)
+  state PreparationScopeReviewState @default(DRAFT)
+  inventoryFingerprint String
+  graphDigest String
+  decisionDigest String
+  decisions Json
+  projection Json
+  submittedBy String
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  preparation RuleSetPreparationRun @relation(fields: [preparationRunId,legalSourceVersionId], references: [id,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  inventory RuleSetPreparationClaimInventory @relation(fields: [preparationRunId,inventoryRevision], references: [preparationRunId,revision], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([preparationRunId,inventoryRevision])
+  @@index([legalSourceVersionId,state])
 }

@@ -223,6 +223,12 @@ export const viPages = {
   },
   assessmentConversation: {
     ruleAudit: {
+      selectGroup: "Chọn nhóm: {name}",
+      clearGroup: "Bỏ chọn nhóm: {name}",
+      selectedGroups: "Nhóm đã chọn: {count}/{total}",
+      actorStage: "Chủ thể: {actor} · Giai đoạn: {stage}",
+      developmentStage: "Phát triển",
+      groupingReviewRequired: "Phân nhóm đang chờ xét duyệt độc lập. Hiện chưa thể chọn các quy tắc này.",
       title: "Chọn quy tắc cần đánh giá",
       description:
         "Chỉ các quy tắc bạn yêu cầu mới được điều tra. Quy tắc chưa yêu cầu chưa có kết luận đánh giá.",

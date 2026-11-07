@@ -1,3 +1,5 @@
+import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
+import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { randomUUID } from "node:crypto";
 import {
   Controller,
@@ -55,6 +57,7 @@ export class AssessmentArtifactController {
   constructor(
     private readonly queries: QueryBus,
     private readonly pdfRenderer: AssessmentPdfRenderer,
+    private readonly localization: AuthoredLocalizationService,
   ) {}
 
   @Get(":artifactId/download")
@@ -101,9 +104,20 @@ export class AssessmentArtifactController {
         req.correlationId || randomUUID(),
       ),
     );
-    const parsed = assessmentFinalReportArtifactVersionedSchema.safeParse(
-      JSON.parse(report.content.toString("utf8")),
-    );
+    const canonical = JSON.parse(report.content.toString("utf8"));
+    const locale = req.headers?.["x-lcsp-locale"];
+    const document =
+      typeof locale === "string"
+        ? await this.localization.localizedReportDocument(
+            assessmentId,
+            artifactId,
+            report.contentSha256,
+            canonical,
+            resolveResponseLanguage(locale),
+          )
+        : canonical;
+    const parsed =
+      assessmentFinalReportArtifactVersionedSchema.safeParse(document);
     if (!parsed.success) {
       throw problemException(
         ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,

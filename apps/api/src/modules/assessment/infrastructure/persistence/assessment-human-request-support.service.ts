@@ -1,3 +1,4 @@
+import { AUTHORED_LOCALIZATION_ENTITIES } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { assessmentHumanRequestViewSchema } from "@lcsp/contracts/assessment-domain";
@@ -12,24 +13,13 @@ import { humanRequestDependenciesOf } from "./assessment-human-request-dependenc
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
-import {
-  LocalePresentationProjectionService,
-  getPresentationProjection,
-  registerPresentationProjection,
-  clearPresentationProjections,
-} from "../presentation/locale-presentation-projection.service.js";
-
-export {
-  getPresentationProjection,
-  registerPresentationProjection,
-  clearPresentationProjections,
-};
+import { LocalePresentationProjectionService } from "../presentation/locale-presentation-projection.service.js";
 
 /** Owner-scoped persistence projection shared by human request reads and answers. */
 @Injectable()
 export class AssessmentHumanRequestSupport {
   constructor(
-    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
+    private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
   async requireOwner(
@@ -111,6 +101,12 @@ export class AssessmentHumanRequestSupport {
       const projections = await this.projectionService.projectBatch(
         textsToProject,
         locale,
+        row.assessmentId,
+        {
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.HUMAN_REQUEST,
+          entityId: row.requestId,
+          canonicalRevision: String(row.requestRevision),
+        },
       );
 
       question = projections.get(row.question) ?? row.question;

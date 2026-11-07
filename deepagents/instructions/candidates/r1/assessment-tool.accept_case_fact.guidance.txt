@@ -1,0 +1,1 @@
+WHEN: A narrow fact is directly supported. READ: authentic customer/source reference and exact claim extent. NEXT: bind it to affected rule predicates. FAILURE: README, code or speculation cannot establish deployment/legal identity.

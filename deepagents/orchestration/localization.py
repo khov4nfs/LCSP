@@ -94,6 +94,8 @@ def load_localization_config() -> ResponseLocalizationConfig:
 
 def get_language_prompt_instruction(locale: str) -> str:
     """Generate dynamic system prompt instruction for the main agent."""
+    from runtime_instruction_bundle import runtime_instruction
+    return runtime_instruction("runtime.response-language")
     normalized_locale = str(locale).strip().lower() if locale else DEFAULT_RESPONSE_LANGUAGE
     definition = SUPPORTED_LOCALES.get(normalized_locale) or SUPPORTED_LOCALES.get(DEFAULT_RESPONSE_LANGUAGE, SUPPORTED_LOCALES["en"])
     return (
@@ -345,7 +347,7 @@ def transform_response_text(
     telemetry["model"] = str(model_name)
 
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = TRANSFORM_SYSTEM_PROMPT_TEMPLATE.format(
+    system_prompt = runtime_instruction("runtime.response-transform").format(
         target_language=definition.name,
         target_locale=definition.code,
     )
@@ -477,7 +479,7 @@ async def atransform_response_text(
     telemetry["model"] = str(model_name)
 
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = TRANSFORM_SYSTEM_PROMPT_TEMPLATE.format(
+    system_prompt = runtime_instruction("runtime.response-transform").format(
         target_language=definition.name,
         target_locale=definition.code,
     )
@@ -703,7 +705,7 @@ def transform_structured_response(
 
     # Multi-field schema-aware single transform (1 model invocation for all fields)
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = STRUCTURED_SYSTEM_PROMPT_TEMPLATE.format(
+    system_prompt = runtime_instruction("runtime.structured-transform").format(
         target_language=definition.name,
         target_locale=definition.code,
     )
@@ -840,7 +842,7 @@ async def atransform_structured_response(
 
     # Multi-field schema-aware single transform (1 async model invocation for all fields)
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = STRUCTURED_SYSTEM_PROMPT_TEMPLATE.format(
+    system_prompt = runtime_instruction("runtime.structured-transform").format(
         target_language=definition.name,
         target_locale=definition.code,
     )

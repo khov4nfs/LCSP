@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-INSTRUCTIONS = "\n".join((Path(__file__).parents[1] / "rule_set_preparation" / name).read_text()
+INSTRUCTIONS = "\n".join((Path(__file__).parents[1] / "rule_set_preparation" / name).read_text(encoding="utf-8")
     for name in ("instructions-common.md", "instructions-discovery.md", "instructions-authoring.md"))
 
 
@@ -255,6 +255,13 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
             continue
         if tool.name == "remove_from_packet_draft":
             continue
+        if tool.name == "list_preparation_skills":
+            assert not schema["properties"]
+            continue
+        if tool.name == "load_preparation_skill":
+            assert "name" in schema["required"]
+            assert "locale" in schema["properties"]
+            continue
         if tool.name == "record_preparation_progress":
             assert set(schema["required"]) == {
                 "establishedFindings",
@@ -309,11 +316,11 @@ def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_leg
     source = PinnedSourceGraph(bundle['documentGraph'], [c for d in bundle['documents'] for c in d['chunks']])
     assert paths[0] == INDEX_PATH
     for path, ids in source.source_files.items():
-        text = (tmp_path / path.lstrip('/')).read_text()
+        text = (tmp_path / path.lstrip('/')).read_text(encoding="utf-8")
         for nid in ids:
             assert text.count('[' + source.locators[nid] + ']') == 1
             assert source.nodes[nid]['content'] in text
-    index = (tmp_path / 'legal-source/INDEX.md').read_text()
+    index = (tmp_path / 'legal-source/INDEX.md').read_text(encoding="utf-8")
     assert DOC in index and 'Immutable file hashes' in index
     assert not (tmp_path / 'legal-source/nodes').exists()
 

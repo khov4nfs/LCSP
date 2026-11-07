@@ -148,8 +148,14 @@ export class PrismaMfaLifecyclePersistence implements MfaLifecyclePersistence {
           if (meta.mfaGenerationId !== user.mfaGenerationId) return false;
           const candidate = meta.candidateMfaEnrollment as
             CandidateMfaEnrollment | undefined;
+          // input.now is captured before the caller waits for the User lock.
+          // Concurrent rotations can therefore commit a candidate with a later
+          // enrolledAt than the losing caller's captured time. That is clock
+          // inversion, NOT evidence of expiry: keep the pending rotation active
+          // and reject the second session rather than silently superseding it.
           if (
             candidate?.enrolledAt &&
+            candidate.enrolledAt <= input.now &&
             !isCandidateEnrollmentFresh(candidate.enrolledAt, input.now)
           ) {
             return false;

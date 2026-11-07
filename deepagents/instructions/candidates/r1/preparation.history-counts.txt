@@ -1,0 +1,1 @@
+Accepted Rule Set Draft is in PostgreSQL, version {draft_version}: {requirement_count} requirements and {rule_count} assessment rules. Use get_rule_set_draft_candidate for a targeted correction; do not recreate accepted work.

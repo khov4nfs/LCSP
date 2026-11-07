@@ -1,0 +1,1 @@
+WHEN: Search for bounded implementation clues. READ: pattern, paths, result limit and truncation. NEXT: inspect exact files and broaden only when justified. FAILURE: a zero-hit or truncated response is not universal absence.

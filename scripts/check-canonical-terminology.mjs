@@ -4,29 +4,100 @@ import { readFileSync, existsSync, writeFileSync, unlinkSync } from "node:fs";
 
 if (process.argv[2] === "--self-check") {
   const canary = ".canonical-terminology-self-check.txt";
-  assert.equal(existsSync(canary), false, "self-check must not overwrite existing work");
+  assert.equal(
+    existsSync(canary),
+    false,
+    "self-check must not overwrite existing work",
+  );
   try {
-    writeFileSync(canary, "LegalCorpus LegalPortfolio EngineeringRule LegalPreparation\nCorpusApprovalRecord legalCorpusVersionId CORPUS_UNAVAILABLE\nadmin/corpus-versions event.legal-corpus.activated.v1 .corpus\nLegalSourceDocumentCorpusRole corpusRole LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES structured legal corpus ...corpus\n");
-    const result = spawnSync(process.execPath, [process.argv[1]], { encoding: "utf8" });
+    writeFileSync(
+      canary,
+      'LegalCorpus LegalPortfolio EngineeringRule LegalPreparation\nCorpusApprovalRecord legalCorpusVersionId CORPUS_UNAVAILABLE\nadmin/corpus-versions event.legal-corpus.activated.v1 .corpus\nLegalSourceDocumentCorpusRole corpusRole LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES structured legal corpus ...corpus\n"document": "LCSP_RULE_SET_PREPARATION_1TO1_REVIEW_ONLY"; "notRuleSetVersion": true; "authorizedForActivation": false; LegalRule\n',
+    );
+    const result = spawnSync(process.execPath, [process.argv[1]], {
+      encoding: "utf8",
+    });
     const report = JSON.parse(result.stdout);
     assert.notEqual(result.status, 0);
-    assert.equal(report.defects.find((hit) => hit.file === canary)?.classification, "DEFECT");
-    assert.deepEqual(report.defects.find((hit) => hit.file === canary)?.matches,
-      ["LegalCorpus", "LegalPortfolio", "EngineeringRule", "LegalPreparation"]);
-    assert.deepEqual(report.defects.find((hit) => hit.file === canary && hit.line === 2)?.matches,
-      ["CorpusApprovalRecord", "legalCorpusVersion", "CORPUS_UNAVAILABLE"]);
-    assert.deepEqual(report.defects.find((hit) => hit.file === canary && hit.line === 3)?.matches,
-      ["corpus-versions", "legal-corpus", ".corpus"]);
-    assert.equal(report.defects.some((hit) => hit.file === canary && hit.line === 4), false);
+    assert.equal(
+      report.defects.find((hit) => hit.file === canary)?.classification,
+      "DEFECT",
+    );
+    assert.deepEqual(
+      report.defects.find((hit) => hit.file === canary)?.matches,
+      ["LegalCorpus", "LegalPortfolio", "EngineeringRule", "LegalPreparation"],
+    );
+    assert.deepEqual(
+      report.defects.find((hit) => hit.file === canary && hit.line === 2)
+        ?.matches,
+      ["CorpusApprovalRecord", "legalCorpusVersion", "CORPUS_UNAVAILABLE"],
+    );
+    assert.deepEqual(
+      report.defects.find((hit) => hit.file === canary && hit.line === 3)
+        ?.matches,
+      ["corpus-versions", "legal-corpus", ".corpus"],
+    );
+    assert.equal(
+      report.defects.some((hit) => hit.file === canary && hit.line === 4),
+      false,
+    );
+    assert.equal(
+      report.defects.some(
+        (hit) =>
+          hit.file === canary &&
+          hit.line === 5 &&
+          hit.matches.includes("LegalRule"),
+      ),
+      true,
+      "a review marker in another path cannot bypass retired-name checks",
+    );
+    for (const file of [
+      "docs/RULE_SET_PREPARATION_1TO1_MAPPING_DRAFT_VI.json",
+      "docs/RULE_SET_PREPARATION_1TO1_QUALITY_REVIEW_VI.md",
+    ]) {
+      if (existsSync(file))
+        assert.equal(
+          report.defects.some((hit) => hit.file === file),
+          false,
+          `review-only source artifact was not properly classified: ${file}`,
+        );
+    }
   } finally {
     unlinkSync(canary);
   }
-  console.log("PASS: active retired names fail the audit without touching existing work");
+  console.log(
+    "PASS: active retired names fail the audit without touching existing work",
+  );
   process.exit(0);
 }
 
 // A source collection and its document roles are current vocabulary; retired aggregate identities and routes are not.
-const retired = /LegalCorpus|CorpusApprovalRecord|legalCorpusVersion|CORPUS_UNAVAILABLE|LEGAL_CORPUS_VERSION|corpus-versions|\/corpus\/|(?<!\.)\.corpus\b|LegalPortfolio|LegalPreparation|EngineeringRule|legal-corpus|legal-portfolio|legal-preparation|engineeringRule|portfolioVersion|legalPortfolioVersion|portfolioRule|portfolioDigest|LegalRule|legalRule|LEGAL_RULE|legal_rule|legal-rule|\bportfolio\b|Portfolio|PORTFOLIO|engineering[_ -]rule|ENGINEERING_RULE|LEGAL_PREPARATION|legal_preparation/g;
+const retired =
+  /LegalCorpus|CorpusApprovalRecord|legalCorpusVersion|CORPUS_UNAVAILABLE|LEGAL_CORPUS_VERSION|corpus-versions|\/corpus\/|(?<!\.)\.corpus\b|LegalPortfolio|LegalPreparation|EngineeringRule|legal-corpus|legal-portfolio|legal-preparation|engineeringRule|portfolioVersion|legalPortfolioVersion|portfolioRule|portfolioDigest|LegalRule|legalRule|LEGAL_RULE|legal_rule|legal-rule|\bportfolio\b|Portfolio|PORTFOLIO|engineering[_ -]rule|ENGINEERING_RULE|LEGAL_PREPARATION|legal_preparation/g;
+// Retired identifiers remain quoted in these two non-executable legal-source review
+// artifacts so reviewers can map legacy exports to exact source locators. This is not
+// a path-based blanket exemption: each file must also carry its non-activation markers.
+// A copied marker in source code, tests, or another document never grants an exemption.
+const reviewOnlySourceSnapshots = new Map([
+  [
+    "docs/RULE_SET_PREPARATION_1TO1_MAPPING_DRAFT_VI.json",
+    [
+      '"document": "LCSP_RULE_SET_PREPARATION_1TO1_REVIEW_ONLY"',
+      '"notRuleSetVersion": true',
+      '"authorizedForActivation": false',
+    ],
+  ],
+  [
+    "docs/RULE_SET_PREPARATION_1TO1_QUALITY_REVIEW_VI.md",
+    ["**DRAFT / REVIEW ONLY", "không phải Rule Set"],
+  ],
+]);
+const isExplicitReviewOnlySourceSnapshot = (path, contents) =>
+  (reviewOnlySourceSnapshots.get(path) || []).length > 0 &&
+  reviewOnlySourceSnapshots
+    .get(path)
+    .every((marker) => contents.includes(marker));
+
 const fixtures = new Set([
   "tests/canonical-physical-terminology-migration.py",
   "tests/compliance-rule-set-terminology-migration.py",
@@ -45,7 +116,17 @@ const checks = new Set([
   "tests/fixtures/outbox-event-policy.json",
   "deepagents/tests/test_deep_agent_project.py",
 ]);
-const paths = [...new Set(execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" }).split("\0"))].filter(Boolean).sort();
+const paths = [
+  ...new Set(
+    execFileSync(
+      "git",
+      ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+      { encoding: "utf8" },
+    ).split("\0"),
+  ),
+]
+  .filter(Boolean)
+  .sort();
 const output = process.argv[2];
 const hits = [];
 for (const file of paths) {
@@ -62,32 +143,100 @@ for (const file of paths) {
     let classification = "DEFECT";
     let reason = "unclassified active vocabulary";
     if (file.includes("/prisma/migrations/")) {
-      classification = "HISTORICAL_MIGRATION"; reason = "ordered historical identity or forward rename input";
+      classification = "HISTORICAL_MIGRATION";
+      reason = "ordered historical identity or forward rename input";
+    } else if (isExplicitReviewOnlySourceSnapshot(file, text)) {
+      classification = "REVIEW_ONLY_SOURCE_EXPORT";
+      reason =
+        "pinned review snapshot preserves original legacy source identifiers; never executable or activatable";
     } else if (fixtures.has(file)) {
-      classification = "MIGRATION_REHEARSAL_FIXTURE"; reason = "old physical schema is the upgrade input";
-    } else if (checks.has(file) || (file === "tests/release-images.py" && (line.includes("app/apps/api/dist/src/hidden.js") || line.includes("\\.corpus")))) {
-      classification = "RETIREMENT_CHECK"; reason = "exact retired identity is intentionally rejected";
+      classification = "MIGRATION_REHEARSAL_FIXTURE";
+      reason = "old physical schema is the upgrade input";
+    } else if (
+      checks.has(file) ||
+      (file === "tests/release-images.py" &&
+        (line.includes("app/apps/api/dist/src/hidden.js") ||
+          line.includes("\\.corpus")))
+    ) {
+      classification = "RETIREMENT_CHECK";
+      reason = "exact retired identity is intentionally rejected";
     } else if (file === "reports/architecture-freeze-migration-manifest.md") {
       if ([7, 8, 9].includes(freezeSection)) {
-        classification = "HISTORICAL_REPORT"; reason = "explicitly historical pre-freeze inventory column";
+        classification = "HISTORICAL_REPORT";
+        reason = "explicitly historical pre-freeze inventory column";
       }
-    } else if (file.startsWith("reports/") || file === "CHANGELOG.md" || file === "deep-research-report.md"
-      || file.startsWith("graphify-out/") || file.startsWith("graft/")
-      || ((file.startsWith("docs/") || file.startsWith("docs-vn/")) && ((text.includes("Historical pre-freeze documentation.") || text.includes("Historical W6 migration documentation."))
-        || file.endsWith(".csv") || file.endsWith("sprint-status.yaml") || file === "docs/architecture/RELEASE_RUNBOOK.md"))) {
-      classification = "HISTORICAL_REPORT"; reason = "explicitly historical design, planning artifact or preserved receipt";
+    } else if (
+      file.startsWith("reports/") ||
+      file === "CHANGELOG.md" ||
+      file === "deep-research-report.md" ||
+      file.startsWith("graphify-out/") ||
+      file.startsWith("graft/") ||
+      ((file.startsWith("docs/") || file.startsWith("docs-vn/")) &&
+        (text.includes("Historical pre-freeze documentation.") ||
+          text.includes("Historical W6 migration documentation.") ||
+          file.endsWith(".csv") ||
+          file.endsWith("sprint-status.yaml") ||
+          file === "docs/architecture/RELEASE_RUNBOOK.md"))
+    ) {
+      classification = "HISTORICAL_REPORT";
+      reason =
+        "explicitly historical design, planning artifact or preserved receipt";
     } else if (line.includes("reports/legal-corpus-")) {
-      classification = "HISTORICAL_REPORT"; reason = "reference to immutable historical source/artifact bytes";
-    } else if (matches.every((match) => match === "corpus") && line.includes("fix/LCSP-360-corpus-driven-applicability")) {
-      classification = "HISTORICAL_REPORT"; reason = "canonical Git branch retains its original identifier";
+      classification = "HISTORICAL_REPORT";
+      reason = "reference to immutable historical source/artifact bytes";
+    } else if (
+      matches.every((match) => match === "corpus") &&
+      line.includes("fix/LCSP-360-corpus-driven-applicability")
+    ) {
+      classification = "HISTORICAL_REPORT";
+      reason = "canonical Git branch retains its original identifier";
     }
     hits.push({ file, line: index + 1, matches, classification, reason });
   }
 }
 const defects = hits.filter((hit) => hit.classification === "DEFECT");
-const counts = Object.fromEntries(["HISTORICAL_MIGRATION", "HISTORICAL_REPORT", "MIGRATION_REHEARSAL_FIXTURE", "RETIREMENT_CHECK", "DEFECT"].map((kind) => [kind, hits.filter((hit) => hit.classification === kind).length]));
-const report = { scope: "REPOSITORY_WIDE_CANONICAL_TERMINOLOGY_CLASSIFICATION", status: defects.length ? "FAIL" : "PASS", filesSearched: paths.length, activeHits: { LegalCorpus: 0, LegalPortfolio: 0, EngineeringRule: 0, LegalPreparation: 0 }, allowedHistoricalMigrationHits: hits.length - defects.length, counts, hits };
-for (const term of Object.keys(report.activeHits)) report.activeHits[term] = defects.filter((hit) => hit.matches.some((match) => match.includes(term))).length;
+const counts = Object.fromEntries(
+  [
+    "HISTORICAL_MIGRATION",
+    "HISTORICAL_REPORT",
+    "REVIEW_ONLY_SOURCE_EXPORT",
+    "MIGRATION_REHEARSAL_FIXTURE",
+    "RETIREMENT_CHECK",
+    "DEFECT",
+  ].map((kind) => [
+    kind,
+    hits.filter((hit) => hit.classification === kind).length,
+  ]),
+);
+const report = {
+  scope: "REPOSITORY_WIDE_CANONICAL_TERMINOLOGY_CLASSIFICATION",
+  status: defects.length ? "FAIL" : "PASS",
+  filesSearched: paths.length,
+  activeHits: {
+    LegalCorpus: 0,
+    LegalPortfolio: 0,
+    EngineeringRule: 0,
+    LegalPreparation: 0,
+  },
+  allowedHistoricalMigrationHits: hits.length - defects.length,
+  counts,
+  hits,
+};
+for (const term of Object.keys(report.activeHits))
+  report.activeHits[term] = defects.filter((hit) =>
+    hit.matches.some((match) => match.includes(term)),
+  ).length;
 if (output) writeFileSync(output, JSON.stringify(report, null, 2) + "\n");
-console.log(JSON.stringify({ status: report.status, filesSearched: report.filesSearched, counts, defects }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      status: report.status,
+      filesSearched: report.filesSearched,
+      counts,
+      defects,
+    },
+    null,
+    2,
+  ),
+);
 assert.equal(defects.length, 0, "active terminology cutover is incomplete");

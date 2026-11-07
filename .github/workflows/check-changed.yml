@@ -304,5 +304,13 @@ jobs:
           assert agent.agent is not None
           PY
 
+      - name: Preparation semantic negative-control gate (280 mutations)
+        run: |
+          python -m pytest -q \
+            tests/test_preparation_behavior_mutation_bank.py \
+            tests/test_preparation_semantic_eval_oracle.py \
+            tests/test_reviewed_eval_gate.py \
+            tests/test_assessment_tool_workflows.py
+
       - name: Test Python workers
         run: pytest

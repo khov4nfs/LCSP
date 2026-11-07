@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PREPARATION_ACTIVITY_SCOPES } from "@lcsp/contracts/compliance-rule-set";
 import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
@@ -22,6 +23,7 @@ import {
   ruleAuditRequestViewSchema,
   type SubmitRuleAudit,
   type RuleAuditExport,
+  RULE_CATALOG_REVIEW_STATES,
 } from "@lcsp/contracts/assessment-domain";
 import {
   AUDIT_ACTOR_IDS,
@@ -176,6 +178,50 @@ export class AssessmentRuleAuditService {
             },
           }),
         ]);
+      const memberships = await tx.ruleCatalogGroupMembership.findMany({
+        where: {
+          ruleSetVersionId: ruleSet.id,
+          state: RULE_CATALOG_REVIEW_STATES.APPROVED,
+        },
+        orderBy: [{ ordinal: "asc" }, { assessmentRuleId: "asc" }],
+      });
+      const allRules = await tx.assessmentRule.findMany({
+        where: { ruleSetVersionId: ruleSet.id },
+        select: { assessmentRuleId: true, assessmentRuleVersion: true },
+      });
+      const byMembership = new Map(
+        memberships.map((row) => [row.assessmentRuleId, row]),
+      );
+      const groupingComplete =
+        allRules.length > 0 &&
+        memberships.length === allRules.length &&
+        allRules.every(
+          (rule) =>
+            byMembership.get(rule.assessmentRuleId)?.assessmentRuleVersion ===
+            rule.assessmentRuleVersion,
+        );
+      const developmentOnly =
+        ruleSet.targetActivityScope === PREPARATION_ACTIVITY_SCOPES[1];
+      const selectableTotal = developmentOnly && !groupingComplete ? 0 : total;
+      const visibleRules = developmentOnly && !groupingComplete ? [] : rules;
+      const groups = groupingComplete
+        ? [...new Set(memberships.map((row) => row.groupId))].map((groupId) => {
+            const members = memberships.filter(
+              (row) => row.groupId === groupId,
+            );
+            const first = members[0]!;
+            return {
+              groupId,
+              taxonomyVersion: first.taxonomyVersion,
+              nameEn: first.nameEn,
+              nameVi: first.nameVi,
+              descriptionEn: first.descriptionEn,
+              descriptionVi: first.descriptionVi,
+              count: members.length,
+              ruleIds: members.map((row) => row.assessmentRuleId),
+            };
+          })
+        : [];
       const selected = new Set(allItems.map((item) => item.assessmentRuleId));
       const latestIds = new Set(
         latestRequest?.rules.map((item) => item.assessmentRuleId) ?? [],
@@ -185,6 +231,11 @@ export class AssessmentRuleAuditService {
       );
       const waiting = new Set(openRequests.map((row) => row.assessmentRuleId));
       return ruleAuditCatalogSchema.parse({
+        groups,
+        groupingState: groupingComplete
+          ? RULE_CATALOG_REVIEW_STATES.APPROVED
+          : RULE_CATALOG_REVIEW_STATES.REVIEW_REQUIRED,
+        excludedRuleCount: total - selectableTotal,
         assessmentId,
         auditMode: domainCase.auditMode,
         auditRevision: domainCase.auditRequestRevision,
@@ -194,13 +245,29 @@ export class AssessmentRuleAuditService {
         repositoryCommit: domainCase.repositoryCommit,
         latestRequestId: latestRequest?.requestId ?? null,
         latestRequestStatus: latestRequest?.status ?? null,
-        total,
+        total: selectableTotal,
         offset,
         nextOffset:
-          offset + rules.length < total ? offset + rules.length : null,
-        rules: rules.map((rule) => {
+          offset + visibleRules.length < selectableTotal
+            ? offset + visibleRules.length
+            : null,
+        rules: visibleRules.map((rule) => {
           const row = covered.get(rule.assessmentRuleId);
+          const membership = byMembership.get(rule.assessmentRuleId);
           return {
+            membership:
+              groupingComplete && membership
+                ? {
+                    groupId: membership.groupId,
+                    ordinal: membership.ordinal,
+                    taxonomyVersion: membership.taxonomyVersion,
+                    rationaleEn: membership.rationaleEn,
+                    rationaleVi: membership.rationaleVi,
+                    actor: membership.actor,
+                    lifecycleStage: membership.lifecycleStage,
+                    sourceReferences: membership.sourceReferences,
+                  }
+                : null,
             assessmentRuleId: rule.assessmentRuleId,
             assessmentRuleVersion: rule.assessmentRuleVersion,
             concept: rule.concept,
@@ -325,6 +392,33 @@ export class AssessmentRuleAuditService {
       const byId = new Map(
         catalog.map((rule) => [rule.assessmentRuleId, rule]),
       );
+      if (ruleSet.targetActivityScope === PREPARATION_ACTIVITY_SCOPES[1]) {
+        const approved = await tx.ruleCatalogGroupMembership.findMany({
+          where: {
+            ruleSetVersionId: ruleSet.id,
+            state: RULE_CATALOG_REVIEW_STATES.APPROVED,
+          },
+        });
+        const approvedVersions = new Map(
+          approved.map((row) => [
+            row.assessmentRuleId,
+            row.assessmentRuleVersion,
+          ]),
+        );
+        if (
+          approved.length !== catalog.length ||
+          catalog.some(
+            (rule) =>
+              approvedVersions.get(rule.assessmentRuleId) !==
+              rule.assessmentRuleVersion,
+          )
+        )
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+      }
       const chosen =
         body.scopeMode === RULE_AUDIT_SCOPE_MODES.FULL_RULE_SET
           ? catalog

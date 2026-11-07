@@ -145,6 +145,13 @@ class RuleSetPreparationContext:
     frontier_enabled: bool = True
     discovery_only: bool = False
     direct_draft: bool = False
+    target_activity_scope: str = "FULL_SOURCE"
+    scope_review_requested: bool = False
+    approved_scope_digest: str | None = None
+    scope_review_paused: bool = False
+    used_skill_hashes: dict[str, str] = field(default_factory=dict)
+    model_facing_manifests: dict[str, dict] = field(default_factory=dict)
+    response_language: str = "vi"
     direct_state: Any = None
     target_date: str | None = None
     authored_claim_ids: set[str] = field(default_factory=set)
@@ -1056,6 +1063,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         context.trace.append({"tool": "source_blocked", **context.source_blocked})
         return json.dumps({"sourceBlocked": context.source_blocked})
 
+    from rule_set_preparation.preparation_skills import build_preparation_skill_tools
+    skill_tools = build_preparation_skill_tools(context.response_language, context.used_skill_hashes)
     common = [
         record_preparation_progress,
         validate_compliance_rule_set,
@@ -1106,9 +1115,9 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             from rule_set_preparation.direct_draft import build_direct_draft_tools
             validate_compliance_rule_set.description = "Validate the persisted Rule Set Draft, exact source support, source coverage, references, legal effects and rule bindings. Returns specific errors. No arguments."
             submit_compliance_rule_set.description = "Activate the exact validated Rule Set Draft through the governed API. Validation must pass first. No arguments."
-            return [*common[:4], *[t for t in tools if t.name == "get_applicable_legal_state"], *build_direct_draft_tools(context)]
+            return [*common[:4], *skill_tools, *[t for t in tools if t.name == "get_applicable_legal_state"], *build_direct_draft_tools(context)]
         from rule_set_preparation.claim_files import build_claim_file_tools
         tools += build_claim_file_tools(context)
-        return [t for t in tools if not (context.discovery_only and t.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"})]
+        return [*skill_tools, *[t for t in tools if not (context.discovery_only and t.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"})]]
     # Isolated legacy tool unit tests have no source graph. The real runner always supplies one.
-    return common
+    return [*common, *skill_tools]

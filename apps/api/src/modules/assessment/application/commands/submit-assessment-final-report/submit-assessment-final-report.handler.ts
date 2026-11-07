@@ -416,6 +416,17 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         },
         auditActor: ROOT_AUDIT_ACTOR,
       });
+      const { enqueueAuthoredDocument } =
+        await import("../../../../../platform/localization/authored-localization.service.js");
+      const { AUTHORED_LOCALIZATION_ENTITIES } =
+        await import("@lcsp/contracts/assessment-domain");
+      await enqueueAuthoredDocument(tx, {
+        scopeId: command.assessmentId,
+        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+        entityId: artifactId,
+        canonicalRevision: hash,
+        document: report,
+      });
       await tx.assessmentArtifact.update({
         where: { artifactId },
         data: {

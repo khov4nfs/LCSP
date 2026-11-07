@@ -19,6 +19,8 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
+import { enqueueAuthoredDocument } from "../../../../platform/localization/authored-localization.service.js";
+import { AUTHORED_LOCALIZATION_ENTITIES } from "@lcsp/contracts/assessment-domain";
 
 export interface AppendAssessmentEventInput {
   assessmentId: string;
@@ -133,6 +135,40 @@ export class AssessmentEventAppender {
         outboxMessageId,
       },
     });
+    await enqueueAuthoredDocument(tx, {
+      scopeId: input.assessmentId,
+      entityType: AUTHORED_LOCALIZATION_ENTITIES.EVENT,
+      entityId: eventId,
+      canonicalRevision: String(sequence),
+      document: input.payload,
+    });
+    const payload = input.payload as Record<string, unknown> | null;
+    if (typeof payload?.decisionId === "string") {
+      const decision = await tx.assessmentRuleDecision.findUnique({
+        where: { decisionId: payload.decisionId },
+      });
+      if (decision && decision.assessmentId === input.assessmentId)
+        await enqueueAuthoredDocument(tx, {
+          scopeId: input.assessmentId,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.DECISION,
+          entityId: decision.decisionId,
+          canonicalRevision: String(decision.decisionRevision),
+          document: decision.decision,
+        });
+    }
+    if (typeof payload?.requestId === "string") {
+      const request = await tx.assessmentHumanRequest.findUnique({
+        where: { requestId: payload.requestId },
+      });
+      if (request && request.assessmentId === input.assessmentId)
+        await enqueueAuthoredDocument(tx, {
+          scopeId: input.assessmentId,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.HUMAN_REQUEST,
+          entityId: request.requestId,
+          canonicalRevision: String(request.requestRevision),
+          document: request,
+        });
+    }
     return { eventId, sequence, threadId: runtime.threadId };
   }
 }

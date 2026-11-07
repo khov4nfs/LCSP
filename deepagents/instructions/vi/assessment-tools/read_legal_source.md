@@ -1,0 +1,1 @@
+KHI DÙNG: cần xác minh hiệu lực và nghĩa vụ. ĐỌC: provision đã pin, actor, ngoại lệ, mốc thời gian và dependency. TIẾP: đối chiếu criterion theo nguồn. LỖI: văn bản thiếu/bị bãi bỏ/dự thảo không mặc định là nghĩa vụ đang áp dụng.

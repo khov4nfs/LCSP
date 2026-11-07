@@ -16,6 +16,9 @@ function build(executionState: State, failureReason: string | null) {
     ruleSet: null as { id: string } | null,
     outboxEventId: "previous-delivery",
     claimInventoryRevision: 3,
+    claimPhase: "CLAIM_INVENTORY_READY",
+    scopeReviewRequested: false,
+    targetActivityScope: "FULL_SOURCE",
     draftValidation: {
       outcome: "FAILED",
       failures: [
@@ -91,6 +94,21 @@ describe("explicit preparation recovery", () => {
   it("never resumes a run that already published a Rule Set", async () => {
     const { handler, row, outbox } = build(State.FAILED, R.MODEL_ERROR);
     row.ruleSet = { id: "published-artifact" };
+    await expect(handler.execute(command())).rejects.toThrow();
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("resumes approved development scope only after server transition from the review hold", async () => {
+    const { handler, row, outbox } = build(State.PAUSED, null);
+    row.scopeReviewRequested = true;
+    row.targetActivityScope = "DEVELOPMENT_ONLY";
+    const result = await handler.execute(command());
+    expect(result.executionState).toBe(State.QUEUED);
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+  });
+  it("refuses a scope review hold before approval or scope switch", async () => {
+    const { handler, row, outbox } = build(State.PAUSED, null);
+    row.scopeReviewRequested = true;
     await expect(handler.execute(command())).rejects.toThrow();
     expect(outbox.enqueue).not.toHaveBeenCalled();
   });

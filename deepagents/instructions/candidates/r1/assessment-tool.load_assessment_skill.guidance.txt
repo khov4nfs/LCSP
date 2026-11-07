@@ -1,0 +1,1 @@
+WHEN: Selected source evidence justifies one catalog skill. READ: allowed method and non-authority marker. NEXT: apply as investigation technique only. FAILURE: bad locale/name or unavailable skill means no fallback to fabricated instructions.

@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from orchestration.agent_stream import SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
+from orchestration.context import resolve_response_language
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -35,6 +36,45 @@ def load_project_skill(name: str) -> str:
     body = _load_project_skill_body(normalized)
     _emit_skill_usage(normalized, body, status="COMPLETED")
     return body
+
+
+def load_project_skill_for_locale(name: str, locale: str = "en") -> str:
+    """Business purpose:
+    Load an explicitly localized, checked-in skill body and preserve usage provenance.
+
+    Business rules:
+    - Only supported locales and canonical skill directory names may resolve; no dynamic paths.
+    - A missing locale file fails rather than silently mixing EN and VI instructions.
+    Execution flow:
+    1. Validate skill name and trusted response locale, read its language-specific file, emit usage.
+    Failure cases:
+    - Missing/empty localization raises, preventing silent fallback or loss of instruction integrity.
+    Side effects:
+    - Emits the standard skill usage event with localized content hash; no domain mutation.
+    """
+    canonical = _normalize_project_skill_name(name)
+    normalized = resolve_response_language(locale)
+    body = _load_localized_project_skill_body(canonical, normalized)
+    _emit_skill_usage(canonical, body, status="COMPLETED")
+    return body
+
+
+@lru_cache(maxsize=32)
+def _load_localized_project_skill_body(name: str, locale: str) -> str:
+    """Business purpose:
+    Read and cache a checked-in EN/VI skill version.
+
+    Business rules:
+    - File locations are static and determined only by the allowlisted locale.
+    Execution flow:
+    1. Select SKILL.md for en or SKILL.vi.md for vi and read required UTF-8 content.
+    Failure cases:
+    - Missing or empty file fails explicitly without unauthorized fallback.
+    Side effects:
+    - Read-only cached lookup.
+    """
+    filename = "SKILL.vi.md" if locale == "vi" else "SKILL.md"
+    return _read_required_text(SKILLS_ROOT / name / filename, f"{name}:{locale}")
 
 
 @lru_cache(maxsize=16)
