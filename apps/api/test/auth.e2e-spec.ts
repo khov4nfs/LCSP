@@ -405,8 +405,9 @@ describe("Auth workspace (e2e)", () => {
       const lifecycle = app.get<MfaLifecyclePersistence>(
         AUTH_MFA_LIFECYCLE_PERSISTENCE,
       );
-      const enroll: MfaLifecyclePersistence["enroll"] =
-        lifecycle.enroll.bind(lifecycle);
+      const enroll = lifecycle.enroll.bind(
+        lifecycle,
+      ) as MfaLifecyclePersistence["enroll"];
       const snapshots: MfaEnrollmentCommit[] = [];
       let release!: () => void;
       let reject!: (error: Error) => void;
