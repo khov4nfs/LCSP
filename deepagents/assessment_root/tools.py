@@ -41,6 +41,9 @@ _COVERAGE_MAX_PAGE_SIZE = 25
 _CONTEXT_DEFAULT_PAGE_SIZE = 5
 _CONTEXT_MAX_PAGE_SIZE = 10
 _CONTEXT_DETAIL_MAX_BYTES = 4096
+_HITL_RESUME_MAX_BYTES = 4096
+_HITL_RESUME_DEFAULT_PAGE_SIZE = 10
+_HITL_RESUME_MAX_PAGE_SIZE = 50
 _RULE_DETAIL_MAX_BYTES = 4096
 _RULE_CATALOG_MAX_BYTES = 4096
 _RULE_DETAIL_MAX_POINTER = 512
@@ -378,6 +381,20 @@ class GetAssessmentContextDetailArgs(_Args):
     offset: int = Field(default=0, ge=0)
     max_items: int = Field(default=10, ge=1, le=20)
     max_chars: int = Field(default=2000, ge=1, le=4000)
+
+
+class GetHumanRequestResumePageArgs(_Args):
+    snapshot_token: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="contextSnapshotToken returned by HITL continuation; reload/resume when stale.",
+    )
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(
+        default=_HITL_RESUME_DEFAULT_PAGE_SIZE,
+        ge=1,
+        le=_HITL_RESUME_MAX_PAGE_SIZE,
+        description="Maximum request identity rows; byte budget may return fewer.",
+    )
 
 
 class GetRuleDecisionArgs(GetRuleArgs):
@@ -1923,6 +1940,188 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "instruction": "Continue investigation using accepted facts from bounded context reads; re-evaluate stale decisions.",
         }
 
+    def _human_request_resume_identity(
+        context: dict[str, Any], result: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Business purpose:
+        Validate one HITL continuation and return identity/status metadata only.
+
+        Business rules:
+        - Aggregate HITL pages never repeat context tokens, tool names, instructions or answer history per request.
+        - OPEN UNKNOWN rows still require exact checkpoint-bound review authority.
+
+        Execution flow:
+        1. Locate the authoritative request row when present.
+        2. Validate UNKNOWN review authority for current open requests.
+        3. Return only stable identity, revision, status and resolution metadata.
+
+        Failure cases:
+        - Missing OPEN request identity or invalid UNKNOWN authority fails closed.
+
+        Side effects:
+        - Pure projection of already-loaded context.
+        """
+        request_id = result["requestId"]
+        row = next(
+            (
+                row
+                for row in context.get("humanRequests", [])
+                if row["requestId"] == request_id
+            ),
+            None,
+        )
+        if request_id in context["openHumanRequestIds"] and row is None:
+            raise RuntimeError(
+                "human request resumed without authoritative request identity"
+            )
+        if request_id in context["openHumanRequestIds"]:
+            answers = row.get("answers", [])
+            latest = answers[-1] if answers else {}
+            if (
+                request_id not in run.human_answer_review_request_ids
+                or row.get("status") != "OPEN"
+                or row.get("resolvedFactId") is not None
+                or latest.get("doesNotKnow") is not True
+                or latest.get("answer") is not None
+                or latest.get("checkpointId")
+                != run.human_answer_review_checkpoint_id
+                or row.get("checkpointId")
+                != run.human_answer_review_checkpoint_id
+                or latest.get("requestRevision") != row.get("requestRevision")
+            ):
+                raise RuntimeError(
+                    "human request resumed without an authoritative resolution or answer review"
+                )
+        return {
+            "requestId": request_id,
+            "requestRevision": (
+                row.get("requestRevision")
+                if row is not None
+                else result.get("requestRevision")
+            ),
+            "status": row.get("status") if row is not None else "RESOLVED",
+            "assessmentRuleId": (
+                row.get("assessmentRuleId")
+                if row is not None
+                else result.get("assessmentRuleId")
+            ),
+            "resolvedFactId": (
+                row.get("resolvedFactId")
+                if row is not None
+                else result.get("resolvedFactId")
+            ),
+            "resolved": request_id not in context["openHumanRequestIds"],
+            "responseKind": (
+                "UNKNOWN" if request_id in context["openHumanRequestIds"] else "RESOLVED"
+            ),
+        }
+
+    def _human_request_resume_page(
+        context: dict[str, Any],
+        request_ids: list[str],
+        snapshot_token: str,
+        offset: int,
+        limit: int,
+    ) -> dict[str, Any]:
+        """Business purpose:
+        Page aggregate HITL continuation identities within the model-facing byte budget.
+
+        Business rules:
+        - One shared snapshot token/tool metadata applies to the whole page.
+        - Every request remains losslessly reachable by ordered offset continuation.
+        - The complete serialized success response must not exceed 4,096 UTF-8 bytes.
+
+        Execution flow:
+        1. Validate offset and build the shared page envelope.
+        2. Validate/project request identities in deterministic order.
+        3. Append rows until count or byte budget is reached and emit nextOffset.
+
+        Failure cases:
+        - Invalid offsets or a single identity row that cannot fit return typed failures.
+
+        Side effects:
+        - Pure bounded projection; no writes.
+        """
+        if offset > len(request_ids):
+            return {"ok": False, "code": "INVALID_HITL_RESUME_OFFSET"}
+        reply = {
+            "ok": True,
+            "caseRevision": run.case_revision,
+            "contextSnapshotToken": snapshot_token,
+            "contextPageTool": "get_assessment_context_page",
+            "contextDetailTool": "get_assessment_context_detail",
+            "resumePageTool": "get_human_request_resume_page",
+            "totalRequests": len(request_ids),
+            "offset": offset,
+            "requests": [],
+            "nextOffset": None,
+            "instruction": "UNKNOWN is not a fact or verdict. Use bounded context tools for facts/evidence/history and follow nextOffset until null.",
+        }
+        for index in range(offset, min(offset + limit, len(request_ids))):
+            row = _human_request_resume_identity(
+                context, {"requestId": request_ids[index]}
+            )
+            candidate = {
+                **reply,
+                "requests": [*reply["requests"], row],
+                "nextOffset": index + 1 if index + 1 < len(request_ids) else None,
+            }
+            if (
+                len(
+                    json.dumps(
+                        candidate, ensure_ascii=False, default=str
+                    ).encode("utf-8")
+                )
+                > _HITL_RESUME_MAX_BYTES
+            ):
+                break
+            reply = candidate
+        if offset < len(request_ids) and not reply["requests"]:
+            return {"ok": False, "code": "HITL_RESUME_PAGE_METADATA_TOO_LARGE"}
+        if (
+            len(json.dumps(reply, ensure_ascii=False, default=str).encode("utf-8"))
+            > _HITL_RESUME_MAX_BYTES
+        ):
+            raise RuntimeError("HITL resume page exceeded its measured byte bound")
+        return reply
+
+    def get_human_request_resume_page(
+        snapshot_token: str,
+        offset: int = 0,
+        limit: int = _HITL_RESUME_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Business purpose:
+        Continue reading a bounded aggregate HITL resume list after wait_for_human_requests.
+
+        Business rules:
+        - The supplied token must match the current authoritative context.
+        - The reviewed request set is fixed by server-authorized review identity for this execution.
+
+        Execution flow:
+        1. Reload/adopt context and recompute its snapshot token.
+        2. Reject stale tokens.
+        3. Return the requested bounded page of reviewed request identities.
+
+        Failure cases:
+        - Stale tokens and invalid offsets return typed feedback.
+
+        Side effects:
+        - Read-only API access and in-memory context refresh.
+        """
+        context = client.context()
+        run.adopt_context(context)
+        _, current_token = _context_snapshot(run, context)
+        if snapshot_token != current_token:
+            return {
+                "ok": False,
+                "code": "CONTEXT_SNAPSHOT_STALE",
+                "hint": "Reload the current HITL continuation/context before paging.",
+            }
+        request_ids = sorted(set(run.human_answer_review_request_ids))
+        return _human_request_resume_page(
+            context, request_ids, current_token, offset, limit
+        )
+
     def resolved_human_request(result: dict[str, Any]) -> dict[str, Any]:
         """Business purpose:
         Reload a human dependency as compact accepted resolution or authorized UNKNOWN review metadata.
@@ -1967,16 +2166,19 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             interrupt({"requestIds": request_ids})
             resumed_context = client.context()
             run.adopt_context(resumed_context)
-            return {
-                "ok": True,
-                "requests": [
-                    _human_request_resume_payload(
-                        resumed_context, {"requestId": request_id}
-                    )
-                    for request_id in request_ids
-                ],
-                "caseRevision": run.case_revision,
-            }
+            _, context_snapshot_token = _context_snapshot(
+                run, resumed_context
+            )
+            reviewed_request_ids = sorted(
+                set(run.human_answer_review_request_ids)
+            )
+            return _human_request_resume_page(
+                resumed_context,
+                reviewed_request_ids,
+                context_snapshot_token,
+                0,
+                _HITL_RESUME_DEFAULT_PAGE_SIZE,
+            )
         _, context_snapshot_token = _context_snapshot(run, context)
         return {
             "ok": True,
@@ -2220,8 +2422,10 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
              "Report accepted evidence proving a material anchored fact permanently unobtainable. An unknown answer is insufficient. Retain the native human dependency even if the API rejects the claim; never manufacture a fact or verdict."),
         tool(report_existing_human_fact_unresolvable, ReportExistingUnresolvableHumanFactArgs, "report_existing_human_fact_unresolvable",
              "Report evidence proving permanent unavailability for the exact existing OPEN request from humanRequests. Do not duplicate the question; unknown alone is insufficient. Preserve all open dependencies in a native wait, including when the claim is rejected."),
+        tool(get_human_request_resume_page, GetHumanRequestResumePageArgs, "get_human_request_resume_page",
+             "Continue the byte-bounded HITL resume identity list using contextSnapshotToken and nextOffset from wait_for_human_requests. One shared token applies to all rows; follow nextOffset until null."),
         tool(wait_for_human_requests, _NoArgs, "wait_for_human_requests",
-             "After authorized review of unknown answers, preserve all authoritative open requests at a native checkpoint. Create no repeated questions or assumed facts; unresolved feedback never authorizes a decision."),
+             "After authorized review of unknown answers, preserve all authoritative open requests at a native checkpoint. On resume, returns only the first byte-bounded identity page with one shared context token; follow nextOffset using get_human_request_resume_page."),
         tool(request_finalization, _NoArgs, "request_finalization",
              "Ask the API gate to check the current authorized rules and dependencies. A completed SELECTED_RULES request ends a partial audit; FULL_RULE_SET may enter FINALIZING. The gate never chooses or repairs legal conclusions."),
         tool(submit_final_report, SubmitFinalReportArgs, "submit_final_report",
@@ -2249,6 +2453,7 @@ ROOT_TOOL_NAMES = (
     "open_human_request",
     "report_human_fact_unresolvable",
     "report_existing_human_fact_unresolvable",
+    "get_human_request_resume_page",
     "wait_for_human_requests",
     "request_finalization",
     "submit_final_report",

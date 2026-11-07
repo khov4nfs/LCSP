@@ -1159,6 +1159,8 @@ def test_assessment_root_tools_persist_canonical_domain_data_without_locale_poll
         "coverage": [],
         "openHumanRequestIds": [],
         "facts": [],
+        "evidence": [],
+        "humanRequests": [],
     }
     client.post_human_request.side_effect = lambda req: (posted_human_requests.append(req), {"requestId": "req-1", "requestRevision": 0})[1]
     client.post_decision.side_effect = lambda req: (posted_decisions.append(req), {"decisionRevision": 1})[1]

@@ -1584,16 +1584,16 @@ def test_hitl_resume_stays_bounded_with_large_facts_and_unknown_answer_history(t
     assert "facts" not in result
     assert "humanRequest" not in json.dumps(result)
     assert result["requests"][0]["responseKind"] == "UNKNOWN"
-    assert len(result["requests"][0]["contextSnapshotToken"]) == 64
+    assert len(result["contextSnapshotToken"]) == 64
+    assert "contextSnapshotToken" not in result["requests"][0]
 
 
-def test_hitl_resume_multiple_open_requests_returns_only_compact_envelopes(tmp_path):
+def test_hitl_resume_many_open_requests_is_byte_bounded_and_losslessly_pageable(tmp_path):
     from langgraph.types import Command
 
     request_ids = [
-        "99999999-9999-4999-8999-999999999991",
-        "99999999-9999-4999-8999-999999999992",
-        "99999999-9999-4999-8999-999999999993",
+        f"99999999-9999-4999-8{index:03d}-{index:012d}"
+        for index in range(120)
     ]
 
     class MultiReviewClient(FakeClient):
@@ -1639,17 +1639,48 @@ def test_hitl_resume_multiple_open_requests_returns_only_compact_envelopes(tmp_p
         Command(resume={first["__interrupt__"][0].id: {"review": True}}),
         config,
     )
-    result = next(
+    first_page = next(
         json.loads(message.content)
         for message in reviewed["messages"]
         if isinstance(message, ToolMessage)
         and message.name == "wait_for_human_requests"
     )
 
-    assert [row["requestId"] for row in result["requests"]] == sorted(request_ids)
-    assert all("facts" not in row and "humanRequest" not in row for row in result["requests"])
-    assert all(len(row["contextSnapshotToken"]) == 64 for row in result["requests"])
-    assert len(json.dumps(result, ensure_ascii=False).encode("utf-8")) < 4096
+    assert len(json.dumps(first_page, ensure_ascii=False).encode("utf-8")) <= 4096
+    assert len(first_page["contextSnapshotToken"]) == 64
+    assert first_page["totalRequests"] == len(request_ids)
+    assert first_page["nextOffset"] is not None
+    assert all("facts" not in row and "humanRequest" not in row for row in first_page["requests"])
+    assert all("contextSnapshotToken" not in row for row in first_page["requests"])
+
+    pages = [first_page]
+    observed = [row["requestId"] for row in first_page["requests"]]
+    offset = first_page["nextOffset"]
+    paging_tool = _tools(run)["get_human_request_resume_page"]
+    while offset is not None:
+        page = json.loads(
+            paging_tool.invoke(
+                {
+                    "snapshot_token": first_page["contextSnapshotToken"],
+                    "offset": offset,
+                    "limit": 50,
+                }
+            )
+        )
+        assert page["ok"] is True
+        assert len(json.dumps(page, ensure_ascii=False).encode("utf-8")) <= 4096
+        assert page["contextSnapshotToken"] == first_page["contextSnapshotToken"]
+        assert page["offset"] == offset
+        observed.extend(row["requestId"] for row in page["requests"])
+        assert all("contextSnapshotToken" not in row for row in page["requests"])
+        next_offset = page["nextOffset"]
+        assert next_offset is None or next_offset > offset
+        offset = next_offset
+        pages.append(page)
+        assert len(pages) < len(request_ids)
+
+    assert observed == sorted(request_ids)
+    assert len(observed) == len(set(observed)) == 120
 
 
 def test_existing_unresolvable_report_uses_authoritative_request_without_opening_duplicate(tmp_path):

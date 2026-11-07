@@ -650,7 +650,7 @@ def test_native_root_keeps_registered_todos_grep_and_full_catalog_with_compact_m
     registered = [registered_by_name[name] for name in model.bound_tool_names[0]]
     assert governed.requests
     for request in governed.requests:
-        assert len(request.tools) == len(registered) == 35
+        assert len(request.tools) == len(registered) == 36
         assert [tool.name for tool in request.tools] == [tool.name for tool in registered]
         for shown in request.tools:
             native = registered_by_name[shown.name]
