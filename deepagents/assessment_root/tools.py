@@ -24,6 +24,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.learning import retrieve_shared_heuristics
+from assessment_root.skills import list_skills, load_skill
+from assessment_root.tool_contracts import describe_tool
 from tools.common.capabilities.platform.repository_sandbox import (
     source_path_in_scope,
     validate_source_path_prefix,
@@ -208,6 +210,8 @@ class RootRun:
     # (legalRequirementId, kind, index) -> legal source text, per rule, for anchoring findings and questions.
     rule_elements: dict[str, dict[tuple[str, str, int], str]] = field(default_factory=dict)
     response_language: str = "en"
+    prompt_manifest: dict[str, Any] | None = None
+    used_skill_hashes: dict[str, str] = field(default_factory=dict)
     human_answer_review_checkpoint_id: str | None = None
     human_answer_review_request_ids: set[str] = field(default_factory=set)
 
@@ -435,6 +439,10 @@ class ConditionRefArgs(_Args):
     legal_requirement_id: str
     kind: Literal["OPERATIVE_SCOPE", "APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
     index: int = Field(ge=0)
+
+
+class LoadAssessmentSkillArgs(_Args):
+    name: str = Field(description="Exact registered skill name, not a source path.")
 
 
 class ReadLegalSourceArgs(_Args):
@@ -1080,6 +1088,45 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     - Constructs tool objects; invocation performs the documented API writes or native interrupts.
     """
     client = run.client
+
+    def list_assessment_skills() -> dict[str, Any]:
+        """Business purpose:
+        Expose available generic investigation skill names to the Assessment Root.
+
+        Business rules:
+        - Skill metadata does not prove a repository feature or extend selected legal scope.
+
+        Execution flow:
+        1. Return the source-controlled allowlist and relevance hints.
+
+        Failure cases:
+        - There are no runtime lookups; an empty catalog would return empty options.
+
+        Side effects:
+        - Read-only response; no evidence or legal decisions are persisted.
+        """
+        return {"ok": True, "locale": run.response_language, "skills": list_skills(run.response_language)}
+
+    def load_assessment_skill(name: str) -> dict[str, Any]:
+        """Business purpose:
+        Retrieve one optional investigation method for the current selected-rule work.
+
+        Business rules:
+        - Only registered skill names, never arbitrary paths; skills remain non-normative.
+
+        Execution flow:
+        1. Validate the name and load versioned source-controlled instructions with hash.
+
+        Failure cases:
+        - Invalid names return a typed result; missing checked-in content raises a visible error.
+
+        Side effects:
+        - May publish the existing skill usage event; no Assessment domain writes.
+        """
+        result = load_skill(name, run.response_language)
+        if result.get("ok") is True:
+            run.used_skill_hashes[name] = str(result["contentSha256"])
+        return result
 
     def get_assessment_context() -> dict[str, Any]:
         """Business purpose:
@@ -2386,6 +2433,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
     return [
         retrieve_shared_heuristics,
+        tool(list_assessment_skills, _NoArgs, "list_assessment_skills", "List allowlisted non-normative investigation skills."),
+        tool(load_assessment_skill, LoadAssessmentSkillArgs, "load_assessment_skill", "Load an allowlisted investigation skill; it cannot alter legal authority."),
         tool(get_assessment_context, _NoArgs, "get_assessment_context",
              "Reload API-owned audit request, pins and source-view limits with bounded summaries. Call first. Facts, evidence and HITL history are paged through contextCollections; coverage is paged separately. Counts never authorize completion."),
         tool(get_assessment_context_page, GetAssessmentContextPageArgs, "get_assessment_context_page",
@@ -2435,6 +2484,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
 ROOT_TOOL_NAMES = (
     "retrieve_shared_heuristics",
+    "list_assessment_skills",
+    "load_assessment_skill",
     "get_assessment_context",
     "get_assessment_context_page",
     "get_assessment_context_detail",

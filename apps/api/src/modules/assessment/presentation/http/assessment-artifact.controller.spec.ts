@@ -1,3 +1,4 @@
+import { authoredLocalizationFixture } from "../../../../../test/support/authored-localization.fixture.js";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
   AssessmentArtifactController,
@@ -29,6 +30,7 @@ describe("assessment PDF response headers", () => {
     const controller = new AssessmentArtifactController(
       queries as never,
       renderer as never,
+      authoredLocalizationFixture().service,
     );
     const response = { setHeader: jest.fn() };
     const request = {

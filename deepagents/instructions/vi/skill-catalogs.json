@@ -1,0 +1,11 @@
+{
+  "assessment-system-boundaries": "Lập bản đồ ranh giới hệ thống và đường thực thi trong source.",
+  "assessment-automated-outcomes": "Truy vết tác động của tự động hóa và giám sát của con người.",
+  "assessment-model-integrity": "Kiểm tra mô hình AI/ML và diễn giải kết quả inference khi liên quan rule.",
+  "assessment-data-lifecycle": "Điều tra vòng đời dữ liệu trong phạm vi nghĩa vụ đã chọn.",
+  "assessment-controls-and-claims": "Xác minh biện pháp bảo vệ và tuyên bố tính năng có liên quan.",
+  "rule-preparation-actor-stage": "Xác định chủ thể, hành vi và giai đoạn trách nhiệm theo nguồn luật đã pin.",
+  "rule-preparation-mixed-claims": "Tách nghĩa vụ/quyền và chủ thể hỗn hợp, giữ đúng điều kiện và ngoại lệ.",
+  "rule-preparation-material-context": "Giữ quan hệ định nghĩa, phạm vi, điều kiện, ngoại lệ và hiệu lực có căn cứ.",
+  "rule-preparation-scope-quality": "Đối soát scope development, không xóa nghĩa vụ thật hoặc tạo nghĩa vụ mới."
+}

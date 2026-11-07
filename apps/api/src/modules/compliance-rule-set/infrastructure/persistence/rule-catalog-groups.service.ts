@@ -1,0 +1,273 @@
+import { createHash, randomUUID } from "node:crypto";
+import { Injectable, HttpStatus } from "@nestjs/common";
+import {
+  Prisma,
+  RuleCatalogReviewState,
+  PreparationTargetActivityScope,
+} from "@prisma/client";
+import {
+  RULE_CATALOG_REVIEW_STATES,
+  type SubmitRuleCatalogGroups,
+} from "@lcsp/contracts/assessment-domain";
+import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
+  PREPARATION_SCOPE_STAGES,
+} from "@lcsp/contracts/compliance-rule-set";
+import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
+
+/**
+ * Business purpose: Bind approval requests to the exact catalog membership snapshot.
+ *
+ * Business rules:
+ * - Labels, ordering, rule versions and review metadata are included in the digest.
+ * Execution flow:
+ * 1. Serialize the supplied rows deterministically and hash their JSON bytes.
+ * Failure cases:
+ * - Unsupported serialization fails rather than generating a guessed approval digest.
+ * Side effects:
+ * - None: computes a membership fingerprint.
+ */
+const digestRows = (rows: unknown[]) =>
+  createHash("sha256").update(JSON.stringify(rows)).digest("hex");
+
+/** Two-person, version-pinned presentation review; never classifies legal obligations. */
+@Injectable()
+export class RuleCatalogGroupsService {
+  constructor(private readonly prisma: PrismaService) {}
+  /**
+   * Business purpose: Expose the version-bound group membership ledger for authorized administration.
+   *
+   * Business rules:
+   * - This read does not confer taxonomy, legal or activation approval.
+   * Execution flow:
+   * 1. Load ordered memberships for the requested Rule Set and compute their snapshot digest.
+   * Failure cases:
+   * - Persistence errors propagate without inventing group assignments.
+   * Side effects:
+   * - Read membership records only.
+   */
+  async get(ruleSetVersionId: string) {
+    const memberships = await this.prisma.ruleCatalogGroupMembership.findMany({
+      where: { ruleSetVersionId },
+      orderBy: { assessmentRuleId: "asc" },
+    });
+    return { memberships, membershipDigest: digestRows(memberships) };
+  }
+  /**
+   * Business purpose: Persist a complete draft grouping for a reviewed Development catalog.
+   *
+   * Business rules:
+   * - Exact Rule Set digest, rule identities/versions, provenance and one primary group per rule are required; approved rows cannot be overwritten.
+   * Execution flow:
+   * 1. Lock the Rule Set, validate complete membership and source transparency, then upsert draft rows.
+   * Failure cases:
+   * - Stale pins, incomplete membership, inconsistent labels or unsupported provenance reject the transaction.
+   * Side effects:
+   * - Write draft group membership with authenticated submitter identity.
+   */
+  async submit(
+    ruleSetVersionId: string,
+    body: SubmitRuleCatalogGroups,
+    actorId: string,
+    correlationId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "ComplianceRuleSetVersion" WHERE "id"=${ruleSetVersionId} FOR UPDATE`,
+      );
+      const version = await tx.complianceRuleSetVersion.findUniqueOrThrow({
+        where: { id: ruleSetVersionId },
+      });
+      const rules = await tx.assessmentRule.findMany({
+        where: { ruleSetVersionId },
+        include: {
+          legalRequirementLinks: {
+            include: { legalRequirement: { include: { provenance: true } } },
+          },
+        },
+      });
+      const existing = await tx.ruleCatalogGroupMembership.findMany({
+        where: { ruleSetVersionId },
+      });
+      if (
+        version.targetActivityScope !==
+          PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
+        version.ruleSetDigest !== body.ruleSetDigest ||
+        existing.some((row) => row.state === RuleCatalogReviewState.APPROVED)
+      )
+        this.conflict(correlationId);
+      const requested = new Map(
+        body.memberships.map((row) => [row.assessmentRuleId, row]),
+      );
+      if (
+        requested.size !== body.memberships.length ||
+        requested.size !== rules.length ||
+        new Set(body.memberships.map((row) => row.taxonomyVersion)).size !== 1
+      )
+        this.conflict(correlationId);
+      const groupLabels = new Map<string, string>();
+      for (const rule of rules) {
+        const row = requested.get(rule.assessmentRuleId);
+        if (!row || row.assessmentRuleVersion !== rule.assessmentRuleVersion)
+          this.conflict(correlationId);
+        const label = JSON.stringify([
+          row.nameEn,
+          row.nameVi,
+          row.descriptionEn,
+          row.descriptionVi,
+        ]);
+        if (
+          groupLabels.has(row.groupId) &&
+          groupLabels.get(row.groupId) !== label
+        )
+          this.conflict(correlationId);
+        groupLabels.set(row.groupId, label);
+        const sources = rule.legalRequirementLinks.flatMap((link) =>
+          link.legalRequirement.provenance.map((source) => ({
+            documentId: source.documentId,
+            locator: source.locator,
+          })),
+        );
+        const actors = [
+          ...new Set(
+            rule.legalRequirementLinks.flatMap((link) =>
+              Array.isArray(link.legalRequirement.operativePropositions)
+                ? link.legalRequirement.operativePropositions.flatMap(
+                    (proposition) =>
+                      proposition &&
+                      typeof proposition === "object" &&
+                      !Array.isArray(proposition) &&
+                      typeof proposition.actor === "string"
+                        ? [proposition.actor]
+                        : [],
+                  )
+                : [],
+            ),
+          ),
+        ];
+        if (
+          !actors.length ||
+          row.lifecycleStage !== PREPARATION_SCOPE_STAGES[0]
+        )
+          this.conflict(correlationId);
+        if (
+          !sources.length ||
+          row.sourceReferences.some(
+            (source) =>
+              !sources.some(
+                (actual) =>
+                  actual.documentId === source.documentId &&
+                  actual.locator === source.locator,
+              ),
+          )
+        )
+          this.conflict(correlationId);
+        await tx.ruleCatalogGroupMembership.upsert({
+          where: {
+            ruleSetVersionId_assessmentRuleId: {
+              ruleSetVersionId,
+              assessmentRuleId: rule.assessmentRuleId,
+            },
+          },
+          create: {
+            id: randomUUID(),
+            ruleSetVersionId,
+            ...row,
+            actor: actors.join("; "),
+            sourceReferences: sources,
+            submittedBy: actorId,
+          },
+          update: {
+            ...row,
+            actor: actors.join("; "),
+            sourceReferences: sources,
+            submittedBy: actorId,
+            state: RuleCatalogReviewState.DRAFT,
+            approvedBy: null,
+            approvedAt: null,
+          },
+        });
+      }
+      const memberships = await tx.ruleCatalogGroupMembership.findMany({
+        where: { ruleSetVersionId },
+        orderBy: { assessmentRuleId: "asc" },
+      });
+      return {
+        memberships,
+        membershipDigest: digestRows(memberships),
+        state: RULE_CATALOG_REVIEW_STATES.DRAFT,
+      };
+    });
+  }
+  /**
+   * Business purpose: Record independent approval of an exact grouping snapshot.
+   *
+   * Business rules:
+   * - Approver must differ from submitter; all current rules need version-matched draft membership and the digest must match.
+   * Execution flow:
+   * 1. Lock the version, verify the complete submitted snapshot and mark its rows approved by the authenticated reviewer.
+   * Failure cases:
+   * - Self-approval, stale digests or incomplete/different-version rows reject approval.
+   * Side effects:
+   * - Persist reviewer identity and approval timestamp without altering legal scope.
+   */
+  async approve(
+    ruleSetVersionId: string,
+    expectedDigest: string,
+    reviewerId: string,
+    correlationId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "ComplianceRuleSetVersion" WHERE "id"=${ruleSetVersionId} FOR UPDATE`,
+      );
+      const memberships = await tx.ruleCatalogGroupMembership.findMany({
+        where: { ruleSetVersionId },
+        orderBy: { assessmentRuleId: "asc" },
+      });
+      const count = await tx.assessmentRule.count({
+        where: { ruleSetVersionId },
+      });
+      if (
+        !count ||
+        count !== memberships.length ||
+        digestRows(memberships) !== expectedDigest ||
+        memberships.some(
+          (row) =>
+            row.submittedBy === reviewerId ||
+            row.state !== RuleCatalogReviewState.DRAFT,
+        )
+      )
+        this.conflict(correlationId);
+      await tx.ruleCatalogGroupMembership.updateMany({
+        where: { ruleSetVersionId, state: RuleCatalogReviewState.DRAFT },
+        data: {
+          state: RuleCatalogReviewState.APPROVED,
+          approvedBy: reviewerId,
+          approvedAt: new Date(),
+        },
+      });
+      return { state: RULE_CATALOG_REVIEW_STATES.APPROVED };
+    });
+  }
+  /**
+   * Business purpose: Return the canonical domain conflict for invalid catalog governance.
+   *
+   * Business rules:
+   * - A grouping conflict must not masquerade as successful approval or scope expansion.
+   * Execution flow:
+   * 1. Construct the shared problem exception with the request correlation ID.
+   * Failure cases:
+   * - Always throws the domain conflict to abort the operation.
+   * Side effects:
+   * - None: produces an error without changing membership.
+   */
+  private conflict(correlationId: string): never {
+    throw problemException(
+      COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+      correlationId,
+      { status: HttpStatus.CONFLICT },
+    );
+  }
+}

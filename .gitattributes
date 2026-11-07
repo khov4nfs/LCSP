@@ -1,1 +1,4 @@
 deepagents/sandbox/setup.sh text eol=lf
+deepagents/instructions/** text eol=lf
+deepagents/assessment_root/*.vi.md text eol=lf
+deepagents/skills/**/SKILL.vi.md text eol=lf

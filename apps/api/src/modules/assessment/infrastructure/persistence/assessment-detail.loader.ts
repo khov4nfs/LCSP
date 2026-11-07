@@ -1,3 +1,4 @@
+import { AUTHORED_LOCALIZATION_ENTITIES } from "@lcsp/contracts/assessment-domain";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
@@ -5,7 +6,6 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import {
-  ASSESSMENT_FACT_AUTHORITIES,
   assessmentDetailSchema,
   assessmentListSchema,
 } from "@lcsp/contracts/assessment-domain";
@@ -19,7 +19,7 @@ import { LocalePresentationProjectionService } from "../presentation/locale-pres
 export class AssessmentDetailLoader {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
+    private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
   async list(input: {
@@ -184,7 +184,7 @@ export class AssessmentDetailLoader {
             decision: ruleDecisionSchema.parse(decision.decision),
             createdAt: decision.createdAt.toISOString(),
           }));
-          let projectedFacts = domainCase.facts.map((fact) => ({
+          const projectedFacts = domainCase.facts.map((fact) => ({
             factId: fact.factId,
             assessmentId: fact.assessmentId,
             caseRevision: fact.caseRevision,
@@ -197,116 +197,35 @@ export class AssessmentDetailLoader {
           }));
 
           if (locale) {
-            const textsToProject: string[] = [];
-            for (const d of projectedDecisions) {
-              textsToProject.push(d.decision.rationale);
-              for (const c of d.decision.criteria) {
-                textsToProject.push(c.rationale);
-              }
-            }
-            const humanRequestByFactId = new Map(
-              (
-                (
-                  domainCase as {
-                    humanRequests?: Array<{
-                      resolvedFactId: string | null;
-                      unresolvedFact: string;
-                      answers?: unknown;
-                    }>;
-                  }
-                )?.humanRequests ?? []
-              )
-                .filter((hr) => hr.resolvedFactId)
-                .map((hr) => [hr.resolvedFactId as string, hr]),
+            projectedDecisions = await Promise.all(
+              projectedDecisions.map(async (d) => {
+                const texts = [
+                  d.decision.rationale,
+                  ...d.decision.criteria.map((c) => c.rationale),
+                ];
+                const translations = await this.projectionService.projectBatch(
+                  texts,
+                  locale,
+                  input.assessmentId,
+                  {
+                    entityType: AUTHORED_LOCALIZATION_ENTITIES.DECISION,
+                    entityId: d.decisionId,
+                    canonicalRevision: String(d.decisionRevision),
+                  },
+                );
+                return {
+                  ...d,
+                  decision: {
+                    ...d.decision,
+                    rationale: translations.get(d.decision.rationale)!,
+                    criteria: d.decision.criteria.map((c) => ({
+                      ...c,
+                      rationale: translations.get(c.rationale)!,
+                    })),
+                  },
+                };
+              }),
             );
-            const humanProvidedParts = new Map<
-              string,
-              { prefix: string; answer: string }
-            >();
-            for (const f of projectedFacts) {
-              if (f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED) {
-                textsToProject.push(f.statement);
-              } else if (
-                f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
-              ) {
-                const hr = humanRequestByFactId.get(f.factId);
-                if (
-                  hr &&
-                  typeof hr.unresolvedFact === "string" &&
-                  hr.unresolvedFact.trim().length > 0
-                ) {
-                  const prefix = hr.unresolvedFact;
-                  let answer: string | null = null;
-                  if (Array.isArray(hr.answers)) {
-                    for (let i = hr.answers.length - 1; i >= 0; i--) {
-                      const entry = hr.answers[i] as {
-                        doesNotKnow?: boolean;
-                        answer?: unknown;
-                      };
-                      if (
-                        entry &&
-                        !entry.doesNotKnow &&
-                        typeof entry.answer === "string" &&
-                        entry.answer.trim().length > 0
-                      ) {
-                        answer = entry.answer;
-                        break;
-                      }
-                    }
-                  }
-                  if (
-                    answer !== null &&
-                    f.statement === `${prefix}: ${answer}`
-                  ) {
-                    humanProvidedParts.set(f.factId, { prefix, answer });
-                    textsToProject.push(prefix);
-                  }
-                }
-              }
-            }
-            if (textsToProject.length > 0) {
-              const projections = await this.projectionService.projectBatch(
-                textsToProject,
-                locale,
-              );
-              projectedDecisions = projectedDecisions.map((d) => ({
-                ...d,
-                decision: {
-                  ...d.decision,
-                  rationale:
-                    projections.get(d.decision.rationale) ??
-                    d.decision.rationale,
-                  criteria: d.decision.criteria.map((c) => ({
-                    ...c,
-                    rationale: projections.get(c.rationale) ?? c.rationale,
-                  })),
-                },
-              }));
-              projectedFacts = projectedFacts.map((f) => {
-                if (
-                  f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED
-                ) {
-                  return {
-                    ...f,
-                    statement: projections.get(f.statement) ?? f.statement,
-                  };
-                }
-                if (
-                  f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
-                ) {
-                  const parts = humanProvidedParts.get(f.factId);
-                  if (parts) {
-                    const projectedPrefix =
-                      projections.get(parts.prefix) ?? parts.prefix;
-                    return {
-                      ...f,
-                      statement: `${projectedPrefix}: ${parts.answer}`,
-                    };
-                  }
-                }
-                return f;
-              });
-            }
           }
 
           return {

@@ -65,14 +65,21 @@ export function useRuleAuditCatalogQuery(id: string) {
       let first: Awaited<ReturnType<typeof loadPage>> | null = null;
       const rules: Awaited<ReturnType<typeof loadPage>>["rules"] = [];
       const seen = new Set<number>();
+      const ruleIds = new Set<string>();
       while (true) {
         if (seen.has(offset)) throw new Error("Rule catalog cursor repeated");
         seen.add(offset);
         const page = await loadPage(id, offset);
         first ??= page;
+        if (page.ruleSetVersionId !== first.ruleSetVersionId || page.ruleSetDigest !== first.ruleSetDigest || page.repositorySnapshotId !== first.repositorySnapshotId || page.repositoryCommit !== first.repositoryCommit || page.auditRevision !== first.auditRevision || JSON.stringify(page.groups) !== JSON.stringify(first.groups)) throw new Error("Rule catalog snapshot changed");
+        for (const rule of page.rules) {
+          if (ruleIds.has(rule.assessmentRuleId)) throw new Error("Duplicate rule membership");
+          ruleIds.add(rule.assessmentRuleId);
+        }
         rules.push(...page.rules);
         if (page.nextOffset === null) {
           if (rules.length !== page.total) throw new Error("Rule catalog incomplete");
+          for (const group of page.groups) if (group.count !== group.ruleIds.length || new Set(group.ruleIds).size !== group.ruleIds.length || group.ruleIds.some((id) => !ruleIds.has(id))) throw new Error("Group catalog incomplete");
           return ruleAuditCatalogSchema.parse({ ...first, rules, nextOffset: null });
         }
         offset = page.nextOffset;

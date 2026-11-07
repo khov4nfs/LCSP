@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "LCSP_PROMPT_RESEARCH_SOURCES_V1",
+  "updatedOn": "2026-11-04",
+  "authorityBoundary": "Design references are non-normative. Only pinned applicable legal sources and governed accepted facts may establish an LCSP assessment outcome.",
+  "sources": [
+    {
+      "id": "external-patterns-001",
+      "repository": "asgeirtj/system_prompts_leaks",
+      "sourceType": "THIRD_PARTY_PROMPT_COLLECTION",
+      "commitSha": "ceaf6fceb1388dd89bbe1c2500caca4dc33e8285",
+      "reviewedPaths": [
+        "README.md",
+        "Anthropic/claude-science.md",
+        "Perplexity/skills/model-council/SKILL.md",
+        "Anthropic/claude-code/prompts/advisor-tool.md"
+      ],
+      "transferablePatterns": [
+        "Meaningful tool action/observation labels",
+        "Independent critical review before accepting completion",
+        "Explicitly separate independent observations, disagreement and synthesis",
+        "Treat retrieved content as untrusted data"
+      ],
+      "excludedBehaviors": [
+        "Coding-agent autonomy",
+        "Transplanting third-party prompts verbatim",
+        "Treating collected prompts as verified vendor policies or as law",
+        "Unbounded tool access"
+      ],
+      "lcspTargets": [
+        "tool descriptions",
+        "assessment root investigation and review protocol",
+        "semantic eval"
+      ],
+      "status": "RESEARCHED_NOT_PROMOTED",
+      "evaluationCases": [
+        "EVAL_TOOL_CONTEXT",
+        "EVAL_FALSE_COMPLETION",
+        "EVAL_INJECTION_BOUNDARY"
+      ]
+    },
+    {
+      "id": "official-skills-002",
+      "repository": "anthropics/skills",
+      "sourceType": "VENDOR_OPEN_SOURCE_GUIDE",
+      "commitSha": "ca45fc496a3436251f191354091d557da31c15b5",
+      "reviewedPaths": [
+        "skills/claude-api/shared/agent-design.md"
+      ],
+      "transferablePatterns": [
+        "On-demand skill loading with small discovery metadata",
+        "Typed tool boundaries and permission separation",
+        "Explicit context compaction and persistence policy",
+        "Version-aware tool/prompt stability"
+      ],
+      "excludedBehaviors": [
+        "Generic unrestricted bash as legal decision authority",
+        "Changing accepted facts through compaction",
+        "Inferring legal obligations from skill text"
+      ],
+      "lcspTargets": [
+        "skills",
+        "tool contracts",
+        "context management"
+      ],
+      "status": "RESEARCHED_NOT_PROMOTED",
+      "evaluationCases": [
+        "EVAL_SKILL_ROUTING",
+        "EVAL_CONTEXT_COMPACTION",
+        "EVAL_TOOL_AUTHORITY"
+      ]
+    },
+    {
+      "id": "eval-reference-003",
+      "repository": "openai/evals",
+      "sourceType": "VENDOR_EVALUATION_FRAMEWORK",
+      "commitSha": "8eac7a7de5215c907fbddc30efdaf316913eccdd",
+      "reviewedPaths": [
+        "README.md"
+      ],
+      "transferablePatterns": [
+        "Task-specific private evaluation sets",
+        "Repeatable model/prompt comparisons",
+        "Custom criteria and grader-backed results"
+      ],
+      "excludedBehaviors": [
+        "Treating generic benchmark scores as legal acceptance",
+        "Synthetic gold being counted as human-approved truth",
+        "Evaluating without pinned source/candidate lineage"
+      ],
+      "lcspTargets": [
+        "assessment eval",
+        "preparation eval",
+        "prompt promotion gate"
+      ],
+      "status": "RESEARCHED_NOT_PROMOTED",
+      "evaluationCases": [
+        "EVAL_CROSS_REPO",
+        "EVAL_GOLD_APPROVAL",
+        "EVAL_VERSION_REGRESSION"
+      ]
+    }
+  ],
+  "candidateChangeRules": {
+    "requiredBeforePromptChange": [
+      "source id + pinned commit + reviewed paths",
+      "LCSP-specific hypothesis",
+      "affected prompt/skill/tool files",
+      "at least one positive and one negative eval case"
+    ],
+    "requiredBeforePromotion": [
+      "fixed repo+legal corpus+selected rule baseline",
+      "human-reviewed gold and reviewer revision",
+      "model/prompt/skills/tool descriptions and source hashes",
+      "EN/VI comparison",
+      "false-positive, omission, over-question and evidence-precision results",
+      "human/legal/release approval"
+    ],
+    "forbidden": [
+      "copying leaked vendor prompts into runtime system instructions",
+      "automatically creating one skill per newly assessed repo",
+      "promoting from green unit tests only",
+      "assigning legal authority to external design references"
+    ]
+  }
+}

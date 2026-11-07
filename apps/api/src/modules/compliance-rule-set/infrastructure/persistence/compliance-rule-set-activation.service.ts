@@ -41,6 +41,7 @@ import {
 } from "../../domain/compliance-rule-set-integrity.validator.js";
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
 import { writeSemanticGraph } from "./semantic-graph.persistence.js";
+import { requireApprovedDevelopmentScope } from "./approved-development-scope.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
 
@@ -160,9 +161,10 @@ export class ComplianceRuleSetActivation {
         claimInventoryRevision: number;
         claimPhase: ClaimPreparationPhase;
         executionContract: import("@prisma/client").PreparationExecutionContract;
+        targetActivityScope: import("@prisma/client").PreparationTargetActivityScope;
       }>
     >(
-      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract", "targetActivityScope" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
     );
     if (!preparation) {
       throw problemException(
@@ -218,6 +220,18 @@ export class ComplianceRuleSetActivation {
         },
       );
 
+    // Recompute human-reviewed projection after the run lock: a stale
+    // approval can NEVER publish an incomplete Development catalog.
+    await requireApprovedDevelopmentScope(
+      tx,
+      ctx.runId,
+      preparation.claimInventoryRevision,
+      ctx.legalSource.id,
+      preparation.targetActivityScope,
+      ctx.correlationId,
+      ctx.packet,
+    );
+
     // Cancel and publication serialize on the preparation row; only one can become terminal.
     await acquireComplianceRuleSetActivationLock(tx);
 
@@ -251,6 +265,7 @@ export class ComplianceRuleSetActivation {
         version,
         legalSourceVersionId: ctx.legalSource.id,
         preparationRunId: ctx.runId,
+        targetActivityScope: preparation.targetActivityScope,
         lifecycleState: valid
           ? PrismaArtifactLifecycleState.ACTIVE
           : PrismaArtifactLifecycleState.INVALID,
@@ -263,7 +278,35 @@ export class ComplianceRuleSetActivation {
         activatedAt: valid ? now : null,
       },
     });
-    if (valid) await this.writeChildren(tx, ruleSet.id, ctx);
+    if (valid) {
+      await this.writeChildren(tx, ruleSet.id, ctx);
+      const { enqueueAuthoredDocument } =
+        await import("../../../../platform/localization/authored-localization.service.js");
+      const { AUTHORED_LOCALIZATION_ENTITIES } =
+        await import("@lcsp/contracts/assessment-domain");
+      const requirements = await tx.legalRequirement.findMany({
+        where: { ruleSetVersionId: ruleSet.id },
+      });
+      const rules = await tx.assessmentRule.findMany({
+        where: { ruleSetVersionId: ruleSet.id },
+      });
+      for (const row of requirements)
+        await enqueueAuthoredDocument(tx, {
+          scopeId: ruleSet.id,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+          entityId: row.legalRequirementId,
+          canonicalRevision: row.contentDigest,
+          document: row,
+        });
+      for (const row of rules)
+        await enqueueAuthoredDocument(tx, {
+          scopeId: ruleSet.id,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.ASSESSMENT_RULE,
+          entityId: row.assessmentRuleId,
+          canonicalRevision: row.contentDigest,
+          document: row,
+        });
+    }
 
     await tx.ruleSetPreparationRun.update({
       where: { id: ctx.runId },

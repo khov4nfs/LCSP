@@ -60,6 +60,7 @@ export function RuleAuditOption({
                   }
                 />
                 <div className="min-w-0 flex-1">
+                  {rule.membership ? <p className="mb-1 text-xs text-muted-foreground">{copy("ruleAudit.actorStage", { actor: rule.membership.actor, stage: copy("ruleAudit.developmentStage") })}</p> : null}
                   <div className="flex items-center gap-2">
                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="text-sm font-semibold leading-5">

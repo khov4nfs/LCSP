@@ -452,7 +452,8 @@ def governed_summarization_middleware(model, *, backend, role: str,
     """
     from deepagents.middleware.summarization import create_summarization_middleware
 
-    middleware = create_summarization_middleware(model, backend)
+    from runtime_instruction_bundle import runtime_instruction
+    middleware = create_summarization_middleware(model, backend, summary_prompt=runtime_instruction("framework.injected-policy", "summary_prompt"))
     helper = getattr(middleware, "_lc_helper", None)
     if helper is None or not hasattr(helper, "_summary_model"):
         raise RuntimeError(

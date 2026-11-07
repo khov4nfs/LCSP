@@ -5,6 +5,7 @@ export class GetComplianceRuleSetResultQuery extends Query<ComplianceRuleSetResu
   constructor(
     public readonly ruleSetVersionId: string,
     public readonly correlationId: string,
+    public readonly locale?: string | null,
   ) {
     super();
   }

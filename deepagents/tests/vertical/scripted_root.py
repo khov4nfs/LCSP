@@ -501,7 +501,8 @@ def main() -> int:
 
     assessment_root_runner.agent_graph_config = capture_graph_config
     print("PHASE_START CHECKPOINT_SETUP", flush=True)
-    with PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
+    from approved_bundle_fixture import offline_instruction_bundle
+    with offline_instruction_bundle(), PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
         saver.setup()
         print("PHASE_COMPLETE CHECKPOINT_SETUP", flush=True)
         print("PHASE_START AGENT_RUNTIME_WAIT", flush=True)

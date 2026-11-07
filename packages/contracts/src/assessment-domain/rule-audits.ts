@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ruleDecisionSchema } from "../assessment/agentic-runtime.ts";
+import { ruleCatalogGroupSchema, ruleCatalogMembershipSchema, RULE_CATALOG_REVIEW_STATES } from "./rule-groups.ts";
 
 export const ASSESSMENT_AUDIT_MODES = {
   LEGACY_FULL: "LEGACY_FULL",
@@ -48,6 +49,9 @@ export const submitRuleAuditSchema = z.strictObject({
 export type SubmitRuleAudit = z.infer<typeof submitRuleAuditSchema>;
 
 export const ruleAuditCatalogSchema = z.strictObject({
+  groups: z.array(ruleCatalogGroupSchema).default([]),
+  groupingState: z.enum(RULE_CATALOG_REVIEW_STATES).default(RULE_CATALOG_REVIEW_STATES.REVIEW_REQUIRED),
+  excludedRuleCount: z.number().int().nonnegative().default(0),
   assessmentId: z.string().min(1),
   auditMode: z.enum(ASSESSMENT_AUDIT_MODES),
   auditRevision: z.number().int().nonnegative(),
@@ -62,6 +66,7 @@ export const ruleAuditCatalogSchema = z.strictObject({
   nextOffset: z.number().int().nonnegative().nullable(),
   rules: z.array(
     ruleIdentitySchema.extend({
+      membership: ruleCatalogMembershipSchema.nullable().default(null),
       concept: z.string().min(1),
       summary: z.string().min(1),
       legalRequirements: z.array(

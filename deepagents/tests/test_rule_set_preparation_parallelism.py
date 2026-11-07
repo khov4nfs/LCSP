@@ -113,7 +113,8 @@ class _ParallelPreparationModel(RuleSetPreparationScriptedModel):
     def _generate(self, messages: list[Any], **kwargs: Any) -> ChatResult:
         prompt = list(messages)
         system_prompt = str(getattr(prompt[0], "content", "")) if prompt else ""
-        if "You own exactly one Article assignment" in system_prompt:
+        # Stable role marker: do not couple the scripted model to EN/VI wording.
+        if "CLAIM AUTHOR BOUNDARY:" in system_prompt:
             with self._lock:
                 self._child_prompts.append(prompt)
             self._document_barrier.wait(timeout=5)

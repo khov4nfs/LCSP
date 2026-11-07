@@ -1,0 +1,1 @@
+KHI DÙNG: sau get_assessment_context và khi đổi scope. ĐỌC: chỉ các rule được chọn, phân trang đến nextOffset hết. TIẾP: get_assessment_rule cho một ID hợp lệ. LỖI: thiếu trang không được coi là đủ coverage.

@@ -78,6 +78,7 @@ export class GetComplianceRuleSetResultHandler implements IQueryHandler<GetCompl
     const ruleSet = await this.readModel.load(
       { id: row.id },
       input.correlationId,
+      input.locale,
     );
     return complianceRuleSetResultSchema.parse({
       ruleSet,

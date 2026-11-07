@@ -9,6 +9,8 @@ export class PrepareCurrentRuleSetCommand extends Command<RuleSetPreparationRun>
     public readonly replaceActive = false,
     /** The version the operator selected; the request is refused when it is no longer the active one. */
     public readonly expectedLegalSourceVersionId?: string,
+    public readonly targetActivityScope:
+      "FULL_SOURCE" | "DEVELOPMENT_ONLY" = "FULL_SOURCE",
   ) {
     super();
   }

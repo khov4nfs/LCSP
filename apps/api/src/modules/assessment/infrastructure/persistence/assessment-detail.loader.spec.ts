@@ -1,3 +1,4 @@
+import { authoredLocalizationFixture } from "../../../../../test/support/authored-localization.fixture.js";
 import { expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
@@ -41,10 +42,15 @@ function fixture() {
     assessment: { findUnique: () => Promise.resolve(row) },
     llmUsageEvent: { aggregate },
   };
-  const loader = new AssessmentDetailLoader({
-    $transaction: (work: (tx: unknown) => unknown) => Promise.resolve(work(tx)),
-  } as unknown as PrismaService);
-  return { loader, row, aggregate };
+  const localization = authoredLocalizationFixture();
+  const loader = new AssessmentDetailLoader(
+    {
+      $transaction: (work: (tx: unknown) => unknown) =>
+        Promise.resolve(work(tx)),
+    } as unknown as PrismaService,
+    localization.projection,
+  );
+  return { loader, row, aggregate, localization };
 }
 it("returns all invocation totals without depending on bounded event history", async () => {
   const { loader, aggregate } = fixture();
@@ -81,7 +87,7 @@ it("does not read usage for a foreign assessment", async () => {
 });
 
 it("projects decision customer-visible rationales to VI while preserving technical invariants", async () => {
-  const { loader, row } = fixture();
+  const { loader, row, localization } = fixture();
   const decisionData = {
     assessmentRuleId: "RULE-SEC-01",
     assessmentRuleVersion: "v1",
@@ -282,45 +288,21 @@ it("projects decision customer-visible rationales to VI while preserving technic
     artifacts: [],
   } as never;
 
-  const originalFetch = globalThis.fetch;
-  const requestedTexts: string[] = [];
-  globalThis.fetch = jest
-    .fn()
-    .mockImplementation((_url: string, init?: RequestInit) => {
-      if (init?.body) {
-        try {
-          const parsed = JSON.parse(init.body as string) as {
-            texts?: string[];
-          };
-          if (Array.isArray(parsed.texts)) {
-            requestedTexts.push(...parsed.texts);
-          }
-        } catch {
-          // ignore parse error in test spy
-        }
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            projected: {
-              "All access controls are properly implemented in the service.":
-                "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
-              "Token authentication satisfies requirement.":
-                "Xác thực mã thông báo đáp ứng yêu cầu.",
-              "Data retention policy is enforced across all customer records.":
-                "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
-              "Deployment region: whether production is EU-hosted":
-                "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không",
-            },
-          }),
-      } as Response);
-    }) as typeof fetch;
+  const { requestedTexts } = localization;
+  const translations = {
+    "All access controls are properly implemented in the service.":
+      "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
+    "Token authentication satisfies requirement.":
+      "Xác thực mã thông báo đáp ứng yêu cầu.",
+    "Data retention policy is enforced across all customer records.":
+      "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
+    "Deployment region: whether production is EU-hosted":
+      "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không",
+  };
+  for (const [text, vi] of Object.entries(translations))
+    localization.seed(text, vi);
 
-  process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
-  process.env.WORKER_API_KEY = "test-worker-key";
-
-  try {
+  {
     // 1. Read with VI locale
     const resultVi = await loader.load({ ...input, locale: "vi" });
     const decisionVi = resultVi.case?.decisions[0]?.decision;
@@ -336,10 +318,10 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(decisionVi?.criteria[0]?.criterionId).toBe("CRIT-AUTH-01");
     expect(decisionVi?.criteria[0]?.outcome).toBe("MET");
 
-    // Case fact statement: agent-authored EVIDENCE_CITED is projected to VI
+    // Accepted facts preserve their canonical statements in both presentation locales
     const factVi = resultVi.case?.facts[0];
     expect(factVi?.statement).toBe(
-      "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
+      "Data retention policy is enforced across all customer records.",
     );
     // Fact technical invariants preserved
     expect(factVi?.factId).toBe("77777777-7777-4777-8777-777777777777");
@@ -354,7 +336,7 @@ it("projects decision customer-visible rationales to VI while preserving technic
     // all generated text re-projects while exact customer answer remains byte-for-byte unchanged
     const humanFactVi = resultVi.case?.facts[1];
     expect(humanFactVi?.statement).toBe(
-      "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không: Singapore",
+      "Deployment region: whether production is EU-hosted: Singapore",
     );
     expect(humanFactVi?.authority).toBe(
       ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
@@ -401,7 +383,7 @@ it("projects decision customer-visible rationales to VI while preserving technic
     );
 
     // User answer is absent from projection requests; all generated text was requested
-    expect(requestedTexts).toContain(
+    expect(requestedTexts).not.toContain(
       "Deployment region: whether production is EU-hosted",
     );
     expect(requestedTexts).not.toContain("Singapore");
@@ -477,11 +459,11 @@ it("projects decision customer-visible rationales to VI while preserving technic
     const resultVi2 = await loader.load({ ...input, locale: "vi" });
     const factVi2 = resultVi2.case?.facts[0];
     expect(factVi2?.statement).toBe(
-      "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
+      "Data retention policy is enforced across all customer records.",
     );
     const humanFactVi2 = resultVi2.case?.facts[1];
     expect(humanFactVi2?.statement).toBe(
-      "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không: Singapore",
+      "Deployment region: whether production is EU-hosted: Singapore",
     );
     const legacyFactVi2 = resultVi2.case?.facts[2];
     expect(legacyFactVi2?.statement).toBe(
@@ -523,9 +505,5 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(storedFacts[4]?.statement).toBe("Disaster recovery location: Tokyo");
     expect(storedFacts[5]?.statement).toBe("Backup retention period: 30 days");
     expect(storedFacts[6]?.statement).toBe("Encryption at rest: AES-256");
-  } finally {
-    globalThis.fetch = originalFetch;
-    delete process.env.LCSP_AGENT_SERVER_URL;
-    delete process.env.WORKER_API_KEY;
   }
 });

@@ -1,0 +1,1 @@
+KHI DÙNG: lần gọi đầu tiên, resume, hoặc sau khi case thay đổi. ĐỌC: pin từ server, các rule được chọn, fact đã chấp nhận, blocker và revision. TIẾP: nạp lại rule trước khi kết luận. LỖI: thiếu/stale context phải dừng, không lấy checkpoint memory thay API.

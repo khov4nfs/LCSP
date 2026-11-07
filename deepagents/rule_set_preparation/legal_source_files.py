@@ -82,7 +82,7 @@ def materialize_legal_source(bundle, root: Path):
         target.parent.mkdir(parents=True, exist_ok=True)
         if not source.is_reference_only(node["nodeId"]):
             (root / "work/claims" / Path(virtual).relative_to(LEGAL_SOURCE_ROOT)).parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        target.write_text(content, encoding="utf-8", newline="\n")
         paths.append(virtual)
         hashes.append(f"| {virtual} | {hashlib.sha256(content.encode()).hexdigest()} |")
         document_rows.setdefault(node["documentId"], []).append(f"- {source.file_articles[virtual]}: {virtual}")
@@ -91,13 +91,13 @@ def materialize_legal_source(bundle, root: Path):
         virtual = f"/legal-source/{safe_component(document)}/INDEX.md"
         target = root / virtual.lstrip("/")
         role = "REFERENCE_ONLY (no claim file)" if document in source.reference_only_document_ids else "OPERATIVE"
-        target.write_text("\n".join([f"# {document}", f"role: {role}", *rows, ""]), encoding="utf-8")
+        target.write_text("\n".join([f"# {document}", f"role: {role}", *rows, ""]), encoding="utf-8", newline="\n")
         role = "REFERENCE_ONLY (no claim file)" if document in source.reference_only_document_ids else "OPERATIVE"
         index.append(f"- {document}: {virtual} — role: {role}")
         hashes.append(f"| {virtual} | {hashlib.sha256(target.read_bytes()).hexdigest()} |")
         paths.append(virtual)
     index += ["", "## Immutable file hashes", "| file | sha256 |", "|---|---|", *hashes, ""]
-    (root / "legal-source/INDEX.md").write_text("\n".join(index), encoding="utf-8")
+    (root / "legal-source/INDEX.md").write_text("\n".join(index), encoding="utf-8", newline="\n")
     return [INDEX_PATH, *paths]
 
 

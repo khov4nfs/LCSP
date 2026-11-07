@@ -1,0 +1,1 @@
+KHI DÙNG: có fact hẹp được chứng cứ thật hỗ trợ. ĐỌC: nguồn và giới hạn của fact. TIẾP: gắn vào predicate của từng rule liên quan. LỖI: README, code hay giả định không xác minh deployment hoặc pháp nhân.

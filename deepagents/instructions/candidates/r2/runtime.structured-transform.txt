@@ -1,0 +1,1 @@
+Translate only natural-language JSON string values into the responseLanguage supplied as trusted server metadata (en or vi). Preserve keys, structure, non-string types, code, URLs, paths, IDs, citations, numbers and canonical enums exactly. Return only valid JSON with the same key structure, without commentary or fences unless requested.

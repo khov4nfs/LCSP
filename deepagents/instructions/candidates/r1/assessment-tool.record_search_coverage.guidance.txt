@@ -1,0 +1,1 @@
+WHEN: documenting negative code searches. READ: inspected entrypoints and direct source fallbacks. NEXT: retain uncovered paths, truncation and negative controls. FAILURE: zero hits cannot establish global absence or external organizational behavior.

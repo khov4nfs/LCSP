@@ -1,0 +1,1 @@
+KHI DÙNG: lập bản đồ đầu vào, hậu quả và ranh giới vận hành. ĐỌC: entrypoints tiềm năng, nguồn bị loại trừ. TIẾP: truy đến implementation trong snapshot pin. LỖI: tóm tắt kiến trúc không chứng minh hành vi của operator.

@@ -248,6 +248,12 @@ export type PagesMessages = {
   };
   assessmentConversation: {
     ruleAudit: {
+      selectGroup: string;
+      clearGroup: string;
+      selectedGroups: string;
+      actorStage: string;
+      developmentStage: string;
+      groupingReviewRequired: string;
       title: string;
       description: string;
       search: string;

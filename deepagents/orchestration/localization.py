@@ -7,6 +7,8 @@ transform model.
 
 from __future__ import annotations
 
+from runtime_instruction_bundle import runtime_instruction
+
 import asyncio
 from collections import Counter
 import copy
@@ -93,16 +95,20 @@ def load_localization_config() -> ResponseLocalizationConfig:
 
 
 def get_language_prompt_instruction(locale: str) -> str:
-    """Generate dynamic system prompt instruction for the main agent."""
-    normalized_locale = str(locale).strip().lower() if locale else DEFAULT_RESPONSE_LANGUAGE
-    definition = SUPPORTED_LOCALES.get(normalized_locale) or SUPPORTED_LOCALES.get(DEFAULT_RESPONSE_LANGUAGE, SUPPORTED_LOCALES["en"])
-    return (
-        f"Final Response Language Directive:\n"
-        f"- {definition.instruction}\n"
-        f"- Keep all technical identifiers, file paths, URLs, citations/references, code blocks/inline code, "
-        f"API field names, Jira/GitHub identifiers, and enum/constant values in their canonical format.\n"
-        f"- Do NOT translate internal machine identifiers, tool names, or structured JSON keys."
-    )
+    """Business purpose: Resolve the approved presentation policy for the primary model.
+
+    Business rules:
+    - Customer locale must not select system instruction language.
+    Execution flow:
+    1. Return the runtime response-language entry from the verified English bundle.
+    Failure cases:
+    - Unavailable or unapproved instruction assets reject construction.
+    Side effects:
+    - Read approved instruction assets only.
+    """
+    if str(locale).strip().lower() not in SUPPORTED_RESPONSE_LANGUAGES:
+        raise ValueError("unsupported response language")
+    return runtime_instruction("runtime.response-language")
 
 
 TRANSFORM_SYSTEM_PROMPT_TEMPLATE = """You are a specialized output localization and normalization engine for the LCSP compliance platform.
@@ -297,10 +303,16 @@ def transform_response_text(
     model: Any | None = None,
     config: ResponseLocalizationConfig | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Transform user-visible text into the target locale using a lightweight model with fail-closed invariant validation.
+    """Business purpose: Localize final customer prose while preserving technical invariants.
 
-    Returns:
-        (result_text, telemetry_dict)
+    Business rules:
+    - Tool calls and canonical identifiers are protected; transformation uses approved instructions and bounded model configuration.
+    Execution flow:
+    1. Resolve the selected presentation language, invoke the transform model and validate invariant preservation.
+    Failure cases:
+    - Unavailable, timed-out or invalid transforms retain original response data with explicit fallback telemetry; instruction approval errors remain failures.
+    Side effects:
+    - May perform a metered transform call and emit localization telemetry.
     """
     if config is None:
         config = load_localization_config()
@@ -345,12 +357,10 @@ def transform_response_text(
     telemetry["model"] = str(model_name)
 
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = TRANSFORM_SYSTEM_PROMPT_TEMPLATE.format(
-        target_language=definition.name,
-        target_locale=definition.code,
-    )
+    system_prompt = runtime_instruction("runtime.response-transform")
     messages = [
         SystemMessage(content=system_prompt),
+        HumanMessage(content=json.dumps({"responseLanguage": definition.code}, sort_keys=True)),
         HumanMessage(content=text),
     ]
 
@@ -438,7 +448,17 @@ async def atransform_response_text(
     model: Any | None = None,
     config: ResponseLocalizationConfig | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Asynchronous version of transform_response_text with timeout and invariant validation."""
+    """Business purpose: Localize final prose asynchronously through the approved transform contract.
+
+    Business rules:
+    - Preserve the same technical invariants and output-language authority as synchronous transformation.
+    Execution flow:
+    1. Resolve approved guidance, await the bounded transform and validate its output.
+    Failure cases:
+    - Provider timeout or invalid output records explicit fallback; bundle errors do not select legacy instructions.
+    Side effects:
+    - May invoke a transform model asynchronously and emit telemetry.
+    """
     if config is None:
         config = load_localization_config()
 
@@ -477,12 +497,10 @@ async def atransform_response_text(
     telemetry["model"] = str(model_name)
 
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = TRANSFORM_SYSTEM_PROMPT_TEMPLATE.format(
-        target_language=definition.name,
-        target_locale=definition.code,
-    )
+    system_prompt = runtime_instruction("runtime.response-transform")
     messages = [
         SystemMessage(content=system_prompt),
+        HumanMessage(content=json.dumps({"responseLanguage": definition.code}, sort_keys=True)),
         HumanMessage(content=text),
     ]
 
@@ -646,10 +664,16 @@ def transform_structured_response(
     model: Any | None = None,
     config: ResponseLocalizationConfig | None = None,
 ) -> tuple[Any, dict[str, Any]]:
-    """Transform user-facing string fields of a structured response in at most ONE model invocation.
+    """Business purpose: Localize authored JSON values without changing schema identities.
 
-    Recursively traverses nested objects and lists while preserving keys, non-string types,
-    and technical invariants.
+    Business rules:
+    - JSON keys, enums, numeric values and canonical technical content are invariant.
+    Execution flow:
+    1. Serialize the structured payload, invoke the approved transform and validate its shape and protected values.
+    Failure cases:
+    - Invalid JSON, invariant drift or transform failure retains original data with explicit telemetry.
+    Side effects:
+    - May perform a transform inference; does not persist canonical records.
     """
     if config is None:
         config = load_localization_config()
@@ -703,13 +727,11 @@ def transform_structured_response(
 
     # Multi-field schema-aware single transform (1 model invocation for all fields)
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = STRUCTURED_SYSTEM_PROMPT_TEMPLATE.format(
-        target_language=definition.name,
-        target_locale=definition.code,
-    )
+    system_prompt = runtime_instruction("runtime.structured-transform")
     json_payload = json.dumps(skeleton, ensure_ascii=False)
     messages = [
         SystemMessage(content=system_prompt),
+        HumanMessage(content=json.dumps({"responseLanguage": definition.code}, sort_keys=True)),
         HumanMessage(content=json_payload),
     ]
 
@@ -783,10 +805,16 @@ async def atransform_structured_response(
     model: Any | None = None,
     config: ResponseLocalizationConfig | None = None,
 ) -> tuple[Any, dict[str, Any]]:
-    """Asynchronously transform user-facing string fields of a structured response in at most ONE model invocation.
+    """Business purpose: Localize structured output asynchronously while preserving its contract.
 
-    Recursively traverses nested objects and lists while preserving schema, non-string fields,
-    and technical invariants without blocking the event loop.
+    Business rules:
+    - The approved English instruction graph governs transformation; schema and technical values remain authoritative.
+    Execution flow:
+    1. Serialize input, await transformation and validate the returned JSON structure.
+    Failure cases:
+    - Timeouts, invalid JSON or protected-value drift produce explicit fallback telemetry.
+    Side effects:
+    - May perform asynchronous transform inference without changing canonical data.
     """
     if config is None:
         config = load_localization_config()
@@ -840,13 +868,11 @@ async def atransform_structured_response(
 
     # Multi-field schema-aware single transform (1 async model invocation for all fields)
     bound_model = _bind_model_limits(active_model, config)
-    system_prompt = STRUCTURED_SYSTEM_PROMPT_TEMPLATE.format(
-        target_language=definition.name,
-        target_locale=definition.code,
-    )
+    system_prompt = runtime_instruction("runtime.structured-transform")
     json_payload = json.dumps(skeleton, ensure_ascii=False)
     messages = [
         SystemMessage(content=system_prompt),
+        HumanMessage(content=json.dumps({"responseLanguage": definition.code}, sort_keys=True)),
         HumanMessage(content=json_payload),
     ]
 

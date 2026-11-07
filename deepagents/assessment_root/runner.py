@@ -14,6 +14,9 @@ from langchain_core.messages import AIMessage
 from langgraph.types import Command
 
 from assessment_root.agent import create_assessment_root_agent
+from evals.run_manifest import save_runtime_manifest, settle_runtime_manifest
+from pathlib import Path
+import os
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.tools import RootRun, SearchTrace
 from assessment_root.runtime_control import RootRuntimeControl
@@ -405,7 +408,8 @@ def run_assessment_root(
             response_language=response_language,
         )
         with activation or contextlib.nullcontext(), _root_telemetry(claim):
-            packet: Any = {"messages": [{"role": "user", "content": _START_MESSAGE}]}
+            from runtime_instruction_bundle import runtime_instruction
+            packet: Any = {"messages": [{"role": "user", "content": runtime_instruction("assessment-root.resume")}]}
             if checkpointer is not None:
                 saved = agent.get_state(graph_config)
                 expected = claim.get("resumeCheckpointId")
@@ -567,7 +571,18 @@ def run_assessment_root(
         client.finish(final_state, checkpoint_id=checkpoint_id)
     else:
         client.finish(final_state)
+    # The exact resolved prompt/tool configuration is available for every run.
+    # Eval receipts are opt-in, immutable and never inferred from checkpoint memory.
+    manifest = None
+    if run is not None and run.prompt_manifest is not None:
+        manifest = settle_runtime_manifest(
+            run.prompt_manifest, selected_skill_hashes=run.used_skill_hashes,
+        )
+        receipt_dir = os.environ.get("LCSP_EVAL_MANIFEST_DIR")
+        if receipt_dir:
+            save_runtime_manifest(Path(receipt_dir) / f"{run.execution_id}.json", manifest)
     return {
+        "promptManifestSha256": manifest["manifestSha256"] if manifest else None,
         "state": final_state,
         "executionId": claim["executionId"],
         "threadId": claim["threadId"],

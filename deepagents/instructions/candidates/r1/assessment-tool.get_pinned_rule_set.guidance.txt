@@ -1,0 +1,1 @@
+WHEN: After get_assessment_context and on scope revision. READ: only authorized selected rules, page via nextOffset. NEXT: get_assessment_rule for one selected ID. FAILURE: missing pages cannot be silently treated as complete coverage.

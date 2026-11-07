@@ -1,0 +1,308 @@
+{
+  "schemaVersion": "LCSP_SYNTHETIC_MUTATION_BANK_V1",
+  "approvalStatus": "SYNTHETIC_NOT_REVIEWED",
+  "note": "Invented bilingual clauses, provider-free oracle sensitivity only. NOT human-approved legal gold; NOT model quality evidence.",
+  "cases": [
+    {
+      "id": "split-actor",
+      "sourceEn": "Builder must implement access logs; operator must notify authority if requested.",
+      "sourceVi": "Bên xây dựng phải tạo nhật ký truy cập; bên vận hành phải thông báo theo yêu cầu.",
+      "develop": {
+        "actor": "Builder",
+        "action": "implement access logs",
+        "claimType": "DUTY",
+        "frame": {
+          "object": "access logs"
+        }
+      },
+      "other": {
+        "actor": "Operator",
+        "action": "notify authority",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "notify authority"
+        }
+      },
+      "context": {
+        "claimType": "CONDITION",
+        "kind": "CONDITION_OF",
+        "frame": {
+          "trigger": "after a request"
+        }
+      },
+      "locator": "synthetic::art-1"
+    },
+    {
+      "id": "mixed-duty",
+      "sourceEn": "Designer must implement override control; controller must provide external remedy.",
+      "sourceVi": "Bên thiết kế phải tích hợp quyền can thiệp; bên quản lý phải cung cấp khắc phục ngoài hệ thống.",
+      "develop": {
+        "actor": "Designer",
+        "action": "implement override control",
+        "claimType": "DUTY",
+        "frame": {
+          "repositoryObservableAspect": "override control",
+          "externalFulfillmentAspect": "human review"
+        }
+      },
+      "other": {
+        "actor": "Controller",
+        "action": "provide external remedy",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "provide external remedy"
+        }
+      },
+      "context": {
+        "claimType": "QUALIFIER",
+        "kind": "QUALIFIES",
+        "frame": {
+          "scope": "for consequential decisions"
+        }
+      },
+      "locator": "synthetic::art-2"
+    },
+    {
+      "id": "prohibition",
+      "sourceEn": "Author must not remove the safety gate; operator must report a breach.",
+      "sourceVi": "Tác giả không được xóa chốt an toàn; bên vận hành phải báo cáo vi phạm.",
+      "develop": {
+        "actor": "Software author",
+        "action": "remove safety gate",
+        "claimType": "PROHIBITION",
+        "frame": {
+          "object": "safety gate"
+        }
+      },
+      "other": {
+        "actor": "Operator",
+        "action": "report breach",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "report breach"
+        }
+      },
+      "context": {
+        "claimType": "EXCEPTION",
+        "kind": "EXCEPTION_TO",
+        "frame": {
+          "exception": "emergency restoration only"
+        }
+      },
+      "locator": "synthetic::art-3"
+    },
+    {
+      "id": "permission",
+      "sourceEn": "Engineer must keep records; public agency may request certified copies.",
+      "sourceVi": "Kỹ sư phải lưu hồ sơ; cơ quan có thể yêu cầu bản sao chứng thực.",
+      "develop": {
+        "actor": "Engineer",
+        "action": "keep records",
+        "claimType": "DUTY",
+        "frame": {
+          "object": "records"
+        }
+      },
+      "other": {
+        "actor": "Public agency",
+        "action": "request certified copies",
+        "claimType": "PERMISSION",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "request certified copies"
+        }
+      },
+      "context": {
+        "claimType": "DEFINITION",
+        "kind": "DEFINED_BY",
+        "frame": {
+          "meaning": "record means signed event log"
+        }
+      },
+      "locator": "synthetic::art-4"
+    },
+    {
+      "id": "temporal",
+      "sourceEn": "Developer must check changes before launch; operator files a later statement.",
+      "sourceVi": "Bên phát triển phải kiểm tra thay đổi trước phát hành; bên vận hành nộp báo cáo sau đó.",
+      "develop": {
+        "actor": "Developer",
+        "action": "check changes",
+        "claimType": "DUTY",
+        "frame": {
+          "temporalApplicability": "before launch"
+        }
+      },
+      "other": {
+        "actor": "Operator",
+        "action": "file statement",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "file statement"
+        }
+      },
+      "context": {
+        "claimType": "TEMPORAL_RULE",
+        "kind": "TEMPORALLY_APPLIES_TO",
+        "frame": {
+          "effectiveFrom": "2027-01-01"
+        }
+      },
+      "locator": "synthetic::art-5"
+    },
+    {
+      "id": "contractor",
+      "sourceEn": "Integrator must verify model inputs; purchaser must certify its policies.",
+      "sourceVi": "Bên tích hợp phải xác minh đầu vào; bên mua phải chứng nhận chính sách.",
+      "develop": {
+        "actor": "Integrator",
+        "action": "verify model inputs",
+        "claimType": "DUTY",
+        "frame": {
+          "object": "input verification"
+        }
+      },
+      "other": {
+        "actor": "Purchaser",
+        "action": "certify policies",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "certify policies"
+        }
+      },
+      "context": {
+        "claimType": "SCOPE",
+        "kind": "CONDITION_OF",
+        "frame": {
+          "actorScope": "accredited integrators"
+        }
+      },
+      "locator": "synthetic::art-6"
+    },
+    {
+      "id": "unresolved",
+      "sourceEn": "Contractor must implement an audit trail; registration actor remains disputed.",
+      "sourceVi": "Nhà thầu phải tạo vết kiểm toán; chủ thể đăng ký vẫn chưa xác minh.",
+      "develop": {
+        "actor": "Contractor",
+        "action": "implement audit trail",
+        "claimType": "DUTY",
+        "frame": {
+          "object": "audit trail"
+        }
+      },
+      "other": {
+        "actor": "Unidentified registrant",
+        "action": "complete registration",
+        "claimType": "DUTY",
+        "stage": "LEGAL_REVIEW_REQUIRED",
+        "frame": {
+          "object": "complete registration"
+        }
+      },
+      "context": {
+        "claimType": "CONDITION",
+        "kind": "CONDITION_OF",
+        "frame": {
+          "trigger": "on ownership transfer"
+        }
+      },
+      "locator": "synthetic::art-7"
+    },
+    {
+      "id": "physical",
+      "sourceEn": "Manufacturer must label interface; carrier must affix physical notices.",
+      "sourceVi": "Nhà sản xuất phải dán nhãn giao diện; bên vận chuyển gắn thông báo vật lý.",
+      "develop": {
+        "actor": "Manufacturer",
+        "action": "label interface",
+        "claimType": "DUTY",
+        "frame": {
+          "repositoryObservableAspect": "interface label"
+        }
+      },
+      "other": {
+        "actor": "Carrier",
+        "action": "affix notices",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "affix notices"
+        }
+      },
+      "context": {
+        "claimType": "QUALIFIER",
+        "kind": "QUALIFIES",
+        "frame": {
+          "scope": "for data export"
+        }
+      },
+      "locator": "synthetic::art-8"
+    },
+    {
+      "id": "crossref",
+      "sourceEn": "Model preparer must document limits defined in annex; client must archive contracts.",
+      "sourceVi": "Bên chuẩn bị mô hình ghi giới hạn tại phụ lục; khách hàng lưu hợp đồng.",
+      "develop": {
+        "actor": "Model preparer",
+        "action": "document input limits",
+        "claimType": "DUTY",
+        "frame": {
+          "object": "input limits"
+        }
+      },
+      "other": {
+        "actor": "Client",
+        "action": "archive contracts",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "archive contracts"
+        }
+      },
+      "context": {
+        "claimType": "DEFINITION",
+        "kind": "DEFINED_BY",
+        "frame": {
+          "meaning": "annex defines limits"
+        }
+      },
+      "locator": "synthetic::art-9"
+    },
+    {
+      "id": "exception",
+      "sourceEn": "Developer must implement control except during an incident; admin must notify users.",
+      "sourceVi": "Bên phát triển áp dụng biện pháp trừ lúc sự cố; quản trị phải thông báo người dùng.",
+      "develop": {
+        "actor": "Developer",
+        "action": "implement control",
+        "claimType": "DUTY",
+        "frame": {
+          "object": "security control"
+        }
+      },
+      "other": {
+        "actor": "Admin",
+        "action": "notify users",
+        "claimType": "DUTY",
+        "stage": "NON_DEVELOPMENT",
+        "frame": {
+          "object": "notify users"
+        }
+      },
+      "context": {
+        "claimType": "EXCEPTION",
+        "kind": "EXCEPTION_TO",
+        "frame": {
+          "exception": "documented incident only"
+        }
+      },
+      "locator": "synthetic::art-10"
+    }
+  ]
+}

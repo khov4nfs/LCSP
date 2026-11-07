@@ -223,6 +223,12 @@ export const enPages = {
   },
   assessmentConversation: {
     ruleAudit: {
+      selectGroup: "Select group: {name}",
+      clearGroup: "Clear group: {name}",
+      selectedGroups: "Groups selected: {count}/{total}",
+      actorStage: "Actor: {actor} · Stage: {stage}",
+      developmentStage: "Development",
+      groupingReviewRequired: "Rule grouping is awaiting independent review. These rules cannot be selected yet.",
       title: "Choose rules to audit",
       description:
         "Only the rules you request will be investigated. Unrequested rules have no audit decision.",
