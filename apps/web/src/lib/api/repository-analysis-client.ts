@@ -21,6 +21,11 @@ import { apiValidated, apiRequest } from "./api-request.ts";
 export type StartRepositoryAnalysisInput = {
   connectionId: string;
   branch: string;
+  /**
+   * The current Web product supports full-repository analysis only.
+   * Keep this explicit so a future subtree selector cannot silently widen scope.
+   */
+  sourcePathPrefix: null;
 };
 
 export type AssessmentRepositoryConnection = NonNullable<
@@ -123,6 +128,17 @@ export function startRepositoryAnalysis(
   return request;
 }
 
+/**
+ * Business purpose: Resume or complete the Web repository setup from the server's authoritative checkpoint.
+ * Business rules:
+ * - The current Web product supports full-repository scope only and must never resume a subtree snapshot as full-repo.
+ * Execution flow:
+ * 1. Reload setup state, pin a full-repo snapshot only when none exists, then complete setup from the persisted snapshot.
+ * Failure cases:
+ * - Missing connection, incompatible scope, invalid lifecycle or mismatched persisted identities fail before further mutation.
+ * Side effects:
+ * - May create one full-repository snapshot and complete repository setup through the API; retries reconcile persisted state.
+ */
 async function resumeRepositoryAnalysis(
   assessmentId: string,
   input: StartRepositoryAnalysisInput,
@@ -147,6 +163,7 @@ async function resumeRepositoryAnalysis(
         body: JSON.stringify({
           connection_id: input.connectionId,
           branch: input.branch,
+          source_path_prefix: input.sourcePathPrefix,
         }),
       },
     );
@@ -169,6 +186,11 @@ async function resumeRepositoryAnalysis(
   const snapshot = state.snapshot;
   if (!snapshot)
     throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
+  if (snapshot.sourcePathPrefix !== input.sourcePathPrefix) {
+    // Web currently has no subtree selector. Never resume a scoped snapshot as if it
+    // were a full-repository assessment.
+    throw new Error(GITHUB_INTEGRATION_ERROR_CODES.sourcePathPrefixInvalid);
+  }
   if (state.lifecycle?.state === ASSESSMENT_LIFECYCLE_STATES.PREPARING) {
     const completion = await apiValidated(
       `/api/assessments/${encodeURIComponent(assessmentId)}/repository-setup/complete`,

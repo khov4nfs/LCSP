@@ -4,6 +4,7 @@ Provider-free scripted responses verify the mechanism, not live-model legal judg
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -69,12 +70,72 @@ class OperativeClient(FakeClient):
         return result
 
 
+def _complete_rule_field(tools, overview, rule_id, field):
+    """Read a complete legal field through the same bounded replies available to the model."""
+    assert overview["ok"] is True
+    if not overview.get("detailRequired"):
+        return overview[field]
+    token = overview["detailToken"]
+
+    def read(pointer):
+        offset, parts, observed_kind = 0, [], None
+        while True:
+            raw = tools["get_assessment_rule_detail"].invoke({
+                "assessment_rule_id": rule_id, "detail_token": token,
+                "pointer": pointer, "offset": offset,
+            })
+            assert len(raw.encode("utf-8")) <= 4096
+            reply = json.loads(raw)
+            assert reply["ok"] is True
+            assert reply["assessmentRuleId"] == rule_id
+            assert reply["detailToken"] == token
+            view = reply["detail"]
+            assert view["pointer"] == pointer
+            kind = view["kind"]
+            if kind == "VALUE":
+                assert offset == 0
+                return view["value"]
+            observed_kind = observed_kind or kind
+            assert kind == observed_kind and view["offset"] == offset
+            if kind in {"TEXT_FRAGMENT", "JSON_FRAGMENT"}:
+                assert view["offsetUnit"] == "UNICODE_CODE_POINTS"
+                parts.append(view["text"])
+                consumed = len(view["text"])
+            else:
+                assert kind in {"OBJECT_INDEX", "ARRAY_INDEX"}
+                assert view["offsetUnit"] == "ENTRIES"
+                parts.extend(
+                    (entry["key"] if kind == "OBJECT_INDEX" else entry["index"], read(entry["pointer"]))
+                    for entry in view["entries"]
+                )
+                consumed = len(view["entries"])
+            next_offset = view["nextOffset"]
+            if next_offset is None:
+                if kind in {"TEXT_FRAGMENT", "JSON_FRAGMENT"}:
+                    text = "".join(parts)
+                    assert len(text) == view["totalCharacters"]
+                    assert hashlib.sha256(text.encode("utf-8")).hexdigest() == view["sha256"]
+                    return text if kind == "TEXT_FRAGMENT" else json.loads(text)
+                assert len(parts) == view["totalEntries"]
+                if kind == "OBJECT_INDEX":
+                    assert len({key for key, _ in parts}) == len(parts)
+                    return dict(parts)
+                assert [index for index, _ in parts] == list(range(len(parts)))
+                return [value for _, value in parts]
+            assert consumed > 0 and next_offset == offset + consumed
+            offset = next_offset
+
+    return read("/" + field.replace("~", "~0").replace("/", "~1"))
+
+
 @pytest.mark.parametrize("row", CASES, ids=lambda r: r["assessmentRuleId"])
 def test_unconditional_duties_expose_real_operative_scope_and_allow_native_resolution(tmp_path, row):
     client = OperativeClient(row)
     run = _run(tmp_path, client)
-    output = json.loads(_tools(run)["get_assessment_rule"].invoke({"assessment_rule_id": row["assessmentRuleId"]}))
-    scopes = [e for e in output["applicabilityElements"] if e["kind"] == "OPERATIVE_SCOPE"]
+    tools = _tools(run)
+    output = json.loads(tools["get_assessment_rule"].invoke({"assessment_rule_id": row["assessmentRuleId"]}))
+    elements = _complete_rule_field(tools, output, row["assessmentRuleId"], "applicabilityElements")
+    scopes = [e for e in elements if e["kind"] == "OPERATIVE_SCOPE"]
     assert len(scopes) == len(row["operativePropositions"])
     for index, scope in enumerate(scopes):
         assert scope["index"] == index

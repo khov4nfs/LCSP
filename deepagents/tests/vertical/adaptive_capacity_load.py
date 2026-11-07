@@ -214,10 +214,26 @@ def main():
                 server.should_exit = True
                 server_thread.join(timeout=30)
                 db.close()
-                for queue in [prefix, bridge._retry_queue_name(prefix, 2), bridge._retry_queue_name(prefix, 15), bridge._retry_queue_name(prefix, 4)]:
-                    channel.queue_delete(queue=queue)
-                channel.exchange_delete(exchange=exchange)
-                publisher.close()
+                # Cleanup is best-effort: the broker may close the transport after the
+                # authoritative load assertions have completed. A lost cleanup channel
+                # must not turn a successful capacity scenario into a test failure.
+                if channel.is_open:
+                    try:
+                        for queue in [
+                            prefix,
+                            bridge._retry_queue_name(prefix, 2),
+                            bridge._retry_queue_name(prefix, 15),
+                            bridge._retry_queue_name(prefix, 4),
+                        ]:
+                            channel.queue_delete(queue=queue)
+                        channel.exchange_delete(exchange=exchange)
+                    except (pika.exceptions.AMQPError, OSError):
+                        pass
+                if publisher.is_open:
+                    try:
+                        publisher.close()
+                    except (pika.exceptions.AMQPError, OSError):
+                        pass
 
 
 if __name__ == "__main__": main()

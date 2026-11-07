@@ -3,4 +3,5 @@ export class PinSnapshotRequest {
   branch?: string;
   ref?: string;
   commit_sha?: string;
+  source_path_prefix?: string | null;
 }

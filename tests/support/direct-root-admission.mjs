@@ -25,7 +25,9 @@ export function directRootAdmissionFixture({
   const target = new URL(databaseUrl);
   assert.equal(target.hostname, "127.0.0.1");
   assert.ok(Number(target.port) >= 55432 && Number(target.port) <= 55499);
-  assert.ok(target.pathname.startsWith("/lcsp_"));
+  // The shared stack also owns create-only lcsp360_final_* databases.
+  // Keep both disposable namespaces anchored and reject arbitrary database names.
+  assert.match(target.pathname, /^\/(?:lcsp_[a-z0-9_]+|lcsp360_final_[a-z0-9_]+)$/);
   const identity = {
     hostId: createHash("sha256")
       .update(`provider-free-fixture:${base}`)

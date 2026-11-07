@@ -31,6 +31,7 @@ describe("PrismaRepositorySnapshotRepository", () => {
       branch: "main",
       ref: null,
       commitSha: "a".repeat(40),
+      ...{ sourcePathPrefix: "chatbot" },
       providerMetadata: {
         authorDate: null,
         committerDate: null,
@@ -57,6 +58,7 @@ describe("PrismaRepositorySnapshotRepository", () => {
         id: snapshot.id,
         commitSha: "a".repeat(40),
         providerMetadata: snapshot.providerMetadata,
+        sourcePathPrefix: "chatbot",
       }),
     });
     expect(enqueue.mock.calls[0]?.[0]).toEqual(event);

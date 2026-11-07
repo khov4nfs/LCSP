@@ -8,6 +8,7 @@ correction feedback.
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Any
 from urllib.parse import quote
@@ -65,38 +66,54 @@ class AssessmentRuntimeClient:
 
         Business rules:
         - Use the client's Assessment identity and worker authentication; include its execution lease only when requested.
+        - Retry read-only GET/HEAD failures (HTTP 5xx, 429, timeouts and network errors) up to three attempts with exponential backoff.
+        - Send each mutation once: a lost response can follow a committed lease or domain write, so generic transport retry cannot prove replay safety.
 
         Execution flow:
         1. Send the method, body and query with governed headers and the configured timeout.
-        2. Parse the JSON envelope, raise AssessmentApiError for HTTP/error-envelope or non-object failures, then return data.
+        2. Back off and retry transient read failures within the bounded attempt count; propagate mutation failures for authoritative recovery.
+        3. Parse the JSON envelope, raise AssessmentApiError for non-retryable failures or exhausted retries, then return data.
 
         Failure cases:
-        - Transport/timeouts propagate; invalid response JSON becomes an empty payload, and reported API failures preserve the server-supplied code and dictionary metadata without additional redaction here.
+        - Mutation transport failures propagate immediately; read failures propagate after bounded retries.
+        - Invalid response JSON becomes an empty payload, and reported API failures preserve the server-supplied code and dictionary metadata without additional redaction here.
 
         Side effects:
-        - Performs an HTTP request whose domain effects are determined by the selected endpoint; creates a correlation header.
+        - Performs an HTTP request whose domain effects are determined by the selected endpoint; creates a correlation header on each attempt.
         """
         url = f"{self._base}/internal/assessment-runtime/{self.assessment_id}{path}"
-        response = httpx.request(
-            method,
-            url,
-            json=body,
-            params=params,
-            headers=self._headers(with_lease=with_lease),
-            timeout=self._timeout,
-        )
-        try:
-            payload = response.json()
-        except ValueError:
-            payload = {}
-        if response.status_code >= 400 or not isinstance(payload, dict) or payload.get("ok") is False:
-            problem = payload.get("problem", {}) if isinstance(payload, dict) else {}
-            raise AssessmentApiError(
-                response.status_code,
-                str(problem.get("code") or f"HTTP_{response.status_code}"),
-                problem.get("meta") if isinstance(problem.get("meta"), dict) else {},
-            )
-        return payload.get("data")
+        max_attempts = 3 if method.upper() in {"GET", "HEAD"} else 1
+        for attempt in range(max_attempts):
+            try:
+                response = httpx.request(
+                    method,
+                    url,
+                    json=body,
+                    params=params,
+                    headers=self._headers(with_lease=with_lease),
+                    timeout=self._timeout,
+                )
+                try:
+                    payload = response.json()
+                except ValueError:
+                    payload = {}
+                if response.status_code >= 400 or not isinstance(payload, dict) or payload.get("ok") is False:
+                    problem = payload.get("problem", {}) if isinstance(payload, dict) else {}
+                    err = AssessmentApiError(
+                        response.status_code,
+                        str(problem.get("code") or f"HTTP_{response.status_code}"),
+                        problem.get("meta") if isinstance(problem.get("meta"), dict) else {},
+                    )
+                    if attempt < max_attempts - 1 and err.retryable:
+                        time.sleep(1.0 * (2 ** attempt))
+                        continue
+                    raise err
+                return payload.get("data")
+            except (httpx.TimeoutException, httpx.NetworkError):
+                if attempt < max_attempts - 1:
+                    time.sleep(1.0 * (2 ** attempt))
+                    continue
+                raise
 
     # ---- lifecycle of one Root execution -------------------------------------------------------
 

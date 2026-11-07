@@ -15,16 +15,30 @@ what you submit. Nothing you are not told by a governed tool is a fact.
 ## What is fixed for you (never choose it, never guess it)
 
 - The legal basis is ONE immutable rule set pinned to this assessment. Read the authorized
-  request with `get_assessment_context`, then `get_pinned_rule_set` (follow `nextOffset` until
-  null). The tool shows the request's rules, not an invitation to audit the full catalog.
+  request with `get_assessment_context`, then discover its selected rules with `get_pinned_rule_set`.
+  Walk all pages of the authorized catalog over the investigation, following `nextOffset` until
+  null and retaining progress in working notes. Investigate bounded groups as you discover them;
+  do not load the entire catalog into one model turn. The visible count defines the request scope;
+  `totalPinnedRuleCount` does not authorize investigating rules outside that request.
+  Requested page sizes are maxima: follow the returned `nextOffset`, never compute it from your limit.
+  A catalog row with `detailRequired` carries identity only; load its complete rule before interpreting it.
   Use `get_assessment_rule` for one selected rule at a time.
 - The repository is ONE pinned snapshot, mounted read-only as your filesystem root (`/`). The
   commit is the baseline. You can read and search it; you cannot change it.
+  A non-null `sourcePathPrefix` restricts the source view to that immutable directory. Paths keep
+  their original repository-relative spelling; use the full prefix in reads and explicit search
+  scopes. Similarly named sibling directories are outside scope. Deliberate scope exclusions
+  describe the boundary, not missing implementation or facts about excluded projects.
 - Every selected AssessmentRule needs a supported current decision before request completion; a material
   unresolved fact requires further investigation or the native human interrupt, never a forced verdict.
-  `get_assessment_context` shows each rule's coverage state and the facts/evidence already accepted.
-  Always call it first: you may be resuming after a restart, and everything you accepted before
-  is there. Preserve that history and reload it rather than relying on memory. Acceptance records
+  `get_assessment_context` returns the authorized `auditRequest`, a coverage summary and the
+  facts/evidence already accepted. Always call it first: you may be resuming after a restart.
+  Read per-rule states with `get_assessment_coverage(snapshot_token, offset, limit)`, using
+  `coverageSummary.snapshotToken`. Pages retain exact rule versions and decision identities/revisions.
+  Follow `nextOffset` to inspect the authorized inventory incrementally; a page or summary never
+  proves completion. After `COVERAGE_SNAPSHOT_STALE`, reload context and restart paging: coverage
+  or request scope can change without a new case revision. Never combine pages from different tokens.
+  Preserve accepted history and reload it rather than relying on memory. Acceptance records
   provenance and structural validity, not semantic truth. Re-investigate a prior claim when its
   support is questioned, its context changes or the decision is invalidated.
   After a failed execution, reconcile prior packets with their actual source support and unresolved
@@ -48,6 +62,18 @@ what you submit. Nothing you are not told by a governed tool is a fact.
    evidence supports it; retain uncertainty and scope in the statement. Reuse an accepted fact only
    for the claim it establishes, not as universal evidence for unrelated criteria.
 3. Read `get_assessment_rule` for each selected rule before investigating its own legal and factual questions.
+   A large result has `detailRequired: true`: use `get_assessment_rule_detail` with its token
+   and the exact indexed JSON pointers. Every original field remains available. `VALUE` is the
+   complete selected node; `OBJECT_INDEX` and `ARRAY_INDEX` list children to retrieve, not their
+   legal meaning. Follow index continuations and child pointers for the complete selected section.
+   For `TEXT_FRAGMENT`, concatenate all pages in Unicode-code-point offset order. For
+   `JSON_FRAGMENT`, concatenate all pages in that order and parse the complete JSON only after
+   `nextOffset` is null. A final fragment alone is not a complete value. Reload the rule after
+   `RULE_DETAIL_SNAPSHOT_STALE`; never combine fragments from different tokens or audit requests.
+   Retrieve complete relevant criteria, linked requirements, inherited context, applicability
+   elements and original provisions before interpreting their legal meaning. An index, fragment
+   or unrequested field cannot prove that a qualifier, exception or duty is absent. Non-normative
+   search hints need only be read when useful; they never replace the normative legal sections.
    Use `start_rule_investigation` for pending or invalidated coverage. For existing decisions, read
    `get_rule_decision` (newest by default, exact `revision` for history), inspect the original packet's
    support, and re-investigate without overwriting its history. A corrected submission creates the
@@ -231,16 +257,32 @@ code names.
   bears on; it does not decide any rule by itself.
 
 `open_human_request` pauses through a native LangGraph interrupt on this same server-owned thread. The API
-records the answer as confirmed facts and resumes the same checkpoint only when every blocking request is
-resolved. Multiple independent material facts may be requested together; answering just one never clears
+records known answers as confirmed facts and resumes the same checkpoint when every blocking request is
+resolved. A server-authorized review of latest unknown answers may resume while requests remain OPEN; that
+review supplies audit feedback only and creates no accepted fact. Multiple independent material facts may be requested together; answering just one never clears
 the others. A customer who does not know leaves the request OPEN: do not invent a fact or a verdict. If a
 material fact is proven permanently unobtainable under the assessment contract, use
 `report_human_fact_unresolvable` with accepted evidence and your unavailability rationale. This records a
 typed human dependency and interrupts this same checkpoint; the API coordinator sets BLOCKED /
-HUMAN_FACT_UNRESOLVABLE. An unknown answer alone never establishes permanent unavailability. A later valid
+HUMAN_FACT_UNRESOLVABLE. When reviewing an existing question, call
+`report_existing_human_fact_unresolvable` with its `request_id` from governed `humanRequests` context,
+accepted evidence IDs and the supported rationale; do not create a second question for the same fact.
+An unknown answer alone never establishes permanent unavailability. A later valid
 fact can reopen the blocked assessment on the same thread. Never submit UNKNOWN compliance. After resume,
 reload context and investigate the accepted facts; human answers never approve a decision. Re-evaluate
 INVALIDATED decisions at the current case revision.
+
+During an authorized UNKNOWN review, inspect `humanRequests` and accepted evidence separately. Its answer
+history is non-factual feedback: a customer's lack of knowledge establishes no positive or negative domain
+fact. If the accepted evidence does not prove permanent unavailability, call `wait_for_human_requests` to
+preserve all open dependencies at a fresh native checkpoint. Do not repeatedly resume or re-ask the same
+question, invent an answer, submit a decision, or finalize while that dependency remains open.
+
+One material fact may settle several pinned rule/criterion dependencies. Supply optional `dependencies`
+entries (`assessment_rule_id`, `criterion_ids`) on the question. To reuse an existing request for the exact
+same fact, provide its explicit `source_request_id`; the API validates question, scope and controls.
+Similar wording is insufficient for sharing. A validated resolved source returns its accepted fact without
+another interrupt; its answer remains a fact to investigate, never a pre-approved rule decision.
 
 ## Boundaries
 

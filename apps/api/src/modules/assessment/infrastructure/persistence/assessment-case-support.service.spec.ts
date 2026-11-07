@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_REFERENCE_TYPES,
@@ -7,6 +7,7 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_SCOPE,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_RECORD_STATES,
   ASSESSMENT_EVIDENCE_TYPES,
@@ -25,6 +26,7 @@ describe("AssessmentCaseSupport decision provenance", () => {
       repositorySnapshotId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       repositoryScanJobId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
       repositoryCommit: "a".repeat(40),
+      sourcePathPrefix: null,
     };
     const decision = ruleDecisionSchema.parse({
       caseRevision: pins.caseRevision,
@@ -125,4 +127,84 @@ describe("AssessmentCaseSupport decision provenance", () => {
       operativeScopes: 1,
     });
   });
+});
+
+describe("AssessmentCaseSupport immutable source pins", () => {
+  const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const row = {
+    assessmentId,
+    caseRevision: 3,
+    ruleSetVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    repositorySnapshotId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    repositoryScanJobId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    repositoryCommit: "a".repeat(40),
+  };
+  const snapshot = {
+    id: row.repositorySnapshotId,
+    assessmentId,
+    commitSha: row.repositoryCommit,
+    sourcePathPrefix: "chatbot",
+  };
+
+  it.each([
+    null,
+    { ...snapshot, id: "foreign-snapshot" },
+    { ...snapshot, assessmentId: "foreign-assessment" },
+    { ...snapshot, commitSha: "b".repeat(40) },
+    { ...snapshot, sourcePathPrefix: "chatbot/../other" },
+    { ...snapshot, sourcePathPrefix: undefined },
+  ])(
+    "fails closed for missing, inconsistent or ambiguous snapshot scope %#",
+    async (value) => {
+      const tx = {
+        assessmentCase: { findUnique: () => Promise.resolve(row) },
+        repositorySnapshot: { findFirst: () => Promise.resolve(value) },
+      } as unknown as Prisma.TransactionClient;
+      await expect(
+        new AssessmentCaseSupport().loadPins(tx, assessmentId, "corr-scope"),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+            status: 409,
+          },
+        },
+      });
+    },
+  );
+
+  it.each([null, "chatbot"])(
+    "loads the exact assessment/commit snapshot and preserves prefix %s",
+    async (sourcePathPrefix) => {
+      const findFirst = jest
+        .fn<(args: unknown) => Promise<unknown>>()
+        .mockResolvedValue({ ...snapshot, sourcePathPrefix });
+      const tx = {
+        assessmentCase: { findUnique: () => Promise.resolve(row) },
+        repositorySnapshot: { findFirst },
+      } as unknown as Prisma.TransactionClient;
+      const result = await new AssessmentCaseSupport().loadPins(
+        tx,
+        assessmentId,
+        "corr-scope",
+      );
+      expect(findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: row.repositorySnapshotId,
+            assessmentId,
+            commitSha: {
+              equals: row.repositoryCommit,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        }),
+      );
+      expect(result).toMatchObject({
+        repositorySnapshotId: row.repositorySnapshotId,
+        repositoryCommit: row.repositoryCommit,
+        sourcePathPrefix,
+      });
+    },
+  );
 });

@@ -227,12 +227,22 @@ export class GitHubIntegrationController {
   }
 
   /**
-   * Pins an exact immutable GitHub commit as an assessment repository snapshot.
+   * Business purpose: Let the authenticated customer pin an exact revision and approved repository source directory.
    *
-   * @param assessmentId - Assessment that will own the snapshot.
-   * @param body - Repository connection plus optional branch/ref/commit selectors.
-   * @param request - RBAC-authenticated request containing actor, scope, and correlation context.
-   * @returns Standard result envelope containing persisted snapshot metadata.
+   * Business rules:
+   * - The customer role guard and pin handler enforce ownership and canonical source scope.
+   * - Forward the requested prefix exactly; omission retains whole-repository compatibility.
+   *
+   * Execution flow:
+   * 1. Read the authenticated actor and repository selectors.
+   * 2. Dispatch the pin command including the unmodified source prefix.
+   * 3. Return the persisted snapshot in the standard success envelope.
+   *
+   * Failure cases:
+   * - Authorization, invalid scope or provider resolution failures propagate as standard API problems.
+   *
+   * Side effects:
+   * - Delegates snapshot, outbox and audit persistence to the command handler.
    */
   @Post("assessments/:assessmentId/snapshots")
   @UseGuards(RbacGuard)
@@ -255,6 +265,7 @@ export class GitHubIntegrationController {
           body.ref,
           body.commit_sha,
           request.correlationId as string,
+          body.source_path_prefix,
         ),
       ),
     );

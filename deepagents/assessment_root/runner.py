@@ -10,6 +10,7 @@ import uuid
 from typing import Any, Callable
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import AIMessage
 from langgraph.types import Command
 
 from assessment_root.agent import create_assessment_root_agent
@@ -119,6 +120,152 @@ def _root_telemetry(claim: dict[str, Any]):
             publish_agent_stream_event("BOUNDARY_COMPLETED", status="COMPLETED")
 
 
+
+def _blocked_wait_tool_replay_allowed(saved: Any, context: dict[str, Any]) -> bool:
+    """Business purpose: Repair a committed unavailability report whose native wait was not persisted.
+
+    Business rules:
+    - BLOCKED recovery may replay only existing-request unavailability reports or the governed wait tool.
+    - The saved next node must be tools, and every saved call must reference current open dependencies.
+    - Replay receives a static stop before model invocation; no new investigation or question is authorized.
+    Execution flow:
+    1. Check the blocked lifecycle and exclusive native tool-node continuation.
+    2. Inspect saved assistant calls and validate their bounded existing-request arguments.
+    3. Return whether tool-only recovery may proceed after checkpoint ancestry authorization.
+    Failure cases:
+    - Missing messages, foreign requests, other tools, malformed arguments or mixed node work returns false.
+    Side effects:
+    - Pure checkpoint inspection; creates no model call, report, fact, question or lifecycle transition.
+    """
+    if (context["lifecycleState"] != "BLOCKED" or tuple(saved.next) != ("tools",)
+            or not saved.tasks or any(task.name != "tools" for task in saved.tasks)):
+        return False
+    messages = (saved.values or {}).get("messages", [])
+    response = messages[-1] if messages else None
+    if not isinstance(response, AIMessage) or not response.tool_calls:
+        return False
+    request_ids = set(context["openHumanRequestIds"])
+    for call in response.tool_calls:
+        args = call.get("args")
+        if not isinstance(args, dict):
+            return False
+        if call.get("name") == "wait_for_human_requests":
+            if args:
+                return False
+        elif call.get("name") == "report_existing_human_fact_unresolvable":
+            if (set(args) != {"request_id", "unavailability_rationale", "evidence_ids"}
+                    or args["request_id"] not in request_ids
+                    or not isinstance(args["unavailability_rationale"], str)
+                    or not args["unavailability_rationale"].strip()
+                    or not isinstance(args["evidence_ids"], list) or not args["evidence_ids"]
+                    or any(not isinstance(value, str) or not value for value in args["evidence_ids"])):
+                return False
+        else:
+            return False
+    return True
+
+
+def _review_checkpoint_recovery_authorized(agent: Any, saved: Any, claim: dict[str, Any],
+                                          context: dict[str, Any], run: RootRun) -> bool:
+    """Business purpose: Recover native work or a committed wait after an authorized unknown-answer review fails.
+
+    Business rules:
+    - A failed retry may continue only its exact server-bound checkpoint and API-identified prior producer.
+    - A newer unsettled wait requires same-execution recovery and matching producer metadata until the server-bound checkpoint.
+    - Open dependencies retain their original unknown answer, revision and absence of a resolved fact.
+    - The ancestry matches the exact selected-audit checkpoint thread, audit identity and source pins.
+    - Only the original wait may predate unrelated accepted facts; legacy checkpoints retain an absent audit identity.
+    - BLOCKED unfinished work permits only existing-report/wait calls with a static stop before model invocation.
+    Execution flow:
+    1. Validate persisted review authority, current audit/thread binding, open dependencies and pending-work shape.
+    2. Match the server-bound checkpoint producer and any newer recovered execution checkpoints.
+    3. Follow at most sixty-four native snapshots to prove ancestry to the original review checkpoint.
+    Failure cases:
+    - Missing authority, changed revisions, foreign provenance, unrelated ancestry or a bounded-history miss returns false.
+    Side effects:
+    - Read-only checkpoint retrieval; permits settlement of pending waits or explicitly authorized unfinished review replay.
+    """
+    authorized = claim.get("humanAnswerReviewCheckpointId")
+    expected = claim.get("resumeCheckpointId")
+    actual = (saved.config or {}).get("configurable", {}).get("checkpoint_id")
+    if (not isinstance(authorized, str) or not authorized or not isinstance(expected, str) or not expected
+            or not isinstance(actual, str) or context["lifecycleState"] not in {"WAITING_FOR_HUMAN", "BLOCKED"}):
+        return False
+    exact_bound_retry = actual == expected and expected != authorized
+    unsettled_wait = actual != expected and claim.get("recoveredExecution") is True
+    if not exact_bound_retry and not unsettled_wait:
+        return False
+    request_ids = set(context["openHumanRequestIds"])
+    pending = [item for task in saved.tasks for item in task.interrupts]
+    if not request_ids or any("controlRequestId" in item.value for item in pending):
+        return False
+    if pending:
+        if any(not isinstance(item.value.get("requestIds"), list) for item in pending):
+            return False
+        if {request_id for item in pending for request_id in item.value["requestIds"]} != request_ids:
+            return False
+    elif not saved.next:
+        return False
+    elif context["lifecycleState"] == "BLOCKED":
+        if not _blocked_wait_tool_replay_allowed(saved, context):
+            return False
+    elif not exact_bound_retry or claim.get("humanAnswerReviewRequired") is not True:
+        return False
+    rows = {row["requestId"]: row for row in context.get("humanRequests", [])}
+    for request_id in request_ids:
+        row = rows.get(request_id)
+        answers = row.get("answers", []) if row else []
+        latest = answers[-1] if answers else {}
+        if (not row or row.get("status") != "OPEN" or row.get("resolvedFactId") is not None
+                or row.get("checkpointId") != authorized or latest.get("checkpointId") != authorized
+                or latest.get("doesNotKnow") is not True or latest.get("answer") is not None
+                or latest.get("requestRevision") != row.get("requestRevision")):
+            return False
+    prior_producer = claim.get("humanAnswerReviewExecutionId")
+    if expected != authorized and (not isinstance(prior_producer, str) or not prior_producer):
+        return False
+    audit_request_id = (run.audit_request or {}).get("requestId")
+    checkpoint_thread_id = claim.get("checkpointThreadId", run.thread_id)
+    if checkpoint_thread_id != (audit_request_id or run.thread_id):
+        return False
+    provenance = {"assessment_id": run.assessment_id, "assessment_root_audit_request_id": audit_request_id,
+                  "rule_set_version_id": run.pins["ruleSetVersionId"],
+                  "repository_snapshot_id": run.pins["repositorySnapshotId"],
+                  "repository_commit": run.pins["repositoryCommit"], "source_path_prefix": run.source_path_prefix}
+    current = saved
+    visited: set[str] = set()
+    bound_seen = False
+    for _ in range(64):
+        configurable = (current.config or {}).get("configurable", {})
+        checkpoint = configurable.get("checkpoint_id")
+        metadata = current.metadata or {}
+        if (configurable.get("thread_id") != checkpoint_thread_id or configurable.get("checkpoint_ns", "") != ""
+                or not isinstance(checkpoint, str) or checkpoint in visited
+                or any(metadata.get(key) != value for key, value in provenance.items())):
+            return False
+        metadata_case = metadata.get("case_revision")
+        if (not isinstance(metadata_case, int) or isinstance(metadata_case, bool)
+                or (checkpoint == authorized and not 0 <= metadata_case <= run.case_revision)
+                or (checkpoint != authorized and metadata_case != run.case_revision)):
+            return False
+        if checkpoint == expected:
+            if expected != authorized and metadata.get("assessment_root_execution_id") != prior_producer:
+                return False
+            bound_seen = True
+        elif not bound_seen and metadata.get("assessment_root_execution_id") != run.execution_id:
+            return False
+        if checkpoint == authorized:
+            return bool(visited) and bound_seen
+        visited.add(checkpoint)
+        parent = current.parent_config
+        parent_fields = (parent or {}).get("configurable", {})
+        if (parent_fields.get("thread_id") != checkpoint_thread_id or parent_fields.get("checkpoint_ns", "") != ""
+                or not isinstance(parent_fields.get("checkpoint_id"), str)):
+            return False
+        current = agent.get_state(parent)
+    return False
+
+
 def run_assessment_root(
     client: AssessmentRuntimeClient,
     assessment_id: str,
@@ -139,8 +286,13 @@ def run_assessment_root(
       server-authorized transport or human-wait recovery applies; an unbound checkpoint is rejected.
     - A leased human-wait recovery with an open server request may replay unfinished native work
       to persist its interrupt after the human-request side effect committed before a crash.
+    - Native checkpoints must retain the same audit identity and immutable source prefix; missing legacy metadata means null only.
     - A failed execution resumes under a new execution identity on the same thread, and success
       requires authoritative COMPLETE.
+    - Proven review recovery settles pending waits without invocation; an exact server-bound failed checkpoint
+      with unfinished work may continue under validated original answer authority and a new retry execution.
+    - Only an explicit server review claim whose latest unknown answers bind the pending checkpoint may
+      resume OPEN dependencies for non-factual investigation; ordinary deliveries retain the human wait.
     - With a checkpointer, persist each superstep before advancing so queued checkpoint puts
       cannot exhaust the executor while waiting for delta writes scheduled by later steps.
     Execution flow:
@@ -196,6 +348,7 @@ def run_assessment_root(
     checkpoint_authorized = False
     human_wait_recovery = False
     graph_invoke_started = False
+    blocked_tool_replay = False
     request_ids: list[str] | None = None
     control_request_id: str | None = None
     try:
@@ -242,7 +395,8 @@ def run_assessment_root(
                          "assessment_root_audit_request_id": audit_request_id,
                          "rule_set_version_id": run.pins["ruleSetVersionId"],
                          "repository_snapshot_id": run.pins["repositorySnapshotId"],
-                         "repository_commit": run.pins["repositoryCommit"], "case_revision": run.case_revision},
+                         "repository_commit": run.pins["repositoryCommit"], "source_path_prefix": run.source_path_prefix,
+                         "case_revision": run.case_revision},
             "callbacks": [run.trace, TaskLineage(client, run.execution_id), *(extra_callbacks or [])],
         })
         run_context = LCSPRunContext(
@@ -257,6 +411,11 @@ def run_assessment_root(
                 expected = claim.get("resumeCheckpointId")
                 actual = saved.config.get("configurable", {}).get("checkpoint_id") if saved.config else None
                 starting_checkpoint_id = actual if isinstance(actual, str) else None
+                saved_metadata = getattr(saved, "metadata", None) or {}
+                if actual and saved_metadata.get("source_path_prefix") != run.source_path_prefix:
+                    raise RuntimeError("native Root checkpoint source scope does not match the assessment")
+                if actual and saved_metadata.get("assessment_root_audit_request_id") != audit_request_id:
+                    raise RuntimeError("native Root checkpoint audit scope does not match the assessment")
                 pending = [item for task in saved.tasks for item in task.interrupts]
                 control_wait = [item for item in pending if "controlRequestId" in item.value]
                 recovered = claim.get("recoveredExecution", False)
@@ -266,7 +425,11 @@ def run_assessment_root(
                     and bool(context["openHumanRequestIds"])
                     and bool(pending or saved.next)
                 )
-                if expected and actual != expected and (not recovered or (pending and not control_wait)):
+                review_checkpoint_recovery = _review_checkpoint_recovery_authorized(agent, saved, claim, context, run)
+                review_origin = claim.get("humanAnswerReviewCheckpointId")
+                if review_origin and (actual != expected or expected != review_origin) and not review_checkpoint_recovery:
+                    raise RuntimeError("review recovery checkpoint lacks server-bound ancestry proof")
+                if expected and actual != expected and (not recovered or (pending and not control_wait)) and not review_checkpoint_recovery:
                     raise RuntimeError("server checkpoint binding does not match native Root checkpoint")
                 if actual and expected is None and not recovered and not human_wait_recovery:
                     raise RuntimeError("native Root checkpoint has no server checkpoint authorization")
@@ -277,7 +440,22 @@ def run_assessment_root(
                 )
                 if (pending or saved.next) and not actual:
                     raise RuntimeError("native pending work has no checkpoint identity")
-                if control_wait and (not expected or recovered):
+                if review_checkpoint_recovery:
+                    if pending:
+                        # A durable review wait is settled without consuming its interrupt.
+                        checkpoint_id = actual
+                        request_ids = sorted(context["openHumanRequestIds"])
+                        final_state = EXECUTION_INTERRUPTED
+                    else:
+                        if context["lifecycleState"] == "BLOCKED":
+                            # Eligibility was checked inside the ancestry proof; a static model
+                            # stop also prevents reasoning if the replayed tool unexpectedly returns.
+                            blocked_tool_replay = True
+                        else:
+                            run.authorize_human_answer_review(
+                                {**claim, "resumeCheckpointId": review_origin}, context)
+                        packet = None
+                elif control_wait and (not expected or recovered):
                     if not checkpoint_authorized:
                         raise RuntimeError("native Stop checkpoint lacks server authorization")
                     if len(control_wait) != 1 or control_wait[0].value["targetExecutionId"] != run.execution_id:
@@ -286,13 +464,21 @@ def run_assessment_root(
                     control_request_id = control_wait[0].value["controlRequestId"]
                     final_state = EXECUTION_PAUSED
                 elif pending and context["openHumanRequestIds"]:
-                    # Crash after native persistence but before API settlement: bind the durable
-                    # interrupt without running/resuming blocked graph work.
                     if not checkpoint_authorized:
                         raise RuntimeError("human interrupt checkpoint lacks server authorization")
-                    checkpoint_id = actual
-                    request_ids = sorted({request_id for item in pending for request_id in item.value["requestIds"]})
-                    final_state = EXECUTION_INTERRUPTED
+                    if claim.get("humanAnswerReviewRequired") is True:
+                        # An unknown response authorizes review, never factual resolution. The
+                        # server and answer audit must bind this exact pending native checkpoint.
+                        if not expected or actual != expected:
+                            raise RuntimeError("human answer review checkpoint does not match server authority")
+                        run.authorize_human_answer_review(claim, context)
+                        packet = Command(resume={item.id: {"review": True} for item in pending})
+                    else:
+                        # Redelivery/crash settlement retains the durable wait without invoking
+                        # graph work or consuming its human-resolution interrupt.
+                        checkpoint_id = actual
+                        request_ids = sorted({request_id for item in pending for request_id in item.value["requestIds"]})
+                        final_state = EXECUTION_INTERRUPTED
                 elif pending:
                     if not checkpoint_authorized:
                         raise RuntimeError("human resume lacks server checkpoint authorization")
@@ -311,6 +497,7 @@ def run_assessment_root(
                     config=graph_config,
                     context=run_context,
                     durability="sync" if checkpointer is not None else None,
+                    **({"interrupt_before": ["model"]} if blocked_tool_replay else {}),
                 )
                 interrupts = output.get("__interrupt__", ())
                 if interrupts:

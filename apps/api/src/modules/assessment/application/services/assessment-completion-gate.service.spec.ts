@@ -28,6 +28,7 @@ import {
   type Prisma,
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
+import { jest } from "@jest/globals";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
@@ -81,6 +82,7 @@ type Fixture = {
     id: string;
     assessmentId: string;
     commitSha: string;
+    sourcePathPrefix: string | null;
     status: string;
   } | null;
   scanJob: {
@@ -239,6 +241,7 @@ function createFixture() {
       id: snapshotId,
       assessmentId,
       commitSha: repositoryCommit,
+      sourcePathPrefix: null,
       status: RepositorySnapshotStatus.READY,
     },
     scanJob: {
@@ -446,10 +449,46 @@ function createFixture() {
     fixture,
     gate: new AssessmentCompletionGate(support),
     transaction,
+    support,
   };
 }
 
 describe("AssessmentCompletionGate", () => {
+  it.each(["chatbot/../outside", undefined])(
+    "blocks finalization when pinned snapshot source scope is invalid: %s",
+    async (sourcePathPrefix) => {
+      const { fixture, gate, transaction, support } = createFixture();
+      Object.assign(fixture.snapshot!, { sourcePathPrefix });
+      const validate = jest.spyOn(support, "buildValidationContext");
+
+      const result = await gate.inspectInTx(transaction, assessmentId);
+
+      expect(result.blockers).toContainEqual({
+        code: ASSESSMENT_COMPLETION_BLOCKER_CODES.REPOSITORY_SNAPSHOT_INVALID,
+        reference: snapshotId,
+      });
+      expect(result.snapshot).toBeNull();
+      expect(validate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses the authoritative scoped snapshot when validating completion", async () => {
+    const { fixture, gate, transaction, support } = createFixture();
+    fixture.snapshot!.sourcePathPrefix = "chatbot";
+    const validate = jest.spyOn(support, "buildValidationContext");
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.blockers).toEqual([]);
+    expect(validate).toHaveBeenCalledTimes(1);
+    expect(validate.mock.calls[0][0]).toBe(transaction);
+    expect(validate.mock.calls[0][1].pins).toMatchObject({
+      repositorySnapshotId: snapshotId,
+      repositoryCommit,
+      sourcePathPrefix: "chatbot",
+    });
+  });
+
   it("does not build a report snapshot from a historical decision missing operative scope", async () => {
     const { fixture, gate, transaction } = createFixture();
     fixture.operativeScopes = 1;
