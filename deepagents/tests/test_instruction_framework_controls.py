@@ -1,5 +1,6 @@
 """Technical controls do not grant independent source/translation approval."""
 from hashlib import sha256
+import ast
 import json
 from types import SimpleNamespace
 
@@ -18,18 +19,24 @@ def test_all_declared_surfaces_have_fingerprinted_active_or_guarded_inactive_con
     rows = installed_surfaces()
     assert len(rows) == len(validate_inventory()["frameworkInstructions"])
     assert all(row["controlStatus"] == "CONTROLLED" and row["adapterSourceSha256"] for row in rows)
+    for row in rows:
+        assert row["adapterFingerprintKind"] == "PYTHON_AST_NO_SOURCE_LOCATIONS"
+        for name, expected in row["adapterSourceSha256"].items():
+            text = (ROOT / name).read_text(encoding="utf-8")
+            assert sha256(ast.dump(ast.parse(text), include_attributes=False).encode("utf-8")).hexdigest() == expected
+            assert ast.dump(ast.parse(text.replace("\n", "\r\n")), include_attributes=False) == ast.dump(ast.parse(text), include_attributes=False)
     assert {row["symbolName"] for row in rows if row["controlMode"] == "DISABLED_GUARDED"} == {"DEFAULT_SUBAGENT_PROMPT", "_FORK_TASK_PREAMBLE"}
     validate_inventory(require_complete=True)
 
 
 def test_summary_boundary_verifies_system_template_history_and_actual_receipt():
-    from tests.test_assessment_root_agent import RootScriptedModel
+    from tests.test_assessment_root_agent import RootScriptedModel, EXECUTION, PINS
     with offline_instruction_bundle() as bundle:
         system = bundle.instruction("assessment-root.system")
         template = json.loads(bundle.instruction("framework.injected-policy"))["summary_prompt"]
         receipts = []
         guard = ApprovedSummaryInstructions(system,
-            receipt_context=lambda: {"run_id": "summary-fixture", "component": "assessment-root", "locale": "vi", "pins": {"assessmentId": "fixture-assessment"}},
+            receipt_context=lambda: {"run_id": EXECUTION, "component": "assessment-root", "locale": "vi", "pins": PINS},
             receipt_sink=receipts.append)
         request = SimpleNamespace(system_message=SystemMessage(content=system), tools=[],
             messages=[HumanMessage(content=template.format(messages="Pinned actor distinctions remain data."))], model=RootScriptedModel(responses=[]))
@@ -121,3 +128,12 @@ def test_transport_supervisor_cannot_fall_through_to_model_or_compaction():
     with pytest.raises(RuntimeInstructionBundleError, match="UNSUPPORTED_SUPERVISOR_MODEL_INFERENCE"):
         graph.invoke({"messages": [HumanMessage(content="Unsupported interactive supervisor request")]}, context=LCSPRunContext())
     assert model.prompts == []
+
+
+def test_candidate_compilation_is_exact_utf8_lf_on_windows_and_linux(tmp_path):
+    path = tmp_path / "manifest.pending.json"
+    payload = compile_candidate(ROOT, INVENTORY, path)
+    expected = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    assert path.read_bytes() == expected
+    assert b"\r\n" not in path.read_bytes()
+    assert payload["approvalStatus"] == "PENDING"

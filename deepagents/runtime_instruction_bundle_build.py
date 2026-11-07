@@ -122,5 +122,5 @@ def compile_candidate(source_root: Path, inventory_path: Path, output_path: Path
     if not isinstance(payload["bundleId"], str) or not payload["bundleId"]:
         raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_ID_INVALID")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    output_path.write_bytes((json.dumps(payload, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
     return payload

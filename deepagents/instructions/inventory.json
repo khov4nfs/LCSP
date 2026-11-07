@@ -9348,8 +9348,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9365,10 +9366,11 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": false,
       "controlMode": "DISABLED_GUARDED",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
-        "rule_set_preparation/agent.py": "8030d1c3a246e36cc9d7fe85ad94e17e43db874c90774e9bb971a4a8a9183360",
-        "assessment_root/researcher.py": "f15265a8949dbbda0ea512bb719e7b327f5ad9c5e13837aac54e33d91378e5f8"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "rule_set_preparation/agent.py": "bd00bbdd85292ca2153fdcfa2758c441c3fc646db29831fbd790f4150c65bf15",
+        "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f"
       },
       "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
     },
@@ -9384,10 +9386,11 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": false,
       "controlMode": "DISABLED_GUARDED",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
-        "rule_set_preparation/agent.py": "8030d1c3a246e36cc9d7fe85ad94e17e43db874c90774e9bb971a4a8a9183360",
-        "assessment_root/researcher.py": "f15265a8949dbbda0ea512bb719e7b327f5ad9c5e13837aac54e33d91378e5f8"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "rule_set_preparation/agent.py": "bd00bbdd85292ca2153fdcfa2758c441c3fc646db29831fbd790f4150c65bf15",
+        "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f"
       },
       "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
     },
@@ -9403,8 +9406,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9420,9 +9424,10 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
-        "middleware/model_governance.py": "15bf24b635ec7ad52d6ca0c9334ce68922f4f32dba44115002b8ce8421674528"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "middleware/model_governance.py": "81e57a776d6b6a2a8f6d623a3bf4df778481dee35da98a1dba751247e028f621"
       },
       "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
@@ -9438,9 +9443,10 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
-        "middleware/model_governance.py": "15bf24b635ec7ad52d6ca0c9334ce68922f4f32dba44115002b8ce8421674528"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "middleware/model_governance.py": "81e57a776d6b6a2a8f6d623a3bf4df778481dee35da98a1dba751247e028f621"
       },
       "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
@@ -9456,8 +9462,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9473,8 +9480,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9490,8 +9498,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9507,8 +9516,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9524,8 +9534,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9541,8 +9552,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9558,8 +9570,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9575,12 +9588,13 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
-        "rule_set_preparation/agent.py": "8030d1c3a246e36cc9d7fe85ad94e17e43db874c90774e9bb971a4a8a9183360",
-        "assessment_root/researcher.py": "f15265a8949dbbda0ea512bb719e7b327f5ad9c5e13837aac54e33d91378e5f8",
-        "agent.py": "b7470d544635de3b0bc58415ea2bed05c1eb7ee88699b2292b789cf6c68f825f",
-        "middleware/system_event_dispatch.py": "c4381fda4f0b24c09ec67e4cd31b18157b568d681eb71f1e8c5db5e3c6be6ff3"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "rule_set_preparation/agent.py": "bd00bbdd85292ca2153fdcfa2758c441c3fc646db29831fbd790f4150c65bf15",
+        "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f",
+        "agent.py": "574d5e1cfc1ed9963fab056a51adf746519a69f77793be67186e27a9780f2b12",
+        "middleware/system_event_dispatch.py": "73948536f61e1e98f5e30d8879b80e72014fbf7ad7c5fda91c4b606271512814"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9596,8 +9610,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9613,8 +9628,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9630,8 +9646,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
@@ -9647,9 +9664,10 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
-        "middleware/model_governance.py": "15bf24b635ec7ad52d6ca0c9334ce68922f4f32dba44115002b8ce8421674528"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "middleware/model_governance.py": "81e57a776d6b6a2a8f6d623a3bf4df778481dee35da98a1dba751247e028f621"
       },
       "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
@@ -9665,8 +9683,9 @@
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "APPROVED_LIMIT_TERMINAL",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244"
       },
       "activationEvidence": "ApprovedModelCallLimitMiddleware preserves native counters/routing and replaces generated terminal content with runtime.budget-finalization:HARD_STOP."
     }

@@ -85,7 +85,8 @@ def installed_surfaces():
                        "viSourceId": "runtime.budget-finalization" if limit else "framework.injected-policy", "overridePlan": override,
                        "controlStatus": "CONTROLLED", "reachesModel": not inactive,
                        "controlMode": "DISABLED_GUARDED" if inactive else "EXPLICIT_SUMMARY_TEMPLATE" if summary else "APPROVED_LIMIT_TERMINAL" if limit else "FINAL_REQUEST_PROJECTION",
-                       "adapterSourceSha256": {name: source_digest((local_root / name).read_bytes()) for name in adapter_files},
+                       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
+                       "adapterSourceSha256": {name: source_digest(ast.dump(ast.parse((local_root / name).read_text(encoding="utf-8")), include_attributes=False).encode("utf-8")) for name in adapter_files},
                        "activationEvidence": evidence})
     return result
 
