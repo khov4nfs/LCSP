@@ -1,7 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
-import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_DECISION_SCOPE } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_LIFECYCLE_STATES,
+  DECISION_RESOLUTION_STATES,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
+} from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_DECISION_SCOPE,
+  HUMAN_RESOLUTION_CONTROL_TYPES,
+  RULE_AUDIT_SCOPE_MODES,
+  RULE_AUDIT_STATUSES,
+} from "@lcsp/contracts/assessment-domain";
 import { DEFAULT_RESPONSE_LANGUAGE } from "@lcsp/contracts/shared/locale";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -27,6 +36,9 @@ describe("GetRootContextHandler locale authority", () => {
   function createFixture(
     options: {
       executionId?: string;
+      auditRequestId?: string | null;
+      auditRequest?: Record<string, unknown> | null;
+      sourcePathPrefix?: string | null;
       currentTurnContext?: Record<string, unknown> | null;
       latestTurnContext?: Record<string, unknown> | null;
       outboxPayload?: Record<string, unknown> | null;
@@ -35,6 +47,11 @@ describe("GetRootContextHandler locale authority", () => {
   ) {
     const executionId = options.executionId ?? randomUUID();
     const tx = {
+      assessmentRuleAuditRequest: {
+        findUnique: jest
+          .fn<() => Promise<Record<string, unknown> | null>>()
+          .mockResolvedValue(options.auditRequest ?? null),
+      },
       assessmentDecisionCoverage: {
         findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
@@ -103,6 +120,7 @@ describe("GetRootContextHandler locale authority", () => {
           assessmentId,
           threadId,
           executionId,
+          auditRequestId: options.auditRequestId ?? null,
           lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
           lifecycleRevision: 1,
           blockerReason: null,
@@ -112,13 +130,26 @@ describe("GetRootContextHandler locale authority", () => {
     } as unknown as AssessmentRuntimeAuthority;
 
     const support = {
-      loadPins: jest.fn(() => Promise.resolve(pins)),
+      loadPins: jest.fn(() =>
+        Promise.resolve({
+          ...pins,
+          sourcePathPrefix: options.sourcePathPrefix ?? null,
+        }),
+      ),
     } as unknown as AssessmentCaseSupport;
 
     const handler = new GetRootContextHandler(prisma, authority, support);
 
     return { handler, tx, authority, executionId };
   }
+
+  it("returns the immutable repository source prefix supplied by the authoritative pins", async () => {
+    const { handler } = createFixture({ sourcePathPrefix: "chatbot" });
+    const result = await handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.sourcePathPrefix).toBe("chatbot");
+  });
 
   it("resolves default application locale (vi) when no saved selection exists in server state", async () => {
     const { handler } = createFixture();
@@ -238,5 +269,93 @@ describe("GetRootContextHandler locale authority", () => {
     );
 
     expect(result.responseLanguage).toBe("en");
+  });
+  it.each(["missing", "foreign", "empty"])(
+    "rejects a %s selected audit instead of widening Root context",
+    async (mode) => {
+      const auditRequestId = randomUUID();
+      const f = createFixture({
+        auditRequestId,
+        auditRequest:
+          mode === "missing"
+            ? null
+            : {
+                requestId: auditRequestId,
+                assessmentId: mode === "foreign" ? randomUUID() : assessmentId,
+                rules: mode === "empty" ? [] : [{ assessmentRuleId: "RULE-A" }],
+              },
+      });
+      await expect(
+        f.handler.execute(
+          new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(f.tx.assessmentDecisionCoverage.findMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("exposes only selected coverage and human requests whose shared dependencies belong to the current audit", async () => {
+    const auditRequestId = randomUUID();
+    const f = createFixture({
+      auditRequestId,
+      sourcePathPrefix: "source",
+      auditRequest: {
+        requestId: auditRequestId,
+        assessmentId,
+        scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+        status: RULE_AUDIT_STATUSES.RUNNING,
+        rules: [{ assessmentRuleId: "RULE-SELECTED" }],
+      },
+    });
+    f.tx.assessmentDecisionCoverage.findMany.mockResolvedValue(
+      ["RULE-SELECTED", "RULE-OUTSIDE"].map((assessmentRuleId) => ({
+        assessmentRuleId,
+        assessmentRuleVersion: "1",
+        resolutionState: DECISION_RESOLUTION_STATES.PENDING,
+        currentDecisionId: null,
+        decisionRevision: 0,
+      })),
+    );
+    const sharedRequest = {
+      requestId: randomUUID(),
+      requestRevision: 0,
+      caseRevision: pins.caseRevision,
+      status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+      assessmentRuleId: "RULE-HISTORICAL",
+      criterionIds: ["criterion-1"],
+      question: "Which entity operates this deployment?",
+      unresolvedFact: "The deployment operator has not been confirmed.",
+      decisionImpact: ["Operator identity determines the factual scope."],
+      resolutionAttempts: ["Inspected the source configuration."],
+      controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT,
+      choices: [],
+      checkpointId: null,
+      resolvedFactId: null,
+      answers: [],
+      dependencies: [
+        { assessmentRuleId: "RULE-SELECTED", criterionIds: ["criterion-1"] },
+      ],
+    };
+    f.tx.assessmentHumanRequest.findMany.mockResolvedValue([
+      sharedRequest,
+      {
+        ...sharedRequest,
+        requestId: randomUUID(),
+        assessmentRuleId: "RULE-OUTSIDE",
+        dependencies: [],
+      },
+    ]);
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.sourcePathPrefix).toBe("source");
+    expect(result.auditRequest?.requestId).toBe(auditRequestId);
+    expect(result.coverage.map((row) => row.assessmentRuleId)).toEqual([
+      "RULE-SELECTED",
+    ]);
+    expect(result.openHumanRequestIds).toEqual([sharedRequest.requestId]);
+    expect(result.humanRequests?.map((row) => row.requestId)).toEqual([
+      sharedRequest.requestId,
+    ]);
   });
 });

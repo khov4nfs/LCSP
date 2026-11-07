@@ -37,7 +37,6 @@ import {
   usePasswordReauthMutation,
 } from "@/lib/api/auth-queries";
 import { useProviderCredentialStatusesQuery } from "@/lib/api/github-repository-queries";
-import { apiQueryKeys } from "@/lib/api/query-keys";
 import {
   connectAssessmentRepository,
   getRepositorySetupState,
@@ -231,6 +230,7 @@ export function RepositorySetupStep({
       await startRepositoryAnalysis(assessmentId, {
         connectionId: connection.connectionId,
         branch: connection.defaultBranch,
+        sourcePathPrefix: null,
       });
       router.replace(`/assessments/${assessmentId}`);
     } catch (error) {

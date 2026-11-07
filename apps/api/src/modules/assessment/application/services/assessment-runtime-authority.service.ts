@@ -52,6 +52,102 @@ import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/e
 import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
 import { AssessmentEventAppender } from "./assessment-event-appender.service.js";
 import { AssessmentRootCapacityService } from "./assessment-root-capacity.service.js";
+import {
+  humanRequestScopeWhere,
+  loadHumanRequestRuleScopeInTx,
+} from "../../infrastructure/persistence/assessment-human-request-scope.js";
+import {
+  buildHumanAnswerReviewAuthorization,
+  humanReviewAllowsCheckpointRebind,
+  type HumanAnswerReviewAuthorization,
+  type ReviewableHumanRequest,
+} from "./assessment-human-answer-review.js";
+
+/**
+ * Business purpose: Recover only the exact persisted human-answer review after an unfinished or failed native execution.
+ * Business rules:
+ * - Every currently open request must still match the original UNKNOWN checkpoint and revision receipt.
+ * - Added, missing, resolved or changed dependencies invalidate the entire carried authorization.
+ * Execution flow:
+ * 1. Read the server-persisted checkpoint and dependency receipt shape.
+ * 2. Revalidate all open requests and compare the complete authorized request set.
+ * Failure cases:
+ * - Malformed, stale or cross-scope receipts return null and grant no review or checkpoint rebinding.
+ * Side effects:
+ * - Pure validation; no answer, fact, lease, checkpoint or lifecycle is changed.
+ */
+function revalidatePersistedHumanAnswerReview(
+  requests: readonly ReviewableHumanRequest[],
+  binding: { assessmentId: string; threadId: string },
+  authorization: unknown,
+): HumanAnswerReviewAuthorization | null {
+  if (
+    !authorization ||
+    typeof authorization !== "object" ||
+    Array.isArray(authorization)
+  )
+    return null;
+  const stored = authorization as Record<string, unknown>;
+  if (
+    typeof stored.checkpointId !== "string" ||
+    !Array.isArray(stored.requests) ||
+    stored.requests.length !== requests.length ||
+    !requests.every((request) =>
+      humanReviewAllowsCheckpointRebind(request, authorization),
+    )
+  )
+    return null;
+  return buildHumanAnswerReviewAuthorization(requests, {
+    ...binding,
+    checkpointId: stored.checkpointId,
+  });
+}
+
+/**
+ * Business purpose: Keep resume and human-review authority inside the current assessment's native audit thread.
+ * Business rules:
+ * - Selected turns must bind both the current audit UUID and its checkpoint thread; legacy turns cannot carry selected-audit authority.
+ * Execution flow:
+ * 1. Match the persisted assessment, logical thread and Root boundary.
+ * 2. Match selected audit/checkpoint metadata, or the explicit unselected legacy metadata.
+ * Failure cases:
+ * - Missing, foreign or malformed turn metadata returns false and cannot authorize review or checkpoint reuse.
+ * Side effects:
+ * - Pure identity guard; changes no lease, turn or checkpoint.
+ */
+function rootTurnMatchesScope(
+  turn: {
+    assessmentId: string;
+    threadId: string;
+    boundary: string;
+    contextJson: unknown;
+  } | null,
+  binding: {
+    assessmentId: string;
+    threadId: string;
+    auditRequestId: string | null | undefined;
+  },
+): boolean {
+  if (
+    !turn ||
+    turn.assessmentId !== binding.assessmentId ||
+    turn.threadId !== binding.threadId ||
+    turn.boundary !== ASSESSMENT_ROOT_BOUNDARY
+  )
+    return false;
+  const context =
+    turn.contextJson &&
+    typeof turn.contextJson === "object" &&
+    !Array.isArray(turn.contextJson)
+      ? (turn.contextJson as Record<string, unknown>)
+      : null;
+  return binding.auditRequestId
+    ? context?.auditRequestId === binding.auditRequestId &&
+        context?.checkpointThreadId === binding.auditRequestId
+    : context?.auditRequestId == null &&
+        (context?.checkpointThreadId == null ||
+          context.checkpointThreadId === binding.threadId);
+}
 
 export interface AuthorizedRootRun {
   assessmentId: string;
@@ -101,6 +197,10 @@ export class AssessmentRuntimeAuthority {
    * - Human interrupts, safe pauses, and authenticated transport recovery retain their existing lifecycle guards.
    * - A fresh physical reservation must bind this exact native transport run; lease expiry never releases capacity.
    * - Both the native run and its server incarnation must match the live reservation, including during recovery.
+   * - A waiting assessment may run a review-only continuation when every open dependency has a fresh UNKNOWN response at the bound checkpoint; it remains waiting and cannot submit decisions.
+   * - Review authority is persisted with exact request revisions so later wait checkpoint rebinding cannot authorize unrelated or changed requests.
+   * - A gracefully failed review retains its original UNKNOWN authority separately from the failed native checkpoint; retry uses a new execution and requires native ancestry verification before graph work.
+
    *
    * Execution flow:
    * 1. Lock the assessment/runtime and load the current Root turn.
@@ -158,6 +258,15 @@ export class AssessmentRuntimeAuthority {
           );
         }
       }
+      const humanRequestRuleScope = await loadHumanRequestRuleScopeInTx(tx, {
+        assessmentId: input.assessmentId,
+        auditRequestId: row.currentAuditRequestId,
+        correlationId: input.correlationId,
+      });
+      const humanRequestWhere = humanRequestScopeWhere(
+        input.assessmentId,
+        humanRequestRuleScope,
+      );
       const previousTurn = row.currentExecutionId
         ? await tx.assessmentRuntimeTurn.findUnique({
             where: { id: row.currentExecutionId },
@@ -169,6 +278,11 @@ export class AssessmentRuntimeAuthority {
         !Array.isArray(previousTurn.contextJson)
           ? previousTurn.contextJson
           : null;
+      const previousTurnMatchesScope = rootTurnMatchesScope(previousTurn, {
+        assessmentId: input.assessmentId,
+        threadId: row.threadId,
+        auditRequestId: row.currentAuditRequestId,
+      });
       const previousRuntimeRunId = previousContextJson?.runtimeRunId;
       const failedCheckpointJson =
         previousTurn?.checkpointJson &&
@@ -181,10 +295,7 @@ export class AssessmentRuntimeAuthority {
         row.checkpointId &&
         previousTurn?.assessmentId === input.assessmentId &&
         previousTurn.threadId === row.threadId &&
-        (!row.currentAuditRequestId ||
-          (previousContextJson?.auditRequestId === row.currentAuditRequestId &&
-            previousContextJson?.checkpointThreadId ===
-              row.currentAuditRequestId)) &&
+        previousTurnMatchesScope &&
         previousTurn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
         previousTurn.state === Controls.completed &&
         failedCheckpointJson?.checkpointId === row.checkpointId
@@ -209,6 +320,7 @@ export class AssessmentRuntimeAuthority {
         previousTurn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
         previousTurn.state === Controls.completed &&
         previousTurn.checkpointJson === null &&
+        previousTurnMatchesScope &&
         typeof previousRuntimeRunId === "string" &&
         previousRuntimeRunId.length > 0
           ? await findFailedNativeCheckpoint(tx, {
@@ -238,6 +350,7 @@ export class AssessmentRuntimeAuthority {
         previousTurn?.boundary === ASSESSMENT_ROOT_BOUNDARY &&
         previousTurn.assessmentId === input.assessmentId &&
         previousTurn.threadId === row.threadId &&
+        previousTurnMatchesScope &&
         (previousTurn.contextJson as Prisma.JsonObject)?.runtimeRunId ===
           input.runtimeRunId,
       );
@@ -251,7 +364,7 @@ export class AssessmentRuntimeAuthority {
         blockedRequestId !== null &&
         (await tx.assessmentHumanRequest.count({
           where: {
-            assessmentId: input.assessmentId,
+            ...humanRequestWhere,
             requestId: blockedRequestId,
             threadId: row.threadId,
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
@@ -263,6 +376,73 @@ export class AssessmentRuntimeAuthority {
         row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
         row.leaseExpiresAt !== null &&
         row.leaseExpiresAt <= new Date();
+      const reviewableLifecycle =
+        row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
+        blockedHumanWait;
+      const openHumanRequests =
+        reviewableLifecycle &&
+        row.currentExecutionId !== null &&
+        row.checkpointId !== null &&
+        (row.executionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
+          recoveredExecution ||
+          recoveringHumanInterrupt ||
+          failedCheckpointId !== null)
+          ? await tx.assessmentHumanRequest.findMany({
+              where: {
+                ...humanRequestWhere,
+                status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+              },
+            })
+          : [];
+      const humanAnswerReview =
+        previousTurnMatchesScope &&
+        row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN
+          ? buildHumanAnswerReviewAuthorization(openHumanRequests, {
+              assessmentId: input.assessmentId,
+              threadId: row.threadId,
+              checkpointId: row.checkpointId,
+            })
+          : null;
+      const previousReview = previousTurnMatchesScope
+        ? revalidatePersistedHumanAnswerReview(
+            openHumanRequests,
+            { assessmentId: input.assessmentId, threadId: row.threadId },
+            previousContextJson?.humanAnswerReview,
+          )
+        : null;
+      // A failed native checkpoint may be newer than the request's original UNKNOWN
+      // checkpoint. Preserve both identities; the runner proves their ancestry before work.
+      const failedHumanAnswerReview =
+        reviewableLifecycle && failedCheckpointId !== null
+          ? previousReview
+          : null;
+      // Unfinished transport recovery keeps the original producer of the server-bound
+      // checkpoint even when a prior failed retry already began a new execution.
+      const carriedHumanAnswerReview =
+        recoveringHumanInterrupt || (recoveredExecution && reviewableLifecycle)
+          ? previousReview
+          : null;
+      const reviewContext =
+        humanAnswerReview ??
+        failedHumanAnswerReview ??
+        carriedHumanAnswerReview;
+      const reviewExecutionId = reviewContext
+        ? failedHumanAnswerReview || humanAnswerReview
+          ? row.currentExecutionId
+          : typeof previousContextJson?.humanAnswerReviewExecutionId ===
+              "string"
+            ? previousContextJson.humanAnswerReviewExecutionId
+            : row.currentExecutionId
+        : null;
+      const reviewCheckpointId =
+        reviewContext &&
+        typeof reviewContext === "object" &&
+        !Array.isArray(reviewContext) &&
+        typeof reviewContext.checkpointId === "string"
+          ? reviewContext.checkpointId
+          : null;
+      const recoveringReviewedHumanWait =
+        recoveringHumanInterrupt && reviewCheckpointId !== null;
       const safePauseResume =
         row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.PAUSED &&
         row.executionState === AGENT_EXECUTION_STATES.PAUSED &&
@@ -281,6 +461,8 @@ export class AssessmentRuntimeAuthority {
       if (
         row.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
         !recoveringHumanInterrupt &&
+        !humanAnswerReview &&
+        !failedHumanAnswerReview &&
         !safePauseResume &&
         !recoveredComplete &&
         !(
@@ -335,7 +517,8 @@ export class AssessmentRuntimeAuthority {
         (row.executionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
           row.executionState === AGENT_EXECUTION_STATES.PAUSED ||
           Boolean(recoveringStop) ||
-          recoveredExecution);
+          recoveredExecution ||
+          recoveringReviewedHumanWait);
       const executionId = resumesSameExecution
         ? (row.currentExecutionId as string)
         : randomUUID();
@@ -404,6 +587,8 @@ export class AssessmentRuntimeAuthority {
                 }
               : {}),
             ...(nativeCheckpointRecoveryContext ?? {}),
+            humanAnswerReview: reviewContext,
+            humanAnswerReviewExecutionId: reviewExecutionId,
           },
           ...(nativeCheckpointRecovery
             ? {
@@ -430,6 +615,8 @@ export class AssessmentRuntimeAuthority {
                 }
               : {}),
             ...(nativeCheckpointRecoveryContext ?? {}),
+            humanAnswerReview: reviewContext,
+            humanAnswerReviewExecutionId: reviewExecutionId,
           },
         },
       });
@@ -494,7 +681,13 @@ export class AssessmentRuntimeAuthority {
         lifecycleState: safePauseResume
           ? ASSESSMENT_LIFECYCLE_STATES.ACTIVE
           : row.lifecycleState!,
-        recoveredExecution,
+        recoveredExecution: recoveredExecution || recoveringReviewedHumanWait,
+        humanAnswerReviewRequired:
+          row.lifecycleState ===
+            ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN &&
+          reviewContext !== null,
+        humanAnswerReviewExecutionId: reviewExecutionId,
+        humanAnswerReviewCheckpointId: reviewCheckpointId,
       };
     });
   }
@@ -633,21 +826,22 @@ export class AssessmentRuntimeAuthority {
   }
 
   /**
-   * Business purpose: Settle one leased Root execution segment without declaring a legal outcome or releasing physical occupancy, preserving selected request state.
+   * Business purpose: Settle the leased Root execution and its durable human wait without releasing physical occupancy or declaring a legal outcome.
    * Business rules:
-   * - A valid current lease and exact native checkpoint/human/control bindings remain required.
-   * - Uncertain crash work may only settle FAILED and parks its existing command in durable operator-controlled DLQ.
-   * - SUCCEEDED requires a completed selected request or full report; failure and human wait keep accepted sibling decisions.
+   * - The current lease, assessment, selected audit and native checkpoint bindings remain authoritative.
+   * - Human waits name exactly the active audit's open dependencies; only a stored review of unchanged revisions permits checkpoint rebinding.
+   * - Uncertain crash work may settle only FAILED and quarantines the admitted command; SUCCEEDED requires the completed audit or full report.
    * Execution flow:
-   * 1. Lock and authorize the Root; validate terminal/control/checkpoint requirements.
-   * 2. Recheck the lease and native interruption/checkpoint evidence; update request state for failure or human wait.
-   * 3. Persist runtime/turn settlement and, for uncertain recovery, quarantine the exact admitted command.
-   * 4. Append the normal execution-state event; the native future must separately prove physical termination.
+   * 1. Lock and authorize the Root and validate the terminal or interruption request.
+   * 2. Verify pause authority or all scoped human blockers and any review checkpoint rebind.
+   * 3. Persist runtime, request and turn settlement, quarantining uncertain commands when required.
+   * 4. Append the execution event; physical termination is established separately by the native future.
    * Failure cases:
-   * - Invalid lease, transition, checkpoint, unproven success, or recovery reservation rolls back all settlement changes.
+   * - Invalid lease, foreign audit/checkpoint, changed review revisions, unproven success or invalid recovery reservation rolls back settlement.
    * Side effects:
-   * - Updates runtime/turn/outbox/event records only; accepted decisions, pins, usage and legal Completion Gate stay authoritative.
+   * - Updates runtime, scoped requests, turns, outbox and events; preserves accepted facts and the authoritative Completion Gate.
    */
+
   async finishExecution(input: {
     assessmentId: string;
     leaseToken: string | undefined;
@@ -735,13 +929,32 @@ export class AssessmentRuntimeAuthority {
         pauseRequestId = turn.requestId;
       }
       if (input.toState === AGENT_EXECUTION_STATES.INTERRUPTED) {
+        const ruleScope = await loadHumanRequestRuleScopeInTx(tx, {
+          assessmentId: input.assessmentId,
+          auditRequestId: run.auditRequestId,
+          correlationId: input.correlationId,
+        });
+        const humanRequestWhere = humanRequestScopeWhere(
+          input.assessmentId,
+          ruleScope,
+        );
         const requests = await tx.assessmentHumanRequest.findMany({
           where: {
-            assessmentId: input.assessmentId,
+            ...humanRequestWhere,
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
           },
         });
         const ids = new Set(input.requestIds);
+        const turn = await tx.assessmentRuntimeTurn.findUnique({
+          where: { id: run.executionId },
+        });
+        const turnContext = turn?.contextJson;
+        const humanAnswerReview =
+          turnContext &&
+          typeof turnContext === "object" &&
+          !Array.isArray(turnContext)
+            ? turnContext.humanAnswerReview
+            : null;
         const blockedRequestId = humanFactBlockerRequestId(run);
         const blockedHumanWait =
           run.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED &&
@@ -749,6 +962,11 @@ export class AssessmentRuntimeAuthority {
           ids.has(blockedRequestId);
         if (
           !input.checkpointId ||
+          !rootTurnMatchesScope(turn, {
+            assessmentId: input.assessmentId,
+            threadId: run.threadId,
+            auditRequestId: run.auditRequestId,
+          }) ||
           requests.length === 0 ||
           requests.length !== ids.size ||
           (run.lifecycleState !==
@@ -759,7 +977,8 @@ export class AssessmentRuntimeAuthority {
               !ids.has(request.requestId) ||
               request.threadId !== run.threadId ||
               (request.checkpointId &&
-                request.checkpointId !== input.checkpointId),
+                request.checkpointId !== input.checkpointId &&
+                !humanReviewAllowsCheckpointRebind(request, humanAnswerReview)),
           )
         ) {
           throw problemException(
@@ -770,7 +989,7 @@ export class AssessmentRuntimeAuthority {
         }
         await tx.assessmentHumanRequest.updateMany({
           where: {
-            assessmentId: input.assessmentId,
+            ...humanRequestWhere,
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
           },
           data: { checkpointId: input.checkpointId },

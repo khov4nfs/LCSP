@@ -106,3 +106,25 @@ def test_graph_tools_query_the_indexed_assessment_repository() -> None:
     assert '"project":"workspace-repository"' in search
     assert '"name_pattern":".*Consent.*"' in search
     assert "trace_path" in trace and '"direction":"inbound"' in trace
+
+
+def test_changed_source_scope_marker_cannot_reuse_the_prior_graph_index():
+    from tools.common.capabilities.platform.codebase_memory import active_codebase_memory_index
+
+    sandbox = FakeSandbox(marker=json.dumps({"snapshotId": "s1", "sourcePathPrefix": None}))
+    ensure_codebase_memory_index(sandbox)
+    first_identity = active_codebase_memory_index()
+    sandbox.files["/workspace/repository/.lcsp/repository.json"] = json.dumps({
+        "snapshotId": "s1", "sourcePathPrefix": "projects/chatbot",
+        "sourceCoverage": {"sourcePathPrefix": "projects/chatbot", "includedFiles": 2},
+    })
+    events = []
+    assert ensure_codebase_memory_index(sandbox, lifecycle=events.append)
+    scoped_identity = active_codebase_memory_index()
+    assert events == ["codebase_memory_indexing", "codebase_memory_indexed"]
+    assert scoped_identity.index_stamp != first_identity.index_stamp
+    assert scoped_identity.reused is False
+    assert sum(" index_repository " in command for command in sandbox.commands) == 2
+    # Index the already filtered view at the original root so graph evidence paths do not lose their prefix.
+    assert '\"repo_path\":\"/workspace/repository\"' in next(
+        command for command in reversed(sandbox.commands) if " index_repository " in command)

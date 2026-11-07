@@ -73,7 +73,21 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
     assert (PROJECT_ROOT / "tools" / "common" / "capabilities" / "platform" / "docker_sandbox.py").is_file()
     assert not (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").exists()
     assert not (PROJECT_ROOT / "src").exists()
-    assert not (PROJECT_ROOT / "scripts").exists()
+    # Explicit operator entry points are separate from authored tools and cannot
+    # introduce a direct execution lane around the native server.
+    operator_files = {path.name for path in (PROJECT_ROOT / "scripts").iterdir()
+                      if path.name != "__pycache__"}
+    assert operator_files == {
+        "run_resume_turn.py", "run_t31_scoped_pilot.py", "t31_native_runtime.py",
+    }
+    for filename in operator_files:
+        tree = ast.parse((PROJECT_ROOT / "scripts" / filename).read_text())
+        assert not any(isinstance(node, ast.ImportFrom) and node.module == "assessment_root.runner"
+                       for node in ast.walk(tree)), filename
+        assert not any(isinstance(node, ast.Call) and
+                       ((isinstance(node.func, ast.Name) and node.func.id == "run_assessment_root") or
+                        (isinstance(node.func, ast.Attribute) and node.func.attr == "run_assessment_root"))
+                       for node in ast.walk(tree)), filename
     assert not list((PROJECT_ROOT / "tools").glob("*/lcsp_workers"))
     assert {
         path.name

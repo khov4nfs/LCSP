@@ -1,3 +1,4 @@
+import { humanRequestDependenciesOf } from "./assessment-human-request-dependencies.js";
 import { createHash } from "node:crypto";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
@@ -94,6 +95,7 @@ export class AssessmentProvenanceLoader {
               orderBy: { assessmentRuleId: "asc" },
             },
             humanRequests: {
+              include: { dependencies: true },
               orderBy: { createdAt: "asc" },
             },
             artifacts: {
@@ -552,6 +554,7 @@ export class AssessmentProvenanceLoader {
         status: hr.status,
         assessmentRuleId: hr.assessmentRuleId,
         criterionIds: hr.criterionIds,
+        dependencies: humanRequestDependenciesOf(hr),
         question: hr.question,
         unresolvedFact: hr.unresolvedFact,
         decisionImpact: hr.decisionImpact,

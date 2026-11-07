@@ -39,11 +39,13 @@ const snapshot = {
   repositoryFullName: connection.repositoryFullName,
   branch: connection.defaultBranch,
   commitSha: originalCommit,
+  sourcePathPrefix: null,
   createdAt: timestamp,
 };
 const input = {
   connectionId: connection.connectionId,
   branch: connection.defaultBranch,
+  sourcePathPrefix: null,
 };
 function makeJob(
   status: NonNullable<
@@ -124,7 +126,14 @@ function server(t: TestContext, initial: AssessmentRepositorySetup) {
         return response(connection);
       }
       if (path.endsWith("/snapshots")) {
-        api.state.snapshot = { ...snapshot, commitSha: api.branchHead };
+        api.state.snapshot = {
+          ...snapshot,
+          commitSha: api.branchHead,
+          sourcePathPrefix:
+            body.source_path_prefix === null
+              ? null
+              : String(body.source_path_prefix),
+        };
         maybeLoseResponse("snapshot-response");
         return response({
           snapshot_id: snapshot.id,
@@ -227,6 +236,26 @@ test("new setup pins only when no persisted snapshot exists", async (t) => {
     1,
   );
   assert.equal(writes(api).length, 2);
+});
+
+test("new Web setup explicitly pins full-repository scope", async (t) => {
+  const api = server(t, setup({ snapshot: null }));
+  await startRepositoryAnalysis(assessmentId, input);
+  const snapshotWrite = writes(api).find((request) =>
+    request.path.endsWith("/snapshots"),
+  );
+  assert.equal(snapshotWrite?.body.source_path_prefix, null);
+});
+
+test("Web resume fails closed for a subtree-scoped snapshot it cannot represent", async (t) => {
+  const api = server(
+    t,
+    setup({ snapshot: { ...snapshot, sourcePathPrefix: "services/chatbot" } }),
+  );
+  await assert.rejects(startRepositoryAnalysis(assessmentId, input), {
+    message: GITHUB_INTEGRATION_ERROR_CODES.sourcePathPrefixInvalid,
+  });
+  assert.equal(writes(api).length, 0);
 });
 
 test("completion retry retains snapshot and commit even if the branch head moves", async (t) => {

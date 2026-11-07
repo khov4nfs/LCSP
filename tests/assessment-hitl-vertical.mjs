@@ -875,13 +875,14 @@ try {
       unknown,
     );
     eq(unknownResult.status, 200, JSON.stringify(unknownResult.body));
+    // resumed means checkpoint-bound Root review was scheduled; UNKNOWN remains OPEN and creates no fact.
     eq(
       [
         unknownResult.body.data.status,
         unknownResult.body.data.caseRevision,
         unknownResult.body.data.resumed,
       ],
-      ["OPEN", 0, false],
+      ["OPEN", 0, true],
     );
     eq(
       (

@@ -2,14 +2,22 @@ import { HUMAN_RESOLUTION_REQUEST_STATUSES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_SCOPE,
   ASSESSMENT_ROOT_COMMAND_TYPES,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
   assessmentRootContextSchema,
   type AssessmentRootContext,
 } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
+import { HttpStatus } from "@nestjs/common";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
+import { humanRequestDependenciesOf } from "../../../infrastructure/persistence/assessment-human-request-dependencies.js";
+import {
+  humanRequestHasRuleInScope,
+  humanRequestScopeWhere,
+} from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import { GetRootContextQuery } from "./get-root-context.query.js";
 
@@ -40,17 +48,19 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
   ) {}
 
   /**
-   * Business purpose: Supply the leased Root with current pins, facts and only its authorized rule scope.
+   * Business purpose: Give the leased Root pinned source scope, authorized rules and factual human feedback for its current audit.
    * Business rules:
-   * - Request membership comes from immutable server rows; legacy full assessments retain existing coverage.
+   * - Selected membership comes from the assessment's immutable request; a missing selected request never widens to full scope.
+   * - The source prefix comes from the immutable snapshot, and open human blockers must have a dependency in this audit.
+   * - Human answer history remains separate from accepted facts; UNKNOWN grants no fact or compliance authority.
    * Execution flow:
-   * 1. Authorize the Root lease and load pinned case state.
-   * 2. Read request members, accepted facts, evidence, coverage and response language.
-   * 3. Filter coverage to selected members and validate the response contract.
+   * 1. Authorize the Root and load immutable case pins and the exact selected request.
+   * 2. Read authorized coverage, facts, evidence, scoped human dependencies and saved locale.
+   * 3. Return the validated context with explicit source scope and current human request revisions.
    * Failure cases:
-   * - An invalid lease or missing pins rejects the query without exposing another scope.
+   * - Invalid lease, foreign or missing request, missing pins or malformed persisted data rejects without granting authority.
    * Side effects:
-   * - Read-only transaction; no investigation or legal decision is created.
+   * - Read-only transaction; creates no facts, changes no lifecycle and sends no continuation.
    */
   async execute(input: GetRootContextQuery): Promise<AssessmentRootContext> {
     return this.prisma.$transaction(async (tx) => {
@@ -69,14 +79,26 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
             include: { rules: { orderBy: { ordinal: "asc" } } },
           })
         : null;
+      if (
+        run.auditRequestId &&
+        (!auditRequest ||
+          auditRequest.assessmentId !== input.assessmentId ||
+          auditRequest.rules.length === 0)
+      )
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+          input.correlationId,
+          { status: HttpStatus.FORBIDDEN },
+        );
       const selectedRuleIds = auditRequest?.rules.map(
         (rule) => rule.assessmentRuleId,
       );
+      const ruleScope = selectedRuleIds ?? null;
       const [
         coverage,
         facts,
         evidence,
-        openRequests,
+        humanRequests,
         currentTurn,
         latestTurn,
         latestOutbox,
@@ -97,10 +119,11 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         }),
         tx.assessmentHumanRequest.findMany({
           where: {
-            assessmentId: input.assessmentId,
-            status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            ...humanRequestScopeWhere(input.assessmentId, ruleScope),
+            threadId: run.threadId,
           },
-          select: { requestId: true },
+          include: { dependencies: true },
+          orderBy: { createdAt: "asc" },
         }),
         tx.assessmentRuntimeTurn?.findUnique
           ? tx.assessmentRuntimeTurn.findUnique({
@@ -148,6 +171,9 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         extractSavedLocale(latestEvent?.payload);
 
       const responseLanguage = resolveResponseLanguage(savedLocale);
+      const scopedHumanRequests = humanRequests.filter((request) =>
+        humanRequestHasRuleInScope(request, ruleScope),
+      );
       return assessmentRootContextSchema.parse({
         assessmentId: input.assessmentId,
         threadId: run.threadId,
@@ -158,6 +184,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         repositorySnapshotId: pins.repositorySnapshotId,
         repositoryScanJobId: pins.repositoryScanJobId,
         repositoryCommit: pins.repositoryCommit,
+        sourcePathPrefix: pins.sourcePathPrefix,
         decisionScopeId: ASSESSMENT_DECISION_SCOPE,
         auditRequest: auditRequest
           ? {
@@ -201,7 +228,29 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           payload: row.payload as Record<string, unknown>,
           createdAt: row.createdAt.toISOString(),
         })),
-        openHumanRequestIds: openRequests.map((row) => row.requestId),
+        openHumanRequestIds: scopedHumanRequests
+          .filter(
+            (row) => row.status === HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+          )
+          .map((row) => row.requestId),
+        humanRequests: scopedHumanRequests.map((row) => ({
+          requestId: row.requestId,
+          requestRevision: row.requestRevision,
+          openedCaseRevision: row.caseRevision,
+          status: row.status,
+          assessmentRuleId: row.assessmentRuleId,
+          criterionIds: row.criterionIds,
+          question: row.question,
+          unresolvedFact: row.unresolvedFact,
+          decisionImpact: row.decisionImpact,
+          resolutionAttempts: row.resolutionAttempts,
+          controlType: row.controlType,
+          choices: row.choices,
+          checkpointId: row.checkpointId,
+          resolvedFactId: row.resolvedFactId,
+          answers: row.answers,
+          dependencies: humanRequestDependenciesOf(row),
+        })),
         responseLanguage,
       });
     });

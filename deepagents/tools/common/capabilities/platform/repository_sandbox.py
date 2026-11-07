@@ -41,12 +41,91 @@ REPOSITORY_META = f"{REPOSITORY_ROOT}/.lcsp/repository.json"
 REPOSITORY_AGENT_STATE = f"{REPOSITORY_ROOT}/.lcsp/agent"
 _ARCHIVE_PATH = "/tmp/lcsp-assessment-repository.tar.gz"
 _RESERVED_REPOSITORY_DIRS = {".git", ".lcsp"}
+_MAX_SOURCE_SCOPE_EXCLUSION_SAMPLES = 100
 _ACTIVE_BACKEND: ContextVar[object | None] = ContextVar(
     "lcsp_repository_thread_backend",
     default=None,
 )
 _DOCKER_SANDBOX_MANAGER = DockerSandboxManager()
 RepositoryHydrationLifecycle = Callable[[str], None]
+
+_SOURCE_PATH_EDGE_WHITESPACE = " \t\n\v\f\r\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+
+
+def _canonical_source_path(value: object, *, maximum_length: int | None = None) -> bool:
+    """Business purpose: Recognize an unambiguous repository-relative source path.
+
+    Business rules:
+    - Preserve literal interior spaces and Unicode; never trim, decode or normalize a supplied path.
+    - Reject empty, absolute, traversal, repeated-separator and cross-platform ambiguous forms.
+    - The optional limit uses UTF-16 code units to match the shared JavaScript contract.
+
+    Execution flow:
+    1. Verify the path type, length and canonical characters.
+    2. Require every slash-delimited segment to name a real repository path component.
+
+    Failure cases:
+    - Noncanonical input returns false without resolving or accessing a filesystem.
+
+    Side effects:
+    - Pure validation; does not read, write or authorize source content.
+    """
+    if not isinstance(value, str) or not value or value != value.strip(_SOURCE_PATH_EDGE_WHITESPACE):
+        return False
+    if maximum_length is not None and len(value.encode("utf-16-le", errors="surrogatepass")) // 2 > maximum_length:
+        return False
+    if re.search(r"[\x00-\x1f\x7f\\\\:%]", value):
+        return False
+    return all(segment not in {"", ".", ".."} for segment in value.split("/"))
+
+
+def validate_source_path_prefix(value: object) -> str | None:
+    """Business purpose: Bind the runtime to the API's immutable source selection.
+
+    Business rules:
+    - Null selects the full repository for existing assessments.
+    - A scoped selection is an exact canonical repository path of at most 1,024 UTF-16 code units.
+
+    Execution flow:
+    1. Retain null or validate the supplied source prefix without transforming it.
+    2. Return the exact prefix used by hydration, evidence and checkpoint guards.
+
+    Failure cases:
+    - Invalid types or ambiguous paths raise before source materialization or evidence access.
+
+    Side effects:
+    - Pure validation; does not change snapshot identity or customer approval.
+    """
+    if value is None:
+        return None
+    if not _canonical_source_path(value, maximum_length=1024):
+        raise ValueError("sourcePathPrefix must be a canonical repository-relative path")
+    return value
+
+
+def source_path_in_scope(path: str, source_path_prefix: str | None) -> bool:
+    """Business purpose: Keep source observations within the immutable assessment selection.
+
+    Business rules:
+    - A prefix matches itself or descendants at a slash boundary, never similarly named siblings.
+    - Whole-repository scope is represented by a dot only for a null prefix.
+
+    Execution flow:
+    1. Reject noncanonical source paths except the explicitly allowed full-repository dot.
+    2. Compare the path to the exact selected prefix and its descendants.
+
+    Failure cases:
+    - Malformed or out-of-scope paths return false before a caller reads or accepts source.
+
+    Side effects:
+    - Pure comparison; neither fetches source nor records evidence.
+    """
+    if path == ".":
+        return source_path_prefix is None
+    if not _canonical_source_path(path):
+        return False
+    return source_path_prefix is None or path == source_path_prefix or path.startswith(source_path_prefix + "/")
+
 
 class AssessmentRepositoryBackend(SandboxBackendProtocol):
     """Expose the assessment repository itself as the Deep Agent filesystem root.
@@ -431,6 +510,7 @@ def hydrate_repository(
     scan_job_id: str,
     commit_sha: str = "",
     assessment_id: str = "",
+    source_path_prefix: str | None = None,
     correlation_id: str | None = None,
     lifecycle: RepositoryHydrationLifecycle | None = None,
 ) -> None:
@@ -438,8 +518,9 @@ def hydrate_repository(
     Mount the customer's pinned snapshot with an explicit account of source excluded by runtime guards.
 
     Business rules:
-    - Reusing the same snapshot/job requires matching assessment and commit pins.
-    - Archive safety limits remain effective; omitted source is reported as limited coverage.
+    - Reusing the same snapshot/job requires matching assessment, commit and source-scope pins.
+    - Archive safety limits remain effective; omitted in-scope source is reported as limited coverage.
+    - Intentional source-scope exclusions are reported separately and never widen a resumed workspace.
     - An existing matching workspace keeps its repository and agent state when metadata is upgraded.
 
     Execution flow:
@@ -454,14 +535,27 @@ def hydrate_repository(
     Side effects:
     - Downloads the snapshot and writes sandbox metadata; initial hydration creates its source and Git baseline.
     """
+    source_path_prefix = validate_source_path_prefix(source_path_prefix)
     marker = _read_marker(backend)
     reused = marker.get("snapshotId") == snapshot_id and marker.get("scanJobId") == scan_job_id
     if reused:
         if marker.get("commitSha") != commit_sha or marker.get("assessmentId") != assessment_id:
             raise RuntimeError("cached repository view pins do not match the requested snapshot")
-        if isinstance(marker.get("sourceCoverage"), dict):
+        if validate_source_path_prefix(marker.get("sourcePathPrefix")) != source_path_prefix:
+            raise RuntimeError("cached repository source scope does not match the requested snapshot")
+        coverage = marker.get("sourceCoverage")
+        if isinstance(coverage, dict):
+            if validate_source_path_prefix(coverage.get("sourcePathPrefix")) != source_path_prefix:
+                raise RuntimeError("cached repository coverage scope does not match the requested snapshot")
+            if source_path_prefix is not None and (
+                not isinstance(coverage.get("includedFiles"), int) or isinstance(coverage.get("includedFiles"), bool)
+                or coverage["includedFiles"] < 1
+            ):
+                raise RuntimeError("cached scoped repository has no retained source")
             _emit_lifecycle(lifecycle, "repository_sandbox_reused")
             return
+        if source_path_prefix is not None:
+            raise RuntimeError("cached scoped repository lacks source coverage metadata")
 
     config = load_config()
     _emit_lifecycle(lifecycle, "repository_archive_downloading")
@@ -476,7 +570,9 @@ def hydrate_repository(
         )
     )
     _emit_lifecycle(lifecycle, "repository_archive_downloaded")
-    sanitized_archive, source_coverage = _sanitize_archive(archive, snapshot_id=snapshot_id)
+    sanitized_archive, source_coverage = _sanitize_archive(
+        archive, snapshot_id=snapshot_id, source_path_prefix=source_path_prefix,
+    )
 
     upload_files = getattr(backend, "upload_files", None)
     execute = getattr(backend, "execute", None)
@@ -498,7 +594,7 @@ def hydrate_repository(
             else "unknown"
         )
         bootstrap = _repository_hydration_bootstrap(baseline_label)
-        extraction = execute(bootstrap, timeout=120)
+        extraction = execute(bootstrap, timeout=300)
         if getattr(extraction, "exit_code", 1) != 0:
             output = str(getattr(extraction, "output", "") or "").strip()
             detail = f": {output}" if output else ""
@@ -510,6 +606,7 @@ def hydrate_repository(
             "snapshotId": snapshot_id,
             "scanJobId": scan_job_id,
             "commitSha": commit_sha,
+            "sourcePathPrefix": source_path_prefix,
             "repositoryRoot": REPOSITORY_ROOT,
             "agentFilesystemRoot": "/",
             "role": "assessment_repository_database",
@@ -579,35 +676,46 @@ def _read_marker(backend: object) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> tuple[bytes, dict[str, Any]]:
+def _sanitize_archive(
+    archive: bytes, *, snapshot_id: str, source_path_prefix: str | None = None,
+) -> tuple[bytes, dict[str, Any]]:
     """Business purpose:
-    Build the runtime source archive while preserving an account of excluded customer source.
+    Build the runtime source view for the immutable customer selection with truthful coverage.
 
     Business rules:
-    - Workspace safety guards apply before sandbox upload; .git and .lcsp belong to the runtime.
-    - Every excluded source entry remains visible in coverage metadata with its repository-relative path.
+    - Workspace safety guards apply before filtering; links and runtime-owned .git/.lcsp never become source.
+    - A selected subtree retains original repository-relative paths and excludes similarly named siblings.
+    - Intentional scope exclusions do not limit in-scope coverage; guarded omissions inside it do.
+    - Scope-exclusion samples are bounded; their exact count remains available without exposing sibling content.
+    - A scoped view must retain at least one real source file and cannot silently fall back to the full archive.
 
     Execution flow:
-    1. Materialize the pinned archive through the existing bounded extractor.
-    2. Normalize omission paths and exclude runtime-reserved paths from the sanitized archive.
-    3. Return archive bytes and the included count plus omission reasons and available source hashes.
+    1. Validate the exact source prefix and materialize the archive through the existing bounded extractor.
+    2. Classify guarded omissions and retained files against the selected scope.
+    3. Return only allowed source with separate safety and scope-exclusion provenance.
 
     Failure cases:
-    - Invalid archives or unsafe paths propagate extraction failure before any sandbox source is changed.
+    - Unsafe archives, missing scope or a scope with no retained source fail before changing the sandbox.
 
     Side effects:
-    - Uses and removes a temporary workspace; does not modify the immutable snapshot.
+    - Uses and removes a temporary workspace; neither alters the immutable archive nor reroots evidence paths.
     """
+    source_path_prefix = validate_source_path_prefix(source_path_prefix)
     with tempfile.TemporaryDirectory(prefix="lcsp-repository-sandbox-") as root:
         workspace = RepositoryWorkspace(Path(root))
         result = workspace.materialize("snapshot", archive, snapshot_id=snapshot_id)
         source_root = _repository_root(result.workspace_path)
-        prefix = source_root.relative_to(result.workspace_path)
-        skipped = [
-            {"path": Path(entry.path).relative_to(prefix).as_posix(), "reason": entry.reason,
-             "sizeBytes": entry.size_bytes, "limitBytes": entry.limit_bytes, "sha256": entry.sha256}
-            for entry in result.skipped_entries
-        ]
+        archive_prefix = source_root.relative_to(result.workspace_path)
+        skipped = []
+        excluded = []
+        for entry in result.skipped_entries:
+            relative = Path(entry.path).relative_to(archive_prefix).as_posix()
+            record = {"path": relative, "reason": entry.reason, "sizeBytes": entry.size_bytes,
+                      "limitBytes": entry.limit_bytes, "sha256": entry.sha256}
+            if source_path_prefix is not None and not source_path_in_scope(relative, source_path_prefix):
+                excluded.append({**record, "reason": "SOURCE_SCOPE_EXCLUDED", "guardReason": entry.reason})
+            else:
+                skipped.append(record)
         included = 0
         output = io.BytesIO()
         with tarfile.open(fileobj=output, mode="w:gz") as sanitized:
@@ -615,19 +723,30 @@ def _sanitize_archive(archive: bytes, *, snapshot_id: str) -> tuple[bytes, dict[
                 if not path.is_file():
                     continue
                 relative = path.relative_to(source_root)
+                relative_path = relative.as_posix()
+                if source_path_prefix is not None and not source_path_in_scope(relative_path, source_path_prefix):
+                    excluded.append({"path": relative_path, "reason": "SOURCE_SCOPE_EXCLUDED",
+                                     "sizeBytes": path.stat().st_size})
+                    continue
                 if relative.parts and relative.parts[0] in _RESERVED_REPOSITORY_DIRS:
                     with path.open("rb") as source:
                         digest = hashlib.file_digest(source, "sha256").hexdigest()
-                    skipped.append({"path": relative.as_posix(), "reason": "RESERVED_RUNTIME_PATH",
+                    skipped.append({"path": relative_path, "reason": "RESERVED_RUNTIME_PATH",
                                     "sizeBytes": path.stat().st_size, "limitBytes": None, "sha256": digest})
                     continue
-                sanitized.add(
-                    path,
-                    arcname=relative.as_posix(),
-                    recursive=False,
-                )
+                sanitized.add(path, arcname=relative_path, recursive=False)
                 included += 1
-        return output.getvalue(), {"coverageLimited": bool(skipped), "includedFiles": included, "skippedEntries": skipped}
+        if source_path_prefix is not None and included == 0:
+            raise RuntimeError("selected repository source scope has no retained source files")
+        return output.getvalue(), {
+            "sourcePathPrefix": source_path_prefix,
+            "coverageLimited": bool(skipped),
+            "includedFiles": included,
+            "skippedEntries": skipped,
+            "sourceScopeExcludedEntryCount": len(excluded),
+            "sourceScopeExcludedEntries": excluded[:_MAX_SOURCE_SCOPE_EXCLUSION_SAMPLES],
+            "sourceScopeExclusionsTruncated": len(excluded) > _MAX_SOURCE_SCOPE_EXCLUSION_SAMPLES,
+        }
 
 
 def _repository_root(workspace_path: Path) -> Path:

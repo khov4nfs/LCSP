@@ -14,6 +14,25 @@ import { projectCanonicalAssessment } from "../../../../platform/runtime-events/
 @Injectable()
 export class AssessmentRepositorySetupLoader {
   constructor(private readonly prisma: PrismaService) {}
+  /**
+   * Business purpose: Show the customer the repository, immutable source scope and scan state selected for their assessment.
+   *
+   * Business rules:
+   * - Only the assessment's customer owner may read setup metadata.
+   * - Prefer the pinned snapshot; otherwise project the latest ready snapshot on an active owned connection.
+   * - Source scope is projected from the snapshot without trimming or widening its directory.
+   *
+   * Execution flow:
+   * 1. Authorize the customer and select the pinned or latest ready snapshot.
+   * 2. Read its owned connection and matching scan job.
+   * 3. Validate and return setup metadata including the snapshot source prefix.
+   *
+   * Failure cases:
+   * - A missing or foreign assessment returns not-found; malformed persisted setup data fails response validation.
+   *
+   * Side effects:
+   * - Read-only repeatable-read transaction; no snapshots, source scopes or history are changed.
+   */
   async load(input: {
     assessmentId: string;
     sessionUserId: string;
@@ -105,6 +124,7 @@ export class AssessmentRepositorySetupLoader {
                   repositoryFullName: snapshot.repositoryFullName,
                   branch: snapshot.branch,
                   commitSha: snapshot.commitSha,
+                  sourcePathPrefix: snapshot.sourcePathPrefix,
                   createdAt: snapshot.createdAt.toISOString(),
                 }
               : null,

@@ -60,6 +60,7 @@ jobs:
               - 'package.json'
             release_gate:
               - '.dockerignore'
+              - 'operator/**'
               - '.github/workflows/test.yml'
               - 'fogewise-dev-launchers/**'
               - 'apps/api/**'
@@ -568,6 +569,13 @@ jobs:
           node tests/assessment-domain-vertical.mjs
           node tests/assessment-hitl-vertical.mjs
           node tests/assessment-hitl-vertical.mjs --unresolvable-only
+
+      - name: Phase 2 shared human review and populated upgrade
+        env:
+          PGPASSWORD: postgres
+        run: |
+          node tests/assessment-hitl-phase2-upgrade.mjs
+          node tests/assessment-hitl-phase2-vertical.mjs
 
       - name: Upload assessment deletion evidence
         if: always()

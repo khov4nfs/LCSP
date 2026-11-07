@@ -89,6 +89,35 @@ describe("AssessmentHumanRequestSupport read projection", () => {
     expect(viewVi.resolvedFactId).toBe(canonicalRow.resolvedFactId);
   });
 
+  it("projects all rule dependencies while retaining the original primary rule", async () => {
+    const view = await service.view({
+      ...canonicalRow,
+      dependencies: [
+        {
+          requestId: canonicalRow.requestId,
+          assessmentId: canonicalRow.assessmentId,
+          assessmentRuleId: "RULE-SECONDARY",
+          criterionIds: ["CRIT-SECONDARY"],
+        },
+      ],
+    });
+    expect(view.assessmentRuleId).toBe(canonicalRow.assessmentRuleId);
+    expect(view.dependencies).toEqual([
+      {
+        assessmentRuleId: canonicalRow.assessmentRuleId,
+        criterionIds: ["CRIT-1", "CRIT-2"],
+      },
+      { assessmentRuleId: "RULE-SECONDARY", criterionIds: ["CRIT-SECONDARY"] },
+    ]);
+    const legacy = await service.view(canonicalRow);
+    expect(legacy.dependencies).toEqual([
+      {
+        assessmentRuleId: canonicalRow.assessmentRuleId,
+        criterionIds: ["CRIT-1", "CRIT-2"],
+      },
+    ]);
+  });
+
   it("preserves canonical English fields when reading with en or null locale", async () => {
     const viewEn = await service.view(canonicalRow, "en");
     expect(viewEn.question).toBe("What is the retention period?");

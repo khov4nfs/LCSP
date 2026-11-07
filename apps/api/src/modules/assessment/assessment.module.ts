@@ -30,6 +30,8 @@ import { ControlAssessmentRuntimeHandler } from "./application/commands/control-
 import { AssessmentHumanResolutionController } from "./presentation/http/assessment-human-resolution.controller.js";
 import { AssessmentProvenanceController } from "./presentation/http/assessment-provenance.controller.js";
 import { AssessmentProvenanceLoader } from "./infrastructure/persistence/assessment-provenance.loader.js";
+import { AssessmentSessionExportController } from "./presentation/http/assessment-session-export.controller.js";
+import { AssessmentSessionExportLoader } from "./infrastructure/persistence/assessment-session-export.loader.js";
 import { AssessmentTrackingController } from "./presentation/http/assessment-tracking.controller.js";
 import { AdminTrackingController } from "./presentation/http/admin-tracking.controller.js";
 import { AssessmentTrackingLoader } from "./infrastructure/persistence/assessment-tracking.loader.js";
@@ -109,6 +111,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentHumanResolutionController,
     AssessmentArtifactController,
     AssessmentProvenanceController,
+    AssessmentSessionExportController,
     AssessmentTrackingController,
     AdminTrackingController,
   ],
@@ -170,6 +173,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentReportLoader,
     AssessmentProvenanceLoader,
     AssessmentPdfRenderer,
+    AssessmentSessionExportLoader,
     AssessmentRepositorySetupLoader,
     GetRepositorySetupHandler,
     GetAssessmentReportHandler,

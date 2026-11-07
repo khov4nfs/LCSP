@@ -11,6 +11,7 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
+import { repositorySourcePathPrefixSchema } from "@lcsp/contracts/github-integration";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { criterionIdsOf, listLength } from "../../domain/rule-criteria.js";
@@ -26,6 +27,7 @@ export interface PinnedCase {
   repositorySnapshotId: string;
   repositoryScanJobId: string;
   repositoryCommit: string;
+  sourcePathPrefix: string | null;
 }
 
 export function invalid(code: string, correlationId: string) {
@@ -46,6 +48,25 @@ export class AssessmentCaseSupport {
     );
   }
 
+  /**
+   * Business purpose: Load the immutable case pins and the source boundary of their own repository snapshot.
+   *
+   * Business rules:
+   * - The case must have complete rule-set and repository pins.
+   * - Source scope comes only from the pinned snapshot owned by this assessment at the same commit.
+   * - Null preserves an existing whole-repository snapshot; missing or malformed scope metadata fails closed.
+   *
+   * Execution flow:
+   * 1. Read the case and reject incomplete or inconsistent ownership.
+   * 2. Read its exact assessment-bound snapshot and verify commit identity and canonical source scope.
+   * 3. Return case revision, repository pins and the stored prefix without normalization.
+   *
+   * Failure cases:
+   * - Missing pins, a missing or foreign snapshot, mismatched commit or invalid prefix produces PINS_NOT_READY.
+   *
+   * Side effects:
+   * - Read-only database queries; existing snapshot scope and case history are never rewritten.
+   */
   async loadPins(
     tx: Prisma.TransactionClient,
     assessmentId: string,
@@ -56,10 +77,42 @@ export class AssessmentCaseSupport {
     const row = await tx.assessmentCase.findUnique({ where: { assessmentId } });
     if (
       !row ||
+      row.assessmentId !== assessmentId ||
       !row.ruleSetVersionId ||
       !row.repositorySnapshotId ||
       !row.repositoryScanJobId ||
       !row.repositoryCommit
+    ) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+        correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    const snapshot = await tx.repositorySnapshot.findFirst({
+      where: {
+        id: row.repositorySnapshotId,
+        assessmentId,
+        commitSha: {
+          equals: row.repositoryCommit,
+          mode: Prisma.QueryMode.insensitive,
+        },
+      },
+      select: {
+        id: true,
+        assessmentId: true,
+        commitSha: true,
+        sourcePathPrefix: true,
+      },
+    });
+    if (
+      !snapshot ||
+      snapshot.id !== row.repositorySnapshotId ||
+      snapshot.assessmentId !== assessmentId ||
+      snapshot.commitSha.toLowerCase() !== row.repositoryCommit.toLowerCase() ||
+      (snapshot.sourcePathPrefix !== null &&
+        !repositorySourcePathPrefixSchema.safeParse(snapshot.sourcePathPrefix)
+          .success)
     ) {
       throw problemException(
         ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
@@ -73,6 +126,7 @@ export class AssessmentCaseSupport {
       repositorySnapshotId: row.repositorySnapshotId,
       repositoryScanJobId: row.repositoryScanJobId,
       repositoryCommit: row.repositoryCommit,
+      sourcePathPrefix: snapshot.sourcePathPrefix,
     };
   }
 

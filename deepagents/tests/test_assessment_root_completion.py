@@ -103,8 +103,14 @@ def test_partial_work_and_pseudo_tools_continue_same_graph_until_server_complete
     continued = model.prompts[4]
     assert any(isinstance(m, AIMessage) and "[[tool_calls]]" in str(m.content) for m in continued)
     assert any(isinstance(m, ToolMessage) and m.name == "submit_rule_decision" for m in continued)
-    context = next(m for m in model.prompts[5] if isinstance(m, ToolMessage) and m.tool_call_id == "continued-context")
-    assert json.loads(context.content)["evidence"]
+    context = next(
+        m
+        for m in model.prompts[5]
+        if isinstance(m, ToolMessage) and m.tool_call_id == "continued-context"
+    )
+    continued_context = json.loads(context.content)
+    assert continued_context["contextCollections"]["counts"]["evidence"] == 1
+    assert "evidence" not in continued_context
     checkpoints = list(saver.list(None))
     assert {row.config["configurable"]["thread_id"] for row in checkpoints} == {THREAD}
 
