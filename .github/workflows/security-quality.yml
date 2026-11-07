@@ -150,7 +150,7 @@ jobs:
       - name: Run API unit coverage
         id: api-coverage
         env:
-          NODE_OPTIONS: --experimental-vm-modules
+          NODE_OPTIONS: --experimental-vm-modules --max-old-space-size=5120
         run: pnpm --filter @lcsp/api exec jest --config ./jest.config.ts --coverage --runInBand
 
       - name: Bind coverage artifact to the tested source
