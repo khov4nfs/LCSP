@@ -35,7 +35,17 @@ SURFACES = (
 
 
 def installed_surfaces():
-    """Describe exact symbol expressions and versions in this installation."""
+    """Business purpose: Fingerprint the installed framework injection surfaces.
+
+    Business rules:
+    - Each declared symbol must exist; dependency defaults remain unapproved until adapted.
+    Execution flow:
+    1. Read distribution versions, parse each installed module and hash the exact symbol AST.
+    Failure cases:
+    - Missing distributions, modules or symbols reject the inventory.
+    Side effects:
+    - Read installed package files without importing or patching their behavior.
+    """
     result = []
     for package, filename, symbol, override in SURFACES:
         dist = distribution(package)
@@ -60,6 +70,16 @@ def installed_surfaces():
 
 
 def validate_framework_surfaces(declared):
-    """Reject dependency drift or unexplained default additions in the ledger."""
+    """Business purpose: Reject an installation that differs from the recorded framework contract.
+
+    Business rules:
+    - Version, symbol fingerprint and control metadata must match exactly.
+    Execution flow:
+    1. Recompute installed surfaces and compare against the declared list.
+    Failure cases:
+    - FRAMEWORK_INSTRUCTION_DRIFT blocks publication on any discrepancy.
+    Side effects:
+    - Read installed framework metadata; change no runtime instructions.
+    """
     if declared != installed_surfaces():
         raise RuntimeInstructionBundleError("FRAMEWORK_INSTRUCTION_DRIFT")

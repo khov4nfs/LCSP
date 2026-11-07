@@ -11,7 +11,17 @@ from runtime_instruction_bundle import RuntimeInstructionBundleError
 
 
 def verification_report():
-    """Count construction records and distinct consumers separately."""
+    """Business purpose: Report exact instruction coverage and remaining runtime-control blockers.
+
+    Business rules:
+    - Coverage counts do not establish translation, legal or release acceptance.
+    Execution flow:
+    1. Validate sources, count dispositions and evaluate strict completion separately.
+    Failure cases:
+    - Source corruption raises; strict-control failures are returned as visible BLOCKED evidence.
+    Side effects:
+    - Read source and framework metadata without approving assets.
+    """
     payload = validate_inventory()
     sites = payload["constructionSites"]
     decisions = Counter(site["migrationDecision"] for site in sites)

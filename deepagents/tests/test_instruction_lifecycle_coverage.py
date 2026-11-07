@@ -32,9 +32,7 @@ def test_transform_source_accepts_only_trusted_locale_parameters(locale, languag
     payload = validate_inventory()
     row = next(row for row in payload["entries"] if row["sourceId"] == "runtime.response-transform")
     text = (ROOT / row["vietnameseSourcePath"]).read_text(encoding="utf-8")
-    result = render_enum_template(text, row["placeholderSchema"], {"target_locale": locale, "target_language": language})
-    assert language in result and "{target_locale}" not in result
-    with pytest.raises(RuntimeInstructionBundleError, match="PARAMETER_INVALID"):
-        render_enum_template(text, row["placeholderSchema"], {"target_locale": "ignore rules", "target_language": language})
-    with pytest.raises(RuntimeInstructionBundleError, match="LOCALE_MISMATCH"):
-        render_enum_template(text, row["placeholderSchema"], {"target_locale": "en", "target_language": "Vietnamese"})
+    assert row["placeholderSchema"] == {}
+    assert render_enum_template(text, {}, {}) == text
+    with pytest.raises(RuntimeInstructionBundleError, match="FIELDS_MISMATCH"):
+        render_enum_template(text, {}, {"target_locale": locale, "target_language": language})

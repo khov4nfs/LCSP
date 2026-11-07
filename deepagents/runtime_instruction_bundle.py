@@ -24,11 +24,16 @@ TrustedApprovalVerifier = Callable[[Mapping[str, object]], bool]
 
 
 def production_runtime_bundle() -> "ApprovedEnglishRuntimeBundle":
-    """Load only a release-pinned approved artifact; never infer release approval.
+    """Business purpose: Load the release-authorized English instruction snapshot before inference.
 
-    The manifest digest must be supplied out-of-band by deployment governance.
-    There is deliberately no development bypass or approval registry generated
-    from the candidate artifact itself.
+    Business rules:
+    - The manifest digest must come from deployment governance; approval cannot be inferred from candidate fields.
+    Execution flow:
+    1. Verify the deployment pin, strict inventory, trusted approval and each source revision.
+    Failure cases:
+    - Missing, corrupt, stale, unapproved or untrusted assets reject runtime availability.
+    Side effects:
+    - Read deployment configuration and verified assets; generate no translation or approval.
     """
     import hmac
     from instruction_source_inventory import ROOT, validate_inventory
@@ -59,7 +64,17 @@ def production_runtime_bundle() -> "ApprovedEnglishRuntimeBundle":
 
 
 def runtime_instruction(source_id: str, key: str | None = None) -> str:
-    """Resolve actual English bytes; keyed assets never fall back to legacy text."""
+    """Business purpose: Resolve one English instruction or keyed asset from the approved bundle.
+
+    Business rules:
+    - There is no locale selection or legacy prompt fallback.
+    Execution flow:
+    1. Load the verified bundle, select the entry and validate a keyed string when requested.
+    Failure cases:
+    - Missing, invalid or empty entries fail closed.
+    Side effects:
+    - Read approved runtime assets only.
+    """
     text = production_runtime_bundle().instruction(source_id)
     if key is not None:
         try:
@@ -72,16 +87,49 @@ def runtime_instruction(source_id: str, key: str | None = None) -> str:
 
 
 def _digest(value: bytes) -> str:
+    """Business purpose: Fingerprint exact runtime instruction bytes.
+
+    Business rules:
+    - Hash the supplied bytes without guessing or normalization.
+    Execution flow:
+    1. Return their SHA-256 digest.
+    Failure cases:
+    - Invalid byte input propagates a type error.
+    Side effects:
+    - None: pure hashing.
+    """
     return sha256(value).hexdigest()
 
 
 def _required_string(value: object, code: str) -> str:
+    """Business purpose: Require a nonblank manifest metadata value.
+
+    Business rules:
+    - Absent or blank identities must not become guessed approval or source metadata.
+    Execution flow:
+    1. Validate the type and nonblank content, then return the value.
+    Failure cases:
+    - Raise the caller-specified stable bundle error for invalid values.
+    Side effects:
+    - None: validates one manifest field.
+    """
     if not isinstance(value, str) or not value.strip():
         raise RuntimeInstructionBundleError(code)
     return value
 
 
 def _safe_relative_path(value: object, code: str) -> Path:
+    """Business purpose: Constrain bundle file access to the configured artifact root.
+
+    Business rules:
+    - Absolute, traversal and escaping paths are forbidden.
+    Execution flow:
+    1. Validate and resolve the relative asset path under root.
+    Failure cases:
+    - Unsafe paths reject loading before content is used.
+    Side effects:
+    - Resolve paths without changing assets.
+    """
     raw = _required_string(value, code)
     path = Path(raw)
     if path.is_absolute() or ".." in path.parts:
@@ -90,6 +138,17 @@ def _safe_relative_path(value: object, code: str) -> Path:
 
 
 def _read_hashed(root: Path, relative: object, expected: object, code: str) -> bytes:
+    """Business purpose: Verify artifact bytes against their declared content identity.
+
+    Business rules:
+    - Only exact SHA-256 matches may become instruction inputs.
+    Execution flow:
+    1. Resolve the safe path, read bytes and compare the expected digest.
+    Failure cases:
+    - Missing files or digest drift raise the caller-specified bundle error.
+    Side effects:
+    - Read one artifact without modifying it.
+    """
     path = root / _safe_relative_path(relative, code)
     try:
         value = path.read_bytes()
@@ -131,7 +190,17 @@ class ApprovedEnglishRuntimeBundle:
         expected_entry_ids: Collection[str] | None = None,
         approval_verifier: TrustedApprovalVerifier | None = None,
     ) -> "ApprovedEnglishRuntimeBundle":
-        """Load and verify an approved bundle without any locale-based fallback."""
+        """Business purpose: Build an immutable instruction view from a trusted approved manifest.
+
+        Business rules:
+        - A verifier is mandatory; revoked, stale, duplicate and incomplete entries cannot be loaded.
+        Execution flow:
+        1. Validate approval, read and hash each origin/runtime asset, then verify aggregate digests and required IDs.
+        Failure cases:
+        - Schema, approval, UTF-8, path or digest failures reject the bundle.
+        Side effects:
+        - Read trusted artifacts and return their verified runtime representation.
+        """
         try:
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -190,14 +259,34 @@ class ApprovedEnglishRuntimeBundle:
         return cls(bundle_id, inventory_digest, english_digest, approver, approval_revision, entries)
 
     def instruction(self, source_id: str) -> str:
-        """Return one verified English model-facing instruction unit."""
+        """Business purpose: Return the exact verified English bytes for a declared source identity.
+
+        Business rules:
+        - An absent instruction cannot fall back to another source or language.
+        Execution flow:
+        1. Look up the requested source and return its loaded runtime text.
+        Failure cases:
+        - RUNTIME_BUNDLE_ENTRY_MISSING rejects unknown source IDs.
+        Side effects:
+        - None: reads the immutable bundle view.
+        """
         try:
             return self.entries[source_id].english_runtime
         except KeyError as error:
             raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_ENTRY_MISSING") from error
 
     def manifest_metadata(self) -> dict[str, Any]:
-        """Return bounded receipt metadata, never source or instruction bodies."""
+        """Business purpose: Expose verified source and runtime fingerprints for run receipts.
+
+        Business rules:
+        - Receipt hashes describe loaded assets and retain independent approval identity.
+        Execution flow:
+        1. Project bundle identity, approval revision and sorted per-entry digests.
+        Failure cases:
+        - No provider usage or legal approval is inferred from these hashes.
+        Side effects:
+        - None: creates a metadata projection.
+        """
         return {
             "runtimeInstructionBundleId": self.bundle_id,
             "vietnameseOriginInventorySha256": self.vietnamese_inventory_sha256,

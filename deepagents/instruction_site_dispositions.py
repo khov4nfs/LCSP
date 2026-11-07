@@ -6,6 +6,17 @@ content and does not declare third-party defaults controlled.
 
 
 def reconcile_site(site):
+    """Business purpose: Bind one discovered instruction consumer to its authority and source disposition.
+
+    Business rules:
+    - Runtime data and third-party instructions must remain distinct from LCSP-maintained templates; unknown consumers stay unresolved.
+    Execution flow:
+    1. Inspect path, symbol and expression evidence, then attach the matching source and disposition evidence.
+    Failure cases:
+    - Unrecognized instruction paths remain EXPLICITLY_UNRESOLVED for the strict gate.
+    Side effects:
+    - Update only the supplied migration-ledger site record.
+    """
     path, symbol, text = site["filePath"], site["symbolName"], site["evidence"]
     identity = site.get("viSourceId")
     disposition = "BOUND_TO_VI_SOURCE" if identity else "EXPLICITLY_UNRESOLVED"

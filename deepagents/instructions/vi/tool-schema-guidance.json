@@ -41,5 +41,22 @@
   "preparation.source_blocked_path": "Absolute path bị ảnh hưởng phải nằm trong /legal-source.",
   "preparation.claim_offset": "Offset bắt đầu từ 0; giá trị âm bắt đầu tại 0.",
   "preparation.claim_limit": "Page size mặc định và tối đa 20.",
-  "preparation.authoring_limit": "Page size mặc định và tối đa 40."
+  "preparation.authoring_limit": "Page size mặc định và tối đa 40.",
+  "GetAssessmentRuleDetailArgs.detail_token": "detailToken do get_assessment_rule tr? v? khi payload qu? l?n; kh?ng t? t?o token.",
+  "GetAssessmentRuleDetailArgs.pointer": "JSON pointer ch?nh x?c t? detail index; chu?i r?ng ch?n to?n b? payload rule.",
+  "GetAssessmentRuleDetailArgs.offset": "B?t ??u t?i zero r?i theo nextOffset; index d?ng v? tr? entry, fragment d?ng v? tr? Unicode code point.",
+  "GetAssessmentRuleDetailArgs.max_items": "S? entry tr?c ti?p t?i ?a; n?i dung VALUE l?ng nhau v?n ph?i tu?n gi?i h?n byte c?a response.",
+  "GetAssessmentRuleDetailArgs.max_chars": "S? Unicode code point t?i ?a cho chu?i ho?c JSON fragment; gi?i h?n byte c? th? tr? trang ng?n h?n.",
+  "GetAssessmentCoverageArgs.snapshot_token": "Token snapshot do ??ng c?ng c? context/coverage/HITL tr? v?; khi stale ph?i t?i l?i ngu?n context t??ng ?ng.",
+  "GetAssessmentCoverageArgs.offset": "B?t ??u t?i zero r?i theo nextOffset; index d?ng v? tr? entry, fragment d?ng v? tr? Unicode code point.",
+  "GetAssessmentCoverageArgs.limit": "S? h?ng t?i ?a m?i trang; theo nextOffset ??n null, trang m?t ph?n kh?ng ch?ng minh completion.",
+  "GetAssessmentContextPageArgs.snapshot_token": "Token snapshot do ??ng c?ng c? context/coverage/HITL tr? v?; khi stale ph?i t?i l?i ngu?n context t??ng ?ng.",
+  "GetAssessmentContextDetailArgs.index": "detailIndex do get_assessment_context_page tr? v?; ch? ??c b?n ghi t??ng ?ng.",
+  "GetHumanRequestResumePageArgs.snapshot_token": "Token snapshot do ??ng c?ng c? context/coverage/HITL tr? v?; khi stale ph?i t?i l?i ngu?n context t??ng ?ng.",
+  "GetHumanRequestResumePageArgs.limit": "S? h?ng t?i ?a m?i trang; theo nextOffset ??n null, trang m?t ph?n kh?ng ch?ng minh completion.",
+  "ReportExistingUnresolvableHumanFactArgs.request_id": "requestId ?ang t?n t?i t? context humanRequests ???c server qu?n tr?.",
+  "ReportExistingUnresolvableHumanFactArgs.unavailability_rationale": "L? do b?ng ch?ng ?? ch?p nh?n ch?ng minh kh?ng th? thu th?p fact v?nh vi?n; UNKNOWN ??n thu?n ch?a ??.",
+  "ReportExistingUnresolvableHumanFactArgs.evidence_ids": "C?c evidence ID ?? ???c ch?p nh?n ch?ng minh s? kh?ng th? thu th?p v?nh vi?n.",
+  "OpenHumanRequestArgs.dependencies": "C?c rule/criterion kh?c ph? thu?c c?ng material fact n?y; kh?ng m? r?ng selected scope.",
+  "OpenHumanRequestArgs.source_request_id": "Identity request c? s?n ?? server x?c th?c vi?c chia s? ??ng c?ng fact."
 }

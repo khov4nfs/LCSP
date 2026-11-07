@@ -13,6 +13,18 @@ import { randomUUID } from "node:crypto";
 export class LocalePresentationProjectionService {
   constructor(private readonly localization: AuthoredLocalizationService) {}
 
+  /**
+   * Business purpose: Read or freeze a locale artifact bound to the immutable report source.
+   *
+   * Business rules:
+   * - Canonical report bytes and source identity cannot be rewritten by localization.
+   * Execution flow:
+   * 1. Delegate to the durable localization service with exact scope, artifact and source digest.
+   * Failure cases:
+   * - Missing or inconsistent translations propagate an explicit incomplete/integrity failure.
+   * Side effects:
+   * - May persist a new immutable localized artifact after all translations are ready.
+   */
   localizedReport(
     scopeId: string,
     sourceArtifactId: string,
@@ -29,6 +41,18 @@ export class LocalePresentationProjectionService {
     );
   }
 
+  /**
+   * Business purpose: Return one persisted locale-specific authored string.
+   *
+   * Business rules:
+   * - Canonical reads remain available when no locale is requested; localized reads never guess another language.
+   * Execution flow:
+   * 1. Resolve the text through the shared batch projection and retrieve its exact result.
+   * Failure cases:
+   * - Unavailable or invalid locale projections propagate explicit errors.
+   * Side effects:
+   * - Read durable translation records without making provider calls.
+   */
   async projectText(
     text: string,
     targetLocale: string | null | undefined,
@@ -38,6 +62,18 @@ export class LocalePresentationProjectionService {
     return projected.get(text)!;
   }
 
+  /**
+   * Business purpose: Project authored strings from durable locale revisions.
+   *
+   * Business rules:
+   * - Requested locale and authorized scope are required; entity/revision bindings constrain reuse when supplied.
+   * Execution flow:
+   * 1. Validate locale/scope and delegate the requested texts and binding to persistent projection.
+   * Failure cases:
+   * - Invalid locale/scope or unavailable translations return an actionable conflict.
+   * Side effects:
+   * - Database reads only; no process-local cache or GET-time translation.
+   */
   async projectBatch(
     texts: string[],
     targetLocale: string | null | undefined,

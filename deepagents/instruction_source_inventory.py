@@ -25,11 +25,32 @@ _DISCOVERY_CACHE = {}
 
 
 def source_digest(data: bytes) -> str:
+    """Business purpose: Fingerprint exact Vietnamese source bytes.
+
+    Business rules:
+    - No newline normalization or language conversion occurs while hashing.
+    Execution flow:
+    1. Compute SHA-256 over the supplied bytes.
+    Failure cases:
+    - Incorrect argument types propagate instead of producing guessed hashes.
+    Side effects:
+    - None: pure byte hashing.
+    """
     return sha256(data).hexdigest()
 
 
 def safe_path(root: Path, raw: str) -> Path:
-    """Reject traversal, Windows drive/UNC paths, symlinks outside root and aliases."""
+    """Business purpose: Resolve an inventory asset inside its authorized source root.
+
+    Business rules:
+    - Reject traversal, drive-relative, UNC and escaping symlink paths.
+    Execution flow:
+    1. Validate the declared relative path and confirm the resolved target stays below root.
+    Failure cases:
+    - INSTRUCTION_SOURCE_UNSAFE_PATH rejects unsafe paths.
+    Side effects:
+    - Resolve filesystem paths without changing files.
+    """
     path = Path(raw)
     win = PureWindowsPath(raw)
     if not raw or path.is_absolute() or win.drive or ".." in path.parts or "\\" in raw:
@@ -41,7 +62,17 @@ def safe_path(root: Path, raw: str) -> Path:
 
 
 def discover(root: Path = ROOT) -> list[dict]:
-    """Record each baseline search hit with its actual enclosing Python symbol."""
+    """Business purpose: Find maintained instruction construction points for coverage reconciliation.
+
+    Business rules:
+    - The original discovery query and AST patterns both contribute; cached results remain tied to source content.
+    Execution flow:
+    1. Scan configured source roots, collect expression evidence and return deterministic sites.
+    Failure cases:
+    - Unreadable source or malformed Python fails the discovery instead of hiding a consumer.
+    Side effects:
+    - Read source files and update the in-process discovery cache.
+    """
     # Cache only parsed results, keyed by actual bytes of every scanned file.
     # A content edit, added file or removed file always invalidates the cache.
     files = [(path, path.read_bytes()) for folder in SCAN_ROOTS for path in sorted((root / folder).rglob("*.py"))]
@@ -111,7 +142,17 @@ def discover(root: Path = ROOT) -> list[dict]:
 
 
 def _ast_site(path, root, symbols, node, kind, text):
-    """Fingerprint the complete expression rather than its opening source line."""
+    """Business purpose: Describe one AST instruction construction with a stable evidence identity.
+
+    Business rules:
+    - Coordinates identify the consumer; expression evidence distinguishes separate construction sites.
+    Execution flow:
+    1. Build the site identity, location and AST expression digest.
+    Failure cases:
+    - Unsupported AST serialization propagates rather than inventing evidence.
+    Side effects:
+    - None: returns migration metadata from parsed source.
+    """
     owners = [n for n in symbols if n.lineno <= node.lineno <= n.end_lineno]
     symbol = min(owners, key=lambda n: n.end_lineno - n.lineno).name if owners else "<module>"
     relative = path.relative_to(root).as_posix()
@@ -123,7 +164,17 @@ def _ast_site(path, root, symbols, node, kind, text):
 
 
 def validate_inventory(root: Path = ROOT, inventory_path: Path = INVENTORY, *, require_complete: bool = False, require_framework_control: bool = True) -> dict:
-    """Validate declared sources without requiring translations or approvals."""
+    """Business purpose: Enforce source, consumer and construction coverage integrity.
+
+    Business rules:
+    - IDs and paths must be unique, UTF-8 hashes exact, required consumers present; strict completion also requires governed framework surfaces.
+    Execution flow:
+    1. Validate every entry, resolve consumer symbols and reconcile current discovery with declared sites.
+    Failure cases:
+    - Missing, stale, unsafe, duplicate or unresolved entries raise stable inventory errors.
+    Side effects:
+    - Read trusted source and dependency files without approving or rewriting them.
+    """
     payload = json.loads(inventory_path.read_text(encoding="utf-8"))
     if payload.get("schemaVersion") != "LCSP_EN_RUNTIME_BUNDLE_V1":
         raise RuntimeInstructionBundleError("INSTRUCTION_INVENTORY_VERSION")
@@ -194,7 +245,17 @@ def validate_inventory(root: Path = ROOT, inventory_path: Path = INVENTORY, *, r
 
 
 def validate_template_fields(content: str, schema: dict) -> None:
-    """Reject undeclared placeholders, conversions and attribute traversal."""
+    """Business purpose: Reject undeclared or unsafe instruction placeholders.
+
+    Business rules:
+    - Only declared simple names are permitted; traversal, conversions and format specifications are forbidden.
+    Execution flow:
+    1. Parse format fields and compare their exact set with the declared schema.
+    Failure cases:
+    - Unsafe fields and mismatched declarations reject rendering.
+    Side effects:
+    - None: inspects template text only.
+    """
     fields = set()
     for _, name, spec, conversion in Formatter().parse(content):
         if name is not None:
@@ -206,7 +267,17 @@ def validate_template_fields(content: str, schema: dict) -> None:
 
 
 def render_enum_template(content: str, schema: dict, values: dict) -> str:
-    """Render closed server-owned enum parameters without free-text injection."""
+    """Business purpose: Render instructions with closed server-owned enum parameters.
+
+    Business rules:
+    - Values must belong to the declared enums; locale and language must agree.
+    Execution flow:
+    1. Validate fields and values, enforce language pairing, then render the template.
+    Failure cases:
+    - Unsafe fields, unsupported parameters or locale disagreement raise explicit errors.
+    Side effects:
+    - None: returns rendered text without accepting evidence as instructions.
+    """
     validate_template_fields(content, schema)
     if set(values) != set(schema):
         raise RuntimeInstructionBundleError("INSTRUCTION_TEMPLATE_FIELDS_MISMATCH")
@@ -221,16 +292,32 @@ def render_enum_template(content: str, schema: dict, values: dict) -> str:
 
 
 def translation_readiness(payload: dict) -> dict:
-    """Report all missing candidates; do not convert VI completeness into approval."""
+    """Business purpose: Report missing English candidate inputs independently of approval.
+
+    Business rules:
+    - A declared candidate is not an approved translation.
+    Execution flow:
+    1. Collect entries lacking candidate paths and return a deterministic readiness summary.
+    Failure cases:
+    - Malformed inventory records fail explicitly; missing translations remain listed.
+    Side effects:
+    - None: returns a source-readiness projection.
+    """
     missing = [row["sourceId"] for row in payload["entries"] if not row.get("englishCandidatePath")]
     return {"status": "PENDING_TRANSLATION" if missing else "CANDIDATES_DECLARED", "missingEnglishCandidates": sorted(missing)}
 
 
 def render_numeric_template(content: str, schema: dict, values: dict) -> str:
-    """Render only trusted nonnegative integer metadata; evidence is never accepted.
+    """Business purpose: Render trusted nonnegative integer instruction metadata.
 
-    This deliberately supports no free-text, attribute lookup, format conversion
-    or nested formatting. Expansion requires a separately reviewed contract.
+    Business rules:
+    - Reject booleans, free text, attribute lookup and undeclared fields.
+    Execution flow:
+    1. Check the exact field set and integer types before formatting.
+    Failure cases:
+    - Unsafe fields or invalid numeric parameters reject rendering.
+    Side effects:
+    - None: combines a maintained template with bounded server metadata.
     """
     fields = set()
     for _, name, spec, conversion in Formatter().parse(content):

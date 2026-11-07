@@ -44,7 +44,7 @@ def test_preparation_phase_fingerprints_actual_localized_prompt_and_allowed_tool
     model = SimpleNamespace(model_name="test-model-id")
     extra = SimpleNamespace(name="unauthorized_write", description="Must not reach model")
     from langchain_core.tools import StructuredTool
-    legit = StructuredTool.from_function(lambda: None, name="get_next_legal_analysis_package", description="Pinned legal source")
+    legit = StructuredTool.from_function(lambda: None, name="get_next_legal_analysis_package", description="Read the next bounded pinned legal analysis package for the current Preparation run; this read cannot activate a Rule Set.")
     en, vi = context("en"), context("vi")
     en_result = final_request(en, [extra, legit], model)
     vi_result = final_request(vi, [extra, legit], model)

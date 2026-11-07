@@ -489,6 +489,30 @@ def preparation_filesystem(backend, *, files):
     return filesystem
 
 
+def preparation_source_pins(context):
+    """Business purpose: Bind Preparation receipts to the authoritative pinned source version.
+
+    Business rules:
+    - Explicit context pins and a materialized source graph must agree; neither may be guessed.
+    Execution flow:
+    1. Read the server-bound context and materialized graph version.
+    2. Reject disagreement or absence and return the actual legal source identity.
+    Failure cases:
+    - Missing pins or inconsistent source authorities reject inference before receipt creation.
+    Side effects:
+    - None: reads the existing run context without altering source records.
+    """
+    explicit = getattr(context, "pinned_source_version_id", None)
+    graph = getattr(context, "source_graph", None)
+    materialized = getattr(graph, "version", None)
+    if explicit and materialized and explicit != materialized:
+        raise ValueError("MANIFEST_SOURCE_PIN_MISMATCH")
+    version = explicit or materialized
+    if not isinstance(version, str) or not version:
+        raise ValueError("MANIFEST_MISSING_PIN_OR_PROMPT")
+    return {"legalSourceVersionId": version}
+
+
 def claim_author_subagent(context, model, backend, budget):
     """Business purpose: Configure one native child agent to complete exactly one assigned Article claim file.
 
@@ -526,7 +550,7 @@ def claim_author_subagent(context, model, backend, budget):
             __import__("middleware.approved_instructions", fromlist=["ApprovedInstructionMiddleware"]).ApprovedInstructionMiddleware(["preparation.common", "preparation.discovery", "claim-author.system"] + (["preparation.development-overlay"] if context.target_activity_scope == "DEVELOPMENT_ONLY" else []),
                 presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft, "target_activity_scope": context.target_activity_scope},
                 receipt_context=lambda: {"run_id": context.run_id, "component": CLAIM_AUTHOR_ROLE, "locale": context.response_language,
-                    "pins": {"legalSourceVersionId": context.pinned_source_version_id}, "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
+                    "pins": preparation_source_pins(context), "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
                 receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}))]}
 
 
@@ -659,7 +683,7 @@ def create_rule_set_preparation_agent(
                 AuthoringToolCallRecorder(context),
                 ApprovedInstructionMiddleware(lambda: (["preparation.direct"] if context.direct_draft else ["preparation.common", "preparation.authoring" if context.inventory and context.inventory.frozen else "preparation.discovery"]) + (["preparation.development-overlay"] if context.target_activity_scope == "DEVELOPMENT_ONLY" else []) + ["preparation.presentation"] + (["preparation.continuation"] if context.discovery_only else []),
                     receipt_context=lambda: {"run_id": context.run_id, "component": RULE_SET_PREPARATION_ROLE, "locale": context.response_language,
-                        "pins": {"legalSourceVersionId": context.pinned_source_version_id}, "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
+                        "pins": preparation_source_pins(context), "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
                     receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}),
                     presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft, "target_activity_scope": context.target_activity_scope}),
             ],

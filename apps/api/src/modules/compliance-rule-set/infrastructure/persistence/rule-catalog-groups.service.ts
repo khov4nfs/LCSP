@@ -16,6 +16,18 @@ import {
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
+/**
+ * Business purpose: Bind approval requests to the exact catalog membership snapshot.
+ *
+ * Business rules:
+ * - Labels, ordering, rule versions and review metadata are included in the digest.
+ * Execution flow:
+ * 1. Serialize the supplied rows deterministically and hash their JSON bytes.
+ * Failure cases:
+ * - Unsupported serialization fails rather than generating a guessed approval digest.
+ * Side effects:
+ * - None: computes a membership fingerprint.
+ */
 const digestRows = (rows: unknown[]) =>
   createHash("sha256").update(JSON.stringify(rows)).digest("hex");
 
@@ -23,6 +35,18 @@ const digestRows = (rows: unknown[]) =>
 @Injectable()
 export class RuleCatalogGroupsService {
   constructor(private readonly prisma: PrismaService) {}
+  /**
+   * Business purpose: Expose the version-bound group membership ledger for authorized administration.
+   *
+   * Business rules:
+   * - This read does not confer taxonomy, legal or activation approval.
+   * Execution flow:
+   * 1. Load ordered memberships for the requested Rule Set and compute their snapshot digest.
+   * Failure cases:
+   * - Persistence errors propagate without inventing group assignments.
+   * Side effects:
+   * - Read membership records only.
+   */
   async get(ruleSetVersionId: string) {
     const memberships = await this.prisma.ruleCatalogGroupMembership.findMany({
       where: { ruleSetVersionId },
@@ -30,6 +54,18 @@ export class RuleCatalogGroupsService {
     });
     return { memberships, membershipDigest: digestRows(memberships) };
   }
+  /**
+   * Business purpose: Persist a complete draft grouping for a reviewed Development catalog.
+   *
+   * Business rules:
+   * - Exact Rule Set digest, rule identities/versions, provenance and one primary group per rule are required; approved rows cannot be overwritten.
+   * Execution flow:
+   * 1. Lock the Rule Set, validate complete membership and source transparency, then upsert draft rows.
+   * Failure cases:
+   * - Stale pins, incomplete membership, inconsistent labels or unsupported provenance reject the transaction.
+   * Side effects:
+   * - Write draft group membership with authenticated submitter identity.
+   */
   async submit(
     ruleSetVersionId: string,
     body: SubmitRuleCatalogGroups,
@@ -164,6 +200,18 @@ export class RuleCatalogGroupsService {
       };
     });
   }
+  /**
+   * Business purpose: Record independent approval of an exact grouping snapshot.
+   *
+   * Business rules:
+   * - Approver must differ from submitter; all current rules need version-matched draft membership and the digest must match.
+   * Execution flow:
+   * 1. Lock the version, verify the complete submitted snapshot and mark its rows approved by the authenticated reviewer.
+   * Failure cases:
+   * - Self-approval, stale digests or incomplete/different-version rows reject approval.
+   * Side effects:
+   * - Persist reviewer identity and approval timestamp without altering legal scope.
+   */
   async approve(
     ruleSetVersionId: string,
     expectedDigest: string,
@@ -203,6 +251,18 @@ export class RuleCatalogGroupsService {
       return { state: RULE_CATALOG_REVIEW_STATES.APPROVED };
     });
   }
+  /**
+   * Business purpose: Return the canonical domain conflict for invalid catalog governance.
+   *
+   * Business rules:
+   * - A grouping conflict must not masquerade as successful approval or scope expansion.
+   * Execution flow:
+   * 1. Construct the shared problem exception with the request correlation ID.
+   * Failure cases:
+   * - Always throws the domain conflict to abort the operation.
+   * Side effects:
+   * - None: produces an error without changing membership.
+   */
   private conflict(correlationId: string): never {
     throw problemException(
       COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,

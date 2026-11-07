@@ -63,11 +63,18 @@ def test_actual_source_contract_rejects_corruption(tmp_path, mutation, error):
 
 def test_actual_inventory_compiler_reports_every_missing_translation_without_output(tmp_path):
     output = tmp_path / "candidate.json"
-    with pytest.raises(RuntimeInstructionBundleError, match="CANDIDATES_MISSING") as caught:
-        compile_candidate(ROOT, INVENTORY, output)
-    for identity in translation_readiness(validate_inventory())["missingEnglishCandidates"]:
-        assert identity in str(caught.value)
-    assert not output.exists()
+    payload = validate_inventory()
+    assert translation_readiness(payload)["missingEnglishCandidates"] == []
+    compiled = compile_candidate(ROOT, INVENTORY, output)
+    assert compiled["approvalStatus"] == "PENDING"
+    assert {entry["sourceId"] for entry in compiled["entries"]} == set(payload["requiredSourceIds"])
+    payload["entries"][0]["englishCandidatePath"] = None
+    incomplete = tmp_path / "incomplete.json"
+    incomplete.write_text(json.dumps(payload), encoding="utf-8")
+    rejected = tmp_path / "rejected.json"
+    with pytest.raises(RuntimeInstructionBundleError, match="CANDIDATES_MISSING"):
+        compile_candidate(ROOT, incomplete, rejected)
+    assert not rejected.exists()
 
 
 def test_scope_and_child_authority_in_vi_drafts():

@@ -2,8 +2,8 @@
   "bundleSchemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
   "bundleId": "lcsp-347-vi-draft-r1",
   "approvalStatus": "PENDING",
-  "vietnameseInventorySha256": "4b702509ec92b1138c014d8ef39e9bca85c607b922d4541cd347e000502428c4",
-  "englishBundleSha256": "9ad6be4c4aa87cc29108195c2aa155b0e53352ee5b3a2794ee067a63a423de50",
+  "vietnameseInventorySha256": "c35680943500c68a0b713f5ecf3c4e69c6bed1d2d50138994f3db656c037ba3e",
+  "englishBundleSha256": "74ce5eee8e7c6a3d5e26e6f9c8762b8896890f761f5aabd399891cfd78c0cf6a",
   "entries": [
     {
       "sourceId": "assessment-root.continuation",
@@ -376,10 +376,10 @@
     {
       "sourceId": "runtime.response-transform",
       "vietnameseSourcePath": "instructions/vi/response-transform.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
-      "vietnameseSourceSha256": "a252db0cf8591fe2231f189d85b58b480ae7a15b81f2e44c328b81134dc9939e",
-      "englishRuntimePath": "instructions/candidates/r1/runtime.response-transform.txt",
-      "englishRuntimeSha256": "f8908d9bdccc1bbe5d9642f55303a48665237e364aa72764806ab329d61be148"
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceSha256": "1b30bfc82a74865417f4860406fab217782ffa8da3b4fab10c758c7ea28cc965",
+      "englishRuntimePath": "instructions/candidates/r2/runtime.response-transform.txt",
+      "englishRuntimeSha256": "7bd7e677c9810b9db749896274267000c7c82860b4654b18e1a0aa6902c7f1f7"
     },
     {
       "sourceId": "runtime.skill-catalogs",
@@ -392,10 +392,10 @@
     {
       "sourceId": "runtime.structured-transform",
       "vietnameseSourcePath": "instructions/vi/structured-transform.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
-      "vietnameseSourceSha256": "34e6281b037185d17b9ea09ac3f2d12eae386ad0f5e5af627ed1b68a9739ace4",
-      "englishRuntimePath": "instructions/candidates/r1/runtime.structured-transform.txt",
-      "englishRuntimeSha256": "99ff22e71a015e6113673008556892e20a05b6ade4ffb46949e1f81ec84a986f"
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceSha256": "82d6af52293980b103482aacf7c3ac3e512bf0826fb73737cfa821fcd83bc394",
+      "englishRuntimePath": "instructions/candidates/r2/runtime.structured-transform.txt",
+      "englishRuntimeSha256": "1dd086b9ec375345c06b1c8c9692305d9cb9f9df1665383f4f2967c217f310ce"
     },
     {
       "sourceId": "skill.assessment-automated-outcomes",
@@ -472,10 +472,10 @@
     {
       "sourceId": "tools.schema-guidance",
       "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
-      "vietnameseSourceSha256": "4777d81bd96529e930574bf58ae587a83afde43eef93b7a6b4cc1138dbf515b7",
-      "englishRuntimePath": "instructions/candidates/r1/tools.schema-guidance.txt",
-      "englishRuntimeSha256": "549f64484fa08f3dfaf997d94768c351ebb2940049cb9bd942cf4b56a2a432ac"
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
+      "englishRuntimePath": "instructions/candidates/r2/tools.schema-guidance.txt",
+      "englishRuntimeSha256": "566d7fc6b5f74409e56b379656eb460c2d81b87afc58dba3a950b42cc7fde3fd"
     }
   ]
 }

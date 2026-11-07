@@ -14,6 +14,17 @@ sys.path.insert(0, str(ROOT))
 
 
 def dictionary(path, name):
+    """Business purpose: Extract legacy dictionary text as translation migration evidence.
+
+    Business rules:
+    - Only literal declared dictionary assignments and updates are accepted; extraction is not approval.
+    Execution flow:
+    1. Parse the named Python source and combine matching literal dictionary entries.
+    Failure cases:
+    - Unsupported literals or unreadable source fail candidate preparation.
+    Side effects:
+    - Read migration reference code without executing it.
+    """
     result = {}
     for node in ast.parse((ROOT / path).read_text(encoding="utf-8")).body:
         if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
@@ -44,6 +55,17 @@ SPECIAL = {
 
 
 def main():
+    """Business purpose: Prepare immutable English translation candidates for the Vietnamese inventory.
+
+    Business rules:
+    - Existing candidate bytes cannot be overwritten with different content; all outputs remain pending review.
+    Execution flow:
+    1. Collect migration references, bind source/candidate hashes and invoke deterministic pending compilation.
+    Failure cases:
+    - Missing content or conflicting candidate bytes require a new translation revision.
+    Side effects:
+    - Write candidate assets and metadata, never production approval.
+    """
     from runtime_instruction_bundle_build import compile_candidate
     inventory_path = ROOT / "instructions/inventory.json"
     inventory = json.loads(inventory_path.read_text(encoding="utf-8"))

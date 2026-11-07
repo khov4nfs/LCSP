@@ -17,10 +17,32 @@ SCHEMA_VERSION = "LCSP_EN_RUNTIME_BUNDLE_V1"
 
 
 def _sha(value: bytes) -> str:
+    """Business purpose: Hash deterministic build inputs.
+
+    Business rules:
+    - Use exact input bytes without language or newline conversion.
+    Execution flow:
+    1. Compute the SHA-256 identity.
+    Failure cases:
+    - Invalid byte input propagates an error.
+    Side effects:
+    - None: pure hashing.
+    """
     return sha256(value).hexdigest()
 
 
 def _read_utf8(root: Path, raw: object, code: str) -> tuple[str, bytes]:
+    """Business purpose: Read a safe, nonempty UTF-8 build asset.
+
+    Business rules:
+    - Unsafe paths, missing files and invalid encoding must block compilation.
+    Execution flow:
+    1. Resolve the source-relative path, read bytes and validate UTF-8 content.
+    Failure cases:
+    - Malformed or absent assets raise a stable build error.
+    Side effects:
+    - Read source or candidate bytes only.
+    """
     if not isinstance(raw, str) or not raw or Path(raw).is_absolute() or ".." in Path(raw).parts:
         raise RuntimeInstructionBundleError(code)
     from instruction_source_inventory import safe_path
@@ -37,7 +59,17 @@ def _read_utf8(root: Path, raw: object, code: str) -> tuple[str, bytes]:
 
 
 def compile_candidate(source_root: Path, inventory_path: Path, output_path: Path) -> dict[str, Any]:
-    """Compile a PENDING candidate; approval fields cannot be supplied here."""
+    """Business purpose: Compile a reproducible pending English bundle from version-bound candidates.
+
+    Business rules:
+    - Every required source needs matching origin and candidate hashes plus provenance; the compiler never grants approval.
+    Execution flow:
+    1. Validate inventory and candidates, compute deterministic aggregate hashes and write a PENDING manifest.
+    Failure cases:
+    - Incomplete, stale, corrupt or unsafe translation inputs prevent publication.
+    Side effects:
+    - Write the candidate manifest without generating reviewer identities or production approval.
+    """
     try:
         inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:

@@ -1723,31 +1723,15 @@
       "runtimeRole": "response-transform",
       "instructionKind": "SYSTEM_TEMPLATE",
       "vietnameseSourcePath": "instructions/vi/response-transform.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
       "runtimeEntryId": "runtime.response-transform",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r1/runtime.response-transform.txt",
+      "englishCandidatePath": "instructions/candidates/r2/runtime.response-transform.txt",
       "migrationReferences": [
         "orchestration/localization.py"
       ],
-      "placeholderSchema": {
-        "target_language": {
-          "type": "ENUM",
-          "values": [
-            "English",
-            "Vietnamese",
-            "Tiếng Việt"
-          ]
-        },
-        "target_locale": {
-          "type": "ENUM",
-          "values": [
-            "en",
-            "vi"
-          ]
-        }
-      },
+      "placeholderSchema": {},
       "consumers": [
         {
           "filePath": "orchestration/localization.py",
@@ -1772,12 +1756,12 @@
       ],
       "templateSyntax": "FORMAT",
       "runtimeInputAuthority": "SERVER_RESPONSE_LANGUAGE_POLICY",
-      "sourceSha256": "a252db0cf8591fe2231f189d85b58b480ae7a15b81f2e44c328b81134dc9939e",
-      "englishCandidateSha256": "f8908d9bdccc1bbe5d9642f55303a48665237e364aa72764806ab329d61be148",
-      "candidateOriginSha256": "a252db0cf8591fe2231f189d85b58b480ae7a15b81f2e44c328b81134dc9939e",
+      "sourceSha256": "1b30bfc82a74865417f4860406fab217782ffa8da3b4fab10c758c7ea28cc965",
+      "englishCandidateSha256": "7bd7e677c9810b9db749896274267000c7c82860b4654b18e1a0aa6902c7f1f7",
+      "candidateOriginSha256": "1b30bfc82a74865417f4860406fab217782ffa8da3b4fab10c758c7ea28cc965",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "Implementation draft moving locale into trusted data; independent equivalence review pending",
+        "translationRevision": "r2"
       }
     },
     {
@@ -1849,31 +1833,15 @@
       "runtimeRole": "response-transform",
       "instructionKind": "SYSTEM_TEMPLATE",
       "vietnameseSourcePath": "instructions/vi/structured-transform.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
       "runtimeEntryId": "runtime.structured-transform",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r1/runtime.structured-transform.txt",
+      "englishCandidatePath": "instructions/candidates/r2/runtime.structured-transform.txt",
       "migrationReferences": [
         "orchestration/localization.py"
       ],
-      "placeholderSchema": {
-        "target_language": {
-          "type": "ENUM",
-          "values": [
-            "English",
-            "Vietnamese",
-            "Tiếng Việt"
-          ]
-        },
-        "target_locale": {
-          "type": "ENUM",
-          "values": [
-            "en",
-            "vi"
-          ]
-        }
-      },
+      "placeholderSchema": {},
       "consumers": [
         {
           "filePath": "orchestration/localization.py",
@@ -1898,12 +1866,12 @@
       ],
       "templateSyntax": "FORMAT",
       "runtimeInputAuthority": "SERVER_RESPONSE_LANGUAGE_POLICY",
-      "sourceSha256": "34e6281b037185d17b9ea09ac3f2d12eae386ad0f5e5af627ed1b68a9739ace4",
-      "englishCandidateSha256": "99ff22e71a015e6113673008556892e20a05b6ade4ffb46949e1f81ec84a986f",
-      "candidateOriginSha256": "34e6281b037185d17b9ea09ac3f2d12eae386ad0f5e5af627ed1b68a9739ace4",
+      "sourceSha256": "82d6af52293980b103482aacf7c3ac3e512bf0826fb73737cfa821fcd83bc394",
+      "englishCandidateSha256": "1dd086b9ec375345c06b1c8c9692305d9cb9f9df1665383f4f2967c217f310ce",
+      "candidateOriginSha256": "82d6af52293980b103482aacf7c3ac3e512bf0826fb73737cfa821fcd83bc394",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "Implementation draft moving locale into trusted data; independent equivalence review pending",
+        "translationRevision": "r2"
       }
     },
     {
@@ -2172,11 +2140,11 @@
       "runtimeRole": "shared-runtime",
       "instructionKind": "TOOL_SCHEMA",
       "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
       "runtimeEntryId": "tools.schema-guidance",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r1/tools.schema-guidance.txt",
+      "englishCandidatePath": "instructions/candidates/r2/tools.schema-guidance.txt",
       "migrationReferences": [
         "assessment_root/tools.py"
       ],
@@ -2323,12 +2291,12 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "4777d81bd96529e930574bf58ae587a83afde43eef93b7a6b4cc1138dbf515b7",
-      "englishCandidateSha256": "549f64484fa08f3dfaf997d94768c351ebb2940049cb9bd942cf4b56a2a432ac",
-      "candidateOriginSha256": "4777d81bd96529e930574bf58ae587a83afde43eef93b7a6b4cc1138dbf515b7",
+      "sourceSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
+      "englishCandidateSha256": "566d7fc6b5f74409e56b379656eb460c2d81b87afc58dba3a950b42cc7fde3fd",
+      "candidateOriginSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "Implementation draft preserving new upstream context and HITL schema contracts; independent review pending",
+        "translationRevision": "r2"
       }
     }
   ],
@@ -5236,9 +5204,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::KEYWORD_DESCRIPTION::95:7a7f27543614e628",
+      "siteId": "ast:middleware/approved_instructions.py::_request::KEYWORD_DESCRIPTION::131:7a7f27543614e628",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 95,
+      "lineNumber": 131,
       "symbolName": "_request",
       "constructionSha256": "7a7f27543614e6289a40a999a4e0c9f4fcb68001cfcf09542f7269cb4c578151",
       "evidence": "item[\"function\"][\"description\"]",
@@ -5256,9 +5224,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_HUMANMESSAGE::87:2a8e48080a9b9b4a",
+      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_HUMANMESSAGE::119:2a8e48080a9b9b4a",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 87,
+      "lineNumber": 119,
       "symbolName": "_request",
       "constructionSha256": "2a8e48080a9b9b4a934ed3460ae80d768f2f6b95849ef9d83b4b17b8b1243bdf",
       "evidence": "json.dumps({\"lcspTrustedRuntimeMetadata\": metadata}, sort_keys=True)",
@@ -5276,9 +5244,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_SYSTEMMESSAGE::108:1ca91208c6f47e14",
+      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_SYSTEMMESSAGE::146:1ca91208c6f47e14",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 108,
+      "lineNumber": 146,
       "symbolName": "_request",
       "constructionSha256": "1ca91208c6f47e1427ae6427ce950339c335770eac5b325d5784ea565b97868e",
       "evidence": "text",
@@ -5476,9 +5444,9 @@
       "dispositionEvidence": "Tracing/token estimation reads prompt metadata for telemetry; this expression is not injected into model messages."
     },
     {
-      "siteId": "ast:orchestration/localization.py::<module>::INSTRUCTION_COMPOSITION::110:95086bb7a66a31e1",
+      "siteId": "ast:orchestration/localization.py::<module>::INSTRUCTION_COMPOSITION::114:95086bb7a66a31e1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 110,
+      "lineNumber": 114,
       "symbolName": "<module>",
       "constructionSha256": "95086bb7a66a31e120d175e1f17e18cf8a4b29edab877ca7b690ca35a0987e36",
       "evidence": "\"\"\"You are a specialized output localization and normalization engine for the LCSP compliance platform.\nYour ONLY task is to normalize/translate the user-visible final response into the target language: {target_language} ({target_locale}).\n\nPRESERVATION INVARIANTS (MUST PRESERVE EXACTLY WITHOUT MODIFICATION):\n1. Facts, conclusions, caveats, reasoning outcomes, and recommendations.\n2. Numbers, arithmetic calculations, percentages, and metrics.\n3. URLs, web links, domain names, and anchors.\n4. Citations and source references (e.g. [1], [file.py#L10-L20], article numbers).\n5. Jira/GitHub identifiers, issue/PR numbers (e.g. LCSP-123, #456).\n6. File paths, directory paths, package paths, and filenames (e.g. /workspace/repo/src/index.ts).\n7. Code blocks and inline code (`...`) verbatim, including code logic, syntax, and variable names.\n8. JSON keys, API field names, HTTP status codes, and SCREAMING_SNAKE_CASE enum/constant values.\n9. Command names, CLI syntax, and error codes.\n10. Markdown structure, formatting, tables, lists, and headings.\n\nTRANSLATION RULES:\n- Translate ONLY the natural-language explanations and user-facing descriptive text into {target_language}.\n- Do NOT add any preamble, greeting, commentary, or conversational filler (e.g. do NOT say \"Here is the translated response:\").\n- Output ONLY the final normalized response.\n- If the text is already completely in {target_language}, return it unchanged.\n- Never alter facts, remove warnings, or invent new information.\n\"\"\"",
@@ -5496,9 +5464,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::<module>::INSTRUCTION_COMPOSITION::133:7ec023eeb3a2b9e6",
+      "siteId": "ast:orchestration/localization.py::<module>::INSTRUCTION_COMPOSITION::137:7ec023eeb3a2b9e6",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 133,
+      "lineNumber": 137,
       "symbolName": "<module>",
       "constructionSha256": "7ec023eeb3a2b9e659fa9a55eb397971e286612d5b97c109043faa42f80b6a18",
       "evidence": "\"\"\"You are a specialized output localization engine for the LCSP compliance platform.\nYour task is to translate ONLY the string field values inside the provided JSON object into {target_language} ({target_locale}).\n\nPRESERVATION INVARIANTS:\n- Preserve all JSON keys, structure, and non-string types exactly.\n- Preserve all code snippets, URLs, file paths, IDs (e.g. LCSP-123), citations ([1]), numbers, and SCREAMING_SNAKE_CASE enum constants verbatim.\n- Return ONLY valid JSON matching the exact key structure of the input, with no surrounding commentary or markdown code fences unless requested.\n\"\"\"",
@@ -5516,9 +5484,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::<module>::KEYWORD_INSTRUCTION::50:e25ef2f9d833e4fd",
+      "siteId": "ast:orchestration/localization.py::<module>::KEYWORD_INSTRUCTION::52:e25ef2f9d833e4fd",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 50,
+      "lineNumber": 52,
       "symbolName": "<module>",
       "constructionSha256": "e25ef2f9d833e4fdf7554473558b79e5a438dee9fb18df315e892ab7f6fe3f91",
       "evidence": "\"Produce your final user-visible response in English.\"",
@@ -5536,9 +5504,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::<module>::KEYWORD_INSTRUCTION::56:254a9eca7791ebe9",
+      "siteId": "ast:orchestration/localization.py::<module>::KEYWORD_INSTRUCTION::58:254a9eca7791ebe9",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 56,
+      "lineNumber": 58,
       "symbolName": "<module>",
       "constructionSha256": "254a9eca7791ebe93d7d25506cd1c05c37dc4fdef8ffeb4f2e1c80fb1950c1c3",
       "evidence": "\"Produce your final user-visible response in Vietnamese (Tiếng Việt).\"",
@@ -5556,9 +5524,29 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::atransform_response_text::MESSAGE_HUMANMESSAGE::488:1ca91208c6f47e14",
+      "siteId": "ast:orchestration/localization.py::atransform_response_text::MESSAGE_HUMANMESSAGE::503:c652f047f079add1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 488,
+      "lineNumber": 503,
+      "symbolName": "atransform_response_text",
+      "constructionSha256": "c652f047f079add13d7093f2869938fcf35d4ae1f14cb52cd8f24ba8ae45ce34",
+      "evidence": "json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)",
+      "astKind": "MESSAGE_HUMANMESSAGE",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::atransform_response_text",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.response-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:orchestration/localization.py::atransform_response_text::MESSAGE_HUMANMESSAGE::504:1ca91208c6f47e14",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 504,
       "symbolName": "atransform_response_text",
       "constructionSha256": "1ca91208c6f47e1427ae6427ce950339c335770eac5b325d5784ea565b97868e",
       "evidence": "text",
@@ -5576,9 +5564,9 @@
       "dispositionEvidence": "Final authored response/JSON payload supplied as human-message data to the transform, preserving original provenance."
     },
     {
-      "siteId": "ast:orchestration/localization.py::atransform_response_text::MESSAGE_SYSTEMMESSAGE::487:9fce762c7c2dbc5c",
+      "siteId": "ast:orchestration/localization.py::atransform_response_text::MESSAGE_SYSTEMMESSAGE::502:9fce762c7c2dbc5c",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 487,
+      "lineNumber": 502,
       "symbolName": "atransform_response_text",
       "constructionSha256": "9fce762c7c2dbc5c069034cac3a2a2ef982183cb75face121871406a3dfc0732",
       "evidence": "system_prompt",
@@ -5596,9 +5584,29 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::atransform_structured_response::MESSAGE_HUMANMESSAGE::852:5c8c0b39469f0c0d",
+      "siteId": "ast:orchestration/localization.py::atransform_structured_response::MESSAGE_HUMANMESSAGE::875:c652f047f079add1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 852,
+      "lineNumber": 875,
+      "symbolName": "atransform_structured_response",
+      "constructionSha256": "c652f047f079add13d7093f2869938fcf35d4ae1f14cb52cd8f24ba8ae45ce34",
+      "evidence": "json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)",
+      "astKind": "MESSAGE_HUMANMESSAGE",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::atransform_structured_response",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.structured-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:orchestration/localization.py::atransform_structured_response::MESSAGE_HUMANMESSAGE::876:5c8c0b39469f0c0d",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 876,
       "symbolName": "atransform_structured_response",
       "constructionSha256": "5c8c0b39469f0c0d1f4cd0a840603ab69d6e05a37e9a9b033fff8b376328c665",
       "evidence": "json_payload",
@@ -5616,9 +5624,9 @@
       "dispositionEvidence": "Final authored response/JSON payload supplied as human-message data to the transform, preserving original provenance."
     },
     {
-      "siteId": "ast:orchestration/localization.py::atransform_structured_response::MESSAGE_SYSTEMMESSAGE::851:9fce762c7c2dbc5c",
+      "siteId": "ast:orchestration/localization.py::atransform_structured_response::MESSAGE_SYSTEMMESSAGE::874:9fce762c7c2dbc5c",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 851,
+      "lineNumber": 874,
       "symbolName": "atransform_structured_response",
       "constructionSha256": "9fce762c7c2dbc5c069034cac3a2a2ef982183cb75face121871406a3dfc0732",
       "evidence": "system_prompt",
@@ -5636,12 +5644,12 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::get_language_prompt_instruction::INSTRUCTION_BUILDER::95:bcdac027322cbe22",
+      "siteId": "ast:orchestration/localization.py::get_language_prompt_instruction::INSTRUCTION_BUILDER::97:ab24dde224627eaa",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 95,
+      "lineNumber": 97,
       "symbolName": "get_language_prompt_instruction",
-      "constructionSha256": "bcdac027322cbe223a8a250bf0698e794e6b0b1fa4f1a1fbd8b25acb1df25176",
-      "evidence": "def get_language_prompt_instruction(locale: str) -> str:\n    \"\"\"Generate dynamic system prompt instruction for the main agent.\"\"\"\n    from runtime_instruction_bundle import runtime_instruction\n    return runtime_instruction(\"runtime.response-language\")\n    normalized_locale = str(locale).strip().lower() if locale else DEFAULT_RESPONSE_LANGUAGE\n    definition = SUPPORTED_LOCALES.get(normalized_locale) or SUPPORTED_LOCALES.get(DEFAULT_RESPONSE_LANGUAGE, SUPPORTED_LOCALES[\"en\"])\n    return (\n        f\"Final Response Language Directive:\\n\"\n        f\"- {definition.instruction}\\n\"\n        f\"- Keep all technical identifiers, file paths, URLs, citations/references, code blocks/inline code, \"\n        f\"API field names, Jira/GitHub identifiers, and enum/constant values in their canonical format.\\n\"\n        f\"- Do NOT translate internal machine identifiers, tool names, or structured JSON keys.\"\n    )",
+      "constructionSha256": "ab24dde224627eaa57a9293f4fa2e532050452e7bd6293fa1acf5c6fbdf7b6ca",
+      "evidence": "def get_language_prompt_instruction(locale: str) -> str:\n    \"\"\"Business purpose: Resolve the approved presentation policy for the primary model.\n\n    Business rules:\n    - Customer locale must not select system instruction language.\n    Execution flow:\n    1. Return the runtime response-language entry from the verified English bundle.\n    Failure cases:\n    - Unavailable or unapproved instruction assets reject construction.\n    Side effects:\n    - Read approved instruction assets only.\n    \"\"\"\n    if str(locale).strip().lower() not in SUPPORTED_RESPONSE_LANGUAGES:\n        raise ValueError(\"unsupported response language\")\n    return runtime_instruction(\"runtime.response-language\")",
       "astKind": "INSTRUCTION_BUILDER",
       "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
       "modelFacingConsumer": "orchestration/localization.py::get_language_prompt_instruction",
@@ -5656,9 +5664,29 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::transform_response_text::MESSAGE_HUMANMESSAGE::356:1ca91208c6f47e14",
+      "siteId": "ast:orchestration/localization.py::transform_response_text::MESSAGE_HUMANMESSAGE::363:c652f047f079add1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 356,
+      "lineNumber": 363,
+      "symbolName": "transform_response_text",
+      "constructionSha256": "c652f047f079add13d7093f2869938fcf35d4ae1f14cb52cd8f24ba8ae45ce34",
+      "evidence": "json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)",
+      "astKind": "MESSAGE_HUMANMESSAGE",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::transform_response_text",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.response-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:orchestration/localization.py::transform_response_text::MESSAGE_HUMANMESSAGE::364:1ca91208c6f47e14",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 364,
       "symbolName": "transform_response_text",
       "constructionSha256": "1ca91208c6f47e1427ae6427ce950339c335770eac5b325d5784ea565b97868e",
       "evidence": "text",
@@ -5676,9 +5704,9 @@
       "dispositionEvidence": "Final authored response/JSON payload supplied as human-message data to the transform, preserving original provenance."
     },
     {
-      "siteId": "ast:orchestration/localization.py::transform_response_text::MESSAGE_SYSTEMMESSAGE::355:9fce762c7c2dbc5c",
+      "siteId": "ast:orchestration/localization.py::transform_response_text::MESSAGE_SYSTEMMESSAGE::362:9fce762c7c2dbc5c",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 355,
+      "lineNumber": 362,
       "symbolName": "transform_response_text",
       "constructionSha256": "9fce762c7c2dbc5c069034cac3a2a2ef982183cb75face121871406a3dfc0732",
       "evidence": "system_prompt",
@@ -5696,9 +5724,29 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:orchestration/localization.py::transform_structured_response::MESSAGE_HUMANMESSAGE::715:5c8c0b39469f0c0d",
+      "siteId": "ast:orchestration/localization.py::transform_structured_response::MESSAGE_HUMANMESSAGE::734:c652f047f079add1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 715,
+      "lineNumber": 734,
+      "symbolName": "transform_structured_response",
+      "constructionSha256": "c652f047f079add13d7093f2869938fcf35d4ae1f14cb52cd8f24ba8ae45ce34",
+      "evidence": "json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)",
+      "astKind": "MESSAGE_HUMANMESSAGE",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::transform_structured_response",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.structured-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:orchestration/localization.py::transform_structured_response::MESSAGE_HUMANMESSAGE::735:5c8c0b39469f0c0d",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 735,
       "symbolName": "transform_structured_response",
       "constructionSha256": "5c8c0b39469f0c0d1f4cd0a840603ab69d6e05a37e9a9b033fff8b376328c665",
       "evidence": "json_payload",
@@ -5716,9 +5764,9 @@
       "dispositionEvidence": "Final authored response/JSON payload supplied as human-message data to the transform, preserving original provenance."
     },
     {
-      "siteId": "ast:orchestration/localization.py::transform_structured_response::MESSAGE_SYSTEMMESSAGE::714:9fce762c7c2dbc5c",
+      "siteId": "ast:orchestration/localization.py::transform_structured_response::MESSAGE_SYSTEMMESSAGE::733:9fce762c7c2dbc5c",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 714,
+      "lineNumber": 733,
       "symbolName": "transform_structured_response",
       "constructionSha256": "9fce762c7c2dbc5c069034cac3a2a2ef982183cb75face121871406a3dfc0732",
       "evidence": "system_prompt",
@@ -5876,9 +5924,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::514:19a84112b87a2067",
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::538:19a84112b87a2067",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 514,
+      "lineNumber": 538,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "19a84112b87a2067f21960b5c44d79742c4ecd79b9dc22574b18331bae661ccf",
       "evidence": "phase_instructions(context) + \"\\n\" + runtime_instruction(\"claim-author.system\")",
@@ -5896,9 +5944,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::516:773412cc3dbeacb2",
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::INSTRUCTION_COMPOSITION::540:773412cc3dbeacb2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 516,
+      "lineNumber": 540,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "773412cc3dbeacb25b2c0fd071c17c08962a2023cc5d2d64841d48b07313d3ac",
       "evidence": "\"\"",
@@ -5916,9 +5964,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::KEYWORD_SYSTEM_PROMPT::524:d3004e8eae0555d2",
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::KEYWORD_SYSTEM_PROMPT::548:d3004e8eae0555d2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 524,
+      "lineNumber": 548,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "d3004e8eae0555d2c9c95917628169d04c936c8a4c920a37b94a9cd77399a5bf",
       "evidence": "child_prompt + child_assignment",
@@ -5936,9 +5984,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::SCHEMA_DESCRIPTION::518:37caabe4c8f39534",
+      "siteId": "ast:rule_set_preparation/agent.py::claim_author_subagent::SCHEMA_DESCRIPTION::542:37caabe4c8f39534",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 518,
+      "lineNumber": 542,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "37caabe4c8f39534f257f73e7898387ca7f322bc7e195b064d33e962e288c7c5",
       "evidence": "\"Read one whole assigned Article, write its claim file and commit it; return one summary line.\"",
@@ -5956,9 +6004,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::INSTRUCTION_COMPOSITION::625:e1022e9eeb844779",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::INSTRUCTION_COMPOSITION::649:e1022e9eeb844779",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 625,
+      "lineNumber": 649,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "e1022e9eeb844779ceb0fa616624e60a548f7e4eaec2eadf4ff204969da17483",
       "evidence": "phase_instructions(context) + \"\\n<LCSP_PHASE_END>\"",
@@ -5976,9 +6024,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::638:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::662:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 638,
+      "lineNumber": 662,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -5996,9 +6044,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::642:da8c167e6be927c3",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::666:da8c167e6be927c3",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 642,
+      "lineNumber": 666,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "da8c167e6be927c367a7491977e201da219d6d9375c07da18aff7fc1ea9e84bf",
       "evidence": "json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"]",
@@ -6016,9 +6064,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::652:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::676:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 652,
+      "lineNumber": 676,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -8036,7 +8084,7 @@
     {
       "siteId": "middleware/approved_instructions.py::_request::31aa99b0c33e5619::1",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 95,
+      "lineNumber": 131,
       "symbolName": "_request",
       "constructionSha256": "31aa99b0c33e56190b561c4f6d29c1612663fb88dbb83ee1498ada61575ee8a6",
       "evidence": "tools=[SimpleNamespace(name=item[\"function\"][\"name\"], description=item[\"function\"][\"description\"]) for item in tools],",
@@ -8055,7 +8103,7 @@
     {
       "siteId": "middleware/approved_instructions.py::_request::fab0055191977c11::1",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 87,
+      "lineNumber": 119,
       "symbolName": "_request",
       "constructionSha256": "fab0055191977c118c1b6a18647605fddc5a97e28063d93f22583fa1f2118b08",
       "evidence": "messages = [*request.messages, HumanMessage(content=json.dumps({\"lcspTrustedRuntimeMetadata\": metadata}, sort_keys=True))]",
@@ -8207,7 +8255,7 @@
     {
       "siteId": "orchestration/localization.py::<module>::b39597fb23a8d864::1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 133,
+      "lineNumber": 137,
       "symbolName": "<module>",
       "constructionSha256": "b39597fb23a8d864e6f80de38eb91e982a2b297da8d6c2200b3e694bf942da72",
       "evidence": "STRUCTURED_SYSTEM_PROMPT_TEMPLATE = \"\"\"You are a specialized output localization engine for the LCSP compliance platform.",
@@ -8226,7 +8274,7 @@
     {
       "siteId": "orchestration/localization.py::<module>::e1ef6e87991d4af9::1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 110,
+      "lineNumber": 114,
       "symbolName": "<module>",
       "constructionSha256": "e1ef6e87991d4af9b8581da8151afef1edb0f8b0220c2f833835da460ffe394f",
       "evidence": "TRANSFORM_SYSTEM_PROMPT_TEMPLATE = \"\"\"You are a specialized output localization and normalization engine for the LCSP compliance platform.",
@@ -8243,9 +8291,28 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
+      "siteId": "orchestration/localization.py::atransform_response_text::342a8c3f96dca2ee::1",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 503,
+      "symbolName": "atransform_response_text",
+      "constructionSha256": "342a8c3f96dca2eeb2072eecca583213d2f752c96f7588537a083c9c9e18932c",
+      "evidence": "HumanMessage(content=json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)),",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::atransform_response_text",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.response-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
       "siteId": "orchestration/localization.py::atransform_response_text::46f868889e7ffd78::1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 488,
+      "lineNumber": 504,
       "symbolName": "atransform_response_text",
       "constructionSha256": "46f868889e7ffd78665ea60fbbfff5a2dee0d4d5aaa3fb28129322b9fa7cfeac",
       "evidence": "HumanMessage(content=text),",
@@ -8264,7 +8331,7 @@
     {
       "siteId": "orchestration/localization.py::atransform_structured_response::0d853fbfa4ccc99f::1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 852,
+      "lineNumber": 876,
       "symbolName": "atransform_structured_response",
       "constructionSha256": "0d853fbfa4ccc99f1f7ff497aea19eeea8ef918a06fd0577225d44e31dd07a7b",
       "evidence": "HumanMessage(content=json_payload),",
@@ -8281,9 +8348,28 @@
       "dispositionEvidence": "Final authored response/JSON payload supplied as human-message data to the transform, preserving original provenance."
     },
     {
+      "siteId": "orchestration/localization.py::atransform_structured_response::342a8c3f96dca2ee::1",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 875,
+      "symbolName": "atransform_structured_response",
+      "constructionSha256": "342a8c3f96dca2eeb2072eecca583213d2f752c96f7588537a083c9c9e18932c",
+      "evidence": "HumanMessage(content=json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)),",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::atransform_structured_response",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.structured-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
       "siteId": "orchestration/localization.py::get_language_prompt_instruction::6fa33d077dc36372::1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 95,
+      "lineNumber": 97,
       "symbolName": "get_language_prompt_instruction",
       "constructionSha256": "6fa33d077dc363722024e1937fc20a6c014d30f2db25ca54dd381c9543f301bd",
       "evidence": "def get_language_prompt_instruction(locale: str) -> str:",
@@ -8300,9 +8386,28 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
+      "siteId": "orchestration/localization.py::transform_response_text::342a8c3f96dca2ee::1",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 363,
+      "symbolName": "transform_response_text",
+      "constructionSha256": "342a8c3f96dca2eeb2072eecca583213d2f752c96f7588537a083c9c9e18932c",
+      "evidence": "HumanMessage(content=json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)),",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::transform_response_text",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.response-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
       "siteId": "orchestration/localization.py::transform_response_text::46f868889e7ffd78::1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 356,
+      "lineNumber": 364,
       "symbolName": "transform_response_text",
       "constructionSha256": "46f868889e7ffd78665ea60fbbfff5a2dee0d4d5aaa3fb28129322b9fa7cfeac",
       "evidence": "HumanMessage(content=text),",
@@ -8321,7 +8426,7 @@
     {
       "siteId": "orchestration/localization.py::transform_structured_response::0d853fbfa4ccc99f::1",
       "filePath": "orchestration/localization.py",
-      "lineNumber": 715,
+      "lineNumber": 735,
       "symbolName": "transform_structured_response",
       "constructionSha256": "0d853fbfa4ccc99f1f7ff497aea19eeea8ef918a06fd0577225d44e31dd07a7b",
       "evidence": "HumanMessage(content=json_payload),",
@@ -8336,6 +8441,25 @@
       "placeholderSchema": {},
       "migrationStatus": "RUNTIME_DATA",
       "dispositionEvidence": "Final authored response/JSON payload supplied as human-message data to the transform, preserving original provenance."
+    },
+    {
+      "siteId": "orchestration/localization.py::transform_structured_response::342a8c3f96dca2ee::1",
+      "filePath": "orchestration/localization.py",
+      "lineNumber": 734,
+      "symbolName": "transform_structured_response",
+      "constructionSha256": "342a8c3f96dca2eeb2072eecca583213d2f752c96f7588537a083c9c9e18932c",
+      "evidence": "HumanMessage(content=json.dumps({\"responseLanguage\": definition.code}, sort_keys=True)),",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "orchestration/localization.py::transform_structured_response",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "runtime.structured-transform",
+      "existingSourcePath": "orchestration/localization.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
       "siteId": "rule_set_preparation/agent.py::after_model::b93ccc161e1b089b::1",
@@ -8397,7 +8521,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::claim_author_subagent::e28730a0b3a1e351::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 524,
+      "lineNumber": 548,
       "symbolName": "claim_author_subagent",
       "constructionSha256": "e28730a0b3a1e351a32bfcf320f1198aaa099ad448e245f98a36ac44fbc6ff9f",
       "evidence": "governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE, system_prompt=child_prompt + child_assignment),",
@@ -8416,7 +8540,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::844e8679a414eb1c::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 642,
+      "lineNumber": 666,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "844e8679a414eb1caacfa3a4e0fdcc8052cc3f56dd9912c262bbc1ab4c8ddb72",
       "evidence": "TodoListMiddleware(system_prompt=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"], tool_description=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"tool.write_todos\"]), PreparationPhaseMiddleware(context, model=model), budget,",
@@ -8435,7 +8559,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 638,
+      "lineNumber": 662,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -8454,7 +8578,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 652,
+      "lineNumber": 676,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -8488,6 +8612,25 @@
       "placeholderSchema": {},
       "migrationStatus": "SHARED_SOURCE_CONSUMER",
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "rule_set_preparation/agent.py::preparation_source_pins::68abb0b4dba13bc1::1",
+      "filePath": "rule_set_preparation/agent.py",
+      "lineNumber": 512,
+      "symbolName": "preparation_source_pins",
+      "constructionSha256": "68abb0b4dba13bc1a869d063be149d09342dc7478857da65cf6762742147af5a",
+      "evidence": "raise ValueError(\"MANIFEST_MISSING_PIN_OR_PROMPT\")",
+      "constructionType": "NON_MODEL_FACING",
+      "modelFacingConsumer": "rule_set_preparation/agent.py::preparation_source_pins",
+      "runtimeRole": "rule-set-preparation",
+      "runtimePhase": "PREPARATION",
+      "contentAuthority": "IMPLEMENTATION",
+      "migrationDecision": "NON_MODEL_FACING",
+      "viSourceId": null,
+      "existingSourcePath": "rule_set_preparation/agent.py",
+      "placeholderSchema": {},
+      "migrationStatus": "NON_MODEL_FACING",
+      "dispositionEvidence": "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
     },
     {
       "siteId": "rule_set_preparation/authoring_recorder.py::_refresh_digest::87a7e5415328e9cd::1",

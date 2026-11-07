@@ -48,6 +48,18 @@ export interface AppendAssessmentEventInput {
 export class AssessmentEventAppender {
   constructor(private readonly outbox: OutboxRepository) {}
 
+  /**
+   * Business purpose: Append an authoritative assessment event and enqueue authored localization atomically.
+   *
+   * Business rules:
+   * - Sequence, runtime and outbox identities remain server-owned; translations cannot become accepted facts.
+   * Execution flow:
+   * 1. Resolve runtime sequence, persist the event/outbox and enqueue its authored narratives and linked decision or request.
+   * Failure cases:
+   * - Missing runtime, schema errors or localization enqueue failures abort the caller transaction.
+   * Side effects:
+   * - Write assessment history, outbox and translation requests in the supplied transaction.
+   */
   async appendInTx(
     tx: Prisma.TransactionClient,
     input: AppendAssessmentEventInput,

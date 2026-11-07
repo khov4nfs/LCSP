@@ -22,7 +22,7 @@ def test_all_pydantic_tool_field_descriptions_have_vi_text():
 
 def test_actual_promoted_docstrings_have_vi_descriptions():
     payload = validate_inventory()
-    root = read_source("root-tool-descriptions.json")
+    root = read_source("root-tool-descriptions.json") | read_source("upstream-assessment-tools.json")
     preparation = read_source("preparation-tool-guidance.json")
     for site in payload["constructionSites"]:
         if site.get("astKind") == "PROMOTED_TOOL_DOCSTRING":

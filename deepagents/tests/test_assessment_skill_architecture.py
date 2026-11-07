@@ -38,7 +38,10 @@ def test_read_only_researcher_resists_injection_and_reports_gaps():
 
 
 def test_governed_tools_explain_evidence_authority():
-    assert set(ROOT_TOOL_NAMES) - {"retrieve_shared_heuristics"} <= set(CONTRACTS)
+    import json
+    from runtime_instruction_bundle import runtime_instruction
+    extra = json.loads(runtime_instruction("assessment-tools.upstream"))
+    assert set(ROOT_TOOL_NAMES) - {"retrieve_shared_heuristics"} <= set(CONTRACTS) | set(extra)
     assert set(GRAPH_CONTRACTS) == {"search_code_graph", "trace_call_path",
                                    "search_code_text", "get_repository_architecture"}
     assert "ASSESSMENT TOOL CONTRACT" in describe_tool(
@@ -49,5 +52,5 @@ def test_skill_tool_bindings_are_root_only(tmp_path):
     from test_assessment_root_agent import FakeClient, _run
     bound = {t.name: t for t in build_root_tools(_run(tmp_path, FakeClient()))}
     assert set(bound) == set(ROOT_TOOL_NAMES)
-    assert "ASSESSMENT TOOL CONTRACT" in bound["load_assessment_skill"].description
-    assert "ASSESSMENT TOOL CONTRACT" in bound["submit_rule_decision"].description
+    assert "cannot alter legal authority" in bound["load_assessment_skill"].description
+    assert "API validates pins, references and revisions" in bound["submit_rule_decision"].description

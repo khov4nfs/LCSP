@@ -14,6 +14,17 @@ from instruction_source_inventory import ROOT, INVENTORY, discover, source_diges
 
 
 def classify(site):
+    """Business purpose: Describe the authority and migration role of a discovered construction site.
+
+    Business rules:
+    - Classification records evidence and must not grant runtime or legal authority.
+    Execution flow:
+    1. Inspect source location and expression patterns, then return the ledger classification.
+    Failure cases:
+    - Unmapped maintained instructions remain visible for reconciliation.
+    Side effects:
+    - None: creates a migration site record.
+    """
     path, symbol, text = site["filePath"], site["symbolName"], site["evidence"]
     role = "assessment-root" if path.startswith("assessment_root/") else "rule-set-preparation" if path.startswith("rule_set_preparation/") else "shared-runtime"
     category = "DUPLICATE_REFERENCE"
@@ -47,7 +58,17 @@ def classify(site):
 
 
 def vietnamese_tool_maps():
-    """Read only literal VI authority/playbook maps; never execute runtime code."""
+    """Business purpose: Read existing Vietnamese tool guidance for source migration.
+
+    Business rules:
+    - Only literal maintained mappings are accepted; no model translation is performed.
+    Execution flow:
+    1. Parse canonical guidance dictionaries and collect Vietnamese entries.
+    Failure cases:
+    - Unreadable source or unsupported literals fail migration preparation.
+    Side effects:
+    - Read maintained source code only.
+    """
     tree = ast.parse((ROOT / "assessment_root/tool_contracts.py").read_text(encoding="utf-8"))
     maps = {key: {} for key in ("CONTRACTS_VI", "GRAPH_CONTRACTS_VI", "TOOL_PLAYBOOKS_VI")}
     for node in tree.body:
@@ -63,6 +84,17 @@ def vietnamese_tool_maps():
 
 
 def main():
+    """Business purpose: Refresh the explicit migration ledger after intentional source changes.
+
+    Business rules:
+    - Writing requires an explicit operator flag; source drafts and pending framework adapters do not become approvals.
+    Execution flow:
+    1. Discover construction sites, bind maintained entries, hash bytes and snapshot installed framework surfaces.
+    Failure cases:
+    - Invalid source files or unsupported dependency surfaces stop the snapshot.
+    Side effects:
+    - Write the source inventory and missing Vietnamese migration drafts; preserve approval status.
+    """
     if sys.argv[1:] != ["--write"]:
         raise SystemExit("Explicit --write is required; inspect the resulting migration diff.")
     payload = json.loads(INVENTORY.read_text(encoding="utf-8")) if INVENTORY.exists() else {
@@ -124,6 +156,9 @@ def main():
         existing[identity]["placeholderSchema"] = {
             "target_language": {"type": "ENUM", "values": ["English", "Vietnamese", "Tiếng Việt"]},
             "target_locale": {"type": "ENUM", "values": ["en", "vi"]}}
+        from string import Formatter
+        fields = {field for _, field, _, _ in Formatter().parse((ROOT / existing[identity]["vietnameseSourcePath"]).read_text(encoding="utf-8")) if field is not None}
+        existing[identity]["placeholderSchema"] = {key: value for key, value in existing[identity]["placeholderSchema"].items() if key in fields}
         existing[identity]["runtimeInputAuthority"] = "SERVER_RESPONSE_LANGUAGE_POLICY"
     for row in payload["entries"]:
         path = ROOT / row["vietnameseSourcePath"]
