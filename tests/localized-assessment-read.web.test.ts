@@ -288,6 +288,7 @@ for (const damage of [
   "digest",
   "sourceSha256",
   "sourceArtifactId",
+  "localizedArtifactId",
   "locale",
   "translationRevision",
   "protectedPath",
@@ -306,6 +307,11 @@ for (const damage of [
       if (damage === "protectedPath")
         overlay.localizedFields = { "/artifactId": f.report.artifactId };
       else if (damage === "missingPath") overlay.localizedFields = {};
+      else if (
+        damage === "sourceArtifactId" ||
+        damage === "localizedArtifactId"
+      )
+        overlay[damage] = randomUUID();
       else
         overlay[damage] =
           damage === "translationRevision"
@@ -318,6 +324,46 @@ for (const damage of [
     }
     await assert.rejects(f.createLoader().load({ ...f.input, locale: "vi" }));
   });
+
+test("a corrupt READY translation is an integrity failure, never pending or fallback", async () => {
+  const f = await setup("V1");
+  f.ready();
+  for (const row of f.requests)
+    row.revision.content = "corrupt translated bytes";
+  await assert.rejects(
+    f.createLoader().load({ ...f.input, locale: "vi" }),
+    (error: any) =>
+      error.getResponse().problem.code ===
+      AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+  );
+});
+
+test("canonical report corruption rejects before localized artifacts are created", async () => {
+  const f = await setup("V1");
+  f.ready();
+  const original = (f.db as any).assessmentArtifact.findUnique;
+  (f.db as any).assessmentArtifact.findUnique = async () => ({
+    ...(await original()),
+    contentSha256: `sha256:${"0".repeat(64)}`,
+  });
+  await assert.rejects(f.createLoader().load({ ...f.input, locale: "vi" }));
+  assert.equal(f.artifacts.size, 0);
+});
+
+test("foreign report owner cannot read localization or freeze an artifact", async () => {
+  const f = await setup("V1");
+  f.ready();
+  f.db.authoredLocalizationRequest.findMany = async () => {
+    throw new Error("Foreign owner reached localization lookup");
+  };
+  await assert.rejects(
+    f
+      .createLoader()
+      .load({ ...f.input, sessionUserId: "foreign", locale: "vi" }),
+    (error: any) => error.getStatus() === 404,
+  );
+  assert.equal(f.artifacts.size, 0);
+});
 
 for (const locale of ["en", "vi"] as const)
   test(`${locale} persisted paged events reach the real BFF and conversation unchanged in identity`, async () => {

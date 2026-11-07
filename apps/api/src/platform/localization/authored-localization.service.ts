@@ -13,6 +13,7 @@ import {
 import {
   AUTHORED_LOCALIZATION_CODES,
   AUTHORED_LOCALIZATION_ENTITIES,
+  AUTHORED_LOCALIZATION_STATES,
   authoredTranslationResponseSchema,
   type AuthoredLocalizationEntity,
   localizedReportArtifactSchema,
@@ -441,13 +442,22 @@ export class AuthoredLocalizationService
       );
       const variants = new Set(ready.map((row) => row.revision!.contentSha256));
       if (
-        !ready.length ||
-        variants.size !== 1 ||
+        variants.size > 1 ||
         ready.some(
           (row) =>
             digest(row.revision!.content) !== row.revision!.contentSha256,
         )
       ) {
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          randomUUID(),
+          {
+            status: HttpStatus.CONFLICT,
+            meta: { locale, state: AUTHORED_LOCALIZATION_STATES.FAILED },
+          },
+        );
+      }
+      if (!ready.length) {
         throw problemException(
           AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
           randomUUID(),
@@ -458,8 +468,8 @@ export class AuthoredLocalizationService
               state: matches.some(
                 (row) => row.state === AuthoredLocalizationState.FAILED,
               )
-                ? AuthoredLocalizationState.FAILED
-                : AuthoredLocalizationState.PENDING,
+                ? AUTHORED_LOCALIZATION_STATES.FAILED
+                : AUTHORED_LOCALIZATION_STATES.PENDING,
             },
           },
         );
