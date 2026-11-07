@@ -1023,6 +1023,14 @@
           "filePath": "rule_set_preparation/agent.py",
           "symbolName": "preparation_filesystem",
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
+        },
+        {
+          "filePath": "middleware/approved_instructions.py",
+          "symbolName": "approved_system_entries"
+        },
+        {
+          "filePath": "middleware/approved_instructions.py",
+          "symbolName": "ApprovedSummaryInstructions"
         }
       ],
       "sourceSha256": "31d05818d844c018c3727fefc4fc975273cb125184dc70795e6b54ef65a7acf3",
@@ -1640,6 +1648,10 @@
           "filePath": "middleware/agent_run_budget.py",
           "symbolName": "_bounded_request",
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
+        },
+        {
+          "filePath": "middleware/approved_instructions.py",
+          "symbolName": "ApprovedModelCallLimitMiddleware"
         }
       ],
       "sourceSha256": "4abb5ce64bcee0f553de0734f001dbd3c743e267cbcb8347d300db0c1347a225",
@@ -2302,6 +2314,44 @@
   ],
   "constructionSites": [
     {
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "agent.py::<module>",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "ALL",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "viSourceId": null,
+      "existingSourcePath": "agent.py",
+      "placeholderSchema": {},
+      "migrationStatus": "NON_MODEL_FACING",
+      "siteId": "agent.py::<module>::cfdb981b15a1d388::1",
+      "filePath": "agent.py",
+      "lineNumber": 39,
+      "symbolName": "<module>",
+      "constructionSha256": "cfdb981b15a1d3881909decfe41c8c6e111ec649710c32ace1600f5b18dee109",
+      "evidence": "SYSTEM_PROMPT = (Path(__file__).with_name(\"instructions.md\")).read_text(",
+      "migrationDecision": "NON_MODEL_FACING",
+      "dispositionEvidence": "Transport supervisor dispatches trusted system events and ends before model hooks. Its before_agent/abefore_agent guards reject interactive/model fallback before compaction or inference; legacy supervisor prompts and general-purpose configuration cannot reach a supported model call."
+    },
+    {
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "agent.py::create_root_agent",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "ALL",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "viSourceId": null,
+      "existingSourcePath": "agent.py",
+      "placeholderSchema": {},
+      "migrationStatus": "NON_MODEL_FACING",
+      "siteId": "agent.py::create_root_agent::e0d39192cffb54da::1",
+      "filePath": "agent.py",
+      "lineNumber": 79,
+      "symbolName": "create_root_agent",
+      "constructionSha256": "e0d39192cffb54dacfac46cc37875c65f1e7eaa5c630cb230b15f88954bc1f11",
+      "evidence": "system_prompt=SYSTEM_PROMPT,",
+      "migrationDecision": "NON_MODEL_FACING",
+      "dispositionEvidence": "Transport supervisor dispatches trusted system events and ends before model hooks. Its before_agent/abefore_agent guards reject interactive/model fallback before compaction or inference; legacy supervisor prompts and general-purpose configuration cannot reach a supported model call."
+    },
+    {
       "siteId": "assessment_root/agent.py::<module>::85d271e033366ceb::1",
       "filePath": "assessment_root/agent.py",
       "lineNumber": 41,
@@ -2380,7 +2430,7 @@
     {
       "siteId": "assessment_root/agent.py::create_assessment_root_agent::5aa71414348fde5a::1",
       "filePath": "assessment_root/agent.py",
-      "lineNumber": 311,
+      "lineNumber": 313,
       "symbolName": "create_assessment_root_agent",
       "constructionSha256": "5aa71414348fde5aace634fba07372b47e2c23133e97a4b61027b69030370327",
       "evidence": "system_prompt=root_prompt,",
@@ -2397,12 +2447,12 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "assessment_root/agent.py::create_assessment_root_agent::c35aba822a30a2cb::1",
+      "siteId": "assessment_root/agent.py::create_assessment_root_agent::5aa71414348fde5a::2",
       "filePath": "assessment_root/agent.py",
-      "lineNumber": 317,
+      "lineNumber": 319,
       "symbolName": "create_assessment_root_agent",
-      "constructionSha256": "c35aba822a30a2cb45009defe707cbfce93905a9c3c12826fcebb3f9a4cf6eff",
-      "evidence": "system_prompt=root_prompt),",
+      "constructionSha256": "5aa71414348fde5aace634fba07372b47e2c23133e97a4b61027b69030370327",
+      "evidence": "system_prompt=root_prompt,",
       "constructionType": "DUPLICATE_REFERENCE",
       "modelFacingConsumer": "assessment_root/agent.py::create_assessment_root_agent",
       "runtimeRole": "assessment-root",
@@ -2418,7 +2468,7 @@
     {
       "siteId": "assessment_root/agent.py::create_assessment_root_agent::ea7fee0e20f15be8::1",
       "filePath": "assessment_root/agent.py",
-      "lineNumber": 315,
+      "lineNumber": 317,
       "symbolName": "create_assessment_root_agent",
       "constructionSha256": "ea7fee0e20f15be8d816872cb42bae8ec1ba8a5c5198e152564f362f4de7c2e9",
       "evidence": "middleware=[TodoListMiddleware(system_prompt=__import__(\"json\").loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"], tool_description=__import__(\"json\").loads(bundle.instruction(\"framework.injected-policy\"))[\"tool.write_todos\"]), ResponseLocalizationMiddleware(), *governance,",
@@ -2513,7 +2563,7 @@
     {
       "siteId": "assessment_root/tools.py::AcceptFactArgs::10b93fa97b127c5c::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 334,
+      "lineNumber": 335,
       "symbolName": "AcceptFactArgs",
       "constructionSha256": "10b93fa97b127c5c5075595245bff62e41ec455686d066171bb4231458e7320f",
       "evidence": "evidence_ids: list[str] = Field(min_length=1, description=\"Accepted evidence IDs from cite_repository_source.\")",
@@ -2532,7 +2582,7 @@
     {
       "siteId": "assessment_root/tools.py::ApplicabilityBasisArgs::5a814421172cf811::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 432,
+      "lineNumber": 433,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "5a814421172cf8118235730a97065d629143ebe0187fc6b5a3f3e0fdf8e61566",
       "evidence": "rationale: str = Field(min_length=1, description=\"Why the cited evidence/facts bear on THIS element of THIS rule.\")",
@@ -2551,7 +2601,7 @@
     {
       "siteId": "assessment_root/tools.py::ApplicabilityBasisArgs::9000cc2456a9d67b::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 425,
+      "lineNumber": 426,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "9000cc2456a9d67bdcc5c17316512796bdf5573c09d5d549601af10880d87f78",
       "evidence": "description=(",
@@ -2570,7 +2620,7 @@
     {
       "siteId": "assessment_root/tools.py::ApplicabilityBasisArgs::a17efea88adf8a5f::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 434,
+      "lineNumber": 435,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "a17efea88adf8a5fd361cc3280fc76fe11aaad5347a7cd1427cfa6eafdfb9957",
       "evidence": "default_factory=list, description=\"Evidence/facts behind an ESTABLISHED or REFUTED finding.\"",
@@ -2589,7 +2639,7 @@
     {
       "siteId": "assessment_root/tools.py::ApplicabilityBasisArgs::d749b94070ddff3c::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 421,
+      "lineNumber": 422,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "d749b94070ddff3cf3cd1c02904397b534640565b150d616c3456646f8aa5e4d",
       "evidence": "legal_requirement_id: str = Field(description=\"LegalRequirement that states the element.\")",
@@ -2608,7 +2658,7 @@
     {
       "siteId": "assessment_root/tools.py::ApplicabilityBasisArgs::f99aae36f712a4f1::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 423,
+      "lineNumber": 424,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "f99aae36f712a4f1492d22ca5628209f1042dad63eec79aeb34ad7d03a7cbdfb",
       "evidence": "index: int = Field(ge=0, description=\"Position of the element in that list, as returned by get_assessment_rule.\")",
@@ -2627,7 +2677,7 @@
     {
       "siteId": "assessment_root/tools.py::CiteRepositorySourceArgs::203d43d8bf2136db::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 311,
+      "lineNumber": 312,
       "symbolName": "CiteRepositorySourceArgs",
       "constructionSha256": "203d43d8bf2136db604ea0090a4e9ec7b9d8c3e38056c2b56d5028aa88a9366c",
       "evidence": "path: str = Field(description=\"Repository-relative file path.\")",
@@ -2646,7 +2696,7 @@
     {
       "siteId": "assessment_root/tools.py::CiteRepositorySourceArgs::310b41d8137a0b3c::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 313,
+      "lineNumber": 314,
       "symbolName": "CiteRepositorySourceArgs",
       "constructionSha256": "310b41d8137a0b3c11a4106c5cb67d6ba53bc09c97bbe4d74864f8149eb1ac0f",
       "evidence": "end_line: int = Field(ge=1, description=\"Last line of the cited range (inclusive).\")",
@@ -2665,7 +2715,7 @@
     {
       "siteId": "assessment_root/tools.py::CiteRepositorySourceArgs::b2caabcedd6cba66::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 312,
+      "lineNumber": 313,
       "symbolName": "CiteRepositorySourceArgs",
       "constructionSha256": "b2caabcedd6cba669dca46b272ce759b8f4cdf7e97209b820db43d6e6fb46ea5",
       "evidence": "start_line: int = Field(ge=1, description=\"First line of the cited range (1-based).\")",
@@ -2684,7 +2734,7 @@
     {
       "siteId": "assessment_root/tools.py::DecisionReference::faed1fd398a773c5::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 410,
+      "lineNumber": 411,
       "symbolName": "DecisionReference",
       "constructionSha256": "faed1fd398a773c5e6699e3f8bddaca7ef648177f5960b1ddbab4a671ab29d43",
       "evidence": "id: str = Field(description=\"evidenceId or factId returned by the governed tools.\")",
@@ -2703,7 +2753,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentContextDetailArgs::1f169f6beb6fcf79::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 383,
+      "lineNumber": 384,
       "symbolName": "GetAssessmentContextDetailArgs",
       "constructionSha256": "1f169f6beb6fcf7940617e83779cf0823013867c09a09e7a65cbd7c30eae2741",
       "evidence": "index: int = Field(ge=0, description=\"detailIndex returned by get_assessment_context_page.\")",
@@ -2722,7 +2772,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentContextPageArgs::0309d94a4eb1832f::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 373,
+      "lineNumber": 374,
       "symbolName": "GetAssessmentContextPageArgs",
       "constructionSha256": "0309d94a4eb1832f2ed80ed31577ef7504b93dd0754dd723c8382056f61ce0bb",
       "evidence": "description=\"contextCollections.snapshotToken from get_assessment_context; reload context when stale.\",",
@@ -2741,7 +2791,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentCoverageArgs::164ab047905dc266::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 363,
+      "lineNumber": 364,
       "symbolName": "GetAssessmentCoverageArgs",
       "constructionSha256": "164ab047905dc266ee6d4e546a6d742d0dc0eadbe1c3dc61ed2b6219b46d7f16",
       "evidence": "offset: int = Field(default=0, ge=0, description=\"Start at zero, then follow nextOffset until null for complete coverage.\")",
@@ -2760,7 +2810,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentCoverageArgs::339afc696cca4a3f::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 366,
+      "lineNumber": 367,
       "symbolName": "GetAssessmentCoverageArgs",
       "constructionSha256": "339afc696cca4a3feb1732303846ec61a81709a4eb66d65da2446d5145cab3a6",
       "evidence": "description=\"Maximum coverage rows in this page; partial pages never establish assessment completion.\",",
@@ -2779,7 +2829,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentCoverageArgs::5b06bcd27338fbc2::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 361,
+      "lineNumber": 362,
       "symbolName": "GetAssessmentCoverageArgs",
       "constructionSha256": "5b06bcd27338fbc2871c227d33179938d62a94bfaaea8891c1d392ef639bce75",
       "evidence": "description=\"coverageSummary.snapshotToken from get_assessment_context; a stale snapshot must be reloaded.\",",
@@ -2798,7 +2848,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentRuleDetailArgs::2ecdf2a8d8dfc0d9::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 351,
+      "lineNumber": 352,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "2ecdf2a8d8dfc0d90c0c0e2f1dd4374bd495dfce6a07bd47c0f7ac0b981e80b6",
       "evidence": "detail_token: str = Field(pattern=r\"^[0-9a-f]{64}$\", description=\"detailToken returned by an oversized get_assessment_rule result.\")",
@@ -2817,7 +2867,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentRuleDetailArgs::6f19671919dca110::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 353,
+      "lineNumber": 354,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "6f19671919dca110d9a48fd66704c92aac25893b07276e06bcda246a8db78c28",
       "evidence": "offset: int = Field(default=0, ge=0, description=\"Follow nextOffset: entry index for indexes, Unicode code-point index for fragments.\")",
@@ -2836,7 +2886,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentRuleDetailArgs::9286ef71d485d21a::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 355,
+      "lineNumber": 356,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "9286ef71d485d21a9044e7beba346194ec3a5b1de596b4ff62104e9b50494c80",
       "evidence": "max_chars: int = Field(default=2000, ge=1, le=4000, description=\"Maximum Unicode code points for a direct string or JSON fragment; the response byte bound may shorten the page.\")",
@@ -2855,7 +2905,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentRuleDetailArgs::a90a8e2c7a9b59e3::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 354,
+      "lineNumber": 355,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "a90a8e2c7a9b59e39b23fdb201c96990fb4c46786fee652120f0b0f58321702f",
       "evidence": "max_items: int = Field(default=10, ge=1, le=20, description=\"Maximum direct entries/items; nested VALUE content remains subject to the response byte bound.\")",
@@ -2874,7 +2924,7 @@
     {
       "siteId": "assessment_root/tools.py::GetAssessmentRuleDetailArgs::a9debfbc66743142::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 352,
+      "lineNumber": 353,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "a9debfbc66743142d5ba77711020909a918901839e9972e2410f8c2c91acb4a5",
       "evidence": "pointer: str = Field(default=\"\", max_length=_RULE_DETAIL_MAX_POINTER, description=\"Exact JSON pointer from a detail index; empty selects the complete rule payload.\")",
@@ -2893,7 +2943,7 @@
     {
       "siteId": "assessment_root/tools.py::GetHumanRequestResumePageArgs::786e3aae90abe926::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 393,
+      "lineNumber": 394,
       "symbolName": "GetHumanRequestResumePageArgs",
       "constructionSha256": "786e3aae90abe9268221d95adaf40a926f2134d834537e69293f4868a2a8b8b5",
       "evidence": "description=\"contextSnapshotToken returned by HITL continuation; reload/resume when stale.\",",
@@ -2912,7 +2962,7 @@
     {
       "siteId": "assessment_root/tools.py::GetHumanRequestResumePageArgs::94ba7dfbcbe2c5e2::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 400,
+      "lineNumber": 401,
       "symbolName": "GetHumanRequestResumePageArgs",
       "constructionSha256": "94ba7dfbcbe2c5e2499f8da66a17f80e6178f4bc51e045119554b44a6edab56c",
       "evidence": "description=\"Maximum request identity rows; byte budget may return fewer.\",",
@@ -2931,7 +2981,7 @@
     {
       "siteId": "assessment_root/tools.py::GetPinnedRuleSetArgs::48e5d9475d19b0ed::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 346,
+      "lineNumber": 347,
       "symbolName": "GetPinnedRuleSetArgs",
       "constructionSha256": "48e5d9475d19b0ed067335b6de223ef00a1d563ffc6bc26db1a1fb5c8d7ff5fd",
       "evidence": "offset: int = Field(default=0, ge=0, description=\"Catalog offset; follow nextOffset until null to discover every rule.\")",
@@ -2950,7 +3000,7 @@
     {
       "siteId": "assessment_root/tools.py::GetPinnedRuleSetArgs::d7fe5073a83fed9d::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 347,
+      "lineNumber": 348,
       "symbolName": "GetPinnedRuleSetArgs",
       "constructionSha256": "d7fe5073a83fed9d525e5255d16735522e0fd1b8ca89869595eb22804b45b99c",
       "evidence": "limit: int = Field(default=10, ge=1, le=50, description=\"Maximum summaries requested; the response byte bound may return fewer. Follow actual nextOffset and use get_assessment_rule for full details.\")",
@@ -2969,7 +3019,7 @@
     {
       "siteId": "assessment_root/tools.py::GetRuleDecisionArgs::e681b720f080075c::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 405,
+      "lineNumber": 406,
       "symbolName": "GetRuleDecisionArgs",
       "constructionSha256": "e681b720f080075c3fc72a97b7b5653a656f15fa960e95ff5f4481450885baac",
       "evidence": "revision: int | None = Field(default=None, ge=0, description=\"Exact historical decision revision; omit for the newest packet.\")",
@@ -2988,7 +3038,7 @@
     {
       "siteId": "assessment_root/tools.py::LoadAssessmentSkillArgs::471d873a1c2ec4da::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 445,
+      "lineNumber": 446,
       "symbolName": "LoadAssessmentSkillArgs",
       "constructionSha256": "471d873a1c2ec4da266adb1b694473a071acbf02281f8ec0cf0229fab96c5cc6",
       "evidence": "name: str = Field(description=\"Exact registered skill name, not a source path.\")",
@@ -3007,7 +3057,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::00bfda52989cba2c::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 495,
+      "lineNumber": 496,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "00bfda52989cba2c290e280c8233e495e3dc503aa03b349ca4f48b4d524c93ff",
       "evidence": "question: str = Field(min_length=1, description=\"Customer-safe wording; no file paths, hashes or internal IDs.\")",
@@ -3026,7 +3076,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::620338c36783dbad::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 494,
+      "lineNumber": 495,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "620338c36783dbaded486ae39bff560bf94f9e31aed14f86a2d9d13d4b386b2c",
       "evidence": "source_request_id: str | None = Field(default=None, description=\"Explicit existing request identity for server-validated sharing of the exact same fact.\")",
@@ -3045,7 +3095,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::86ae51b560b4b4e3::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 498,
+      "lineNumber": 499,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "86ae51b560b4b4e3de0d31f994601a5dd98b6dc661f0ed0625bacc8a4c4e53c3",
       "evidence": "resolution_attempts: list[str] = Field(min_length=1, description=\"How you already tried to settle it from sources.\")",
@@ -3064,7 +3114,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::9000cc2456a9d67b::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 503,
+      "lineNumber": 504,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "9000cc2456a9d67bdcc5c17316512796bdf5573c09d5d549601af10880d87f78",
       "evidence": "description=(",
@@ -3083,7 +3133,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::cb5603b6d061385b::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 493,
+      "lineNumber": 494,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "cb5603b6d061385bff1f7adc957ffdcf6e1d1abe415e26decefadef79e11e890",
       "evidence": "dependencies: list[HumanRequestDependencyArgs] = Field(default_factory=list, description=\"Other rule/criterion dependencies on this same material fact.\")",
@@ -3102,7 +3152,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::d93445deaf925576::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 500,
+      "lineNumber": 501,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "d93445deaf9255761f2a1436521668c92d55f6ae533c9137d6758fff27806513",
       "evidence": "choices: list[dict[str, str]] = Field(default_factory=list, description=\"[{value, label}] when a fixed set applies.\")",
@@ -3121,7 +3171,7 @@
     {
       "siteId": "assessment_root/tools.py::ReadLegalSourceArgs::16f52042a0f45f57::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 450,
+      "lineNumber": 451,
       "symbolName": "ReadLegalSourceArgs",
       "constructionSha256": "16f52042a0f45f573a3312559e9a899d4babf6adf5009fea4b9f3f9cef794aea",
       "evidence": "locator: str = Field(description=\"locator of that provision.\")",
@@ -3140,7 +3190,7 @@
     {
       "siteId": "assessment_root/tools.py::ReadLegalSourceArgs::1d74475892676ad0::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 449,
+      "lineNumber": 450,
       "symbolName": "ReadLegalSourceArgs",
       "constructionSha256": "1d74475892676ad0a9b02da4937929cadfba0b4af38e364f8b5adca115c76a8b",
       "evidence": "document_id: str = Field(description=\"documentId of a provision, as listed in the rule's legalSources.\")",
@@ -3159,7 +3209,7 @@
     {
       "siteId": "assessment_root/tools.py::RecordSearchCoverageArgs::35a20eedc111b2a4::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 323,
+      "lineNumber": 324,
       "symbolName": "RecordSearchCoverageArgs",
       "constructionSha256": "35a20eedc111b2a435d986533117a9aa7e7b40a3377005baf09618897f202693",
       "evidence": "description=\"Root-authored caveats about what searches could not cover; not proof a search ran.\",",
@@ -3178,7 +3228,7 @@
     {
       "siteId": "assessment_root/tools.py::RecordSearchCoverageArgs::486ab020b6b3e544::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 327,
+      "lineNumber": 328,
       "symbolName": "RecordSearchCoverageArgs",
       "constructionSha256": "486ab020b6b3e54486d5cf26bde9b6a2a02b9c2e949a61ec6fc62907554ebff2",
       "evidence": "description=\"Files read directly because an index/graph query was insufficient: {path, reason}.\",",
@@ -3197,7 +3247,7 @@
     {
       "siteId": "assessment_root/tools.py::RecordSearchCoverageArgs::4c3ecd69768fd68b::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 319,
+      "lineNumber": 320,
       "symbolName": "RecordSearchCoverageArgs",
       "constructionSha256": "4c3ecd69768fd68bae0f97e3b63ff88a595b1fc46949fed0ee38d4adcdd79332",
       "evidence": "description=\"Entry-point files you read, a subset of files you actually read.\",",
@@ -3216,7 +3266,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::3888d8dac84b201a::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 486,
+      "lineNumber": 487,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "3888d8dac84b201a35c2c4d7b8a3bc54cc7b65e160eef013fddcc762b10b679e",
       "evidence": "unavailability_rationale: str = Field(min_length=1, description=\"Why accepted evidence proves permanent unavailability; UNKNOWN alone is insufficient.\")",
@@ -3235,7 +3285,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::a74238b3604dc6b5::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 487,
+      "lineNumber": 488,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "a74238b3604dc6b562ff854eb90e65744fad968297b72ccf0c294820e529c66c",
       "evidence": "evidence_ids: list[str] = Field(min_length=1, description=\"Accepted evidence supporting permanent unavailability.\")",
@@ -3254,7 +3304,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::eb3f185453683f38::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 485,
+      "lineNumber": 486,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "eb3f185453683f38c0e19eebf8089e4b49ab0c4fdb94f735e0d1b5ae442a77ed",
       "evidence": "request_id: str = Field(min_length=1, description=\"Existing requestId from governed humanRequests context.\")",
@@ -3273,7 +3323,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportUnresolvableHumanFactArgs::63e51ce42cc358ad::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 512,
+      "lineNumber": 513,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "63e51ce42cc358adfd31d50b67eacaaf34587743cd4670a0b0046f378ee1002a",
       "evidence": "evidence_ids: list[str] = Field(min_length=1, description=\"Accepted evidence IDs supporting the unavailability claim.\")",
@@ -3292,7 +3342,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportUnresolvableHumanFactArgs::c03b21f16d0dcdaf::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 511,
+      "lineNumber": 512,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "c03b21f16d0dcdaf29f172ad8a6071f2037af1d5bd7b18fc25fd7b4fa72d1a13",
       "evidence": "unavailability_rationale: str = Field(min_length=1, description=\"Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.\")",
@@ -3311,7 +3361,7 @@
     {
       "siteId": "assessment_root/tools.py::SearchLegalSourceArgs::8286e5da8278b7f8::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 454,
+      "lineNumber": 455,
       "symbolName": "SearchLegalSourceArgs",
       "constructionSha256": "8286e5da8278b7f8b2f5f1f891871eb7048750dbd03a8f7fc284806bc800616e",
       "evidence": "query: str = Field(min_length=2, max_length=200, description=\"Words that must all occur in the provision text.\")",
@@ -3330,7 +3380,7 @@
     {
       "siteId": "assessment_root/tools.py::SubmitDecisionArgs::035f0446bc971c12::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 474,
+      "lineNumber": 475,
       "symbolName": "SubmitDecisionArgs",
       "constructionSha256": "035f0446bc971c12430f48b525ad97774612a90ac45904223543ffe7af11dc5d",
       "evidence": "default_factory=list, description=\"Every criterion, when APPLICABLE; empty when NOT_APPLICABLE.\"",
@@ -3349,7 +3399,7 @@
     {
       "siteId": "assessment_root/tools.py::SubmitDecisionArgs::79d617f537680130::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 461,
+      "lineNumber": 462,
       "symbolName": "SubmitDecisionArgs",
       "constructionSha256": "79d617f5376801307a371ea8830800a983462fa6c547af693ef93ce13eb25210",
       "evidence": "legal_context_ids: list[str] = Field(min_length=1, description=\"LegalRequirement IDs relied on.\")",
@@ -3368,7 +3418,7 @@
     {
       "siteId": "assessment_root/tools.py::SubmitDecisionArgs::9000cc2456a9d67b::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 465,
+      "lineNumber": 466,
       "symbolName": "SubmitDecisionArgs",
       "constructionSha256": "9000cc2456a9d67bdcc5c17316512796bdf5573c09d5d549601af10880d87f78",
       "evidence": "description=(",
@@ -3387,7 +3437,7 @@
     {
       "siteId": "assessment_root/tools.py::tool::e667016ac9bbb396::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2425,
+      "lineNumber": 2426,
       "symbolName": "tool",
       "constructionSha256": "e667016ac9bbb39667c86fd4ca4783d4d2bb22dcf5236ba02de2bea50ed87dc7",
       "evidence": "description=description,",
@@ -3402,6 +3452,26 @@
       "placeholderSchema": {},
       "migrationStatus": "SHARED_SOURCE_CONSUMER",
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "agent.py::create_root_agent",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "ALL",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "viSourceId": null,
+      "existingSourcePath": "agent.py",
+      "placeholderSchema": {},
+      "migrationStatus": "NON_MODEL_FACING",
+      "siteId": "ast:agent.py::create_root_agent::KEYWORD_SYSTEM_PROMPT::79:eaff57aa16fb54a7",
+      "filePath": "agent.py",
+      "lineNumber": 79,
+      "symbolName": "create_root_agent",
+      "constructionSha256": "eaff57aa16fb54a79b20cc9bddf01081582f8b6edf969dfcfed19bfc4dd1b0c4",
+      "evidence": "SYSTEM_PROMPT",
+      "astKind": "KEYWORD_SYSTEM_PROMPT",
+      "migrationDecision": "NON_MODEL_FACING",
+      "dispositionEvidence": "Transport supervisor dispatches trusted system events and ends before model hooks. Its before_agent/abefore_agent guards reject interactive/model fallback before compaction or inference; legacy supervisor prompts and general-purpose configuration cannot reach a supported model call."
     },
     {
       "siteId": "ast:assessment_root/agent.py::<module>::INSTRUCTION_ASSET_READ::33:e517cbaf71a63f44",
@@ -3524,9 +3594,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/agent.py::create_assessment_root_agent::KEYWORD_SYSTEM_PROMPT::311:f6e00450565640ff",
+      "siteId": "ast:assessment_root/agent.py::create_assessment_root_agent::KEYWORD_SYSTEM_PROMPT::313:f6e00450565640ff",
       "filePath": "assessment_root/agent.py",
-      "lineNumber": 311,
+      "lineNumber": 313,
       "symbolName": "create_assessment_root_agent",
       "constructionSha256": "f6e00450565640ff9c2d7a77e426e04847e5411f2585737c0866205d3857a252",
       "evidence": "root_prompt",
@@ -3544,9 +3614,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/agent.py::create_assessment_root_agent::KEYWORD_SYSTEM_PROMPT::315:7fb88f9bc5ad1e43",
+      "siteId": "ast:assessment_root/agent.py::create_assessment_root_agent::KEYWORD_SYSTEM_PROMPT::317:7fb88f9bc5ad1e43",
       "filePath": "assessment_root/agent.py",
-      "lineNumber": 315,
+      "lineNumber": 317,
       "symbolName": "create_assessment_root_agent",
       "constructionSha256": "7fb88f9bc5ad1e434a19b988bd832d69be92492051c6b45e47a0a254ff803203",
       "evidence": "__import__(\"json\").loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"]",
@@ -3564,9 +3634,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/agent.py::create_assessment_root_agent::KEYWORD_SYSTEM_PROMPT::317:f6e00450565640ff",
+      "siteId": "ast:assessment_root/agent.py::create_assessment_root_agent::KEYWORD_SYSTEM_PROMPT::319:f6e00450565640ff",
       "filePath": "assessment_root/agent.py",
-      "lineNumber": 317,
+      "lineNumber": 319,
       "symbolName": "create_assessment_root_agent",
       "constructionSha256": "f6e00450565640ff9c2d7a77e426e04847e5411f2585737c0866205d3857a252",
       "evidence": "root_prompt",
@@ -3704,9 +3774,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::AcceptFactArgs::KEYWORD_DESCRIPTION::334:69b7c53bcc3bf7f2",
+      "siteId": "ast:assessment_root/tools.py::AcceptFactArgs::KEYWORD_DESCRIPTION::335:69b7c53bcc3bf7f2",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 334,
+      "lineNumber": 335,
       "symbolName": "AcceptFactArgs",
       "constructionSha256": "69b7c53bcc3bf7f2954692ced510e1e515db886bd927864c842fc0febff67a3c",
       "evidence": "\"Accepted evidence IDs from cite_repository_source.\"",
@@ -3724,9 +3794,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::421:d197993344f3d921",
+      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::422:d197993344f3d921",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 421,
+      "lineNumber": 422,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "d197993344f3d921170d96afead5e32c6d5bf4014021f575471fba79ffd00566",
       "evidence": "\"LegalRequirement that states the element.\"",
@@ -3744,9 +3814,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::423:e7d46e577e5b5be0",
+      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::424:e7d46e577e5b5be0",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 423,
+      "lineNumber": 424,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "e7d46e577e5b5be00c6489b0ac5c80dd802bbeb5338a78ad32b64b5b95df6a3f",
       "evidence": "\"Position of the element in that list, as returned by get_assessment_rule.\"",
@@ -3764,9 +3834,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::426:635bc1ed19b85132",
+      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::427:635bc1ed19b85132",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 426,
+      "lineNumber": 427,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "635bc1ed19b851320a6a89a60142ccb85f62d1b38ec2cbbc45d4c488fbd63c9a",
       "evidence": "\"ESTABLISHED requires affirmative support for the element. REFUTED requires an affirmative counterfact \"\n            \"that makes the element false; absence of proof, unknown operations or an unverified deployment are \"\n            \"NOT_ESTABLISHED, never REFUTED. A fact about the benchmark tester does not establish who operates \"\n            \"the assessed software or that no operator exists.\"",
@@ -3784,9 +3854,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::432:9299679aae030728",
+      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::433:9299679aae030728",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 432,
+      "lineNumber": 433,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "9299679aae0307286ea83cc38adcee6677dd3aa40791f3ba484a086cbe6a8c71",
       "evidence": "\"Why the cited evidence/facts bear on THIS element of THIS rule.\"",
@@ -3804,9 +3874,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::434:ddeee3932e358cdb",
+      "siteId": "ast:assessment_root/tools.py::ApplicabilityBasisArgs::KEYWORD_DESCRIPTION::435:ddeee3932e358cdb",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 434,
+      "lineNumber": 435,
       "symbolName": "ApplicabilityBasisArgs",
       "constructionSha256": "ddeee3932e358cdb85389eb916ab72be4854aa630dde7b674ff8977981bb1457",
       "evidence": "\"Evidence/facts behind an ESTABLISHED or REFUTED finding.\"",
@@ -3824,9 +3894,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::CiteRepositorySourceArgs::KEYWORD_DESCRIPTION::311:779304705c03f343",
+      "siteId": "ast:assessment_root/tools.py::CiteRepositorySourceArgs::KEYWORD_DESCRIPTION::312:779304705c03f343",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 311,
+      "lineNumber": 312,
       "symbolName": "CiteRepositorySourceArgs",
       "constructionSha256": "779304705c03f3438da1054be38704504335d3cc7e5711d7cd58169c262ebbc5",
       "evidence": "\"Repository-relative file path.\"",
@@ -3844,9 +3914,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::CiteRepositorySourceArgs::KEYWORD_DESCRIPTION::312:f7c79d1a2869fb22",
+      "siteId": "ast:assessment_root/tools.py::CiteRepositorySourceArgs::KEYWORD_DESCRIPTION::313:f7c79d1a2869fb22",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 312,
+      "lineNumber": 313,
       "symbolName": "CiteRepositorySourceArgs",
       "constructionSha256": "f7c79d1a2869fb22a6b964aeaf541ae854f2c5a1940dbe175906dfa83fba58bc",
       "evidence": "\"First line of the cited range (1-based).\"",
@@ -3864,9 +3934,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::CiteRepositorySourceArgs::KEYWORD_DESCRIPTION::313:40735537e00e3369",
+      "siteId": "ast:assessment_root/tools.py::CiteRepositorySourceArgs::KEYWORD_DESCRIPTION::314:40735537e00e3369",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 313,
+      "lineNumber": 314,
       "symbolName": "CiteRepositorySourceArgs",
       "constructionSha256": "40735537e00e33699d200c0106774076804af4af9e7039952fb3111962c3bcde",
       "evidence": "\"Last line of the cited range (inclusive).\"",
@@ -3884,9 +3954,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::DecisionReference::KEYWORD_DESCRIPTION::410:58572e4eb0c6db2d",
+      "siteId": "ast:assessment_root/tools.py::DecisionReference::KEYWORD_DESCRIPTION::411:58572e4eb0c6db2d",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 410,
+      "lineNumber": 411,
       "symbolName": "DecisionReference",
       "constructionSha256": "58572e4eb0c6db2d7abd8bb04cd3cc78fe1059bb8bdd11304db8b365d5347ab2",
       "evidence": "\"evidenceId or factId returned by the governed tools.\"",
@@ -3904,9 +3974,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentContextDetailArgs::KEYWORD_DESCRIPTION::383:6ccc51fef1f5eea9",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentContextDetailArgs::KEYWORD_DESCRIPTION::384:6ccc51fef1f5eea9",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 383,
+      "lineNumber": 384,
       "symbolName": "GetAssessmentContextDetailArgs",
       "constructionSha256": "6ccc51fef1f5eea9a50779149bf882fbf07610518e10143366c3c727fef880e2",
       "evidence": "\"detailIndex returned by get_assessment_context_page.\"",
@@ -3924,9 +3994,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentContextPageArgs::KEYWORD_DESCRIPTION::373:0883972268c992af",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentContextPageArgs::KEYWORD_DESCRIPTION::374:0883972268c992af",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 373,
+      "lineNumber": 374,
       "symbolName": "GetAssessmentContextPageArgs",
       "constructionSha256": "0883972268c992afb065efb36388ef6645941667c0d02cf8599c3b0c49d13a0d",
       "evidence": "\"contextCollections.snapshotToken from get_assessment_context; reload context when stale.\"",
@@ -3944,9 +4014,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentCoverageArgs::KEYWORD_DESCRIPTION::361:e0430b240866560b",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentCoverageArgs::KEYWORD_DESCRIPTION::362:e0430b240866560b",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 361,
+      "lineNumber": 362,
       "symbolName": "GetAssessmentCoverageArgs",
       "constructionSha256": "e0430b240866560b772cc9dac7a83c56fda15fdc41928879b23b679f86c56265",
       "evidence": "\"coverageSummary.snapshotToken from get_assessment_context; a stale snapshot must be reloaded.\"",
@@ -3964,9 +4034,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentCoverageArgs::KEYWORD_DESCRIPTION::363:1eea9f57963ff1ac",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentCoverageArgs::KEYWORD_DESCRIPTION::364:1eea9f57963ff1ac",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 363,
+      "lineNumber": 364,
       "symbolName": "GetAssessmentCoverageArgs",
       "constructionSha256": "1eea9f57963ff1acf912f9576f0c5c17b70c8a57a5629655371de7cf6e05e2d2",
       "evidence": "\"Start at zero, then follow nextOffset until null for complete coverage.\"",
@@ -3984,9 +4054,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentCoverageArgs::KEYWORD_DESCRIPTION::366:886bb815e0faf82a",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentCoverageArgs::KEYWORD_DESCRIPTION::367:886bb815e0faf82a",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 366,
+      "lineNumber": 367,
       "symbolName": "GetAssessmentCoverageArgs",
       "constructionSha256": "886bb815e0faf82ab976a337aec2b43dce3f7845841ba2ed1a26cdfefd0aaf6d",
       "evidence": "\"Maximum coverage rows in this page; partial pages never establish assessment completion.\"",
@@ -4004,9 +4074,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::351:f56070a237fa16e0",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::352:f56070a237fa16e0",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 351,
+      "lineNumber": 352,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "f56070a237fa16e0f4ddae1a979238d9c3f76f64b1125431a0095ddf699b2f7e",
       "evidence": "\"detailToken returned by an oversized get_assessment_rule result.\"",
@@ -4024,9 +4094,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::352:5a8c912d5ceafaf8",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::353:5a8c912d5ceafaf8",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 352,
+      "lineNumber": 353,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "5a8c912d5ceafaf808a6630e6fe69c6a9c07e3cc5ec0db06b653240b914fdb87",
       "evidence": "\"Exact JSON pointer from a detail index; empty selects the complete rule payload.\"",
@@ -4044,9 +4114,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::353:f0515c3fc299a01f",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::354:f0515c3fc299a01f",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 353,
+      "lineNumber": 354,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "f0515c3fc299a01f5948ef9b2ea2a5521183ceaaaae4a9576f1a78dec3f0b0bb",
       "evidence": "\"Follow nextOffset: entry index for indexes, Unicode code-point index for fragments.\"",
@@ -4064,9 +4134,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::354:22d0c204ed75037a",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::355:22d0c204ed75037a",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 354,
+      "lineNumber": 355,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "22d0c204ed75037ace486095b7865ec9996e5029e6e771eb63197b5991fd41f4",
       "evidence": "\"Maximum direct entries/items; nested VALUE content remains subject to the response byte bound.\"",
@@ -4084,9 +4154,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::355:1316b670346b2b51",
+      "siteId": "ast:assessment_root/tools.py::GetAssessmentRuleDetailArgs::KEYWORD_DESCRIPTION::356:1316b670346b2b51",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 355,
+      "lineNumber": 356,
       "symbolName": "GetAssessmentRuleDetailArgs",
       "constructionSha256": "1316b670346b2b513ab1215c9efe3d5ea6e24be1ff742540357fc768e83490b7",
       "evidence": "\"Maximum Unicode code points for a direct string or JSON fragment; the response byte bound may shorten the page.\"",
@@ -4104,9 +4174,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetHumanRequestResumePageArgs::KEYWORD_DESCRIPTION::393:bd6973c2ae07efa3",
+      "siteId": "ast:assessment_root/tools.py::GetHumanRequestResumePageArgs::KEYWORD_DESCRIPTION::394:bd6973c2ae07efa3",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 393,
+      "lineNumber": 394,
       "symbolName": "GetHumanRequestResumePageArgs",
       "constructionSha256": "bd6973c2ae07efa3e760328b504040de9612f8e0eebae8e085f5600db1422a8c",
       "evidence": "\"contextSnapshotToken returned by HITL continuation; reload/resume when stale.\"",
@@ -4124,9 +4194,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetHumanRequestResumePageArgs::KEYWORD_DESCRIPTION::400:c26fbaffd6c6cb46",
+      "siteId": "ast:assessment_root/tools.py::GetHumanRequestResumePageArgs::KEYWORD_DESCRIPTION::401:c26fbaffd6c6cb46",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 400,
+      "lineNumber": 401,
       "symbolName": "GetHumanRequestResumePageArgs",
       "constructionSha256": "c26fbaffd6c6cb46b548df1d6e14c65075e730db2780fd81d081b69da3c58a0f",
       "evidence": "\"Maximum request identity rows; byte budget may return fewer.\"",
@@ -4144,9 +4214,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetPinnedRuleSetArgs::KEYWORD_DESCRIPTION::346:cdb9248cc26e630f",
+      "siteId": "ast:assessment_root/tools.py::GetPinnedRuleSetArgs::KEYWORD_DESCRIPTION::347:cdb9248cc26e630f",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 346,
+      "lineNumber": 347,
       "symbolName": "GetPinnedRuleSetArgs",
       "constructionSha256": "cdb9248cc26e630fc4139d17ad101e6aca5ed041deffb172fb17ef47136a4010",
       "evidence": "\"Catalog offset; follow nextOffset until null to discover every rule.\"",
@@ -4164,9 +4234,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetPinnedRuleSetArgs::KEYWORD_DESCRIPTION::347:21cc00572f6ba3e6",
+      "siteId": "ast:assessment_root/tools.py::GetPinnedRuleSetArgs::KEYWORD_DESCRIPTION::348:21cc00572f6ba3e6",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 347,
+      "lineNumber": 348,
       "symbolName": "GetPinnedRuleSetArgs",
       "constructionSha256": "21cc00572f6ba3e6b1d69e76a1947f66d5746a0949e38afb0a2bd55ac02abc43",
       "evidence": "\"Maximum summaries requested; the response byte bound may return fewer. Follow actual nextOffset and use get_assessment_rule for full details.\"",
@@ -4184,9 +4254,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::GetRuleDecisionArgs::KEYWORD_DESCRIPTION::405:bc09ca326f31851c",
+      "siteId": "ast:assessment_root/tools.py::GetRuleDecisionArgs::KEYWORD_DESCRIPTION::406:bc09ca326f31851c",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 405,
+      "lineNumber": 406,
       "symbolName": "GetRuleDecisionArgs",
       "constructionSha256": "bc09ca326f31851caadb3e4189c403b3a5ac0758ea2a3709ebe08fb3353a5b41",
       "evidence": "\"Exact historical decision revision; omit for the newest packet.\"",
@@ -4204,9 +4274,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::LoadAssessmentSkillArgs::KEYWORD_DESCRIPTION::445:9ec7d532d3057460",
+      "siteId": "ast:assessment_root/tools.py::LoadAssessmentSkillArgs::KEYWORD_DESCRIPTION::446:9ec7d532d3057460",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 445,
+      "lineNumber": 446,
       "symbolName": "LoadAssessmentSkillArgs",
       "constructionSha256": "9ec7d532d30574607a003965330083fc74569a653e8f4540b943070df02574d7",
       "evidence": "\"Exact registered skill name, not a source path.\"",
@@ -4224,9 +4294,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::493:f94c57a3c30bc362",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::494:f94c57a3c30bc362",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 493,
+      "lineNumber": 494,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "f94c57a3c30bc362e216fcc01bfccf412391e9129c49702147560173995f2f93",
       "evidence": "\"Other rule/criterion dependencies on this same material fact.\"",
@@ -4244,9 +4314,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::494:6753b264e965c3d9",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::495:6753b264e965c3d9",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 494,
+      "lineNumber": 495,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "6753b264e965c3d966d7c9c6a305b1ed421a97e9bb3a9d2b22aa2409d564a89c",
       "evidence": "\"Explicit existing request identity for server-validated sharing of the exact same fact.\"",
@@ -4264,9 +4334,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::495:ce1d27f72d6aee52",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::496:ce1d27f72d6aee52",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 495,
+      "lineNumber": 496,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "ce1d27f72d6aee52888f21c0034d9d82c61d3506630c80e7d4da1f173e242b67",
       "evidence": "\"Customer-safe wording; no file paths, hashes or internal IDs.\"",
@@ -4284,9 +4354,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::498:2d2e0adbc0e2599c",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::499:2d2e0adbc0e2599c",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 498,
+      "lineNumber": 499,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "2d2e0adbc0e2599cfeee1e280658d1e77a2f892837e5bf8c4e64604c1cb505ab",
       "evidence": "\"How you already tried to settle it from sources.\"",
@@ -4304,9 +4374,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::500:6c1cdeee7b67c7b1",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::501:6c1cdeee7b67c7b1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 500,
+      "lineNumber": 501,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "6c1cdeee7b67c7b172a7d3de22a8b1927cc017153129bf10067f38c4b729e91b",
       "evidence": "\"[{value, label}] when a fixed set applies.\"",
@@ -4324,9 +4394,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::504:e9f430fe62316e57",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::505:e9f430fe62316e57",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 504,
+      "lineNumber": 505,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "e9f430fe62316e575caf6724a7ff1cbcbf6eeba4bdecd5f524a59c517564c876",
       "evidence": "\"The source-stated element of this rule the fact bears on. A request needs this or criterion_ids: \"\n            \"ask for a fact that settles that element, never for a legal verdict.\"",
@@ -4344,9 +4414,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReadLegalSourceArgs::KEYWORD_DESCRIPTION::449:937e5af35e4b5ac7",
+      "siteId": "ast:assessment_root/tools.py::ReadLegalSourceArgs::KEYWORD_DESCRIPTION::450:937e5af35e4b5ac7",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 449,
+      "lineNumber": 450,
       "symbolName": "ReadLegalSourceArgs",
       "constructionSha256": "937e5af35e4b5ac7c6d17319cd9c665bb1774353de9647119636684cc43c23c5",
       "evidence": "\"documentId of a provision, as listed in the rule's legalSources.\"",
@@ -4364,9 +4434,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReadLegalSourceArgs::KEYWORD_DESCRIPTION::450:c4ad10659f9ed827",
+      "siteId": "ast:assessment_root/tools.py::ReadLegalSourceArgs::KEYWORD_DESCRIPTION::451:c4ad10659f9ed827",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 450,
+      "lineNumber": 451,
       "symbolName": "ReadLegalSourceArgs",
       "constructionSha256": "c4ad10659f9ed827eaacdd2900f11796079d0cf8a12b9597f7b267ff2cca1f57",
       "evidence": "\"locator of that provision.\"",
@@ -4384,9 +4454,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::RecordSearchCoverageArgs::KEYWORD_DESCRIPTION::319:fc0a377092d0ba63",
+      "siteId": "ast:assessment_root/tools.py::RecordSearchCoverageArgs::KEYWORD_DESCRIPTION::320:fc0a377092d0ba63",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 319,
+      "lineNumber": 320,
       "symbolName": "RecordSearchCoverageArgs",
       "constructionSha256": "fc0a377092d0ba639baa068391c79754fe44a580bf4f444a94b499ea6ecb8a89",
       "evidence": "\"Entry-point files you read, a subset of files you actually read.\"",
@@ -4404,9 +4474,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::RecordSearchCoverageArgs::KEYWORD_DESCRIPTION::323:858262c94167a119",
+      "siteId": "ast:assessment_root/tools.py::RecordSearchCoverageArgs::KEYWORD_DESCRIPTION::324:858262c94167a119",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 323,
+      "lineNumber": 324,
       "symbolName": "RecordSearchCoverageArgs",
       "constructionSha256": "858262c94167a119d94b160fd62c380c3d6f7f667b298e0acafa8369dde15704",
       "evidence": "\"Root-authored caveats about what searches could not cover; not proof a search ran.\"",
@@ -4424,9 +4494,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::RecordSearchCoverageArgs::KEYWORD_DESCRIPTION::327:b955427e2859794f",
+      "siteId": "ast:assessment_root/tools.py::RecordSearchCoverageArgs::KEYWORD_DESCRIPTION::328:b955427e2859794f",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 327,
+      "lineNumber": 328,
       "symbolName": "RecordSearchCoverageArgs",
       "constructionSha256": "b955427e2859794f64d288c717cb2df231a67eee7cb7b24e25eda09adee04edc",
       "evidence": "\"Files read directly because an index/graph query was insufficient: {path, reason}.\"",
@@ -4444,9 +4514,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::485:442145576dd9a2dc",
+      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::486:442145576dd9a2dc",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 485,
+      "lineNumber": 486,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "442145576dd9a2dc63107952e5900917610a4f2b97f3bb54d73e1f2829bcb9dd",
       "evidence": "\"Existing requestId from governed humanRequests context.\"",
@@ -4464,9 +4534,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::486:1466c9f2b8e6be00",
+      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::487:1466c9f2b8e6be00",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 486,
+      "lineNumber": 487,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "1466c9f2b8e6be00f1eca4eeac96c6ae13c688ecd371e694153ed6df928ab8ad",
       "evidence": "\"Why accepted evidence proves permanent unavailability; UNKNOWN alone is insufficient.\"",
@@ -4484,9 +4554,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::487:be5df9c3c743e77e",
+      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::488:be5df9c3c743e77e",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 487,
+      "lineNumber": 488,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "be5df9c3c743e77e8b208aed84c58e313024a6ea7c939477184723f70f693b92",
       "evidence": "\"Accepted evidence supporting permanent unavailability.\"",
@@ -4504,9 +4574,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::511:297c430a657fb5bd",
+      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::512:297c430a657fb5bd",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 511,
+      "lineNumber": 512,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "297c430a657fb5bdfc00164ea20fe352ae3007a09ee948089f48333d23ecc533",
       "evidence": "\"Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.\"",
@@ -4524,9 +4594,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::512:dbc8c42fb76e9227",
+      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::513:dbc8c42fb76e9227",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 512,
+      "lineNumber": 513,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "dbc8c42fb76e9227b22ec9faab810f30d1204352caf355e4ca979a338b9a86c6",
       "evidence": "\"Accepted evidence IDs supporting the unavailability claim.\"",
@@ -4544,9 +4614,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::SearchLegalSourceArgs::KEYWORD_DESCRIPTION::454:b691aea15d085b24",
+      "siteId": "ast:assessment_root/tools.py::SearchLegalSourceArgs::KEYWORD_DESCRIPTION::455:b691aea15d085b24",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 454,
+      "lineNumber": 455,
       "symbolName": "SearchLegalSourceArgs",
       "constructionSha256": "b691aea15d085b2479e81d85ae475ef5786da36a692f387da5d8876528b022b1",
       "evidence": "\"Words that must all occur in the provision text.\"",
@@ -4564,9 +4634,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::SubmitDecisionArgs::KEYWORD_DESCRIPTION::461:b8a8f479319d8d37",
+      "siteId": "ast:assessment_root/tools.py::SubmitDecisionArgs::KEYWORD_DESCRIPTION::462:b8a8f479319d8d37",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 461,
+      "lineNumber": 462,
       "symbolName": "SubmitDecisionArgs",
       "constructionSha256": "b8a8f479319d8d372174b1bf68676a6f5140487e29f97aefe5f0636ab758ebe9",
       "evidence": "\"LegalRequirement IDs relied on.\"",
@@ -4584,9 +4654,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::SubmitDecisionArgs::KEYWORD_DESCRIPTION::466:895e2c30a81ddf91",
+      "siteId": "ast:assessment_root/tools.py::SubmitDecisionArgs::KEYWORD_DESCRIPTION::467:895e2c30a81ddf91",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 466,
+      "lineNumber": 467,
       "symbolName": "SubmitDecisionArgs",
       "constructionSha256": "895e2c30a81ddf917061d6b28e9c91969964abfed6c5f569a33cb22b7962e68a",
       "evidence": "\"Findings for every OPERATIVE_SCOPE (actor, regulated activity and inherited legal scope), plus the conditions, qualifiers and exceptions the linked \"\n            \"requirements state. NOT_APPLICABLE needs an ESTABLISHED exception or a REFUTED condition, with references; \"\n            \"APPLICABLE needs every operative scope ESTABLISHED and no refuting element. UNCONDITIONAL never establishes an actor or deployment. \"\n            \"Technical capability does not establish actual operations. Unknown operations do not establish their absence. \"\n            \"NOT_ESTABLISHED never supports either verdict; keep the assessment unresolved instead.\"",
@@ -4604,9 +4674,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::SubmitDecisionArgs::KEYWORD_DESCRIPTION::474:e72c87f55005ca2d",
+      "siteId": "ast:assessment_root/tools.py::SubmitDecisionArgs::KEYWORD_DESCRIPTION::475:e72c87f55005ca2d",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 474,
+      "lineNumber": 475,
       "symbolName": "SubmitDecisionArgs",
       "constructionSha256": "e72c87f55005ca2d362b284cd70023d7aca68e0cd99b26c56effa6f306fa6026",
       "evidence": "\"Every criterion, when APPLICABLE; empty when NOT_APPLICABLE.\"",
@@ -4624,9 +4694,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::accept_case_fact::PROMOTED_TOOL_DOCSTRING::1677:78fe06ee5d6b63b9",
+      "siteId": "ast:assessment_root/tools.py::accept_case_fact::PROMOTED_TOOL_DOCSTRING::1678:78fe06ee5d6b63b9",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1677,
+      "lineNumber": 1678,
       "symbolName": "accept_case_fact",
       "constructionSha256": "78fe06ee5d6b63b98ba5cd8e4ecff66ff81222f7fdbd12fc572b3edbdfae8249",
       "evidence": "\"\"\"Business purpose: Preserve the Root's evidence-backed observation or use-case description in the assessment case.\n\n        Business rules:\n        - Cite accepted source evidence and state only what it supports, including any uncertainty or scope limitation.\n        - A documentation claim, implementation capability or hypothesis does not establish actual operator practice.\n        - The API checks authority, source references and the current case revision; acceptance does not certify semantic truth.\n\n        Execution flow:\n        1. Submit the Root-authored statement and evidence links at the current case revision.\n        2. Adopt the new case revision returned by the server.\n\n        Failure cases:\n        - Stale revisions or invalid evidence remain API rejections; no local revision is advanced on failure.\n\n        Side effects:\n        - Appends the fact and advances the case revision; the API invalidates decisions made against an older case revision.\n        \"\"\"",
@@ -4644,9 +4714,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::cite_repository_source::PROMOTED_TOOL_DOCSTRING::1526:2e5fa38039de2f5a",
+      "siteId": "ast:assessment_root/tools.py::cite_repository_source::PROMOTED_TOOL_DOCSTRING::1527:2e5fa38039de2f5a",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1526,
+      "lineNumber": 1527,
       "symbolName": "cite_repository_source",
       "constructionSha256": "2e5fa38039de2f5ac08501c6dcfe3770be37c461d100f6ec374e5c9ea4e58a8e",
       "evidence": "\"\"\"Business purpose: Accept an exact source excerpt from the assessment's selected repository view.\n\n        Business rules:\n        - Scoped paths must be canonical and remain under the API-owned immutable prefix.\n        - The runtime reads and hashes the actual line range; the model cannot supply its evidence hash.\n\n        Execution flow:\n        1. Bind context, reject paths outside the selection and verify scoped runtime metadata.\n        2. Read the source range, compute its digest and submit the pinned evidence to the API.\n\n        Failure cases:\n        - Invalid scope, missing source and invalid ranges never create evidence.\n        - Conflicting runtime scope metadata stops investigation before reading source.\n\n        Side effects:\n        - Reads permitted source, records the read trace and asks the API to accept source evidence.\n        \"\"\"",
@@ -4664,9 +4734,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_context::PROMOTED_TOOL_DOCSTRING::1132:7c6406fb4c9206cc",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_context::PROMOTED_TOOL_DOCSTRING::1133:7c6406fb4c9206cc",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1132,
+      "lineNumber": 1133,
       "symbolName": "get_assessment_context",
       "constructionSha256": "7c6406fb4c9206cc94b89fe65ac62d71ae17f2bd0578fb578fa35a8301f007f6",
       "evidence": "\"\"\"Business purpose:\n        Reload the accepted assessment state and source-view limits before continuing an investigation.\n\n        Business rules:\n        - Case pins, coverage, facts and evidence come from the API, not the model's memory.\n        - Preserve each fact's authority so evidence-derived claims remain distinguishable from human-provided context.\n        - Runtime source metadata must match those pins; incomplete visibility cannot establish absence.\n        - Coverage counts describe the authorized audit request, never a completion verdict; every visible row remains available through snapshot-bound pages.\n\n        Execution flow:\n        1. Load and adopt the API's complete case context, including every coverage row for revision caches.\n        2. Verify the runtime source view and retain the authorized audit request, accepted evidence, fact authority and human audit feedback.\n        3. Return coverage counts and a content-bound page token without repeating the full inventory in model history.\n\n        Failure cases:\n        - API failures remain rejection feedback; conflicting sandbox pins fail context retrieval.\n\n        Side effects:\n        - Updates in-memory Root pins and revision caches; does not persist decisions or facts.\n        \"\"\"",
@@ -4684,9 +4754,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_context_detail::PROMOTED_TOOL_DOCSTRING::1214:1c07bb086df87f9f",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_context_detail::PROMOTED_TOOL_DOCSTRING::1215:1c07bb086df87f9f",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1214,
+      "lineNumber": 1215,
       "symbolName": "get_assessment_context_detail",
       "constructionSha256": "1c07bb086df87f9f735e8ee4d14a025ff52eaccb25dd3f3178633bea37e7ad97",
       "evidence": "\"\"\"Business purpose: Retrieve one exact large fact/evidence/HITL record through bounded detail pages.\n        Business rules:\n        - Detail reads require the same current context token and never change fact/evidence authority.\n        Execution flow:\n        1. Reload context and reject stale/foreign tokens.\n        2. Select the exact indexed record and return a bounded value/index/lossless fragment.\n        Failure cases:\n        - Invalid indexes/pointers/offsets return typed feedback.\n        Side effects:\n        - Read-only API access.\n        \"\"\"",
@@ -4704,9 +4774,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_context_page::PROMOTED_TOOL_DOCSTRING::1189:7a8651bd6a4b5183",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_context_page::PROMOTED_TOOL_DOCSTRING::1190:7a8651bd6a4b5183",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1189,
+      "lineNumber": 1190,
       "symbolName": "get_assessment_context_page",
       "constructionSha256": "7a8651bd6a4b518380c2cd04d6aeea5536afd4697a50d9eb1d60ecb77633ff0a",
       "evidence": "\"\"\"Business purpose: Page facts, evidence and HITL history without copying unbounded context into model history.\n        Business rules:\n        - The token binds the complete current context; large records are represented by identity-only rows.\n        Execution flow:\n        1. Reload and bind the current context.\n        2. Reject stale tokens, then return a byte-bounded page.\n        Failure cases:\n        - Stale tokens and invalid offsets return typed feedback.\n        Side effects:\n        - Read-only API access and in-memory context refresh.\n        \"\"\"",
@@ -4724,9 +4794,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_coverage::PROMOTED_TOOL_DOCSTRING::1263:08c25ab1ec56c7fe",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_coverage::PROMOTED_TOOL_DOCSTRING::1264:08c25ab1ec56c7fe",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1263,
+      "lineNumber": 1264,
       "symbolName": "get_assessment_coverage",
       "constructionSha256": "08c25ab1ec56c7fe438d80291ce33c04690297bee889eeed1d999e24afcb7d02",
       "evidence": "\"\"\"Business purpose: Retrieve complete per-rule coverage incrementally without mixing assessment snapshots.\n\n        Business rules:\n        - The supplied token must match the current leased API context for this assessment and thread.\n        - Any audit-request, coverage, case revision, pin or source-scope change requires a fresh context summary.\n        - Pages retain every row field and expose the total and continuation; a page is never proof of completion.\n\n        Execution flow:\n        1. Reload complete authoritative context and recompute its ordered coverage snapshot.\n        2. Reject a stale token or an offset past the inventory before returning any coverage rows.\n        3. Adopt the full context for revision caches and return the requested bounded page.\n\n        Failure cases:\n        - A changed or foreign token returns COVERAGE_SNAPSHOT_STALE; an excessive offset returns INVALID_COVERAGE_OFFSET.\n        - Schema validation rejects malformed tokens and page limits outside the supported range.\n\n        Side effects:\n        - Read-only API access and in-memory revision-cache refresh; no evidence, fact, decision or lifecycle writes.\n        \"\"\"",
@@ -4744,9 +4814,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_rule::PROMOTED_TOOL_DOCSTRING::1440:c994673932982d9e",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_rule::PROMOTED_TOOL_DOCSTRING::1441:c994673932982d9e",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1440,
+      "lineNumber": 1441,
       "symbolName": "get_assessment_rule",
       "constructionSha256": "c994673932982d9eea856f4c333dc9a8626eb00cf93dd7dab6713ae1c0b70433",
       "evidence": "\"\"\"Business purpose: Load a pinned rule without forcing its complete legal contract into one model turn.\n\n        Business rules:\n        - Small results retain the complete prior projection; large results expose every field through governed detail reads.\n        - The full authoritative payload still populates applicability anchors; an index cannot support a legal verdict.\n\n        Execution flow:\n        1. Load the rule and all linked legal context through the existing governed API.\n        2. Return its full payload when it fits, otherwise return a content-bound navigation index.\n\n        Failure cases:\n        - Missing rules retain RULE_NOT_IN_RULE_SET; invalid legal metadata fails without inventing a substitute rule.\n\n        Side effects:\n        - Read-only API access and in-memory applicability caches; no domain or filesystem writes.\n        \"\"\"",
@@ -4764,9 +4834,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_rule_detail::PROMOTED_TOOL_DOCSTRING::1465:c38673a1675a9c76",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_rule_detail::PROMOTED_TOOL_DOCSTRING::1466:c38673a1675a9c76",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1465,
+      "lineNumber": 1466,
       "symbolName": "get_assessment_rule_detail",
       "constructionSha256": "c38673a1675a9c76c586b8c153bd13c820ceb17ef2e6c21927b3f41c711bfa26",
       "evidence": "\"\"\"Business purpose: Read complete selected legal fields incrementally from the pinned rule authority.\n\n        Business rules:\n        - Each read reloads and validates the current audit-request scope before returning any legal content.\n        - The token must match the same case, thread, audit request, pins and exact complete rule projection.\n        - Indexes and fragments are incomplete; reconstruct the selected normative value before interpreting it.\n        - All fields remain available, including criteria, inherited requirements, applicability elements and source references.\n\n        Execution flow:\n        1. Revalidate current audit membership, then reload the full pinned projection and its applicability anchors from the API.\n        2. Reject a changed token or return the requested bounded node, index or exact text fragment.\n\n        Failure cases:\n        - Unauthorized or missing rules, stale tokens and invalid pointers or offsets produce feedback without partial legal content.\n\n        Side effects:\n        - Read-only API access and in-memory applicability caches; never writes customer facts, verdicts or scratch files.\n        \"\"\"",
@@ -4784,9 +4854,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_human_request_resume_page::PROMOTED_TOOL_DOCSTRING::2140:066d6dd7656c5604",
+      "siteId": "ast:assessment_root/tools.py::get_human_request_resume_page::PROMOTED_TOOL_DOCSTRING::2141:066d6dd7656c5604",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2140,
+      "lineNumber": 2141,
       "symbolName": "get_human_request_resume_page",
       "constructionSha256": "066d6dd7656c5604886f6eee59a1644f5124c7f4c7840c2987089bc041ae2f61",
       "evidence": "\"\"\"Business purpose:\n        Continue reading a bounded aggregate HITL resume list after wait_for_human_requests.\n\n        Business rules:\n        - The supplied token must match the current authoritative context.\n        - The reviewed request set is fixed by server-authorized review identity for this execution.\n\n        Execution flow:\n        1. Reload/adopt context and recompute its snapshot token.\n        2. Reject stale tokens.\n        3. Return the requested bounded page of reviewed request identities.\n\n        Failure cases:\n        - Stale tokens and invalid offsets return typed feedback.\n\n        Side effects:\n        - Read-only API access and in-memory context refresh.\n        \"\"\"",
@@ -4804,9 +4874,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_pinned_rule_set::PROMOTED_TOOL_DOCSTRING::1323:5dba0122666a0dd7",
+      "siteId": "ast:assessment_root/tools.py::get_pinned_rule_set::PROMOTED_TOOL_DOCSTRING::1324:5dba0122666a0dd7",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1323,
+      "lineNumber": 1324,
       "symbolName": "get_pinned_rule_set",
       "constructionSha256": "5dba0122666a0dd77087c70c3583541b0b0fd784ec1c46394b0095aa2b40afe7",
       "evidence": "\"\"\"Business purpose: Discover every authorized AssessmentRule through complete, bounded catalog pages.\n\n        Business rules:\n        - The API owns the immutable Rule Set and current audit request; pagination never expands the authorized rule selection.\n        - Follow nextOffset until null for all selected rules; totalPinnedRuleCount is informational, not additional audit authority.\n        - The requested row limit is an upper bound; the complete serialized reply must also fit 4,096 UTF-8 bytes.\n        - A summary too large for one page retains its rule identity and an explicit link to complete governed details.\n\n        Execution flow:\n        1. Refresh the leased request context, select its authorized rules and cache their server-provided versions and criteria.\n        2. Add complete summaries while both the row and reply-byte limits permit.\n        3. Return the actual continuation, or a detail link when a single summary needs bounded retrieval.\n\n        Failure cases:\n        - API failures remain structured feedback; an offset past the catalog returns an empty final page.\n        - An identity envelope that cannot fit returns RULE_CATALOG_METADATA_TOO_LARGE without skipping the rule.\n\n        Side effects:\n        - Read-only API access and in-memory identity caches; no domain state or legal judgments are changed.\n        \"\"\"",
@@ -4824,9 +4894,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_rule_decision::PROMOTED_TOOL_DOCSTRING::1303:d6b8f69900b6f9bc",
+      "siteId": "ast:assessment_root/tools.py::get_rule_decision::PROMOTED_TOOL_DOCSTRING::1304:d6b8f69900b6f9bc",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1303,
+      "lineNumber": 1304,
       "symbolName": "get_rule_decision",
       "constructionSha256": "d6b8f69900b6f9bc5fc0a31195dea823bc673c53c2ac2c490e702736d494e022",
       "evidence": "\"\"\"Business purpose: Recover a prior model decision's reasoning and references before re-investigating one rule.\n\n        Business rules:\n        - Retrieve only the requested rule's newest or exact historical revision through the leased API.\n        - Structural acceptance is not proof of semantic correctness; the Root evaluates support using current sources and facts.\n        - Reading an older packet must not roll back the current revision used for a later submission.\n\n        Execution flow:\n        1. Ask the API for the bounded rule decision record, preserving its identity, state, packet and revision.\n        2. Return that immutable record without accepting or revising a decision.\n\n        Failure cases:\n        - Missing records return an empty collection; API authorization or query failures remain structured rejection feedback.\n\n        Side effects:\n        - Read-only API access; no domain mutations or local revision-cache changes.\n        \"\"\"",
@@ -4844,9 +4914,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::list_assessment_skills::PROMOTED_TOOL_DOCSTRING::1093:e002672d21aa4b51",
+      "siteId": "ast:assessment_root/tools.py::list_assessment_skills::PROMOTED_TOOL_DOCSTRING::1094:e002672d21aa4b51",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1093,
+      "lineNumber": 1094,
       "symbolName": "list_assessment_skills",
       "constructionSha256": "e002672d21aa4b51fa1b137ef828492c0537f1616fcfddd3ff149115a7633b78",
       "evidence": "\"\"\"Business purpose:\n        Expose available generic investigation skill names to the Assessment Root.\n\n        Business rules:\n        - Skill metadata does not prove a repository feature or extend selected legal scope.\n\n        Execution flow:\n        1. Return the source-controlled allowlist and relevance hints.\n\n        Failure cases:\n        - There are no runtime lookups; an empty catalog would return empty options.\n\n        Side effects:\n        - Read-only response; no evidence or legal decisions are persisted.\n        \"\"\"",
@@ -4864,9 +4934,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::load_assessment_skill::PROMOTED_TOOL_DOCSTRING::1111:8910ed02d32a9efe",
+      "siteId": "ast:assessment_root/tools.py::load_assessment_skill::PROMOTED_TOOL_DOCSTRING::1112:8910ed02d32a9efe",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1111,
+      "lineNumber": 1112,
       "symbolName": "load_assessment_skill",
       "constructionSha256": "8910ed02d32a9efe4fa2c643706f0573e2e67a155128442b51e361639f4e03d4",
       "evidence": "\"\"\"Business purpose:\n        Retrieve one optional investigation method for the current selected-rule work.\n\n        Business rules:\n        - Only registered skill names, never arbitrary paths; skills remain non-normative.\n\n        Execution flow:\n        1. Validate the name and load versioned source-controlled instructions with hash.\n\n        Failure cases:\n        - Invalid names return a typed result; missing checked-in content raises a visible error.\n\n        Side effects:\n        - May publish the existing skill usage event; no Assessment domain writes.\n        \"\"\"",
@@ -4884,9 +4954,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::open_human_request::PROMOTED_TOOL_DOCSTRING::2288:abad4689735bbb11",
+      "siteId": "ast:assessment_root/tools.py::open_human_request::PROMOTED_TOOL_DOCSTRING::2289:abad4689735bbb11",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2288,
+      "lineNumber": 2289,
       "symbolName": "open_human_request",
       "constructionSha256": "abad4689735bbb11fc003ffc13cc07b228f69e834e2ea531ddf8673e65c14ef0",
       "evidence": "\"\"\"Business purpose: Ask the customer for a material missing fact after investigating the repository and pinned legal sources.\n\n        Business rules:\n        - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.\n        - Explicit source sharing and extra dependencies require server validation; an accepted resolved source needs no new wait.\n        Execution flow:\n        1. Verify the question’s criterion or condition anchor.\n        2. Persist or explicitly share the governed question; return a resolved source or interrupt with the open request identity.\n        3. On an authorized resume, return the server-owned resolution of that same request.\n        Failure cases:\n        - Invalid anchors return feedback; an open request keeps the assessment waiting instead of forcing completion.\n        Side effects:\n        - Persists a human-resolution request and a native checkpoint dependency; creates no assumed customer fact.\n        \"\"\"",
@@ -4904,9 +4974,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::read_legal_source::PROMOTED_TOOL_DOCSTRING::1492:f8a0d19a99d4bf70",
+      "siteId": "ast:assessment_root/tools.py::read_legal_source::PROMOTED_TOOL_DOCSTRING::1493:f8a0d19a99d4bf70",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1492,
+      "lineNumber": 1493,
       "symbolName": "read_legal_source",
       "constructionSha256": "f8a0d19a99d4bf70b41fb02ed8c132eadcc05f0fa45dca1134eca2cdfb3eed20",
       "evidence": "\"\"\"Business purpose: Read one original provision from the legal source pinned by this assessment’s Rule Set.\n\n        Business rules:\n        - The requested document and locator must be available through the assessment’s pinned legal authority.\n        Execution flow:\n        1. Request the provision from the governed legal-source API.\n        2. Return its source text and provenance to the investigator.\n        Failure cases:\n        - Unavailable or invalid provision references return the API’s failure feedback.\n        Side effects:\n        - Read-only legal-source retrieval; no source text, pins or decisions are changed.\n        \"\"\"",
@@ -4924,9 +4994,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::record_search_coverage::PROMOTED_TOOL_DOCSTRING::1582:e1149808011db084",
+      "siteId": "ast:assessment_root/tools.py::record_search_coverage::PROMOTED_TOOL_DOCSTRING::1583:e1149808011db084",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1582,
+      "lineNumber": 1583,
       "symbolName": "record_search_coverage",
       "constructionSha256": "e1149808011db084f630d0239e011f2f536406875dc8d8e6abd787140b5211e1",
       "evidence": "\"\"\"Business purpose: Record only searches and reads attributable to the selected source view.\n\n        Business rules:\n        - Paths come from runtime tool traces; Root-authored caveats do not prove a search occurred.\n        - Scoped native searches must explicitly target the selected prefix or a descendant.\n        - Graph coverage uses the same verified, scope-stamped hydrated view and retains original source paths.\n\n        Execution flow:\n        1. Bind the source scope and reject explicit caveat paths outside it.\n        2. Verify scoped runtime metadata and convert executed reads/searches into bounded source observations.\n        3. Reject an out-of-scope trace before submitting the authenticated coverage record.\n\n        Failure cases:\n        - Missing activity or out-of-scope paths produce feedback without accepting coverage.\n        - Runtime scope conflicts stop the operation; truncated traces remain explicit limitations.\n\n        Side effects:\n        - Consumes the execution-local trace and submits a coverage record only after all scope guards pass.\n        \"\"\"",
@@ -4944,9 +5014,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::report_existing_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2242:8387524af14a68a9",
+      "siteId": "ast:assessment_root/tools.py::report_existing_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2243:8387524af14a68a9",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2242,
+      "lineNumber": 2243,
       "symbolName": "report_existing_human_fact_unresolvable",
       "constructionSha256": "8387524af14a68a9a56fa2824e15471e201d1e3949103701156c82571e39727b",
       "evidence": "\"\"\"Business purpose: Report proven permanent unavailability for an existing question without creating a duplicate.\n\n        Business rules:\n        - Only a current server-owned OPEN request may be classified; unknown alone is insufficient.\n        - Accepted evidence and the API validate permanent unavailability and retain the unresolved dependency.\n        Execution flow:\n        1. Reload the exact request and its current revision from governed context.\n        2. Submit evidence and rationale against that request at the current case revision.\n        3. Preserve all open dependencies in a native wait even when the claim is rejected.\n        Failure cases:\n        - A missing request returns HUMAN_REQUEST_NOT_FOUND; rejected unavailability evidence remains checkpoint feedback and never creates a fact.\n        Side effects:\n        - May persist the API's unavailable-fact classification and a native checkpoint; creates no duplicate question.\n        \"\"\"",
@@ -4964,9 +5034,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::report_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2328:7e2000b0308917f3",
+      "siteId": "ast:assessment_root/tools.py::report_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2329:7e2000b0308917f3",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2328,
+      "lineNumber": 2329,
       "symbolName": "report_human_fact_unresolvable",
       "constructionSha256": "7e2000b0308917f3fc4d701550d79b7423e5fbe5cc0716bfe2b9f42b56ac6fbe",
       "evidence": "\"\"\"Business purpose: Record evidence that a material customer fact is permanently unavailable without inventing an unknown verdict.\n\n        Business rules:\n        - The question remains attached to a valid criterion or condition; only the API can accept permanent-unavailability evidence.\n        - A later valid answer clears the prior dependency instead of replaying the old unavailability claim.\n        Execution flow:\n        1. Validate the legal anchor and persist the unresolved customer question.\n        2. Reload its authoritative state and submit the unavailability rationale and evidence while still open.\n        3. Interrupt with the durable request identity even if the unavailability claim is rejected.\n        Failure cases:\n        - Rejected unavailability claims are retained as checkpoint feedback; they never silently close the human dependency.\n        Side effects:\n        - May persist the API’s unavailable-fact classification and always preserves the native human-resolution lifecycle.\n        \"\"\"",
@@ -4984,9 +5054,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::request_finalization::PROMOTED_TOOL_DOCSTRING::2368:53184d8995eb5981",
+      "siteId": "ast:assessment_root/tools.py::request_finalization::PROMOTED_TOOL_DOCSTRING::2369:53184d8995eb5981",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2368,
+      "lineNumber": 2369,
       "symbolName": "request_finalization",
       "constructionSha256": "53184d8995eb5981b910392fe6585ae3f3d9d92b81860670c8f9ea9785627a84",
       "evidence": "\"\"\"Ask the mechanical Completion Gate to inventory blockers and enter FINALIZING when none remain.\"\"\"",
@@ -5004,9 +5074,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::search_legal_source::PROMOTED_TOOL_DOCSTRING::1507:996c721f40367da2",
+      "siteId": "ast:assessment_root/tools.py::search_legal_source::PROMOTED_TOOL_DOCSTRING::1508:996c721f40367da2",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1507,
+      "lineNumber": 1508,
       "symbolName": "search_legal_source",
       "constructionSha256": "996c721f40367da285ef2159e926406d5fda5ade51a25f25debcc074ff2add2f",
       "evidence": "\"\"\"Business purpose: Find pinned provisions that can define or limit the legal terms relevant to an investigation.\n\n        Business rules:\n        - Search results remain legal-source evidence; a textual match does not decide applicability or compliance.\n        Execution flow:\n        1. Send the requested words to the assessment-scoped legal-source search API.\n        2. Return its matches and truncation metadata.\n        Failure cases:\n        - Invalid queries or unavailable pinned sources retain the API’s problem feedback.\n        Side effects:\n        - Read-only search; creates no legal requirements, evidence acceptance or customer facts.\n        \"\"\"",
@@ -5024,9 +5094,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::start_rule_investigation::PROMOTED_TOOL_DOCSTRING::1522:e665d4f1fe341c2a",
+      "siteId": "ast:assessment_root/tools.py::start_rule_investigation::PROMOTED_TOOL_DOCSTRING::1523:e665d4f1fe341c2a",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1522,
+      "lineNumber": 1523,
       "symbolName": "start_rule_investigation",
       "constructionSha256": "e665d4f1fe341c2ac0eb41adafdb51eff028751689e96d3822c3aec45c661ae2",
       "evidence": "\"\"\"Mark that you are now investigating this AssessmentRule.\"\"\"",
@@ -5044,9 +5114,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::submit_final_report::PROMOTED_TOOL_DOCSTRING::2372:e10eb3a08a325815",
+      "siteId": "ast:assessment_root/tools.py::submit_final_report::PROMOTED_TOOL_DOCSTRING::2373:e10eb3a08a325815",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2372,
+      "lineNumber": 2373,
       "symbolName": "submit_final_report",
       "constructionSha256": "e10eb3a08a325815776547f5c37d6d524ab91662a6354fa1ad8b76cc14ce88aa",
       "evidence": "\"\"\"Business purpose: Submit the Root's authored findings without inventing verified controls.\n\n        Business rules:\n        - The API binds accepted decisions, pins and provenance; omitted findings must remain omissions.\n        - Narrative is authored by the Root and must not substitute for accepted compliance evidence.\n        Execution flow:\n        1. Validate the narrative arguments and serialize the supplied per-rule findings.\n        2. Submit those findings unchanged to the authoritative report validation endpoint.\n        Failure cases:\n        - Invalid arguments or incomplete report coverage return repair feedback; no positive fallback is added.\n        Side effects:\n        - A valid API submission persists the final report and completes its supported lifecycle.\n        \"\"\"",
@@ -5064,9 +5134,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::submit_rule_decision::PROMOTED_TOOL_DOCSTRING::1720:67f1574a4f788ab3",
+      "siteId": "ast:assessment_root/tools.py::submit_rule_decision::PROMOTED_TOOL_DOCSTRING::1721:67f1574a4f788ab3",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1720,
+      "lineNumber": 1721,
       "symbolName": "submit_rule_decision",
       "constructionSha256": "67f1574a4f788ab35e1798c51d6349a3131460e422acc6af49bfdddbbe595b24",
       "evidence": "\"\"\"Business purpose: Submit the investigator’s actual applicability and criterion findings for one pinned assessment rule.\n\n        Business rules:\n        - The API validates legal context, evidence, criteria and applicability basis; semantic choices remain the investigator’s.\n        - Use current pins, case revision and expected decision revision; an exact retry keeps a stable payload digest.\n        Execution flow:\n        1. Refresh run authority when the rule version is not known and validate the supplied decision arguments.\n        2. Bind the decision to the pinned Rule Set, repository snapshot, commit and case revision.\n        3. Submit with the expected decision revision and update the cache only from the accepted API response.\n        Failure cases:\n        - Invalid arguments or rejected evidence, applicability and revision checks do not become accepted decisions.\n        Side effects:\n        - A successful API call persists the decision and coverage revision; the run caches that accepted revision.\n        \"\"\"",
@@ -5084,9 +5154,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::tool::KEYWORD_DESCRIPTION::2425:ad1daf7c2f8db096",
+      "siteId": "ast:assessment_root/tools.py::tool::KEYWORD_DESCRIPTION::2426:ad1daf7c2f8db096",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2425,
+      "lineNumber": 2426,
       "symbolName": "tool",
       "constructionSha256": "ad1daf7c2f8db096898b538b2b8c597304089f8313fdbb1940457d59c9e9b647",
       "evidence": "description",
@@ -5104,9 +5174,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::wait_for_human_requests::PROMOTED_TOOL_DOCSTRING::2195:dd5d618aadaa0aaa",
+      "siteId": "ast:assessment_root/tools.py::wait_for_human_requests::PROMOTED_TOOL_DOCSTRING::2196:dd5d618aadaa0aaa",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2195,
+      "lineNumber": 2196,
       "symbolName": "wait_for_human_requests",
       "constructionSha256": "dd5d618aadaa0aaa2f654d30015ce4cef7c8d5dbecea6be06feb021493e24eb7",
       "evidence": "\"\"\"Business purpose: Retain unresolved human dependencies after reviewing an unknown response.\n\n        Business rules:\n        - Unknown responses do not close requests or authorize compliance decisions.\n        - The next wait uses the complete authoritative open-request set and a native checkpoint.\n        Execution flow:\n        1. Reload the authoritative open dependencies.\n        2. Interrupt when any remain, preserving their identities without creating another question.\n        3. On authorized resume, return the server-owned resolution or unknown feedback.\n        Failure cases:\n        - An unauthorized resume of an open dependency fails rather than accepting a fabricated fact.\n        Side effects:\n        - Persists a native interrupt checkpoint; no question, fact, answer or lifecycle writes.\n        \"\"\"",
@@ -5204,9 +5274,29 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::KEYWORD_DESCRIPTION::131:7a7f27543614e628",
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "middleware/approved_instructions.py::_request",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "ALL",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "viSourceId": "framework.injected-policy",
+      "existingSourcePath": "middleware/approved_instructions.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "siteId": "ast:middleware/approved_instructions.py::_request::INSTRUCTION_COMPOSITION::78:a7ebec4c06626d5f",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 131,
+      "lineNumber": 78,
+      "symbolName": "_request",
+      "constructionSha256": "a7ebec4c06626d5f9b28ee4ded7c453744f6eb369e34ed9bbdcb961d65c318ce",
+      "evidence": "request.messages[0].content",
+      "astKind": "INSTRUCTION_COMPOSITION",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:middleware/approved_instructions.py::_request::KEYWORD_DESCRIPTION::258:7a7f27543614e628",
+      "filePath": "middleware/approved_instructions.py",
+      "lineNumber": 258,
       "symbolName": "_request",
       "constructionSha256": "7a7f27543614e6289a40a999a4e0c9f4fcb68001cfcf09542f7269cb4c578151",
       "evidence": "item[\"function\"][\"description\"]",
@@ -5224,9 +5314,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_HUMANMESSAGE::119:2a8e48080a9b9b4a",
+      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_HUMANMESSAGE::246:2a8e48080a9b9b4a",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 119,
+      "lineNumber": 246,
       "symbolName": "_request",
       "constructionSha256": "2a8e48080a9b9b4a934ed3460ae80d768f2f6b95849ef9d83b4b17b8b1243bdf",
       "evidence": "json.dumps({\"lcspTrustedRuntimeMetadata\": metadata}, sort_keys=True)",
@@ -5244,9 +5334,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_SYSTEMMESSAGE::146:1ca91208c6f47e14",
+      "siteId": "ast:middleware/approved_instructions.py::_request::MESSAGE_SYSTEMMESSAGE::273:1ca91208c6f47e14",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 146,
+      "lineNumber": 273,
       "symbolName": "_request",
       "constructionSha256": "1ca91208c6f47e1427ae6427ce950339c335770eac5b325d5784ea565b97868e",
       "evidence": "text",
@@ -5284,9 +5374,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/model_governance.py::__init__::KEYWORD_SYSTEM_PROMPT::342:9fce762c7c2dbc5c",
+      "siteId": "ast:middleware/model_governance.py::__init__::KEYWORD_SYSTEM_PROMPT::343:9fce762c7c2dbc5c",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 342,
+      "lineNumber": 343,
       "symbolName": "__init__",
       "constructionSha256": "9fce762c7c2dbc5c069034cac3a2a2ef982183cb75face121871406a3dfc0732",
       "evidence": "system_prompt",
@@ -5301,12 +5391,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
-      "siteId": "ast:middleware/model_governance.py::ainvoke::MESSAGE_HUMANMESSAGE::423:5787ebdce042225c",
+      "siteId": "ast:middleware/model_governance.py::ainvoke::MESSAGE_HUMANMESSAGE::425:5787ebdce042225c",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 423,
+      "lineNumber": 425,
       "symbolName": "ainvoke",
       "constructionSha256": "5787ebdce042225c03d9f78e7c025f0532fe83fb8eab9cf0110f28b8db5183de",
       "evidence": "prompt",
@@ -5321,12 +5411,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
-      "siteId": "ast:middleware/model_governance.py::governed_summarization_middleware::KEYWORD_SYSTEM_PROMPT::467:9fce762c7c2dbc5c",
+      "siteId": "ast:middleware/model_governance.py::governed_summarization_middleware::KEYWORD_SYSTEM_PROMPT::469:9fce762c7c2dbc5c",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 467,
+      "lineNumber": 469,
       "symbolName": "governed_summarization_middleware",
       "constructionSha256": "9fce762c7c2dbc5c069034cac3a2a2ef982183cb75face121871406a3dfc0732",
       "evidence": "system_prompt",
@@ -5341,12 +5431,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
-      "siteId": "ast:middleware/model_governance.py::invoke::MESSAGE_HUMANMESSAGE::398:5787ebdce042225c",
+      "siteId": "ast:middleware/model_governance.py::invoke::MESSAGE_HUMANMESSAGE::400:5787ebdce042225c",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 398,
+      "lineNumber": 400,
       "symbolName": "invoke",
       "constructionSha256": "5787ebdce042225c03d9f78e7c025f0532fe83fb8eab9cf0110f28b8db5183de",
       "evidence": "prompt",
@@ -5361,7 +5451,7 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
       "siteId": "ast:middleware/runtime_context.py::_project_lcsp_runtime_context::INSTRUCTION_BUILDER::14:4fc93372e78b76f9",
@@ -6004,9 +6094,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::INSTRUCTION_COMPOSITION::649:e1022e9eeb844779",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::INSTRUCTION_COMPOSITION::659:e1022e9eeb844779",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 649,
+      "lineNumber": 659,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "e1022e9eeb844779ceb0fa616624e60a548f7e4eaec2eadf4ff204969da17483",
       "evidence": "phase_instructions(context) + \"\\n<LCSP_PHASE_END>\"",
@@ -6024,9 +6114,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::662:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::672:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 662,
+      "lineNumber": 672,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -6044,9 +6134,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::666:da8c167e6be927c3",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::676:da8c167e6be927c3",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 666,
+      "lineNumber": 676,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "da8c167e6be927c367a7491977e201da219d6d9375c07da18aff7fc1ea9e84bf",
       "evidence": "json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"]",
@@ -6064,9 +6154,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::676:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::686:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 676,
+      "lineNumber": 686,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -8082,9 +8172,28 @@
       "dispositionEvidence": "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
     },
     {
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "middleware/approved_instructions.py::__init__",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "ALL",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "viSourceId": "framework.injected-policy",
+      "existingSourcePath": "middleware/approved_instructions.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "siteId": "middleware/approved_instructions.py::__init__::06e03e58fb8c77aa::1",
+      "filePath": "middleware/approved_instructions.py",
+      "lineNumber": 51,
+      "symbolName": "__init__",
+      "constructionSha256": "06e03e58fb8c77aa3a14d86f77b7ccd23f54353ed402f711bee6bc7c3a5f933d",
+      "evidence": "def __init__(self, system_prompt, *, receipt_context=None, receipt_sink=None):",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
       "siteId": "middleware/approved_instructions.py::_request::31aa99b0c33e5619::1",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 131,
+      "lineNumber": 258,
       "symbolName": "_request",
       "constructionSha256": "31aa99b0c33e56190b561c4f6d29c1612663fb88dbb83ee1498ada61575ee8a6",
       "evidence": "tools=[SimpleNamespace(name=item[\"function\"][\"name\"], description=item[\"function\"][\"description\"]) for item in tools],",
@@ -8103,7 +8212,7 @@
     {
       "siteId": "middleware/approved_instructions.py::_request::fab0055191977c11::1",
       "filePath": "middleware/approved_instructions.py",
-      "lineNumber": 119,
+      "lineNumber": 246,
       "symbolName": "_request",
       "constructionSha256": "fab0055191977c118c1b6a18647605fddc5a97e28063d93f22583fa1f2118b08",
       "evidence": "messages = [*request.messages, HumanMessage(content=json.dumps({\"lcspTrustedRuntimeMetadata\": metadata}, sort_keys=True))]",
@@ -8141,7 +8250,7 @@
     {
       "siteId": "middleware/model_governance.py::__init__::1b1aae41f69b1125::1",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 342,
+      "lineNumber": 343,
       "symbolName": "__init__",
       "constructionSha256": "1b1aae41f69b1125e1cee919ab6363ac666587a9fa022c0bc0fec08df475e13a",
       "evidence": "system_prompt=system_prompt,",
@@ -8155,12 +8264,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
       "siteId": "middleware/model_governance.py::ainvoke::7ec182716732927f::1",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 423,
+      "lineNumber": 425,
       "symbolName": "ainvoke",
       "constructionSha256": "7ec182716732927f838944582b78edce035e1a8ac9605641726e352df2852fea",
       "evidence": "{\"messages\": [HumanMessage(content=prompt)]}, config=config",
@@ -8174,12 +8283,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
       "siteId": "middleware/model_governance.py::ainvoke::cfd93b6313b7f5c3::1",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 402,
+      "lineNumber": 404,
       "symbolName": "ainvoke",
       "constructionSha256": "cfd93b6313b7f5c33e8d224835079b4819060d032ffd701140c8717688dda80a",
       "evidence": "async def ainvoke(self, prompt, config=None, **_kwargs):",
@@ -8193,12 +8302,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
       "siteId": "middleware/model_governance.py::governed_summarization_middleware::1b1aae41f69b1125::1",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 467,
+      "lineNumber": 469,
       "symbolName": "governed_summarization_middleware",
       "constructionSha256": "1b1aae41f69b1125e1cee919ab6363ac666587a9fa022c0bc0fec08df475e13a",
       "evidence": "system_prompt=system_prompt,",
@@ -8212,12 +8321,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
       "siteId": "middleware/model_governance.py::invoke::2d18bfa6f4194adf::1",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 377,
+      "lineNumber": 379,
       "symbolName": "invoke",
       "constructionSha256": "2d18bfa6f4194adf168319d6c7c35962349b827369329a8bb3d4fe77fc0a0c16",
       "evidence": "def invoke(self, prompt, config=None, **_kwargs):",
@@ -8231,12 +8340,12 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
       "siteId": "middleware/model_governance.py::invoke::7ec182716732927f::1",
       "filePath": "middleware/model_governance.py",
-      "lineNumber": 398,
+      "lineNumber": 400,
       "symbolName": "invoke",
       "constructionSha256": "7ec182716732927f838944582b78edce035e1a8ac9605641726e352df2852fea",
       "evidence": "{\"messages\": [HumanMessage(content=prompt)]}, config=config",
@@ -8250,7 +8359,7 @@
       "existingSourcePath": "middleware/model_governance.py",
       "placeholderSchema": {},
       "migrationStatus": "THIRD_PARTY_CONTROLLED",
-      "dispositionEvidence": "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+      "dispositionEvidence": "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     },
     {
       "siteId": "orchestration/localization.py::<module>::b39597fb23a8d864::1",
@@ -8519,28 +8628,28 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "rule_set_preparation/agent.py::claim_author_subagent::e28730a0b3a1e351::1",
-      "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 548,
-      "symbolName": "claim_author_subagent",
-      "constructionSha256": "e28730a0b3a1e351a32bfcf320f1198aaa099ad448e245f98a36ac44fbc6ff9f",
-      "evidence": "governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE, system_prompt=child_prompt + child_assignment),",
-      "constructionType": "DUPLICATE_REFERENCE",
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
       "modelFacingConsumer": "rule_set_preparation/agent.py::claim_author_subagent",
-      "runtimeRole": "rule-set-preparation",
-      "runtimePhase": "PREPARATION",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "ALL",
       "contentAuthority": "LCSP_MAINTAINED",
-      "migrationDecision": "SHARED_SOURCE_CONSUMER",
       "viSourceId": "claim-author.system",
       "existingSourcePath": "rule_set_preparation/agent.py",
       "placeholderSchema": {},
       "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "siteId": "rule_set_preparation/agent.py::claim_author_subagent::1237b0fb4b01e6f2::1",
+      "filePath": "rule_set_preparation/agent.py",
+      "lineNumber": 548,
+      "symbolName": "claim_author_subagent",
+      "constructionSha256": "1237b0fb4b01e6f23588cb0ae2b85f9e39d3549dfc93a851dcacf37a5617269c",
+      "evidence": "governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE, system_prompt=child_prompt + child_assignment,",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::844e8679a414eb1c::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 666,
+      "lineNumber": 676,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "844e8679a414eb1caacfa3a4e0fdcc8052cc3f56dd9912c262bbc1ab4c8ddb72",
       "evidence": "TodoListMiddleware(system_prompt=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"], tool_description=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"tool.write_todos\"]), PreparationPhaseMiddleware(context, model=model), budget,",
@@ -8559,7 +8668,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 662,
+      "lineNumber": 672,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -8578,7 +8687,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 676,
+      "lineNumber": 686,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -9235,10 +9344,14 @@
       "lineNumber": 430,
       "expressionSha256": "e1cfee5ace5d783a4acd577f07417d111c3c76d1dce56b164f5a15c6980b62e1",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "HarnessProfile.tool_description_overrides[task]",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "ApprovedInstructionMiddleware -> approved_tool_specs(tool.task)",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9249,9 +9362,15 @@
       "expressionSha256": "17db5bc893817d76d61a20bd2a79f719b58308bcfd89e33ec01e75c33292e87c",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Explicit subagent system_prompt; disable general-purpose profile",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": false,
-      "activationEvidence": "General-purpose profile disabled and configured delegates are isolated; guard required against later activation."
+      "controlMode": "DISABLED_GUARDED",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
+        "rule_set_preparation/agent.py": "8030d1c3a246e36cc9d7fe85ad94e17e43db874c90774e9bb971a4a8a9183360",
+        "assessment_root/researcher.py": "f15265a8949dbbda0ea512bb719e7b327f5ad9c5e13837aac54e33d91378e5f8"
+      },
+      "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
     },
     {
       "package": "deepagents",
@@ -9262,9 +9381,15 @@
       "expressionSha256": "f00008c4379840e031d4b9a565b47234ddfdf7009f9c38e746fd6c5ed8566e17",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Disable fork mode until a controlled adapter exists",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": false,
-      "activationEvidence": "General-purpose profile disabled and configured delegates are isolated; guard required against later activation."
+      "controlMode": "DISABLED_GUARDED",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
+        "rule_set_preparation/agent.py": "8030d1c3a246e36cc9d7fe85ad94e17e43db874c90774e9bb971a4a8a9183360",
+        "assessment_root/researcher.py": "f15265a8949dbbda0ea512bb719e7b327f5ad9c5e13837aac54e33d91378e5f8"
+      },
+      "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
     },
     {
       "package": "deepagents",
@@ -9274,10 +9399,14 @@
       "lineNumber": 417,
       "expressionSha256": "6e7d262d87e1350835d2a9082a57fe9c1e6f1bf1d52c252c93112dea0070a23a",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "Task schema description adapter required",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "approved_tool_specs recursively resolves schema guidance and removes unapproved annotation examples",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9288,9 +9417,14 @@
       "expressionSha256": "dcf6db72a165c31a4942a9a31401583c73f4740c3a4b73d0df1d518faf4dcbc4",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "create_summarization_middleware(summary_prompt=resolved_entry)",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
+        "middleware/model_governance.py": "15bf24b635ec7ad52d6ca0c9334ce68922f4f32dba44115002b8ce8421674528"
+      },
+      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
     {
       "package": "deepagents",
@@ -9301,9 +9435,14 @@
       "expressionSha256": "90f58656b6c7338971974c38a0cc5914220f962858c9223b836e0e39fa2789a9",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Include media-reference semantics in resolved summary_prompt",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
+        "middleware/model_governance.py": "15bf24b635ec7ad52d6ca0c9334ce68922f4f32dba44115002b8ce8421674528"
+      },
+      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
     {
       "package": "deepagents",
@@ -9313,10 +9452,14 @@
       "lineNumber": 1720,
       "expressionSha256": "ffd1d4aa12a9c43cf53c69e1f6def5eabf374c2b1d6a576fb2cfeadd966a2294",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "system_prompt and custom_tool_descriptions; field schema adapter still required",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "ApprovedInstructionMiddleware projects system/tool/schema instructions; native execution permissions remain intact",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9326,10 +9469,14 @@
       "lineNumber": 1387,
       "expressionSha256": "c6680fd85258fcb338aa9a750d2f5687ec2cbdb4c8241bef05505b10a14f455a",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "FilesystemMiddleware.custom_tool_descriptions[ls]",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "approved_tool_specs(tool.ls)",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9339,10 +9486,14 @@
       "lineNumber": 1392,
       "expressionSha256": "1e6ff6f06d4e5f0514e2559e6bd19564438c733c0d1f1ef76cee4f1e710e64e7",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "FilesystemMiddleware.custom_tool_descriptions[read_file]",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "approved_tool_specs(tool.read_file)",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9352,10 +9503,14 @@
       "lineNumber": 1426,
       "expressionSha256": "c18ea88981b0ea4d9850268f887cdb315e25ac2d0a9fd0482dd5c21277f3bad2",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "FilesystemMiddleware.custom_tool_descriptions[edit_file]",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "approved_tool_specs(tool.edit_file)",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9365,10 +9520,14 @@
       "lineNumber": 1435,
       "expressionSha256": "176cf9cb1ce4562b05cf71ee452bc5de8f17feaef460e01a787e1a1bcdb7d359",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "FilesystemMiddleware.custom_tool_descriptions[write_file]",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "approved_tool_specs(tool.write_file)",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9378,10 +9537,14 @@
       "lineNumber": 1451,
       "expressionSha256": "b9d22aaedee0bcd07de980f102e83d44916b38b507eced9b10e86c3a6f9bae55",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "FilesystemMiddleware.custom_tool_descriptions[glob]",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "approved_tool_specs(tool.glob)",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9391,10 +9554,14 @@
       "lineNumber": 1463,
       "expressionSha256": "4d4ee17e0a68cdff0bd14a0ba9a84afe268b80aa926731d0605214f4cf53a8a1",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "FilesystemMiddleware.custom_tool_descriptions[grep]",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "approved_tool_specs(tool.grep)",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
@@ -9404,10 +9571,18 @@
       "lineNumber": 271,
       "expressionSha256": "e7159ced9c49539a39d93e320a745b7591213842846d6e53f1c7693c5773b292",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "HarnessProfile base_system_prompt/system_prompt_suffix and middleware slots",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "overridePlan": "Final approved request overrides profile additions; uncontrolled extra/excluded middleware is rejected; transport supervisor cannot infer",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
+        "rule_set_preparation/agent.py": "8030d1c3a246e36cc9d7fe85ad94e17e43db874c90774e9bb971a4a8a9183360",
+        "assessment_root/researcher.py": "f15265a8949dbbda0ea512bb719e7b327f5ad9c5e13837aac54e33d91378e5f8",
+        "agent.py": "b7470d544635de3b0bc58415ea2bed05c1eb7ee88699b2292b789cf6c68f825f",
+        "middleware/system_event_dispatch.py": "c4381fda4f0b24c09ec67e4cd31b18157b568d681eb71f1e8c5db5e3c6be6ff3"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "langchain",
@@ -9418,9 +9593,13 @@
       "expressionSha256": "a00d565d106ed55e354298a332e756b26aa9d3369ed053481b1334811a348dd4",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "TodoListMiddleware(system_prompt=resolved_entry)",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "langchain",
@@ -9431,9 +9610,13 @@
       "expressionSha256": "6af21119cb356e20bff2201add19f36601cfc9256e6c9294ad1d8e797aa28206",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "TodoListMiddleware(tool_description=resolved_entry)",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "langchain",
@@ -9444,9 +9627,13 @@
       "expressionSha256": "0710673bfd7abe7c50c2c2fa42b215d45f194818819d12b89aa4000b9db90388",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "tool_description and system_prompt overrides",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "FINAL_REQUEST_PROJECTION",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "langchain",
@@ -9457,9 +9644,14 @@
       "expressionSha256": "38272908033c56c439a715567bac6f0e0ee5772094b10e662b3d0edc2cc8ede6",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "summary_prompt preserving messages marker and data placeholder",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e",
+        "middleware/model_governance.py": "15bf24b635ec7ad52d6ca0c9334ce68922f4f32dba44115002b8ce8421674528"
+      },
+      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
     {
       "package": "langchain",
@@ -9468,11 +9660,15 @@
       "symbolName": "ModelCallLimitMiddleware",
       "lineNumber": 94,
       "expressionSha256": "bc32696c704be59fa11dc1d7a109930ea8cf2832781a2efc201b3da84ff6d3c7",
-      "viSourceId": "framework.injected-policy",
-      "overridePlan": "Model-limit termination messages require adapter review",
-      "controlStatus": "ADAPTER_REQUIRED",
+      "viSourceId": "runtime.budget-finalization",
+      "overridePlan": "ApprovedModelCallLimitMiddleware replaces terminal text with approved runtime.budget-finalization:HARD_STOP",
+      "controlStatus": "CONTROLLED",
       "reachesModel": true,
-      "activationEvidence": "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."
+      "controlMode": "APPROVED_LIMIT_TERMINAL",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "bcb9251544be207423607fabbc3d4bee1ccd5159359f18711e8f56663c5c669e"
+      },
+      "activationEvidence": "ApprovedModelCallLimitMiddleware preserves native counters/routing and replaces generated terminal content with runtime.budget-finalization:HARD_STOP."
     }
   ]
 }

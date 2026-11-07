@@ -56,6 +56,8 @@ def production_runtime_bundle() -> "ApprovedEnglishRuntimeBundle":
         ROOT, path, expected_entry_ids=inventory["requiredSourceIds"],
         approval_verifier=lambda _: hmac.compare_digest(_digest(path.read_bytes()), approved_digest),
     )
+    if any(value.startswith("TEST_ONLY") for value in (bundle.bundle_id, bundle.approval_identity, bundle.approval_revision)):
+        raise RuntimeInstructionBundleError("BUNDLE_APPROVAL_UNTRUSTED")
     for row in inventory["entries"]:
         entry = bundle.entries[row["sourceId"]]
         if entry.vietnamese_origin_sha256 != row["sourceSha256"] or entry.vietnamese_source_revision != row["vietnameseSourceRevision"]:

@@ -19,7 +19,6 @@ from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPer
 from deepagents.profiles.harness import harness_profiles
 from langchain.agents.middleware import (
     AgentMiddleware,
-    ModelCallLimitMiddleware,
     AgentState,
     TracePolicy,
     TodoListMiddleware,
@@ -32,6 +31,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.runtime import Runtime
 from middleware.failure_policy import NoProgressDetected
 from middleware.agent_run_budget import AgentRunBudgetMiddleware, _positive_env
+from middleware.approved_instructions import ApprovedModelCallLimitMiddleware
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, governed_summarization_middleware
 from middleware.usage_metering import AgentRoleMiddleware
 from orchestration.agent_stream import publish_agent_stream_event
@@ -49,7 +49,7 @@ RULE_SET_PREPARATION_ROLE = "rule-set-preparation"
 CLAIM_AUTHOR_ROLE = "claim-author"
 CLAIM_AUTHOR_MODEL_CALLS = 16
 READ_ONLY_TOOLS = ["ls", "glob", "grep", "read_file"]
-_PROFILE_LOCK = threading.Lock()
+_PROFILE_LOCK = threading.RLock()
 logger = get_logger(__name__)
 
 
@@ -380,7 +380,7 @@ def phase_instructions(context):
     from rule_set_preparation.preparation_skills import preparation_locale_overlay
     prompt += preparation_locale_overlay(getattr(context, "response_language", "vi"))
     if context.discovery_only:
-        prompt += "\nDISCOVERY ONLY: finalize then STOP at CLAIM_INVENTORY_READY. No Rule authoring, validation or submission."
+        prompt += "\n" + runtime_instruction("preparation.continuation")
     return prompt
 
 
@@ -539,13 +539,15 @@ def claim_author_subagent(context, model, backend, budget):
     child_assignment = (
         ""
     )
-    return {"name": "claim-author", "description": "Read one whole assigned Article, write its claim file and commit it; return one summary line.",
+    return {"name": "claim-author", "mode": "isolated", "description": "Read one whole assigned Article, write its claim file and commit it; return one summary line.",
         "model": model, "tools": [t for t in child_skills if t.name in allowed_child_tools],
         "system_prompt": child_prompt + child_assignment,
         # A child stuck in a fix loop re-sends its whole history every turn (measured: one child spent 3.9M tokens on two Articles). After
         # this many model calls it ends; the coordinator's next discovery_status reassigns the Article to a fresh, small context.
-        "middleware": [preparation_filesystem(backend, files=True), budget, ModelCallLimitMiddleware(run_limit=CLAIM_AUTHOR_MODEL_CALLS, exit_behavior="end"),
-            governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE, system_prompt=child_prompt + child_assignment),
+        "middleware": [preparation_filesystem(backend, files=True), budget, ApprovedModelCallLimitMiddleware(run_limit=CLAIM_AUTHOR_MODEL_CALLS, exit_behavior="end"),
+            governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE, system_prompt=child_prompt + child_assignment,
+                receipt_context=lambda: {"run_id": context.run_id, "component": CLAIM_AUTHOR_ROLE, "locale": context.response_language, "pins": preparation_source_pins(context)},
+                receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest})),
             AgentRoleMiddleware(CLAIM_AUTHOR_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE, AuthoringToolCallRecorder(context),
             __import__("middleware.approved_instructions", fromlist=["ApprovedInstructionMiddleware"]).ApprovedInstructionMiddleware(["preparation.common", "preparation.discovery", "claim-author.system"] + (["preparation.development-overlay"] if context.target_activity_scope == "DEVELOPMENT_ONLY" else []),
                 presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft, "target_activity_scope": context.target_activity_scope},
@@ -556,18 +558,26 @@ def claim_author_subagent(context, model, backend, budget):
 
 @contextmanager
 def _without_general_purpose_subagent(profile_key: str) -> Iterator[None]:
-    """Disable the default general-purpose subagent for graphs built inside the block.
+    """Business purpose: Construct isolated delegates without uncontrolled profile middleware.
 
-    Harness profiles are a process-global registry keyed by ``provider:model`` and
-    ``register_harness_profile`` MERGES into an existing entry, so it cannot be undone.
-    The entry is therefore swapped directly and restored to the exact previous object
-    (or removed), keeping the Root agent in the same process unaffected. The profile is
-    read at graph build time only. Pinned by ``test_rule_set_preparation_agent.py``.
+    Business rules:
+    - Profiles cannot install post-guard middleware or exclude instruction guards; the default general-purpose delegate stays disabled.
+    - The shared reentrant lock covers parent and differently routed child profiles during graph construction.
+    Execution flow:
+    1. Validate the existing profile, swap its general-purpose setting and restore the exact prior entry on exit.
+    Failure cases:
+    - Unsupported profile middleware rejects construction; graph failures still restore the registry.
+    Side effects:
+    - Temporarily replace one in-process harness profile without changing persistent configuration or tool authority.
     """
     registry = harness_profiles._HARNESS_PROFILES
     with _PROFILE_LOCK:
         harness_profiles._ensure_harness_profiles_loaded()
         previous = registry.get(profile_key)
+        protected = {"ApprovedInstructionMiddleware", "ApprovedSummaryInstructions", "SummarizationMiddleware", "ApprovedModelCallLimitMiddleware"}
+        if previous and (previous.extra_middleware or protected.intersection(previous.excluded_middleware)):
+            from runtime_instruction_bundle import RuntimeInstructionBundleError
+            raise RuntimeInstructionBundleError("UNCONTROLLED_HARNESS_MIDDLEWARE")
         registry[profile_key] = dataclasses.replace(
             previous or HarnessProfile(),
             general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False),
@@ -654,7 +664,7 @@ def create_rule_set_preparation_agent(
     read_only = preparation_filesystem(backend, files=not context.direct_draft)
     budget = AgentRunBudgetMiddleware(run_quotas={name: _positive_env(env, 1) for name, env in
         [("model_calls", "LCSP_RSP_MAX_MODEL_CALLS"), ("input_tokens", "LCSP_RSP_MAX_INPUT_TOKENS")] if os.environ.get(env)})
-    with _without_general_purpose_subagent(_lookup_profile_key(model)):
+    with _without_general_purpose_subagent(_lookup_profile_key(model)), _without_general_purpose_subagent(_lookup_profile_key(author_model)):
         return create_deep_agent(
             name="lcsp-rule-set-preparation",
             model=model,
@@ -674,6 +684,8 @@ def create_rule_set_preparation_agent(
                         governed_summarization_middleware(
                             model, backend=backend, role=RULE_SET_PREPARATION_ROLE,
                             system_prompt=instructions,
+                            receipt_context=lambda: {"run_id": context.run_id, "component": RULE_SET_PREPARATION_ROLE, "locale": context.response_language, "pins": preparation_source_pins(context)},
+                            receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}),
                         )
                     ]
                 ),

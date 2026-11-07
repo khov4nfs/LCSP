@@ -84,9 +84,13 @@ def test_scope_and_child_authority_in_vi_drafts():
     assert "Không delegate" in child and "commit_claims" in child
 
 
-def test_incomplete_migration_is_never_reported_as_strict_complete():
-    with pytest.raises(RuntimeInstructionBundleError, match="MIGRATION_INCOMPLETE"):
-        validate_inventory(require_complete=True)
+def test_incomplete_migration_is_never_reported_as_strict_complete(tmp_path):
+    payload = validate_inventory(require_complete=True)
+    payload["frameworkInstructions"][0]["controlStatus"] = "ADAPTER_REQUIRED"
+    path = tmp_path / "incomplete-controls.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(RuntimeInstructionBundleError, match="FRAMEWORK_INSTRUCTION_DRIFT|MIGRATION_INCOMPLETE"):
+        validate_inventory(ROOT, path, require_complete=True)
 
 
 def test_removed_required_source_is_rejected(tmp_path):

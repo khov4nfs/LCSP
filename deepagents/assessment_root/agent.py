@@ -300,6 +300,8 @@ def create_assessment_root_agent(
     researcher_middleware = [*governance, governed_summarization_middleware(
         model, backend=summary_backend, role=RESEARCHER_NAME, governance=governance,
         system_prompt=researcher_prompt,
+        receipt_context=lambda: {"run_id": run.execution_id, "component": RESEARCHER_NAME, "locale": run.response_language, "pins": run.pins or {"assessmentId": run.assessment_id}},
+        receipt_sink=lambda manifest: run.internal_model_manifests.update({manifest["manifestSha256"]: manifest}),
     )]
     # The default general-purpose subagent would inherit the governed tools; disable it so the
     # researcher is the only delegate and it holds none of them.
@@ -314,7 +316,9 @@ def create_assessment_root_agent(
             permissions=root_permissions(),
             middleware=[TodoListMiddleware(system_prompt=__import__("json").loads(bundle.instruction("framework.injected-policy"))["todo_system"], tool_description=__import__("json").loads(bundle.instruction("framework.injected-policy"))["tool.write_todos"]), ResponseLocalizationMiddleware(), *governance,
                         governed_summarization_middleware(model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
-                                                         system_prompt=root_prompt),
+                            system_prompt=root_prompt,
+                            receipt_context=lambda: {"run_id": run.execution_id, "component": ASSESSMENT_ROOT_ROLE, "locale": run.response_language, "pins": run.pins or {"assessmentId": run.assessment_id}},
+                            receipt_sink=lambda manifest: run.internal_model_manifests.update({manifest["manifestSha256"]: manifest})),
                         AssessmentCompletionMiddleware(run), *middleware,
                         ApprovedInstructionMiddleware(["assessment-root.system", "runtime.response-language", "runtime.context-identifiers"],
                             receipt_context=lambda: {"run_id": run.execution_id, "component": ASSESSMENT_ROOT_ROLE, "locale": run.response_language,

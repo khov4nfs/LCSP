@@ -576,7 +576,7 @@ def run_assessment_root(
     manifest = None
     if run is not None and run.prompt_manifest is not None:
         manifest = settle_runtime_manifest(
-            run.prompt_manifest, selected_skill_hashes=run.used_skill_hashes,
+            {**run.prompt_manifest, "internalModelManifests": [run.internal_model_manifests[key] for key in sorted(run.internal_model_manifests)]}, selected_skill_hashes=run.used_skill_hashes,
         )
         receipt_dir = os.environ.get("LCSP_EVAL_MANIFEST_DIR")
         if receipt_dir:

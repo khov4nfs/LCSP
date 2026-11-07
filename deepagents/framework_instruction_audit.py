@@ -12,25 +12,25 @@ from runtime_instruction_bundle import RuntimeInstructionBundleError
 
 
 SURFACES = (
-    ("deepagents", "deepagents/middleware/subagents.py", "TASK_TOOL_DESCRIPTION", "HarnessProfile.tool_description_overrides[task]"),
+    ("deepagents", "deepagents/middleware/subagents.py", "TASK_TOOL_DESCRIPTION", "ApprovedInstructionMiddleware -> approved_tool_specs(tool.task)"),
     ("deepagents", "deepagents/middleware/subagents.py", "DEFAULT_SUBAGENT_PROMPT", "Explicit subagent system_prompt; disable general-purpose profile"),
     ("deepagents", "deepagents/middleware/subagents.py", "_FORK_TASK_PREAMBLE", "Disable fork mode until a controlled adapter exists"),
-    ("deepagents", "deepagents/middleware/subagents.py", "TaskToolSchema", "Task schema description adapter required"),
+    ("deepagents", "deepagents/middleware/subagents.py", "TaskToolSchema", "approved_tool_specs recursively resolves schema guidance and removes unapproved annotation examples"),
     ("deepagents", "deepagents/middleware/summarization.py", "DEEPAGENTS_DEFAULT_SUMMARY_PROMPT", "create_summarization_middleware(summary_prompt=resolved_entry)"),
     ("deepagents", "deepagents/middleware/summarization.py", "_MEDIA_REFERENCE_SUMMARY_PROMPT", "Include media-reference semantics in resolved summary_prompt"),
-    ("deepagents", "deepagents/middleware/filesystem.py", "FilesystemMiddleware", "system_prompt and custom_tool_descriptions; field schema adapter still required"),
-    ("deepagents", "deepagents/middleware/filesystem.py", "LIST_FILES_TOOL_DESCRIPTION", "FilesystemMiddleware.custom_tool_descriptions[ls]"),
-    ("deepagents", "deepagents/middleware/filesystem.py", "_READ_FILE_TOOL_DESCRIPTION_TEMPLATE", "FilesystemMiddleware.custom_tool_descriptions[read_file]"),
-    ("deepagents", "deepagents/middleware/filesystem.py", "EDIT_FILE_TOOL_DESCRIPTION", "FilesystemMiddleware.custom_tool_descriptions[edit_file]"),
-    ("deepagents", "deepagents/middleware/filesystem.py", "WRITE_FILE_TOOL_DESCRIPTION", "FilesystemMiddleware.custom_tool_descriptions[write_file]"),
-    ("deepagents", "deepagents/middleware/filesystem.py", "GLOB_TOOL_DESCRIPTION", "FilesystemMiddleware.custom_tool_descriptions[glob]"),
-    ("deepagents", "deepagents/middleware/filesystem.py", "_GREP_TOOL_DESCRIPTION_TEMPLATE", "FilesystemMiddleware.custom_tool_descriptions[grep]"),
-    ("deepagents", "deepagents/graph.py", "create_deep_agent", "HarnessProfile base_system_prompt/system_prompt_suffix and middleware slots"),
+    ("deepagents", "deepagents/middleware/filesystem.py", "FilesystemMiddleware", "ApprovedInstructionMiddleware projects system/tool/schema instructions; native execution permissions remain intact"),
+    ("deepagents", "deepagents/middleware/filesystem.py", "LIST_FILES_TOOL_DESCRIPTION", "approved_tool_specs(tool.ls)"),
+    ("deepagents", "deepagents/middleware/filesystem.py", "_READ_FILE_TOOL_DESCRIPTION_TEMPLATE", "approved_tool_specs(tool.read_file)"),
+    ("deepagents", "deepagents/middleware/filesystem.py", "EDIT_FILE_TOOL_DESCRIPTION", "approved_tool_specs(tool.edit_file)"),
+    ("deepagents", "deepagents/middleware/filesystem.py", "WRITE_FILE_TOOL_DESCRIPTION", "approved_tool_specs(tool.write_file)"),
+    ("deepagents", "deepagents/middleware/filesystem.py", "GLOB_TOOL_DESCRIPTION", "approved_tool_specs(tool.glob)"),
+    ("deepagents", "deepagents/middleware/filesystem.py", "_GREP_TOOL_DESCRIPTION_TEMPLATE", "approved_tool_specs(tool.grep)"),
+    ("deepagents", "deepagents/graph.py", "create_deep_agent", "Final approved request overrides profile additions; uncontrolled extra/excluded middleware is rejected; transport supervisor cannot infer"),
     ("langchain", "langchain/agents/middleware/todo.py", "WRITE_TODOS_SYSTEM_PROMPT", "TodoListMiddleware(system_prompt=resolved_entry)"),
     ("langchain", "langchain/agents/middleware/todo.py", "WRITE_TODOS_TOOL_DESCRIPTION", "TodoListMiddleware(tool_description=resolved_entry)"),
     ("langchain", "langchain/agents/middleware/todo.py", "TodoListMiddleware", "tool_description and system_prompt overrides"),
     ("langchain", "langchain/agents/middleware/summarization.py", "DEFAULT_SUMMARY_PROMPT", "summary_prompt preserving messages marker and data placeholder"),
-    ("langchain", "langchain/agents/middleware/model_call_limit.py", "ModelCallLimitMiddleware", "Model-limit termination messages require adapter review"),
+    ("langchain", "langchain/agents/middleware/model_call_limit.py", "ModelCallLimitMiddleware", "ApprovedModelCallLimitMiddleware replaces terminal text with approved runtime.budget-finalization:HARD_STOP"),
 )
 
 
@@ -38,7 +38,7 @@ def installed_surfaces():
     """Business purpose: Fingerprint the installed framework injection surfaces.
 
     Business rules:
-    - Each declared symbol must exist; dependency defaults remain unapproved until adapted.
+    - Each dependency symbol and the local adapter implementation are fingerprinted; technical control grants no translation approval.
     Execution flow:
     1. Read distribution versions, parse each installed module and hash the exact symbol AST.
     Failure cases:
@@ -60,12 +60,33 @@ def installed_surfaces():
         if match is None:
             raise RuntimeInstructionBundleError("FRAMEWORK_INSTRUCTION_SURFACE_MISSING:" + symbol)
         inactive = symbol in {"DEFAULT_SUBAGENT_PROMPT", "_FORK_TASK_PREAMBLE"}
+        summary = symbol in {"DEEPAGENTS_DEFAULT_SUMMARY_PROMPT", "_MEDIA_REFERENCE_SUMMARY_PROMPT", "DEFAULT_SUMMARY_PROMPT"}
+        limit = symbol == "ModelCallLimitMiddleware"
+        adapter_files = ["middleware/approved_instructions.py"]
+        if inactive or symbol == "create_deep_agent":
+            adapter_files += ["rule_set_preparation/agent.py", "assessment_root/researcher.py"]
+        if symbol == "create_deep_agent":
+            adapter_files += ["agent.py", "middleware/system_event_dispatch.py"]
+        if summary:
+            adapter_files += ["middleware/model_governance.py"]
+        local_root = Path(__file__).resolve().parent
+        evidence = (
+            "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
+            if inactive else
+            "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
+            if summary else
+            "ApprovedModelCallLimitMiddleware preserves native counters/routing and replaces generated terminal content with runtime.budget-finalization:HARD_STOP."
+            if limit else
+            "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+        )
         result.append({"package": package, "version": dist.version, "filePath": filename,
                        "symbolName": symbol, "lineNumber": match.lineno,
                        "expressionSha256": source_digest(ast.dump(match, include_attributes=False).encode("utf-8")),
-                       "viSourceId": "framework.injected-policy", "overridePlan": override,
-                       "controlStatus": "ADAPTER_REQUIRED", "reachesModel": not inactive,
-                       "activationEvidence": "General-purpose profile disabled and configured delegates are isolated; guard required against later activation." if inactive else "Active injection/default-capable construction boundary; adapter must verify actual resolved instructions."})
+                       "viSourceId": "runtime.budget-finalization" if limit else "framework.injected-policy", "overridePlan": override,
+                       "controlStatus": "CONTROLLED", "reachesModel": not inactive,
+                       "controlMode": "DISABLED_GUARDED" if inactive else "EXPLICIT_SUMMARY_TEMPLATE" if summary else "APPROVED_LIMIT_TERMINAL" if limit else "FINAL_REQUEST_PROJECTION",
+                       "adapterSourceSha256": {name: source_digest((local_root / name).read_bytes()) for name in adapter_files},
+                       "activationEvidence": evidence})
     return result
 
 

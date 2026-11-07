@@ -24,6 +24,9 @@ def reconcile_site(site):
     if site.get("constructionType") == "NON_MODEL_FACING" or "scripts/" in path or path.endswith("eval_cli.py"):
         disposition, identity = "NON_MODEL_FACING", None
         reason = "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
+    elif path in {"agent.py", "harness.py"}:
+        disposition, identity = "NON_MODEL_FACING", None
+        reason = "Transport supervisor dispatches trusted system events and ends before model hooks. Its before_agent/abefore_agent guards reject interactive/model fallback before compaction or inference; legacy supervisor prompts and general-purpose configuration cannot reach a supported model call."
     elif path.endswith("tracing.py") or path.endswith("usage_metering.py") or symbol == "_prompt_overhead_tokens":
         disposition, identity = "NON_MODEL_FACING", None
         reason = "Tracing/token estimation reads prompt metadata for telemetry; this expression is not injected into model messages."
@@ -37,7 +40,7 @@ def reconcile_site(site):
         identity = "assessment-tools.descriptions"
     elif path == "middleware/model_governance.py":
         identity, disposition = "framework.injected-policy", "THIRD_PARTY_CONTROLLED"
-        reason = "Governed internal runnable forwards framework-generated summary prompt and caller system prompt; twelve pinned framework surfaces require adapters."
+        reason = "Governed internal runnable validates the approved summary template and caller system composition at its final model boundary; exact dependency and adapter fingerprints are enforced."
     elif path == "middleware/approved_instructions.py":
         identity = "framework.injected-policy"
     elif path == "middleware/agent_run_budget.py":

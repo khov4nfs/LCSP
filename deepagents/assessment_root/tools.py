@@ -211,6 +211,7 @@ class RootRun:
     rule_elements: dict[str, dict[tuple[str, str, int], str]] = field(default_factory=dict)
     response_language: str = "en"
     prompt_manifest: dict[str, Any] | None = None
+    internal_model_manifests: dict[str, dict[str, Any]] = field(default_factory=dict)
     used_skill_hashes: dict[str, str] = field(default_factory=dict)
     human_answer_review_checkpoint_id: str | None = None
     human_answer_review_request_ids: set[str] = field(default_factory=set)

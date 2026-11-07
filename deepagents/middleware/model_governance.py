@@ -332,10 +332,11 @@ class _GovernedInternalModelRunnable:
 
     def __init__(self, model, *, role: str, operation_type: str,
                  governance: Sequence[AgentMiddleware] | None = None,
-                 system_prompt: str | None = None) -> None:
+                 system_prompt: str | None = None, receipt_context=None, receipt_sink=None) -> None:
         # Use LangChain's own agent middleware composer rather than reimplementing
         # wrap/before/after hook semantics. This graph has no tools and therefore
         # performs exactly one governed model operation per summary request.
+        from middleware.approved_instructions import ApprovedSummaryInstructions
         self._agent = create_agent(
             model,
             tools=[],
@@ -344,6 +345,7 @@ class _GovernedInternalModelRunnable:
                 AgentRoleMiddleware(role, operation_type=operation_type),
                 *[item for item in (MODEL_GOVERNANCE_MIDDLEWARE if governance is None else governance)
                   if not isinstance(item, AgentRoleMiddleware)],
+                ApprovedSummaryInstructions(system_prompt, receipt_context=receipt_context, receipt_sink=receipt_sink),
             ],
             name=f"lcsp-internal-{operation_type.lower()}",
         )
@@ -427,7 +429,7 @@ class _GovernedInternalModelRunnable:
 
 def governed_summarization_middleware(model, *, backend, role: str,
                                      governance: Sequence[AgentMiddleware] | None = None,
-                                     system_prompt: str | None = None):
+                                     system_prompt: str | None = None, receipt_context=None, receipt_sink=None):
     """Business purpose: Route Deep Agents' framework-owned summarization inference through LCSP model governance.
 
     Business rules:
@@ -465,6 +467,7 @@ def governed_summarization_middleware(model, *, backend, role: str,
     helper._summary_model = _GovernedInternalModelRunnable(
         model, role=role, operation_type="SUMMARIZATION", governance=governance,
         system_prompt=system_prompt,
+        receipt_context=receipt_context, receipt_sink=receipt_sink,
     )
     return middleware
 

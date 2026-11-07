@@ -10,10 +10,135 @@ from hashlib import sha256
 from pathlib import Path
 import os
 
-from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain.agents.middleware import AgentMiddleware, ModelCallLimitMiddleware, hook_config
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-from runtime_instruction_bundle import production_runtime_bundle, RuntimeInstructionBundleError
+import runtime_instruction_bundle
+from runtime_instruction_bundle import RuntimeInstructionBundleError
+
+
+def approved_system_entries(text, bundle):
+    """Business purpose: Verify a composed internal system prompt against approved source entries.
+
+    Business rules:
+    - Only exact approved entry bytes, newline separators and the structural phase-end marker are allowed.
+    Execution flow:
+    1. Consume the longest matching approved entry until the entire composition is accounted for.
+    Failure cases:
+    - Unrecognized or edited instruction bytes reject the internal model operation.
+    Side effects:
+    - None: returns the identities of actual prompt components without rewriting historical data.
+    """
+    remaining = (text or "").removesuffix("\n<LCSP_PHASE_END>")
+    assets = sorted(((identity, bundle.instruction(identity)) for identity in bundle.entries), key=lambda row: len(row[1]), reverse=True)
+    resolved = []
+    while remaining:
+        matched = next(((identity, content) for identity, content in assets if remaining.startswith(content)), None)
+        if matched is None and remaining.startswith("\n"):
+            remaining = remaining[1:]
+            continue
+        if matched is None:
+            raise RuntimeInstructionBundleError("UNCONTROLLED_INTERNAL_SYSTEM_INSTRUCTION")
+        identity, content = matched
+        resolved.append(identity)
+        remaining = remaining[len(content):]
+    return resolved
+
+
+class ApprovedSummaryInstructions(AgentMiddleware):
+    """Final summary-call guard; the serialized conversation remains runtime data."""
+
+    def __init__(self, system_prompt, *, receipt_context=None, receipt_sink=None):
+        self.system_prompt = system_prompt
+        self.receipt_context = receipt_context
+        self.receipt_sink = receipt_sink
+
+    def _request(self, request):
+        """Business purpose: Reject uncontrolled system additions or summary-template drift before inference.
+
+        Business rules:
+        - The parent role's exact approved instruction composition governs summaries; history cannot become system authority.
+        Execution flow:
+        1. Validate system entry bytes and the approved template surrounding serialized history, then record actual hashes.
+        Failure cases:
+        - Extra system messages, tools, edited templates or unknown system bytes fail closed.
+        Side effects:
+        - Emit an optional immutable operation receipt; make no provider call in this guard.
+        """
+        bundle = runtime_instruction_bundle.production_runtime_bundle()
+        text = request.system_message.content if request.system_message else ""
+        if text != (self.system_prompt or "") or request.tools or any(isinstance(message, SystemMessage) for message in request.messages):
+            raise RuntimeInstructionBundleError("UNCONTROLLED_SUMMARY_INSTRUCTION")
+        identities = approved_system_entries(text, bundle)
+        template = json.loads(bundle.instruction("framework.injected-policy"))["summary_prompt"]
+        marker = "LCSP_SUMMARY_HISTORY_BOUNDARY_3bcfe235"
+        prefix, suffix = template.format(messages=marker).split(marker)
+        if len(request.messages) != 1 or not isinstance(request.messages[0], HumanMessage):
+            raise RuntimeInstructionBundleError("UNCONTROLLED_SUMMARY_INSTRUCTION")
+        prompt = request.messages[0].content
+        if not isinstance(prompt, str) or not prompt.startswith(prefix) or not prompt.endswith(suffix):
+            raise RuntimeInstructionBundleError("UNCONTROLLED_SUMMARY_TEMPLATE")
+        if self.receipt_context is not None:
+            from evals.run_manifest import build_runtime_manifest, stable_hash
+            receipt = build_runtime_manifest(**self.receipt_context(), model=request.model,
+                prompts={"resolved_system_message": text, "summary_template": template}, tools=[], skill_hashes={})
+            receipt["resolvedInstructionEntriesSha256"] = {identity: bundle.entries[identity].english_runtime_sha256 for identity in identities}
+            receipt["summaryTemplateSha256"] = sha256(template.encode("utf-8")).hexdigest()
+            receipt["manifestSha256"] = stable_hash({key: value for key, value in receipt.items() if key != "manifestSha256"})
+            if self.receipt_sink is not None:
+                self.receipt_sink(receipt)
+        return request
+
+    def wrap_model_call(self, request, handler):
+        """Business purpose: Dispatch only a verified synchronous summary request.
+
+        Business rules:
+        - No downstream inference precedes verification.
+        Execution flow:
+        1. Verify the request and call the existing governed handler.
+        Failure cases:
+        - Integrity and downstream failures propagate.
+        Side effects:
+        - May invoke the governed summary model once.
+        """
+        return handler(self._request(request))
+
+    async def awrap_model_call(self, request, handler):
+        """Business purpose: Dispatch only a verified asynchronous summary request.
+
+        Business rules:
+        - Async uses the same byte and provenance checks as sync.
+        Execution flow:
+        1. Verify the request before awaiting the existing handler.
+        Failure cases:
+        - Integrity and downstream failures propagate.
+        Side effects:
+        - May invoke the governed summary model once.
+        """
+        return await handler(self._request(request))
+
+
+class ApprovedModelCallLimitMiddleware(ModelCallLimitMiddleware):
+    """Preserve native counters and stop routing; govern only the generated end message."""
+
+    @hook_config(can_jump_to=["end"])
+    def before_model(self, state, runtime):
+        """Business purpose: Return approved budget termination text without changing native limits.
+
+        Business rules:
+        - The framework's counters and end/error behavior remain authoritative; no limit is extended.
+        Execution flow:
+        1. Run native limit validation and replace only its generated terminal message content.
+        Failure cases:
+        - Native exceptions or missing approved instructions propagate before another model call.
+        Side effects:
+        - May terminate the child graph; makes no inference or domain decision.
+        """
+        result = super().before_model(state, runtime)
+        if result and result.get("messages"):
+            text = json.loads(runtime_instruction_bundle.production_runtime_bundle().instruction("runtime.budget-finalization"))["HARD_STOP"]
+            result = {**result, "messages": [AIMessage(content=text)]}
+        return result
 
 
 def approved_tool_specs(tools, bundle):
@@ -53,7 +178,7 @@ def approved_tool_specs(tools, bundle):
         if not isinstance(node, dict):
             return node
         owner = node.get("title", owner)
-        result = {key: deepcopy(value) for key, value in node.items() if key not in {"description", "title"}}
+        result = {key: deepcopy(value) for key, value in node.items() if key not in {"description", "title", "examples", "example"}}
         if "properties" in result:
             for name, field in result["properties"].items():
                 result["properties"][name] = project(field, owner)
@@ -107,7 +232,9 @@ class ApprovedInstructionMiddleware(AgentMiddleware):
         Side effects:
         - Publish the receipt to the run sink and optionally immutable evaluation storage.
         """
-        bundle = production_runtime_bundle()
+        bundle = runtime_instruction_bundle.production_runtime_bundle()
+        if any(isinstance(message, SystemMessage) for message in request.messages):
+            raise RuntimeInstructionBundleError("UNCONTROLLED_SYSTEM_INSTRUCTION")
         source_ids = self.source_ids() if callable(self.source_ids) else self.source_ids
         text = "\n\n".join(bundle.instruction(identity) for identity in source_ids)
         context = getattr(getattr(request, "runtime", None), "context", None)

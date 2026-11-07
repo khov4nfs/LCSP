@@ -76,8 +76,10 @@ def main(output: str, *, token_only: bool = False) -> dict:
             for role, model in [("rule-set-preparation", primary), ("claim-author", author)]:
                 create_agent(model, tools=[], middleware=[AgentRoleMiddleware(role), *MODEL_GOVERNANCE_MIDDLEWARE]).invoke({"messages": [HumanMessage("offline fixture")]})
             summary = _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SUMMARIZATION")
+            from runtime_instruction_bundle import runtime_instruction
+            summary_prompt = runtime_instruction("framework.injected-policy", "summary_prompt").format(messages="offline summary")
             with ThreadPoolExecutor(max_workers=2) as pool:
-                futures = [pool.submit(copy_context().run, summary.invoke, "offline summary") for _ in range(2)]
+                futures = [pool.submit(copy_context().run, summary.invoke, summary_prompt) for _ in range(2)]
                 for future in futures: future.result()
             before = len(dispatches)
             try: summary.invoke("offline denied")
@@ -111,5 +113,7 @@ def main(output: str, *, token_only: bool = False) -> dict:
 
 
 if __name__ == "__main__":
-    result = main(sys.argv[1], token_only="--tokens" in sys.argv[2:])
+    from approved_bundle_fixture import offline_instruction_bundle
+    with offline_instruction_bundle():
+        result = main(sys.argv[1], token_only="--tokens" in sys.argv[2:])
     print(json.dumps({k: result[k] for k in ["status", "candidateSha", "physicalOfflineHandlerCalls", "recoveredCompletedResponses", "denial", "paidModelCalls"]}))

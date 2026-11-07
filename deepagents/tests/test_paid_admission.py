@@ -494,7 +494,7 @@ def test_real_governed_parent_author_and_internal_runnable_share_budget(tmp_path
     with activate_agent_run_state(state):
         for role, model in [("rule-set-preparation", primary), ("claim-author", author)]:
             create_agent(model, tools=[], middleware=[AgentRoleMiddleware(role), *MODEL_GOVERNANCE_MIDDLEWARE]).invoke({"messages": [HumanMessage("offline")]})
-        _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SUMMARIZATION").invoke("offline")
+        _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SUMMARIZATION").invoke(__import__("runtime_instruction_bundle", fromlist=["runtime_instruction"]).runtime_instruction("framework.injected-policy", "summary_prompt").format(messages="offline"))
         with pytest.raises(PaidAdmissionError, match="CALL_LIMIT"):
             _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SOURCE_READER").invoke("offline")
     assert seen == ["primary", "primary", "primary"]

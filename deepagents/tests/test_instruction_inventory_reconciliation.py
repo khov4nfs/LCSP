@@ -13,9 +13,9 @@ def test_verification_report_reconciles_sites_without_hiding_framework_blockers(
     report = verification_report()
     assert report["DISCOVERED_SITES_TOTAL"] == report["ORIGINAL_SITES_ACCOUNTED"] + report["NEW_SITES_DISCOVERED"]
     assert report["PENDING_SOURCE_MAPPINGS"] == 0
-    assert report["STRICT_INVENTORY_RESULT"] == "BLOCKED"
-    assert report["UNRESOLVED_INSTRUCTION_PATHS"]
-    assert all(row["controlStatus"] == "ADAPTER_REQUIRED" for row in report["UNRESOLVED_INSTRUCTION_PATHS"])
+    assert report["STRICT_INVENTORY_RESULT"] == "PASS"
+    assert report["PRODUCTION_APPROVAL"] == "BLOCKED"
+    assert report["UNRESOLVED_INSTRUCTION_PATHS"] == []
 
 
 def test_unregistered_multiline_schema_and_tool_decorator_are_discovered(tmp_path):

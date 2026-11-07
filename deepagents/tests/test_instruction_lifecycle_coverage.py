@@ -24,7 +24,8 @@ def test_lifecycle_sources_are_registered_without_production_control_claims():
     assert {"runtime.budget-finalization", "runtime.response-transform", "runtime.structured-transform",
             "runtime.response-language", "runtime.context-identifiers", "preparation.authoring-state",
             "preparation.observation-errors", "framework.injected-policy"} <= ids
-    assert all(row["controlStatus"] == "ADAPTER_REQUIRED" for row in payload["frameworkInstructions"])
+    assert all(row["controlStatus"] == "CONTROLLED" and row["adapterSourceSha256"] for row in payload["frameworkInstructions"])
+    assert all(row["reviewStatus"] == "PENDING_INDEPENDENT_REVIEW" for row in payload["entries"])
 
 
 @pytest.mark.parametrize("locale,language", [("en", "English"), ("vi", "Vietnamese")])

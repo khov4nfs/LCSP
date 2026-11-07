@@ -90,6 +90,7 @@ def researcher_subagent(graph_tools: list[Any], *, middleware: Sequence[Any] = (
              "or legal decision authority.")
         ),
         "system_prompt": researcher_prompt_for_locale(locale),
+        "mode": "isolated",
         # Explicit empty/read-only tool set: no governed assessment tool is ever inherited.
         "tools": list(graph_tools),
         "middleware": [*middleware, __import__("middleware.approved_instructions", fromlist=["ApprovedInstructionMiddleware"]).ApprovedInstructionMiddleware(["repository-researcher.system", "runtime.response-language"], presentation_context=lambda: {"response_language": locale})],
