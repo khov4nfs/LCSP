@@ -38,6 +38,9 @@ _SCOPE_GRAPH = "GRAPH_INDEX"
 _MAX_TRACE = 400
 _COVERAGE_DEFAULT_PAGE_SIZE = 10
 _COVERAGE_MAX_PAGE_SIZE = 25
+_CONTEXT_DEFAULT_PAGE_SIZE = 5
+_CONTEXT_MAX_PAGE_SIZE = 10
+_CONTEXT_DETAIL_MAX_BYTES = 4096
 _RULE_DETAIL_MAX_BYTES = 4096
 _RULE_CATALOG_MAX_BYTES = 4096
 _RULE_DETAIL_MAX_POINTER = 512
@@ -357,6 +360,26 @@ class GetAssessmentCoverageArgs(_Args):
     )
 
 
+class GetAssessmentContextPageArgs(_Args):
+    snapshot_token: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="contextCollections.snapshotToken from get_assessment_context; reload context when stale.",
+    )
+    collection: Literal["facts", "evidence", "humanRequests", "openHumanRequestIds"]
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(default=_CONTEXT_DEFAULT_PAGE_SIZE, ge=1, le=_CONTEXT_MAX_PAGE_SIZE)
+
+
+class GetAssessmentContextDetailArgs(_Args):
+    snapshot_token: str = Field(pattern=r"^[0-9a-f]{64}$")
+    collection: Literal["facts", "evidence", "humanRequests"]
+    index: int = Field(ge=0, description="detailIndex returned by get_assessment_context_page.")
+    pointer: str = Field(default="", max_length=_RULE_DETAIL_MAX_POINTER)
+    offset: int = Field(default=0, ge=0)
+    max_items: int = Field(default=10, ge=1, le=20)
+    max_chars: int = Field(default=2000, ge=1, le=4000)
+
+
 class GetRuleDecisionArgs(GetRuleArgs):
     revision: int | None = Field(default=None, ge=0, description="Exact historical decision revision; omit for the newest packet.")
 
@@ -655,6 +678,139 @@ def _guard(call):
     return run
 
 
+def _context_collections(context: dict[str, Any]) -> dict[str, list[Any]]:
+    """Business purpose: Project model-readable context collections without changing API authority.
+    Business rules:
+    - Facts preserve authority; evidence payloads and human history remain exact but are not returned inline.
+    Execution flow:
+    1. Project the four context collections in API order.
+    2. Return them for snapshot binding and bounded paging/detail retrieval.
+    Failure cases:
+    - Missing optional human-request history becomes an empty list; required facts/evidence remain required.
+    Side effects:
+    - Pure in-memory projection.
+    """
+    return {
+        "facts": [
+            {
+                "factId": f["factId"], "caseRevision": f["caseRevision"], "kind": f["kind"],
+                "state": f["state"], "authority": f["authority"], "statement": f["statement"],
+                "evidenceIds": f["evidenceIds"],
+            }
+            for f in context["facts"]
+        ],
+        "evidence": [
+            {"evidenceId": e["evidenceId"], "type": e["type"], "state": e["state"], "payload": e["payload"]}
+            for e in context["evidence"]
+        ],
+        "humanRequests": list(context.get("humanRequests", [])),
+        "openHumanRequestIds": list(context["openHumanRequestIds"]),
+    }
+
+
+def _context_snapshot(run: RootRun, context: dict[str, Any]) -> tuple[dict[str, list[Any]], str]:
+    """Business purpose: Bind paged facts/evidence/HITL history to the same authoritative Root context.
+    Business rules:
+    - Any case, pin, audit, source-scope or collection change invalidates the token.
+    Execution flow:
+    1. Project context collections.
+    2. Hash them with run identity and authoritative case bindings.
+    Failure cases:
+    - Non-serializable authoritative data fails rather than producing an unbound token.
+    Side effects:
+    - Pure digest computation.
+    """
+    collections = _context_collections(context)
+    binding = {
+        "assessmentId": run.assessment_id, "threadId": run.thread_id,
+        "caseRevision": context["caseRevision"],
+        "pins": {key: context[key] for key in ("ruleSetVersionId", "repositorySnapshotId", "repositoryCommit")},
+        "sourcePathPrefix": validate_source_path_prefix(context.get("sourcePathPrefix")),
+        "repositoryScanJobId": context.get("repositoryScanJobId"),
+        "decisionScopeId": context.get("decisionScopeId"),
+        "auditRequest": context.get("auditRequest"),
+        "collections": collections,
+    }
+    token = hashlib.sha256(json.dumps(
+        binding, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False, default=str,
+    ).encode("utf-8")).hexdigest()
+    return collections, token
+
+
+def _context_item_summary(collection: str, item: Any, index: int) -> dict[str, Any]:
+    """Business purpose:
+    Build a minimal identity row when one context record is too large to return inline.
+
+    Business rules:
+    - Identity fields may be exposed; large statements, payloads and answer history require governed detail retrieval.
+
+    Execution flow:
+    1. Select stable identifying fields for the requested collection.
+    2. Attach detailRequired/detailIndex so the exact record remains retrievable.
+
+    Failure cases:
+    - Unsupported collection names raise INVALID_CONTEXT_COLLECTION instead of fabricating identity metadata.
+
+    Side effects:
+    - Pure projection; no API or domain mutation.
+    """
+    if collection == "facts" and isinstance(item, dict):
+        return {"factId": item.get("factId"), "kind": item.get("kind"), "state": item.get("state"),
+                "authority": item.get("authority"), "detailRequired": True, "detailIndex": index}
+    if collection == "evidence" and isinstance(item, dict):
+        return {"evidenceId": item.get("evidenceId"), "type": item.get("type"), "state": item.get("state"),
+                "detailRequired": True, "detailIndex": index}
+    if collection == "humanRequests" and isinstance(item, dict):
+        return {"requestId": item.get("requestId"), "assessmentRuleId": item.get("assessmentRuleId"),
+                "status": item.get("status"), "detailRequired": True, "detailIndex": index}
+    raise ValueError("INVALID_CONTEXT_COLLECTION")
+
+
+def _context_page(
+    collection: str, items: list[Any], snapshot_token: str, offset: int, limit: int,
+) -> dict[str, Any]:
+    """Business purpose:
+    Return one model-facing context collection page within the fixed UTF-8 reply budget.
+
+    Business rules:
+    - Pages preserve collection order; an oversized record becomes identity-only and remains reachable by detailIndex.
+
+    Execution flow:
+    1. Validate offset and build the page envelope.
+    2. Append complete small records or identity summaries until the byte/page limit is reached.
+    3. Return nextOffset for lossless continuation.
+
+    Failure cases:
+    - Invalid offsets or metadata that cannot fit return typed bounded-retrieval failures.
+
+    Side effects:
+    - Pure formatting; no API or domain mutation.
+    """
+    if offset > len(items):
+        return {"ok": False, "code": "INVALID_CONTEXT_OFFSET"}
+    reply = {
+        "ok": True, "collection": collection, "snapshotToken": snapshot_token,
+        "total": len(items), "offset": offset, "items": [], "nextOffset": None,
+        "detailTool": "get_assessment_context_detail" if collection != "openHumanRequestIds" else None,
+    }
+    for index in range(offset, min(offset + limit, len(items))):
+        raw = items[index]
+        row = raw
+        if collection != "openHumanRequestIds":
+            candidate = {**reply, "items": [*reply["items"], row],
+                         "nextOffset": index + 1 if index + 1 < len(items) else None}
+            if len(json.dumps(candidate, ensure_ascii=False, default=str).encode("utf-8")) > _CONTEXT_DETAIL_MAX_BYTES:
+                row = _context_item_summary(collection, raw, index)
+        candidate = {**reply, "items": [*reply["items"], row],
+                     "nextOffset": index + 1 if index + 1 < len(items) else None}
+        if len(json.dumps(candidate, ensure_ascii=False, default=str).encode("utf-8")) > _CONTEXT_DETAIL_MAX_BYTES:
+            break
+        reply = candidate
+    if offset < len(items) and not reply["items"]:
+        return {"ok": False, "code": "CONTEXT_PAGE_METADATA_TOO_LARGE"}
+    return reply
+
+
 def _coverage_snapshot(run: RootRun, context: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
     """Business purpose: Bind complete coverage navigation to one authoritative assessment snapshot.
 
@@ -932,6 +1088,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         context = client.context()
         run.adopt_context(context)
         coverage, snapshot_token = _coverage_snapshot(run, context)
+        context_collections, context_snapshot_token = _context_snapshot(run, context)
         resolution_counts: dict[str, int] = {}
         for row in coverage:
             state = row["resolutionState"]
@@ -952,31 +1109,89 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 "defaultPageSize": _COVERAGE_DEFAULT_PAGE_SIZE,
                 "maxPageSize": _COVERAGE_MAX_PAGE_SIZE,
             },
-            "facts": [
-                {
-                    "factId": f["factId"],
-                    "caseRevision": f["caseRevision"],
-                    "kind": f["kind"],
-                    "state": f["state"],
-                    "authority": f["authority"],
-                    "statement": f["statement"],
-                    "evidenceIds": f["evidenceIds"],
-                }
-                for f in context["facts"]
-            ],
-            "evidence": [
-                {
-                    "evidenceId": e["evidenceId"],
-                    "type": e["type"],
-                    "state": e["state"],
-                    "payload": e["payload"],
-                }
-                for e in context["evidence"]
-            ],
-            "openHumanRequestIds": context["openHumanRequestIds"],
-            # Responses are audit feedback; only context facts have accepted fact authority.
-            "humanRequests": context.get("humanRequests", []),
+            "contextCollections": {
+                "snapshotToken": context_snapshot_token,
+                "pageTool": "get_assessment_context_page",
+                "detailTool": "get_assessment_context_detail",
+                "defaultPageSize": _CONTEXT_DEFAULT_PAGE_SIZE,
+                "maxPageSize": _CONTEXT_MAX_PAGE_SIZE,
+                "counts": {name: len(items) for name, items in context_collections.items()},
+            },
         }
+
+    def get_assessment_context_page(
+        snapshot_token: str, collection: str, offset: int = 0, limit: int = _CONTEXT_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Business purpose: Page facts, evidence and HITL history without copying unbounded context into model history.
+        Business rules:
+        - The token binds the complete current context; large records are represented by identity-only rows.
+        Execution flow:
+        1. Reload and bind the current context.
+        2. Reject stale tokens, then return a byte-bounded page.
+        Failure cases:
+        - Stale tokens and invalid offsets return typed feedback.
+        Side effects:
+        - Read-only API access and in-memory context refresh.
+        """
+        context = client.context()
+        collections, current_token = _context_snapshot(run, context)
+        if snapshot_token != current_token:
+            return {"ok": False, "code": "CONTEXT_SNAPSHOT_STALE",
+                    "hint": "Reload get_assessment_context and restart context paging."}
+        if collection not in collections:
+            return {"ok": False, "code": "INVALID_CONTEXT_COLLECTION"}
+        run.adopt_context(context)
+        return _context_page(collection, collections[collection], current_token, offset, limit)
+
+    def get_assessment_context_detail(
+        snapshot_token: str, collection: str, index: int, pointer: str = "", offset: int = 0,
+        max_items: int = 10, max_chars: int = 2000,
+    ) -> dict[str, Any]:
+        """Business purpose: Retrieve one exact large fact/evidence/HITL record through bounded detail pages.
+        Business rules:
+        - Detail reads require the same current context token and never change fact/evidence authority.
+        Execution flow:
+        1. Reload context and reject stale/foreign tokens.
+        2. Select the exact indexed record and return a bounded value/index/lossless fragment.
+        Failure cases:
+        - Invalid indexes/pointers/offsets return typed feedback.
+        Side effects:
+        - Read-only API access.
+        """
+        context = client.context()
+        collections, current_token = _context_snapshot(run, context)
+        if snapshot_token != current_token:
+            return {"ok": False, "code": "CONTEXT_SNAPSHOT_STALE",
+                    "hint": "Reload get_assessment_context before reading details."}
+        if collection not in {"facts", "evidence", "humanRequests"}:
+            return {"ok": False, "code": "INVALID_CONTEXT_COLLECTION"}
+        items = collections[collection]
+        if index >= len(items):
+            return {"ok": False, "code": "INVALID_CONTEXT_INDEX"}
+        run.adopt_context(context)
+        reply = {
+            "ok": True, "collection": collection, "index": index,
+            "snapshotToken": current_token, "detailRequired": True,
+        }
+        try:
+            value = _rule_detail_pointer(items[index], pointer)
+            byte_limit = _CONTEXT_DETAIL_MAX_BYTES - len(json.dumps(
+                {**reply, "detail": None}, ensure_ascii=False, default=str,
+            ).encode("utf-8")) + len("null")
+            reply["detail"] = _rule_detail_view(value, pointer, offset, max_items, max_chars, byte_limit)
+        except ValueError as error:
+            code = str(error)
+            mapped = {
+                "INVALID_RULE_DETAIL_POINTER": "INVALID_CONTEXT_DETAIL_POINTER",
+                "INVALID_RULE_DETAIL_OFFSET": "INVALID_CONTEXT_DETAIL_OFFSET",
+                "RULE_DETAIL_METADATA_TOO_LARGE": "CONTEXT_DETAIL_METADATA_TOO_LARGE",
+            }.get(code)
+            if mapped is None:
+                raise
+            return {"ok": False, "code": mapped}
+        if len(json.dumps(reply, ensure_ascii=False, default=str).encode("utf-8")) > _CONTEXT_DETAIL_MAX_BYTES:
+            raise RuntimeError("context detail reply exceeded its measured byte bound")
+        return reply
 
     def get_assessment_coverage(
         snapshot_token: str, offset: int = 0, limit: int = _COVERAGE_DEFAULT_PAGE_SIZE,
@@ -1870,7 +2085,11 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     return [
         retrieve_shared_heuristics,
         tool(get_assessment_context, _NoArgs, "get_assessment_context",
-             "Reload API-owned audit request, pins, source-view limits, accepted facts/evidence with authority, human audit feedback and selected coverage summary. Call first. Read per-rule coverage with get_assessment_coverage; counts never authorize completion."),
+             "Reload API-owned audit request, pins and source-view limits with bounded summaries. Call first. Facts, evidence and HITL history are paged through contextCollections; coverage is paged separately. Counts never authorize completion."),
+        tool(get_assessment_context_page, GetAssessmentContextPageArgs, "get_assessment_context_page",
+             "Read a byte-bounded page of facts, evidence, humanRequests or openHumanRequestIds using contextCollections.snapshotToken. Large records return detailRequired/detailIndex; use get_assessment_context_detail. A stale token requires reloading context."),
+        tool(get_assessment_context_detail, GetAssessmentContextDetailArgs, "get_assessment_context_detail",
+             "Read one exact large fact/evidence/HITL record by detailIndex. VALUE is complete; INDEX or TEXT/JSON fragments require continuation until nextOffset=null. This read never changes accepted authority."),
         tool(get_assessment_coverage, GetAssessmentCoverageArgs, "get_assessment_coverage",
              "Read a bounded page of the current audit request\'s per-rule coverage using coverageSummary.snapshotToken. Follow nextOffset until null for the complete inventory. A stale token requires reloading context; this read cannot decide or finalize a rule."),
         tool(get_pinned_rule_set, GetPinnedRuleSetArgs, "get_pinned_rule_set",
@@ -1913,6 +2132,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 ROOT_TOOL_NAMES = (
     "retrieve_shared_heuristics",
     "get_assessment_context",
+    "get_assessment_context_page",
+    "get_assessment_context_detail",
     "get_assessment_coverage",
     "get_pinned_rule_set",
     "get_assessment_rule",

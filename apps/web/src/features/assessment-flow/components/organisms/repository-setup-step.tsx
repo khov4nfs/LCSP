@@ -231,6 +231,7 @@ export function RepositorySetupStep({
       await startRepositoryAnalysis(assessmentId, {
         connectionId: connection.connectionId,
         branch: connection.defaultBranch,
+        sourcePathPrefix: null,
       });
       router.replace(`/assessments/${assessmentId}`);
     } catch (error) {

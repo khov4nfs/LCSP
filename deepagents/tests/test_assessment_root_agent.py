@@ -1374,9 +1374,15 @@ def test_root_context_preserves_fact_authority_when_reloading_accepted_claims(tm
     ]
     client.context = lambda: context
 
-    result = json.loads(_tools(run)["get_assessment_context"].invoke({}))
+    tools = _tools(run)
+    result = json.loads(tools["get_assessment_context"].invoke({}))
+    token = result["contextCollections"]["snapshotToken"]
+    facts = json.loads(tools["get_assessment_context_page"].invoke({
+        "snapshot_token": token,
+        "collection": "facts",
+    }))["items"]
 
-    assert result["facts"] == context["facts"]
+    assert facts == context["facts"]
     assert client.case_revision == 0
     assert not any(name == "fact" for name, _ in client.calls)
 

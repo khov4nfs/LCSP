@@ -13,8 +13,8 @@ type SessionRuleSetPin = {
  */
 
 /**
- * Business purpose: Load pinned legal rule definitions and structure for the exported assessment session.
- * Business rules: Rules must correspond to the pinned rule set snapshot; no mutations or dynamic rule alterations.
+ * Business purpose: Load the pinned Rule Set catalog for session export without implying that every catalog rule was executed.
+ * Business rules: Rules correspond to the full pinned Rule Set catalog; selected/executed audit coverage is reported separately.
  * Execution flow:
  * 1. Extract ruleSetId/ruleSetVersionId from pinned rule set reference.
  * 2. Fetch associated rules from assessment rule persistence.
@@ -30,6 +30,8 @@ export async function loadPinnedReviewLegalEvidence(
     return {
       ruleSetId: null,
       version: null,
+      coverageKind: "PINNED_RULE_SET_CATALOG",
+      catalogRulesCount: 0,
       rulesCount: 0,
       rules: [],
     };
@@ -45,6 +47,8 @@ export async function loadPinnedReviewLegalEvidence(
     return {
       ruleSetId: null,
       version,
+      coverageKind: "PINNED_RULE_SET_CATALOG",
+      catalogRulesCount: 0,
       rulesCount: 0,
       rules: [],
     };
@@ -58,6 +62,8 @@ export async function loadPinnedReviewLegalEvidence(
   return {
     ruleSetId: ruleSetVersionId,
     version,
+    coverageKind: "PINNED_RULE_SET_CATALOG",
+    catalogRulesCount: rules.length,
     rulesCount: rules.length,
     rules: rules.map((r) => ({
       assessmentRuleId: r.assessmentRuleId,

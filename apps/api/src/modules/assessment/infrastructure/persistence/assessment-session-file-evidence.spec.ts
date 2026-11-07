@@ -4,8 +4,13 @@ import { summarizeSessionFileEvidence } from "./assessment-session-file-evidence
 describe("assessment-session-file-evidence", () => {
   it("returns zero files on empty evidence list", () => {
     const result = summarizeSessionFileEvidence([]);
-    expect(result.observedUniqueFilesExamined).toBe(0);
-    expect(result.fileAccessObservations.files).toHaveLength(0);
+    expect(result.observedUniqueFilesExamined).toBeNull();
+    expect(result.observedUniqueFilesExaminedCoverage).toBe("UNAVAILABLE");
+    expect(result.citedUniqueFilesCount).toBe(0);
+    expect(result.fileAccessObservations).toEqual({
+      coverage: "UNAVAILABLE",
+      files: [],
+    });
     expect(result.sourceEvidenceIndex).toHaveLength(0);
   });
 
@@ -42,8 +47,11 @@ describe("assessment-session-file-evidence", () => {
     ];
 
     const result = summarizeSessionFileEvidence(evidenceList);
-    expect(result.observedUniqueFilesExamined).toBe(2);
-    expect(result.fileAccessObservations.files).toEqual([
+    expect(result.observedUniqueFilesExamined).toBeNull();
+    expect(result.observedUniqueFilesExaminedCoverage).toBe("UNAVAILABLE");
+    expect(result.citedUniqueFilesCount).toBe(2);
+    expect(result.fileAccessObservations.files).toEqual([]);
+    expect(result.citedFileObservations.files).toEqual([
       { path: "src/main.ts" },
       { path: "package.json" },
     ]);

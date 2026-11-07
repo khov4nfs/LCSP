@@ -16,8 +16,8 @@ type SessionSourceEvidence = {
  */
 
 /**
- * Business purpose: Summarize file access observations and index source evidence from accepted evidence records.
- * Business rules: Only unique file paths are indexed; whole-file digests remain null until independently verified.
+ * Business purpose: Summarize cited source files without misrepresenting accepted evidence as complete runtime access telemetry.
+ * Business rules: Only cited unique file paths are indexed; examined-file telemetry remains unavailable unless independently observed.
  * Execution flow:
  * 1. Extract file paths and repository citations from evidence records.
  * 2. Deduplicate examined file paths.
@@ -30,8 +30,11 @@ export function summarizeSessionFileEvidence(
 ) {
   if (!evidenceList || evidenceList.length === 0) {
     return {
-      observedUniqueFilesExamined: 0,
-      fileAccessObservations: { files: [] },
+      observedUniqueFilesExamined: null,
+      observedUniqueFilesExaminedCoverage: "UNAVAILABLE",
+      citedUniqueFilesCount: 0,
+      fileAccessObservations: { coverage: "UNAVAILABLE", files: [] },
+      citedFileObservations: { files: [] },
       sourceEvidenceIndex: [],
     };
   }
@@ -68,8 +71,12 @@ export function summarizeSessionFileEvidence(
   const files = Array.from(uniquePaths).map((p) => ({ path: p }));
 
   return {
-    observedUniqueFilesExamined: uniquePaths.size,
-    fileAccessObservations: { files },
+    // Accepted evidence proves citation, not every file the runtime read/searched.
+    observedUniqueFilesExamined: null,
+    observedUniqueFilesExaminedCoverage: "UNAVAILABLE",
+    citedUniqueFilesCount: uniquePaths.size,
+    fileAccessObservations: { coverage: "UNAVAILABLE", files: [] },
+    citedFileObservations: { files },
     sourceEvidenceIndex,
   };
 }

@@ -202,10 +202,15 @@ export class AssessmentSessionExportLoader {
     const tokenUsage = summarizeSessionTokenUsage(usages);
     const tools = summarizeSessionTools(journal);
     const fileEvidence = summarizeSessionFileEvidence(source.acceptedEvidence);
-    const legalEvidence = await loadPinnedReviewLegalEvidence(
+    const legalEvidenceCatalog = await loadPinnedReviewLegalEvidence(
       this.prisma,
       source.pins?.ruleSet,
     );
+    const legalEvidence = {
+      ...legalEvidenceCatalog,
+      selectedAuditRuleCount: source.auditScope?.requested ?? null,
+      executedCoverageSource: "assessment.auditScope.requested",
+    };
 
     const startedAt = durations.startedAt;
     const lastExecutionStartedAt = source.runtime?.startedAt
@@ -238,6 +243,9 @@ export class AssessmentSessionExportLoader {
       toolCallCoverage: tools.toolCallCoverage,
       toolExecutions: tools.toolExecutions,
       observedUniqueFilesExamined: fileEvidence.observedUniqueFilesExamined,
+      observedUniqueFilesExaminedCoverage:
+        fileEvidence.observedUniqueFilesExaminedCoverage,
+      citedUniqueFilesCount: fileEvidence.citedUniqueFilesCount,
     };
 
     const humanRequests = source.humanResolutions ?? [];
@@ -279,6 +287,7 @@ export class AssessmentSessionExportLoader {
       runtimeEvents: journal.map((ev) => sanitizeAgentStreamValue(ev)),
       executionSegments: durations.executionSegments,
       fileAccessObservations: fileEvidence.fileAccessObservations,
+      citedFileObservations: fileEvidence.citedFileObservations,
       modelUsageEvents: usages.map((usage) => ({
         runId: usage.runId ?? null,
         invocationId: usage.invocationId ?? null,

@@ -79,6 +79,18 @@ def _page(tools, token, **kwargs):
     }))
 
 
+def _context_page(tools, token, collection, **kwargs):
+    return json.loads(tools["get_assessment_context_page"].invoke({
+        "snapshot_token": token, "collection": collection, **kwargs,
+    }))
+
+
+def _context_detail(tools, token, collection, index, **kwargs):
+    return json.loads(tools["get_assessment_context_detail"].invoke({
+        "snapshot_token": token, "collection": collection, "index": index, **kwargs,
+    }))
+
+
 def _expected_rows(client):
     return [
         {key: row[key] for key in _COVERAGE_FIELDS}
@@ -121,6 +133,66 @@ def test_context_summarizes_all_rules_and_keeps_full_authoritative_identity_cach
     # Regress the 243-row context expansion without assigning a guessed token count.
     assert len(json.dumps(result).encode("utf-8")) < 4000
     assert len(json.dumps(result).encode("utf-8")) < len(json.dumps(before["coverage"]).encode("utf-8")) // 4
+
+
+def test_large_context_collections_are_paged_and_large_evidence_payload_is_losslessly_bounded(tmp_path):
+    client = CoverageClient(count=3)
+    client.current["facts"] = [
+        {
+            "factId": "fact-large", "caseRevision": 0, "kind": "OPERATOR",
+            "state": "ACCEPTED", "authority": "HUMAN",
+            "statement": "fact-" + ("x" * 12000), "evidenceIds": ["ev-large"],
+        }
+    ]
+    client.current["evidence"] = [
+        {
+            "evidenceId": "ev-large", "type": "REPOSITORY_SOURCE", "state": "ACCEPTED",
+            "payload": {"path": "src/main.ts", "excerpt": "é" * 16000},
+        }
+    ]
+    client.current["humanRequests"] = [
+        {
+            **_unknown_request(),
+            "answers": [{"doesNotKnow": True, "answer": None, "note": "y" * 9000}],
+        }
+    ]
+    client.current["openHumanRequestIds"] = ["99999999-9999-4999-8999-999999999999"]
+
+    tools = _tools(_run(tmp_path, client))
+    context = _context(tools)
+    collections = context["contextCollections"]
+
+    assert "facts" not in context and "evidence" not in context and "humanRequests" not in context
+    assert collections["counts"] == {
+        "facts": 1, "evidence": 1, "humanRequests": 1, "openHumanRequestIds": 1,
+    }
+    assert len(json.dumps(context, ensure_ascii=False).encode("utf-8")) < 4096
+
+    token = collections["snapshotToken"]
+    evidence_page = _context_page(tools, token, "evidence")
+    assert len(json.dumps(evidence_page, ensure_ascii=False).encode("utf-8")) <= 4096
+    assert evidence_page["items"][0]["evidenceId"] == "ev-large"
+    assert evidence_page["items"][0]["detailRequired"] is True
+    assert "payload" not in evidence_page["items"][0]
+
+    first = _context_detail(
+        tools, token, "evidence", evidence_page["items"][0]["detailIndex"],
+        pointer="/payload/excerpt", max_chars=4000,
+    )
+    assert first["ok"] is True
+    assert first["detail"]["kind"] == "TEXT_FRAGMENT"
+    assert len(json.dumps(first, ensure_ascii=False).encode("utf-8")) <= 4096
+    pieces = [first["detail"]["text"]]
+    offset = first["detail"]["nextOffset"]
+    while offset is not None:
+        page = _context_detail(
+            tools, token, "evidence", 0,
+            pointer="/payload/excerpt", offset=offset, max_chars=4000,
+        )
+        assert len(json.dumps(page, ensure_ascii=False).encode("utf-8")) <= 4096
+        pieces.append(page["detail"]["text"])
+        offset = page["detail"]["nextOffset"]
+    assert "".join(pieces) == "é" * 16000
 
 
 @pytest.mark.parametrize("limit", [10, 25])
@@ -412,12 +484,21 @@ def test_compact_header_retains_fact_authority_evidence_human_audit_and_scoped_v
     assert result["pins"] == PINS
     assert result["caseRevision"] == 2
     assert result["sourcePathPrefix"] == "src"
-    assert result["facts"] == before["facts"]
-    assert result["evidence"] == before["evidence"]
-    assert result["humanRequests"] == before["humanRequests"]
-    assert result["openHumanRequestIds"] == before["openHumanRequestIds"]
-    assert result["humanRequests"][0]["answers"][-1]["doesNotKnow"] is True
-    assert result["humanRequests"][0]["resolvedFactId"] is None
+    collections = result["contextCollections"]
+    assert collections["counts"] == {
+        "facts": 2, "evidence": 1, "humanRequests": 1, "openHumanRequestIds": 1,
+    }
+    token = collections["snapshotToken"]
+    facts = _context_page(_tools(run), token, "facts")["items"]
+    evidence = _context_page(_tools(run), token, "evidence")["items"]
+    human = _context_page(_tools(run), token, "humanRequests")["items"]
+    open_ids = _context_page(_tools(run), token, "openHumanRequestIds")["items"]
+    assert facts == before["facts"]
+    assert evidence == before["evidence"]
+    assert human == before["humanRequests"]
+    assert open_ids == before["openHumanRequestIds"]
+    assert human[0]["answers"][-1]["doesNotKnow"] is True
+    assert human[0]["resolvedFactId"] is None
     assert result["repositoryView"] == {
         key: value for key, value in view.items()
         if key not in {"sourceScopeExcludedEntries", "sourceScopeExclusionsTruncated"}
@@ -569,7 +650,7 @@ def test_native_root_keeps_registered_todos_grep_and_full_catalog_with_compact_m
     registered = [registered_by_name[name] for name in model.bound_tool_names[0]]
     assert governed.requests
     for request in governed.requests:
-        assert len(request.tools) == len(registered) == 33
+        assert len(request.tools) == len(registered) == 35
         assert [tool.name for tool in request.tools] == [tool.name for tool in registered]
         for shown in request.tools:
             native = registered_by_name[shown.name]

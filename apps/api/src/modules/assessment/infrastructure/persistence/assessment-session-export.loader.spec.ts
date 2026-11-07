@@ -233,6 +233,23 @@ describe("AssessmentSessionExportLoader", () => {
       f.source.humanResolutions[0].dependencies,
     );
     expect(result.executionMetrics.toolCalls).toBe(1);
+    expect(result.executionMetrics.observedUniqueFilesExamined).toBeNull();
+    expect(result.executionMetrics.observedUniqueFilesExaminedCoverage).toBe(
+      "UNAVAILABLE",
+    );
+    expect(result.executionMetrics.citedUniqueFilesCount).toBe(1);
+    expect(result.executionHistory.fileAccessObservations).toEqual({
+      coverage: "UNAVAILABLE",
+      files: [],
+    });
+    expect(result.executionHistory.citedFileObservations.files).toEqual([
+      { path: "source/app.ts" },
+    ]);
+    expect(result.assessmentResults.legalEvidence.coverageKind).toBe(
+      "PINNED_RULE_SET_CATALOG",
+    );
+    expect(result.assessmentResults.legalEvidence.catalogRulesCount).toBe(0);
+    expect(result.assessmentResults.legalEvidence.selectedAuditRuleCount).toBe(1);
     expect(result.tokenUsage.totalTokens).toBe(1500);
     expect(result.tokenUsage.cachedTokens).toBeNull();
     expect(result.executionMetrics.activeDurationMs).toBeNull();
