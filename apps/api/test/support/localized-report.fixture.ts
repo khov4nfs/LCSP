@@ -2,6 +2,7 @@
 
 import {
   ASSESSMENT_REPORT_REFERENCE_ORIGINS,
+  assessmentFinalReportV2Schema,
   type AssessmentFinalReportV2,
 } from "@lcsp/contracts/assessment-report";
 import {
@@ -112,7 +113,7 @@ export function report(
         }
       : {}),
   };
-  return {
+  return assessmentFinalReportV2Schema.parse({
     schemaVersion: ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
     artifactId: uuid(),
     assessmentId: uuid(),
@@ -221,5 +222,5 @@ export function report(
       scopeLimitations: [],
     },
     publicationProvenance: { sourceManifestDigest: null, publishedAt: null },
-  } as AssessmentFinalReportV2;
+  });
 }

@@ -13,7 +13,13 @@ Reviewed baseline: `d35f65d5d2cd688ca2f0192b61af04db54a61f27`. Keep PR 456 Draft
 
 ## Focused validation and limits
 
-`pnpm exec tsx --tsconfig apps/web/tsconfig.test.json --test tests/localized-assessment-read.web.test.ts`: 21 passed. These execute real enqueue/projection, artifact integrity loader, event/catalog handlers and Next BFF routes with a persistence/transport double; the loader itself is not mocked. Both V1/V2 and locales, PENDING/FAILED, overlay corruption/identity, pagination, conversation projection, stale entity binding and foreign owners are covered.
+Localization CI recovery keeps application boundaries explicit:
+
+- API producer: `pnpm --dir apps/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config ./jest.config.ts --runInBand --runTestsByPath test/localized-assessment-read.spec.ts` ? 22 passed. Real HTTP controllers, query handlers, enqueue/projection and report integrity loading execute over the scoped persistence double. The V2 fixture builds explicit required decision fingerprint entries; corrupt fingerprints still reject.
+- Web consumer: `pnpm --dir apps/web exec tsx --tsconfig tsconfig.test.json --test tests/localized-assessment-read.test.ts tests/rule-audit-picker.test.tsx` ? 16 passed. Real BFF routes and conversation projection consume validated API wire fixtures, without API/Prisma imports. The existing selected-rule picker test remains intact.
+- Shared data is serialized HTTP contract data in `apps/web/src/public/assets/mocks/localized-assessment-wire.json`; the API producer asserts exact parity with these fixtures. No private implementation is exported or imported across applications.
+- `uv run --frozen pytest -q tests/test_assessment_root_completion.py tests/test_system_event_dispatch_async.py --tb=short` ? 13 passed. The real Supervisor graph rejects unauthorized conversational inference without invoking the model; a registered system event still dispatches. Assessment completion/HITL/checkpoint tests are retained.
+- `pnpm run check:imports`, `pnpm run typecheck`, and targeted API ESLint passed. No production code, authority guard, schema, fingerprint algorithm or import allowlist was changed by this CI recovery.
 
 Three existing targeted Jest suites: 11 passed. API and Web TypeScript checks passed. Chromium smoke opened the actual server-rendered work disclosure, expanded it and verified EN/VI narratives. This is component browser evidence, not a full authenticated Next/PDF export journey.
 

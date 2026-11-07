@@ -1,27 +1,42 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { it as test } from "@jest/globals";
+import { HttpException } from "@nestjs/common";
+import { z } from "zod";
+import { readFileSync } from "node:fs";
+import {
+  Prisma,
+  AuthoredLocalizationLocale,
+  AuthoredLocalizationState,
+} from "@prisma/client";
+import { localizedHttpFixture } from "./support/localized-http.fixture.js";
 import { createHash } from "node:crypto";
-import { NextRequest } from "../apps/web/node_modules/next/server.js";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
+  localizedReportArtifactSchema,
+  assessmentEventsPageSchema,
+  ruleAuditCatalogSchema,
   AUTHORED_LOCALIZATION_ENTITIES,
   AUTHORED_LOCALIZATION_STATES,
   AUTHORED_LOCALIZATION_CODES,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_ARTIFACT_KINDS,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import {
   AuthoredLocalizationService,
   enqueueAuthoredDocument,
   authoredFields,
-} from "../apps/api/src/platform/localization/authored-localization.service.ts";
-import { LocalePresentationProjectionService } from "../apps/api/src/modules/assessment/infrastructure/presentation/locale-presentation-projection.service.ts";
-import { AssessmentReportLoader } from "../apps/api/src/modules/assessment/infrastructure/persistence/assessment-report.loader.ts";
-import { decisionFingerprint } from "../apps/api/src/modules/assessment/domain/decision-fingerprint.ts";
-import { GET as reportRoute } from "../apps/web/src/app/api/assessments/[id]/artifacts/[artifactId]/report/route.ts";
-import { report as v2Report } from "./support/localized-report-fixture.ts";
-import { randomUUID } from "node:crypto";
+} from "../src/platform/localization/authored-localization.service.js";
+import { LocalePresentationProjectionService } from "../src/modules/assessment/infrastructure/presentation/locale-presentation-projection.service.js";
+import { AssessmentReportLoader } from "../src/modules/assessment/infrastructure/persistence/assessment-report.loader.js";
+import { decisionFingerprint } from "../src/modules/assessment/domain/decision-fingerprint.js";
+import type { DecisionFingerprintEntry } from "../src/modules/assessment/domain/decision-fingerprint.js";
+import { chunkedManifestSchema } from "../src/platform/storage/artifact-storage.service.js";
+import { report as v2Report } from "./support/localized-report.fixture.js";
+let fixtureId = 100;
+const randomUUID = () =>
+  `00000000-0000-4000-8000-${String(fixtureId++).padStart(12, "0")}`;
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
@@ -34,24 +49,95 @@ import {
   RULE_CATALOG_GROUP_IDS,
 } from "@lcsp/contracts/assessment-domain";
 import { PREPARATION_ACTIVITY_SCOPES } from "@lcsp/contracts/compliance-rule-set";
-import { ListAssessmentEventsHandler } from "../apps/api/src/modules/assessment/application/queries/list-assessment-events/list-assessment-events.handler.ts";
-import { ListAssessmentEventsQuery } from "../apps/api/src/modules/assessment/application/queries/list-assessment-events/list-assessment-events.query.ts";
-import { AssessmentRuleAuditService } from "../apps/api/src/modules/assessment/application/services/assessment-rule-audit.service.ts";
-import { GET as eventsRoute } from "../apps/web/src/app/api/assessments/[id]/events/route.ts";
-import { GET as catalogRoute } from "../apps/web/src/app/api/assessments/[id]/rules/route.ts";
-import { projectConversation } from "../apps/web/src/features/assessment-runtime/utils/conversation-projection.ts";
+import { ListAssessmentEventsHandler } from "../src/modules/assessment/application/queries/list-assessment-events/list-assessment-events.handler.js";
+import { ListAssessmentEventsQuery } from "../src/modules/assessment/application/queries/list-assessment-events/list-assessment-events.query.js";
+import { AssessmentRuleAuditService } from "../src/modules/assessment/application/services/assessment-rule-audit.service.js";
+
+const wire = z
+  .object({
+    reports: z.record(z.string(), assessmentFinalReportArtifactVersionedSchema),
+    events: z.record(z.string(), assessmentEventsPageSchema),
+    catalog: z.record(z.string(), ruleAuditCatalogSchema),
+  })
+  .parse(
+    JSON.parse(
+      readFileSync(
+        new URL(
+          "../../web/src/public/assets/mocks/localized-assessment-wire.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ),
+  );
+const problem = (error: unknown) => {
+  assert.ok(error instanceof HttpException);
+  return z
+    .object({
+      problem: z.object({
+        code: z.string(),
+        meta: z.object({ state: z.string() }).optional(),
+      }),
+    })
+    .parse(error.getResponse()).problem;
+};
 
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 const owner = "read-boundary-owner";
 
 /** Persistence double only: actual enqueue, localization, integrity loader and BFF execute unchanged. */
+type Revision = { content: string; contentSha256: string };
+type RequestRow = Pick<
+  Prisma.AuthoredLocalizationRequestUncheckedCreateInput,
+  | "idempotencyKey"
+  | "scopeId"
+  | "entityId"
+  | "entityType"
+  | "canonicalRevision"
+  | "canonicalDigest"
+  | "fieldPath"
+  | "locale"
+  | "originSha256"
+  | "originalContent"
+> & {
+  translationRevision: number;
+  state: AuthoredLocalizationState;
+  revision: Revision | null;
+};
+type ArtifactKey = {
+  scopeId: string;
+  sourceArtifactId: string;
+  locale: AuthoredLocalizationLocale;
+  translationRevision: number;
+};
+type ArtifactRow = ArtifactKey & {
+  id: string;
+  sourceSha256: string;
+  content: Uint8Array;
+  contentSha256: string;
+};
+type ProjectionWhere = Partial<
+  Pick<
+    RequestRow,
+    "entityId" | "entityType" | "canonicalRevision" | "canonicalDigest"
+  >
+> & {
+  scopeId: string;
+  locale: AuthoredLocalizationLocale;
+  translationRevision: number;
+  originSha256: { in: string[] };
+};
 function persistence() {
-  const requests: Array<Record<string, any>> = [];
-  const artifacts = new Map<string, any>();
+  const requests: RequestRow[] = [];
+  const artifacts = new Map<string, ArtifactRow>();
   const db = {
     authoredLocalizationRequest: {
-      upsert: async ({ create }: any) => {
+      upsert: ({
+        create,
+      }: {
+        create: Prisma.AuthoredLocalizationRequestUncheckedCreateInput;
+      }) => {
         let row = requests.find(
           (item) => item.idempotencyKey === create.idempotencyKey,
         );
@@ -59,35 +145,55 @@ function persistence() {
           row = {
             ...create,
             translationRevision: 1,
-            state: AUTHORED_LOCALIZATION_STATES.PENDING,
+            state: AuthoredLocalizationState.PENDING,
             revision: null,
           };
           requests.push(row);
         }
-        return row;
+        return Promise.resolve(row);
       },
-      findMany: async ({ where }: any) =>
-        requests.filter((row) =>
-          Object.entries(where).every(([key, value]) =>
-            key === "originSha256"
-              ? (value as { in: string[] }).in.includes(row[key])
-              : row[key] === value,
+      findMany: ({ where }: { where: ProjectionWhere }) => {
+        const { originSha256, ...binding } = where;
+        return Promise.resolve(
+          requests.filter(
+            (row) =>
+              originSha256.in.includes(row.originSha256) &&
+              Object.entries(binding).every(
+                ([key, value]) => row[key as keyof RequestRow] === value,
+              ),
           ),
-        ),
+        );
+      },
     },
     localizedReportArtifact: {
-      findUnique: async ({ where }: any) =>
-        artifacts.get(
-          JSON.stringify(
-            where.scopeId_sourceArtifactId_locale_translationRevision,
-          ),
-        ) ?? null,
-      upsert: async ({ where, create }: any) => {
+      findUnique: ({
+        where,
+      }: {
+        where: {
+          scopeId_sourceArtifactId_locale_translationRevision: ArtifactKey;
+        };
+      }) =>
+        Promise.resolve(
+          artifacts.get(
+            JSON.stringify(
+              where.scopeId_sourceArtifactId_locale_translationRevision,
+            ),
+          ) ?? null,
+        ),
+      upsert: ({
+        where,
+        create,
+      }: {
+        where: {
+          scopeId_sourceArtifactId_locale_translationRevision: ArtifactKey;
+        };
+        create: ArtifactRow;
+      }) => {
         const key = JSON.stringify(
           where.scopeId_sourceArtifactId_locale_translationRevision,
         );
         if (!artifacts.has(key)) artifacts.set(key, create);
-        return artifacts.get(key);
+        return Promise.resolve(artifacts.get(key)!);
       },
     },
   };
@@ -98,7 +204,7 @@ function persistence() {
     ready() {
       for (const row of requests) {
         const content = `${row.locale}: ${row.originalContent}`;
-        row.state = AUTHORED_LOCALIZATION_STATES.READY;
+        row.state = AuthoredLocalizationState.READY;
         row.revision = { content, contentSha256: hash(content) };
       }
     },
@@ -107,7 +213,19 @@ function persistence() {
 
 async function setup(version: string) {
   const v2 = v2Report();
-  v2.decisionFingerprint = decisionFingerprint(v2.ruleDetails);
+  const entries: DecisionFingerprintEntry[] = v2.ruleDetails.map((rule) => {
+    assert.notEqual(
+      rule.decision,
+      undefined,
+      "V2 fixture must contain each accepted decision",
+    );
+    return {
+      decisionId: rule.decisionId,
+      decisionRevision: rule.decisionRevision,
+      decision: rule.decision,
+    };
+  });
+  v2.decisionFingerprint = decisionFingerprint(entries);
   const report =
     version === "V2"
       ? v2
@@ -142,45 +260,47 @@ async function setup(version: string) {
     canonicalRevision: hash(bytes),
     document: canonical,
   });
-  Object.assign(store.db, {
+  const db = Object.assign(store.db, {
     assessmentArtifact: {
-      findUnique: async () => ({
-        ...report,
-        lifecycleState: "ACTIVE",
-        ruleSetVersionId: report.pins.ruleSetVersionId,
-        repositorySnapshotId: report.pins.repositorySnapshotId,
-        repositoryCommit: report.pins.repositoryCommit,
-        contentSha256: `sha256:${hash(bytes)}`,
-        sizeBytes: Buffer.byteLength(bytes),
-        storageRef: JSON.stringify({
-          artifact_id: report.artifactId,
-          total_size: Buffer.byteLength(bytes),
-          hash: hash(bytes),
-          chunks: ["chunk-0"],
+      findUnique: () =>
+        Promise.resolve({
+          ...report,
+          lifecycleState: "ACTIVE",
+          ruleSetVersionId: report.pins.ruleSetVersionId,
+          repositorySnapshotId: report.pins.repositorySnapshotId,
+          repositoryCommit: report.pins.repositoryCommit,
+          contentSha256: `sha256:${hash(bytes)}`,
+          sizeBytes: Buffer.byteLength(bytes),
+          storageRef: JSON.stringify({
+            artifact_id: report.artifactId,
+            total_size: Buffer.byteLength(bytes),
+            hash: hash(bytes),
+            chunks: ["chunk-0"],
+          }),
+          assessmentCase: {
+            ...report.pins,
+            caseRevision: 1,
+            assessment: { lifecycleState: "COMPLETE", ownerId: owner },
+          },
         }),
-        assessmentCase: {
-          ...report.pins,
-          caseRevision: 1,
-          assessment: { lifecycleState: "COMPLETE", ownerId: owner },
-        },
-      }),
     },
     complianceRuleSetVersion: {
-      findUnique: async () => ({
-        id: v2.pins.ruleSetVersionId,
-        version: v2.pins.ruleSetVersion,
-        ruleSetDigest: v2.pins.ruleSetDigest,
-        legalSourceVersion: {
-          id: v2.pins.legalSourceVersionId,
-          version: v2.pins.legalSourceVersion,
-        },
-      }),
+      findUnique: () =>
+        Promise.resolve({
+          id: v2.pins.ruleSetVersionId,
+          version: v2.pins.ruleSetVersion,
+          ruleSetDigest: v2.pins.ruleSetDigest,
+          legalSourceVersion: {
+            id: v2.pins.legalSourceVersionId,
+            version: v2.pins.legalSourceVersion,
+          },
+        }),
     },
   });
   const createLoader = () =>
     new AssessmentReportLoader(
       store.db as never,
-      { readAndReconstruct: async () => bytes } as never,
+      { readAndReconstruct: () => Promise.resolve(bytes) } as never,
       new LocalePresentationProjectionService(
         new AuthoredLocalizationService(store.db as never),
       ),
@@ -192,49 +312,37 @@ async function setup(version: string) {
     subjectRole: AUTH_USER_ROLES.customer,
     correlationId: "localized-report-contract",
   };
-  return { ...store, report: canonical, bytes, input, createLoader };
+  return { ...store, db, report: canonical, bytes, input, createLoader };
 }
 
 for (const version of ["V1", "V2"] as const)
   for (const locale of ["en", "vi"] as const)
-    test(`${version} ${locale}: persisted overlay -> verified API loader -> real BFF full report`, async () => {
+    test(`${version} ${locale}: persisted overlay -> real authorized API HTTP full report`, async () => {
       const f = await setup(version);
       f.ready();
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = async (_url, init) => {
-        const headers = new Headers(init?.headers);
-        assert.equal(headers.get("authorization"), "Bearer fixture-session");
-        assert.equal(headers.get("x-lcsp-locale"), locale);
-        const loaded = await f.createLoader().load({ ...f.input, locale });
-        assert.equal(loaded.artifactId, f.report.artifactId);
-        assert.equal(loaded.sourceArtifactSha256, hash(f.bytes));
-        assert.equal(
-          loaded.contentSha256,
-          hash(loaded.content.toString("utf8")),
-        );
-        return new Response(new Uint8Array(loaded.content), {
-          headers: { "content-type": "application/json" },
-        });
-      };
+      const api = await localizedHttpFixture({
+        ownerId: owner,
+        localization: new AuthoredLocalizationService(f.db as never),
+        report: f.createLoader(),
+      });
       try {
-        const response = await reportRoute(
-          new NextRequest("http://localhost/report", {
-            headers: {
-              cookie: `lcsp_session=fixture-session; lcsp_locale=${locale}`,
-            },
-          }),
-          {
-            params: Promise.resolve({
-              id: f.report.assessmentId,
-              artifactId: f.report.artifactId,
-            }),
-          },
+        const response = await api.get(
+          `/assessments/${f.report.assessmentId}/artifacts/${f.report.artifactId}/download`,
+          locale,
         );
         assert.equal(response.status, 200);
-        const result = await response.json();
         const localized = assessmentFinalReportArtifactVersionedSchema.parse(
-          result.data,
+          JSON.parse(response.text),
         );
+        assert.deepEqual(
+          localized,
+          wire.reports[`${localized.schemaVersion}:${locale}`],
+        );
+        assert.equal(
+          response.headers["x-lcsp-source-artifact-sha256"],
+          hash(f.bytes),
+        );
+        assert.equal(response.headers.etag, `"${hash(response.text)}"`);
         assert.equal(localized.artifactId, f.report.artifactId);
         assert.equal(
           localized.decisionFingerprint,
@@ -260,7 +368,7 @@ for (const version of ["V1", "V2"] as const)
         const canonical = await f.createLoader().load(f.input);
         assert.equal(canonical.content.toString("utf8"), f.bytes);
       } finally {
-        globalThis.fetch = originalFetch;
+        await api.close();
       }
     });
 
@@ -273,12 +381,12 @@ for (const state of [
     for (const row of f.requests) row.state = state;
     await assert.rejects(
       f.createLoader().load({ ...f.input, locale: "vi" }),
-      (error: any) => {
+      (error: unknown) => {
         assert.equal(
-          error.getResponse().problem.code,
+          problem(error).code,
           AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
         );
-        assert.equal(error.getResponse().problem.meta.state, state);
+        assert.equal(problem(error).meta?.state, state);
         return true;
       },
     );
@@ -301,8 +409,8 @@ for (const damage of [
     const artifact = [...f.artifacts.values()][0];
     if (damage === "digest") artifact.contentSha256 = "0".repeat(64);
     else {
-      const overlay = JSON.parse(
-        Buffer.from(artifact.content).toString("utf8"),
+      const overlay = localizedReportArtifactSchema.parse(
+        JSON.parse(Buffer.from(artifact.content).toString("utf8")),
       );
       if (damage === "protectedPath")
         overlay.localizedFields = { "/artifactId": f.report.artifactId };
@@ -311,16 +419,20 @@ for (const damage of [
         damage === "sourceArtifactId" ||
         damage === "localizedArtifactId"
       )
-        overlay[damage] = randomUUID();
+        Object.assign(overlay, { [damage]: randomUUID() });
       else
-        overlay[damage] =
-          damage === "translationRevision"
-            ? 2
-            : damage === "locale"
-              ? "en"
-              : "0".repeat(64);
+        Object.assign(overlay, {
+          [damage]:
+            damage === "translationRevision"
+              ? 2
+              : damage === "locale"
+                ? "en"
+                : "0".repeat(64),
+        });
       artifact.content = Buffer.from(JSON.stringify(overlay));
-      artifact.contentSha256 = hash(artifact.content.toString("utf8"));
+      artifact.contentSha256 = hash(
+        Buffer.from(artifact.content).toString("utf8"),
+      );
     }
     await assert.rejects(f.createLoader().load({ ...f.input, locale: "vi" }));
   });
@@ -328,21 +440,22 @@ for (const damage of [
 test("a corrupt READY translation is an integrity failure, never pending or fallback", async () => {
   const f = await setup("V1");
   f.ready();
-  for (const row of f.requests)
+  for (const row of f.requests) {
+    assert.ok(row.revision);
     row.revision.content = "corrupt translated bytes";
+  }
   await assert.rejects(
     f.createLoader().load({ ...f.input, locale: "vi" }),
-    (error: any) =>
-      error.getResponse().problem.code ===
-      AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+    (error: unknown) =>
+      problem(error).code === AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
   );
 });
 
 test("canonical report corruption rejects before localized artifacts are created", async () => {
   const f = await setup("V1");
   f.ready();
-  const original = (f.db as any).assessmentArtifact.findUnique;
-  (f.db as any).assessmentArtifact.findUnique = async () => ({
+  const original = f.db.assessmentArtifact.findUnique;
+  f.db.assessmentArtifact.findUnique = async () => ({
     ...(await original()),
     contentSha256: `sha256:${"0".repeat(64)}`,
   });
@@ -353,20 +466,56 @@ test("canonical report corruption rejects before localized artifacts are created
 test("foreign report owner cannot read localization or freeze an artifact", async () => {
   const f = await setup("V1");
   f.ready();
-  f.db.authoredLocalizationRequest.findMany = async () => {
-    throw new Error("Foreign owner reached localization lookup");
-  };
+  f.db.authoredLocalizationRequest.findMany = () =>
+    Promise.reject(new Error("Foreign owner reached localization lookup"));
   await assert.rejects(
     f
       .createLoader()
       .load({ ...f.input, sessionUserId: "foreign", locale: "vi" }),
-    (error: any) => error.getStatus() === 404,
+    (error: unknown) =>
+      error instanceof HttpException && error.getStatus() === 404,
+  );
+  assert.equal(f.artifacts.size, 0);
+});
+
+test("a report with matching storage hash but incorrect decision fingerprint is rejected", async () => {
+  const f = await setup("V2");
+  f.ready();
+  const corrupt = JSON.stringify({
+    ...f.report,
+    decisionFingerprint: `sha256:${"0".repeat(64)}`,
+  });
+  const row = await f.db.assessmentArtifact.findUnique();
+  const manifest = chunkedManifestSchema.parse(JSON.parse(row.storageRef));
+  f.db.assessmentArtifact.findUnique = () =>
+    Promise.resolve({
+      ...row,
+      contentSha256: `sha256:${hash(corrupt)}`,
+      sizeBytes: Buffer.byteLength(corrupt),
+      storageRef: JSON.stringify({
+        ...manifest,
+        hash: hash(corrupt),
+        total_size: Buffer.byteLength(corrupt),
+      }),
+    });
+  const loader = new AssessmentReportLoader(
+    f.db as never,
+    { readAndReconstruct: () => Promise.resolve(corrupt) } as never,
+    new LocalePresentationProjectionService(
+      new AuthoredLocalizationService(f.db as never),
+    ),
+  );
+  await assert.rejects(
+    loader.load({ ...f.input, locale: "vi" }),
+    (error: unknown) =>
+      problem(error).code ===
+      ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
   );
   assert.equal(f.artifacts.size, 0);
 });
 
 for (const locale of ["en", "vi"] as const)
-  test(`${locale} persisted paged events reach the real BFF and conversation unchanged in identity`, async () => {
+  test(`${locale} persisted paged events reach the real API unchanged in identity`, async () => {
     const store = persistence(),
       assessmentId = randomUUID(),
       threadId = randomUUID();
@@ -401,10 +550,20 @@ for (const locale of ["en", "vi"] as const)
       });
     store.ready();
     Object.assign(store.db, {
-      assessment: { findUnique: async () => ({ ownerId: owner }) },
+      assessment: { findUnique: () => Promise.resolve({ ownerId: owner }) },
       assessmentEvent: {
-        findMany: async ({ where, take }: any) =>
-          rows.filter((row) => row.sequence > where.sequence.gt).slice(0, take),
+        findMany: ({
+          where,
+          take,
+        }: {
+          where: { sequence: { gt: number } };
+          take: number;
+        }) =>
+          Promise.resolve(
+            rows
+              .filter((row) => row.sequence > where.sequence.gt)
+              .slice(0, take),
+          ),
       },
     });
     const handler = () =>
@@ -412,65 +571,37 @@ for (const locale of ["en", "vi"] as const)
         store.db as never,
         new AuthoredLocalizationService(store.db as never),
       );
-    const fetch = globalThis.fetch;
-    globalThis.fetch = async (input, init) => {
-      const url = new URL(String(input));
-      const data = await handler().execute(
-        new ListAssessmentEventsQuery(
-          assessmentId,
-          owner,
-          AUTH_USER_ROLES.customer,
-          {
-            afterSequence: Number(url.searchParams.get("afterSequence")),
-            limit: 1,
-          },
-          "event-read",
-          new Headers(init?.headers).get("x-lcsp-locale"),
-        ),
-      );
-      return Response.json({ ok: true, data });
-    };
+    const api = await localizedHttpFixture({
+      ownerId: owner,
+      localization: new AuthoredLocalizationService(store.db as never),
+      events: handler(),
+    });
     try {
-      const events = [];
       for (let after = 0; after < 2; after++) {
-        const response = await eventsRoute(
-          new NextRequest(
-            `http://localhost/events?afterSequence=${after}&limit=1`,
-            {
-              headers: {
-                cookie: `lcsp_session=fixture; lcsp_locale=${locale}`,
-              },
-            },
-          ),
-          { params: Promise.resolve({ id: assessmentId }) },
+        const response = await api.get(
+          `/assessments/${assessmentId}/events?afterSequence=${after}&limit=1`,
+          locale,
         );
         assert.equal(response.status, 200);
-        const { data } = await response.json();
+        const { data } = z
+          .object({ ok: z.literal(true), data: assessmentEventsPageSchema })
+          .parse(JSON.parse(response.text));
+        assert.deepEqual(data, wire.events[`${locale}:${after}`]);
         assert.equal(data.hasMore, after === 0);
         assert.equal(data.nextAfterSequence, after + 1);
         const event = data.events[0];
+        assert.ok(
+          event.eventType === AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED,
+        );
         assert.equal(event.eventId, rows[after].eventId);
         assert.equal(event.threadId, threadId);
         assert.equal(
           event.payload.summary,
           `${locale.toUpperCase()}: Analysis ${after + 1}`,
         );
-        events.push(event);
       }
-      const conversation = projectConversation({
-        assessmentId,
-        events,
-        detail: null,
-        requests: [],
-        repository: null,
-      });
-      const work = conversation.turns.find((turn) => "technical" in turn);
-      assert.ok(work && "technical" in work);
-      assert.deepEqual(
-        work.technical.map((event) => event.summary),
-        events.map((event) => event.payload.summary),
-      );
-      assert.deepEqual(rows, original);
+      // Persisted identity/payload equality is independent of Jest/structuredClone Date realms.
+      assert.equal(JSON.stringify(rows), JSON.stringify(original));
       await assert.rejects(
         handler().execute(
           new ListAssessmentEventsQuery(
@@ -498,12 +629,11 @@ for (const locale of ["en", "vi"] as const)
             locale,
           ),
         ),
-        (error: any) =>
-          error.getResponse().problem.meta.state ===
-          AUTHORED_LOCALIZATION_STATES.FAILED,
+        (error: unknown) =>
+          problem(error).meta?.state === AUTHORED_LOCALIZATION_STATES.FAILED,
       );
     } finally {
-      globalThis.fetch = fetch;
+      await api.close();
     }
   });
 
@@ -573,28 +703,35 @@ for (const locale of ["en", "vi"] as const)
       repositoryCommit: "a".repeat(40),
     };
     const db = Object.assign(store.db, {
-      $transaction: async (fn: any) => fn(db),
-      assessment: { findUnique: async () => ({ ownerId: owner, domainCase }) },
+      $transaction: (
+        fn: (client: Prisma.TransactionClient) => Promise<unknown>,
+      ) => Promise.resolve(fn(db as never)),
+      assessment: {
+        findUnique: () => Promise.resolve({ ownerId: owner, domainCase }),
+      },
       complianceRuleSetVersion: {
-        findUnique: async () => ({
-          id: ruleSetVersionId,
-          ruleSetDigest: "digest",
-          targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
-        }),
+        findUnique: () =>
+          Promise.resolve({
+            id: ruleSetVersionId,
+            ruleSetDigest: "digest",
+            targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
+          }),
       },
       assessmentRule: {
-        count: async () => rules.length,
-        findMany: async (input: any) =>
-          input.select
-            ? rules
-            : rules.slice(input.skip, input.skip + input.take),
+        count: () => Promise.resolve(rules.length),
+        findMany: (input: { select?: object; skip: number; take: number }) =>
+          Promise.resolve(
+            input.select
+              ? rules
+              : rules.slice(input.skip, input.skip + input.take),
+          ),
       },
-      assessmentRuleAuditItem: { findMany: async () => [] },
-      assessmentDecisionCoverage: { findMany: async () => [] },
-      assessmentHumanRequest: { findMany: async () => [] },
-      assessmentRuleAuditRequest: { findFirst: async () => null },
+      assessmentRuleAuditItem: { findMany: () => Promise.resolve([]) },
+      assessmentDecisionCoverage: { findMany: () => Promise.resolve([]) },
+      assessmentHumanRequest: { findMany: () => Promise.resolve([]) },
+      assessmentRuleAuditRequest: { findFirst: () => Promise.resolve(null) },
       ruleCatalogGroupMembership: {
-        findMany: async () => (approved ? memberships : []),
+        findMany: () => Promise.resolve(approved ? memberships : []),
       },
     });
     const service = () =>
@@ -604,32 +741,23 @@ for (const locale of ["en", "vi"] as const)
         {} as never,
         new AuthoredLocalizationService(db as never),
       );
-    const fetch = globalThis.fetch;
-    globalThis.fetch = async (input, init) => {
-      const url = new URL(String(input));
-      return Response.json({
-        ok: true,
-        data: await service().catalog(
-          assessmentId,
-          owner,
-          "catalog",
-          Number(url.searchParams.get("offset")),
-          1,
-          new Headers(init?.headers).get("x-lcsp-locale"),
-        ),
-      });
-    };
+    const api = await localizedHttpFixture({
+      ownerId: owner,
+      localization: new AuthoredLocalizationService(db as never),
+      catalog: service(),
+    });
     try {
-      const received = [];
+      const received: string[] = [];
       for (let offset = 0; offset < 2; offset++) {
-        const response = await catalogRoute(
-          new NextRequest(`http://localhost/rules?offset=${offset}&limit=1`, {
-            headers: { cookie: `lcsp_session=fixture; lcsp_locale=${locale}` },
-          }),
-          { params: Promise.resolve({ id: assessmentId }) },
+        const response = await api.get(
+          `/assessments/${assessmentId}/rules?offset=${offset}&limit=1`,
+          locale,
         );
         assert.equal(response.status, 200);
-        const { data } = await response.json();
+        const { data } = z
+          .object({ ok: z.literal(true), data: ruleAuditCatalogSchema })
+          .parse(JSON.parse(response.text));
+        assert.deepEqual(data, wire.catalog[`${locale}:${offset}`]);
         assert.equal(data.total, 2);
         assert.equal(data.rules.length, 1);
         assert.deepEqual(
@@ -688,6 +816,6 @@ for (const locale of ["en", "vi"] as const)
       );
       assert.deepEqual(hidden.rules, []);
     } finally {
-      globalThis.fetch = fetch;
+      await api.close();
     }
   });

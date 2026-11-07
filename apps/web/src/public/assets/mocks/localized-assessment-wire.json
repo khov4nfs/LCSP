@@ -1,0 +1,750 @@
+{
+  "reports": {
+    "ASSESSMENT_FINAL_REPORT_V1:en": {
+      "schemaVersion": "ASSESSMENT_FINAL_REPORT_V1",
+      "artifactId": "11111111-1111-4111-8111-111111111111",
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "kind": "FINAL_REPORT",
+      "pins": {
+        "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+        "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+        "repositoryScanJobId": "11111111-1111-4111-8111-111111111111",
+        "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "caseRevision": 1,
+      "decisionFingerprint": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "summary": "EN: Report narrative",
+      "findings": [],
+      "provenance": {
+        "evidenceIds": [],
+        "factIds": [],
+        "searchCoverageEvidenceIds": []
+      }
+    },
+    "ASSESSMENT_FINAL_REPORT_V1:vi": {
+      "schemaVersion": "ASSESSMENT_FINAL_REPORT_V1",
+      "artifactId": "11111111-1111-4111-8111-111111111111",
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "kind": "FINAL_REPORT",
+      "pins": {
+        "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+        "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+        "repositoryScanJobId": "11111111-1111-4111-8111-111111111111",
+        "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "caseRevision": 1,
+      "decisionFingerprint": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "summary": "VI: Report narrative",
+      "findings": [],
+      "provenance": {
+        "evidenceIds": [],
+        "factIds": [],
+        "searchCoverageEvidenceIds": []
+      }
+    },
+    "ASSESSMENT_FINAL_REPORT_V2:en": {
+      "schemaVersion": "ASSESSMENT_FINAL_REPORT_V2",
+      "artifactId": "11111111-1111-4111-8111-111111111111",
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "kind": "FINAL_REPORT",
+      "identity": {
+        "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+        "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "pins": {
+        "legalSourceVersionId": "11111111-1111-4111-8111-111111111111",
+        "legalSourceVersion": "LAW-2026",
+        "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+        "ruleSetVersion": "RULES-2026",
+        "ruleSetDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+        "repositoryScanJobId": "11111111-1111-4111-8111-111111111111",
+        "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "caseRevision": 1,
+      "decisionFingerprint": "sha256:0279d28939d50571e8bf91372df7d0a8945c46d9708f3312541a91ca06b7dbe1",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "req-1",
+          "title": "EN: Requirement",
+          "proposition": "EN: A source-backed requirement.",
+          "applicabilityConditions": ["EN: Condition"],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "coverageState": "COVERED_BY_ASSESSMENT_RULES",
+          "sourceRefs": [
+            {
+              "legalSourceVersionId": "11111111-1111-4111-8111-111111111111",
+              "legalSourceVersion": "LAW-2026",
+              "documentId": "law-1",
+              "locator": "article-1",
+              "contentSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "ruleDetails": [
+        {
+          "assessmentRuleId": "rule-1",
+          "assessmentRuleVersion": "1",
+          "legalRequirementIds": ["req-1"],
+          "concept": "EN: Source-backed rule",
+          "legalIntent": "EN: Assess the requirement.",
+          "applicabilityGuidance": "EN: Use the accepted decision.",
+          "criteria": [
+            {
+              "criterionId": "criterion-1",
+              "statement": "EN: Criterion"
+            }
+          ],
+          "decisionId": "11111111-1111-4111-8111-111111111111",
+          "decisionRevision": 1,
+          "decision": {
+            "assessmentRuleId": "rule-1",
+            "assessmentRuleVersion": "1",
+            "scopeId": "ASSESSMENT",
+            "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+            "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+            "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "caseRevision": 1,
+            "legalContextRefs": [
+              {
+                "legalContextId": "req-1"
+              }
+            ],
+            "applicability": "APPLICABLE",
+            "rationale": "EN: The source-backed condition applies.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "11111111-1111-4111-8111-111111111111",
+                "caseRevision": 1
+              }
+            ],
+            "criteria": [
+              {
+                "criterionId": "criterion-1",
+                "outcome": "MET",
+                "rationale": "EN: The accepted fact satisfies the criterion.",
+                "references": [
+                  {
+                    "type": "CONFIRMED_FACT",
+                    "factId": "11111111-1111-4111-8111-111111111111",
+                    "caseRevision": 1
+                  }
+                ]
+              }
+            ],
+            "compliance": "COMPLIANT"
+          },
+          "decisionReferences": [
+            {
+              "origin": "DECISION",
+              "reference": {
+                "type": "CONFIRMED_FACT",
+                "factId": "11111111-1111-4111-8111-111111111111",
+                "caseRevision": 1
+              }
+            }
+          ],
+          "criteriaDecisions": [
+            {
+              "criterionId": "criterion-1",
+              "statement": "EN: Criterion",
+              "outcome": "MET",
+              "rationale": "EN: Accepted.",
+              "references": [
+                {
+                  "origin": "CRITERION",
+                  "reference": {
+                    "type": "CONFIRMED_FACT",
+                    "factId": "11111111-1111-4111-8111-111111111111",
+                    "caseRevision": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "narrative": {
+            "summary": "EN: Bounded summary.",
+            "recommendations": []
+          },
+          "factIds": ["11111111-1111-4111-8111-111111111111"],
+          "evidenceIds": ["11111111-1111-4111-8111-111111111111"],
+          "sourceRefs": [
+            {
+              "legalSourceVersionId": "11111111-1111-4111-8111-111111111111",
+              "legalSourceVersion": "LAW-2026",
+              "documentId": "law-1",
+              "locator": "article-1",
+              "contentSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "factIndex": [
+        {
+          "factId": "11111111-1111-4111-8111-111111111111",
+          "caseRevision": 1,
+          "kind": "FACT",
+          "authority": "HUMAN_PROVIDED",
+          "statement": "Accepted fact.",
+          "evidenceIds": ["11111111-1111-4111-8111-111111111111"]
+        }
+      ],
+      "evidenceIndex": [
+        {
+          "evidenceId": "11111111-1111-4111-8111-111111111111",
+          "type": "HUMAN_ANSWER",
+          "contentSha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "repositoryCommit": null,
+          "safeLocator": null
+        }
+      ],
+      "outcomeSummary": {
+        "totalRules": 1,
+        "applicableCompliant": 1,
+        "applicableNonCompliant": 0,
+        "notApplicable": 0
+      },
+      "boundedNarrative": {
+        "summary": "EN: Assessment summary.",
+        "actionPlan": [],
+        "scopeLimitations": []
+      },
+      "publicationProvenance": {
+        "sourceManifestDigest": null,
+        "publishedAt": null
+      }
+    },
+    "ASSESSMENT_FINAL_REPORT_V2:vi": {
+      "schemaVersion": "ASSESSMENT_FINAL_REPORT_V2",
+      "artifactId": "11111111-1111-4111-8111-111111111111",
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "kind": "FINAL_REPORT",
+      "identity": {
+        "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+        "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "pins": {
+        "legalSourceVersionId": "11111111-1111-4111-8111-111111111111",
+        "legalSourceVersion": "LAW-2026",
+        "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+        "ruleSetVersion": "RULES-2026",
+        "ruleSetDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+        "repositoryScanJobId": "11111111-1111-4111-8111-111111111111",
+        "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "caseRevision": 1,
+      "decisionFingerprint": "sha256:0279d28939d50571e8bf91372df7d0a8945c46d9708f3312541a91ca06b7dbe1",
+      "legalRequirements": [
+        {
+          "legalRequirementId": "req-1",
+          "title": "VI: Requirement",
+          "proposition": "VI: A source-backed requirement.",
+          "applicabilityConditions": ["VI: Condition"],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "coverageState": "COVERED_BY_ASSESSMENT_RULES",
+          "sourceRefs": [
+            {
+              "legalSourceVersionId": "11111111-1111-4111-8111-111111111111",
+              "legalSourceVersion": "LAW-2026",
+              "documentId": "law-1",
+              "locator": "article-1",
+              "contentSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "ruleDetails": [
+        {
+          "assessmentRuleId": "rule-1",
+          "assessmentRuleVersion": "1",
+          "legalRequirementIds": ["req-1"],
+          "concept": "VI: Source-backed rule",
+          "legalIntent": "VI: Assess the requirement.",
+          "applicabilityGuidance": "VI: Use the accepted decision.",
+          "criteria": [
+            {
+              "criterionId": "criterion-1",
+              "statement": "VI: Criterion"
+            }
+          ],
+          "decisionId": "11111111-1111-4111-8111-111111111111",
+          "decisionRevision": 1,
+          "decision": {
+            "assessmentRuleId": "rule-1",
+            "assessmentRuleVersion": "1",
+            "scopeId": "ASSESSMENT",
+            "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+            "repositorySnapshotId": "11111111-1111-4111-8111-111111111111",
+            "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "caseRevision": 1,
+            "legalContextRefs": [
+              {
+                "legalContextId": "req-1"
+              }
+            ],
+            "applicability": "APPLICABLE",
+            "rationale": "VI: The source-backed condition applies.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "11111111-1111-4111-8111-111111111111",
+                "caseRevision": 1
+              }
+            ],
+            "criteria": [
+              {
+                "criterionId": "criterion-1",
+                "outcome": "MET",
+                "rationale": "VI: The accepted fact satisfies the criterion.",
+                "references": [
+                  {
+                    "type": "CONFIRMED_FACT",
+                    "factId": "11111111-1111-4111-8111-111111111111",
+                    "caseRevision": 1
+                  }
+                ]
+              }
+            ],
+            "compliance": "COMPLIANT"
+          },
+          "decisionReferences": [
+            {
+              "origin": "DECISION",
+              "reference": {
+                "type": "CONFIRMED_FACT",
+                "factId": "11111111-1111-4111-8111-111111111111",
+                "caseRevision": 1
+              }
+            }
+          ],
+          "criteriaDecisions": [
+            {
+              "criterionId": "criterion-1",
+              "statement": "VI: Criterion",
+              "outcome": "MET",
+              "rationale": "VI: Accepted.",
+              "references": [
+                {
+                  "origin": "CRITERION",
+                  "reference": {
+                    "type": "CONFIRMED_FACT",
+                    "factId": "11111111-1111-4111-8111-111111111111",
+                    "caseRevision": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "narrative": {
+            "summary": "VI: Bounded summary.",
+            "recommendations": []
+          },
+          "factIds": ["11111111-1111-4111-8111-111111111111"],
+          "evidenceIds": ["11111111-1111-4111-8111-111111111111"],
+          "sourceRefs": [
+            {
+              "legalSourceVersionId": "11111111-1111-4111-8111-111111111111",
+              "legalSourceVersion": "LAW-2026",
+              "documentId": "law-1",
+              "locator": "article-1",
+              "contentSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ]
+        }
+      ],
+      "factIndex": [
+        {
+          "factId": "11111111-1111-4111-8111-111111111111",
+          "caseRevision": 1,
+          "kind": "FACT",
+          "authority": "HUMAN_PROVIDED",
+          "statement": "Accepted fact.",
+          "evidenceIds": ["11111111-1111-4111-8111-111111111111"]
+        }
+      ],
+      "evidenceIndex": [
+        {
+          "evidenceId": "11111111-1111-4111-8111-111111111111",
+          "type": "HUMAN_ANSWER",
+          "contentSha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "repositoryCommit": null,
+          "safeLocator": null
+        }
+      ],
+      "outcomeSummary": {
+        "totalRules": 1,
+        "applicableCompliant": 1,
+        "applicableNonCompliant": 0,
+        "notApplicable": 0
+      },
+      "boundedNarrative": {
+        "summary": "VI: Assessment summary.",
+        "actionPlan": [],
+        "scopeLimitations": []
+      },
+      "publicationProvenance": {
+        "sourceManifestDigest": null,
+        "publishedAt": null
+      }
+    }
+  },
+  "events": {
+    "en:0": {
+      "assessmentId": "00000000-0000-4000-8000-000000000102",
+      "events": [
+        {
+          "eventId": "00000000-0000-4000-8000-000000000104",
+          "assessmentId": "00000000-0000-4000-8000-000000000102",
+          "threadId": "00000000-0000-4000-8000-000000000103",
+          "sequence": 1,
+          "timestamp": "2026-11-08T00:00:00.000Z",
+          "actorType": "RUNTIME",
+          "executionId": "00000000-0000-4000-8000-000000000105",
+          "eventType": "ACTIVITY_RECORDED",
+          "payload": {
+            "kind": "MODEL",
+            "labelKey": "assessment.activity.modelStepCompleted",
+            "summary": "EN: Analysis 1"
+          }
+        }
+      ],
+      "hasMore": true,
+      "nextAfterSequence": 1
+    },
+    "en:1": {
+      "assessmentId": "00000000-0000-4000-8000-000000000102",
+      "events": [
+        {
+          "eventId": "00000000-0000-4000-8000-000000000106",
+          "assessmentId": "00000000-0000-4000-8000-000000000102",
+          "threadId": "00000000-0000-4000-8000-000000000103",
+          "sequence": 2,
+          "timestamp": "2026-11-08T00:00:00.000Z",
+          "actorType": "RUNTIME",
+          "executionId": "00000000-0000-4000-8000-000000000107",
+          "eventType": "ACTIVITY_RECORDED",
+          "payload": {
+            "kind": "MODEL",
+            "labelKey": "assessment.activity.modelStepCompleted",
+            "summary": "EN: Analysis 2"
+          }
+        }
+      ],
+      "hasMore": false,
+      "nextAfterSequence": 2
+    },
+    "vi:0": {
+      "assessmentId": "00000000-0000-4000-8000-000000000108",
+      "events": [
+        {
+          "eventId": "00000000-0000-4000-8000-000000000110",
+          "assessmentId": "00000000-0000-4000-8000-000000000108",
+          "threadId": "00000000-0000-4000-8000-000000000109",
+          "sequence": 1,
+          "timestamp": "2026-11-08T00:00:00.000Z",
+          "actorType": "RUNTIME",
+          "executionId": "00000000-0000-4000-8000-000000000111",
+          "eventType": "ACTIVITY_RECORDED",
+          "payload": {
+            "kind": "MODEL",
+            "labelKey": "assessment.activity.modelStepCompleted",
+            "summary": "VI: Analysis 1"
+          }
+        }
+      ],
+      "hasMore": true,
+      "nextAfterSequence": 1
+    },
+    "vi:1": {
+      "assessmentId": "00000000-0000-4000-8000-000000000108",
+      "events": [
+        {
+          "eventId": "00000000-0000-4000-8000-000000000112",
+          "assessmentId": "00000000-0000-4000-8000-000000000108",
+          "threadId": "00000000-0000-4000-8000-000000000109",
+          "sequence": 2,
+          "timestamp": "2026-11-08T00:00:00.000Z",
+          "actorType": "RUNTIME",
+          "executionId": "00000000-0000-4000-8000-000000000113",
+          "eventType": "ACTIVITY_RECORDED",
+          "payload": {
+            "kind": "MODEL",
+            "labelKey": "assessment.activity.modelStepCompleted",
+            "summary": "VI: Analysis 2"
+          }
+        }
+      ],
+      "hasMore": false,
+      "nextAfterSequence": 2
+    }
+  },
+  "catalog": {
+    "en:0": {
+      "groups": [
+        {
+          "groupId": "TESTING_CHANGE_ASSURANCE",
+          "taxonomyVersion": "v1",
+          "nameEn": "Testing",
+          "nameVi": "Kiểm thử",
+          "descriptionEn": "Reviewed tests",
+          "descriptionVi": "Kiểm thử đã rà soát",
+          "count": 2,
+          "ruleIds": ["rule-1", "rule-2"]
+        }
+      ],
+      "groupingState": "APPROVED",
+      "excludedRuleCount": 0,
+      "assessmentId": "00000000-0000-4000-8000-000000000114",
+      "auditMode": "CUSTOMER_SELECTED",
+      "auditRevision": 0,
+      "ruleSetVersionId": "00000000-0000-4000-8000-000000000115",
+      "ruleSetDigest": "digest",
+      "repositorySnapshotId": "00000000-0000-4000-8000-000000000116",
+      "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "latestRequestId": null,
+      "latestRequestStatus": null,
+      "total": 2,
+      "offset": 0,
+      "nextOffset": 1,
+      "rules": [
+        {
+          "assessmentRuleId": "rule-1",
+          "assessmentRuleVersion": "v1",
+          "membership": {
+            "groupId": "TESTING_CHANGE_ASSURANCE",
+            "ordinal": 0,
+            "taxonomyVersion": "v1",
+            "rationaleEn": "Fixture reviewed membership",
+            "rationaleVi": "Phân nhóm fixture",
+            "actor": "DEVELOPER",
+            "lifecycleStage": "DEVELOPMENT",
+            "sourceReferences": [
+              {
+                "documentId": "LAW",
+                "locator": "article-1"
+              }
+            ]
+          },
+          "concept": "EN: Rule 1",
+          "summary": "EN: Intent 1",
+          "legalRequirements": [
+            {
+              "legalRequirementId": "req-1",
+              "title": "EN: Requirement 1",
+              "sources": [
+                {
+                  "documentId": "LAW",
+                  "locator": "article-1"
+                }
+              ]
+            }
+          ],
+          "progress": "NOT_SELECTED",
+          "decisionId": null
+        }
+      ]
+    },
+    "en:1": {
+      "groups": [
+        {
+          "groupId": "TESTING_CHANGE_ASSURANCE",
+          "taxonomyVersion": "v1",
+          "nameEn": "Testing",
+          "nameVi": "Kiểm thử",
+          "descriptionEn": "Reviewed tests",
+          "descriptionVi": "Kiểm thử đã rà soát",
+          "count": 2,
+          "ruleIds": ["rule-1", "rule-2"]
+        }
+      ],
+      "groupingState": "APPROVED",
+      "excludedRuleCount": 0,
+      "assessmentId": "00000000-0000-4000-8000-000000000114",
+      "auditMode": "CUSTOMER_SELECTED",
+      "auditRevision": 0,
+      "ruleSetVersionId": "00000000-0000-4000-8000-000000000115",
+      "ruleSetDigest": "digest",
+      "repositorySnapshotId": "00000000-0000-4000-8000-000000000116",
+      "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "latestRequestId": null,
+      "latestRequestStatus": null,
+      "total": 2,
+      "offset": 1,
+      "nextOffset": null,
+      "rules": [
+        {
+          "assessmentRuleId": "rule-2",
+          "assessmentRuleVersion": "v1",
+          "membership": {
+            "groupId": "TESTING_CHANGE_ASSURANCE",
+            "ordinal": 1,
+            "taxonomyVersion": "v1",
+            "rationaleEn": "Fixture reviewed membership",
+            "rationaleVi": "Phân nhóm fixture",
+            "actor": "DEVELOPER",
+            "lifecycleStage": "DEVELOPMENT",
+            "sourceReferences": [
+              {
+                "documentId": "LAW",
+                "locator": "article-2"
+              }
+            ]
+          },
+          "concept": "EN: Rule 2",
+          "summary": "EN: Intent 2",
+          "legalRequirements": [
+            {
+              "legalRequirementId": "req-2",
+              "title": "EN: Requirement 2",
+              "sources": [
+                {
+                  "documentId": "LAW",
+                  "locator": "article-2"
+                }
+              ]
+            }
+          ],
+          "progress": "NOT_SELECTED",
+          "decisionId": null
+        }
+      ]
+    },
+    "vi:0": {
+      "groups": [
+        {
+          "groupId": "TESTING_CHANGE_ASSURANCE",
+          "taxonomyVersion": "v1",
+          "nameEn": "Testing",
+          "nameVi": "Kiểm thử",
+          "descriptionEn": "Reviewed tests",
+          "descriptionVi": "Kiểm thử đã rà soát",
+          "count": 2,
+          "ruleIds": ["rule-1", "rule-2"]
+        }
+      ],
+      "groupingState": "APPROVED",
+      "excludedRuleCount": 0,
+      "assessmentId": "00000000-0000-4000-8000-000000000117",
+      "auditMode": "CUSTOMER_SELECTED",
+      "auditRevision": 0,
+      "ruleSetVersionId": "00000000-0000-4000-8000-000000000118",
+      "ruleSetDigest": "digest",
+      "repositorySnapshotId": "00000000-0000-4000-8000-000000000119",
+      "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "latestRequestId": null,
+      "latestRequestStatus": null,
+      "total": 2,
+      "offset": 0,
+      "nextOffset": 1,
+      "rules": [
+        {
+          "assessmentRuleId": "rule-1",
+          "assessmentRuleVersion": "v1",
+          "membership": {
+            "groupId": "TESTING_CHANGE_ASSURANCE",
+            "ordinal": 0,
+            "taxonomyVersion": "v1",
+            "rationaleEn": "Fixture reviewed membership",
+            "rationaleVi": "Phân nhóm fixture",
+            "actor": "DEVELOPER",
+            "lifecycleStage": "DEVELOPMENT",
+            "sourceReferences": [
+              {
+                "documentId": "LAW",
+                "locator": "article-1"
+              }
+            ]
+          },
+          "concept": "VI: Rule 1",
+          "summary": "VI: Intent 1",
+          "legalRequirements": [
+            {
+              "legalRequirementId": "req-1",
+              "title": "VI: Requirement 1",
+              "sources": [
+                {
+                  "documentId": "LAW",
+                  "locator": "article-1"
+                }
+              ]
+            }
+          ],
+          "progress": "NOT_SELECTED",
+          "decisionId": null
+        }
+      ]
+    },
+    "vi:1": {
+      "groups": [
+        {
+          "groupId": "TESTING_CHANGE_ASSURANCE",
+          "taxonomyVersion": "v1",
+          "nameEn": "Testing",
+          "nameVi": "Kiểm thử",
+          "descriptionEn": "Reviewed tests",
+          "descriptionVi": "Kiểm thử đã rà soát",
+          "count": 2,
+          "ruleIds": ["rule-1", "rule-2"]
+        }
+      ],
+      "groupingState": "APPROVED",
+      "excludedRuleCount": 0,
+      "assessmentId": "00000000-0000-4000-8000-000000000117",
+      "auditMode": "CUSTOMER_SELECTED",
+      "auditRevision": 0,
+      "ruleSetVersionId": "00000000-0000-4000-8000-000000000118",
+      "ruleSetDigest": "digest",
+      "repositorySnapshotId": "00000000-0000-4000-8000-000000000119",
+      "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "latestRequestId": null,
+      "latestRequestStatus": null,
+      "total": 2,
+      "offset": 1,
+      "nextOffset": null,
+      "rules": [
+        {
+          "assessmentRuleId": "rule-2",
+          "assessmentRuleVersion": "v1",
+          "membership": {
+            "groupId": "TESTING_CHANGE_ASSURANCE",
+            "ordinal": 1,
+            "taxonomyVersion": "v1",
+            "rationaleEn": "Fixture reviewed membership",
+            "rationaleVi": "Phân nhóm fixture",
+            "actor": "DEVELOPER",
+            "lifecycleStage": "DEVELOPMENT",
+            "sourceReferences": [
+              {
+                "documentId": "LAW",
+                "locator": "article-2"
+              }
+            ]
+          },
+          "concept": "VI: Rule 2",
+          "summary": "VI: Intent 2",
+          "legalRequirements": [
+            {
+              "legalRequirementId": "req-2",
+              "title": "VI: Requirement 2",
+              "sources": [
+                {
+                  "documentId": "LAW",
+                  "locator": "article-2"
+                }
+              ]
+            }
+          ],
+          "progress": "NOT_SELECTED",
+          "decisionId": null
+        }
+      ]
+    }
+  }
+}
