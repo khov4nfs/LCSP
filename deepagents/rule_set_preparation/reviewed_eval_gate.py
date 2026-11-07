@@ -23,6 +23,161 @@ _REQUIRED_GOLD_FIELDS = (
 )
 _REQUIRED_USAGE = ("physicalAttempts", "failedAttempts", "inputTokens",
                    "cachedInputTokens", "outputTokens", "providerCost")
+PM_REVIEW_CASE_IDS = (
+    "RISK_CLASSIFICATION_BEFORE_USE", "DATA_PROCESSING_IMPACT_DOSSIER",
+    "RISK_DOSSIER_CONTENT", "RISK_DOSSIER_RETENTION", "MATERIAL_CHANGE_REASSESSMENT",
+    "OPERATIONAL_INFORMATION_MEASURES", "CHILD_PRIVACY_DISCLOSURE_CONSENT",
+)
+_CASE_EVIDENCE_FIELDS = (
+    "legalSourceVersionId", "legalSourceVersion", "effectiveProvision", "locator",
+    "sourceText", "sourceSha256", "effectStatus", "actor", "action", "trigger",
+    "lifecycleStage", "repositoryVerifiableAspect", "proposedDisposition",
+    "independentReviewerId", "goldRevision", "approvedGoldDigest",
+)
+
+
+def reviewed_case_package_preflight(package, raw, expected_sha256):
+    """Business purpose: Reject an incomplete seven-case legal review package before comparison.
+
+    Business rules:
+    - Reported case titles are not gold; exact source evidence, independent review and externally pinned package bytes are mandatory.
+    - Positive, mixed and unresolved controls are analytical fixtures, never new persisted stage enums or legal authority.
+    Execution flow:
+    1. Verify the external package digest, exact case coverage, source/gold hashes and independently reviewed controls.
+    Failure cases:
+    - Missing or inconsistent review inputs return explicit blocking codes without inferring legal labels.
+    Side effects:
+    - Pure validation; does not approve gold, activate rules or invoke a model.
+    """
+    errors = []
+    if not isinstance(expected_sha256, str) or not _HASH.fullmatch(expected_sha256):
+        errors.append("PM_REVIEW_PACKAGE_EXTERNAL_DIGEST_REQUIRED")
+    elif sha256(raw).hexdigest() != expected_sha256:
+        errors.append("PM_REVIEW_PACKAGE_DIGEST_MISMATCH")
+    if json.loads(raw) != package:
+        errors.append("PM_REVIEW_PACKAGE_BYTES_MISMATCH")
+    if package.get("approvalStatus") != "HUMAN_APPROVED":
+        errors.append("PM_REVIEW_PACKAGE_INDEPENDENT_APPROVAL_REQUIRED")
+    authorization = package.get("evaluationAuthorization")
+    if not isinstance(authorization, dict) or any(not authorization.get(key) for key in ("approvedBy", "budgetApprovalId", "modelConfigurationDigest", "holdoutSha256", "rubricSha256", "maximumProviderCost", "budgetCurrency")):
+        errors.append("PM_MODEL_EVALUATION_AUTHORIZATION_REQUIRED")
+    elif (any(not isinstance(authorization[key], str) or not _HASH.fullmatch(authorization[key]) for key in ("modelConfigurationDigest", "holdoutSha256", "rubricSha256"))
+          or not isinstance(authorization["maximumProviderCost"], (int, float)) or isinstance(authorization["maximumProviderCost"], bool)
+          or not isfinite(authorization["maximumProviderCost"]) or authorization["maximumProviderCost"] <= 0):
+        errors.append("PM_MODEL_EVALUATION_AUTHORIZATION_INVALID")
+    cases = package.get("cases", [])
+    if (not isinstance(cases, list) or len(cases) != len(PM_REVIEW_CASE_IDS)
+            or {row.get("caseId") for row in cases if isinstance(row, dict)} != set(PM_REVIEW_CASE_IDS)):
+        errors.append("PM_REVIEW_PACKAGE_SEVEN_CASES_REQUIRED")
+        return errors
+    controls = package.get("controls", {})
+    rows = list(cases)
+    for kind in ("development", "mixed", "legalReviewRequired"):
+        group = controls.get(kind) if isinstance(controls, dict) else None
+        if not isinstance(group, list) or not group:
+            errors.append("PM_REVIEW_CONTROL_REQUIRED:" + kind)
+        else:
+            rows.extend(group)
+    for row in rows:
+        identity = row.get("caseId", "CONTROL") if isinstance(row, dict) else "CONTROL"
+        if not isinstance(row, dict):
+            errors.append("PM_REVIEW_CASE_INVALID:" + identity)
+            continue
+        missing = [key for key in _CASE_EVIDENCE_FIELDS if not isinstance(row.get(key), str) or not row[key].strip()]
+        if missing:
+            errors.append("PM_REVIEW_CASE_EVIDENCE_REQUIRED:" + identity + ":" + ",".join(missing))
+            continue
+        if sha256(row["sourceText"].encode("utf-8")).hexdigest() != row["sourceSha256"]:
+            errors.append("PM_REVIEW_SOURCE_TEXT_DIGEST_MISMATCH:" + identity)
+        if not isinstance(row.get("sourceNodeIds"), list) or not row["sourceNodeIds"] or any(not isinstance(value, str) or not _HASH.fullmatch(value) for value in row["sourceNodeIds"]):
+            errors.append("PM_REVIEW_SOURCE_NODE_PINS_REQUIRED:" + identity)
+        gold = row.get("gold")
+        if not isinstance(gold, dict) or stable_hash(gold) != row["approvedGoldDigest"]:
+            errors.append("PM_REVIEW_CASE_GOLD_DIGEST_MISMATCH:" + identity)
+        elif gold.get("legalSourceVersionId") != row["legalSourceVersionId"]:
+            errors.append("PM_REVIEW_CASE_GOLD_SOURCE_MISMATCH:" + identity)
+        elif (gold.get("goldApprovalStatus") != "HUMAN_APPROVED" or any(key not in gold for key in _REQUIRED_GOLD_FIELDS)
+              or not isinstance(gold.get("normativeClaims"), list) or not gold["normativeClaims"]
+              or any(not isinstance(claim, dict) or not {"claimId", "actor", "action", "modality", "claimType", "sourceNodeIds", "frame"} <= claim.keys() for claim in gold["normativeClaims"])):
+            errors.append("PM_REVIEW_CASE_ATOMIC_GOLD_REQUIRED:" + identity)
+    return errors
+
+
+def reviewed_cases_in_aggregate_gold(package, gold):
+    """Business purpose: Prevent an approved case package being scored against unrelated aggregate gold.
+
+    Business rules:
+    - Every reviewed case/control proposition, stage label and context edge must appear unchanged in the frozen holdout gold.
+    Execution flow:
+    1. Compare source identity and per-dimension reviewed rows with the aggregate gold used by the scorer.
+    Failure cases:
+    - Missing or different reviewed expectations block comparison instead of silently omitting a PM case.
+    Side effects:
+    - Pure validation; neither the holdout nor source inventory is rewritten.
+    """
+    errors = []
+    rows = list(package.get("cases", []))
+    for controls in package.get("controls", {}).values():
+        if isinstance(controls, list):
+            rows.extend(controls)
+    for row in rows:
+        case_gold = row.get("gold")
+        if not isinstance(case_gold, dict):
+            continue  # Package preflight records the missing external input.
+        identity = row.get("caseId", "CONTROL")
+        if case_gold.get("legalSourceVersionId") != gold.get("legalSourceVersionId"):
+            errors.append("PM_REVIEW_AGGREGATE_GOLD_SOURCE_MISMATCH:" + identity)
+        for key in _REQUIRED_GOLD_FIELDS:
+            expected, aggregate = case_gold.get(key), gold.get(key)
+            if not isinstance(expected, list) or not isinstance(aggregate, list) or any(item not in aggregate for item in expected):
+                errors.append("PM_REVIEW_AGGREGATE_GOLD_CASE_MISSING:" + identity + ":" + key)
+    return errors
+
+
+def paired_eval_preflight(baseline, candidate, review_package=None):
+    """Business purpose: Keep baseline/candidate evidence comparable without altering a holdout.
+
+    Business rules:
+    - Model configuration, source pins, gold revision and approved EN bundle must be identical; usage/cost remain separate measured receipts.
+    Execution flow:
+    1. Compare immutable identities and require non-synthetic authorized instruction bundle provenance.
+    Failure cases:
+    - Different or missing execution identities block a release comparison.
+    Side effects:
+    - Pure comparison; no provider call, billing adjustment or legal approval.
+    """
+    errors = []
+    for key in ("model", "sourcePins", "goldReviewerRevision"):
+        if not baseline.get(key) or baseline.get(key) != candidate.get(key):
+            errors.append("PAIRED_EVAL_IDENTITY_MISMATCH:" + key)
+    for manifest in (baseline, candidate):
+        bundle = manifest.get("instructionBundle")
+        if not isinstance(bundle, dict) or any(not bundle.get(key) for key in ("id", "approvalIdentity", "approvalRevision", "enRuntimeBundleDigest")) or str(bundle.get("approvalIdentity", "")).startswith("TEST_ONLY"):
+            errors.append("PAIRED_EVAL_APPROVED_RUNTIME_REQUIRED")
+    if baseline.get("instructionBundle") != candidate.get("instructionBundle"):
+        errors.append("PAIRED_EVAL_INSTRUCTION_BUNDLE_MISMATCH")
+    if review_package is not None:
+        source_version = candidate.get("sourcePins", {}).get("legalSourceVersionId")
+        if any(row.get("legalSourceVersionId") != source_version for row in review_package.get("cases", [])):
+            errors.append("PAIRED_EVAL_REVIEW_CASE_SOURCE_MISMATCH")
+        authorization = review_package.get("evaluationAuthorization") or {}
+        for manifest in (baseline, candidate):
+            if stable_hash(manifest.get("model")) != authorization.get("modelConfigurationDigest"):
+                errors.append("PAIRED_EVAL_AUTHORIZED_MODEL_MISMATCH")
+            if manifest.get("evaluationHoldoutSha256") != authorization.get("holdoutSha256") or manifest.get("evaluationRubricSha256") != authorization.get("rubricSha256"):
+                errors.append("PAIRED_EVAL_HOLDOUT_OR_RUBRIC_MISMATCH")
+            billing = manifest.get("billingReconciliation") or {}
+            usage = manifest.get("usage") or {}
+            if (any(not isinstance(billing.get(key), str) or not _HASH.fullmatch(billing[key]) for key in ("providerUsageReceiptSha256", "billingReceiptSha256"))
+                    or billing.get("providerCost") != usage.get("providerCost") or billing.get("costCurrency") != usage.get("costCurrency")):
+                errors.append("PAIRED_EVAL_PROVIDER_BILLING_EVIDENCE_REQUIRED")
+            if usage.get("costCurrency") != authorization.get("budgetCurrency"):
+                errors.append("PAIRED_EVAL_AUTHORIZED_CURRENCY_MISMATCH")
+        costs = [(manifest.get("usage") or {}).get("providerCost") for manifest in (baseline, candidate)]
+        limit = authorization.get("maximumProviderCost")
+        if isinstance(limit, (int, float)) and not isinstance(limit, bool) and all(isinstance(cost, (int, float)) and not isinstance(cost, bool) and isfinite(cost) for cost in costs) and sum(costs) > limit:
+            errors.append("PAIRED_EVAL_AUTHORIZED_BUDGET_EXCEEDED")
+    return sorted(set(errors))
 
 
 def reviewed_eval_preflight(

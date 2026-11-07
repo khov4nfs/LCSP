@@ -7214,9 +7214,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/eval_cli.py::main::KEYWORD_DESCRIPTION::39:dc9feb63baadc35a",
+      "siteId": "ast:rule_set_preparation/eval_cli.py::main::KEYWORD_DESCRIPTION::40:dc9feb63baadc35a",
       "filePath": "rule_set_preparation/eval_cli.py",
-      "lineNumber": 39,
+      "lineNumber": 40,
       "symbolName": "main",
       "constructionSha256": "dc9feb63baadc35a3182cf36d38b0eed76d24d1c7bf09c0f124611ed0181d6ba",
       "evidence": "\"Offline LCSP Preparation semantic scorer\"",
@@ -8896,7 +8896,7 @@
     {
       "siteId": "rule_set_preparation/eval_cli.py::main::19d1e197f9978257::1",
       "filePath": "rule_set_preparation/eval_cli.py",
-      "lineNumber": 39,
+      "lineNumber": 40,
       "symbolName": "main",
       "constructionSha256": "19d1e197f99782570040221dc63f099e77092c531294d9af5f963b331b521aaa",
       "evidence": "parser = argparse.ArgumentParser(description=\"Offline LCSP Preparation semantic scorer\")",

@@ -194,6 +194,23 @@ def evaluate_preparation_semantics(
             errors.append({"code": "MATERIAL_RELATION_LEAK", "relation": [kind, origin, target]})
 
     counts = {code: sum(x["code"] == code for x in errors) for code in sorted(CRITICAL)}
+    metrics = None
+    if preview is not None:
+        required_development = set(gold.get("developmentClaimIds", []))
+        required_other = set(gold.get("nonDevelopmentClaimIds", []))
+        selected = set(preview["developmentClaimIds"])
+        false_positives = len(selected & required_other)
+        false_negatives = len(required_development - selected)
+        metrics = {
+            "unit": "SOURCE_PINNED_ATOMIC_CLAIM", "truePositives": len(selected & required_development),
+            "falsePositives": false_positives, "falseNegatives": false_negatives,
+            "falsePositiveRate": false_positives / len(required_other) if required_other else None,
+            "falseNegativeRate": false_negatives / len(required_development) if required_development else None,
+            "developmentDutyRecall": len(selected & required_development) / len(required_development) if required_development else None,
+            "operationalDutyLeakage": sorted(selected & required_other),
+            "unreviewedSelections": sorted(selected - required_development - required_other - set(gold.get("unresolvedClaimIds", []))),
+            "missedReviewRequiredClaims": sorted(set(gold.get("unresolvedClaimIds", [])) - set(preview.get("unresolvedClaimIds", []))),
+        }
     return {
         "schemaVersion": "PREPARATION_SEMANTIC_EVAL_RESULT_V1",
         "legalSourceVersionId": gold["legalSourceVersionId"],
@@ -202,6 +219,7 @@ def evaluate_preparation_semantics(
         "expectedNormativeClaims": len(expected),
         "observedNormativeClaims": len(actual_claims),
         "criticalErrorCounts": counts,
+        "claimMetrics": metrics,
         "errors": errors,
         "fixtureMatched": not errors,
         "productionAcceptance": "NOT_PROVEN",
