@@ -1489,9 +1489,167 @@ def test_unknown_response_review_rewaits_without_fact_or_duplicate_question(tmp_
     results = [json.loads(m.content) for m in reviewed["messages"] if isinstance(m, ToolMessage) and m.name == "open_human_request"]
     assert results[-1]["responseKind"] == "UNKNOWN"
     assert results[-1]["resolved"] is False
+    assert "facts" not in results[-1] and "humanRequest" not in results[-1]
+    assert len(results[-1]["contextSnapshotToken"]) == 64
+    assert results[-1]["request"] == {
+        "requestId": client.requests[0]["requestId"],
+        "requestRevision": 1,
+        "status": "OPEN",
+        "assessmentRuleId": "ER-1",
+        "resolvedFactId": None,
+    }
     assert client.case_revision == 0
     assert not any(kind in {"fact", "decision", "final_report"} for kind, _ in client.calls)
     assert len({body["idempotencyKey"] for kind, body in client.calls if kind == "human"}) == 1
+
+
+def test_hitl_resume_stays_bounded_with_large_facts_and_unknown_answer_history(tmp_path):
+    from langgraph.types import Command
+
+    class LargeReviewClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.requests = []
+            self.large_facts = [
+                {
+                    "factId": f"fact-{index}",
+                    "caseRevision": 1,
+                    "kind": "FACT",
+                    "state": "ACCEPTED",
+                    "authority": "HUMAN_PROVIDED",
+                    "statement": "x" * 12000,
+                    "evidenceIds": [],
+                }
+                for index in range(12)
+            ]
+
+        def context(self):
+            return {
+                **super().context(),
+                "facts": self.large_facts,
+                "humanRequests": self.requests,
+            }
+
+    client = LargeReviewClient()
+    request_id = _unknown_request()["requestId"]
+    client.open_requests = [request_id]
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(
+        responses=[
+            _call("wait_for_human_requests", {}, "wait"),
+            _call("wait_for_human_requests", {}, "wait-again"),
+        ]
+    )
+    saver = InMemorySaver()
+    agent = create_assessment_root_agent(
+        run=run, model=model, governance=(), checkpointer=saver, graph_tools=[]
+    )
+    config = {"configurable": {"thread_id": THREAD}}
+    first = agent.invoke(
+        {"messages": [{"role": "user", "content": "Review the pending answer."}]},
+        config,
+    )
+    checkpoint = agent.get_state(config).config["configurable"]["checkpoint_id"]
+    row = _unknown_request(request_id=request_id, checkpoint_id=checkpoint)
+    row["answers"] = [
+        {
+            "doesNotKnow": True,
+            "answer": None,
+            "checkpointId": checkpoint,
+            "requestRevision": 1,
+            "auditNote": "history-" + ("y" * 12000),
+        }
+        for _ in range(10)
+    ]
+    client.requests = [row]
+    client.lifecycle_state = "WAITING_FOR_HUMAN"
+    assert run.authorize_human_answer_review(
+        {"humanAnswerReviewRequired": True, "resumeCheckpointId": checkpoint},
+        client.context(),
+    )
+
+    reviewed = agent.invoke(
+        Command(resume={first["__interrupt__"][0].id: {"review": True}}),
+        config,
+    )
+    result = next(
+        json.loads(message.content)
+        for message in reviewed["messages"]
+        if isinstance(message, ToolMessage)
+        and message.name == "wait_for_human_requests"
+    )
+
+    encoded = json.dumps(result, ensure_ascii=False).encode("utf-8")
+    assert len(encoded) < 4096
+    assert "facts" not in result
+    assert "humanRequest" not in json.dumps(result)
+    assert result["requests"][0]["responseKind"] == "UNKNOWN"
+    assert len(result["requests"][0]["contextSnapshotToken"]) == 64
+
+
+def test_hitl_resume_multiple_open_requests_returns_only_compact_envelopes(tmp_path):
+    from langgraph.types import Command
+
+    request_ids = [
+        "99999999-9999-4999-8999-999999999991",
+        "99999999-9999-4999-8999-999999999992",
+        "99999999-9999-4999-8999-999999999993",
+    ]
+
+    class MultiReviewClient(FakeClient):
+        def __init__(self):
+            super().__init__(open_requests=request_ids)
+            self.requests = []
+
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests}
+
+    client = MultiReviewClient()
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(
+        responses=[
+            _call("wait_for_human_requests", {}, "wait"),
+            _call("wait_for_human_requests", {}, "wait-again"),
+        ]
+    )
+    saver = InMemorySaver()
+    agent = create_assessment_root_agent(
+        run=run, model=model, governance=(), checkpointer=saver, graph_tools=[]
+    )
+    config = {"configurable": {"thread_id": THREAD}}
+    first = agent.invoke(
+        {"messages": [{"role": "user", "content": "Review all pending answers."}]},
+        config,
+    )
+    checkpoint = agent.get_state(config).config["configurable"]["checkpoint_id"]
+    client.requests = [
+        {
+            **_unknown_request(request_id=request_id, checkpoint_id=checkpoint),
+            "assessmentRuleId": f"ER-{index + 1}",
+        }
+        for index, request_id in enumerate(request_ids)
+    ]
+    client.lifecycle_state = "WAITING_FOR_HUMAN"
+    assert run.authorize_human_answer_review(
+        {"humanAnswerReviewRequired": True, "resumeCheckpointId": checkpoint},
+        client.context(),
+    )
+
+    reviewed = agent.invoke(
+        Command(resume={first["__interrupt__"][0].id: {"review": True}}),
+        config,
+    )
+    result = next(
+        json.loads(message.content)
+        for message in reviewed["messages"]
+        if isinstance(message, ToolMessage)
+        and message.name == "wait_for_human_requests"
+    )
+
+    assert [row["requestId"] for row in result["requests"]] == sorted(request_ids)
+    assert all("facts" not in row and "humanRequest" not in row for row in result["requests"])
+    assert all(len(row["contextSnapshotToken"]) == 64 for row in result["requests"])
+    assert len(json.dumps(result, ensure_ascii=False).encode("utf-8")) < 4096
 
 
 def test_existing_unresolvable_report_uses_authoritative_request_without_opening_duplicate(tmp_path):

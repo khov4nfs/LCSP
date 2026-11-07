@@ -1827,42 +1827,123 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "idempotencyKey": f"human:{run.thread_id}:{digest}",
         })
 
+    def _human_request_resume_payload(
+        context: dict[str, Any], result: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Business purpose:
+        Return bounded HITL continuation metadata without embedding facts or answer history.
+
+        Business rules:
+        - Resume payloads expose only request identity/status/revisions plus a token for governed context paging.
+        - UNKNOWN remains non-factual and requires exact checkpoint-bound review authority.
+        - Facts, evidence and complete human-request history are retrieved only through bounded context page/detail tools.
+
+        Execution flow:
+        1. Bind the current context collections to a snapshot token.
+        2. Locate the exact request identity in the authoritative human-request ledger.
+        3. Validate UNKNOWN review authority or report the request as resolved.
+        4. Return compact continuation metadata and the context snapshot token.
+
+        Failure cases:
+        - Missing request identity or unauthorized UNKNOWN review raises instead of fabricating a resolution.
+        - Oversized facts/history never enter this response; callers must use bounded context retrieval.
+
+        Side effects:
+        - Pure projection of an already-loaded authoritative context.
+        """
+        _, context_snapshot_token = _context_snapshot(run, context)
+        request_id = result["requestId"]
+        row = next(
+            (
+                row
+                for row in context.get("humanRequests", [])
+                if row["requestId"] == request_id
+            ),
+            None,
+        )
+        if request_id in context["openHumanRequestIds"] and row is None:
+            raise RuntimeError("human request resumed without authoritative request identity")
+        request = {
+            "requestId": request_id,
+            "requestRevision": (
+                row.get("requestRevision")
+                if row is not None
+                else result.get("requestRevision")
+            ),
+            "status": row.get("status") if row is not None else "RESOLVED",
+            "assessmentRuleId": (
+                row.get("assessmentRuleId")
+                if row is not None
+                else result.get("assessmentRuleId")
+            ),
+            "resolvedFactId": (
+                row.get("resolvedFactId")
+                if row is not None
+                else result.get("resolvedFactId")
+            ),
+        }
+        if request_id in context["openHumanRequestIds"]:
+            answers = row.get("answers", [])
+            latest = answers[-1] if answers else {}
+            if (
+                request_id not in run.human_answer_review_request_ids
+                or row.get("status") != "OPEN"
+                or row.get("resolvedFactId") is not None
+                or latest.get("doesNotKnow") is not True
+                or latest.get("answer") is not None
+                or latest.get("checkpointId")
+                != run.human_answer_review_checkpoint_id
+                or row.get("checkpointId") != run.human_answer_review_checkpoint_id
+                or latest.get("requestRevision") != row.get("requestRevision")
+            ):
+                raise RuntimeError(
+                    "human request resumed without an authoritative resolution or answer review"
+                )
+            return {
+                "ok": True,
+                "requestId": request_id,
+                "caseRevision": run.case_revision,
+                "resolved": False,
+                "responseKind": "UNKNOWN",
+                "request": request,
+                "contextSnapshotToken": context_snapshot_token,
+                "contextPageTool": "get_assessment_context_page",
+                "contextDetailTool": "get_assessment_context_detail",
+                "instruction": "This UNKNOWN response is not a fact or verdict. Read accepted facts/evidence through the bounded context tools; report permanent unavailability only if supported, otherwise call wait_for_human_requests.",
+            }
+        return {
+            "ok": True,
+            "requestId": request_id,
+            "caseRevision": run.case_revision,
+            "resolved": True,
+            "request": request,
+            "contextSnapshotToken": context_snapshot_token,
+            "contextPageTool": "get_assessment_context_page",
+            "contextDetailTool": "get_assessment_context_detail",
+            "instruction": "Continue investigation using accepted facts from bounded context reads; re-evaluate stale decisions.",
+        }
+
     def resolved_human_request(result: dict[str, Any]) -> dict[str, Any]:
-        """Business purpose: Reload a human dependency as an accepted resolution or explicitly authorized unknown review.
+        """Business purpose:
+        Reload a human dependency as compact accepted resolution or authorized UNKNOWN review metadata.
 
         Business rules:
         - Resume values never establish facts; the authenticated API ledger is authoritative.
-        - OPEN requests can return only non-factual UNKNOWN feedback under exact checkpoint-bound review authority.
+        - Model-facing continuation never embeds complete facts, evidence or answer history.
+
         Execution flow:
         1. Reload current context and adopt server case pins.
-        2. Validate an open request against this execution's authorized unknown-answer checkpoint.
-        3. Return unresolved review feedback or accepted facts for a closed dependency.
+        2. Project the exact request through the bounded HITL continuation envelope.
+
         Failure cases:
-        - An open request without matching review authority raises instead of inventing a resolution.
+        - Missing request identity or unauthorized UNKNOWN review fails closed.
+
         Side effects:
         - Read-only API retrieval and execution-local cache refresh; no fact or lifecycle writes.
         """
         context = client.context()
         run.adopt_context(context)
-        request_id = result["requestId"]
-        if request_id in context["openHumanRequestIds"]:
-            row = next((row for row in context.get("humanRequests", []) if row["requestId"] == request_id), None)
-            answers = row.get("answers", []) if row else []
-            latest = answers[-1] if answers else {}
-            if (request_id not in run.human_answer_review_request_ids or not row
-                    or row.get("status") != "OPEN" or row.get("resolvedFactId") is not None
-                    or latest.get("doesNotKnow") is not True or latest.get("answer") is not None
-                    or latest.get("checkpointId") != run.human_answer_review_checkpoint_id
-                    or row.get("checkpointId") != run.human_answer_review_checkpoint_id
-                    or latest.get("requestRevision") != row.get("requestRevision")):
-                raise RuntimeError("human request resumed without an authoritative resolution or answer review")
-            return {"ok": True, "requestId": request_id, "caseRevision": run.case_revision,
-                    "resolved": False, "responseKind": "UNKNOWN", "humanRequest": row,
-                    "facts": context["facts"],
-                    "instruction": "This UNKNOWN response is not a fact or verdict. Investigate accepted evidence; report permanent unavailability only if supported, otherwise call wait_for_human_requests."}
-        return {"ok": True, "requestId": request_id, "caseRevision": run.case_revision,
-                "resolved": True, "facts": context["facts"],
-                "instruction": "Continue investigation using the accepted facts; re-evaluate stale decisions."}
+        return _human_request_resume_payload(context, result)
 
     def wait_for_human_requests() -> dict[str, Any]:
         """Business purpose: Retain unresolved human dependencies after reviewing an unknown response.
@@ -1884,8 +1965,27 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         request_ids = sorted(set(context["openHumanRequestIds"]))
         if request_ids:
             interrupt({"requestIds": request_ids})
-            return {"ok": True, "requests": [resolved_human_request({"requestId": request_id}) for request_id in request_ids]}
-        return {"ok": True, "requests": [], "facts": context["facts"], "caseRevision": run.case_revision}
+            resumed_context = client.context()
+            run.adopt_context(resumed_context)
+            return {
+                "ok": True,
+                "requests": [
+                    _human_request_resume_payload(
+                        resumed_context, {"requestId": request_id}
+                    )
+                    for request_id in request_ids
+                ],
+                "caseRevision": run.case_revision,
+            }
+        _, context_snapshot_token = _context_snapshot(run, context)
+        return {
+            "ok": True,
+            "requests": [],
+            "caseRevision": run.case_revision,
+            "contextSnapshotToken": context_snapshot_token,
+            "contextPageTool": "get_assessment_context_page",
+            "contextDetailTool": "get_assessment_context_detail",
+        }
 
     def report_existing_human_fact_unresolvable(
         request_id: str, unavailability_rationale: str, evidence_ids: list[str],
