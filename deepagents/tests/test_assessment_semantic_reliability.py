@@ -147,7 +147,13 @@ def test_repository_description_cannot_prove_or_refute_operator_legal_identity(t
     result = graph.invoke({"messages": [{"role": "user", "content": f"Investigate rule {rule_id}"}]}, config)
 
     assert result["__interrupt__"][0].value["requestIds"] == client.open_requests
-    assert client.calls[-1][0] == "human"
+    assert client.open_requests == ["99999999-9999-4999-8999-999999999999"]
+    human_writes = [body for kind, body in client.calls if kind == "human"]
+    assert len(human_writes) == 1
+    assert human_writes[0]["assessmentRuleId"] == rule_id
+    assert human_writes[0]["question"] == "What is the legal organizational form of the entity operating this deployment?"
+    assert human_writes[0]["unresolvedFact"] == "Operator legal organizational status"
+    assert human_writes[0]["expectedCaseRevision"] == client.case_revision
     assert not any(call[0] == "decision" for call in client.calls)
 
 
@@ -545,4 +551,11 @@ def test_human_clarification_invoked_after_uncertain_applicability(tmp_path):
     result = graph.invoke({"messages": [{"role": "user", "content": "Investigate foreign operator scope"}]}, config)
 
     assert result["__interrupt__"][0].value["requestIds"] == client.open_requests
-    assert client.calls[-1][0] == "human"
+    assert client.open_requests == ["99999999-9999-4999-8999-999999999999"]
+    human_writes = [body for kind, body in client.calls if kind == "human"]
+    assert len(human_writes) == 1
+    assert human_writes[0]["assessmentRuleId"] == rule_id
+    assert human_writes[0]["question"] == "Is the operator a foreign entity or organization operating in Vietnam?"
+    assert human_writes[0]["unresolvedFact"] == "Foreign organization status of operator"
+    assert human_writes[0]["expectedCaseRevision"] == client.case_revision
+    assert not any(call[0] == "decision" for call in client.calls)

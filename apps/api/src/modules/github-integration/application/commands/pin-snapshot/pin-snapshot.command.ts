@@ -16,6 +16,7 @@ export class PinSnapshotCommand {
    * @param ref - Optional Git ref to resolve.
    * @param commitSha - Optional explicit commit SHA to pin.
    * @param correlationId - Correlation identifier propagated to validation, audit, and response metadata.
+   * @param sourcePathPrefix - Exact repository-relative source directory, or null for the whole repository.
    */
   constructor(
     public readonly assessmentId: string,
@@ -27,5 +28,6 @@ export class PinSnapshotCommand {
     public readonly ref: string | undefined,
     public readonly commitSha: string | undefined,
     public readonly correlationId: string,
+    public readonly sourcePathPrefix: string | null = null,
   ) {}
 }

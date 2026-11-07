@@ -1,3 +1,4 @@
+import "./patch-net-tos.js";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module.js";

@@ -273,7 +273,11 @@ const groups = {
 };
 
 const selection = process.argv[2] ?? "help";
-if (process.platform === "linux" && devMemoryLimits[selection] && !process.env.LCSP_DEV_MEMORY_SCOPE) {
+if (
+  process.platform === "linux" &&
+  devMemoryLimits[selection] &&
+  !process.env.LCSP_DEV_MEMORY_SCOPE
+) {
   const result = spawnSync(
     "systemd-run",
     [
@@ -289,7 +293,10 @@ if (process.platform === "linux" && devMemoryLimits[selection] && !process.env.L
     ],
     { cwd: repoRoot, env: process.env, stdio: "inherit", shell: false },
   );
-  if (result.error) console.error(`[run] Cannot enforce development memory limit: ${result.error.message}`);
+  if (result.error)
+    console.error(
+      `[run] Cannot enforce development memory limit: ${result.error.message}`,
+    );
   process.exit(result.status ?? 1);
 }
 await main();
@@ -688,6 +695,21 @@ function spawnTarget(target) {
   });
 }
 
+/**
+ * Business purpose: Prepare the configured environment for one development child process.
+ * Business rules:
+ * - Preserve caller/target settings while applying existing tracing and virtualenv isolation.
+ * - Inject the socket TOS preload only on Darwin with explicit LCSP_NODE_DARWIN_TOS_COMPAT=1.
+ * - Preserve existing Node options and quote the preload path; repeated preparation must not duplicate it.
+ * Execution flow:
+ * 1. Merge defined environment values and apply tracing controls.
+ * 2. Remove an inherited virtualenv when requested by the target.
+ * 3. Append the opted-in Darwin preload once and return the child environment.
+ * Failure cases:
+ * - Disabled compatibility or other platforms leave NODE_OPTIONS unchanged.
+ * Side effects:
+ * - Returns a new environment object without mutating process.env or launching a process.
+ */
 function buildSpawnEnv(target) {
   const env = Object.fromEntries(
     Object.entries({ ...process.env, ...target.env }).filter(
@@ -708,6 +730,16 @@ function buildSpawnEnv(target) {
       env.PATH = env.PATH.split(path.delimiter)
         .filter((entry) => path.resolve(entry) !== virtualEnvBin)
         .join(path.delimiter);
+    }
+  }
+
+  if (isDarwin && env.LCSP_NODE_DARWIN_TOS_COMPAT === "1") {
+    const macFixPath = path.join(repoRoot, "scripts", "node-mac-fix.cjs");
+    const macFixOption = `--require=${JSON.stringify(macFixPath)}`;
+    if (!(env.NODE_OPTIONS ?? "").includes(macFixOption)) {
+      env.NODE_OPTIONS = [env.NODE_OPTIONS, macFixOption]
+        .filter(Boolean)
+        .join(" ");
     }
   }
 
@@ -768,10 +800,12 @@ function cleanupDockerWorkerContainer(target) {
 // Model routes ship in the worker image (deepagents/config/model_routes.yaml). Only an
 // operator override file (LCSP_MODEL_ROUTES_FILE) is bind-mounted, read-only; the worker
 // validates it fail-closed.
-const dockerModelRoutesTarget = "/app/deepagents/config/model_routes.override.yaml";
+const dockerModelRoutesTarget =
+  "/app/deepagents/config/model_routes.override.yaml";
 
 function dockerModelRoutesFile() {
-  const file = process.env.LCSP_MODEL_ROUTES_FILE ?? rootEnv.LCSP_MODEL_ROUTES_FILE;
+  const file =
+    process.env.LCSP_MODEL_ROUTES_FILE ?? rootEnv.LCSP_MODEL_ROUTES_FILE;
   return file ? path.resolve(repoRoot, file) : "";
 }
 

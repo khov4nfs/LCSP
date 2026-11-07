@@ -14,6 +14,9 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_DECISION_RECORD_STATES,
   HUMAN_RESOLUTION_CONTROL_TYPES,
+  ASSESSMENT_FACT_AUTHORITIES,
+  ASSESSMENT_EVIDENCE_TYPES,
+  ASSESSMENT_RECORD_STATES,
   type OpenAssessmentHumanRequestResult,
 } from "@lcsp/contracts/assessment-domain";
 import {
@@ -38,6 +41,11 @@ import {
   ROOT_AUDIT_ACTOR,
   invalid,
 } from "../../../infrastructure/persistence/assessment-case-support.service.js";
+import {
+  canonicalHumanRequestDependencies,
+  hasSameHumanFactScope,
+  humanRequestDependenciesOf,
+} from "../../../infrastructure/persistence/assessment-human-request-dependencies.js";
 import { OpenHumanRequestCommand } from "./open-human-request.command.js";
 
 @CommandHandler(OpenHumanRequestCommand)
@@ -52,21 +60,20 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
   ) {}
 
   /**
-   * Business purpose: Open a customer resolution request only for a rule authorized by the active Root request.
-   *
+   * Business purpose: Ask one factual question once for the rules authorized by the active Root audit.
    * Business rules:
-   * - Selected requests must contain the rule regardless of prior coverage; legacy full audits have no request ID.
-   * - The pinned rule criteria, customer-safe content and current case revision remain authoritative.
-   *
+   * - Every declared dependency must belong to the selected request, even on replay; legacy full audits retain their full pinned scope.
+   * - Source reuse requires the same assessment, thread and factual scope; open sources also retain the opening revision.
+   * - Resolved reuse requires accepted human fact and evidence authority; historical dependencies outside this audit are preserved without mutation.
+   * - Registration receipts reject conflicting idempotency payloads without duplicating customer questions.
    * Execution flow:
-   * 1. Authorize the Root lease and validate selected membership.
-   * 2. Validate the request, persist it, move coverage to waiting and transition lifecycle when needed.
-   *
+   * 1. Authorize the lease and every dependency, then validate replay identity, current pins and rule criteria.
+   * 2. Create or explicitly reuse the canonical question and attach only this audit's declared dependencies.
+   * 3. Reopen affected coverage, persist registration and audit, and enter human waiting for an open question.
    * Failure cases:
-   * - Nonmembers or invalid/stale requests fail before human-request side effects.
-   *
+   * - Nonmembers, stale revisions, invalid criteria, foreign factual scopes and invalidated evidence reject atomically.
    * Side effects:
-   * - Persists a human request, updates decision coverage, appends events and may transition lifecycle.
+   * - Persists the request, dependencies and audit history; updates only authorized coverage and creates no compliance verdict or fact.
    */
   async execute(
     input: OpenHumanRequestCommand,
@@ -77,12 +84,20 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
         ...input,
         requireActive: false,
       });
-      await this.authority.requireSelectedRuleMembershipInTx(
-        tx,
-        run,
-        request.assessmentRuleId,
-        input.correlationId,
+      const dependencies = canonicalHumanRequestDependencies(
+        {
+          assessmentRuleId: request.assessmentRuleId,
+          criterionIds: request.criterionIds,
+        },
+        request.dependencies,
       );
+      for (const dependency of dependencies)
+        await this.authority.requireSelectedRuleMembershipInTx(
+          tx,
+          run,
+          dependency.assessmentRuleId,
+          input.correlationId,
+        );
       const {
         expectedCaseRevision: _revision,
         idempotencyKey: _key,
@@ -91,6 +106,27 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
       void _revision;
       void _key;
       const requestDigest = sha256Hex(canonicalJson(content));
+      const receipt = await tx.assessmentHumanRequestRegistration.findUnique({
+        where: {
+          assessmentId_idempotencyKey: {
+            assessmentId: input.assessmentId,
+            idempotencyKey: request.idempotencyKey,
+          },
+        },
+      });
+      if (receipt) {
+        if (receipt.requestDigest !== requestDigest)
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.IDEMPOTENCY_CONFLICT,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        return {
+          requestId: receipt.requestId,
+          caseRevision: receipt.caseRevision,
+          requestRevision: receipt.requestRevision,
+        };
+      }
       const replay = await tx.assessmentHumanRequest.findUnique({
         where: {
           assessmentId_idempotencyKey: {
@@ -134,6 +170,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           { status: HttpStatus.CONFLICT },
         );
       }
+      await this.support.lockCase(tx, input.assessmentId);
       const pins = await this.support.loadPins(
         tx,
         input.assessmentId,
@@ -150,25 +187,36 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           },
         );
       }
-      const coverage = await this.support.requireCoverage(
-        tx,
-        input.assessmentId,
-        request.assessmentRuleId,
-        input.correlationId,
-      );
-      const rule = await tx.assessmentRule.findUniqueOrThrow({
-        where: {
-          ruleSetVersionId_assessmentRuleId: {
-            ruleSetVersionId: pins.ruleSetVersionId,
-            assessmentRuleId: request.assessmentRuleId,
+      const coverageRows = new Map<
+        string,
+        Awaited<ReturnType<AssessmentCaseSupport["requireCoverage"]>>
+      >();
+      for (const dependency of dependencies) {
+        const coverage = await this.support.requireCoverage(
+          tx,
+          input.assessmentId,
+          dependency.assessmentRuleId,
+          input.correlationId,
+        );
+        coverageRows.set(dependency.assessmentRuleId, coverage);
+        const rule = await tx.assessmentRule.findUniqueOrThrow({
+          where: {
+            ruleSetVersionId_assessmentRuleId: {
+              ruleSetVersionId: pins.ruleSetVersionId,
+              assessmentRuleId: dependency.assessmentRuleId,
+            },
           },
-        },
-        select: { criteria: true },
-      });
-      const knownCriteria = new Set(criterionIdsOf(rule.criteria));
+          select: { criteria: true },
+        });
+        const knownCriteria = new Set(criterionIdsOf(rule.criteria));
+        if (dependency.criterionIds.some((id) => !knownCriteria.has(id)))
+          throw invalid(
+            ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
+            input.correlationId,
+          );
+      }
       const choiceValues = request.choices.map((choice) => choice.value);
       if (
-        request.criterionIds.some((id) => !knownCriteria.has(id)) ||
         !Object.values(HUMAN_RESOLUTION_CONTROL_TYPES).some(
           (type) => type === request.controlType,
         ) ||
@@ -185,76 +233,204 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           ],
           await this.support.ruleSetIdentifiers(tx, pins.ruleSetVersionId),
         )
-      ) {
+      )
         throw invalid(
           ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
           input.correlationId,
         );
+
+      const source = request.sourceRequestId
+        ? await tx.assessmentHumanRequest.findFirst({
+            where: {
+              assessmentId: input.assessmentId,
+              requestId: request.sourceRequestId,
+            },
+            include: { dependencies: true },
+          })
+        : null;
+      if (
+        request.sourceRequestId &&
+        (!source ||
+          source.threadId !== run.threadId ||
+          ![
+            HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED,
+          ].some((status) => status === source.status) ||
+          !hasSameHumanFactScope(source, request) ||
+          (source.status === HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN &&
+            source.caseRevision !== pins.caseRevision))
+      )
+        throw invalid(
+          ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
+          input.correlationId,
+        );
+      if (source?.status === HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED) {
+        const fact = source.resolvedFactId
+          ? await tx.assessmentCaseFact.findFirst({
+              where: {
+                assessmentId: input.assessmentId,
+                factId: source.resolvedFactId,
+              },
+              include: { evidenceLinks: { include: { evidence: true } } },
+            })
+          : null;
+        if (
+          !fact ||
+          fact.state !== ASSESSMENT_RECORD_STATES.ACCEPTED ||
+          fact.authority !== ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED ||
+          fact.caseRevision > pins.caseRevision ||
+          fact.caseRevision <= source.caseRevision ||
+          fact.evidenceLinks.length === 0 ||
+          fact.evidenceLinks.some(
+            ({ evidence }) =>
+              evidence.type !== ASSESSMENT_EVIDENCE_TYPES.HUMAN_ANSWER ||
+              evidence.assessmentId !== input.assessmentId ||
+              evidence.state !== ASSESSMENT_RECORD_STATES.ACCEPTED ||
+              evidence.repositoryCommit !== pins.repositoryCommit,
+          )
+        )
+          throw invalid(
+            ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_REFERENCE_INVALID,
+            input.correlationId,
+          );
       }
-      const requestId = randomUUID();
-      if (coverage.resolutionState === DECISION_RESOLUTION_STATES.RESOLVED) {
-        // The Root has identified a new material dependency for an already decided rule.
-        // Preserve the packet in history and reopen investigation through the canonical DRS.
-        await tx.assessmentRuleDecision.updateMany({
-          where: {
+      const previousDependencies = source
+        ? humanRequestDependenciesOf(source)
+        : [];
+      const affectedDependencies = dependencies.filter((dependency) => {
+        const previous = previousDependencies.find(
+          (entry) => entry.assessmentRuleId === dependency.assessmentRuleId,
+        );
+        return (
+          !previous ||
+          dependency.criterionIds.some(
+            (id) => !previous.criterionIds.includes(id),
+          )
+        );
+      });
+      const requestId = source?.requestId ?? randomUUID();
+      const waiting =
+        !source || source.status === HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN;
+      for (const dependency of affectedDependencies) {
+        const coverage = coverageRows.get(dependency.assessmentRuleId)!;
+        if (coverage.resolutionState === DECISION_RESOLUTION_STATES.RESOLVED) {
+          await tx.assessmentRuleDecision.updateMany({
+            where: {
+              assessmentId: input.assessmentId,
+              assessmentRuleId: dependency.assessmentRuleId,
+              state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+            },
+            data: {
+              state: ASSESSMENT_DECISION_RECORD_STATES.INVALIDATED,
+              invalidatedAt: new Date(),
+            },
+          });
+          await tx.assessmentDecisionCoverage.update({
+            where: {
+              assessmentId_assessmentRuleId: {
+                assessmentId: input.assessmentId,
+                assessmentRuleId: dependency.assessmentRuleId,
+              },
+            },
+            data: { resolutionState: DECISION_RESOLUTION_STATES.INVALIDATED },
+          });
+          coverage.resolutionState = DECISION_RESOLUTION_STATES.INVALIDATED;
+        }
+        if (waiting) {
+          await this.support.moveCoverageToWaiting(tx, {
             assessmentId: input.assessmentId,
-            assessmentRuleId: request.assessmentRuleId,
-            state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
-          },
+            assessmentRuleId: dependency.assessmentRuleId,
+            from: coverage.resolutionState,
+          });
+        } else if (
+          coverage.resolutionState === DECISION_RESOLUTION_STATES.PENDING ||
+          coverage.resolutionState === DECISION_RESOLUTION_STATES.INVALIDATED
+        ) {
+          await tx.assessmentDecisionCoverage.update({
+            where: {
+              assessmentId_assessmentRuleId: {
+                assessmentId: input.assessmentId,
+                assessmentRuleId: dependency.assessmentRuleId,
+              },
+            },
+            data: { resolutionState: DECISION_RESOLUTION_STATES.INVESTIGATING },
+          });
+        }
+      }
+      if (!source)
+        await tx.assessmentHumanRequest.create({
           data: {
-            state: ASSESSMENT_DECISION_RECORD_STATES.INVALIDATED,
-            invalidatedAt: new Date(),
+            requestId,
+            assessmentId: input.assessmentId,
+            threadId: run.threadId,
+            caseRevision: pins.caseRevision,
+            assessmentRuleId: request.assessmentRuleId,
+            criterionIds: request.criterionIds,
+            question: request.question,
+            unresolvedFact: request.unresolvedFact,
+            decisionImpact: request.decisionImpact,
+            resolutionAttempts: request.resolutionAttempts,
+            controlType: request.controlType,
+            choices: request.choices,
+            idempotencyKey: request.idempotencyKey,
+            requestDigest,
           },
         });
-        await tx.assessmentDecisionCoverage.update({
+      for (const dependency of dependencies) {
+        const previous = previousDependencies.find(
+          (entry) => entry.assessmentRuleId === dependency.assessmentRuleId,
+        );
+        const criterionIds = [
+          ...new Set([
+            ...(previous?.criterionIds ?? []),
+            ...dependency.criterionIds,
+          ]),
+        ].sort();
+        await tx.assessmentHumanRequestDependency.upsert({
           where: {
-            assessmentId_assessmentRuleId: {
-              assessmentId: input.assessmentId,
-              assessmentRuleId: request.assessmentRuleId,
+            requestId_assessmentRuleId: {
+              requestId,
+              assessmentRuleId: dependency.assessmentRuleId,
             },
           },
-          data: { resolutionState: DECISION_RESOLUTION_STATES.INVALIDATED },
+          create: {
+            requestId,
+            assessmentId: input.assessmentId,
+            ...dependency,
+            criterionIds,
+          },
+          update: { criterionIds },
         });
-        coverage.resolutionState = DECISION_RESOLUTION_STATES.INVALIDATED;
       }
-      await tx.assessmentHumanRequest.create({
+      const result = {
+        requestId,
+        caseRevision: pins.caseRevision,
+        requestRevision: source?.requestRevision ?? 0,
+      };
+      await tx.assessmentHumanRequestRegistration.create({
         data: {
-          requestId,
           assessmentId: input.assessmentId,
-          threadId: run.threadId,
-          caseRevision: pins.caseRevision,
-          assessmentRuleId: request.assessmentRuleId,
-          criterionIds: request.criterionIds,
-          question: request.question,
-          unresolvedFact: request.unresolvedFact,
-          decisionImpact: request.decisionImpact,
-          resolutionAttempts: request.resolutionAttempts,
-          controlType: request.controlType,
-          choices: request.choices,
           idempotencyKey: request.idempotencyKey,
           requestDigest,
+          ...result,
         },
       });
-      await this.support.moveCoverageToWaiting(tx, {
-        assessmentId: input.assessmentId,
-        assessmentRuleId: request.assessmentRuleId,
-        from: coverage.resolutionState,
-      });
-      await this.events.appendInTx(tx, {
-        assessmentId: input.assessmentId,
-        correlationId: input.correlationId,
-        eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.HUMAN_RESOLUTION_CHANGED,
-        actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
-        executionId: run.executionId,
-        payload: {
-          requestId,
-          fromStatus: null,
-          toStatus: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-          caseRevision: pins.caseRevision,
-        },
-        auditActor: ROOT_AUDIT_ACTOR,
-      });
-      if (run.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.ACTIVE)
+      if (!source)
+        await this.events.appendInTx(tx, {
+          assessmentId: input.assessmentId,
+          correlationId: input.correlationId,
+          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.HUMAN_RESOLUTION_CHANGED,
+          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+          executionId: run.executionId,
+          payload: {
+            requestId,
+            fromStatus: null,
+            toStatus: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            caseRevision: pins.caseRevision,
+          },
+          auditActor: ROOT_AUDIT_ACTOR,
+        });
+      if (waiting && run.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.ACTIVE)
         await this.coordinator.transitionVerifiedInTx(
           {
             assessmentId: input.assessmentId,
@@ -278,11 +454,16 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           decision: AUDIT_DECISIONS.allow,
           correlationId: input.correlationId,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          payload: { requestId, assessmentRuleId: request.assessmentRuleId },
+          payload: {
+            requestId,
+            assessmentRuleId: request.assessmentRuleId,
+            dependencies,
+            sourceRequestId: request.sourceRequestId ?? null,
+          },
         },
         tx,
       );
-      return { requestId, caseRevision: pins.caseRevision, requestRevision: 0 };
+      return result;
     });
   }
 }

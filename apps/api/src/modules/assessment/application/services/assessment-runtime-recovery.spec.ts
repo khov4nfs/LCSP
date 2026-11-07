@@ -4,10 +4,13 @@ import {
   AGENT_EXECUTION_STATES as Execution,
   ASSESSMENT_LIFECYCLE_STATES as Lifecycle,
   type AssessmentLifecycleState,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
   assessmentEventSchema,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ROOT_BOUNDARY,
+  ASSESSMENT_AUDIT_MODES,
+  RULE_AUDIT_STATUSES,
   claimAssessmentRootExecutionRequestSchema,
   assessmentRootClaimSchema,
 } from "@lcsp/contracts/assessment-domain";
@@ -94,6 +97,12 @@ function fixture(
     },
     assessmentHumanRequest: {
       count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+      findMany: jest
+        .fn<() => Promise<Record<string, unknown>[]>>()
+        .mockResolvedValue([]),
+      updateMany: jest
+        .fn<() => Promise<{ count: number }>>()
+        .mockResolvedValue({ count: 1 }),
     },
   };
   const appendInTx = jest.fn(
@@ -852,5 +861,432 @@ describe("persisted Agent Server run recovery", () => {
         runtimeRunId: randomUUID(),
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("unknown response review on the existing native thread", () => {
+  function reviewFixture() {
+    const f = fixture(Lifecycle.WAITING_FOR_HUMAN);
+    Object.assign(f.row, {
+      executionState: Execution.INTERRUPTED,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+    Object.assign(f.turn, {
+      state: Controls.completed,
+      checkpointJson: { checkpointId: f.row.checkpointId },
+    });
+    const request = {
+      assessmentId: f.assessmentId,
+      threadId: f.row.threadId,
+      requestId: randomUUID(),
+      checkpointId: f.row.checkpointId,
+      requestRevision: 1,
+      status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+      resolvedFactId: null,
+      answers: [
+        {
+          idempotencyKey: "unknown-response-1",
+          requestDigest: "a".repeat(64),
+          actorId: randomUUID(),
+          answeredAt: new Date().toISOString(),
+          caseRevision: 0,
+          requestRevision: 1,
+          doesNotKnow: true,
+          answer: null,
+          checkpointId: f.row.checkpointId,
+        },
+      ],
+    };
+    f.tx.assessmentHumanRequest.findMany.mockResolvedValue([request]);
+    return { ...f, request };
+  }
+
+  it("issues review authority while preserving WAITING and the same thread/execution", async () => {
+    const f = reviewFixture();
+    const executionId = f.row.currentExecutionId;
+    const checkpointId = f.row.checkpointId;
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    expect(claim.humanAnswerReviewRequired).toBe(true);
+    expect(claim.lifecycleState).toBe(Lifecycle.WAITING_FOR_HUMAN);
+    expect(claim.executionId).toBe(executionId);
+    expect(claim.resumeCheckpointId).toBe(checkpointId);
+    expect(f.turn.contextJson).toMatchObject({
+      humanAnswerReview: {
+        checkpointId,
+        requests: [{ requestId: f.request.requestId, requestRevision: 1 }],
+      },
+    });
+    await expect(
+      f.authority.authorize({
+        assessmentId: f.assessmentId,
+        leaseToken: claim.leaseToken,
+        correlationId: randomUUID(),
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("rejects a claim when an open dependency has not answered the bound checkpoint", async () => {
+    const f = reviewFixture();
+    f.request.answers[0].checkpointId = randomUUID();
+    await expect(
+      f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(f.tx.assessmentRuntime.update).not.toHaveBeenCalled();
+  });
+
+  it("allows the authorized review to rebind its unchanged request to the next native wait", async () => {
+    const f = reviewFixture();
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    const nextCheckpoint = randomUUID();
+    await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: claim.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.INTERRUPTED,
+      checkpointId: nextCheckpoint,
+      requestIds: [f.request.requestId],
+    });
+    expect(f.tx.assessmentHumanRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { checkpointId: nextCheckpoint },
+      }),
+    );
+    expect(f.row.lifecycleState).toBe(Lifecycle.WAITING_FOR_HUMAN);
+    expect(f.row.executionState).toBe(Execution.INTERRUPTED);
+  });
+
+  it("does not relax checkpoint binding for an unreviewed request revision", async () => {
+    const f = reviewFixture();
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    f.request.requestRevision += 1;
+    await expect(
+      f.authority.finishExecution({
+        assessmentId: f.assessmentId,
+        leaseToken: claim.leaseToken,
+        correlationId: randomUUID(),
+        toState: Execution.INTERRUPTED,
+        checkpointId: randomUUID(),
+        requestIds: [f.request.requestId],
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it("retries a gracefully failed review at its newer native checkpoint without losing the original UNKNOWN binding", async () => {
+    const f = reviewFixture();
+    const originalCheckpoint = f.row.checkpointId;
+    const originalExecution = f.row.currentExecutionId;
+    const review = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    const failedCheckpoint = randomUUID();
+    await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: review.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.FAILED,
+      checkpointId: failedCheckpoint,
+    });
+    const retry = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    expect(retry.executionId).not.toBe(originalExecution);
+    expect(retry.threadId).toBe(f.row.threadId);
+    expect(retry.resumeCheckpointId).toBe(failedCheckpoint);
+    expect(retry.humanAnswerReviewCheckpointId).toBe(originalCheckpoint);
+    expect(retry.humanAnswerReviewExecutionId).toBe(originalExecution);
+    expect(retry.humanAnswerReviewRequired).toBe(true);
+    expect(f.request.checkpointId).toBe(originalCheckpoint);
+    expect(f.row.lifecycleState).toBe(Lifecycle.WAITING_FOR_HUMAN);
+    expect(f.turn.contextJson).toMatchObject({
+      humanAnswerReview: {
+        checkpointId: originalCheckpoint,
+        requests: [{ requestId: f.request.requestId, requestRevision: 1 }],
+      },
+    });
+    const nextWait = randomUUID();
+    await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: retry.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.INTERRUPTED,
+      checkpointId: nextWait,
+      requestIds: [f.request.requestId],
+    });
+    expect(f.tx.assessmentHumanRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { checkpointId: nextWait },
+      }),
+    );
+  });
+
+  it.each(["revision", "checkpoint", "set", "turn", "native"])(
+    "rejects graceful failed review recovery when its %s authorization changed",
+    async (mismatch) => {
+      const f = reviewFixture();
+      const review = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+        runtimeRunId: randomUUID(),
+      });
+      await f.authority.finishExecution({
+        assessmentId: f.assessmentId,
+        leaseToken: review.leaseToken,
+        correlationId: randomUUID(),
+        toState: Execution.FAILED,
+        checkpointId: randomUUID(),
+      });
+      if (mismatch === "revision") f.request.requestRevision += 1;
+      if (mismatch === "checkpoint")
+        f.request.answers[0].checkpointId = randomUUID();
+      if (mismatch === "set")
+        f.tx.assessmentHumanRequest.findMany.mockResolvedValue([
+          f.request,
+          { ...f.request, requestId: randomUUID() },
+        ]);
+      if (mismatch === "turn") f.turn.threadId = randomUUID();
+      if (mismatch === "native")
+        Object.assign(f.turn, {
+          checkpointJson: { checkpointId: randomUUID() },
+        });
+      await expect(
+        f.authority.claimRoot({
+          assessmentId: f.assessmentId,
+          correlationId: randomUUID(),
+          runtimeRunId: randomUUID(),
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+    },
+  );
+
+  it("keeps the failed checkpoint producer across retry transport recovery and another graceful failure", async () => {
+    const f = reviewFixture();
+    const originalCheckpoint = f.row.checkpointId;
+    const originalExecution = f.row.currentExecutionId;
+    const initial = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    const failedCheckpoint = randomUUID();
+    await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: initial.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.FAILED,
+      checkpointId: failedCheckpoint,
+    });
+    const retryRun = randomUUID();
+    const retry = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: retryRun,
+    });
+    // The fixture has one mutable turn; model the new retry row created by the real upsert.
+    Object.assign(f.turn, { id: retry.executionId });
+    const recovered = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: retryRun,
+    });
+    expect(recovered.executionId).toBe(retry.executionId);
+    expect(recovered.recoveredExecution).toBe(true);
+    expect(recovered.humanAnswerReviewExecutionId).toBe(originalExecution);
+    expect(recovered.humanAnswerReviewCheckpointId).toBe(originalCheckpoint);
+    expect(recovered.resumeCheckpointId).toBe(failedCheckpoint);
+    await expect(
+      f.authority.authorize({
+        assessmentId: f.assessmentId,
+        leaseToken: retry.leaseToken,
+        correlationId: randomUUID(),
+        requireActive: false,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    const secondFailure = randomUUID();
+    await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: recovered.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.FAILED,
+      checkpointId: secondFailure,
+    });
+    const third = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    expect(third.executionId).not.toBe(retry.executionId);
+    expect(third.humanAnswerReviewExecutionId).toBe(retry.executionId);
+    expect(third.humanAnswerReviewCheckpointId).toBe(originalCheckpoint);
+    expect(third.resumeCheckpointId).toBe(secondFailure);
+  });
+
+  it("permits failed blocked-review checkpoint settlement without granting another UNKNOWN reasoning turn", async () => {
+    const f = reviewFixture();
+    const originalCheckpoint = f.row.checkpointId;
+    const originalExecution = f.row.currentExecutionId;
+    const review = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    Object.assign(f.row, {
+      lifecycleState: Lifecycle.BLOCKED,
+      blockerReason: "HUMAN_FACT_UNRESOLVABLE",
+      blockerReference: { humanResolutionRequestId: f.request.requestId },
+    });
+    f.tx.assessmentHumanRequest.count.mockResolvedValue(1);
+    const failedCheckpoint = randomUUID();
+    await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: review.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.FAILED,
+      checkpointId: failedCheckpoint,
+    });
+    const retry = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    expect(retry.humanAnswerReviewRequired).toBe(false);
+    expect(retry.humanAnswerReviewCheckpointId).toBe(originalCheckpoint);
+    expect(retry.humanAnswerReviewExecutionId).toBe(originalExecution);
+    expect(retry.resumeCheckpointId).toBe(failedCheckpoint);
+    expect(retry.lifecycleState).toBe(Lifecycle.BLOCKED);
+  });
+  function selectedReviewFixture() {
+    const f = reviewFixture();
+    const auditRequestId = randomUUID();
+    Object.assign(f.row, { currentAuditRequestId: auditRequestId });
+    Object.assign(f.turn.contextJson, {
+      auditRequestId,
+      checkpointThreadId: auditRequestId,
+    });
+    f.tx.assessmentCase.findUnique.mockResolvedValue(
+      Object.assign(
+        {
+          ruleSetVersionId: f.ruleSetVersionId,
+          repositorySnapshotId: f.repositorySnapshotId,
+          repositoryCommit: f.repositoryCommit,
+        },
+        { auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED },
+      ),
+    );
+    const audit = {
+      requestId: auditRequestId,
+      assessmentId: f.assessmentId,
+      status: RULE_AUDIT_STATUSES.WAITING_FOR_CUSTOMER,
+    };
+    const membership = jest
+      .fn<() => Promise<Array<{ assessmentRuleId: string }>>>()
+      .mockResolvedValue([{ assessmentRuleId: "RULE-A" }]);
+    Object.assign(f.tx, {
+      assessmentRuleAuditItem: { findMany: membership },
+      assessmentRuleAuditRequest: {
+        findUnique: jest
+          .fn<() => Promise<typeof audit>>()
+          .mockResolvedValue(audit),
+        findUniqueOrThrow: jest
+          .fn<() => Promise<typeof audit>>()
+          .mockResolvedValue(audit),
+        update: jest.fn<() => Promise<typeof audit>>().mockResolvedValue(audit),
+      },
+    });
+    return { ...f, auditRequestId, membership };
+  }
+
+  it("preserves selected audit thread identity through UNKNOWN review and the next wait", async () => {
+    const f = selectedReviewFixture();
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    expect(claim.humanAnswerReviewRequired).toBe(true);
+    expect(claim.checkpointThreadId).toBe(f.auditRequestId);
+    expect(f.turn.contextJson).toMatchObject({
+      auditRequestId: f.auditRequestId,
+      checkpointThreadId: f.auditRequestId,
+    });
+    await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: claim.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.INTERRUPTED,
+      checkpointId: randomUUID(),
+      requestIds: [f.request.requestId],
+    });
+    expect(f.tx.assessmentHumanRequest.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["auditRequestId", "checkpointThreadId"])(
+    "rejects UNKNOWN review carried from a different selected %s",
+    async (field) => {
+      const f = selectedReviewFixture();
+      Object.assign(f.turn.contextJson, { [field]: randomUUID() });
+      await expect(
+        f.authority.claimRoot({
+          assessmentId: f.assessmentId,
+          correlationId: randomUUID(),
+          runtimeRunId: randomUUID(),
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(f.tx.assessmentRuntime.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["auditRequestId", "checkpointThreadId"])(
+    "does not rebind a wait from a turn with foreign %s metadata",
+    async (field) => {
+      const f = selectedReviewFixture();
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+        runtimeRunId: randomUUID(),
+      });
+      Object.assign(f.turn.contextJson, { [field]: randomUUID() });
+      await expect(
+        f.authority.finishExecution({
+          assessmentId: f.assessmentId,
+          leaseToken: claim.leaseToken,
+          correlationId: randomUUID(),
+          toState: Execution.INTERRUPTED,
+          checkpointId: randomUUID(),
+          requestIds: [f.request.requestId],
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(f.tx.assessmentHumanRequest.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a selected review when authoritative membership is missing", async () => {
+    const f = selectedReviewFixture();
+    f.membership.mockResolvedValueOnce([]);
+    await expect(
+      f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(f.tx.assessmentRuntime.update).not.toHaveBeenCalled();
   });
 });

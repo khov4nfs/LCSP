@@ -15,6 +15,7 @@ from deepagents.backends import CompositeBackend
 from deepagents.middleware.filesystem import FilesystemPermission
 from langchain.agents.middleware import AgentMiddleware, AgentState, TodoListMiddleware, TracePolicy, hook_config, omit_payload
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.tools import BaseTool
 from langgraph.runtime import Runtime
 
 from assessment_root.researcher import RESEARCHER_NAME, RESEARCHER_PROMPT, researcher_subagent
@@ -28,6 +29,94 @@ ASSESSMENT_ROOT_ROLE = "assessment-root"
 # Graph tools search; governed Root tools mint accepted source references.
 _GRAPH_TOOL_NAMES = {"search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
 logger = get_logger(__name__)
+
+
+_ROOT_PLANNING_INSTRUCTIONS = (
+    "Use write_todos for actionable steps in complex work; skip trivial work. Revise future steps "
+    "as evidence changes and mark each completed step immediately. Never call it in parallel. "
+    "After the last update, send the substantive result in a separate message; a completed list is not the answer."
+)
+
+# Model-facing operational instructions; registered implementations and schemas remain native.
+_ROOT_TOOL_DESCRIPTIONS = {
+    "ls": "List a directory to discover paths before read_file or edit_file.",
+    "read_file": "Read a file; missing paths error and empty files return a warning. Text defaults to 100 lines; page with offset/limit. The @@ status header is metadata, not file content; exclude it when editing. Read files before editing. Independent reads may be batched. Read offloaded results at the returned path. Images/audio/video/PDFs return multimodal blocks; images/PDFs use file_path only, without text pagination.",
+    "write_file": "Create a file or replace its whole contents; no prior read required. Prefer edit_file for existing-file changes. Respect write permissions.",
+    "edit_file": "Replace exact strings in a previously read file. Preserve indentation and omit the @@ read header. Prefer editing existing files. Use emojis only if requested. Respect write permissions.",
+    "delete": "Permanently delete an absolute file path or a directory recursively. This cannot be undone; delete only paths no longer needed, within write permissions.",
+    "glob": "Find absolute file paths using *, **, ?, [abc], {a,b}. Without /, match basenames at any depth; with /, match search-root-relative paths; leading / anchors the root. Dot-names require a pattern segment starting with .; ** does not descend into dot-directories, so *.yml is broader than **/*.yml.",
+    "grep": "Search literal text, never regex; use separate calls for alternatives. Returns files/content per output_mode. Search offloaded results at their returned artifact path (/large_tool_results/ by default).",
+    "task": "Run one repository-researcher task at a time. It is stateless: supply a complete bounded source question and desired output. It only reads/searches and returns candidate findings with file/line ranges and gaps; it cannot accept evidence or decide. The report is not shown to the user; Root verifies sources and relays supported findings.",
+    "write_todos": "Manage actionable steps for complex work or an explicit list request; skip trivial/conversational tasks. Use pending, in_progress, completed. Mark work in_progress before starting, retaining one active step until finished; independent work may share that status. Mark completed immediately only when fully done, without errors/blockers; otherwise retain in_progress and add a blocker task. Revise/remove future tasks, preserve completed tasks. Never call write_todos in parallel. After the final update, deliver the substantive answer in a later message; the list itself is not the answer.",
+    "retrieve_shared_heuristics": "Read bounded generic investigation tips from the learning Store. NON_AUTHORITATIVE_HEURISTIC only: never law, evidence, accepted facts, decision provenance or authenticated search coverage. Missing Store returns an empty warning; failures propagate.",
+}
+
+
+class AssessmentToolDescriptionsMiddleware(AgentMiddleware):
+    """Keep the Root's native tool catalog concise without changing executable capabilities."""
+
+    trace_policy = TracePolicy(process_inputs=omit_payload, process_outputs=omit_payload)
+
+    def _compact_request(self, request):
+        """Business purpose: Avoid repeating long framework examples in every governed model request.
+
+        Business rules:
+        - Only reviewed descriptions for known native tools and generic learning are replaced.
+        - Tool names, ordering, schemas, callables, validation, permissions and registered execution stay unchanged.
+        - Unknown or provider-native dictionary tools retain their original representation.
+
+        Execution flow:
+        1. Shallow-copy supported tool objects with concise operational descriptions.
+        2. Return a request override so downstream governance measures exactly the model-facing catalog.
+
+        Failure cases:
+        - Unsupported tool shapes pass through unchanged; request-copy failures stop before dispatch.
+
+        Side effects:
+        - In-memory request copies only; no global profile mutation, domain write or provider call.
+        """
+        tools = [
+            tool.model_copy(update={"description": _ROOT_TOOL_DESCRIPTIONS[tool.name]})
+            if isinstance(tool, BaseTool) and tool.name in _ROOT_TOOL_DESCRIPTIONS else tool
+            for tool in request.tools
+        ]
+        return request.override(tools=tools)
+
+    def wrap_model_call(self, request, handler):
+        """Business purpose: Apply concise native tool guidance before synchronous governed inference.
+
+        Business rules:
+        - The downstream handler retains all admission, usage, source and lifecycle controls.
+
+        Execution flow:
+        1. Copy the request's descriptions without altering its executable tool contracts.
+        2. Invoke the governed downstream handler with the resulting request.
+
+        Failure cases:
+        - Transformation or downstream errors propagate; no alternate dispatch is attempted.
+
+        Side effects:
+        - The governed handler may invoke the model; this layer adds no independent request.
+        """
+        return handler(self._compact_request(request))
+
+    async def awrap_model_call(self, request, handler):
+        """Business purpose: Apply the same concise tool catalog to asynchronous governed inference.
+
+        Business rules:
+        - Async execution uses the identical description projection and unchanged downstream governance.
+
+        Execution flow:
+        1. Copy model-facing descriptions using the shared request projection.
+        2. Await the governed downstream handler once.
+
+        Failure cases:
+        - Copy or downstream errors propagate without retries or fallback bypasses.
+
+        Side effects:
+        - The governed handler may invoke the model; this layer adds no independent request.
+        """
+        return await handler(self._compact_request(request))
 
 
 class AssessmentCompletionMiddleware(AgentMiddleware):
@@ -141,6 +230,7 @@ def create_assessment_root_agent(
     Business rules:
     - Only the Root has governed fact, decision and human-resolution tools; its researcher returns read-only candidate findings.
     - Native planning state is checkpointed with the same graph; Root and delegated calls share governance, and each compaction call retains its investigator's own authority instructions.
+    - Concise model-facing descriptions preserve native tool execution contracts and pass through the same downstream governance.
     - The backend exposes the pinned repository read-only with a separate writable scratch area; invoke using run.thread_id.
     - Native tool/research batches run one at a time until shared search and usage attribution is proven safe for parallel children; independent Roots have independent graphs.
 
@@ -185,7 +275,7 @@ def create_assessment_root_agent(
             tools=[*build_root_tools(run), *tools],
             subagents=[researcher_subagent(tools, middleware=researcher_middleware)],
             permissions=root_permissions(),
-            middleware=[TodoListMiddleware(), ResponseLocalizationMiddleware(), *governance,
+            middleware=[TodoListMiddleware(system_prompt=_ROOT_PLANNING_INSTRUCTIONS), AssessmentToolDescriptionsMiddleware(), ResponseLocalizationMiddleware(), *governance,
                         governed_summarization_middleware(model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
                                                          system_prompt=ROOT_INSTRUCTIONS),
                         AssessmentCompletionMiddleware(run), *middleware],

@@ -19,6 +19,7 @@ import {
   type AssessmentCompletionBlocker,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
+import { repositorySourcePathPrefixSchema } from "@lcsp/contracts/github-integration";
 import { Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
@@ -126,6 +127,8 @@ export class AssessmentCompletionGate {
    * Business rules:
    * - Every pinned rule requires a current accepted decision and valid provenance; human
    *   requests, stopped executions, stale evidence and broken source pins block completion.
+   * - Decision validation uses the immutable scope from the same owned snapshot and commit;
+   *   missing or malformed source scope blocks completion instead of widening access.
    * Execution flow:
    * 1. Read the case, pins, coverage, decisions, evidence and facts; validate each persisted
    *   decision and assemble a report snapshot only if no blockers remain.
@@ -270,7 +273,13 @@ export class AssessmentCompletionGate {
     ] = await Promise.all([
       tx.repositorySnapshot.findUnique({
         where: { id: pins.repositorySnapshotId },
-        select: { id: true, assessmentId: true, commitSha: true, status: true },
+        select: {
+          id: true,
+          assessmentId: true,
+          commitSha: true,
+          sourcePathPrefix: true,
+          status: true,
+        },
       }),
       tx.repositoryScanJob.findUnique({
         where: { id: pins.repositoryScanJobId },
@@ -413,12 +422,19 @@ export class AssessmentCompletionGate {
         add(failure.code, failure.reference);
       }
     }
+
+    const snapshotPinsValid =
+      snapshot !== null &&
+      snapshot.id === pins.repositorySnapshotId &&
+      snapshot.assessmentId === assessmentId &&
+      snapshot.status === RepositorySnapshotStatus.READY &&
+      snapshot.commitSha.toLowerCase() ===
+        pins.repositoryCommit.toLowerCase() &&
+      (snapshot.sourcePathPrefix === null ||
+        repositorySourcePathPrefixSchema.safeParse(snapshot.sourcePathPrefix)
+          .success);
     if (
-      !snapshot ||
-      snapshot.assessmentId !== assessmentId ||
-      snapshot.status !== RepositorySnapshotStatus.READY ||
-      snapshot.commitSha.toLowerCase() !==
-        pins.repositoryCommit.toLowerCase() ||
+      !snapshotPinsValid ||
       !scanJob ||
       scanJob.assessmentId !== assessmentId ||
       scanJob.snapshotId !== pins.repositorySnapshotId ||
@@ -520,9 +536,14 @@ export class AssessmentCompletionGate {
         );
         continue;
       }
+      if (!snapshot || !snapshotPinsValid) continue;
       const context = await this.support.buildValidationContext(tx, {
         assessmentId,
-        pins: { ...pins, caseRevision: assessmentCase.caseRevision },
+        pins: {
+          ...pins,
+          sourcePathPrefix: snapshot.sourcePathPrefix,
+          caseRevision: assessmentCase.caseRevision,
+        },
         decision: parsed.data,
       });
       const failures = validateRuleDecision(parsed.data, context);

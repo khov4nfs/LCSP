@@ -26,7 +26,8 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
     """Business purpose: Mount the Assessment's pinned source on its durable Root thread for native investigation.
 
     Business rules:
-    - Hydrate only the API-issued snapshot/job/commit for this Assessment and server-owned thread.
+    - Hydrate only the API-issued snapshot/job/commit and immutable source prefix for this Assessment and server-owned thread.
+    - Scope filtering preserves original source paths and excludes sibling projects before graph indexing.
     - Source and runtime identity metadata are read-only; writes are limited to the existing agent scratch subtree.
     - Graph lookup is an investigation aid indexed from this same hydrated source, not a legal authority.
 
@@ -58,6 +59,7 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
         scan_job_id=context["repositoryScanJobId"],
         commit_sha=context["repositoryCommit"],
         assessment_id=context["assessmentId"],
+        source_path_prefix=context.get("sourcePathPrefix"),
     )
     # The Root's graph tools query the Codebase Memory index of the hydrated snapshot; index it
     # before the Root starts (reused when current) so a run never silently lacks the graph.
@@ -112,6 +114,7 @@ class AssessmentRootBoundary(AgentBoundaryBase):
         Business rules:
         - Held/stale commands do not duplicate work; uncertain crash steps remain quarantined for explicit operator replay.
         - Legal decisions, paid admission and physical quiescence keep their existing independent guards.
+        - Trusted process-local restrictions apply only to the exact audit command inside an admitted native scope.
         Execution flow:
         1. Validate Assessment identity and open the existing native saver/store.
         2. Execute or safely settle the Root; surface an operator-required recovery as terminal transport failure.
@@ -133,12 +136,17 @@ class AssessmentRootBoundary(AgentBoundaryBase):
                     if os.getenv("LCSP_AGENT_RUNTIME_MODE") == "production":
                         raise
                     store = None
+                from assessment_root.execution_policy import root_runner_options
+
+                client = self._client_factory()
+                runner_options = {"backend_factory": sandbox_backend_factory}
+                runner_options.update(root_runner_options(message, client))
                 result = self._runner(
-                    self._client_factory(),
+                    client,
                     assessment_id.strip(),
-                    backend_factory=sandbox_backend_factory,
                     checkpointer=saver,
                     store=store,
+                    **runner_options,
                 )
                 if result.get("errorType") == NativeRootRecoveryRequired.__name__:
                     raise NonRetryableAgentBoundaryError(NativeRootRecoveryRequired.__name__)

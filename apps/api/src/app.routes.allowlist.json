@@ -38,6 +38,7 @@
   "GET /assessments/:assessmentId/rule-audits/:requestId/exports/:exportId/download",
   "GET /assessments/:assessmentId/rules",
   "GET /assessments/:assessmentId/runtime/control",
+  "GET /assessments/:assessmentId/session-export/download",
   "GET /assessments/tracking/obligations",
   "GET /assessments/tracking/obligations/assessments",
   "GET /assessments/tracking/overview",

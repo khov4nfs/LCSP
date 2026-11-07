@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ASSESSMENT_AUDIT_MODES, RULE_AUDIT_SCOPE_MODES, RULE_AUDIT_STATUSES } from "./rule-audits.ts";
+import { repositorySourcePathPrefixSchema } from "../github-integration/source-scope.ts";
 import {
   LEGAL_SOURCE_CHUNK_STATUSES,
   type LegalSourceChunkStatus,
@@ -235,9 +236,22 @@ export type StartRuleInvestigationRequest = z.infer<
   typeof startRuleInvestigationRequestSchema
 >;
 
+export const assessmentHumanRequestDependencySchema = z.strictObject({
+  assessmentRuleId: identifierSchema,
+  criterionIds: z.array(identifierSchema),
+});
+export type AssessmentHumanRequestDependency = z.infer<
+  typeof assessmentHumanRequestDependencySchema
+>;
+
 export const openAssessmentHumanRequestSchema =
   openHumanResolutionRequestSchema.extend({
     idempotencyKey: z.string().min(8).max(128),
+    dependencies: z
+      .array(assessmentHumanRequestDependencySchema)
+      .max(100)
+      .optional(),
+    sourceRequestId: uuidSchema.optional(),
   });
 export type OpenAssessmentHumanRequest = z.infer<
   typeof openAssessmentHumanRequestSchema
@@ -300,6 +314,7 @@ export const humanAnswerAuditSchema = z.strictObject({
   requestRevision: revisionSchema,
   doesNotKnow: z.boolean(),
   answer: privateTextSchema.nullable(),
+  checkpointId: uuidSchema.optional(),
 });
 export type HumanAnswerAudit = z.infer<typeof humanAnswerAuditSchema>;
 
@@ -313,6 +328,7 @@ export const assessmentHumanRequestViewSchema = z.strictObject({
   checkpointId: uuidSchema.nullable(),
   resolvedFactId: uuidSchema.nullable(),
   answers: z.array(humanAnswerAuditSchema),
+  dependencies: z.array(assessmentHumanRequestDependencySchema).default([]),
 });
 export type AssessmentHumanRequestView = z.infer<
   typeof assessmentHumanRequestViewSchema
@@ -414,6 +430,9 @@ export const assessmentRootClaimSchema = z.strictObject({
   resumeCheckpointId: uuidSchema.nullable(),
   lifecycleState: assessmentLifecycleStateSchema,
   recoveredExecution: z.boolean(),
+  humanAnswerReviewRequired: z.boolean().default(false),
+  humanAnswerReviewCheckpointId: uuidSchema.nullable().default(null),
+  humanAnswerReviewExecutionId: uuidSchema.nullable().default(null),
 });
 export type AssessmentRootClaim = z.infer<typeof assessmentRootClaimSchema>;
 
@@ -428,6 +447,7 @@ export const assessmentRootContextSchema = z.strictObject({
   repositorySnapshotId: z.string().min(1),
   repositoryScanJobId: z.string().min(1),
   repositoryCommit: commitSchema,
+  sourcePathPrefix: repositorySourcePathPrefixSchema.nullable().default(null),
   decisionScopeId: identifierSchema,
   auditRequest: z.strictObject({
     requestId: uuidSchema,
@@ -439,6 +459,7 @@ export const assessmentRootContextSchema = z.strictObject({
   facts: z.array(assessmentCaseFactSchema),
   evidence: z.array(assessmentEvidenceSchema),
   openHumanRequestIds: z.array(uuidSchema),
+  humanRequests: z.array(assessmentHumanRequestViewSchema).default([]),
   responseLanguage: z.enum(LOCALES).default(DEFAULT_RESPONSE_LANGUAGE),
 });
 export type AssessmentRootContext = z.infer<typeof assessmentRootContextSchema>;
@@ -725,6 +746,9 @@ export const assessmentRepositorySetupSchema = z.strictObject({
       repositoryFullName: identifierSchema,
       branch: identifierSchema.nullable(),
       commitSha: commitSchema,
+      sourcePathPrefix: repositorySourcePathPrefixSchema
+        .nullable()
+        .default(null),
       createdAt: z.iso.datetime(),
     })
     .nullable(),
@@ -1062,7 +1086,9 @@ export const customerTrackingObligationAssessmentSchema = z.strictObject({
   observedAt: z.iso.datetime().nullable(),
   trustStatus: trackingTrustStatusSchema,
 });
-export type CustomerTrackingObligationAssessment = z.infer<typeof customerTrackingObligationAssessmentSchema>;
+export type CustomerTrackingObligationAssessment = z.infer<
+  typeof customerTrackingObligationAssessmentSchema
+>;
 
 export const customerTrackingObligationSchema = z.strictObject({
   ruleSetVersionId: z.string().min(1),
@@ -1076,7 +1102,9 @@ export const customerTrackingObligationSchema = z.strictObject({
   affectedAssessmentCount: z.number().int().nonnegative(),
   assessments: z.array(customerTrackingObligationAssessmentSchema),
 });
-export type CustomerTrackingObligation = z.infer<typeof customerTrackingObligationSchema>;
+export type CustomerTrackingObligation = z.infer<
+  typeof customerTrackingObligationSchema
+>;
 
 export const customerTrackingObligationsSchema = z.strictObject({
   items: z.array(customerTrackingObligationSchema),
@@ -1087,7 +1115,9 @@ export const customerTrackingObligationsSchema = z.strictObject({
   }),
   generatedAt: z.iso.datetime(),
 });
-export type CustomerTrackingObligations = z.infer<typeof customerTrackingObligationsSchema>;
+export type CustomerTrackingObligations = z.infer<
+  typeof customerTrackingObligationsSchema
+>;
 
 export const customerTrackingObligationAssessmentsQuerySchema = z.strictObject({
   ruleSetVersionId: uuidSchema,
@@ -1097,31 +1127,39 @@ export const customerTrackingObligationAssessmentsQuerySchema = z.strictObject({
   outcome: trackingRuleOutcomeSchema.optional(),
   freshness: trackingFreshnessStatusSchema.optional(),
 });
-export type CustomerTrackingObligationAssessmentsQuery = z.infer<typeof customerTrackingObligationAssessmentsQuerySchema>;
+export type CustomerTrackingObligationAssessmentsQuery = z.infer<
+  typeof customerTrackingObligationAssessmentsQuerySchema
+>;
 
 export const customerTrackingObligationAssessmentsSchema = z.strictObject({
   items: z.array(customerTrackingObligationAssessmentSchema),
   pagination: trackingPaginationSchema,
   generatedAt: z.iso.datetime(),
 });
-export type CustomerTrackingObligationAssessments = z.infer<typeof customerTrackingObligationAssessmentsSchema>;
+export type CustomerTrackingObligationAssessments = z.infer<
+  typeof customerTrackingObligationAssessmentsSchema
+>;
 
 export const customerTrackingReportsSchema = z.strictObject({
-  items: z.array(z.strictObject({
-    assessmentId: uuidSchema,
-    assessmentName: z.string().trim().min(1),
-    repositoryName: z.string().nullable(),
-    repositoryOwner: z.string().nullable(),
-    artifactId: uuidSchema,
-    createdAt: z.iso.datetime(),
-    freshnessStatus: trackingFreshnessStatusSchema,
-    observedAt: z.iso.datetime().nullable(),
-    trustStatus: trackingTrustStatusSchema,
-  })),
+  items: z.array(
+    z.strictObject({
+      assessmentId: uuidSchema,
+      assessmentName: z.string().trim().min(1),
+      repositoryName: z.string().nullable(),
+      repositoryOwner: z.string().nullable(),
+      artifactId: uuidSchema,
+      createdAt: z.iso.datetime(),
+      freshnessStatus: trackingFreshnessStatusSchema,
+      observedAt: z.iso.datetime().nullable(),
+      trustStatus: trackingTrustStatusSchema,
+    }),
+  ),
   pagination: trackingPaginationSchema,
   generatedAt: z.iso.datetime(),
 });
-export type CustomerTrackingReports = z.infer<typeof customerTrackingReportsSchema>;
+export type CustomerTrackingReports = z.infer<
+  typeof customerTrackingReportsSchema
+>;
 
 export const customerTrackingListQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
@@ -1129,13 +1167,16 @@ export const customerTrackingListQuerySchema = z.strictObject({
   outcome: trackingRuleOutcomeSchema.optional(),
   freshness: trackingFreshnessStatusSchema.optional(),
   needsAttention: z.preprocess(
-    (value) => typeof value === "string" && (value === "true" || value === "false")
-      ? value === "true"
-      : value,
+    (value) =>
+      typeof value === "string" && (value === "true" || value === "false")
+        ? value === "true"
+        : value,
     z.boolean().optional(),
   ),
 });
-export type CustomerTrackingListQuery = z.infer<typeof customerTrackingListQuerySchema>;
+export type CustomerTrackingListQuery = z.infer<
+  typeof customerTrackingListQuerySchema
+>;
 
 export const adminTrackingImpactedAssessmentSchema = z.strictObject({
   assessmentId: uuidSchema,

@@ -518,6 +518,10 @@ try {
   eq(first.result.errorType, "AssertionError", JSON.stringify(first));
   ok(first.result.checkpointId, "failed native work retains its checkpoint");
   eq(first.remainingSteps, 0);
+  eq(first.captured.catalogPages.map((page) => page.assessmentRules.length), [1, 1, 1],
+    "the scripted Root follows every bounded catalog page");
+  ok(first.captured.boundedReads.some((read) => read.tool === "get_assessment_rule_detail"),
+    "the oversized rule is read through real native detail calls before deciding");
   eq(first.result.threadId, threadA);
   eq(first.captured.graphConfig, {
     threadId: audit.body.data.requestId,
@@ -664,15 +668,32 @@ try {
     "retry uses a new execution ID",
   );
   const resumed = second.captured.context;
+  ok(!Object.hasOwn(resumed, "coverage"), "the governed context remains a compact summary");
+  eq(resumed.coverageSummary.totalRuleCount, 3);
+  eq(resumed.coverageSummary.resolutionCounts, { RESOLVED: 3 });
+  eq(second.captured.coveragePages.map((page) => [page.offset, page.nextOffset]),
+    [[0, 1], [1, 2], [2, null]], "restart reads every snapshot-bound coverage page");
+  ok(second.captured.coveragePages.every((page) =>
+    page.snapshotToken === resumed.coverageSummary.snapshotToken &&
+    page.caseRevision === resumed.caseRevision),
+  "restart coverage retains the fresh context snapshot and case revision");
   eq(
-    resumed.coverage.map((c) => [c.assessmentRuleId, c.resolutionState]),
+    second.captured.coverage.map((c) => [c.assessmentRuleId, c.resolutionState]),
     [
       ["ER-DEF", "RESOLVED"],
       ["ER-RET", "RESOLVED"],
       ["ER-XREF", "RESOLVED"],
     ],
   );
-  eq([resumed.facts.length, resumed.evidence.length], [1, 2]);
+  eq(
+    [resumed.contextCollections.counts.facts, resumed.contextCollections.counts.evidence],
+    [1, 2],
+    "restart retains fact/evidence counts through bounded context collections",
+  );
+  ok(
+    !Object.hasOwn(resumed, "facts") && !Object.hasOwn(resumed, "evidence"),
+    "restart does not reintroduce unbounded facts/evidence into model-facing context",
+  );
   eq(resumed.pins.ruleSetVersionId, ruleSet1);
   eq(
     (
@@ -781,6 +802,8 @@ try {
     checkpointNamespace: "",
   });
   eq(ruleThreeRun.captured.selected_decision.ok, true);
+  eq(ruleThreeRun.captured.rule_set.assessmentRules.map((rule) => rule.assessmentRuleId), ["ER-RET"],
+    "bounded catalog reads preserve the first request's exact selection");
   const afterRuleThree = await customerHttp(
     "GET",
     `/assessments/${selectedAssessment.id}/rules?offset=0&limit=100`,
@@ -819,6 +842,8 @@ try {
     threadId: secondSelected.body.data.requestId,
     checkpointNamespace: "",
   });
+  eq(ruleNineRun.captured.rule_set.assessmentRules.map((rule) => rule.assessmentRuleId), ["ER-XREF"],
+    "bounded catalog reads preserve the second request's exact selection");
   ok(
     ruleNineRun.captured.graphConfig.threadId !== ruleThreeRun.captured.graphConfig.threadId,
     "a second batch starts with an isolated native Root checkpoint thread",
@@ -853,6 +878,13 @@ try {
     { rule: "ER-RET", request: firstSelected.body.data.requestId, state: "ACCEPTED" },
     { rule: "ER-XREF", request: secondSelected.body.data.requestId, state: "ACCEPTED" },
   ]);
+
+  for (const run of [first, second, ruleThreeRun, ruleNineRun]) {
+    const boundedLegalReads = run.captured.boundedReads.filter((read) =>
+      ["get_pinned_rule_set", "get_assessment_rule", "get_assessment_rule_detail"].includes(read.tool));
+    ok(boundedLegalReads.every((read) => read.replyBytes <= 4096),
+      "every observed catalog/rule/detail reply retains its complete serialized byte bound");
+  }
 
   // ---- isolation: B has its own thread, namespace and lease; A's data is invisible to it ---------
   logPhase("ASSESSMENT_ISOLATION", "START");

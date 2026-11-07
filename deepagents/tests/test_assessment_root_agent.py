@@ -553,7 +553,11 @@ def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_t
     # The researcher is the only task target and holds no governed assessment tool at all.
     assert not (child_tools & set(ROOT_TOOL_NAMES))
     assert "task" not in child_tools
-    task_tool = next(t for bound in model.bound_tools[:1] for t in bound if getattr(t, "name", "") == "task")
+    model_task_tool = next(t for bound in model.bound_tools[:1] for t in bound if getattr(t, "name", "") == "task")
+    assert RESEARCHER_NAME in model_task_tool.description
+    assert "general-purpose" not in model_task_tool.description
+    # Registration owns delegate execution; the model receives a concise description copy.
+    task_tool = agent.get_graph().nodes["tools"].data.tools_by_name["task"]
     agent_types = task_tool.description.split("Available agent types", 1)[1].split("Specify subagent_type", 1)[0]
     listed = [line[2:].split(":")[0] for line in agent_types.splitlines() if line.startswith("- ")]
     assert listed == [RESEARCHER_NAME]  # no general-purpose delegate
@@ -1370,9 +1374,15 @@ def test_root_context_preserves_fact_authority_when_reloading_accepted_claims(tm
     ]
     client.context = lambda: context
 
-    result = json.loads(_tools(run)["get_assessment_context"].invoke({}))
+    tools = _tools(run)
+    result = json.loads(tools["get_assessment_context"].invoke({}))
+    token = result["contextCollections"]["snapshotToken"]
+    facts = json.loads(tools["get_assessment_context_page"].invoke({
+        "snapshot_token": token,
+        "collection": "facts",
+    }))["items"]
 
-    assert result["facts"] == context["facts"]
+    assert facts == context["facts"]
     assert client.case_revision == 0
     assert not any(name == "fact" for name, _ in client.calls)
 
@@ -1393,3 +1403,912 @@ def test_root_context_exposes_runtime_view_limits_and_rejects_wrong_source_pins(
     (tmp_path / ".lcsp/repository.json").write_text(json.dumps(marker))
     with pytest.raises(RuntimeError, match="repository view pins"):
         tool.invoke({})
+
+
+# UNKNOWN responses are audit feedback, never accepted case facts.
+_REVIEW_AUDIT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+
+def _review_audit(audit_id):
+    """Represent the server-frozen rule selection used by offline native review tests."""
+    if audit_id is None:
+        return None
+    return {"requestId": audit_id, "scopeMode": "SELECTED_RULES",
+            "status": "RUNNING", "selectedRuleIds": ["ER-1"]}
+
+
+def _unknown_request(request_id="99999999-9999-4999-8999-999999999999", checkpoint_id="review-checkpoint"):
+    return {"requestId": request_id, "requestRevision": 1, "status": "OPEN",
+            "assessmentRuleId": "ER-1", "criterionIds": ["C-1"],
+            "question": "Who owns the policy?", "unresolvedFact": "Policy owner", "resolvedFactId": None,
+            "checkpointId": checkpoint_id,
+            "decisionImpact": ["Determines responsibility"], "resolutionAttempts": ["Reviewed sources"],
+            "dependencies": [{"assessmentRuleId": "ER-1", "criterionIds": ["C-1"]}],
+            "answers": [{"doesNotKnow": True, "answer": None, "checkpointId": checkpoint_id, "requestRevision": 1}]}
+
+
+@pytest.mark.parametrize("patch", [
+    {"humanAnswerReviewRequired": False},
+    {"resumeCheckpointId": "different-checkpoint"},
+])
+def test_unknown_review_requires_server_flag_and_exact_answer_checkpoint(tmp_path, patch):
+    client = FakeClient(open_requests=[_unknown_request()["requestId"]])
+    run = _run(tmp_path, client)
+    context = {**client.context(), "lifecycleState": "WAITING_FOR_HUMAN", "humanRequests": [_unknown_request()]}
+    claim = {"humanAnswerReviewRequired": True, "resumeCheckpointId": "review-checkpoint", **patch}
+    if patch.get("humanAnswerReviewRequired") is False:
+        assert run.authorize_human_answer_review(claim, context) is False
+    else:
+        with pytest.raises(RuntimeError, match="human answer review"):
+            run.authorize_human_answer_review(claim, context)
+
+
+def test_unknown_review_requires_latest_unknown_answer_for_every_open_request(tmp_path):
+    client = FakeClient(open_requests=[_unknown_request()["requestId"], "other-request"])
+    run = _run(tmp_path, client)
+    context = {**client.context(), "lifecycleState": "WAITING_FOR_HUMAN", "humanRequests": [_unknown_request()]}
+    with pytest.raises(RuntimeError, match="human answer review"):
+        run.authorize_human_answer_review(
+            {"humanAnswerReviewRequired": True, "resumeCheckpointId": "review-checkpoint"}, context)
+
+
+def test_unknown_response_review_rewaits_without_fact_or_duplicate_question(tmp_path):
+    from langgraph.types import Command
+
+    class UnknownClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.requests = []
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            self.open_requests = [result["requestId"]]
+            return result
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests}
+
+    client = UnknownClient()
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(responses=[
+        _call("open_human_request", {"assessment_rule_id": "ER-1", "criterion_ids": ["C-1"],
+            "question": "Who owns the policy?", "unresolved_fact": "Policy owner",
+            "decision_impact": ["Determines responsibility"], "resolution_attempts": ["Reviewed sources"]}, "ask"),
+        _call("wait_for_human_requests", {}, "wait"),
+    ])
+    saver = InMemorySaver()
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
+    config = {"configurable": {"thread_id": THREAD}}
+    first = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
+    checkpoint = agent.get_state(config).config["configurable"]["checkpoint_id"]
+    client.requests = [_unknown_request(checkpoint_id=checkpoint)]
+    client.lifecycle_state = "WAITING_FOR_HUMAN"
+    assert run.authorize_human_answer_review(
+        {"humanAnswerReviewRequired": True, "resumeCheckpointId": checkpoint}, client.context())
+    reviewed = agent.invoke(Command(resume={first["__interrupt__"][0].id: {"review": True}}), config)
+    assert reviewed["__interrupt__"][0].value["requestIds"] == client.open_requests
+    assert agent.get_state(config).config["configurable"]["checkpoint_id"] != checkpoint
+    results = [json.loads(m.content) for m in reviewed["messages"] if isinstance(m, ToolMessage) and m.name == "open_human_request"]
+    assert results[-1]["responseKind"] == "UNKNOWN"
+    assert results[-1]["resolved"] is False
+    assert "facts" not in results[-1] and "humanRequest" not in results[-1]
+    assert len(results[-1]["contextSnapshotToken"]) == 64
+    assert results[-1]["request"] == {
+        "requestId": client.requests[0]["requestId"],
+        "requestRevision": 1,
+        "status": "OPEN",
+        "assessmentRuleId": "ER-1",
+        "resolvedFactId": None,
+    }
+    assert client.case_revision == 0
+    assert not any(kind in {"fact", "decision", "final_report"} for kind, _ in client.calls)
+    assert len({body["idempotencyKey"] for kind, body in client.calls if kind == "human"}) == 1
+
+
+def test_hitl_resume_stays_bounded_with_large_facts_and_unknown_answer_history(tmp_path):
+    from langgraph.types import Command
+
+    class LargeReviewClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.requests = []
+            self.large_facts = [
+                {
+                    "factId": f"fact-{index}",
+                    "caseRevision": 1,
+                    "kind": "FACT",
+                    "state": "ACCEPTED",
+                    "authority": "HUMAN_PROVIDED",
+                    "statement": "x" * 12000,
+                    "evidenceIds": [],
+                }
+                for index in range(12)
+            ]
+
+        def context(self):
+            return {
+                **super().context(),
+                "facts": self.large_facts,
+                "humanRequests": self.requests,
+            }
+
+    client = LargeReviewClient()
+    request_id = _unknown_request()["requestId"]
+    client.open_requests = [request_id]
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(
+        responses=[
+            _call("wait_for_human_requests", {}, "wait"),
+            _call("wait_for_human_requests", {}, "wait-again"),
+        ]
+    )
+    saver = InMemorySaver()
+    agent = create_assessment_root_agent(
+        run=run, model=model, governance=(), checkpointer=saver, graph_tools=[]
+    )
+    config = {"configurable": {"thread_id": THREAD}}
+    first = agent.invoke(
+        {"messages": [{"role": "user", "content": "Review the pending answer."}]},
+        config,
+    )
+    checkpoint = agent.get_state(config).config["configurable"]["checkpoint_id"]
+    row = _unknown_request(request_id=request_id, checkpoint_id=checkpoint)
+    row["answers"] = [
+        {
+            "doesNotKnow": True,
+            "answer": None,
+            "checkpointId": checkpoint,
+            "requestRevision": 1,
+            "auditNote": "history-" + ("y" * 12000),
+        }
+        for _ in range(10)
+    ]
+    client.requests = [row]
+    client.lifecycle_state = "WAITING_FOR_HUMAN"
+    assert run.authorize_human_answer_review(
+        {"humanAnswerReviewRequired": True, "resumeCheckpointId": checkpoint},
+        client.context(),
+    )
+
+    reviewed = agent.invoke(
+        Command(resume={first["__interrupt__"][0].id: {"review": True}}),
+        config,
+    )
+    result = next(
+        json.loads(message.content)
+        for message in reviewed["messages"]
+        if isinstance(message, ToolMessage)
+        and message.name == "wait_for_human_requests"
+    )
+
+    encoded = json.dumps(result, ensure_ascii=False).encode("utf-8")
+    assert len(encoded) < 4096
+    assert "facts" not in result
+    assert "humanRequest" not in json.dumps(result)
+    assert result["requests"][0]["responseKind"] == "UNKNOWN"
+    assert len(result["contextSnapshotToken"]) == 64
+    assert "contextSnapshotToken" not in result["requests"][0]
+
+
+def test_hitl_resume_many_open_requests_is_byte_bounded_and_losslessly_pageable(tmp_path):
+    from langgraph.types import Command
+
+    request_ids = [
+        f"99999999-9999-4999-8{index:03d}-{index:012d}"
+        for index in range(120)
+    ]
+
+    class MultiReviewClient(FakeClient):
+        def __init__(self):
+            super().__init__(open_requests=request_ids)
+            self.requests = []
+
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests}
+
+    client = MultiReviewClient()
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(
+        responses=[
+            _call("wait_for_human_requests", {}, "wait"),
+            _call("wait_for_human_requests", {}, "wait-again"),
+        ]
+    )
+    saver = InMemorySaver()
+    agent = create_assessment_root_agent(
+        run=run, model=model, governance=(), checkpointer=saver, graph_tools=[]
+    )
+    config = {"configurable": {"thread_id": THREAD}}
+    first = agent.invoke(
+        {"messages": [{"role": "user", "content": "Review all pending answers."}]},
+        config,
+    )
+    checkpoint = agent.get_state(config).config["configurable"]["checkpoint_id"]
+    client.requests = [
+        {
+            **_unknown_request(request_id=request_id, checkpoint_id=checkpoint),
+            "assessmentRuleId": f"ER-{index + 1}",
+        }
+        for index, request_id in enumerate(request_ids)
+    ]
+    client.lifecycle_state = "WAITING_FOR_HUMAN"
+    assert run.authorize_human_answer_review(
+        {"humanAnswerReviewRequired": True, "resumeCheckpointId": checkpoint},
+        client.context(),
+    )
+
+    reviewed = agent.invoke(
+        Command(resume={first["__interrupt__"][0].id: {"review": True}}),
+        config,
+    )
+    first_page = next(
+        json.loads(message.content)
+        for message in reviewed["messages"]
+        if isinstance(message, ToolMessage)
+        and message.name == "wait_for_human_requests"
+    )
+
+    assert len(json.dumps(first_page, ensure_ascii=False).encode("utf-8")) <= 4096
+    assert len(first_page["contextSnapshotToken"]) == 64
+    assert first_page["totalRequests"] == len(request_ids)
+    assert first_page["nextOffset"] is not None
+    assert all("facts" not in row and "humanRequest" not in row for row in first_page["requests"])
+    assert all("contextSnapshotToken" not in row for row in first_page["requests"])
+
+    pages = [first_page]
+    observed = [row["requestId"] for row in first_page["requests"]]
+    offset = first_page["nextOffset"]
+    paging_tool = _tools(run)["get_human_request_resume_page"]
+    while offset is not None:
+        page = json.loads(
+            paging_tool.invoke(
+                {
+                    "snapshot_token": first_page["contextSnapshotToken"],
+                    "offset": offset,
+                    "limit": 50,
+                }
+            )
+        )
+        assert page["ok"] is True
+        assert len(json.dumps(page, ensure_ascii=False).encode("utf-8")) <= 4096
+        assert page["contextSnapshotToken"] == first_page["contextSnapshotToken"]
+        assert page["offset"] == offset
+        observed.extend(row["requestId"] for row in page["requests"])
+        assert all("contextSnapshotToken" not in row for row in page["requests"])
+        next_offset = page["nextOffset"]
+        assert next_offset is None or next_offset > offset
+        offset = next_offset
+        pages.append(page)
+        assert len(pages) < len(request_ids)
+
+    assert observed == sorted(request_ids)
+    assert len(observed) == len(set(observed)) == 120
+
+
+def test_existing_unresolvable_report_uses_authoritative_request_without_opening_duplicate(tmp_path):
+    class ExistingClient(FakeClient):
+        def context(self):
+            return {**super().context(), "humanRequests": [_unknown_request()]}
+        def report_unresolvable_human_fact(self, body):
+            self.calls.append(("unresolvable", body))
+            return {"lifecycleState": "BLOCKED"}
+
+    client = ExistingClient(open_requests=[_unknown_request()["requestId"]])
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(responses=[_call("report_existing_human_fact_unresolvable", {
+        "request_id": _unknown_request()["requestId"], "unavailability_rationale": "Accepted records establish permanent loss.",
+        "evidence_ids": ["66666666-6666-4666-8666-666666666666"]}, "block")])
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=InMemorySaver(), graph_tools=[])
+    result = agent.invoke({"messages": [{"role": "user", "content": "Review"}]},
+                          {"configurable": {"thread_id": THREAD}})
+    assert result["__interrupt__"][0].value["requestIds"] == client.open_requests
+    body = next(body for kind, body in client.calls if kind == "unresolvable")
+    assert body["humanResolutionRequestId"] == _unknown_request()["requestId"]
+    assert body["expectedRequestRevision"] == 1
+    assert not any(kind == "human" for kind, _ in client.calls)
+
+
+def test_human_request_sharing_maps_dependencies_and_resolved_source_skips_interrupt(tmp_path):
+    class SharedClient(FakeClient):
+        def post_human_request(self, body):
+            self.calls.append(("human", body))
+            return {"requestId": "source-request", "requestRevision": 2, "caseRevision": 1}
+        def context(self):
+            return {**super().context(), "humanRequests": [
+                {**_unknown_request("source-request"), "status": "RESOLVED", "answers": []}]}
+
+    client = SharedClient()
+    run = _run(tmp_path, client)
+    result = _tools(run)["open_human_request"].invoke({
+        "assessment_rule_id": "ER-1", "criterion_ids": ["C-1"],
+        "question": "Who owns the policy?", "unresolved_fact": "Policy owner",
+        "decision_impact": ["Determines responsibility"], "resolution_attempts": ["Reviewed sources"],
+        "dependencies": [{"assessment_rule_id": "ER-2", "criterion_ids": ["C-2"]}],
+        "source_request_id": "source-request"})
+    body = next(body for kind, body in client.calls if kind == "human")
+    assert body["sourceRequestId"] == "source-request"
+    assert body["dependencies"] == [{"assessmentRuleId": "ER-2", "criterionIds": ["C-2"]}]
+    assert json.loads(result)["resolved"] is True
+
+
+def test_runner_reviews_unknown_once_and_normal_redelivery_retains_new_wait(tmp_path):
+    class ReviewClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.checkpoint = None
+            self.review = False
+            self.requests = []
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "lifecycleState": self.lifecycle_state,
+                    "resumeCheckpointId": self.checkpoint, "humanAnswerReviewRequired": self.review}
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests}
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            self.open_requests = [result["requestId"]]
+            self.lifecycle_state = "WAITING_FOR_HUMAN"
+            return result
+        def finish(self, state, **metadata):
+            self.checkpoint = metadata.get("checkpoint_id")
+            self.calls.append(("settlement", {"state": state, **metadata}))
+            return super().finish(state, **metadata)
+
+    client = ReviewClient()
+    backend = FilesystemBackend(root_dir=_repo(tmp_path), virtual_mode=True)
+    model = RootScriptedModel(responses=[
+        _call("open_human_request", {"assessment_rule_id": "ER-1", "criterion_ids": ["C-1"],
+            "question": "Who owns the policy?", "unresolved_fact": "Policy owner",
+            "decision_impact": ["Determines responsibility"], "resolution_attempts": ["Reviewed sources"]}, "ask"),
+        _call("wait_for_human_requests", {}, "wait"),
+        *complete_root_messages(),
+    ])
+    saver = InMemorySaver()
+    arguments = {"backend_factory": lambda *_: (backend, None), "model": model,
+                 "checkpointer": saver, "governance": ()}
+    first = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert first["state"] == "INTERRUPTED"
+    original_checkpoint = client.checkpoint
+    client.requests = [_unknown_request(checkpoint_id=original_checkpoint)]
+    client.review = True
+    second = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert second["state"] == "INTERRUPTED"
+    assert client.checkpoint != original_checkpoint
+    review_checkpoint = client.checkpoint
+    client.review = False
+    third = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert third["state"] == "INTERRUPTED" and client.checkpoint == review_checkpoint
+    assert not any(kind in {"fact", "decision", "final_report"} for kind, _ in client.calls)
+    client.open_requests = []
+    client.case_revision = 1
+    client.lifecycle_state = "ACTIVE"
+    client.requests[0] = {**client.requests[0], "status": "RESOLVED", "resolvedFactId": "accepted-fact"}
+    last = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert last["state"] == "SUCCEEDED"
+    assert last["threadId"] == first["threadId"]
+
+
+@pytest.mark.parametrize("target,patch", [
+    ("request", {"checkpointId": "different-checkpoint"}),
+    ("answer", {"requestRevision": 0}),
+])
+def test_unknown_review_rejects_stale_request_binding(tmp_path, target, patch):
+    row = _unknown_request()
+    if target == "request":
+        row.update(patch)
+    else:
+        row["answers"][-1].update(patch)
+    client = FakeClient(open_requests=[row["requestId"]])
+    run = _run(tmp_path, client)
+    context = {**client.context(), "lifecycleState": "WAITING_FOR_HUMAN", "humanRequests": [row]}
+    with pytest.raises(RuntimeError, match="human answer review"):
+        run.authorize_human_answer_review(
+            {"humanAnswerReviewRequired": True, "resumeCheckpointId": "review-checkpoint"}, context)
+
+
+@pytest.mark.parametrize("action", ["wait", "report"])
+@pytest.mark.parametrize("audit_id,source_prefix", [
+    (None, None), (_REVIEW_AUDIT, None), (_REVIEW_AUDIT, "projects/chatbot"),
+], ids=["legacy", "selected", "selected-source"])
+def test_review_crash_after_new_checkpoint_recovers_by_settling_only(tmp_path, action, audit_id, source_prefix):
+    class ReviewCrashClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.checkpoint = None
+            self.review_checkpoint = None
+            self.review = False
+            self.recovered = False
+            self.crash = False
+            self.requests = []
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "lifecycleState": self.lifecycle_state,
+                    "resumeCheckpointId": self.checkpoint, "recoveredExecution": self.recovered,
+                    "humanAnswerReviewRequired": self.review,
+                    "humanAnswerReviewCheckpointId": self.review_checkpoint,
+                    "checkpointThreadId": audit_id or THREAD}
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests,
+                    "auditRequest": _review_audit(audit_id), "sourcePathPrefix": source_prefix}
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            self.open_requests = [result["requestId"]]
+            self.lifecycle_state = "WAITING_FOR_HUMAN"
+            return result
+        def report_unresolvable_human_fact(self, body):
+            self.calls.append(("unresolvable", body))
+            self.lifecycle_state = "BLOCKED"
+            return {"lifecycleState": "BLOCKED"}
+        def finish(self, state, **metadata):
+            if self.crash:
+                raise RuntimeError("simulated loss after native checkpoint commit")
+            self.checkpoint = metadata.get("checkpoint_id")
+            return super().finish(state, **metadata)
+
+    client = ReviewCrashClient()
+    backend = FilesystemBackend(root_dir=_repo(tmp_path), virtual_mode=True)
+    request_id = _unknown_request()["requestId"]
+    review_call = _call("wait_for_human_requests", {}, "wait") if action == "wait" else _call(
+        "report_existing_human_fact_unresolvable", {"request_id": request_id,
+        "unavailability_rationale": "Accepted records prove permanent loss.",
+        "evidence_ids": ["66666666-6666-4666-8666-666666666666"]}, "report")
+    model = RootScriptedModel(responses=[
+        _call("open_human_request", {"assessment_rule_id": "ER-1", "criterion_ids": ["C-1"],
+            "question": "Who owns the policy?", "unresolved_fact": "Policy owner",
+            "decision_impact": ["Determines responsibility"], "resolution_attempts": ["Reviewed sources"]}, "ask"),
+        review_call,
+    ])
+    saver = InMemorySaver()
+    arguments = {"backend_factory": lambda *_: (backend, None), "model": model,
+                 "checkpointer": saver, "governance": ()}
+    assert run_assessment_root(client, ASSESSMENT, **arguments)["state"] == "INTERRUPTED"
+    client.review_checkpoint = client.checkpoint
+    client.requests = [_unknown_request(checkpoint_id=client.checkpoint)]
+    client.review = True
+    client.crash = True
+    with pytest.raises(RuntimeError, match="simulated loss"):
+        run_assessment_root(client, ASSESSMENT, **arguments)
+    native_checkpoint = saver.get_tuple({"configurable": {"thread_id": audit_id or THREAD}})
+    committed = native_checkpoint.config["configurable"]["checkpoint_id"]
+    assert native_checkpoint.config["configurable"].get("checkpoint_ns", "") == ""
+    assert native_checkpoint.metadata.get("assessment_root_audit_request_id") == audit_id
+    assert native_checkpoint.metadata.get("source_path_prefix") == source_prefix
+    if audit_id is not None:
+        assert saver.get_tuple({"configurable": {"thread_id": THREAD}}) is None
+    assert committed != client.checkpoint
+    client.crash = False
+    client.recovered = True
+    # BLOCKED recovery never gets permission to reason about UNKNOWN again.
+    client.review = action == "wait"
+    calls_before_recovery = len(model.prompts)
+    result = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert len(model.prompts) == calls_before_recovery
+    assert result["state"] == "INTERRUPTED"
+    assert result["checkpointId"] == committed
+    assert client.checkpoint == committed
+    assert sum(kind == "unresolvable" for kind, _ in client.calls) == (1 if action == "report" else 0)
+    assert not any(kind in {"fact", "decision", "final_report"} for kind, _ in client.calls)
+
+
+@pytest.mark.parametrize("mismatch", [
+    "execution", "pins", "thread", "pending", "ancestor", "authority",
+    "audit", "source", "claim_thread", "parent_thread",
+])
+@pytest.mark.parametrize("selected", [False, True], ids=["legacy", "selected-source"])
+def test_review_checkpoint_recovery_rejects_foreign_or_unbound_native_wait(tmp_path, mismatch, selected):
+    from types import SimpleNamespace
+    from assessment_root.runner import _review_checkpoint_recovery_authorized
+
+    audit_id = _REVIEW_AUDIT if selected else None
+    source_prefix = "projects/chatbot" if selected else None
+    checkpoint_thread = audit_id or THREAD
+
+    class ScopedReviewClient(FakeClient):
+        def context(self):
+            return {**super().context(), "auditRequest": _review_audit(audit_id),
+                    "sourcePathPrefix": source_prefix}
+
+    client = ScopedReviewClient(open_requests=[_unknown_request()["requestId"]])
+    run = _run(tmp_path, client)
+    metadata = {"assessment_id": ASSESSMENT, "assessment_root_execution_id": EXECUTION,
+                "assessment_root_audit_request_id": audit_id, "source_path_prefix": source_prefix,
+                "rule_set_version_id": PINS["ruleSetVersionId"],
+                "repository_snapshot_id": PINS["repositorySnapshotId"],
+                "repository_commit": PINS["repositoryCommit"], "case_revision": 0}
+    authorized = {"configurable": {"thread_id": checkpoint_thread, "checkpoint_id": "review-checkpoint"}}
+    saved = SimpleNamespace(
+        config={"configurable": {"thread_id": checkpoint_thread, "checkpoint_id": "new-checkpoint"}},
+        metadata=dict(metadata), parent_config=authorized,
+        tasks=[SimpleNamespace(interrupts=[SimpleNamespace(value={"requestIds": client.open_requests})])])
+    ancestor = SimpleNamespace(config=authorized, metadata=dict(metadata), parent_config=None, tasks=[])
+    # The original human wait may have been written by an earlier execution.
+    ancestor.metadata["assessment_root_execution_id"] = "prior-execution"
+    agent = SimpleNamespace(get_state=lambda _config: ancestor)
+    claim = {"recoveredExecution": True, "resumeCheckpointId": "review-checkpoint",
+             "humanAnswerReviewCheckpointId": "review-checkpoint",
+             "checkpointThreadId": checkpoint_thread}
+    context = {**client.context(), "lifecycleState": "WAITING_FOR_HUMAN", "humanRequests": [_unknown_request()]}
+    assert _review_checkpoint_recovery_authorized(agent, saved, claim, context, run)
+    if mismatch == "execution":
+        saved.metadata["assessment_root_execution_id"] = "foreign-execution"
+    elif mismatch == "pins":
+        saved.metadata["repository_commit"] = "b" * 40
+    elif mismatch == "thread":
+        saved.config["configurable"]["thread_id"] = "foreign-thread"
+    elif mismatch == "pending":
+        saved.tasks[0].interrupts[0].value["requestIds"] = ["foreign-request"]
+    elif mismatch == "ancestor":
+        ancestor.config = {"configurable": {"thread_id": checkpoint_thread, "checkpoint_id": "unrelated-checkpoint"}}
+    elif mismatch == "authority":
+        claim["humanAnswerReviewCheckpointId"] = None
+    elif mismatch == "audit":
+        ancestor.metadata["assessment_root_audit_request_id"] = "foreign-audit"
+    elif mismatch == "source":
+        saved.metadata["source_path_prefix"] = "other/project"
+    elif mismatch == "claim_thread":
+        claim["checkpointThreadId"] = "foreign-thread"
+    else:
+        saved.parent_config = {"configurable": {"thread_id": "foreign-thread", "checkpoint_id": "review-checkpoint"}}
+    assert not _review_checkpoint_recovery_authorized(agent, saved, claim, context, run)
+
+
+def test_failed_unknown_review_retries_native_work_under_new_execution(tmp_path):
+    class FailedReviewClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.checkpoint = None
+            self.review_checkpoint = None
+            self.producer = None
+            self.execution = EXECUTION
+            self.review = False
+            self.requests = []
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "executionId": self.execution,
+                    "lifecycleState": self.lifecycle_state, "resumeCheckpointId": self.checkpoint,
+                    "humanAnswerReviewRequired": self.review,
+                    "humanAnswerReviewCheckpointId": self.review_checkpoint,
+                    "humanAnswerReviewExecutionId": self.producer}
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests}
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            self.open_requests = [result["requestId"]]
+            self.lifecycle_state = "WAITING_FOR_HUMAN"
+            return result
+        def finish(self, state, **metadata):
+            self.checkpoint = metadata.get("checkpoint_id")
+            if state == "FAILED":
+                self.producer = self.execution
+            return super().finish(state, **metadata)
+
+    client = FailedReviewClient()
+    backend = FilesystemBackend(root_dir=_repo(tmp_path), virtual_mode=True)
+    model = RootScriptedModel(responses=[
+        _call("open_human_request", {"assessment_rule_id": "ER-1", "criterion_ids": ["C-1"],
+            "question": "Who owns the policy?", "unresolved_fact": "Policy owner",
+            "decision_impact": ["Determines responsibility"], "resolution_attempts": ["Reviewed sources"]}, "ask")])
+    saver = InMemorySaver()
+    arguments = {"backend_factory": lambda *_: (backend, None), "model": model,
+                 "checkpointer": saver, "governance": ()}
+    first = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert first["state"] == "INTERRUPTED"
+    original_checkpoint = client.checkpoint
+    client.review_checkpoint = original_checkpoint
+    client.requests = [_unknown_request(checkpoint_id=original_checkpoint)]
+    client.review = True
+    failed = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert failed["state"] == "FAILED" and client.checkpoint != original_checkpoint
+    # A second graceful model failure must remain recoverable across producer segments.
+    client.execution = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+    model.responses.append(_call("get_assessment_context", {}, "reload"))
+    failed_again = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert failed_again["state"] == "FAILED"
+    second_failed_checkpoint = client.checkpoint
+    assert saver.get_tuple({"configurable": {"thread_id": THREAD}}).metadata["assessment_root_execution_id"] == client.execution
+    client.execution = "ffffffff-ffff-4fff-8fff-ffffffffffff"
+    model.responses.append(_call("wait_for_human_requests", {}, "wait"))
+    resumed = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert resumed["state"] == "INTERRUPTED"
+    assert client.checkpoint != second_failed_checkpoint
+    assert client.requests[0]["checkpointId"] == original_checkpoint
+    assert client.case_revision == 0
+    assert not any(kind in {"fact", "decision", "final_report"} for kind, _ in client.calls)
+
+
+@pytest.mark.parametrize("mismatch", ["producer", "unfinished_without_review"])
+def test_failed_review_checkpoint_requires_prior_producer_and_continuation_authority(tmp_path, mismatch):
+    from types import SimpleNamespace
+    from assessment_root.runner import _review_checkpoint_recovery_authorized
+
+    client = FakeClient(open_requests=[_unknown_request()["requestId"]])
+    run = _run(tmp_path, client)
+    run.execution_id = "new-retry-execution"
+    metadata = {"assessment_id": ASSESSMENT, "assessment_root_execution_id": EXECUTION,
+                "rule_set_version_id": PINS["ruleSetVersionId"],
+                "repository_snapshot_id": PINS["repositorySnapshotId"],
+                "repository_commit": PINS["repositoryCommit"], "case_revision": 0}
+    origin = {"configurable": {"thread_id": THREAD, "checkpoint_id": "review-checkpoint"}}
+    saved = SimpleNamespace(
+        config={"configurable": {"thread_id": THREAD, "checkpoint_id": "failed-checkpoint"}},
+        metadata=metadata, parent_config=origin, tasks=[], next=("model",))
+    ancestor = SimpleNamespace(config=origin, metadata={**metadata, "assessment_root_execution_id": "prior-owner"},
+                               parent_config=None, tasks=[], next=())
+    agent = SimpleNamespace(get_state=lambda _config: ancestor)
+    claim = {"resumeCheckpointId": "failed-checkpoint", "humanAnswerReviewCheckpointId": "review-checkpoint",
+             "humanAnswerReviewExecutionId": EXECUTION, "humanAnswerReviewRequired": True,
+             "recoveredExecution": False}
+    context = {**client.context(), "lifecycleState": "WAITING_FOR_HUMAN", "humanRequests": [_unknown_request()]}
+    assert _review_checkpoint_recovery_authorized(agent, saved, claim, context, run)
+    if mismatch == "producer":
+        claim["humanAnswerReviewExecutionId"] = "foreign-producer"
+    else:
+        claim["humanAnswerReviewRequired"] = False
+    assert not _review_checkpoint_recovery_authorized(agent, saved, claim, context, run)
+
+
+@pytest.mark.parametrize("loss", ["graceful", "abrupt"])
+def test_blocked_report_side_effect_before_interrupt_replays_only_native_tool(tmp_path, monkeypatch, loss):
+    import assessment_root.tools as root_tools
+
+    class BlockedToolClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.checkpoint = None
+            self.origin = None
+            self.producer = None
+            self.execution = EXECUTION
+            self.review = False
+            self.requests = []
+            self.report_count = 0
+            self.recovered = False
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "executionId": self.execution,
+                    "lifecycleState": self.lifecycle_state, "resumeCheckpointId": self.checkpoint,
+                    "humanAnswerReviewCheckpointId": self.origin,
+                    "humanAnswerReviewExecutionId": self.producer,
+                    "humanAnswerReviewRequired": self.review, "recoveredExecution": self.recovered}
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests}
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            self.open_requests = [result["requestId"]]
+            self.lifecycle_state = "WAITING_FOR_HUMAN"
+            return result
+        def report_unresolvable_human_fact(self, body):
+            self.calls.append(("unresolvable", body))
+            self.report_count += 1
+            self.lifecycle_state = "BLOCKED"
+            return {"lifecycleState": "BLOCKED", "replayed": self.report_count > 1}
+        def finish(self, state, **metadata):
+            self.checkpoint = metadata.get("checkpoint_id")
+            if state == "FAILED":
+                self.producer = self.execution
+            return super().finish(state, **metadata)
+
+    client = BlockedToolClient()
+    backend = FilesystemBackend(root_dir=_repo(tmp_path), virtual_mode=True)
+    model = RootScriptedModel(responses=[
+        _call("open_human_request", {"assessment_rule_id": "ER-1", "criterion_ids": ["C-1"],
+            "question": "Who owns the policy?", "unresolved_fact": "Policy owner",
+            "decision_impact": ["Determines responsibility"], "resolution_attempts": ["Reviewed sources"]}, "ask"),
+        _call("report_existing_human_fact_unresolvable", {"request_id": _unknown_request()["requestId"],
+            "unavailability_rationale": "Accepted records prove permanent loss.",
+            "evidence_ids": ["66666666-6666-4666-8666-666666666666"]}, "report"),
+    ])
+    saver = InMemorySaver()
+    arguments = {"backend_factory": lambda *_: (backend, None), "model": model,
+                 "checkpointer": saver, "governance": ()}
+    assert run_assessment_root(client, ASSESSMENT, **arguments)["state"] == "INTERRUPTED"
+    client.origin = client.checkpoint
+    client.requests = [_unknown_request(checkpoint_id=client.origin)]
+    client.review = True
+    native_interrupt = root_tools.interrupt
+    def lose_before_interrupt(value):
+        if client.lifecycle_state == "BLOCKED":
+            if loss == "abrupt":
+                raise KeyboardInterrupt("simulated process loss before native report interrupt")
+            raise RuntimeError("simulated loss before native report interrupt")
+        return native_interrupt(value)
+    monkeypatch.setattr(root_tools, "interrupt", lose_before_interrupt)
+    if loss == "abrupt":
+        with pytest.raises(KeyboardInterrupt, match="simulated process loss"):
+            run_assessment_root(client, ASSESSMENT, **arguments)
+    else:
+        failed = run_assessment_root(client, ASSESSMENT, **arguments)
+        assert failed["state"] == "FAILED"
+    assert client.lifecycle_state == "BLOCKED"
+    assert client.report_count == 1
+    failed_checkpoint = client.checkpoint
+    client.review = False
+    if loss == "graceful":
+        client.execution = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+    else:
+        client.recovered = True
+    monkeypatch.setattr(root_tools, "interrupt", native_interrupt)
+    prompts_before = len(model.prompts)
+    recovered = run_assessment_root(client, ASSESSMENT, **arguments)
+    assert recovered["state"] == "INTERRUPTED"
+    persisted = saver.get_tuple({"configurable": {"thread_id": THREAD}})
+    assert recovered["checkpointId"] == persisted.config["configurable"]["checkpoint_id"]
+    assert any(write[1] == "__interrupt__" for write in persisted.pending_writes)
+    assert len(model.prompts) == prompts_before
+    assert client.report_count == 2
+    assert client.case_revision == 0 and client.open_requests == [_unknown_request()["requestId"]]
+    assert not any(kind in {"fact", "decision", "final_report"} for kind, _ in client.calls)
+
+
+@pytest.mark.parametrize("kind", ["foreign_request", "decision", "mixed_batch"])
+def test_blocked_wait_recovery_excludes_other_native_tool_work(kind):
+    from types import SimpleNamespace
+    from assessment_root.runner import _blocked_wait_tool_replay_allowed
+
+    request_id = _unknown_request()["requestId"]
+    call = {"name": "report_existing_human_fact_unresolvable", "args": {"request_id": request_id,
+            "unavailability_rationale": "Accepted proof of loss.", "evidence_ids": ["accepted-evidence"]}, "id": "report"}
+    saved = SimpleNamespace(next=("tools",), tasks=[SimpleNamespace(name="tools")],
+                            values={"messages": [AIMessage(content="", tool_calls=[call])]})
+    context = {"lifecycleState": "BLOCKED", "openHumanRequestIds": [request_id]}
+    assert _blocked_wait_tool_replay_allowed(saved, context)
+    if kind == "foreign_request":
+        call["args"]["request_id"] = "foreign-request"
+    elif kind == "decision":
+        call["name"] = "submit_rule_decision"
+    else:
+        saved.values["messages"] = [AIMessage(content="", tool_calls=[
+            call, {"name": "get_assessment_context", "args": {}, "id": "other"}])]
+    if kind != "mixed_batch":
+        saved.values["messages"] = [AIMessage(content="", tool_calls=[call])]
+    assert not _blocked_wait_tool_replay_allowed(saved, context)
+
+
+def test_review_recovery_original_checkpoint_can_predate_unrelated_accepted_fact(tmp_path):
+    from types import SimpleNamespace
+    from assessment_root.runner import _review_checkpoint_recovery_authorized
+
+    client = FakeClient(open_requests=[_unknown_request()["requestId"]])
+    client.case_revision = 1
+    run = _run(tmp_path, client)
+    pins = {"assessment_id": ASSESSMENT, "assessment_root_execution_id": EXECUTION,
+            "rule_set_version_id": PINS["ruleSetVersionId"], "repository_snapshot_id": PINS["repositorySnapshotId"],
+            "repository_commit": PINS["repositoryCommit"]}
+    origin = {"configurable": {"thread_id": THREAD, "checkpoint_id": "review-checkpoint"}}
+    saved = SimpleNamespace(config={"configurable": {"thread_id": THREAD, "checkpoint_id": "new-wait"}},
+        metadata={**pins, "case_revision": 1}, parent_config=origin,
+        tasks=[SimpleNamespace(interrupts=[SimpleNamespace(value={"requestIds": client.open_requests})])])
+    original = SimpleNamespace(config=origin, metadata={**pins, "case_revision": 0}, parent_config=None)
+    claim = {"recoveredExecution": True, "resumeCheckpointId": "review-checkpoint",
+             "humanAnswerReviewCheckpointId": "review-checkpoint"}
+    context = {**client.context(), "lifecycleState": "WAITING_FOR_HUMAN", "humanRequests": [_unknown_request()]}
+    assert _review_checkpoint_recovery_authorized(SimpleNamespace(get_state=lambda _: original), saved, claim, context, run)
+    saved.metadata["case_revision"] = 0
+    assert not _review_checkpoint_recovery_authorized(SimpleNamespace(get_state=lambda _: original), saved, claim, context, run)
+
+
+# Immutable repository subtree boundaries apply before any source evidence or resume.
+def _scoped_root_run(tmp_path, *, prefix="src"):
+    client = FakeClient()
+    original_context = client.context
+    client.context = lambda: {**original_context(), "sourcePathPrefix": prefix}
+    run = _run(tmp_path, client)
+    root = tmp_path / "repo"
+    (root / "other").mkdir()
+    (root / "other/secret.py").write_text("foreign = True\n")
+    (root / ".lcsp").mkdir()
+    marker = {"assessmentId": ASSESSMENT, "snapshotId": PINS["repositorySnapshotId"], "commitSha": COMMIT,
+              "sourcePathPrefix": prefix, "sourceCoverage": {"sourcePathPrefix": prefix, "coverageLimited": False,
+              "includedFiles": 1, "skippedEntries": [], "sourceScopeExcludedEntryCount": 1,
+              "sourceScopeExcludedEntries": [{"path": "other/secret.py", "reason": "SOURCE_SCOPE_EXCLUDED"}],
+              "sourceScopeExclusionsTruncated": False}}
+    (root / ".lcsp/repository.json").write_text(json.dumps(marker))
+    return run, client, marker
+
+
+@pytest.mark.parametrize("path", [
+    "other/secret.py", "src-other/secret.py", "src/../other/secret.py", "src//retention.py",
+    "src\\\\retention.py", "src/%2e%2e/secret.py", " src/retention.py", ".lcsp/repository.json",
+])
+def test_scoped_source_citation_rejects_foreign_or_ambiguous_path_before_io(tmp_path, monkeypatch, path):
+    run, client, _ = _scoped_root_run(tmp_path)
+    monkeypatch.setattr(run.backend, "download_files", lambda *_: pytest.fail("rejected path must not read any source"))
+    result = json.loads(_tools(run)["cite_repository_source"].invoke({"path": path, "start_line": 1, "end_line": 1}))
+    assert result["code"] == "SOURCE_PATH_OUTSIDE_SCOPE" and result["sourcePathPrefix"] == "src"
+    assert not any(name == "evidence" for name, _ in client.calls)
+
+
+def test_scoped_source_keeps_repository_relative_path_and_hash(tmp_path):
+    run, client, _ = _scoped_root_run(tmp_path)
+    result = json.loads(_tools(run)["cite_repository_source"].invoke(
+        {"path": "/src/retention.py", "start_line": 3, "end_line": 3}))
+    assert result["ok"] is True and result["path"] == "src/retention.py"
+    evidence = next(body for name, body in client.calls if name == "evidence")
+    assert evidence["path"] == "src/retention.py"
+    assert evidence["excerptSha256"] == "sha256:" + hashlib.sha256(b"keep_days = 7").hexdigest()
+
+
+def test_scoped_root_context_hides_sibling_names_but_preserves_exclusion_count(tmp_path):
+    run, _, _ = _scoped_root_run(tmp_path)
+    result = json.loads(_tools(run)["get_assessment_context"].invoke({}))
+    assert result["sourcePathPrefix"] == result["repositoryView"]["sourcePathPrefix"] == "src"
+    assert result["repositoryView"]["sourceScopeExcludedEntryCount"] == 1
+    assert "sourceScopeExcludedEntries" not in result["repositoryView"]
+    assert "other/secret.py" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("mismatch", ["missing_marker", "legacy_marker", "wrong_coverage"])
+def test_scoped_source_requires_matching_runtime_marker_and_coverage(tmp_path, mismatch):
+    run, client, marker = _scoped_root_run(tmp_path)
+    path = tmp_path / "repo/.lcsp/repository.json"
+    if mismatch == "missing_marker":
+        path.unlink()
+    else:
+        if mismatch == "legacy_marker":
+            marker.pop("sourcePathPrefix")
+        else:
+            marker["sourceCoverage"]["sourcePathPrefix"] = "other"
+        path.write_text(json.dumps(marker))
+    with pytest.raises(RuntimeError, match="repository"):
+        _tools(run)["cite_repository_source"].invoke({"path": "src/retention.py", "start_line": 1, "end_line": 1})
+    assert not any(name == "evidence" for name, _ in client.calls)
+
+
+def test_root_cannot_change_its_source_scope_on_context_refresh(tmp_path):
+    run, client, _ = _scoped_root_run(tmp_path)
+    with pytest.raises(RuntimeError, match="source scope changed"):
+        run.adopt_context({**client.context(), "sourcePathPrefix": None})
+
+
+def test_scoped_search_trace_and_graph_emit_only_authorized_scope(tmp_path):
+    run, client, _ = _scoped_root_run(tmp_path)
+    for entry in [
+        {"tool": "grep", "args": {"path": "/src", "pattern": "keep_days"}, "resultCount": 1},
+        {"tool": "read_file", "args": {"file_path": "/src/retention.py"}, "resultCount": 4},
+        {"tool": "search_code_graph", "args": {"name_pattern": "retain"}, "resultCount": 0},
+    ]:
+        run.trace.record(entry)
+    result = json.loads(_tools(run)["record_search_coverage"].invoke({"inspected_entry_points": ["src/retention.py"]}))
+    assert result["ok"] is True
+    evidence = next(body for name, body in client.calls if name == "evidence")
+    assert evidence["scopes"] == [
+        {"kind": "SOURCE_DIRECTORY", "path": "src"}, {"kind": "SOURCE_FILE", "path": "src/retention.py"},
+        {"kind": "GRAPH_INDEX", "path": "src"},
+    ]
+
+
+@pytest.mark.parametrize("tool,args", [
+    ("grep", {"path": ".", "pattern": "secret"}),
+    ("glob", {"path": "/", "pattern": "*.py"}),
+    ("read_file", {"file_path": "other/secret.py"}),
+    ("ls", {"path": "src-other"}),
+])
+def test_out_of_scope_search_trace_cannot_become_coverage(tmp_path, tool, args):
+    run, client, _ = _scoped_root_run(tmp_path)
+    run.trace.record({"tool": tool, "args": args, "resultCount": 1})
+    result = json.loads(_tools(run)["record_search_coverage"].invoke({}))
+    assert result["code"] == "SOURCE_PATH_OUTSIDE_SCOPE"
+    assert "explicit path" in result["hint"]
+    assert not any(name == "evidence" for name, _ in client.calls)
+
+
+@pytest.mark.parametrize("saved_scope", [None, "other"])
+def test_scoped_resume_rejects_legacy_or_foreign_checkpoint_before_graph_invocation(tmp_path, monkeypatch, saved_scope):
+    from types import SimpleNamespace
+    import assessment_root.runner as runner
+
+    run, client, _ = _scoped_root_run(tmp_path)
+    original_claim = client.claim
+    client.claim = lambda assessment_id: {**original_claim(assessment_id), "resumeCheckpointId": "old-checkpoint"}
+    saved = SimpleNamespace(config={"configurable": {"checkpoint_id": "old-checkpoint"}},
+                            metadata={} if saved_scope is None else {"source_path_prefix": saved_scope})
+    graph = SimpleNamespace(get_state=lambda *_: saved, invoke=lambda *_args, **_kwargs: pytest.fail("stale scope must not invoke the graph"))
+    monkeypatch.setattr(runner, "create_assessment_root_agent", lambda **_: graph)
+    result = runner.run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (run.backend, None), checkpointer=object())
+    assert result["state"] == "FAILED" and result["errorType"] == "RuntimeError"
+    assert result["checkpointId"] is None
+    assert client.calls[-1] == ("finish", "FAILED")
+
+
+def test_scoped_native_checkpoints_retain_source_prefix(tmp_path):
+    run, client, _ = _scoped_root_run(tmp_path)
+    saver = InMemorySaver()
+    model = RootScriptedModel(responses=complete_root_messages())
+    result = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (run.backend, None),
+                                 checkpointer=saver, model=model, governance=())
+    assert result["state"] == "SUCCEEDED"
+    saved = saver.get_tuple({"configurable": {"thread_id": THREAD}})
+    assert saved.metadata["source_path_prefix"] == "src"
