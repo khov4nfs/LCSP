@@ -65,6 +65,17 @@ function stepOf(label: string | null) {
   );
 }
 
+/**
+ * Business purpose: Preserve event trace identity and the API-localized authored activity summary.
+ * Business rules:
+ * - Label keys and execution/tool correlation remain canonical; this projection never translates event data.
+ * Execution flow:
+ * 1. Copy structural event fields and the optional activity summary into the work disclosure.
+ * Failure cases:
+ * - Non-activity events have no authored summary; invalid events are rejected by the API contract.
+ * Side effects:
+ * - Pure projection; persisted events and accepted facts remain unchanged.
+ */
 function technicalOf(
   event: AssessmentEvent,
   invocation: { invocationId: string; usage: UsageTotals } | null,
@@ -84,6 +95,10 @@ function technicalOf(
     toolCallId: event.toolCallId ?? null,
     invocationId: invocation?.invocationId ?? null,
     usage: invocation?.usage ?? null,
+    summary:
+      event.eventType === AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED
+        ? (event.payload.summary ?? null)
+        : null,
   };
 }
 

@@ -6,6 +6,7 @@ import {
   type SubmitRuleAudit,
 } from "@lcsp/contracts/assessment-domain";
 import { apiValidated } from "./api-request";
+import { getAppLocaleSnapshot } from "../locale";
 
 export const ruleAuditKeys = {
   /**
@@ -31,7 +32,8 @@ export const ruleAuditKeys = {
    * Side effects:
    * - Pure cache-key construction.
    */
-  request: (id: string, requestId: string) => ["assessment", id, "rule-audit", requestId] as const,
+  request: (id: string, requestId: string) =>
+    ["assessment", id, "rule-audit", requestId] as const,
 };
 
 /**
@@ -48,7 +50,8 @@ export const ruleAuditKeys = {
  */
 export function useRuleAuditCatalogQuery(id: string) {
   return useQuery({
-    queryKey: ruleAuditKeys.catalog(id), enabled: Boolean(id),
+    queryKey: [...ruleAuditKeys.catalog(id), getAppLocaleSnapshot()],
+    enabled: Boolean(id),
     /**
      * Business purpose: Assemble the entire pinned catalog for explicit customer selection.
      * Business rules:
@@ -71,16 +74,36 @@ export function useRuleAuditCatalogQuery(id: string) {
         seen.add(offset);
         const page = await loadPage(id, offset);
         first ??= page;
-        if (page.ruleSetVersionId !== first.ruleSetVersionId || page.ruleSetDigest !== first.ruleSetDigest || page.repositorySnapshotId !== first.repositorySnapshotId || page.repositoryCommit !== first.repositoryCommit || page.auditRevision !== first.auditRevision || JSON.stringify(page.groups) !== JSON.stringify(first.groups)) throw new Error("Rule catalog snapshot changed");
+        if (
+          page.ruleSetVersionId !== first.ruleSetVersionId ||
+          page.ruleSetDigest !== first.ruleSetDigest ||
+          page.repositorySnapshotId !== first.repositorySnapshotId ||
+          page.repositoryCommit !== first.repositoryCommit ||
+          page.auditRevision !== first.auditRevision ||
+          JSON.stringify(page.groups) !== JSON.stringify(first.groups)
+        )
+          throw new Error("Rule catalog snapshot changed");
         for (const rule of page.rules) {
-          if (ruleIds.has(rule.assessmentRuleId)) throw new Error("Duplicate rule membership");
+          if (ruleIds.has(rule.assessmentRuleId))
+            throw new Error("Duplicate rule membership");
           ruleIds.add(rule.assessmentRuleId);
         }
         rules.push(...page.rules);
         if (page.nextOffset === null) {
-          if (rules.length !== page.total) throw new Error("Rule catalog incomplete");
-          for (const group of page.groups) if (group.count !== group.ruleIds.length || new Set(group.ruleIds).size !== group.ruleIds.length || group.ruleIds.some((id) => !ruleIds.has(id))) throw new Error("Group catalog incomplete");
-          return ruleAuditCatalogSchema.parse({ ...first, rules, nextOffset: null });
+          if (rules.length !== page.total)
+            throw new Error("Rule catalog incomplete");
+          for (const group of page.groups)
+            if (
+              group.count !== group.ruleIds.length ||
+              new Set(group.ruleIds).size !== group.ruleIds.length ||
+              group.ruleIds.some((id) => !ruleIds.has(id))
+            )
+              throw new Error("Group catalog incomplete");
+          return ruleAuditCatalogSchema.parse({
+            ...first,
+            rules,
+            nextOffset: null,
+          });
         }
         offset = page.nextOffset;
       }
@@ -119,7 +142,8 @@ async function loadPage(id: string, offset: number) {
  */
 export function useRuleAuditRequestQuery(id: string, requestId: string | null) {
   return useQuery({
-    queryKey: ruleAuditKeys.request(id, requestId ?? ""), enabled: Boolean(id && requestId),
+    queryKey: ruleAuditKeys.request(id, requestId ?? ""),
+    enabled: Boolean(id && requestId),
     /**
      * Business purpose: Reload durable per-rule status for one frozen request.
      * Business rules:
@@ -131,10 +155,11 @@ export function useRuleAuditRequestQuery(id: string, requestId: string | null) {
      * Side effects:
      * - Read-only owner-scoped BFF request.
      */
-    queryFn: () => apiValidated(
-      `/api/assessments/${encodeURIComponent(id)}/rule-audits/${encodeURIComponent(requestId!)}`,
-      ruleAuditRequestViewSchema,
-    ),
+    queryFn: () =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/rule-audits/${encodeURIComponent(requestId!)}`,
+        ruleAuditRequestViewSchema,
+      ),
   });
 }
 
@@ -164,11 +189,12 @@ export function useSubmitRuleAudit(id: string) {
      * Side effects:
      * - Submits one owner-scoped audit request.
      */
-    mutationFn: (body: SubmitRuleAudit) => apiValidated(
-      `/api/assessments/${encodeURIComponent(id)}/rule-audits`,
-      ruleAuditRequestViewSchema,
-      { method: "POST", body: JSON.stringify(body) },
-    ),
+    mutationFn: (body: SubmitRuleAudit) =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/rule-audits`,
+        ruleAuditRequestViewSchema,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
     /**
      * Business purpose: Show the newly persisted scope and Root progress.
      * Business rules:
@@ -212,9 +238,18 @@ export function useRetryRuleAudit(id: string) {
      * Side effects:
      * - Sends one owner-scoped retry command.
      */
-    mutationFn: ({ requestId, idempotencyKey }: { requestId: string; idempotencyKey: string }) =>
-      apiValidated(`/api/assessments/${encodeURIComponent(id)}/rule-audits/${encodeURIComponent(requestId)}/retry`,
-        ruleAuditRequestViewSchema, { method: "POST", body: JSON.stringify({ idempotencyKey }) }),
+    mutationFn: ({
+      requestId,
+      idempotencyKey,
+    }: {
+      requestId: string;
+      idempotencyKey: string;
+    }) =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/rule-audits/${encodeURIComponent(requestId)}/retry`,
+        ruleAuditRequestViewSchema,
+        { method: "POST", body: JSON.stringify({ idempotencyKey }) },
+      ),
     /**
      * Business purpose: Refresh failed-request progress after retry acceptance.
      * Business rules:

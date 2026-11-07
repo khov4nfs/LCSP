@@ -25,14 +25,14 @@ export class LocalePresentationProjectionService {
    * Side effects:
    * - May persist a new immutable localized artifact after all translations are ready.
    */
-  localizedReport(
+  localizedReportDocument(
     scopeId: string,
     sourceArtifactId: string,
     sourceSha256: string,
     report: unknown,
     locale: string,
   ) {
-    return this.localization.localizedReport(
+    return this.localization.localizedReportDocument(
       scopeId,
       sourceArtifactId,
       sourceSha256,

@@ -79,6 +79,8 @@ const authoredKeys = new Set([
   "resolutionAttempts",
   "label",
   "normativeStatement",
+  "actionPlan",
+  "scopeLimitations",
 ]);
 const protectedKeys = new Set([
   "sources",
@@ -94,6 +96,8 @@ const protectedKeys = new Set([
   "answer",
   "facts",
   "acceptedFacts",
+  "factIndex",
+  "evidenceIndex",
   "repositoryPath",
   "storageRef",
 ]);
@@ -128,7 +132,9 @@ export function authoredFields(
       : authoredFields(
           item,
           `${path}/${key.replace(/~/gu, "~0").replace(/\//gu, "~1")}`,
-          authoredKeys.has(key),
+          authoredKeys.has(key) ||
+            (key === "statement" &&
+              /\/(?:criteria|criteriaDecisions)\/\d+$/u.test(path)),
         ),
   );
 }
@@ -535,10 +541,28 @@ export class AuthoredLocalizationService
       report,
       locale,
     );
+    if (
+      artifact.scopeId !== scopeId ||
+      artifact.sourceArtifactId !== sourceArtifactId ||
+      artifact.sourceSha256 !== sourceSha256 ||
+      digest(Buffer.from(artifact.content).toString("utf8")) !==
+        artifact.contentSha256
+    )
+      throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
     const overlay = localizedReportArtifactSchema.parse(
       JSON.parse(Buffer.from(artifact.content).toString("utf8")),
     );
     const allowed = new Set(authoredFields(report).map((field) => field.path));
+    if (
+      overlay.localizedArtifactId !== artifact.id ||
+      overlay.sourceArtifactId !== sourceArtifactId ||
+      overlay.sourceSha256 !== sourceSha256 ||
+      overlay.locale !== locale ||
+      overlay.translationRevision !== artifact.translationRevision ||
+      overlay.translationRevision !== 1 ||
+      Object.keys(overlay.localizedFields).length !== allowed.size
+    )
+      throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
     const document = structuredClone(report);
     for (const [path, content] of Object.entries(overlay.localizedFields)) {
       if (!allowed.has(path))
@@ -574,6 +598,8 @@ export class AuthoredLocalizationService
     report: unknown,
     locale: string,
   ) {
+    if (locale !== "en" && locale !== "vi")
+      throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
     const target =
       locale === "en"
         ? AuthoredLocalizationLocale.EN
@@ -589,6 +615,10 @@ export class AuthoredLocalizationService
     });
     if (existing) {
       if (
+        existing.scopeId !== scopeId ||
+        existing.sourceArtifactId !== sourceArtifactId ||
+        existing.locale !== target ||
+        existing.translationRevision !== 1 ||
         existing.sourceSha256 !== sourceSha256 ||
         digest(Buffer.from(existing.content).toString("utf8")) !==
           existing.contentSha256
@@ -603,6 +633,8 @@ export class AuthoredLocalizationService
       scopeId,
       {
         entityId: sourceArtifactId,
+        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+        canonicalRevision: sourceSha256,
         canonicalDigest: digest(canonicalJson(report)),
       },
     );

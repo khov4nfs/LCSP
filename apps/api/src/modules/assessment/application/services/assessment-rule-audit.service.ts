@@ -24,6 +24,7 @@ import {
   type SubmitRuleAudit,
   type RuleAuditExport,
   RULE_CATALOG_REVIEW_STATES,
+  AUTHORED_LOCALIZATION_ENTITIES,
 } from "@lcsp/contracts/assessment-domain";
 import {
   AUDIT_ACTOR_IDS,
@@ -47,6 +48,7 @@ import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain
 import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
+import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
 
 const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
@@ -108,6 +110,7 @@ export class AssessmentRuleAuditService {
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxRepository,
     private readonly support: AssessmentCaseSupport,
+    private readonly localization: AuthoredLocalizationService,
   ) {}
 
   /**
@@ -128,6 +131,7 @@ export class AssessmentRuleAuditService {
     correlationId: string,
     offset: number,
     limit: number,
+    locale: string | null = null,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const { assessment, domainCase, ruleSet } = await this.readyCase(
@@ -230,6 +234,41 @@ export class AssessmentRuleAuditService {
         coverage.map((row) => [row.assessmentRuleId, row]),
       );
       const waiting = new Set(openRequests.map((row) => row.assessmentRuleId));
+      const localizedRules = await Promise.all(
+        visibleRules.map(async (rule) => {
+          if (!locale) return rule;
+          const narratives = await this.localization.projectDocument(
+            { concept: rule.concept, legalIntent: rule.legalIntent },
+            locale,
+            ruleSet.id,
+            {
+              entityType: AUTHORED_LOCALIZATION_ENTITIES.ASSESSMENT_RULE,
+              entityId: rule.assessmentRuleId,
+              canonicalRevision: rule.contentDigest,
+            },
+          );
+          const legalRequirementLinks = await Promise.all(
+            rule.legalRequirementLinks.map(async (link) => ({
+              ...link,
+              legalRequirement: {
+                ...link.legalRequirement,
+                ...(await this.localization.projectDocument(
+                  { title: link.legalRequirement.title },
+                  locale,
+                  ruleSet.id,
+                  {
+                    entityType:
+                      AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+                    entityId: link.legalRequirement.legalRequirementId,
+                    canonicalRevision: link.legalRequirement.contentDigest,
+                  },
+                )),
+              },
+            })),
+          );
+          return { ...rule, ...narratives, legalRequirementLinks };
+        }),
+      );
       return ruleAuditCatalogSchema.parse({
         groups,
         groupingState: groupingComplete
@@ -251,7 +290,7 @@ export class AssessmentRuleAuditService {
           offset + visibleRules.length < selectableTotal
             ? offset + visibleRules.length
             : null,
-        rules: visibleRules.map((rule) => {
+        rules: localizedRules.map((rule) => {
           const row = covered.get(rule.assessmentRuleId);
           const membership = byMembership.get(rule.assessmentRuleId);
           return {

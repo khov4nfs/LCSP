@@ -226,6 +226,9 @@ export class AssessmentController {
           request.rbacContext.role,
           page,
           request.correlationId || randomUUID(),
+          typeof request.headers?.["x-lcsp-locale"] === "string"
+            ? request.headers["x-lcsp-locale"]
+            : null,
         ),
       ),
     );

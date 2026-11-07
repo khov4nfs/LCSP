@@ -1,4 +1,5 @@
 "use client";
+import { getAppLocaleSnapshot } from "../locale";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ASSESSMENT_EVENTS_PAGE_LIMIT,
@@ -119,13 +120,20 @@ export function useHumanRequestsQuery(id: string) {
 const MAX_EVENT_PAGES = 40;
 
 /**
- * Every canonical event of one assessment, ascending by sequence: the conversation's single source,
- * identical for live updates and reloads. Refetches are incremental (only events after the last one
- * already held) and merge by sequence, so the same event can never render twice.
+ * Business purpose: Load the conversation's deterministic locale-bound event history.
+ * Business rules:
+ * - Locale partitions cached history so incremental replay cannot reuse another language's narratives.
+ * - Canonical sequence deduplicates events; authorization and translation readiness stay server-owned.
+ * Execution flow:
+ * 1. Read the active locale cache, follow bounded sequence pages and merge each returned event by sequence.
+ * Failure cases:
+ * - Missing/failed translations and invalid API responses reject the query without canonical fallback.
+ * Side effects:
+ * - Fetches owner-scoped event pages and populates only the requested locale's query cache.
  */
 export function useAssessmentEventsQuery(id: string) {
   const client = useQueryClient();
-  const key = assessmentDomainKeys.events(id);
+  const key = [...assessmentDomainKeys.events(id), getAppLocaleSnapshot()];
   return useQuery({
     queryKey: key,
     enabled: Boolean(id),

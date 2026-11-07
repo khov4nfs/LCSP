@@ -81,6 +81,10 @@ export class AssessmentArtifactController {
     );
     response.setHeader("Cache-Control", "private, no-store");
     response.setHeader("ETag", `"${report.contentSha256}"`);
+    response.setHeader(
+      "X-LCSP-Source-Artifact-SHA256",
+      report.sourceArtifactSha256,
+    );
     return new StreamableFile(report.content, {
       type: "application/json",
       disposition: `attachment; filename="assessment-${report.artifactId}.json"`,

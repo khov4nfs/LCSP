@@ -129,23 +129,28 @@ export class AssessmentReportLoader {
         ? resolveResponseLanguage(input.locale)
         : null;
       if (locale) {
-        const localized = await this.projectionService.localizedReport(
-          input.assessmentId,
-          artifact.artifactId,
-          sha256Hex(content),
-          report,
-          locale,
+        const localized = assessmentFinalReportArtifactVersionedSchema.parse(
+          await this.projectionService.localizedReportDocument(
+            input.assessmentId,
+            artifact.artifactId,
+            sha256Hex(content),
+            report,
+            locale,
+          ),
         );
+        const localizedContent = Buffer.from(JSON.stringify(localized), "utf8");
         return {
-          artifactId: localized.id,
-          content: Buffer.from(localized.content),
-          contentSha256: localized.contentSha256,
+          artifactId: artifact.artifactId,
+          content: localizedContent,
+          contentSha256: sha256Hex(localizedContent.toString("utf8")),
+          sourceArtifactSha256: sha256Hex(content),
         };
       }
       return {
         artifactId: artifact.artifactId,
         content: Buffer.from(content),
         contentSha256: sha256Hex(content),
+        sourceArtifactSha256: sha256Hex(content),
       };
     } catch (error) {
       if (error instanceof HttpException) throw error;

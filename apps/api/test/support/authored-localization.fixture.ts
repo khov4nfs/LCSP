@@ -15,7 +15,16 @@ export function authoredLocalizationFixture(
   const requestedTexts: string[] = [];
   const artifacts = new Map<
     string,
-    { id: string; sourceSha256: string; content: Buffer; contentSha256: string }
+    {
+      id: string;
+      sourceSha256: string;
+      content: Buffer;
+      contentSha256: string;
+      scopeId: string;
+      sourceArtifactId: string;
+      locale: AuthoredLocalizationLocale;
+      translationRevision: number;
+    }
   >();
   const hash = (text: string) =>
     createHash("sha256").update(text).digest("hex");
@@ -67,6 +76,10 @@ export function authoredLocalizationFixture(
           sourceSha256: string;
           content: Buffer;
           contentSha256: string;
+          scopeId: string;
+          sourceArtifactId: string;
+          locale: AuthoredLocalizationLocale;
+          translationRevision: number;
         };
       }) => {
         const key = JSON.stringify(

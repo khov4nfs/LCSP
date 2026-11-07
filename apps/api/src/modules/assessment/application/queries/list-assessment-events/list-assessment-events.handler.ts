@@ -2,7 +2,11 @@ import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
-import { assessmentEventsPageSchema } from "@lcsp/contracts/assessment-domain";
+import {
+  assessmentEventsPageSchema,
+  AUTHORED_LOCALIZATION_ENTITIES,
+} from "@lcsp/contracts/assessment-domain";
+import { AuthoredLocalizationService } from "../../../../../platform/localization/authored-localization.service.js";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
@@ -14,8 +18,22 @@ import { ListAssessmentEventsQuery } from "./list-assessment-events.query.js";
 
 @QueryHandler(ListAssessmentEventsQuery)
 export class ListAssessmentEventsHandler implements IQueryHandler<ListAssessmentEventsQuery> {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly localization: AuthoredLocalizationService,
+  ) {}
 
+  /**
+   * Business purpose: Return the owner's ordered event history in the trusted request locale.
+   * Business rules:
+   * - Authorization precedes localization; event identity, sequence, technical payload and source evidence remain canonical.
+   * Execution flow:
+   * 1. Authorize the owner, read one canonical page and project each payload at its exact event/sequence binding.
+   * Failure cases:
+   * - Foreign assessments return not-found; missing, failed or corrupt translations reject the page explicitly.
+   * Side effects:
+   * - Read persisted events and translations only; no canonical mutations or provider calls.
+   */
   async execute(input: ListAssessmentEventsQuery) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: input.assessmentId },
@@ -43,7 +61,23 @@ export class ListAssessmentEventsHandler implements IQueryHandler<ListAssessment
       take: limit + 1,
       select: CANONICAL_EVENT_SELECT,
     });
-    const events = rows.slice(0, limit).map(toAssessmentEvent);
+    const events = await Promise.all(
+      rows.slice(0, limit).map(async (row) => {
+        const event = toAssessmentEvent(row);
+        if (!input.locale) return event;
+        const payload = await this.localization.projectDocument(
+          event.payload,
+          input.locale,
+          input.assessmentId,
+          {
+            entityType: AUTHORED_LOCALIZATION_ENTITIES.EVENT,
+            entityId: event.eventId,
+            canonicalRevision: String(event.sequence),
+          },
+        );
+        return { ...event, payload };
+      }),
+    );
     return assessmentEventsPageSchema.parse({
       assessmentId: input.assessmentId,
       events,

@@ -158,18 +158,15 @@ describe("AssessmentReportLoader locale read projection", () => {
       correlationId: "corr-test",
       locale: "vi",
     });
-    const overlay = JSON.parse(vi.content.toString("utf8")) as {
-      sourceArtifactId: string;
-      sourceSha256: string;
-      locale: string;
-      localizedFields: Record<string, string>;
-    };
-    expect(overlay.sourceArtifactId).toBe(artifactId);
-    expect(overlay.sourceSha256).toBe(sha256Hex(rawContent));
-    expect(overlay.locale).toBe("vi");
-    expect(overlay.localizedFields["/summary"]).toBe(
-      "VI: " + canonicalReport.summary,
+    const localized = assessmentFinalReportArtifactSchema.parse(
+      JSON.parse(vi.content.toString("utf8")),
     );
+    expect(localized.artifactId).toBe(artifactId);
+    expect(localized.pins).toEqual(canonicalReport.pins);
+    expect(localized.decisionFingerprint).toBe(fingerprint);
+    expect(localized.summary).toBe("VI: " + canonicalReport.summary);
+    expect(vi.sourceArtifactSha256).toBe(contentSha);
+    expect(vi.contentSha256).toBe(sha256Hex(vi.content.toString("utf8")));
     const repeated = await loader.load({
       assessmentId,
       artifactId,
