@@ -142,14 +142,40 @@ export function useReconcileOrphanedAssessment(id: string) {
     },
   });
 }
+/**
+ * Business purpose: Read open and resolved HITL human-resolution requests in the active presentation language.
+ * Business rules:
+ * - Partition the query cache by locale while preserving assessmentDomainKeys.requests(id) prefix invalidation.
+ * - Reject stale responses if the user switches locale while a request is in flight.
+ * Execution flow:
+ * 1. Subscribe to the active app locale, send x-lcsp-locale and AbortSignal, and validate the response.
+ * Failure cases:
+ * - Cancellation, locale changes and localization readiness conflicts reject without cross-language fallback.
+ * Side effects:
+ * - Performs an owner-authorized BFF read and updates only the captured locale's cache.
+ */
 export function useHumanRequestsQuery(id: string) {
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
   return useQuery({
-    queryKey: assessmentDomainKeys.requests(id),
-    queryFn: () =>
-      apiValidated(
+    queryKey: [...assessmentDomainKeys.requests(id), locale],
+    queryFn: async ({ signal }) => {
+      signal.throwIfAborted();
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed before request");
+      const result = await apiValidated(
         `/api/assessments/${encodeURIComponent(id)}/human-requests`,
         assessmentHumanRequestsResultSchema,
-      ),
+        { signal, headers: { "x-lcsp-locale": locale } },
+      );
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed during request");
+      return result;
+    },
+    placeholderData: undefined,
     enabled: Boolean(id),
   });
 }

@@ -142,5 +142,111 @@
     "created_at": "2026-11-08T00:00:00.000Z",
     "updated_at": "2026-11-08T00:00:00.000Z",
     "correlationId": "locale-fixture"
+  },
+  "humanRequests": {
+    "en": {
+      "caseRevision": 1,
+      "requests": [
+        {
+          "requestId": "22222222-2222-4222-8222-222222222222",
+          "requestRevision": 1,
+          "openedCaseRevision": 1,
+          "status": "OPEN",
+          "assessmentRuleId": "rule-1",
+          "criterionIds": ["criterion-1"],
+          "dependencies": [
+            {
+              "assessmentRuleId": "rule-1",
+              "criterionIds": ["criterion-1"]
+            }
+          ],
+          "question": "EN: Which customer data retention period is configured?",
+          "unresolvedFact": "EN: Retention duration is not declared in repository config.",
+          "decisionImpact": [
+            "EN: Determines whether personal data retention satisfies Article 27."
+          ],
+          "resolutionAttempts": [
+            "EN: Checked config/retention.json and infra/storage.tf."
+          ],
+          "controlType": "SINGLE_SELECT",
+          "choices": [
+            {
+              "value": "RETENTION_30_DAYS",
+              "label": "EN: 30 days"
+            },
+            {
+              "value": "RETENTION_90_DAYS",
+              "label": "EN: 90 days"
+            }
+          ],
+          "checkpointId": "33333333-3333-4333-8333-333333333333",
+          "resolvedFactId": null,
+          "answers": [
+            {
+              "idempotencyKey": "answer-key-0001",
+              "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "actorId": "fixture-owner",
+              "answeredAt": "2026-11-08T00:00:00.000Z",
+              "caseRevision": 1,
+              "requestRevision": 1,
+              "doesNotKnow": false,
+              "answer": "RETENTION_30_DAYS"
+            }
+          ]
+        }
+      ]
+    },
+    "vi": {
+      "caseRevision": 1,
+      "requests": [
+        {
+          "requestId": "22222222-2222-4222-8222-222222222222",
+          "requestRevision": 1,
+          "openedCaseRevision": 1,
+          "status": "OPEN",
+          "assessmentRuleId": "rule-1",
+          "criterionIds": ["criterion-1"],
+          "dependencies": [
+            {
+              "assessmentRuleId": "rule-1",
+              "criterionIds": ["criterion-1"]
+            }
+          ],
+          "question": "VI: Thời hạn lưu giữ dữ liệu khách hàng nào được cấu hình?",
+          "unresolvedFact": "VI: Thời lượng lưu giữ chưa được khai báo trong cấu hình kho mã.",
+          "decisionImpact": [
+            "VI: Xác định việc lưu giữ dữ liệu cá nhân có đáp ứng Điều 27 hay không."
+          ],
+          "resolutionAttempts": [
+            "VI: Đã kiểm tra config/retention.json và infra/storage.tf."
+          ],
+          "controlType": "SINGLE_SELECT",
+          "choices": [
+            {
+              "value": "RETENTION_30_DAYS",
+              "label": "VI: 30 ngày"
+            },
+            {
+              "value": "RETENTION_90_DAYS",
+              "label": "VI: 90 ngày"
+            }
+          ],
+          "checkpointId": "33333333-3333-4333-8333-333333333333",
+          "resolvedFactId": null,
+          "answers": [
+            {
+              "idempotencyKey": "answer-key-0001",
+              "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "actorId": "fixture-owner",
+              "answeredAt": "2026-11-08T00:00:00.000Z",
+              "caseRevision": 1,
+              "requestRevision": 1,
+              "doesNotKnow": false,
+              "answer": "RETENTION_30_DAYS"
+            }
+          ]
+        }
+      ]
+    }
   }
 }

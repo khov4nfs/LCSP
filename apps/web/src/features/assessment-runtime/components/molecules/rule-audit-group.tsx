@@ -1,8 +1,9 @@
 "use client";
+import { useSyncExternalStore } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { RULE_AUDIT_PROGRESS_STATES } from "@lcsp/contracts/assessment-domain";
 import { Button } from "@/components/ui/button";
-import { getAppLocaleSnapshot } from "@/lib/locale";
+import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import type { RuleAuditSelection } from "../../schemas/rule-audit-selection.schema";
 import type { RuleAuditGroupProps } from "../../types/rule-audit-group.types";
 import { copy } from "../../utils/conversation-copy";
@@ -12,7 +13,11 @@ import { RuleAuditOption } from "./rule-audit-option";
 export function RuleAuditGroup({ group, rules, visibleRuleIds, canStart, onView }: RuleAuditGroupProps) {
   const { control, setValue } = useFormContext<RuleAuditSelection>();
   const selected = useWatch({ control, name: "selectedRuleIds" }) ?? [];
-  const locale = getAppLocaleSnapshot();
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
   const members = group.ruleIds.flatMap((id) => rules.filter((rule) => rule.assessmentRuleId === id));
   const visible = members.filter((rule) => visibleRuleIds.has(rule.assessmentRuleId));
   if (!visible.length) return null;
