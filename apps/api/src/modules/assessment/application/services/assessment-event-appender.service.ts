@@ -148,6 +148,8 @@ export class AssessmentEventAppender {
       },
     });
     await enqueueAuthoredDocument(tx, {
+      // No reviewed upstream field-language declaration exists at this writer boundary.
+      sourceLanguages: {},
       scopeId: input.assessmentId,
       entityType: AUTHORED_LOCALIZATION_ENTITIES.EVENT,
       entityId: eventId,
@@ -161,6 +163,8 @@ export class AssessmentEventAppender {
       });
       if (decision && decision.assessmentId === input.assessmentId)
         await enqueueAuthoredDocument(tx, {
+          // No reviewed upstream field-language declaration exists at this writer boundary.
+          sourceLanguages: {},
           scopeId: input.assessmentId,
           entityType: AUTHORED_LOCALIZATION_ENTITIES.DECISION,
           entityId: decision.decisionId,
@@ -174,6 +178,8 @@ export class AssessmentEventAppender {
       });
       if (request && request.assessmentId === input.assessmentId)
         await enqueueAuthoredDocument(tx, {
+          // No reviewed upstream field-language declaration exists at this writer boundary.
+          sourceLanguages: {},
           scopeId: input.assessmentId,
           entityType: AUTHORED_LOCALIZATION_ENTITIES.HUMAN_REQUEST,
           entityId: request.requestId,

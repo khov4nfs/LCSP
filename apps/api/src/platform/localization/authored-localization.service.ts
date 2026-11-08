@@ -9,6 +9,9 @@ import {
   Prisma,
   AuthoredLocalizationLocale,
   AuthoredLocalizationState,
+  AuthoredSourceLanguage,
+  type AuthoredLocalizationRequest,
+  type AuthoredLocalizedRevision,
 } from "@prisma/client";
 import {
   AUTHORED_LOCALIZATION_CODES,
@@ -18,9 +21,14 @@ import {
   type AuthoredLocalizationEntity,
   localizedReportArtifactSchema,
   LOCALIZED_REPORT_SCHEMA_VERSION,
+  AUTHORED_LANGUAGE_REVIEW_CODES,
+  authoredSourceReviewSchema,
+  authoredOutputReviewSchema,
+  AUTHORED_SOURCE_LANGUAGES,
 } from "@lcsp/contracts/assessment-domain";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../http/filters/error.factory.js";
+import type { z } from "zod";
 
 /**
  * Business purpose: Fingerprint exact authored content or artifact text.
@@ -56,6 +64,46 @@ const canonicalJson = (value: unknown): string =>
         )
       : item,
   );
+
+/**
+ * Business purpose: Require trusted language evidence before treating persisted localized bytes as available.
+ * Business rules:
+ * - Verified native targets must be exact canonical copies; all other targets require explicit output review.
+ * Execution flow:
+ * 1. Check persisted state/revision and apply the matching native-copy or reviewed-output proof.
+ * Failure cases:
+ * - Missing proof, legacy native paraphrases and absent revisions remain unavailable.
+ * Side effects:
+ * - None: record-level language readiness only; callers separately verify content hashes.
+ */
+export function hasReviewedLocale(
+  row: Pick<
+    AuthoredLocalizationRequest,
+    | "state"
+    | "sourceLanguage"
+    | "locale"
+    | "sourceReviewedBy"
+    | "sourceReviewedAt"
+    | "translationReviewedBy"
+    | "translationReviewedAt"
+    | "originalContent"
+  > & {
+    revision: Pick<AuthoredLocalizedRevision, "content" | "engine"> | null;
+  },
+): boolean {
+  if (row.state !== AuthoredLocalizationState.READY || !row.revision)
+    return false;
+  if (
+    row.sourceReviewedBy &&
+    row.sourceReviewedAt &&
+    row.sourceLanguage === row.locale
+  )
+    return (
+      row.revision.engine === "CANONICAL_ORIGINAL" &&
+      row.revision.content === row.originalContent
+    );
+  return Boolean(row.translationReviewedBy && row.translationReviewedAt);
+}
 const authoredKeys = new Set([
   "title",
   "concept",
@@ -160,11 +208,22 @@ export async function enqueueAuthoredDocument(
     entityId: string;
     canonicalRevision: string;
     document: unknown;
-    originalLanguage?: AuthoredLocalizationLocale;
+    /** Upstream may flag MIXED/UNKNOWN; EN/VI require the hash-bound source-review command. */
+    sourceLanguages?: Readonly<Record<string, AuthoredSourceLanguage>>;
   },
 ) {
   const canonicalDigest = digest(canonicalJson(input.document));
-  for (const field of authoredFields(input.document))
+  for (const field of authoredFields(input.document)) {
+    const declared = input.sourceLanguages?.[field.path];
+    if (
+      declared === AuthoredSourceLanguage.EN ||
+      declared === AuthoredSourceLanguage.VI
+    )
+      throw problemException(
+        AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
     for (const locale of [
       AuthoredLocalizationLocale.EN,
       AuthoredLocalizationLocale.VI,
@@ -195,12 +254,17 @@ export async function enqueueAuthoredDocument(
           canonicalDigest,
           fieldPath: field.path,
           locale,
-          originalLanguage: input.originalLanguage ?? null,
+          sourceLanguage:
+            input.sourceLanguages?.[field.path] ??
+            AuthoredSourceLanguage.UNKNOWN,
+          originalLanguage: null,
+          errorCode: AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
           originalContent: field.text,
           originSha256,
         },
       });
     }
+  }
 }
 
 /** Durable bounded translation poller. Provider invocation is opt-in deployment configuration. */
@@ -211,6 +275,366 @@ export class AuthoredLocalizationService
   private timer: NodeJS.Timeout | null = null;
   private running = false;
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Business purpose: Page durable localization work requiring authorized language review.
+   * Business rules:
+   * - Caller must be an authorized administrator; scope is explicit and canonical content is read-only.
+   * Execution flow:
+   * 1. Read a bounded stable page with candidate, immutable revision and review evidence.
+   * Failure cases:
+   * - Invalid bounds or database failures reject without changing queue state.
+   * Side effects:
+   * - Reads jobs only; also serves as restart-safe historical reconciliation discovery.
+   */
+  async reviewQueue(scopeId: string, after?: string, limit = 100) {
+    if (!scopeId || limit < 1 || limit > 200)
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    const rows = await this.prisma.authoredLocalizationRequest.findMany({
+      where: { scopeId, ...(after ? { id: { gt: after } } : {}) },
+      orderBy: { id: "asc" },
+      take: limit,
+      select: {
+        id: true,
+        scopeId: true,
+        entityType: true,
+        entityId: true,
+        canonicalRevision: true,
+        canonicalDigest: true,
+        fieldPath: true,
+        translationRevision: true,
+        createdAt: true,
+        locale: true,
+        originalLanguage: true,
+        originalContent: true,
+        originSha256: true,
+        sourceLanguage: true,
+        sourceReviewedBy: true,
+        sourceReviewedAt: true,
+        translationReviewedBy: true,
+        translationReviewedAt: true,
+        state: true,
+        errorCode: true,
+        attempts: true,
+        nextAttemptAt: true,
+        candidate: true,
+        revision: true,
+        reviews: true,
+      },
+    });
+    return rows.map((row) => ({
+      ...row,
+      entityType: AUTHORED_LOCALIZATION_ENTITIES[row.entityType],
+      state: AUTHORED_LOCALIZATION_STATES[row.state],
+      sourceLanguage: AUTHORED_SOURCE_LANGUAGES[row.sourceLanguage],
+      locale: row.locale === AuthoredLocalizationLocale.EN ? "en" : "vi",
+      originalLanguage:
+        row.originalLanguage === AuthoredLocalizationLocale.EN
+          ? "en"
+          : row.originalLanguage === AuthoredLocalizationLocale.VI
+            ? "vi"
+            : null,
+    }));
+  }
+
+  /**
+   * Business purpose: Attach reviewed language provenance to one exact authored field and both target jobs.
+   * Business rules:
+   * - Hash, revision and scope must match; an active lease or conflicting prior review rejects; language is never inferred.
+   * Execution flow:
+   * 1. Lock the bound field jobs, verify original bytes, append review evidence and release eligible pending work.
+   * Failure cases:
+   * - Stale inputs, changed bytes and conflicting reviews abort the entire transaction.
+   * Side effects:
+   * - Appends review evidence and updates job provenance without rewriting canonical content or localized revisions.
+   */
+  async reviewSource(
+    scopeId: string,
+    requestId: string,
+    body: z.infer<typeof authoredSourceReviewSchema>,
+    actorId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const job = await tx.authoredLocalizationRequest.findUniqueOrThrow({
+        where: { id: requestId },
+      });
+      if (
+        job.scopeId !== scopeId ||
+        job.originSha256 !== body.originSha256 ||
+        job.canonicalRevision !== body.canonicalRevision ||
+        digest(job.originalContent) !== job.originSha256
+      )
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          randomUUID(),
+          { status: HttpStatus.CONFLICT },
+        );
+      const siblings = await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "AuthoredLocalizationRequest" WHERE "scopeId"=${scopeId} AND "entityType"=${job.entityType}::"AuthoredLocalizationEntity" AND "entityId"=${job.entityId} AND "canonicalRevision"=${job.canonicalRevision} AND "canonicalDigest"=${job.canonicalDigest} AND "fieldPath"=${job.fieldPath} AND "originSha256"=${job.originSha256} ORDER BY "id" FOR UPDATE`,
+      );
+      for (const sibling of siblings) {
+        const current = await tx.authoredLocalizationRequest.findUniqueOrThrow({
+          where: { id: sibling.id },
+        });
+        if (
+          current.leaseToken ||
+          (current.sourceReviewedBy &&
+            current.sourceLanguage !== body.sourceLanguage)
+        )
+          throw problemException(
+            AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+            randomUUID(),
+            { status: HttpStatus.CONFLICT },
+          );
+        const nativeRevision =
+          body.sourceLanguage === current.locale
+            ? await tx.authoredLocalizedRevision.findUnique({
+                where: { requestId: current.id },
+              })
+            : null;
+        if (
+          current.sourceReviewedBy &&
+          (!nativeRevision ||
+            (nativeRevision.content === current.originalContent &&
+              nativeRevision.engine === "CANONICAL_ORIGINAL"))
+        )
+          continue;
+        if (!current.sourceReviewedBy) {
+          await tx.authoredLocalizationReview.create({
+            data: {
+              id: randomUUID(),
+              requestId: current.id,
+              actorId,
+              evidence: body.evidence,
+              binding: {
+                scopeId,
+                entityType: current.entityType,
+                entityId: current.entityId,
+                canonicalRevision: current.canonicalRevision,
+                canonicalDigest: current.canonicalDigest,
+                fieldPath: current.fieldPath,
+                originSha256: current.originSha256,
+                sourceLanguage: body.sourceLanguage,
+              },
+            },
+          });
+          await tx.authoredLocalizationRequest.update({
+            where: { id: current.id },
+            data: {
+              sourceLanguage: body.sourceLanguage,
+              sourceReviewedBy:
+                body.sourceLanguage === AuthoredSourceLanguage.EN ||
+                body.sourceLanguage === AuthoredSourceLanguage.VI
+                  ? actorId
+                  : null,
+              sourceReviewedAt:
+                body.sourceLanguage === AuthoredSourceLanguage.EN ||
+                body.sourceLanguage === AuthoredSourceLanguage.VI
+                  ? new Date()
+                  : null,
+              originalLanguage:
+                body.sourceLanguage === AuthoredSourceLanguage.EN
+                  ? AuthoredLocalizationLocale.EN
+                  : body.sourceLanguage === AuthoredSourceLanguage.VI
+                    ? AuthoredLocalizationLocale.VI
+                    : null,
+              nextAttemptAt: new Date(),
+              errorCode: AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
+            },
+          });
+        }
+        // Preserve historical accepted bytes and publish a new native-copy revision
+        // rather than relabeling an earlier provider paraphrase as the original.
+        if (
+          nativeRevision &&
+          (nativeRevision.content !== current.originalContent ||
+            nativeRevision.engine !== "CANONICAL_ORIGINAL")
+        ) {
+          const latest = await tx.authoredLocalizationRequest.findFirstOrThrow({
+            where: {
+              scopeId,
+              entityType: current.entityType,
+              entityId: current.entityId,
+              canonicalRevision: current.canonicalRevision,
+              canonicalDigest: current.canonicalDigest,
+              fieldPath: current.fieldPath,
+              originSha256: current.originSha256,
+              locale: current.locale,
+            },
+            orderBy: { translationRevision: "desc" },
+          });
+          if (latest.id === current.id) {
+            const nextId = randomUUID();
+            await tx.authoredLocalizationRequest.create({
+              data: {
+                id: nextId,
+                idempotencyKey: digest(
+                  canonicalJson([
+                    current.idempotencyKey,
+                    "verified-native-copy",
+                    current.translationRevision + 1,
+                  ]),
+                ),
+                scopeId,
+                entityType: current.entityType,
+                entityId: current.entityId,
+                canonicalRevision: current.canonicalRevision,
+                canonicalDigest: current.canonicalDigest,
+                fieldPath: current.fieldPath,
+                locale: current.locale,
+                originalLanguage: current.locale,
+                sourceLanguage: body.sourceLanguage,
+                sourceReviewedBy: actorId,
+                sourceReviewedAt: new Date(),
+                originalContent: current.originalContent,
+                originSha256: current.originSha256,
+                translationRevision: current.translationRevision + 1,
+              },
+            });
+            await tx.authoredLocalizationReview.create({
+              data: {
+                id: randomUUID(),
+                requestId: nextId,
+                actorId,
+                evidence: body.evidence,
+                binding: {
+                  scopeId,
+                  entityType: current.entityType,
+                  entityId: current.entityId,
+                  canonicalRevision: current.canonicalRevision,
+                  canonicalDigest: current.canonicalDigest,
+                  fieldPath: current.fieldPath,
+                  originSha256: current.originSha256,
+                  sourceLanguage: body.sourceLanguage,
+                  supersedesRequestId: current.id,
+                },
+              },
+            });
+          }
+        }
+      }
+      return { reviewed: siblings.length };
+    });
+  }
+
+  /**
+   * Business purpose: Publish an explicitly reviewed target-language candidate or derived normalization.
+   * Business rules:
+   * - Exact original and output hashes bind approval; accepted localized bytes are immutable; authorization belongs to the Admin boundary.
+   * Execution flow:
+   * 1. Lock the request, validate candidate or normalization, append reviewer evidence and atomically publish its revision.
+   * Failure cases:
+   * - Foreign scope, stale hashes, active leases or attempts to replace accepted content reject without publication.
+   * Side effects:
+   * - Persists an immutable derived revision and review audit; never changes canonical source bytes.
+   */
+  async reviewOutput(
+    scopeId: string,
+    requestId: string,
+    body: z.infer<typeof authoredOutputReviewSchema>,
+    actorId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "AuthoredLocalizationRequest" WHERE "id"=${requestId} FOR UPDATE`,
+      );
+      const job = await tx.authoredLocalizationRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: { candidate: true, revision: true },
+      });
+      let output =
+        body.normalizedContent !== undefined
+          ? {
+              content: body.normalizedContent,
+              engine: "REVIEWED_NORMALIZATION",
+              engineVersion: "1",
+            }
+          : (job.revision ?? job.candidate);
+      if (
+        job.sourceReviewedBy &&
+        job.sourceLanguage === job.locale &&
+        output?.content !== job.originalContent
+      )
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          randomUUID(),
+          { status: HttpStatus.CONFLICT },
+        );
+      if (
+        job.sourceReviewedBy &&
+        job.sourceReviewedAt &&
+        job.sourceLanguage === job.locale &&
+        !job.revision &&
+        output?.content === job.originalContent
+      )
+        output = {
+          content: job.originalContent,
+          engine: "CANONICAL_ORIGINAL",
+          engineVersion: "1",
+        };
+      if (
+        !output ||
+        job.scopeId !== scopeId ||
+        job.leaseToken ||
+        job.originSha256 !== body.originSha256 ||
+        digest(job.originalContent) !== job.originSha256 ||
+        digest(output.content) !== body.contentSha256 ||
+        (job.revision && job.revision.content !== output.content)
+      )
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          randomUUID(),
+          { status: HttpStatus.CONFLICT },
+        );
+      if (job.translationReviewedBy)
+        return { state: AUTHORED_LOCALIZATION_STATES.READY };
+      await tx.authoredLocalizationReview.create({
+        data: {
+          id: randomUUID(),
+          requestId,
+          actorId,
+          evidence: body.evidence,
+          binding: {
+            scopeId,
+            entityType: job.entityType,
+            entityId: job.entityId,
+            canonicalRevision: job.canonicalRevision,
+            canonicalDigest: job.canonicalDigest,
+            fieldPath: job.fieldPath,
+            originSha256: job.originSha256,
+            locale: job.locale,
+            contentSha256: body.contentSha256,
+            normalized: body.normalizedContent !== undefined,
+          },
+        },
+      });
+      if (!job.revision)
+        await tx.authoredLocalizedRevision.create({
+          data: {
+            id: randomUUID(),
+            requestId,
+            content: output.content,
+            engine: output.engine,
+            engineVersion: output.engineVersion,
+            contentSha256: body.contentSha256,
+          },
+        });
+      await tx.authoredLocalizationRequest.update({
+        where: { id: requestId },
+        data: {
+          state: AuthoredLocalizationState.READY,
+          translationReviewedBy: actorId,
+          translationReviewedAt: new Date(),
+          errorCode: null,
+        },
+      });
+      return { state: AUTHORED_LOCALIZATION_STATES.READY };
+    });
+  }
 
   /**
    * Business purpose: Start the explicitly enabled durable translation poller.
@@ -268,6 +692,7 @@ export class AuthoredLocalizationService
         where: {
           state: AuthoredLocalizationState.PENDING,
           attempts: { gte: 5 },
+          candidate: { is: null },
           OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }],
         },
         data: {
@@ -283,6 +708,8 @@ export class AuthoredLocalizationService
         UPDATE "AuthoredLocalizationRequest" SET "leaseToken"=${token}, "leaseUntil"=NOW()+INTERVAL '60 seconds', "attempts"="attempts"+1
         WHERE "id" IN (SELECT "id" FROM "AuthoredLocalizationRequest"
           WHERE "state"='PENDING' AND "nextAttemptAt"<=NOW() AND ("leaseUntil" IS NULL OR "leaseUntil"<NOW())
+          AND "sourceReviewedBy" IS NOT NULL AND "sourceLanguage" IN ('EN','VI')
+          AND NOT EXISTS (SELECT 1 FROM "AuthoredTranslationCandidate" candidate WHERE candidate."requestId"="AuthoredLocalizationRequest"."id")
           ORDER BY "createdAt","id" FOR UPDATE SKIP LOCKED LIMIT 5) RETURNING "id"`);
       await Promise.all(rows.map((row) => this.translate(row.id, token)));
     } finally {
@@ -308,9 +735,27 @@ export class AuthoredLocalizationService
     );
     if (job.leaseToken !== token) return;
     try {
+      if (digest(job.originalContent) !== job.originSha256)
+        throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
+      if (
+        !job.sourceReviewedBy ||
+        !job.sourceReviewedAt ||
+        (job.sourceLanguage !== AuthoredSourceLanguage.EN &&
+          job.sourceLanguage !== AuthoredSourceLanguage.VI)
+      ) {
+        await this.prisma.authoredLocalizationRequest.updateMany({
+          where: { id, leaseToken: token },
+          data: {
+            leaseToken: null,
+            leaseUntil: null,
+            errorCode: AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
+          },
+        });
+        return;
+      }
       const locale = job.locale === AuthoredLocalizationLocale.EN ? "en" : "vi";
       let result: { content: string; engine: string; engineVersion: string };
-      if (job.originalLanguage === job.locale)
+      if (job.sourceLanguage === job.locale)
         result = {
           content: job.originalContent,
           engine: "CANONICAL_ORIGINAL",
@@ -330,7 +775,7 @@ export class AuthoredLocalizationService
           signal: AbortSignal.timeout(30_000),
           body: JSON.stringify({
             locale,
-            originalLanguage: job.originalLanguage,
+            originalLanguage: job.sourceLanguage,
             content: job.originalContent,
             originSha256: job.originSha256,
           }),
@@ -342,7 +787,9 @@ export class AuthoredLocalizationService
         );
         if (
           parsed.locale !== locale ||
-          parsed.originSha256 !== job.originSha256
+          parsed.originSha256 !== job.originSha256 ||
+          parsed.engine === "CANONICAL_ORIGINAL" ||
+          parsed.engine === "REVIEWED_NORMALIZATION"
         )
           throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
         result = {
@@ -350,6 +797,33 @@ export class AuthoredLocalizationService
           engine: parsed.engine,
           engineVersion: parsed.engineVersion,
         };
+        // Provider self-labels establish mechanics, not linguistic equivalence.
+        // Freeze a candidate and require an authenticated independent review.
+        await this.prisma.$transaction(async (tx) => {
+          const claimed = await tx.authoredLocalizationRequest.updateMany({
+            where: {
+              id,
+              leaseToken: token,
+              state: AuthoredLocalizationState.PENDING,
+            },
+            data: {
+              leaseToken: null,
+              leaseUntil: null,
+              errorCode: AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED,
+            },
+          });
+          if (claimed.count)
+            await tx.authoredTranslationCandidate.upsert({
+              where: { requestId: id },
+              update: {},
+              create: {
+                requestId: id,
+                ...result,
+                contentSha256: digest(result.content),
+              },
+            });
+        });
+        return;
       }
       await this.prisma.$transaction(async (tx) => {
         const claimed = await tx.authoredLocalizationRequest.updateMany({
@@ -428,7 +902,6 @@ export class AuthoredLocalizationService
       where: {
         scopeId,
         locale: target,
-        translationRevision: 1,
         ...(binding ?? {}),
         originSha256: { in: requested.map(digest) },
       },
@@ -436,9 +909,20 @@ export class AuthoredLocalizationService
     });
     const result = new Map<string, string>();
     for (const text of requested) {
-      const matches = rows.filter((row) => row.originSha256 === digest(text));
+      const candidates = rows.filter(
+        (row) => row.originSha256 === digest(text),
+      );
+      const latestRevision = Math.max(
+        0,
+        ...candidates.map((row) => row.translationRevision),
+      );
+      const matches = candidates.filter(
+        (row) => row.translationRevision === latestRevision,
+      );
       const ready = matches.filter(
-        (row) => row.state === AuthoredLocalizationState.READY && row.revision,
+        (row) =>
+          hasReviewedLocale(row) &&
+          digest(row.originalContent) === row.originSha256,
       );
       const variants = new Set(ready.map((row) => row.revision!.contentSha256));
       if (
@@ -569,7 +1053,6 @@ export class AuthoredLocalizationService
       overlay.sourceSha256 !== sourceSha256 ||
       overlay.locale !== locale ||
       overlay.translationRevision !== artifact.translationRevision ||
-      overlay.translationRevision !== 1 ||
       Object.keys(overlay.localizedFields).length !== allowed.size
     )
       throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
@@ -614,21 +1097,49 @@ export class AuthoredLocalizationService
       locale === "en"
         ? AuthoredLocalizationLocale.EN
         : AuthoredLocalizationLocale.VI;
+    const reportFields = authoredFields(report);
+    const revisions = await this.prisma.authoredLocalizationRequest.findMany({
+      where: {
+        scopeId,
+        locale: target,
+        entityId: sourceArtifactId,
+        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+        canonicalRevision: sourceSha256,
+        canonicalDigest: digest(canonicalJson(report)),
+        originSha256: { in: reportFields.map((field) => digest(field.text)) },
+      },
+      select: { translationRevision: true },
+    });
+    const translationRevision = Math.max(
+      1,
+      ...revisions.map((row) => row.translationRevision),
+    );
     const key = {
       scopeId,
       sourceArtifactId,
       locale: target,
-      translationRevision: 1,
+      translationRevision,
     };
     const existing = await this.prisma.localizedReportArtifact.findUnique({
       where: { scopeId_sourceArtifactId_locale_translationRevision: key },
     });
     if (existing) {
+      await this.project(
+        authoredFields(report).map((field) => field.text),
+        locale,
+        scopeId,
+        {
+          entityId: sourceArtifactId,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+          canonicalRevision: sourceSha256,
+          canonicalDigest: digest(canonicalJson(report)),
+        },
+      );
       if (
         existing.scopeId !== scopeId ||
         existing.sourceArtifactId !== sourceArtifactId ||
         existing.locale !== target ||
-        existing.translationRevision !== 1 ||
+        existing.translationRevision !== translationRevision ||
         existing.sourceSha256 !== sourceSha256 ||
         digest(Buffer.from(existing.content).toString("utf8")) !==
           existing.contentSha256
@@ -655,7 +1166,7 @@ export class AuthoredLocalizationService
       sourceArtifactId,
       sourceSha256,
       locale,
-      translationRevision: 1,
+      translationRevision,
       localizedFields: Object.fromEntries(
         fields.map((field) => [field.path, values.get(field.text)!]),
       ),
@@ -780,7 +1291,12 @@ export class AuthoredLocalizationService
     }
     for (const row of records)
       await this.prisma.$transaction((tx) =>
-        enqueueAuthoredDocument(tx, { scopeId, entityType, ...row }),
+        enqueueAuthoredDocument(tx, {
+          scopeId,
+          entityType,
+          sourceLanguages: {},
+          ...row,
+        }),
       );
     return {
       processed: records.length,

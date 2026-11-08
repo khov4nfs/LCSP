@@ -47,8 +47,16 @@ export function authoredLocalizationFixture(
                 where.locale === AuthoredLocalizationLocale.EN ? text : vi;
               return {
                 originSha256: hash(text),
+                originalContent: text,
+                translationRevision: 1,
                 state: AuthoredLocalizationState.READY,
-                revision: { content, contentSha256: hash(content) },
+                translationReviewedBy: "isolated-unit-fixture",
+                translationReviewedAt: new Date(),
+                revision: {
+                  content,
+                  contentSha256: hash(content),
+                  engine: "isolated-unit-fixture",
+                },
               };
             }),
         ),

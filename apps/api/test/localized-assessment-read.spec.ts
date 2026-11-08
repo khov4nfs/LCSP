@@ -104,6 +104,8 @@ type RequestRow = Pick<
   translationRevision: number;
   state: AuthoredLocalizationState;
   revision: Revision | null;
+  translationReviewedBy?: string | null;
+  translationReviewedAt?: Date | string | null;
 };
 type ArtifactKey = {
   scopeId: string;
@@ -205,6 +207,8 @@ function persistence() {
       for (const row of requests) {
         const content = `${row.locale}: ${row.originalContent}`;
         row.state = AuthoredLocalizationState.READY;
+        row.translationReviewedBy = "isolated-localization-reviewer";
+        row.translationReviewedAt = new Date();
         row.revision = { content, contentSha256: hash(content) };
       }
     },

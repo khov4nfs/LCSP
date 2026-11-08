@@ -421,6 +421,8 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       const { AUTHORED_LOCALIZATION_ENTITIES } =
         await import("@lcsp/contracts/assessment-domain");
       await enqueueAuthoredDocument(tx, {
+        // No reviewed upstream field-language declaration exists at this writer boundary.
+        sourceLanguages: {},
         scopeId: command.assessmentId,
         entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
         entityId: artifactId,
