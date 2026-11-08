@@ -404,7 +404,9 @@ test("mounted grouped RuleAuditPicker paginates under pinned locale, aborts dela
       queries: { retry: false, staleTime: Infinity, gcTime: Infinity },
     },
   });
-  let delayedEnPage2: ((response: Response) => void) | null = null;
+  const holder: { delayedEnPage2: ((response: Response) => void) | null } = {
+    delayedEnPage2: null,
+  };
   let holdEnPage2 = true;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -413,7 +415,7 @@ test("mounted grouped RuleAuditPicker paginates under pinned locale, aborts dela
     const locale = new Headers(init?.headers).get("x-lcsp-locale") ?? "en";
     if (locale === "en" && offset === 1 && holdEnPage2) {
       return new Promise<Response>((resolve) => {
-        delayedEnPage2 = resolve;
+        holder.delayedEnPage2 = resolve;
       });
     }
     return Response.json({
@@ -430,7 +432,7 @@ test("mounted grouped RuleAuditPicker paginates under pinned locale, aborts dela
     );
     await settle();
     assert.ok(
-      delayedEnPage2,
+      holder.delayedEnPage2,
       "EN page 2 should be in flight after EN page 1 resolves",
     );
 
@@ -440,7 +442,7 @@ test("mounted grouped RuleAuditPicker paginates under pinned locale, aborts dela
 
     // Release the delayed EN page 2 response after VI switch
     holdEnPage2 = false;
-    delayedEnPage2!(Response.json({ ok: true, data: en1 }));
+    holder.delayedEnPage2(Response.json({ ok: true, data: en1 }));
     await settle();
 
     // VI page 1 and VI page 2 must be rendered; EN page 2 must never mix into VI

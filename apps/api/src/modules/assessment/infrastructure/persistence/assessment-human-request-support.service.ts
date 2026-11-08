@@ -122,10 +122,11 @@ export class AssessmentHumanRequestSupport {
         resolutionAttempts = projected.resolutionAttempts;
       }
       if (Array.isArray(row.choices) && projected.choices) {
+        const projectedChoices = projected.choices;
         choices = (row.choices as Array<{ value: string; label: string }>).map(
           (choice, index) => ({
             value: choice.value,
-            label: projected.choices![index]!.label,
+            label: projectedChoices[index]?.label ?? choice.label,
           }),
         );
       }

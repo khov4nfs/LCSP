@@ -69,6 +69,17 @@ export function useLocalizationBacklogQuery(
 export function useLocalizationScopeReview(scopeId: string) {
   const client = useQueryClient();
   const root = `/api/admin/localization/${encodeURIComponent(scopeId)}`;
+  /**
+   * Business purpose: Refresh localization backlog, scope queue and rule-grouping caches after an acknowledged review mutation.
+   * Business rules:
+   * - Invalidate both admin-localization and admin-rule-grouping prefixes for the scope.
+   * Execution flow:
+   * 1. Trigger parallel React Query invalidations.
+   * Failure cases:
+   * - Invalidation errors propagate through React Query.
+   * Side effects:
+   * - Marks matching queries stale and triggers active refetches.
+   */
   const invalidate = () =>
     Promise.all([
       client.invalidateQueries({ queryKey: ["admin-localization"] }),

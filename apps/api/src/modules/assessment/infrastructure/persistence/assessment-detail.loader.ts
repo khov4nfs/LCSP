@@ -221,7 +221,8 @@ export class AssessmentDetailLoader {
                     rationale: localized.rationale,
                     criteria: d.decision.criteria.map((c, index) => ({
                       ...c,
-                      rationale: localized.criteria[index]!.rationale,
+                      rationale:
+                        localized.criteria[index]?.rationale ?? c.rationale,
                     })),
                   },
                 };

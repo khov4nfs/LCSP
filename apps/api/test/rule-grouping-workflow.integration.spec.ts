@@ -21,6 +21,7 @@ import {
 import {
   RULE_AUDIT_SCOPE_MODES,
   AUTHORED_LOCALIZATION_ENTITIES,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
   type SubmitRuleAudit,
 } from "@lcsp/contracts/assessment-domain";
 import {
@@ -507,9 +508,30 @@ integration("persisted grouping proposal and independent review", () => {
         "isolated-language-reviewer",
       );
     }
-    expect(
-      (await audit.catalog(assessment.id, owner, tag, 0, 20, "en")).total,
-    ).toBe(0);
+    const ungroupedEn = await audit.catalog(
+      assessment.id,
+      owner,
+      tag,
+      0,
+      20,
+      "en",
+    );
+    expect(ungroupedEn.total).toBe(0);
+    expect(ungroupedEn.localizationState).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.READY,
+    );
+    const ungroupedVi = await audit.catalog(
+      assessment.id,
+      owner,
+      tag,
+      0,
+      20,
+      "vi",
+    );
+    expect(ungroupedVi.total).toBe(0);
+    expect(ungroupedVi.localizationState).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.REVIEW_REQUIRED,
+    );
     expect(
       await other.approve(id, submitted.membershipDigest, "reviewer", tag),
     ).toEqual({ state: RULE_CATALOG_REVIEW_STATES.APPROVED });
@@ -523,47 +545,40 @@ integration("persisted grouping proposal and independent review", () => {
     await expect(
       audit.catalog(assessment.id, owner, tag, 0, 20, "vi"),
     ).rejects.toThrow();
-    await db.$transaction(async (tx) => {
-      for (const row of [rule, ruleTwo])
-        await enqueueAuthoredDocument(tx, {
-          scopeId: id,
-          entityType: AUTHORED_LOCALIZATION_ENTITIES.ASSESSMENT_RULE,
-          entityId: row.assessmentRuleId,
-          canonicalRevision: row.contentDigest,
-          document: row,
-        });
-      await enqueueAuthoredDocument(tx, {
-        scopeId: id,
-        entityType: AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
-        entityId: requirement.legalRequirementId,
-        canonicalRevision: requirement.contentDigest,
-        document: requirement,
-      });
+    const viJobs = await db.authoredLocalizationRequest.findMany({
+      where: { scopeId: id, locale: "VI" },
     });
-    for (const job of await db.authoredLocalizationRequest.findMany({
-      where: { scopeId: id },
-    })) {
-      const normalizedContent =
-        job.locale === "EN"
-          ? job.originalContent
-          : `Bản giả lập được rà soát: ${job.originalContent}`;
-      await localization.reviewOutput(
-        id,
-        job.id,
-        {
-          originSha256: job.originSha256,
-          contentSha256: fingerprint(normalizedContent),
-          normalizedContent,
-          confirmsTargetLanguageAndMeaning: true,
-          evidence:
-            "Isolated reviewed localization fixture, not production approval",
-        },
-        "isolated-language-reviewer",
-      );
-    }
+    const batchOutputOut = await localization.batchReviewOutput(
+      id,
+      {
+        confirmsTargetLanguageAndMeaning: true,
+        evidence:
+          "Isolated reviewed localization fixture, not production approval",
+        items: viJobs.map((job) => {
+          const normalizedContent = `Bản giả lập được rà soát: ${job.originalContent}`;
+          return {
+            requestId: job.id,
+            originSha256: job.originSha256,
+            contentSha256: fingerprint(normalizedContent),
+            normalizedContent,
+          };
+        }),
+      },
+      "isolated-language-reviewer",
+    );
+    expect(batchOutputOut.acceptedCount).toBe(viJobs.length);
     const ready = await audit.catalog(assessment.id, owner, tag, 0, 20, "en");
     expect(ready.total).toBe(2);
+    expect(ready.localizationState).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.READY,
+    );
     expect(ready.groups[0].count).toBe(2);
+    const readyVi = await audit.catalog(assessment.id, owner, tag, 0, 20, "vi");
+    expect(readyVi.total).toBe(2);
+    expect(readyVi.localizationState).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.READY,
+    );
+    expect(readyVi.rules[0].concept).toContain("Bản giả lập được rà soát:");
     await expect(
       audit.catalog(assessment.id, "foreign-owner", tag, 0, 20, "en"),
     ).rejects.toThrow();

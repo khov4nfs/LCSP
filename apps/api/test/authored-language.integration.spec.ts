@@ -22,6 +22,8 @@ import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import {
   AUTHORED_LOCALIZATION_ENTITIES,
   AUTHORED_LOCALIZATION_STATES,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
+  AUTHORED_CANDIDATE_ACTIONS,
   AUTHORED_LANGUAGE_REVIEW_CODES,
 } from "@lcsp/contracts/assessment-domain";
 
@@ -738,7 +740,9 @@ integration("reviewed authored language PostgreSQL workflow", () => {
     const provider = jest
       .spyOn(globalThis, "fetch")
       .mockImplementation((_url, init) => {
-        const body = JSON.parse(String(init?.body ?? "{}")) as {
+        const body = JSON.parse(
+          typeof init?.body === "string" ? init.body : "{}",
+        ) as {
           locale: string;
           originSha256: string;
         };
@@ -815,5 +819,277 @@ integration("reviewed authored language PostgreSQL workflow", () => {
     )) as typeof document;
     expect(localizedReport.findings[0].summary).toBe(f0Translation);
     expect(localizedReport.findings[1].summary).toBe(f1Translation);
+  });
+
+  it("discovers backlog without a known scopeId, supports verified write evidence, bounded batch review, candidate rejection and controlled retry", async () => {
+    const scopeId = randomUUID();
+    const entityId = randomUUID();
+    const document = {
+      title: "Verified English legal requirement title.",
+      summary: "Unreviewed second field requiring batch attestation.",
+    };
+    const canonicalRevision = hash(JSON.stringify(document));
+
+    await expect(
+      first.$transaction((tx) =>
+        enqueueAuthoredDocument(tx, {
+          scopeId,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+          entityId,
+          canonicalRevision,
+          document,
+          sourceLanguages: { "/title": AuthoredSourceLanguage.EN },
+          verifiedSourceEvidence: {
+            "/title": {
+              sourceLanguage: AuthoredSourceLanguage.EN,
+              originSha256: hash("tampered-sha"),
+              actorId: "write-boundary-reviewer",
+              evidence: "Mismatched hash must fail closed at write boundary",
+            },
+          },
+        }),
+      ),
+    ).rejects.toThrow();
+
+    await first.$transaction((tx) =>
+      enqueueAuthoredDocument(tx, {
+        scopeId,
+        entityType: AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+        entityId,
+        canonicalRevision,
+        document,
+        sourceLanguages: { "/title": AuthoredSourceLanguage.EN },
+        verifiedSourceEvidence: {
+          "/title": {
+            sourceLanguage: AuthoredSourceLanguage.EN,
+            originSha256: hash(document.title),
+            actorId: "write-boundary-reviewer",
+            evidence:
+              "Verified English source provenance bound at write boundary",
+          },
+        },
+      }),
+    );
+
+    let cursor: string | undefined;
+    let initialBacklog = await service.backlog(
+      undefined,
+      AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+    );
+    let scopeSummary = initialBacklog.scopes.find(
+      (item) => item.scopeId === scopeId,
+    );
+    while (!scopeSummary && initialBacklog.nextAfterScopeId) {
+      cursor = initialBacklog.nextAfterScopeId;
+      initialBacklog = await service.backlog(
+        cursor,
+        AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+      );
+      scopeSummary = initialBacklog.scopes.find(
+        (item) => item.scopeId === scopeId,
+      );
+    }
+    expect(scopeSummary).toBeDefined();
+    expect(scopeSummary?.counts.UNKNOWN_SOURCE).toBe(2);
+    expect(scopeSummary?.counts.SOURCE_REVIEW_REQUIRED).toBe(2);
+    expect(scopeSummary?.counts.PROVIDER_PENDING).toBe(2);
+    expect(scopeSummary?.readiness.en).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.REVIEW_REQUIRED,
+    );
+    expect(initialBacklog.operations.providerConfigured).toBe(true);
+    expect(initialBacklog.operations.batchLimit).toBe(50);
+
+    const queue = await service.reviewQueue(scopeId);
+    const summaryEn = queue.find(
+      (row) => row.fieldPath === "/summary" && row.locale === "en",
+    )!;
+    const titleEn = queue.find(
+      (row) => row.fieldPath === "/title" && row.locale === "en",
+    )!;
+
+    const batchSourceResult = await service.batchReviewSource(
+      scopeId,
+      {
+        confirmsIndividualFieldReview: true,
+        evidence: "Batch reviewed /summary as English and tested stale item",
+        items: [
+          {
+            requestId: summaryEn.id,
+            originSha256: summaryEn.originSha256,
+            canonicalRevision: summaryEn.canonicalRevision,
+            sourceLanguage: AuthoredSourceLanguage.EN,
+          },
+          {
+            requestId: titleEn.id,
+            originSha256: hash("stale-origin"),
+            canonicalRevision: titleEn.canonicalRevision,
+            sourceLanguage: AuthoredSourceLanguage.EN,
+          },
+        ],
+      },
+      "batch-source-reviewer",
+    );
+    expect(batchSourceResult.acceptedCount).toBe(1);
+    expect(batchSourceResult.rejectedCount).toBe(1);
+
+    const provider = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((_url, init) => {
+        const body = JSON.parse(
+          typeof init?.body === "string" ? init.body : "{}",
+        ) as {
+          locale: string;
+          originSha256: string;
+          content: string;
+        };
+        return Promise.resolve(
+          Response.json({
+            locale: body.locale,
+            originSha256: body.originSha256,
+            content: `Ứng viên dịch tiếng Việt: ${body.content}`,
+            engine: "isolated-provider",
+            engineVersion: "1",
+          }),
+        );
+      });
+    try {
+      await service.drain();
+      await service.drain();
+    } finally {
+      provider.mockRestore();
+    }
+
+    const afterDrain = await service.reviewQueue(scopeId);
+    const titleVi = afterDrain.find(
+      (row) => row.fieldPath === "/title" && row.locale === "vi",
+    )!;
+    const summaryVi = afterDrain.find(
+      (row) => row.fieldPath === "/summary" && row.locale === "vi",
+    )!;
+    expect(titleVi.candidate).not.toBeNull();
+    expect(summaryVi.candidate).not.toBeNull();
+
+    const rejected = await service.retryOrRejectCandidate(
+      scopeId,
+      titleVi.id,
+      {
+        action: AUTHORED_CANDIDATE_ACTIONS.REJECT,
+        originSha256: titleVi.originSha256,
+        canonicalRevision: titleVi.canonicalRevision,
+        candidateSha256: titleVi.candidate!.contentSha256,
+        evidence: "Rejected candidate due to inaccurate legal terminology",
+      },
+      "candidate-reviewer",
+    );
+    expect(rejected.state).toBe(AUTHORED_LOCALIZATION_STATES.FAILED);
+    expect(await replica.scopeReadiness(scopeId, "vi")).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.FAILED,
+    );
+
+    await expect(
+      service.reviewOutput(
+        scopeId,
+        titleVi.id,
+        {
+          originSha256: titleVi.originSha256,
+          contentSha256: titleVi.candidate!.contentSha256,
+          confirmsTargetLanguageAndMeaning: true,
+          evidence:
+            "Attempted to approve rejected candidate without normalization",
+        },
+        "candidate-reviewer",
+      ),
+    ).rejects.toThrow();
+
+    const retried = await service.retryOrRejectCandidate(
+      scopeId,
+      titleVi.id,
+      {
+        action: AUTHORED_CANDIDATE_ACTIONS.RETRY,
+        originSha256: titleVi.originSha256,
+        canonicalRevision: titleVi.canonicalRevision,
+        evidence: "Requested controlled retry after rejecting candidate",
+      },
+      "candidate-reviewer",
+    );
+    expect(retried.state).toBe(AUTHORED_LOCALIZATION_STATES.PENDING);
+    expect(retried.translationRevision).toBe(2);
+
+    const retryProvider = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((_url, init) => {
+        const body = JSON.parse(
+          typeof init?.body === "string" ? init.body : "{}",
+        ) as {
+          locale: string;
+          originSha256: string;
+        };
+        return Promise.resolve(
+          Response.json({
+            locale: body.locale,
+            originSha256: body.originSha256,
+            content: "Tiêu đề yêu cầu pháp lý đã được dịch lại chính xác.",
+            engine: "isolated-provider",
+            engineVersion: "2",
+          }),
+        );
+      });
+    try {
+      await service.drain();
+    } finally {
+      retryProvider.mockRestore();
+    }
+
+    const retriedRow =
+      await first.authoredLocalizationRequest.findUniqueOrThrow({
+        where: { id: retried.id },
+        include: { candidate: true },
+      });
+    expect(retriedRow.candidate?.content).toBe(
+      "Tiêu đề yêu cầu pháp lý đã được dịch lại chính xác.",
+    );
+
+    const batchOutputResult = await service.batchReviewOutput(
+      scopeId,
+      {
+        confirmsTargetLanguageAndMeaning: true,
+        evidence: "Batch approved verified Vietnamese translations",
+        items: [
+          {
+            requestId: retriedRow.id,
+            originSha256: retriedRow.originSha256,
+            contentSha256: retriedRow.candidate!.contentSha256,
+          },
+          {
+            requestId: summaryVi.id,
+            originSha256: summaryVi.originSha256,
+            contentSha256: hash("Trường thứ hai đã được chuẩn hóa tiếng Việt."),
+            normalizedContent: "Trường thứ hai đã được chuẩn hóa tiếng Việt.",
+          },
+        ],
+      },
+      "batch-output-reviewer",
+    );
+    expect(batchOutputResult.acceptedCount).toBe(2);
+    expect(batchOutputResult.rejectedCount).toBe(0);
+
+    expect(await replica.scopeReadiness(scopeId, "en")).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.READY,
+    );
+    expect(await replica.scopeReadiness(scopeId, "vi")).toBe(
+      AUTHORED_LOCALIZATION_READINESS_STATES.READY,
+    );
+
+    const localizedVi = await replica.projectDocument(document, "vi", scopeId, {
+      entityType: AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+      entityId,
+      canonicalRevision,
+    });
+    expect(localizedVi.title).toBe(
+      "Tiêu đề yêu cầu pháp lý đã được dịch lại chính xác.",
+    );
+    expect(localizedVi.summary).toBe(
+      "Trường thứ hai đã được chuẩn hóa tiếng Việt.",
+    );
   });
 });

@@ -126,6 +126,43 @@ try {
     )
       throw Error("Error state exposes old language");
   }
+  await page.evaluate(() => {
+    window.__fixture.mode = "READY";
+    window.__locale("en");
+  });
+  await page.goto(`${origin}/localization`);
+  await page
+    .getByText("Localization operational readiness", { exact: true })
+    .waitFor();
+  await page
+    .getByText("Biện pháp bảo vệ giả lập (ứng viên)")
+    .waitFor();
+  await page
+    .getByLabel("Review evidence")
+    .fill("Browser verified target language and legal meaning.");
+  await page
+    .getByLabel(
+      "I confirm the target language and legal/technical meaning match the canonical source.",
+    )
+    .check();
+  await page
+    .getByRole("button", { name: "Approve / normalize output" })
+    .click();
+  await page.waitForFunction(
+    () => window.__fixture.localizationSubmissions.length === 1,
+  );
+  await page.goto(`${origin}/catalog`);
+  await page
+    .getByText("EN: Architecture safety rule one", { exact: true })
+    .waitFor();
+  await page.evaluate(() => window.__locale("vi"));
+  await page
+    .getByText("VI: Quy tắc an toàn kiến trúc một", { exact: true })
+    .waitFor();
+  await page.evaluate(() => window.__locale("en"));
+  await page
+    .getByText("EN: Architecture safety rule one", { exact: true })
+    .waitFor();
   if (errors.length) throw Error(JSON.stringify(errors));
   console.log(
     JSON.stringify({
@@ -133,6 +170,8 @@ try {
       dirtyApprovalBlocked: true,
       mobile: true,
       reportEN_VI_EN: true,
+      localizationQueueBrowser: true,
+      groupedCatalogEN_VI_EN: true,
       oldLanguageFlash: false,
       pending: true,
       failed: true,

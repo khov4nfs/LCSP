@@ -240,7 +240,10 @@ export function deriveOperationalState(
     return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.OUTPUT_REVIEW_REQUIRED;
   if (row.sourceLanguage === AuthoredSourceLanguage.MIXED)
     return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.MIXED_SOURCE;
-  if (!row.sourceReviewedBy && row.sourceLanguage === AuthoredSourceLanguage.UNKNOWN)
+  if (
+    !row.sourceReviewedBy &&
+    row.sourceLanguage === AuthoredSourceLanguage.UNKNOWN
+  )
     return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.UNKNOWN_SOURCE;
   if (!row.sourceReviewedBy)
     return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.SOURCE_REVIEW_REQUIRED;
@@ -254,6 +257,17 @@ export function deriveOperationalState(
   return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.PROVIDER_PENDING;
 }
 
+/**
+ * Business purpose: Create an initialized zero-count operational localization summary.
+ * Business rules:
+ * - All eight canonical operational states start at zero.
+ * Execution flow:
+ * 1. Return a fresh counts object with zeroed state counters.
+ * Failure cases:
+ * - None: deterministic initialization.
+ * Side effects:
+ * - None: returns a new object.
+ */
 const emptyCounts = (): AuthoredLocalizationCounts => ({
   UNKNOWN_SOURCE: 0,
   MIXED_SOURCE: 0,
@@ -265,6 +279,17 @@ const emptyCounts = (): AuthoredLocalizationCounts => ({
   FAILED: 0,
 });
 
+/**
+ * Business purpose: Increment derived operational state counters for one latest field-locale job.
+ * Business rules:
+ * - Reviewed READY jobs increment READY only; non-ready jobs increment all applicable operational blockers.
+ * Execution flow:
+ * 1. Check readiness and increment matching state counters on the supplied accumulator.
+ * Failure cases:
+ * - Unreviewed jobs never increment READY.
+ * Side effects:
+ * - Mutates the supplied counts accumulator.
+ */
 function accumulateJobCounts(
   counts: AuthoredLocalizationCounts,
   row: Parameters<typeof deriveOperationalState>[0],
@@ -374,9 +399,7 @@ export async function enqueueAuthoredDocument(
         { status: HttpStatus.CONFLICT },
       );
     const effectiveSourceLanguage =
-      verified?.sourceLanguage ??
-      declared ??
-      AuthoredSourceLanguage.UNKNOWN;
+      verified?.sourceLanguage ?? declared ?? AuthoredSourceLanguage.UNKNOWN;
     const now = new Date();
     for (const locale of [
       AuthoredLocalizationLocale.EN,
@@ -620,8 +643,7 @@ export class AuthoredLocalizationService
         entities.add(AUTHORED_LOCALIZATION_ENTITIES[job.entityType]);
         accumulateJobCounts(counts, job);
         accumulateJobCounts(totalCounts, job);
-        if (job.locale === AuthoredLocalizationLocale.EN)
-          byLocale.en.push(job);
+        if (job.locale === AuthoredLocalizationLocale.EN) byLocale.en.push(job);
         else byLocale.vi.push(job);
         if (job.attempts > 1) {
           const retries = job.attempts - 1;
@@ -653,6 +675,17 @@ export class AuthoredLocalizationService
             candidateReviewsAwaitingAction += 1;
         }
       }
+      /**
+       * Business purpose: Classify per-locale readiness across a scope's latest field jobs.
+       * Business rules:
+       * - Returns READY only when every job in the locale is reviewed; prioritizes FAILED and REVIEW_REQUIRED over PENDING.
+       * Execution flow:
+       * 1. Inspect the locale's jobs and return the governing readiness state.
+       * Failure cases:
+       * - Empty or unreviewed job lists never return READY.
+       * Side effects:
+       * - None: pure classification.
+       */
       const readinessFor = (
         localeJobs: typeof scopeJobs,
       ): AuthoredLocalizationReadinessState => {
@@ -709,7 +742,7 @@ export class AuthoredLocalizationService
           process.env.LCSP_AUTHORED_TRANSLATION_WORKER_ENABLED === "1",
         providerConfigured: Boolean(
           process.env.LCSP_AUTHORED_TRANSLATION_URL &&
-            process.env.LCSP_AUTHORED_TRANSLATION_KEY,
+          process.env.LCSP_AUTHORED_TRANSLATION_KEY,
         ),
         batchLimit: 50,
         workerLeaseLimit: 5,

@@ -3,7 +3,9 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RuleGroupingReview } from "../../src/features/admin/components/organisms/rule-grouping-review";
+import { LocalizationOperationsQueue } from "../../src/features/admin/components/organisms/localization-operations-queue";
 import { AssessmentReportView } from "../../src/features/assessment-runtime/components/organisms/assessment-report-view";
+import { RuleAuditPicker } from "../../src/features/assessment-runtime/components/organisms/rule-audit-picker";
 import { LocaleProvider } from "../../src/components/providers/locale-provider";
 import { setAppLocale } from "../../src/lib/locale";
 import grouping from "../../src/public/assets/mocks/rule-grouping-review.json";
@@ -18,7 +20,13 @@ const client = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 let ledger = grouping.ledger;
-const state = { submissions: [], delay: false, release: null, mode: "READY" };
+const state = {
+  submissions: [],
+  localizationSubmissions: [],
+  delay: false,
+  release: null,
+  mode: "READY",
+};
 Object.assign(window, {
   __fixture: state,
   __locale: setAppLocale,
@@ -26,6 +34,44 @@ Object.assign(window, {
 });
 globalThis.fetch = async (input, init) => {
   const url = String(input);
+  if (url.includes("/api/admin/localization")) {
+    if (init?.method === "POST") {
+      const body = JSON.parse(String(init.body));
+      state.localizationSubmissions.push({ url, body });
+      if (url.endsWith("/batch-output-review")) {
+        return Response.json({
+          ok: true,
+          data: {
+            scopeId: id,
+            acceptedCount: 1,
+            rejectedCount: 0,
+            results: [
+              {
+                requestId: grouping.localizationQueue[0].id,
+                accepted: true,
+                errorCode: null,
+              },
+            ],
+          },
+        });
+      }
+      return Response.json({
+        ok: true,
+        data: {
+          id: grouping.localizationQueue[0].id,
+          state: "READY",
+          reviewed: 1,
+          translationRevision: 1,
+        },
+      });
+    }
+    return Response.json({
+      ok: true,
+      data: url.includes(id)
+        ? grouping.localizationQueue
+        : grouping.localizationBacklog,
+    });
+  }
   if (url.includes("/groups")) {
     if (init?.method === "POST") {
       const body = JSON.parse(String(init.body));
@@ -68,6 +114,12 @@ globalThis.fetch = async (input, init) => {
       },
       { status: 409 },
     );
+  if (url.includes("/rules")) {
+    return Response.json({
+      ok: true,
+      data: grouping.ruleCatalog[locale],
+    });
+  }
   if (url.endsWith("/report"))
     return Response.json({
       ok: true,
@@ -77,12 +129,16 @@ globalThis.fetch = async (input, init) => {
   detail.case.artifacts = [artifact];
   return Response.json({ ok: true, data: detail });
 };
-const isReport = location.pathname === "/report";
+const pathname = location.pathname;
 createRoot(document.getElementById("root")).render(
   <LocaleProvider initialLocale="en">
     <QueryClientProvider client={client}>
-      {isReport ? (
+      {pathname === "/report" ? (
         <AssessmentReportView assessmentId={id} />
+      ) : pathname === "/localization" ? (
+        <LocalizationOperationsQueue />
+      ) : pathname === "/catalog" ? (
+        <RuleAuditPicker assessmentId={id} />
       ) : (
         <RuleGroupingReview ruleSetVersionId={id} />
       )}

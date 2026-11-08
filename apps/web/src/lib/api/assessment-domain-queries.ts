@@ -162,6 +162,17 @@ export function useHumanRequestsQuery(id: string) {
   );
   return useQuery({
     queryKey: [...assessmentDomainKeys.requests(id), locale],
+    /**
+     * Business purpose: Fetch the assessment's human-resolution requests for the captured locale.
+     * Business rules:
+     * - Send x-lcsp-locale and abort if the active locale changes before or during the request.
+     * Execution flow:
+     * 1. Check signal and locale, call apiValidated and re-verify locale before returning.
+     * Failure cases:
+     * - Aborted or stale-locale responses throw without populating the cache.
+     * Side effects:
+     * - Performs one authenticated BFF read.
+     */
     queryFn: async ({ signal }) => {
       signal.throwIfAborted();
       if (getAppLocaleSnapshot() !== locale)
