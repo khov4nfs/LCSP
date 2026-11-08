@@ -65,9 +65,46 @@ export class ComplianceRuleSetAdminController {
     private readonly catalogGroups: RuleCatalogGroupsService,
   ) {}
 
+  /**
+   * Business purpose: Surface active Development-only versions needing grouping administration.
+   * Business rules:
+   * - Controller-wide Admin authorization applies; the list grants no publication or legal approval.
+   * Execution flow:
+   * 1. Return the bounded server-owned pending grouping list.
+   * Failure cases:
+   * - Authorization or persistence failures propagate through the shared problem boundary.
+   * Side effects:
+   * - Reads grouping readiness only.
+   */
+  @Get("groups/pending")
+  async pendingGroups() {
+    return resultEnvelope(await this.catalogGroups.pending());
+  }
+
   @Get(":ruleSetVersionId/groups")
   async groups(@Param("ruleSetVersionId", new ParseUUIDPipe()) id: string) {
     return resultEnvelope(await this.catalogGroups.get(id));
+  }
+
+  /**
+   * Business purpose: Open a pinned grouping proposal for authorized administrative review.
+   * Business rules:
+   * - Controller-wide Admin authorization applies; proposal generation never approves membership.
+   * Execution flow:
+   * 1. Validate version identity and return the canonical proposal through the shared envelope.
+   * Failure cases:
+   * - Inactive, foreign or stale versions reject through the domain service.
+   * Side effects:
+   * - May idempotently materialize a missing historical proposal.
+   */
+  @Get(":ruleSetVersionId/groups/proposal")
+  async proposal(
+    @Param("ruleSetVersionId", new ParseUUIDPipe()) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.catalogGroups.proposal(id, req.correlationId || randomUUID()),
+    );
   }
 
   @Post(":ruleSetVersionId/groups")

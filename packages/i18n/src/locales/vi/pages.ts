@@ -1,5 +1,50 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
+  ruleGrouping: {
+    localizationReady: "Trường bản địa hóa READY",
+    localizationPending: "Trường bản địa hóa PENDING / cần rà soát",
+    localizationFailed: "Trường bản địa hóa FAILED",
+    submitter: "Người gửi",
+    reviewer: "Người phê duyệt",
+    groupDescriptions: {
+      ARCHITECTURE_SAFETY_BY_DESIGN:
+        "Trách nhiệm kiến trúc và an toàn trước phát hành đã được rà soát.",
+      DATA_MODEL_LIFECYCLE:
+        "Trách nhiệm kỹ thuật trong phát triển dữ liệu và mô hình đã được rà soát.",
+      CYBERSECURITY_TECHNICAL_CONTROLS:
+        "Việc triển khai biện pháp an ninh và kiểm soát kỹ thuật đã được rà soát.",
+      TESTING_CHANGE_ASSURANCE:
+        "Trách nhiệm kiểm thử và bảo đảm thay đổi phát triển đã được rà soát.",
+      USER_FACING_TRANSPARENCY:
+        "Việc phát triển công bố và minh bạch với người dùng đã được rà soát.",
+      HUMAN_OVERSIGHT_INTERVENTION:
+        "Hỗ trợ kỹ thuật cho giám sát và can thiệp của con người đã được rà soát.",
+    },
+    title: "Duyệt phân nhóm quy tắc",
+    description:
+      "Rà soát từng phân nhóm trước khi yêu cầu người khác phê duyệt.",
+    loading: "Đang tải đề xuất",
+    unavailable: "Phân nhóm cần bộ quy tắc chỉ cho phát triển đang hoạt động.",
+    unassigned: "Chọn nhóm chính",
+    rationaleEn: "Lý do tiếng Anh",
+    rationaleVi: "Lý do tiếng Việt",
+    submit: "Gửi toàn bộ phân nhóm",
+    approve: "Phê duyệt độc lập mã băm hiển thị",
+    previous: "Trước",
+    next: "Tiếp",
+    invalid:
+      "Xử lý mục thiếu, phiên bản cũ hoặc tự phê duyệt trước khi tiếp tục.",
+    digest: "Mã băm phân nhóm",
+    status: "Trạng thái duyệt",
+    groups: {
+      ARCHITECTURE_SAFETY_BY_DESIGN: "Kiến trúc và an toàn từ thiết kế",
+      DATA_MODEL_LIFECYCLE: "Vòng đời dữ liệu và mô hình",
+      CYBERSECURITY_TECHNICAL_CONTROLS: "An ninh mạng và kiểm soát kỹ thuật",
+      TESTING_CHANGE_ASSURANCE: "Kiểm thử và bảo đảm thay đổi",
+      USER_FACING_TRANSPARENCY: "Minh bạch với người dùng",
+      HUMAN_OVERSIGHT_INTERVENTION: "Giám sát và can thiệp của con người",
+    },
+  },
   complianceRuleSets: {
     resume: "Tiếp tục chuẩn bị",
     resuming: "Đang tiếp tục…",
@@ -228,7 +273,8 @@ export const viPages = {
       selectedGroups: "Nhóm đã chọn: {count}/{total}",
       actorStage: "Chủ thể: {actor} · Giai đoạn: {stage}",
       developmentStage: "Phát triển",
-      groupingReviewRequired: "Phân nhóm đang chờ xét duyệt độc lập. Hiện chưa thể chọn các quy tắc này.",
+      groupingReviewRequired:
+        "Phân nhóm đang chờ xét duyệt độc lập. Hiện chưa thể chọn các quy tắc này.",
       title: "Chọn quy tắc cần đánh giá",
       description:
         "Chỉ các quy tắc bạn yêu cầu mới được điều tra. Quy tắc chưa yêu cầu chưa có kết luận đánh giá.",

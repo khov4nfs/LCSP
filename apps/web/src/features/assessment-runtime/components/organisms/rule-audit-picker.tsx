@@ -95,7 +95,14 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
             rule.concept,
             rule.summary,
             rule.assessmentRuleId,
-            ...(data?.groups.filter((group) => group.ruleIds.includes(rule.assessmentRuleId)).flatMap((group) => [group.nameEn, group.nameVi, group.descriptionEn, group.descriptionVi]) ?? []),
+            ...(data?.groups
+              .filter((group) => group.ruleIds.includes(rule.assessmentRuleId))
+              .flatMap((group) => [
+                group.nameEn,
+                group.nameVi,
+                group.descriptionEn,
+                group.descriptionVi,
+              ]) ?? []),
             ...rule.legalRequirements.map((requirement) => requirement.title),
           ].some((value) => value.toLocaleLowerCase().includes(term)),
         )
@@ -110,8 +117,10 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
   )
     return null;
   const canStart =
-    data.excludedRuleCount === 0 && (!data.latestRequestId ||
-    data.latestRequestStatus === RULE_AUDIT_STATUSES.COMPLETED);
+    data.total > 0 &&
+    data.excludedRuleCount === 0 &&
+    (!data.latestRequestId ||
+      data.latestRequestStatus === RULE_AUDIT_STATUSES.COMPLETED);
 
   /**
    * Business purpose: Freeze a selected or full scope with one stable retry identity.
@@ -310,7 +319,13 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
           </CardContent>
         ) : null}
         <CardContent>
-          {data.excludedRuleCount > 0 ? <Alert><AlertDescription>{copy("ruleAudit.groupingReviewRequired")}</AlertDescription></Alert> : null}
+          {data.excludedRuleCount > 0 ? (
+            <Alert>
+              <AlertDescription>
+                {copy("ruleAudit.groupingReviewRequired")}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <FormProvider {...form}>
             <form onSubmit={handleSelectionSubmit} className="mt-1 space-y-4">
               <div className="relative">
@@ -332,7 +347,15 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                     selected: selectedIds.length,
                     total: data.total,
                   })}
-                  {data.groups.length > 0 ? " · " + copy("ruleAudit.selectedGroups", { count: data.groups.filter((group) => group.ruleIds.some((id) => selectedIds.includes(id))).length, total: data.groups.length }) : null}
+                  {data.groups.length > 0
+                    ? " · " +
+                      copy("ruleAudit.selectedGroups", {
+                        count: data.groups.filter((group) =>
+                          group.ruleIds.some((id) => selectedIds.includes(id)),
+                        ).length,
+                        total: data.groups.length,
+                      })
+                    : null}
                 </span>
                 <Button
                   type="button"
@@ -370,23 +393,40 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                 className="max-h-72 space-y-2 overflow-y-auto rounded-xl border bg-muted/20 p-2 sm:max-h-96"
                 aria-label={copy("ruleAudit.title")}
               >
-                {data.groups.length > 0 ? data.groups.map((group) => (
-                  <RuleAuditGroup key={group.groupId} group={group} rules={rules} visibleRuleIds={new Set(filtered.map((rule) => rule.assessmentRuleId))} canStart={canStart}
-                    onView={(decisionId) => document.getElementById(`decision-${decisionId}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} />
-                )) : filtered.map((rule) => (
-                  <RuleAuditOption
-                    key={rule.assessmentRuleId}
-                    rule={rule}
-                    onView={(decisionId) =>
-                      document
-                        .getElementById(`decision-${decisionId}`)
-                        ?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "center",
-                        })
-                    }
-                  />
-                ))}
+                {data.groups.length > 0
+                  ? data.groups.map((group) => (
+                      <RuleAuditGroup
+                        key={group.groupId}
+                        group={group}
+                        rules={rules}
+                        visibleRuleIds={
+                          new Set(filtered.map((rule) => rule.assessmentRuleId))
+                        }
+                        canStart={canStart}
+                        onView={(decisionId) =>
+                          document
+                            .getElementById(`decision-${decisionId}`)
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center",
+                            })
+                        }
+                      />
+                    ))
+                  : filtered.map((rule) => (
+                      <RuleAuditOption
+                        key={rule.assessmentRuleId}
+                        rule={rule}
+                        onView={(decisionId) =>
+                          document
+                            .getElementById(`decision-${decisionId}`)
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center",
+                            })
+                        }
+                      />
+                    ))}
               </ul>
               {canStart ? (
                 <div className="flex flex-wrap gap-2 border-t pt-4">

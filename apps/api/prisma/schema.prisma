@@ -18,6 +18,13 @@ enum AuthoredLocalizationLocale {
   VI
 }
 
+enum AuthoredSourceLanguage {
+  EN
+  VI
+  MIXED
+  UNKNOWN
+}
+
 enum AuthoredLocalizationEntity {
   LEGAL_REQUIREMENT
   ASSESSMENT_RULE
@@ -66,6 +73,15 @@ model RuleCatalogGroupMembership {
   @@index([ruleSetVersionId, state, groupId, ordinal])
 }
 
+model RuleCatalogGroupingProposal {
+  ruleSetVersionId String @id
+  ruleSetDigest String
+  payload Json
+  state RuleCatalogReviewState @default(REVIEW_REQUIRED)
+  createdAt DateTime @default(now())
+  ruleSet ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+}
+
 model AuthoredLocalizationRequest {
   id String @id @default(uuid())
   idempotencyKey String @unique
@@ -77,6 +93,11 @@ model AuthoredLocalizationRequest {
   fieldPath String
   locale AuthoredLocalizationLocale
   originalLanguage AuthoredLocalizationLocale?
+  sourceLanguage AuthoredSourceLanguage @default(UNKNOWN)
+  sourceReviewedBy String?
+  sourceReviewedAt DateTime?
+  translationReviewedBy String?
+  translationReviewedAt DateTime?
   originSha256 String
   originalContent String
   translationRevision Int @default(1)
@@ -88,8 +109,31 @@ model AuthoredLocalizationRequest {
   errorCode String?
   createdAt DateTime @default(now())
   revision AuthoredLocalizedRevision?
+  candidate AuthoredTranslationCandidate?
+  reviews AuthoredLocalizationReview[]
   @@index([state, nextAttemptAt, leaseUntil])
   @@index([scopeId, originSha256, locale, state])
+}
+
+model AuthoredTranslationCandidate {
+  requestId String @id
+  content String
+  contentSha256 String
+  engine String
+  engineVersion String
+  createdAt DateTime @default(now())
+  request AuthoredLocalizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+}
+
+model AuthoredLocalizationReview {
+  id String @id @default(uuid())
+  requestId String
+  actorId String
+  evidence String
+  binding Json
+  createdAt DateTime @default(now())
+  request AuthoredLocalizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@index([requestId, createdAt])
 }
 
 model AuthoredLocalizedRevision {
@@ -1537,6 +1581,7 @@ model RuleSetPreparationRun {
 }
 
 model ComplianceRuleSetVersion {
+  groupingProposal RuleCatalogGroupingProposal?
   targetActivityScope PreparationTargetActivityScope @default(FULL_SOURCE)
   id                      String                                @id @default(uuid())
   version                 String                                @unique

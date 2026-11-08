@@ -23,6 +23,7 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   Prisma,
+  PreparationTargetActivityScope,
   ClaimPreparationPhase,
   AgentExecutionState as PrismaAgentExecutionState,
   ArtifactLifecycleState as PrismaArtifactLifecycleState,
@@ -292,6 +293,8 @@ export class ComplianceRuleSetActivation {
       });
       for (const row of requirements)
         await enqueueAuthoredDocument(tx, {
+          // No reviewed upstream field-language declaration exists at this writer boundary.
+          sourceLanguages: {},
           scopeId: ruleSet.id,
           entityType: AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
           entityId: row.legalRequirementId,
@@ -300,12 +303,26 @@ export class ComplianceRuleSetActivation {
         });
       for (const row of rules)
         await enqueueAuthoredDocument(tx, {
+          // No reviewed upstream field-language declaration exists at this writer boundary.
+          sourceLanguages: {},
           scopeId: ruleSet.id,
           entityType: AUTHORED_LOCALIZATION_ENTITIES.ASSESSMENT_RULE,
           entityId: row.assessmentRuleId,
           canonicalRevision: row.contentDigest,
           document: row,
         });
+      if (
+        ruleSet.targetActivityScope ===
+        PreparationTargetActivityScope.DEVELOPMENT_ONLY
+      ) {
+        const { materializeGroupingProposal } =
+          await import("./rule-catalog-groups.service.js");
+        await materializeGroupingProposal(
+          tx,
+          ruleSet.id,
+          ruleSet.ruleSetDigest,
+        );
+      }
     }
 
     await tx.ruleSetPreparationRun.update({

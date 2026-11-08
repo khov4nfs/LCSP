@@ -39,6 +39,43 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  ruleGrouping: {
+    localizationReady: string;
+    localizationPending: string;
+    localizationFailed: string;
+    submitter: string;
+    reviewer: string;
+    groupDescriptions: {
+      ARCHITECTURE_SAFETY_BY_DESIGN: string;
+      DATA_MODEL_LIFECYCLE: string;
+      CYBERSECURITY_TECHNICAL_CONTROLS: string;
+      TESTING_CHANGE_ASSURANCE: string;
+      USER_FACING_TRANSPARENCY: string;
+      HUMAN_OVERSIGHT_INTERVENTION: string;
+    };
+    title: string;
+    description: string;
+    loading: string;
+    unavailable: string;
+    unassigned: string;
+    rationaleEn: string;
+    rationaleVi: string;
+    submit: string;
+    approve: string;
+    previous: string;
+    next: string;
+    invalid: string;
+    digest: string;
+    status: string;
+    groups: {
+      ARCHITECTURE_SAFETY_BY_DESIGN: string;
+      DATA_MODEL_LIFECYCLE: string;
+      CYBERSECURITY_TECHNICAL_CONTROLS: string;
+      TESTING_CHANGE_ASSURANCE: string;
+      USER_FACING_TRANSPARENCY: string;
+      HUMAN_OVERSIGHT_INTERVENTION: string;
+    };
+  };
   complianceRuleSets: {
     resume: string;
     resuming: string;

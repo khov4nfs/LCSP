@@ -1,5 +1,50 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
+  ruleGrouping: {
+    localizationReady: "Localized fields READY",
+    localizationPending: "Localized fields PENDING / review required",
+    localizationFailed: "Localized fields FAILED",
+    submitter: "Submitted by",
+    reviewer: "Approved by",
+    groupDescriptions: {
+      ARCHITECTURE_SAFETY_BY_DESIGN:
+        "Reviewed architecture and pre-release safety responsibilities.",
+      DATA_MODEL_LIFECYCLE:
+        "Reviewed technical responsibilities across data and model development.",
+      CYBERSECURITY_TECHNICAL_CONTROLS:
+        "Reviewed implementation of security safeguards and technical controls.",
+      TESTING_CHANGE_ASSURANCE:
+        "Reviewed testing and assurance responsibilities for development changes.",
+      USER_FACING_TRANSPARENCY:
+        "Reviewed development of user-facing disclosures and transparency.",
+      HUMAN_OVERSIGHT_INTERVENTION:
+        "Reviewed technical support for human oversight and intervention.",
+    },
+    title: "Review rule grouping",
+    description:
+      "Review each assignment before requesting independent approval.",
+    loading: "Loading proposal",
+    unavailable: "Grouping requires an active Development-only Rule Set.",
+    unassigned: "Select primary group",
+    rationaleEn: "English rationale",
+    rationaleVi: "Vietnamese rationale",
+    submit: "Submit complete grouping",
+    approve: "Approve displayed digest independently",
+    previous: "Previous",
+    next: "Next",
+    invalid:
+      "Resolve incomplete entries, stale pins or self-approval before continuing.",
+    digest: "Membership digest",
+    status: "Review status",
+    groups: {
+      ARCHITECTURE_SAFETY_BY_DESIGN: "Architecture and Safety by Design",
+      DATA_MODEL_LIFECYCLE: "Data and Model Lifecycle",
+      CYBERSECURITY_TECHNICAL_CONTROLS: "Cybersecurity and Technical Controls",
+      TESTING_CHANGE_ASSURANCE: "Testing and Change Assurance",
+      USER_FACING_TRANSPARENCY: "User-facing Transparency",
+      HUMAN_OVERSIGHT_INTERVENTION: "Human Oversight and Intervention",
+    },
+  },
   complianceRuleSets: {
     resume: "Resume preparation",
     resuming: "Resuming…",
@@ -228,7 +273,8 @@ export const enPages = {
       selectedGroups: "Groups selected: {count}/{total}",
       actorStage: "Actor: {actor} · Stage: {stage}",
       developmentStage: "Development",
-      groupingReviewRequired: "Rule grouping is awaiting independent review. These rules cannot be selected yet.",
+      groupingReviewRequired:
+        "Rule grouping is awaiting independent review. These rules cannot be selected yet.",
       title: "Choose rules to audit",
       description:
         "Only the rules you request will be investigated. Unrequested rules have no audit decision.",

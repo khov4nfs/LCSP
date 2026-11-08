@@ -11,6 +11,7 @@ import { ComplianceRuleSetActiveCard } from "../molecules/compliance-rule-set-ac
 import { RuleSetPreparationAction } from "../molecules/rule-set-preparation-action";
 import { ComplianceRuleSetHistoryTable } from "./compliance-rule-set-history-table";
 import { RuleSetPreparationList } from "./rule-set-preparation-list";
+import { PendingRuleGroupings } from "./pending-rule-groupings";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -46,6 +47,7 @@ export function ComplianceRuleSetsPage() {
         ruleSet={active}
         availability={history.data.preparation}
       />
+      <PendingRuleGroupings />
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">
           {t("pages.complianceRuleSets.preparations")}
