@@ -17,13 +17,24 @@ import {
   AUTHORED_LOCALIZATION_CODES,
   AUTHORED_LOCALIZATION_ENTITIES,
   AUTHORED_LOCALIZATION_STATES,
+  AUTHORED_LOCALIZATION_OPERATIONAL_STATES,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
+  AUTHORED_CANDIDATE_ACTIONS,
   authoredTranslationResponseSchema,
   type AuthoredLocalizationEntity,
+  type AuthoredLocalizationOperationalState,
+  type AuthoredLocalizationReadinessState,
+  type AuthoredLocalizationCounts,
+  type AuthoredBatchSourceReview,
+  type AuthoredBatchOutputReview,
+  type AuthoredCandidateAction,
   localizedReportArtifactSchema,
   LOCALIZED_REPORT_SCHEMA_VERSION,
   AUTHORED_LANGUAGE_REVIEW_CODES,
   authoredSourceReviewSchema,
   authoredOutputReviewSchema,
+  authoredBatchReviewResultSchema,
+  authoredLocalizationBacklogResponseSchema,
   AUTHORED_SOURCE_LANGUAGES,
 } from "@lcsp/contracts/assessment-domain";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
@@ -189,16 +200,123 @@ export function authoredFields(
 }
 
 /**
+ * Business purpose: Classify the current operational state of one localization request.
+ * Business rules:
+ * - Only verified native copies or reviewed outputs are READY; candidate/mixed/unknown/provider states remain distinct.
+ * Execution flow:
+ * 1. Inspect persisted state, source review, candidate/revision presence and failure metadata.
+ * Failure cases:
+ * - Unreviewed or failed work never classifies as READY.
+ * Side effects:
+ * - None: pure classification of persisted fields.
+ */
+export function deriveOperationalState(
+  row: Pick<
+    AuthoredLocalizationRequest,
+    | "state"
+    | "sourceLanguage"
+    | "locale"
+    | "sourceReviewedBy"
+    | "sourceReviewedAt"
+    | "translationReviewedBy"
+    | "translationReviewedAt"
+    | "originalContent"
+    | "errorCode"
+    | "attempts"
+  > & {
+    candidate?: { contentSha256: string } | null;
+    revision: Pick<AuthoredLocalizedRevision, "content" | "engine"> | null;
+  },
+): AuthoredLocalizationOperationalState {
+  if (hasReviewedLocale(row))
+    return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.READY;
+  if (row.state === AuthoredLocalizationState.FAILED)
+    return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.FAILED;
+  if (
+    row.candidate ||
+    row.revision ||
+    row.errorCode === AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED
+  )
+    return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.OUTPUT_REVIEW_REQUIRED;
+  if (row.sourceLanguage === AuthoredSourceLanguage.MIXED)
+    return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.MIXED_SOURCE;
+  if (!row.sourceReviewedBy && row.sourceLanguage === AuthoredSourceLanguage.UNKNOWN)
+    return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.UNKNOWN_SOURCE;
+  if (!row.sourceReviewedBy)
+    return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.SOURCE_REVIEW_REQUIRED;
+  if (
+    row.attempts > 0 &&
+    (row.errorCode === AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED ||
+      row.errorCode === AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE ||
+      row.errorCode === AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID)
+  )
+    return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.PROVIDER_FAILED;
+  return AUTHORED_LOCALIZATION_OPERATIONAL_STATES.PROVIDER_PENDING;
+}
+
+const emptyCounts = (): AuthoredLocalizationCounts => ({
+  UNKNOWN_SOURCE: 0,
+  MIXED_SOURCE: 0,
+  SOURCE_REVIEW_REQUIRED: 0,
+  PROVIDER_PENDING: 0,
+  PROVIDER_FAILED: 0,
+  OUTPUT_REVIEW_REQUIRED: 0,
+  READY: 0,
+  FAILED: 0,
+});
+
+function accumulateJobCounts(
+  counts: AuthoredLocalizationCounts,
+  row: Parameters<typeof deriveOperationalState>[0],
+) {
+  if (hasReviewedLocale(row)) {
+    counts.READY += 1;
+    return;
+  }
+  if (row.state === AuthoredLocalizationState.FAILED) counts.FAILED += 1;
+  if (row.sourceLanguage === AuthoredSourceLanguage.UNKNOWN)
+    counts.UNKNOWN_SOURCE += 1;
+  if (row.sourceLanguage === AuthoredSourceLanguage.MIXED)
+    counts.MIXED_SOURCE += 1;
+  if (!row.sourceReviewedBy) counts.SOURCE_REVIEW_REQUIRED += 1;
+  if (
+    row.candidate ||
+    row.revision ||
+    row.sourceLanguage === AuthoredSourceLanguage.MIXED ||
+    row.errorCode === AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED
+  )
+    counts.OUTPUT_REVIEW_REQUIRED += 1;
+  if (
+    row.attempts > 0 &&
+    !row.candidate &&
+    (row.state === AuthoredLocalizationState.FAILED ||
+      row.errorCode === AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED ||
+      row.errorCode === AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE ||
+      row.errorCode === AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID)
+  )
+    counts.PROVIDER_FAILED += 1;
+  if (
+    row.state === AuthoredLocalizationState.PENDING &&
+    row.sourceReviewedBy &&
+    (row.sourceLanguage === AuthoredSourceLanguage.EN ||
+      row.sourceLanguage === AuthoredSourceLanguage.VI) &&
+    !row.candidate
+  )
+    counts.PROVIDER_PENDING += 1;
+}
+
+/**
  * Business purpose: Queue both locale variants of one canonical document revision.
  *
  * Business rules:
  * - Idempotency binds scope, entity, revision, canonical digest, field and locale; canonical records remain unchanged.
+ * - Unverified EN/VI hints are rejected; verifiedSourceEvidence requires matching SHA-256, actorId and evidence.
  * Execution flow:
  * 1. Hash the document and each authored field, then upsert EN/VI requests in the caller transaction.
  * Failure cases:
- * - Database failures abort the transaction; no provider output or original language is guessed.
+ * - Database failures or unverified EN/VI declarations abort the transaction; no provider output or original language is guessed.
  * Side effects:
- * - Insert durable translation jobs without calling a model.
+ * - Insert durable translation jobs (and verified review evidence when supplied) without calling a model.
  */
 export async function enqueueAuthoredDocument(
   tx: Prisma.TransactionClient,
@@ -208,27 +326,62 @@ export async function enqueueAuthoredDocument(
     entityId: string;
     canonicalRevision: string;
     document: unknown;
-    /** Upstream may flag MIXED/UNKNOWN; EN/VI require the hash-bound source-review command. */
+    /** Upstream may flag MIXED/UNKNOWN; EN/VI require the hash-bound source-review command or verifiedSourceEvidence. */
     sourceLanguages?: Readonly<Record<string, AuthoredSourceLanguage>>;
+    verifiedSourceEvidence?: Readonly<
+      Record<
+        string,
+        {
+          sourceLanguage: AuthoredSourceLanguage;
+          originSha256: string;
+          actorId: string;
+          evidence: string;
+        }
+      >
+    >;
   },
 ) {
   const canonicalDigest = digest(canonicalJson(input.document));
   for (const field of authoredFields(input.document)) {
+    const originSha256 = digest(field.text);
     const declared = input.sourceLanguages?.[field.path];
+    const verified = input.verifiedSourceEvidence?.[field.path];
     if (
-      declared === AuthoredSourceLanguage.EN ||
-      declared === AuthoredSourceLanguage.VI
+      (declared === AuthoredSourceLanguage.EN ||
+        declared === AuthoredSourceLanguage.VI) &&
+      (!verified ||
+        verified.sourceLanguage !== declared ||
+        verified.originSha256 !== originSha256 ||
+        !verified.actorId.trim() ||
+        verified.evidence.trim().length < 10)
     )
       throw problemException(
         AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
         randomUUID(),
         { status: HttpStatus.CONFLICT },
       );
+    if (
+      verified &&
+      (verified.originSha256 !== originSha256 ||
+        !verified.actorId.trim() ||
+        verified.evidence.trim().length < 10 ||
+        (verified.sourceLanguage !== AuthoredSourceLanguage.EN &&
+          verified.sourceLanguage !== AuthoredSourceLanguage.VI))
+    )
+      throw problemException(
+        AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    const effectiveSourceLanguage =
+      verified?.sourceLanguage ??
+      declared ??
+      AuthoredSourceLanguage.UNKNOWN;
+    const now = new Date();
     for (const locale of [
       AuthoredLocalizationLocale.EN,
       AuthoredLocalizationLocale.VI,
     ]) {
-      const originSha256 = digest(field.text);
       const idempotencyKey = digest(
         canonicalJson([
           input.scopeId,
@@ -241,7 +394,7 @@ export async function enqueueAuthoredDocument(
           1,
         ]),
       );
-      await tx.authoredLocalizationRequest.upsert({
+      const row = await tx.authoredLocalizationRequest.upsert({
         where: { idempotencyKey },
         update: {},
         create: {
@@ -254,15 +407,46 @@ export async function enqueueAuthoredDocument(
           canonicalDigest,
           fieldPath: field.path,
           locale,
-          sourceLanguage:
-            input.sourceLanguages?.[field.path] ??
-            AuthoredSourceLanguage.UNKNOWN,
-          originalLanguage: null,
-          errorCode: AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
+          sourceLanguage: effectiveSourceLanguage,
+          sourceReviewedBy: verified ? verified.actorId.trim() : null,
+          sourceReviewedAt: verified ? now : null,
+          originalLanguage: verified
+            ? verified.sourceLanguage === AuthoredSourceLanguage.EN
+              ? AuthoredLocalizationLocale.EN
+              : AuthoredLocalizationLocale.VI
+            : null,
+          errorCode: verified
+            ? null
+            : AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
           originalContent: field.text,
           originSha256,
         },
       });
+      if (verified) {
+        const existingReview = await tx.authoredLocalizationReview.findFirst({
+          where: { requestId: row.id },
+        });
+        if (!existingReview) {
+          await tx.authoredLocalizationReview.create({
+            data: {
+              id: randomUUID(),
+              requestId: row.id,
+              actorId: verified.actorId.trim(),
+              evidence: verified.evidence.trim(),
+              binding: {
+                scopeId: input.scopeId,
+                entityType: input.entityType,
+                entityId: input.entityId,
+                canonicalRevision: input.canonicalRevision,
+                canonicalDigest,
+                fieldPath: field.path,
+                originSha256,
+                sourceLanguage: verified.sourceLanguage,
+              },
+            },
+          });
+        }
+      }
     }
   }
 }
@@ -330,6 +514,7 @@ export class AuthoredLocalizationService
       ...row,
       entityType: AUTHORED_LOCALIZATION_ENTITIES[row.entityType],
       state: AUTHORED_LOCALIZATION_STATES[row.state],
+      operationalState: deriveOperationalState(row),
       sourceLanguage: AUTHORED_SOURCE_LANGUAGES[row.sourceLanguage],
       locale: row.locale === AuthoredLocalizationLocale.EN ? "en" : "vi",
       originalLanguage:
@@ -339,6 +524,266 @@ export class AuthoredLocalizationService
             ? "vi"
             : null,
     }));
+  }
+
+  /**
+   * Business purpose: Discover operational localization backlog across scopes without requiring a caller-supplied scopeId.
+   * Business rules:
+   * - Bounded pagination and deterministic ordering prevent unbounded scans; provider credentials are never exposed.
+   * Execution flow:
+   * 1. Discover distinct scope IDs in ascending order, load their latest field-locale jobs, and compute derived operational counts and readiness.
+   * Failure cases:
+   * - Invalid bounds or unsupported entityType filters reject with an explicit conflict.
+   * Side effects:
+   * - Read-only query over persisted localization tables.
+   */
+  async backlog(
+    afterScopeId?: string,
+    entityType?: AuthoredLocalizationEntity,
+    limit = 25,
+  ) {
+    if (
+      limit < 1 ||
+      limit > 50 ||
+      (entityType !== undefined &&
+        !(entityType in AUTHORED_LOCALIZATION_ENTITIES))
+    )
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    const scopeRows = await this.prisma.authoredLocalizationRequest.findMany({
+      where: {
+        ...(afterScopeId ? { scopeId: { gt: afterScopeId } } : {}),
+        ...(entityType ? { entityType } : {}),
+      },
+      distinct: ["scopeId"],
+      orderBy: { scopeId: "asc" },
+      take: limit + 1,
+      select: { scopeId: true },
+    });
+    const hasMore = scopeRows.length > limit;
+    const pageScopes = scopeRows.slice(0, limit).map((row) => row.scopeId);
+    const nextAfterScopeId = hasMore
+      ? (pageScopes[pageScopes.length - 1] ?? null)
+      : null;
+    const rows = pageScopes.length
+      ? await this.prisma.authoredLocalizationRequest.findMany({
+          where: {
+            scopeId: { in: pageScopes },
+            ...(entityType ? { entityType } : {}),
+          },
+          orderBy: [
+            { scopeId: "asc" },
+            { translationRevision: "desc" },
+            { id: "asc" },
+          ],
+          include: { candidate: true, revision: true },
+        })
+      : [];
+    const latestByScope = new Map<string, Map<string, (typeof rows)[number]>>();
+    for (const scopeId of pageScopes) latestByScope.set(scopeId, new Map());
+    for (const row of rows) {
+      const scopeMap = latestByScope.get(row.scopeId);
+      if (!scopeMap) continue;
+      const key = JSON.stringify([
+        row.entityType,
+        row.entityId,
+        row.canonicalRevision,
+        row.canonicalDigest,
+        row.fieldPath,
+        row.locale,
+      ]);
+      if (!scopeMap.has(key)) scopeMap.set(key, row);
+    }
+    const nowMs = Date.now();
+    const totalCounts = emptyCounts();
+    let totalPending = 0;
+    let oldestPendingAgeSeconds = 0;
+    let totalRetries = 0;
+    let totalFailed = 0;
+    let candidateReviewsAwaitingAction = 0;
+    let sourceReviewsAwaitingAction = 0;
+    const scopes = pageScopes.map((scopeId) => {
+      const scopeJobs = [...(latestByScope.get(scopeId)?.values() ?? [])];
+      const counts = emptyCounts();
+      const entities = new Set<AuthoredLocalizationEntity>();
+      let scopePending = 0;
+      let scopeOldestAgeSeconds = 0;
+      let scopeRetries = 0;
+      const byLocale = {
+        en: [] as typeof scopeJobs,
+        vi: [] as typeof scopeJobs,
+      };
+      for (const job of scopeJobs) {
+        entities.add(AUTHORED_LOCALIZATION_ENTITIES[job.entityType]);
+        accumulateJobCounts(counts, job);
+        accumulateJobCounts(totalCounts, job);
+        if (job.locale === AuthoredLocalizationLocale.EN)
+          byLocale.en.push(job);
+        else byLocale.vi.push(job);
+        if (job.attempts > 1) {
+          const retries = job.attempts - 1;
+          scopeRetries += retries;
+          totalRetries += retries;
+        }
+        if (!hasReviewedLocale(job)) {
+          if (job.state === AuthoredLocalizationState.FAILED) {
+            totalFailed += 1;
+          } else {
+            scopePending += 1;
+            totalPending += 1;
+            const ageSeconds = Math.max(
+              0,
+              Math.floor((nowMs - job.createdAt.getTime()) / 1000),
+            );
+            if (ageSeconds > scopeOldestAgeSeconds)
+              scopeOldestAgeSeconds = ageSeconds;
+            if (ageSeconds > oldestPendingAgeSeconds)
+              oldestPendingAgeSeconds = ageSeconds;
+          }
+          if (!job.sourceReviewedBy) sourceReviewsAwaitingAction += 1;
+          if (
+            job.candidate ||
+            job.revision ||
+            job.sourceLanguage === AuthoredSourceLanguage.MIXED ||
+            job.errorCode === AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED
+          )
+            candidateReviewsAwaitingAction += 1;
+        }
+      }
+      const readinessFor = (
+        localeJobs: typeof scopeJobs,
+      ): AuthoredLocalizationReadinessState => {
+        if (!localeJobs.length)
+          return AUTHORED_LOCALIZATION_READINESS_STATES.PENDING;
+        if (localeJobs.every((job) => hasReviewedLocale(job)))
+          return AUTHORED_LOCALIZATION_READINESS_STATES.READY;
+        if (
+          localeJobs.some(
+            (job) =>
+              !hasReviewedLocale(job) &&
+              job.state === AuthoredLocalizationState.FAILED,
+          )
+        )
+          return AUTHORED_LOCALIZATION_READINESS_STATES.FAILED;
+        if (
+          localeJobs.some(
+            (job) =>
+              !hasReviewedLocale(job) &&
+              (!job.sourceReviewedBy ||
+                job.sourceLanguage === AuthoredSourceLanguage.MIXED ||
+                Boolean(job.candidate) ||
+                Boolean(job.revision) ||
+                job.errorCode ===
+                  AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED),
+          )
+        )
+          return AUTHORED_LOCALIZATION_READINESS_STATES.REVIEW_REQUIRED;
+        return AUTHORED_LOCALIZATION_READINESS_STATES.PENDING;
+      };
+      return {
+        scopeId,
+        entityTypes: [...entities].sort(),
+        counts,
+        readiness: {
+          en: readinessFor(byLocale.en),
+          vi: readinessFor(byLocale.vi),
+        },
+        pendingJobCount: scopePending,
+        oldestPendingAgeSeconds: scopeOldestAgeSeconds,
+        retryCount: scopeRetries,
+      };
+    });
+    return authoredLocalizationBacklogResponseSchema.parse({
+      counts: totalCounts,
+      operations: {
+        pendingJobCount: totalPending,
+        oldestPendingAgeSeconds,
+        retryCount: totalRetries,
+        failedJobCount: totalFailed,
+        candidateReviewsAwaitingAction,
+        sourceReviewsAwaitingAction,
+        workerEnabled:
+          process.env.LCSP_AUTHORED_TRANSLATION_WORKER_ENABLED === "1",
+        providerConfigured: Boolean(
+          process.env.LCSP_AUTHORED_TRANSLATION_URL &&
+            process.env.LCSP_AUTHORED_TRANSLATION_KEY,
+        ),
+        batchLimit: 50,
+        workerLeaseLimit: 5,
+        maxAttempts: 5,
+        reviewSlaTargetMinutes: 60,
+        processingSlaTargetMinutes: 15,
+      },
+      scopes,
+      nextAfterScopeId,
+    });
+  }
+
+  /**
+   * Business purpose: Compute customer-safe localization readiness for one scope and target locale.
+   * Business rules:
+   * - Never leaks reviewer identities or provider internals; returns READY only when all latest field jobs for the locale are reviewed.
+   * Execution flow:
+   * 1. Load latest requests for the scope and target locale and classify readiness.
+   * Failure cases:
+   * - Missing or unreviewed jobs return PENDING, FAILED or REVIEW_REQUIRED rather than READY.
+   * Side effects:
+   * - Read-only query.
+   */
+  async scopeReadiness(
+    scopeId: string,
+    locale: string | null,
+  ): Promise<AuthoredLocalizationReadinessState> {
+    if (!locale) return AUTHORED_LOCALIZATION_READINESS_STATES.READY;
+    const target =
+      locale === "vi"
+        ? AuthoredLocalizationLocale.VI
+        : AuthoredLocalizationLocale.EN;
+    const rows = await this.prisma.authoredLocalizationRequest.findMany({
+      where: { scopeId, locale: target },
+      orderBy: [{ translationRevision: "desc" }, { id: "asc" }],
+      include: { candidate: true, revision: true },
+    });
+    if (!rows.length) return AUTHORED_LOCALIZATION_READINESS_STATES.PENDING;
+    const latest = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      const key = JSON.stringify([
+        row.entityType,
+        row.entityId,
+        row.canonicalRevision,
+        row.canonicalDigest,
+        row.fieldPath,
+        row.locale,
+      ]);
+      if (!latest.has(key)) latest.set(key, row);
+    }
+    const jobs = [...latest.values()];
+    if (jobs.every((job) => hasReviewedLocale(job)))
+      return AUTHORED_LOCALIZATION_READINESS_STATES.READY;
+    if (
+      jobs.some(
+        (job) =>
+          !hasReviewedLocale(job) &&
+          job.state === AuthoredLocalizationState.FAILED,
+      )
+    )
+      return AUTHORED_LOCALIZATION_READINESS_STATES.FAILED;
+    if (
+      jobs.some(
+        (job) =>
+          !hasReviewedLocale(job) &&
+          (!job.sourceReviewedBy ||
+            job.sourceLanguage === AuthoredSourceLanguage.MIXED ||
+            Boolean(job.candidate) ||
+            Boolean(job.revision) ||
+            job.errorCode === AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED),
+      )
+    )
+      return AUTHORED_LOCALIZATION_READINESS_STATES.REVIEW_REQUIRED;
+    return AUTHORED_LOCALIZATION_READINESS_STATES.PENDING;
   }
 
   /**
@@ -544,8 +989,19 @@ export class AuthoredLocalizationService
       );
       const job = await tx.authoredLocalizationRequest.findUniqueOrThrow({
         where: { id: requestId },
-        include: { candidate: true, revision: true },
+        include: { candidate: true, revision: true, reviews: true },
       });
+      const candidateRejected = job.reviews.some(
+        (review) =>
+          (review.binding as { action?: string } | null)?.action ===
+          AUTHORED_CANDIDATE_ACTIONS.REJECT,
+      );
+      if (candidateRejected && body.normalizedContent === undefined)
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          randomUUID(),
+          { status: HttpStatus.CONFLICT },
+        );
       let output =
         body.normalizedContent !== undefined
           ? {
@@ -633,6 +1089,336 @@ export class AuthoredLocalizationService
         },
       });
       return { state: AUTHORED_LOCALIZATION_STATES.READY };
+    });
+  }
+
+  /**
+   * Business purpose: Apply bounded human-reviewed source-language attestations across up to 50 field items.
+   * Business rules:
+   * - Requires explicit individual-field attestation; each item validates its own exact SHA-256 and revision and records immutable review evidence.
+   * - Partial batch failures report accepted and rejected items truthfully without silent acceptance.
+   * Execution flow:
+   * 1. Iterate bounded items, execute reviewSource per item and collect itemized outcomes.
+   * Failure cases:
+   * - Stale hashes, foreign scope or conflicting reviews reject only the invalid item and report its errorCode.
+   * Side effects:
+   * - Appends immutable review evidence and updates provenance for valid items.
+   */
+  async batchReviewSource(
+    scopeId: string,
+    body: AuthoredBatchSourceReview,
+    actorId: string,
+  ) {
+    const results: Array<{
+      requestId: string;
+      accepted: boolean;
+      errorCode: string | null;
+    }> = [];
+    let acceptedCount = 0;
+    let rejectedCount = 0;
+    for (const item of body.items) {
+      try {
+        await this.reviewSource(
+          scopeId,
+          item.requestId,
+          {
+            originSha256: item.originSha256,
+            canonicalRevision: item.canonicalRevision,
+            sourceLanguage: item.sourceLanguage,
+            evidence: body.evidence,
+          },
+          actorId,
+        );
+        acceptedCount += 1;
+        results.push({
+          requestId: item.requestId,
+          accepted: true,
+          errorCode: null,
+        });
+      } catch {
+        rejectedCount += 1;
+        results.push({
+          requestId: item.requestId,
+          accepted: false,
+          errorCode: AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+        });
+      }
+    }
+    return authoredBatchReviewResultSchema.parse({
+      scopeId,
+      acceptedCount,
+      rejectedCount,
+      results,
+    });
+  }
+
+  /**
+   * Business purpose: Apply bounded human-reviewed output attestations across up to 50 candidate or normalized items.
+   * Business rules:
+   * - Requires explicit target-language and meaning confirmation; each item validates its exact origin and output SHA-256.
+   * - Partial batch failures report accepted and rejected items truthfully without silent acceptance.
+   * Execution flow:
+   * 1. Iterate bounded items, execute reviewOutput per item and collect itemized outcomes.
+   * Failure cases:
+   * - Stale hashes, rejected candidates without normalization or foreign scope reject the invalid item.
+   * Side effects:
+   * - Publishes immutable localized revisions and review audit rows for valid items.
+   */
+  async batchReviewOutput(
+    scopeId: string,
+    body: AuthoredBatchOutputReview,
+    actorId: string,
+  ) {
+    const results: Array<{
+      requestId: string;
+      accepted: boolean;
+      errorCode: string | null;
+    }> = [];
+    let acceptedCount = 0;
+    let rejectedCount = 0;
+    for (const item of body.items) {
+      try {
+        await this.reviewOutput(
+          scopeId,
+          item.requestId,
+          {
+            originSha256: item.originSha256,
+            contentSha256: item.contentSha256,
+            ...(item.normalizedContent !== undefined
+              ? { normalizedContent: item.normalizedContent }
+              : {}),
+            confirmsTargetLanguageAndMeaning: true,
+            evidence: body.evidence,
+          },
+          actorId,
+        );
+        acceptedCount += 1;
+        results.push({
+          requestId: item.requestId,
+          accepted: true,
+          errorCode: null,
+        });
+      } catch {
+        rejectedCount += 1;
+        results.push({
+          requestId: item.requestId,
+          accepted: false,
+          errorCode: AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+        });
+      }
+    }
+    return authoredBatchReviewResultSchema.parse({
+      scopeId,
+      acceptedCount,
+      rejectedCount,
+      results,
+    });
+  }
+
+  /**
+   * Business purpose: Reject an invalid provider candidate or request a controlled retry on a failed/pending localization job.
+   * Business rules:
+   * - Canonical source bytes and accepted READY revisions are never mutated; candidate/review rows remain append-only.
+   * - Rejecting a candidate records immutable rejection evidence and marks the candidate's job FAILED.
+   * - Retrying a job with an existing immutable candidate creates a superseding translationRevision; retrying a candidate-free failed job resets its attempt counter.
+   * Execution flow:
+   * 1. Lock the target request, verify scope/revision/originSha256 and ensure it is not already an accepted READY revision.
+   * 2. Record immutable review evidence and transition or supersede the request according to action.
+   * Failure cases:
+   * - Foreign scope, stale hashes, active leases or already-accepted READY revisions reject with a conflict.
+   * Side effects:
+   * - Appends review audit and updates or creates a pending localization request revision.
+   */
+  async retryOrRejectCandidate(
+    scopeId: string,
+    requestId: string,
+    body: AuthoredCandidateAction,
+    actorId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "AuthoredLocalizationRequest" WHERE "id"=${requestId} FOR UPDATE`,
+      );
+      const job = await tx.authoredLocalizationRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: { candidate: true, revision: true },
+      });
+      if (
+        job.scopeId !== scopeId ||
+        job.leaseToken ||
+        job.originSha256 !== body.originSha256 ||
+        job.canonicalRevision !== body.canonicalRevision ||
+        digest(job.originalContent) !== job.originSha256 ||
+        hasReviewedLocale(job) ||
+        job.revision !== null
+      )
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          randomUUID(),
+          { status: HttpStatus.CONFLICT },
+        );
+      if (body.action === AUTHORED_CANDIDATE_ACTIONS.REJECT) {
+        if (
+          !job.candidate ||
+          (body.candidateSha256 &&
+            job.candidate.contentSha256 !== body.candidateSha256)
+        )
+          throw problemException(
+            AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+            randomUUID(),
+            { status: HttpStatus.CONFLICT },
+          );
+        await tx.authoredLocalizationReview.create({
+          data: {
+            id: randomUUID(),
+            requestId: job.id,
+            actorId,
+            evidence: body.evidence,
+            binding: {
+              scopeId,
+              entityType: job.entityType,
+              entityId: job.entityId,
+              canonicalRevision: job.canonicalRevision,
+              canonicalDigest: job.canonicalDigest,
+              fieldPath: job.fieldPath,
+              originSha256: job.originSha256,
+              locale: job.locale,
+              action: AUTHORED_CANDIDATE_ACTIONS.REJECT,
+              rejectedCandidateSha256: job.candidate.contentSha256,
+            },
+          },
+        });
+        await tx.authoredLocalizationRequest.update({
+          where: { id: job.id },
+          data: {
+            state: AuthoredLocalizationState.FAILED,
+            errorCode: AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          },
+        });
+        return {
+          id: job.id,
+          state: AUTHORED_LOCALIZATION_STATES.FAILED,
+          translationRevision: job.translationRevision,
+        };
+      }
+      if (job.candidate) {
+        await tx.authoredLocalizationRequest.update({
+          where: { id: job.id },
+          data: {
+            state: AuthoredLocalizationState.FAILED,
+            errorCode: AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          },
+        });
+        const latest = await tx.authoredLocalizationRequest.findFirstOrThrow({
+          where: {
+            scopeId,
+            entityType: job.entityType,
+            entityId: job.entityId,
+            canonicalRevision: job.canonicalRevision,
+            canonicalDigest: job.canonicalDigest,
+            fieldPath: job.fieldPath,
+            originSha256: job.originSha256,
+            locale: job.locale,
+          },
+          orderBy: { translationRevision: "desc" },
+        });
+        const nextRevision = latest.translationRevision + 1;
+        const nextId = randomUUID();
+        await tx.authoredLocalizationRequest.create({
+          data: {
+            id: nextId,
+            idempotencyKey: digest(
+              canonicalJson([
+                job.idempotencyKey,
+                "controlled-retry",
+                nextRevision,
+              ]),
+            ),
+            scopeId,
+            entityType: job.entityType,
+            entityId: job.entityId,
+            canonicalRevision: job.canonicalRevision,
+            canonicalDigest: job.canonicalDigest,
+            fieldPath: job.fieldPath,
+            locale: job.locale,
+            originalLanguage: job.originalLanguage,
+            sourceLanguage: job.sourceLanguage,
+            sourceReviewedBy: job.sourceReviewedBy,
+            sourceReviewedAt: job.sourceReviewedAt,
+            originalContent: job.originalContent,
+            originSha256: job.originSha256,
+            translationRevision: nextRevision,
+            state: AuthoredLocalizationState.PENDING,
+            attempts: 0,
+            nextAttemptAt: new Date(),
+            errorCode: job.sourceReviewedBy
+              ? null
+              : AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
+          },
+        });
+        await tx.authoredLocalizationReview.create({
+          data: {
+            id: randomUUID(),
+            requestId: nextId,
+            actorId,
+            evidence: body.evidence,
+            binding: {
+              scopeId,
+              entityType: job.entityType,
+              entityId: job.entityId,
+              canonicalRevision: job.canonicalRevision,
+              canonicalDigest: job.canonicalDigest,
+              fieldPath: job.fieldPath,
+              originSha256: job.originSha256,
+              locale: job.locale,
+              action: AUTHORED_CANDIDATE_ACTIONS.RETRY,
+              supersedesRequestId: job.id,
+            },
+          },
+        });
+        return {
+          id: nextId,
+          state: AUTHORED_LOCALIZATION_STATES.PENDING,
+          translationRevision: nextRevision,
+        };
+      }
+      await tx.authoredLocalizationReview.create({
+        data: {
+          id: randomUUID(),
+          requestId: job.id,
+          actorId,
+          evidence: body.evidence,
+          binding: {
+            scopeId,
+            entityType: job.entityType,
+            entityId: job.entityId,
+            canonicalRevision: job.canonicalRevision,
+            canonicalDigest: job.canonicalDigest,
+            fieldPath: job.fieldPath,
+            originSha256: job.originSha256,
+            locale: job.locale,
+            action: AUTHORED_CANDIDATE_ACTIONS.RETRY,
+            previousAttempts: job.attempts,
+            previousState: job.state,
+          },
+        },
+      });
+      await tx.authoredLocalizationRequest.update({
+        where: { id: job.id },
+        data: {
+          state: AuthoredLocalizationState.PENDING,
+          attempts: 0,
+          nextAttemptAt: new Date(),
+          errorCode: job.sourceReviewedBy
+            ? null
+            : AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
+        },
+      });
+      return {
+        id: job.id,
+        state: AUTHORED_LOCALIZATION_STATES.PENDING,
+        translationRevision: job.translationRevision,
+      };
     });
   }
 

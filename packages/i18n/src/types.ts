@@ -39,6 +39,47 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  localizationReview: {
+    title: string;
+    description: string;
+    loading: string;
+    unavailable: string;
+    empty: string;
+    scopeTitle: string;
+    scopeDescription: string;
+    selectScope: string;
+    workerEnabled: string;
+    providerConfigured: string;
+    pendingJobs: string;
+    oldestPendingSeconds: string;
+    retries: string;
+    failedJobs: string;
+    sourceReviewsAwaiting: string;
+    outputReviewsAwaiting: string;
+    readinessEn: string;
+    readinessVi: string;
+    sourceLanguage: string;
+    targetLocale: string;
+    fieldPath: string;
+    entity: string;
+    canonicalRevision: string;
+    originSha256: string;
+    originalContent: string;
+    candidateContent: string;
+    normalizedContent: string;
+    evidenceLabel: string;
+    confirmsIndividualFieldReview: string;
+    confirmsTargetLanguageAndMeaning: string;
+    reviewSourceSubmit: string;
+    batchSourceSubmit: string;
+    approveOutputSubmit: string;
+    batchOutputSubmit: string;
+    rejectCandidateSubmit: string;
+    retryRequestSubmit: string;
+    yes: string;
+    no: string;
+    invalid: string;
+  };
   ruleGrouping: {
     localizationReady: string;
     localizationPending: string;
@@ -291,6 +332,9 @@ export type PagesMessages = {
       actorStage: string;
       developmentStage: string;
       groupingReviewRequired: string;
+      localizationReviewRequired: string;
+      localizationPending: string;
+      localizationFailed: string;
       title: string;
       description: string;
       search: string;

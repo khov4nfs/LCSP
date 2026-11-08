@@ -1,5 +1,50 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
+  localizationReview: {
+    title: "Sẵn sàng vận hành bản địa hóa",
+    description:
+      "Khám phá phạm vi chờ bản địa hóa, xác nhận ngôn ngữ gốc và rà soát hoặc chuẩn hóa bản dịch đích.",
+    loading: "Đang tải hàng đợi bản địa hóa",
+    unavailable: "Hàng đợi vận hành bản địa hóa chưa khả dụng.",
+    empty: "Không có phạm vi bản địa hóa nào cần rà soát.",
+    scopeTitle: "Rà soát bản địa hóa phạm vi",
+    scopeDescription:
+      "Kiểm tra nguồn gốc từng trường, xác nhận ngôn ngữ gốc và phê duyệt, chuẩn hóa, từ chối hoặc thử lại bản dịch đích.",
+    selectScope: "Kiểm tra phạm vi",
+    workerEnabled: "Worker bật",
+    providerConfigured: "Nhà cung cấp đã cấu hình",
+    pendingJobs: "Công việc đang chờ",
+    oldestPendingSeconds: "Thời gian chờ lâu nhất (giây)",
+    retries: "Số lần thử lại",
+    failedJobs: "Công việc thất bại",
+    sourceReviewsAwaiting: "Chờ duyệt ngôn ngữ gốc",
+    outputReviewsAwaiting: "Chờ duyệt bản dịch đích",
+    readinessEn: "Sẵn sàng EN",
+    readinessVi: "Sẵn sàng VI",
+    sourceLanguage: "Ngôn ngữ gốc",
+    targetLocale: "Ngôn ngữ đích",
+    fieldPath: "Đường dẫn trường",
+    entity: "Thực thể",
+    canonicalRevision: "Phiên bản chuẩn",
+    originSha256: "Mã băm gốc SHA-256",
+    originalContent: "Nội dung gốc",
+    candidateContent: "Bản dịch ứng viên / đã duyệt",
+    normalizedContent: "Nội dung đích chuẩn hóa (tùy chọn)",
+    evidenceLabel: "Bằng chứng rà soát",
+    confirmsIndividualFieldReview:
+      "Tôi xác nhận từng trường được chọn đã được kiểm tra ngôn ngữ gốc riêng biệt.",
+    confirmsTargetLanguageAndMeaning:
+      "Tôi xác nhận ngôn ngữ đích và ý nghĩa pháp lý/kỹ thuật khớp với bản gốc chuẩn.",
+    reviewSourceSubmit: "Lưu duyệt ngôn ngữ gốc",
+    batchSourceSubmit: "Xác nhận ngôn ngữ gốc theo lô",
+    approveOutputSubmit: "Phê duyệt / chuẩn hóa bản dịch",
+    batchOutputSubmit: "Phê duyệt bản dịch theo lô",
+    rejectCandidateSubmit: "Từ chối bản dịch ứng viên",
+    retryRequestSubmit: "Thử lại yêu cầu",
+    yes: "Có",
+    no: "Không",
+    invalid: "Vui lòng điền đầy đủ bằng chứng rà soát và xác nhận trước khi gửi.",
+  },
   ruleGrouping: {
     localizationReady: "Trường bản địa hóa READY",
     localizationPending: "Trường bản địa hóa PENDING / cần rà soát",
@@ -275,6 +320,12 @@ export const viPages = {
       developmentStage: "Phát triển",
       groupingReviewRequired:
         "Phân nhóm đang chờ xét duyệt độc lập. Hiện chưa thể chọn các quy tắc này.",
+      localizationReviewRequired:
+        "Bản địa hóa cho ngôn ngữ đang chọn đang chờ rà soát. Hãy chuyển ngôn ngữ hoặc chờ hoàn tất rà soát bản địa hóa.",
+      localizationPending:
+        "Bản địa hóa cho ngôn ngữ đang chọn đang được xử lý.",
+      localizationFailed:
+        "Bản địa hóa cho ngôn ngữ đang chọn không đạt xác minh và cần quản trị viên thử lại hoặc chuẩn hóa.",
       title: "Chọn quy tắc cần đánh giá",
       description:
         "Chỉ các quy tắc bạn yêu cầu mới được điều tra. Quy tắc chưa yêu cầu chưa có kết luận đánh giá.",

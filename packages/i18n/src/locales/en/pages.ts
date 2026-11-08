@@ -1,5 +1,50 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
+  localizationReview: {
+    title: "Localization operational readiness",
+    description:
+      "Discover pending localization scopes, attest source language provenance, and review or normalize target-language candidates.",
+    loading: "Loading localization queue",
+    unavailable: "Localization operational queue is unavailable.",
+    empty: "No localization scopes require review.",
+    scopeTitle: "Scope localization review",
+    scopeDescription:
+      "Inspect exact field provenance, attest source language, and approve, normalize, reject, or retry target-language candidates.",
+    selectScope: "Inspect scope",
+    workerEnabled: "Worker enabled",
+    providerConfigured: "Provider configured",
+    pendingJobs: "Pending jobs",
+    oldestPendingSeconds: "Oldest pending age (s)",
+    retries: "Retries",
+    failedJobs: "Failed jobs",
+    sourceReviewsAwaiting: "Source reviews awaiting",
+    outputReviewsAwaiting: "Candidate/output reviews awaiting",
+    readinessEn: "EN readiness",
+    readinessVi: "VI readiness",
+    sourceLanguage: "Source language",
+    targetLocale: "Target locale",
+    fieldPath: "Field path",
+    entity: "Entity",
+    canonicalRevision: "Canonical revision",
+    originSha256: "Origin SHA-256",
+    originalContent: "Original content",
+    candidateContent: "Candidate / revision output",
+    normalizedContent: "Normalized target content (optional)",
+    evidenceLabel: "Review evidence",
+    confirmsIndividualFieldReview:
+      "I confirm each selected field's source language was individually inspected.",
+    confirmsTargetLanguageAndMeaning:
+      "I confirm the target language and legal/technical meaning match the canonical source.",
+    reviewSourceSubmit: "Record source review",
+    batchSourceSubmit: "Batch attest source language",
+    approveOutputSubmit: "Approve / normalize output",
+    batchOutputSubmit: "Batch approve output",
+    rejectCandidateSubmit: "Reject candidate",
+    retryRequestSubmit: "Retry request",
+    yes: "Yes",
+    no: "No",
+    invalid: "Complete required review evidence and confirmations before submitting.",
+  },
   ruleGrouping: {
     localizationReady: "Localized fields READY",
     localizationPending: "Localized fields PENDING / review required",
@@ -275,6 +320,12 @@ export const enPages = {
       developmentStage: "Development",
       groupingReviewRequired:
         "Rule grouping is awaiting independent review. These rules cannot be selected yet.",
+      localizationReviewRequired:
+        "Bilingual localization for the selected language is awaiting review. Switch language or wait until localization review completes.",
+      localizationPending:
+        "Bilingual localization for the selected language is still in progress.",
+      localizationFailed:
+        "Bilingual localization for the selected language failed verification and requires administrative retry or normalization.",
       title: "Choose rules to audit",
       description:
         "Only the rules you request will be investigated. Unrequested rules have no audit decision.",

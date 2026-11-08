@@ -25,6 +25,7 @@ import {
   type RuleAuditExport,
   RULE_CATALOG_REVIEW_STATES,
   AUTHORED_LOCALIZATION_ENTITIES,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
 } from "@lcsp/contracts/assessment-domain";
 import {
   AUDIT_ACTOR_IDS,
@@ -269,11 +270,16 @@ export class AssessmentRuleAuditService {
           return { ...rule, ...narratives, legalRequirementLinks };
         }),
       );
+      const localizationState =
+        typeof this.localization.scopeReadiness === "function"
+          ? await this.localization.scopeReadiness(ruleSet.id, locale)
+          : AUTHORED_LOCALIZATION_READINESS_STATES.READY;
       return ruleAuditCatalogSchema.parse({
         groups,
         groupingState: groupingComplete
           ? RULE_CATALOG_REVIEW_STATES.APPROVED
           : RULE_CATALOG_REVIEW_STATES.REVIEW_REQUIRED,
+        localizationState,
         excludedRuleCount: total - selectableTotal,
         assessmentId,
         auditMode: domainCase.auditMode,

@@ -30,6 +30,93 @@ export const AUTHORED_LOCALIZATION_STATES = {
   READY: "READY",
   FAILED: "FAILED",
 } as const;
+export const AUTHORED_LOCALIZATION_OPERATIONAL_STATES = {
+  UNKNOWN_SOURCE: "UNKNOWN_SOURCE",
+  MIXED_SOURCE: "MIXED_SOURCE",
+  SOURCE_REVIEW_REQUIRED: "SOURCE_REVIEW_REQUIRED",
+  PROVIDER_PENDING: "PROVIDER_PENDING",
+  PROVIDER_FAILED: "PROVIDER_FAILED",
+  OUTPUT_REVIEW_REQUIRED: "OUTPUT_REVIEW_REQUIRED",
+  READY: "READY",
+  FAILED: "FAILED",
+} as const;
+export type AuthoredLocalizationOperationalState =
+  (typeof AUTHORED_LOCALIZATION_OPERATIONAL_STATES)[keyof typeof AUTHORED_LOCALIZATION_OPERATIONAL_STATES];
+export const AUTHORED_LOCALIZATION_READINESS_STATES = {
+  READY: "READY",
+  PENDING: "PENDING",
+  FAILED: "FAILED",
+  REVIEW_REQUIRED: "REVIEW_REQUIRED",
+} as const;
+export type AuthoredLocalizationReadinessState =
+  (typeof AUTHORED_LOCALIZATION_READINESS_STATES)[keyof typeof AUTHORED_LOCALIZATION_READINESS_STATES];
+export const AUTHORED_CANDIDATE_ACTIONS = {
+  REJECT: "REJECT",
+  RETRY: "RETRY",
+} as const;
+export type AuthoredCandidateActionKind =
+  (typeof AUTHORED_CANDIDATE_ACTIONS)[keyof typeof AUTHORED_CANDIDATE_ACTIONS];
+export const authoredBatchSourceReviewSchema = z.strictObject({
+  items: z
+    .array(
+      z.strictObject({
+        requestId: z.string().min(1),
+        originSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        canonicalRevision: z.string().min(1),
+        sourceLanguage: z.enum(AUTHORED_SOURCE_LANGUAGES),
+      }),
+    )
+    .min(1)
+    .max(50),
+  confirmsIndividualFieldReview: z.literal(true),
+  evidence: z.string().trim().min(10).max(4000),
+});
+export type AuthoredBatchSourceReview = z.infer<
+  typeof authoredBatchSourceReviewSchema
+>;
+export const authoredBatchOutputReviewSchema = z.strictObject({
+  items: z
+    .array(
+      z.strictObject({
+        requestId: z.string().min(1),
+        originSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        normalizedContent: z.string().min(1).max(200000).optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
+  confirmsTargetLanguageAndMeaning: z.literal(true),
+  evidence: z.string().trim().min(10).max(4000),
+});
+export type AuthoredBatchOutputReview = z.infer<
+  typeof authoredBatchOutputReviewSchema
+>;
+export const authoredCandidateActionSchema = z.strictObject({
+  action: z.enum(AUTHORED_CANDIDATE_ACTIONS),
+  originSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  canonicalRevision: z.string().min(1),
+  candidateSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  evidence: z.string().trim().min(10).max(4000),
+});
+export type AuthoredCandidateAction = z.infer<
+  typeof authoredCandidateActionSchema
+>;
+export const authoredBatchReviewResultSchema = z.strictObject({
+  scopeId: z.string().min(1),
+  acceptedCount: z.number().int().nonnegative(),
+  rejectedCount: z.number().int().nonnegative(),
+  results: z.array(
+    z.strictObject({
+      requestId: z.string().min(1),
+      accepted: z.boolean(),
+      errorCode: z.string().nullable(),
+    }),
+  ),
+});
+export type AuthoredBatchReviewResult = z.infer<
+  typeof authoredBatchReviewResultSchema
+>;
 export const AUTHORED_LOCALIZATION_CODES = {
   INCOMPLETE: "AUTHORED_LOCALIZATION_INCOMPLETE",
   PROVIDER_UNAVAILABLE: "TRANSLATION_PROVIDER_UNAVAILABLE",
@@ -70,3 +157,118 @@ export const authoredTranslationResponseSchema = z.strictObject({
   engine: z.string().min(1),
   engineVersion: z.string().min(1),
 });
+export const authoredLocalizationCountsSchema = z.strictObject({
+  UNKNOWN_SOURCE: z.number().int().nonnegative(),
+  MIXED_SOURCE: z.number().int().nonnegative(),
+  SOURCE_REVIEW_REQUIRED: z.number().int().nonnegative(),
+  PROVIDER_PENDING: z.number().int().nonnegative(),
+  PROVIDER_FAILED: z.number().int().nonnegative(),
+  OUTPUT_REVIEW_REQUIRED: z.number().int().nonnegative(),
+  READY: z.number().int().nonnegative(),
+  FAILED: z.number().int().nonnegative(),
+});
+export type AuthoredLocalizationCounts = z.infer<
+  typeof authoredLocalizationCountsSchema
+>;
+export const authoredLocalizationOperationsSchema = z.strictObject({
+  pendingJobCount: z.number().int().nonnegative(),
+  oldestPendingAgeSeconds: z.number().int().nonnegative(),
+  retryCount: z.number().int().nonnegative(),
+  failedJobCount: z.number().int().nonnegative(),
+  candidateReviewsAwaitingAction: z.number().int().nonnegative(),
+  sourceReviewsAwaitingAction: z.number().int().nonnegative(),
+  workerEnabled: z.boolean(),
+  providerConfigured: z.boolean(),
+  batchLimit: z.number().int().positive(),
+  workerLeaseLimit: z.number().int().positive(),
+  maxAttempts: z.number().int().positive(),
+  reviewSlaTargetMinutes: z.number().int().positive(),
+  processingSlaTargetMinutes: z.number().int().positive(),
+});
+export type AuthoredLocalizationOperations = z.infer<
+  typeof authoredLocalizationOperationsSchema
+>;
+export const authoredLocalizationBacklogScopeSchema = z.strictObject({
+  scopeId: z.string().min(1),
+  entityTypes: z.array(z.enum(AUTHORED_LOCALIZATION_ENTITIES)),
+  counts: authoredLocalizationCountsSchema,
+  readiness: z.strictObject({
+    en: z.enum(AUTHORED_LOCALIZATION_READINESS_STATES),
+    vi: z.enum(AUTHORED_LOCALIZATION_READINESS_STATES),
+  }),
+  pendingJobCount: z.number().int().nonnegative(),
+  oldestPendingAgeSeconds: z.number().int().nonnegative(),
+  retryCount: z.number().int().nonnegative(),
+});
+export type AuthoredLocalizationBacklogScope = z.infer<
+  typeof authoredLocalizationBacklogScopeSchema
+>;
+export const authoredLocalizationBacklogResponseSchema = z.strictObject({
+  counts: authoredLocalizationCountsSchema,
+  operations: authoredLocalizationOperationsSchema,
+  scopes: z.array(authoredLocalizationBacklogScopeSchema),
+  nextAfterScopeId: z.string().nullable(),
+});
+export type AuthoredLocalizationBacklogResponse = z.infer<
+  typeof authoredLocalizationBacklogResponseSchema
+>;
+export const authoredLocalizationQueueItemSchema = z.object({
+  id: z.string().min(1),
+  scopeId: z.string().min(1),
+  entityType: z.enum(AUTHORED_LOCALIZATION_ENTITIES),
+  entityId: z.string().min(1),
+  canonicalRevision: z.string().min(1),
+  canonicalDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  fieldPath: z.string().min(1),
+  translationRevision: z.number().int().positive(),
+  createdAt: z.union([z.string(), z.date()]),
+  locale: z.enum(LOCALES),
+  originalLanguage: z.enum(LOCALES).nullable(),
+  originalContent: z.string(),
+  originSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  sourceLanguage: z.enum(AUTHORED_SOURCE_LANGUAGES),
+  sourceReviewedBy: z.string().nullable(),
+  sourceReviewedAt: z.union([z.string(), z.date()]).nullable(),
+  translationReviewedBy: z.string().nullable(),
+  translationReviewedAt: z.union([z.string(), z.date()]).nullable(),
+  state: z.enum(AUTHORED_LOCALIZATION_STATES),
+  operationalState: z
+    .enum(AUTHORED_LOCALIZATION_OPERATIONAL_STATES)
+    .default(AUTHORED_LOCALIZATION_OPERATIONAL_STATES.SOURCE_REVIEW_REQUIRED),
+  errorCode: z.string().nullable(),
+  attempts: z.number().int().nonnegative(),
+  nextAttemptAt: z.union([z.string(), z.date()]),
+  candidate: z
+    .object({
+      content: z.string(),
+      contentSha256: z.string(),
+      engine: z.string(),
+      engineVersion: z.string(),
+    })
+    .nullable(),
+  revision: z
+    .object({
+      content: z.string(),
+      contentSha256: z.string(),
+      engine: z.string(),
+      engineVersion: z.string(),
+    })
+    .nullable(),
+  reviews: z
+    .array(
+      z.object({
+        id: z.string(),
+        actorId: z.string(),
+        evidence: z.string(),
+        binding: z.unknown(),
+        createdAt: z.union([z.string(), z.date()]),
+      }),
+    )
+    .default([]),
+});
+export type AuthoredLocalizationQueueItem = z.infer<
+  typeof authoredLocalizationQueueItemSchema
+>;
+export const authoredLocalizationQueueResponseSchema = z.array(
+  authoredLocalizationQueueItemSchema,
+);

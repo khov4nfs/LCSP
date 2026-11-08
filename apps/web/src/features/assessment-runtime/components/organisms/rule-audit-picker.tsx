@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import {
   ASSESSMENT_AUDIT_MODES,
+  AUTHORED_LOCALIZATION_CODES,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
   RULE_AUDIT_PROGRESS_STATES,
   RULE_AUDIT_SCOPE_MODES,
   RULE_AUDIT_STATUSES,
@@ -111,6 +113,34 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
   if (catalog.isPending)
     return <p role="status">{copy("ruleAudit.loading")}</p>;
   if (
+    catalog.isError &&
+    catalog.error instanceof Error &&
+    catalog.error.message === AUTHORED_LOCALIZATION_CODES.INCOMPLETE
+  )
+    return (
+      <section
+        className="mx-auto w-full max-w-3xl"
+        aria-label={copy("ruleAudit.title")}
+        data-slot="rule-audit-picker"
+      >
+        <Card>
+          <CardHeader className="gap-2 pb-4">
+            <CardTitle className="text-lg">
+              <h2>{copy("ruleAudit.title")}</h2>
+            </CardTitle>
+            <CardDescription>{copy("ruleAudit.description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert>
+              <AlertDescription>
+                {copy("ruleAudit.localizationReviewRequired")}
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </section>
+    );
+  if (
     catalog.isError ||
     !data ||
     data.auditMode !== ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED
@@ -119,6 +149,7 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
   const canStart =
     data.total > 0 &&
     data.excludedRuleCount === 0 &&
+    data.localizationState === AUTHORED_LOCALIZATION_READINESS_STATES.READY &&
     (!data.latestRequestId ||
       data.latestRequestStatus === RULE_AUDIT_STATUSES.COMPLETED);
 
@@ -323,6 +354,23 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
             <Alert>
               <AlertDescription>
                 {copy("ruleAudit.groupingReviewRequired")}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {data.localizationState &&
+          data.localizationState !==
+            AUTHORED_LOCALIZATION_READINESS_STATES.READY ? (
+            <Alert>
+              <AlertDescription>
+                {copy(
+                  data.localizationState ===
+                    AUTHORED_LOCALIZATION_READINESS_STATES.FAILED
+                    ? "ruleAudit.localizationFailed"
+                    : data.localizationState ===
+                        AUTHORED_LOCALIZATION_READINESS_STATES.REVIEW_REQUIRED
+                      ? "ruleAudit.localizationReviewRequired"
+                      : "ruleAudit.localizationPending",
+                )}
               </AlertDescription>
             </Alert>
           ) : null}

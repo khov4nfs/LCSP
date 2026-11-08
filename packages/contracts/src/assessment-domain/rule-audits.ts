@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ruleDecisionSchema } from "../assessment/agentic-runtime.ts";
 import { ruleCatalogGroupSchema, ruleCatalogMembershipSchema, RULE_CATALOG_REVIEW_STATES } from "./rule-groups.ts";
+import { AUTHORED_LOCALIZATION_READINESS_STATES } from "./localization.ts";
 
 export const ASSESSMENT_AUDIT_MODES = {
   LEGACY_FULL: "LEGACY_FULL",
@@ -51,6 +52,7 @@ export type SubmitRuleAudit = z.infer<typeof submitRuleAuditSchema>;
 export const ruleAuditCatalogSchema = z.strictObject({
   groups: z.array(ruleCatalogGroupSchema).default([]),
   groupingState: z.enum(RULE_CATALOG_REVIEW_STATES).default(RULE_CATALOG_REVIEW_STATES.REVIEW_REQUIRED),
+  localizationState: z.enum(AUTHORED_LOCALIZATION_READINESS_STATES).default(AUTHORED_LOCALIZATION_READINESS_STATES.READY),
   excludedRuleCount: z.number().int().nonnegative().default(0),
   assessmentId: z.string().min(1),
   auditMode: z.enum(ASSESSMENT_AUDIT_MODES),

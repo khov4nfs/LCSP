@@ -12,6 +12,7 @@ import { RuleSetPreparationAction } from "../molecules/rule-set-preparation-acti
 import { ComplianceRuleSetHistoryTable } from "./compliance-rule-set-history-table";
 import { RuleSetPreparationList } from "./rule-set-preparation-list";
 import { PendingRuleGroupings } from "./pending-rule-groupings";
+import { LocalizationOperationsQueue } from "./localization-operations-queue";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -48,6 +49,7 @@ export function ComplianceRuleSetsPage() {
         availability={history.data.preparation}
       />
       <PendingRuleGroupings />
+      <LocalizationOperationsQueue />
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">
           {t("pages.complianceRuleSets.preparations")}
