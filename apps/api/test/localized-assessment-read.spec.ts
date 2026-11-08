@@ -17,6 +17,7 @@ import {
   ruleAuditCatalogSchema,
   AUTHORED_LOCALIZATION_ENTITIES,
   AUTHORED_LOCALIZATION_STATES,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
   AUTHORED_LOCALIZATION_CODES,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_ARTIFACT_KINDS,
@@ -106,6 +107,8 @@ type RequestRow = Pick<
   revision: Revision | null;
   translationReviewedBy?: string | null;
   translationReviewedAt?: Date | string | null;
+  sourceReviewedBy?: string | null;
+  sourceReviewedAt?: Date | string | null;
 };
 type ArtifactKey = {
   scopeId: string;
@@ -129,8 +132,12 @@ type ProjectionWhere = Partial<
   locale: AuthoredLocalizationLocale;
   translationRevision?: number;
   fieldPath?: { in: string[] } | string;
-  originSha256: { in: string[] };
+  /** Optional: scope-wide readiness queries legitimately omit the origin filter. */
+  originSha256?: { in: string[] };
 };
+type ProjectionOrder = Partial<
+  Record<"translationRevision" | "id", "asc" | "desc">
+>;
 function persistence() {
   const requests: RequestRow[] = [];
   const artifacts = new Map<string, ArtifactRow>();
@@ -155,20 +162,35 @@ function persistence() {
         }
         return Promise.resolve(row);
       },
-      findMany: ({ where }: { where: ProjectionWhere }) => {
+      findMany: ({
+        where,
+        orderBy,
+      }: {
+        where: ProjectionWhere;
+        orderBy?: ProjectionOrder[];
+      }) => {
         const { originSha256, fieldPath, ...binding } = where;
         const allowedPaths =
           typeof fieldPath === "string" ? [fieldPath] : fieldPath?.in;
-        return Promise.resolve(
-          requests.filter(
-            (row) =>
-              originSha256.in.includes(row.originSha256) &&
-              (!allowedPaths || allowedPaths.includes(row.fieldPath)) &&
-              Object.entries(binding).every(
-                ([key, value]) => row[key as keyof RequestRow] === value,
-              ),
-          ),
+        const matched = requests.filter(
+          (row) =>
+            (!originSha256 || originSha256.in.includes(row.originSha256)) &&
+            (!allowedPaths || allowedPaths.includes(row.fieldPath)) &&
+            Object.entries(binding).every(
+              ([key, value]) => row[key as keyof RequestRow] === value,
+            ),
         );
+        // Honour revision precedence used by scopeReadiness (latest translationRevision first).
+        const revisionOrder = orderBy?.find(
+          (item) => item.translationRevision,
+        )?.translationRevision;
+        if (revisionOrder)
+          matched.sort((a, b) =>
+            revisionOrder === "desc"
+              ? b.translationRevision - a.translationRevision
+              : a.translationRevision - b.translationRevision,
+          );
+        return Promise.resolve(matched);
       },
     },
     localizedReportArtifact: {
@@ -766,6 +788,10 @@ for (const locale of ["en", "vi"] as const)
           .object({ ok: z.literal(true), data: ruleAuditCatalogSchema })
           .parse(JSON.parse(response.text));
         assert.deepEqual(data, wire.catalog[`${locale}:${offset}`]);
+        assert.equal(
+          data.localizationState,
+          AUTHORED_LOCALIZATION_READINESS_STATES.READY,
+        );
         assert.equal(data.total, 2);
         assert.equal(data.rules.length, 1);
         assert.deepEqual(
@@ -797,6 +823,115 @@ for (const locale of ["en", "vi"] as const)
       assert.deepEqual(
         received,
         rules.map((rule) => rule.assessmentRuleId),
+      );
+      // Readiness negative controls: one non-reviewed field blocks READY for the whole scope.
+      const target =
+        locale === "vi"
+          ? AuthoredLocalizationLocale.VI
+          : AuthoredLocalizationLocale.EN;
+      const probe = store.requests.find(
+        (row) => row.locale === target && row.scopeId === ruleSetVersionId,
+      )!;
+      const snapshot = {
+        sourceReviewedBy: null,
+        sourceReviewedAt: null,
+        ...probe,
+      };
+      const readiness = () =>
+        new AuthoredLocalizationService(db as never).scopeReadiness(
+          ruleSetVersionId,
+          locale,
+        );
+      const restore = () => Object.assign(probe, snapshot);
+      // Source review missing: no attested source and no reviewed output.
+      Object.assign(probe, {
+        state: AuthoredLocalizationState.PENDING,
+        revision: null,
+        translationReviewedBy: null,
+        translationReviewedAt: null,
+        sourceReviewedBy: null,
+      });
+      assert.equal(
+        await readiness(),
+        AUTHORED_LOCALIZATION_READINESS_STATES.REVIEW_REQUIRED,
+      );
+      // Translation pending: source attested, provider has not produced output yet.
+      Object.assign(probe, {
+        sourceReviewedBy: "source-reviewer",
+        sourceReviewedAt: new Date(),
+      });
+      assert.equal(
+        await readiness(),
+        AUTHORED_LOCALIZATION_READINESS_STATES.PENDING,
+      );
+      // Output review missing: revision exists but nobody reviewed it.
+      restore();
+      Object.assign(probe, {
+        translationReviewedBy: null,
+        translationReviewedAt: null,
+        sourceReviewedBy: "source-reviewer",
+        sourceReviewedAt: new Date(),
+      });
+      assert.equal(
+        await readiness(),
+        AUTHORED_LOCALIZATION_READINESS_STATES.REVIEW_REQUIRED,
+      );
+      await assert.rejects(
+        service().catalog(assessmentId, owner, "unreviewed", 0, 1, locale),
+        (error: unknown) =>
+          problem(error).code === AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+      );
+      // Provider failed.
+      restore();
+      Object.assign(probe, {
+        state: AuthoredLocalizationState.FAILED,
+        revision: null,
+        translationReviewedBy: null,
+        translationReviewedAt: null,
+      });
+      assert.equal(
+        await readiness(),
+        AUTHORED_LOCALIZATION_READINESS_STATES.FAILED,
+      );
+      await assert.rejects(
+        service().catalog(assessmentId, owner, "failed", 0, 1, locale),
+        (error: unknown) =>
+          problem(error).code === AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+      );
+      // A superseding higher translationRevision governs readiness over the older READY row.
+      restore();
+      store.requests.push({
+        ...probe,
+        translationRevision: probe.translationRevision + 1,
+        state: AuthoredLocalizationState.PENDING,
+        revision: null,
+        translationReviewedBy: null,
+        translationReviewedAt: null,
+        sourceReviewedBy: "source-reviewer",
+        sourceReviewedAt: new Date(),
+      });
+      assert.equal(
+        await readiness(),
+        AUTHORED_LOCALIZATION_READINESS_STATES.PENDING,
+      );
+      store.requests.pop();
+      // Incorrect field path: the reviewed row can no longer serve the canonical field.
+      probe.fieldPath = "/not-a-real-field";
+      await assert.rejects(
+        service().catalog(assessmentId, owner, "wrong-path", 0, 2, locale),
+        (error: unknown) =>
+          problem(error).code === AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+      );
+      restore();
+      // Incorrect original SHA-256 binding cannot be served.
+      probe.originalContent = "Tampered canonical text";
+      await assert.rejects(
+        service().catalog(assessmentId, owner, "wrong-sha", 0, 2, locale),
+      );
+      restore();
+      assert.equal(
+        await readiness(),
+        AUTHORED_LOCALIZATION_READINESS_STATES.READY,
       );
       // A foreign revision with the same authored text cannot substitute for this rule.
       for (const row of store.requests.filter(
