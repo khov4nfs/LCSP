@@ -40,6 +40,26 @@ export type CommonMessages = {
 
 export type PagesMessages = {
   localizationReview: {
+    nextPage: string;
+    previousPage: string;
+    filter: string;
+    pageSelection: string;
+    batchLimit: string;
+    batchResults: string;
+    accepted: string;
+    rejected: string;
+    filters: {
+      ALL: string;
+      SOURCE_REVIEW_REQUIRED: string;
+      OUTPUT_REVIEW_REQUIRED: string;
+      PROVIDER_PENDING: string;
+      PROVIDER_FAILED: string;
+      FAILED: string;
+      READY: string;
+      UNKNOWN_SOURCE: string;
+      MIXED_SOURCE: string;
+    };
+
     title: string;
     description: string;
     loading: string;

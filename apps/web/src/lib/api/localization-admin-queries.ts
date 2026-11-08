@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
   AUTHORED_LOCALIZATION_STATES,
+  AUTHORED_LOCALIZATION_FILTERS,
+  type AuthoredLocalizationFilter,
   authoredBatchReviewResultSchema,
   authoredLocalizationBacklogResponseSchema,
   authoredLocalizationQueueResponseSchema,
@@ -35,7 +37,12 @@ export function useLocalizationBacklogQuery(
   if (entityType) params.set("entityType", entityType);
   const query = params.toString();
   return useQuery({
-    queryKey: ["admin-localization", "backlog", afterScopeId ?? "", entityType ?? ""],
+    queryKey: [
+      "admin-localization",
+      "backlog",
+      afterScopeId ?? "",
+      entityType ?? "",
+    ],
     /**
      * Business purpose: Load the validated Admin localization backlog page.
      * Business rules:
@@ -47,10 +54,11 @@ export function useLocalizationBacklogQuery(
      * Side effects:
      * - Performs one BFF read.
      */
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       apiValidated(
         `/api/admin/localization${query ? `?${query}` : ""}`,
         authoredLocalizationBacklogResponseSchema,
+        { signal },
       ),
   });
 }
@@ -66,7 +74,12 @@ export function useLocalizationBacklogQuery(
  * Side effects:
  * - Performs authenticated BFF reads and review mutations.
  */
-export function useLocalizationScopeReview(scopeId: string) {
+export function useLocalizationScopeReview(
+  scopeId: string,
+  after?: string,
+  filter: AuthoredLocalizationFilter = AUTHORED_LOCALIZATION_FILTERS.ALL,
+  history = false,
+) {
   const client = useQueryClient();
   const root = `/api/admin/localization/${encodeURIComponent(scopeId)}`;
   /**
@@ -87,7 +100,14 @@ export function useLocalizationScopeReview(scopeId: string) {
     ]);
 
   const queue = useQuery({
-    queryKey: ["admin-localization", "scope", scopeId],
+    queryKey: [
+      "admin-localization",
+      "scope",
+      scopeId,
+      after ?? "",
+      filter,
+      history,
+    ],
     enabled: Boolean(scopeId),
     /**
      * Business purpose: Read field-level localization requests and candidate/review evidence for the selected scope.
@@ -100,7 +120,15 @@ export function useLocalizationScopeReview(scopeId: string) {
      * Side effects:
      * - Performs one BFF read.
      */
-    queryFn: () => apiValidated(root, authoredLocalizationQueueResponseSchema),
+    queryFn: ({ signal }) => {
+      const params = new URLSearchParams({ filter, history: String(history) });
+      if (after) params.set("after", after);
+      return apiValidated(
+        `${root}?${params}`,
+        authoredLocalizationQueueResponseSchema,
+        { signal },
+      );
+    },
   });
 
   const reviewSource = useMutation({

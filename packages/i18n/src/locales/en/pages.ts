@@ -1,6 +1,27 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
   localizationReview: {
+    nextPage: "Next page",
+    previousPage: "Previous page",
+    filter: "Work filter",
+    pageSelection: "Selected on this page (selection clears when navigating):",
+    batchLimit:
+      "Select at most 50 fields per batch. No selected fields will be silently omitted.",
+    batchResults: "Individual review results",
+    accepted: "Accepted",
+    rejected: "Rejected; review remains unresolved",
+    filters: {
+      ALL: "All current jobs",
+      SOURCE_REVIEW_REQUIRED: "Source review required",
+      OUTPUT_REVIEW_REQUIRED: "Output review required",
+      PROVIDER_PENDING: "Provider pending",
+      PROVIDER_FAILED: "Provider retry required",
+      FAILED: "Failed",
+      READY: "Ready",
+      UNKNOWN_SOURCE: "Unknown source",
+      MIXED_SOURCE: "Mixed source",
+    },
+
     title: "Localization operational readiness",
     description:
       "Discover pending localization scopes, attest source language provenance, and review or normalize target-language candidates.",
@@ -43,7 +64,8 @@ export const enPages = {
     retryRequestSubmit: "Retry request",
     yes: "Yes",
     no: "No",
-    invalid: "Complete required review evidence and confirmations before submitting.",
+    invalid:
+      "Complete required review evidence and confirmations before submitting.",
   },
   ruleGrouping: {
     localizationReady: "Localized fields READY",

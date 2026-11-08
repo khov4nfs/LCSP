@@ -8,6 +8,7 @@ import { AssessmentReportView } from "../../src/features/assessment-runtime/comp
 import { RuleAuditPicker } from "../../src/features/assessment-runtime/components/organisms/rule-audit-picker";
 import { LocaleProvider } from "../../src/components/providers/locale-provider";
 import { setAppLocale } from "../../src/lib/locale";
+import pagination from "../../src/public/assets/mocks/localization-pagination.json";
 import grouping from "../../src/public/assets/mocks/rule-grouping-review.json";
 import details from "../../src/public/assets/mocks/localized-assessment-detail.json";
 import reports from "../../src/public/assets/mocks/localized-assessment-wire.json";
@@ -34,6 +35,39 @@ Object.assign(window, {
 });
 globalThis.fetch = async (input, init) => {
   const url = String(input);
+  if (
+    location.pathname === "/pagination" &&
+    url.includes("/api/admin/localization")
+  ) {
+    const parsed = new URL(url, location.origin);
+    if (parsed.pathname === "/api/admin/localization") {
+      const after = parsed.searchParams.get("afterScopeId");
+      const scopes = pagination.backlog.scopes
+        .filter((scope) => !after || scope.scopeId > after)
+        .slice(0, 25);
+      const hasMore =
+        scopes.at(-1)?.scopeId !== pagination.backlog.scopes.at(-1)?.scopeId;
+      return Response.json({
+        ok: true,
+        data: {
+          ...pagination.backlog,
+          scopes,
+          hasMore,
+          nextAfterScopeId: hasMore ? scopes.at(-1).scopeId : null,
+        },
+      });
+    }
+    const after = parsed.searchParams.get("after");
+    const items = parsed.pathname.endsWith("pagination-scope-30")
+      ? pagination.jobs.filter((job) => !after || job.id > after).slice(0, 100)
+      : [];
+    const hasMore =
+      items.length > 0 && items.at(-1).id !== pagination.jobs.at(-1).id;
+    return Response.json({
+      ok: true,
+      data: { items, hasMore, nextAfter: hasMore ? items.at(-1).id : null },
+    });
+  }
   if (url.includes("/api/admin/localization")) {
     if (init?.method === "POST") {
       const body = JSON.parse(String(init.body));
@@ -47,7 +81,7 @@ globalThis.fetch = async (input, init) => {
             rejectedCount: 0,
             results: [
               {
-                requestId: grouping.localizationQueue[0].id,
+                requestId: grouping.localizationQueue.items[0].id,
                 accepted: true,
                 errorCode: null,
               },
@@ -58,7 +92,7 @@ globalThis.fetch = async (input, init) => {
       return Response.json({
         ok: true,
         data: {
-          id: grouping.localizationQueue[0].id,
+          id: grouping.localizationQueue.items[0].id,
           state: "READY",
           reviewed: 1,
           translationRevision: 1,
@@ -135,7 +169,7 @@ createRoot(document.getElementById("root")).render(
     <QueryClientProvider client={client}>
       {pathname === "/report" ? (
         <AssessmentReportView assessmentId={id} />
-      ) : pathname === "/localization" ? (
+      ) : pathname === "/localization" || pathname === "/pagination" ? (
         <LocalizationOperationsQueue />
       ) : pathname === "/catalog" ? (
         <RuleAuditPicker assessmentId={id} />

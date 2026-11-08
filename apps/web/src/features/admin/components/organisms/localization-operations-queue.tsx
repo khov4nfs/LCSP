@@ -23,7 +23,8 @@ export function LocalizationOperationsQueue() {
   useAppLocale();
   const t = (key: string) =>
     resolveAppMessage(`pages.localizationReview.${key}` as MessageKey);
-  const backlog = useLocalizationBacklogQuery();
+  const [cursors, setCursors] = useState<string[]>([]);
+  const backlog = useLocalizationBacklogQuery(cursors.at(-1));
   const [selectedScopeId, setSelectedScopeId] = useState<string | null>(null);
 
   if (backlog.isPending) return <p>{t("loading")}</p>;
@@ -125,8 +126,27 @@ export function LocalizationOperationsQueue() {
           ))}
         </ul>
       )}
+      <div className="flex gap-2">
+        <Button
+          disabled={!cursors.length}
+          onClick={() => setCursors((current) => current.slice(0, -1))}
+        >
+          {t("previousPage")}
+        </Button>
+        <Button
+          disabled={!backlog.data.hasMore}
+          onClick={() =>
+            setCursors((current) => [
+              ...current,
+              backlog.data!.nextAfterScopeId!,
+            ])
+          }
+        >
+          {t("nextPage")}
+        </Button>
+      </div>
       {activeScopeId ? (
-        <LocalizationScopeReview scopeId={activeScopeId} />
+        <LocalizationScopeReview key={activeScopeId} scopeId={activeScopeId} />
       ) : null}
     </section>
   );

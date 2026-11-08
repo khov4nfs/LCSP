@@ -14,6 +14,39 @@ export class LocalePresentationProjectionService {
   constructor(private readonly localization: AuthoredLocalizationService) {}
 
   /**
+   * Business purpose: Present pinned coverage concepts in the requested customer locale.
+   * Business rules:
+   * - Validate locale and scope; preserve exact rule identities and canonical content revisions.
+   * Execution flow:
+   * 1. Delegate bounded bulk resolution to the path-addressed localization service.
+   * Failure cases:
+   * - Missing reviewed concepts or unsupported locale fail closed.
+   * Side effects:
+   * - Database reads only; no translation on GET.
+   */
+  async projectRuleConcepts(
+    rules: readonly {
+      assessmentRuleId: string;
+      contentDigest: string;
+      concept: string;
+    }[],
+    locale: string | null,
+    scopeId: string,
+  ) {
+    if (!locale)
+      return new Map(
+        rules.map((rule) => [rule.assessmentRuleId, rule.concept]),
+      );
+    if (!scopeId || !isSupportedResponseLanguage(locale))
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    return this.localization.projectRuleConcepts(rules, locale, scopeId);
+  }
+
+  /**
    * Business purpose: Read or freeze a locale artifact bound to the immutable report source.
    *
    * Business rules:

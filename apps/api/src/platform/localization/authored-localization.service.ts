@@ -15,6 +15,8 @@ import {
 } from "@prisma/client";
 import {
   AUTHORED_LOCALIZATION_CODES,
+  AUTHORED_LOCALIZATION_FILTERS,
+  type AuthoredLocalizationFilter,
   AUTHORED_LOCALIZATION_ENTITIES,
   AUTHORED_LOCALIZATION_STATES,
   AUTHORED_LOCALIZATION_OPERATIONAL_STATES,
@@ -474,6 +476,40 @@ export async function enqueueAuthoredDocument(
   }
 }
 
+/**
+ * Business purpose: Select the effective field-locale generation and its operational blocker in PostgreSQL.
+ * Business rules:
+ * - Latest translation revision wins within exact immutable source bindings; historical generations never mask current failures.
+ * Execution flow:
+ * 1. Deduplicate generations and derive readiness with the same native-copy and review evidence as customer projection.
+ * Failure cases:
+ * - Unreviewed legacy content remains unavailable.
+ * Side effects:
+ * - None: constructs parameterized read-only SQL.
+ */
+const operationalJobsSql = (scopeId?: string, history = false) => Prisma.sql`
+ WITH generations AS (
+ SELECT r.*, ROW_NUMBER() OVER (PARTITION BY "scopeId","entityType","entityId","canonicalRevision","canonicalDigest","fieldPath","locale" ORDER BY "translationRevision" DESC,"id" DESC) AS generation
+ FROM "AuthoredLocalizationRequest" r ${scopeId ? Prisma.sql`WHERE "scopeId"=${scopeId}` : Prisma.empty}
+ ), proof AS (
+ SELECT r.*, c."requestId" IS NOT NULL AS candidate_exists, v."requestId" IS NOT NULL AS revision_exists,
+ COALESCE(r."state"='READY' AND v."requestId" IS NOT NULL AND
+ CASE WHEN r."sourceReviewedBy" IS NOT NULL AND r."sourceReviewedAt" IS NOT NULL AND r."sourceLanguage"::text=r."locale"::text
+ THEN v."engine"='CANONICAL_ORIGINAL' AND v."content"=r."originalContent"
+ ELSE r."translationReviewedBy" IS NOT NULL AND r."translationReviewedAt" IS NOT NULL END,false) AS reviewed
+ FROM generations r LEFT JOIN "AuthoredTranslationCandidate" c ON c."requestId"=r."id"
+ LEFT JOIN "AuthoredLocalizedRevision" v ON v."requestId"=r."id"
+ WHERE ${history ? Prisma.sql`true` : Prisma.sql`r.generation=1`}
+ ), jobs AS (
+ SELECT *, CASE WHEN reviewed THEN 'READY' WHEN "state"='FAILED' THEN 'FAILED'
+ WHEN candidate_exists OR revision_exists OR "errorCode"=${AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED} THEN 'OUTPUT_REVIEW_REQUIRED'
+ WHEN "sourceLanguage"='MIXED' THEN 'MIXED_SOURCE'
+ WHEN "sourceReviewedBy" IS NULL AND "sourceLanguage"='UNKNOWN' THEN 'UNKNOWN_SOURCE'
+ WHEN "sourceReviewedBy" IS NULL THEN 'SOURCE_REVIEW_REQUIRED'
+ WHEN "attempts">0 AND "errorCode" IN (${AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED},${AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE},${AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID}) THEN 'PROVIDER_FAILED'
+ ELSE 'PROVIDER_PENDING' END AS operational_state FROM proof
+ )`;
+
 /** Durable bounded translation poller. Provider invocation is opt-in deployment configuration. */
 @Injectable()
 export class AuthoredLocalizationService
@@ -494,17 +530,34 @@ export class AuthoredLocalizationService
    * Side effects:
    * - Reads jobs only; also serves as restart-safe historical reconciliation discovery.
    */
-  async reviewQueue(scopeId: string, after?: string, limit = 100) {
-    if (!scopeId || limit < 1 || limit > 200)
+  async reviewQueue(
+    scopeId: string,
+    after?: string,
+    limit = 100,
+    filter: AuthoredLocalizationFilter = AUTHORED_LOCALIZATION_FILTERS.ALL,
+    history = false,
+  ) {
+    if (
+      !scopeId ||
+      limit < 1 ||
+      limit > 200 ||
+      !(filter in AUTHORED_LOCALIZATION_FILTERS) ||
+      (after && !/^[0-9a-f-]{36}$/i.test(after))
+    )
       throw problemException(
         AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
         randomUUID(),
         { status: HttpStatus.CONFLICT },
       );
+    const ids = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      ${operationalJobsSql(scopeId, history)} SELECT "id" FROM jobs
+      WHERE ${after ? Prisma.sql`"id">${after}` : Prisma.sql`true`}
+      AND ${filter === AUTHORED_LOCALIZATION_FILTERS.ALL ? Prisma.sql`true` : filter === AUTHORED_LOCALIZATION_FILTERS.SOURCE_REVIEW_REQUIRED ? Prisma.sql`NOT reviewed AND "sourceReviewedBy" IS NULL AND "state"<>'FAILED'` : Prisma.sql`operational_state=${filter}`}
+      ORDER BY "id" ASC LIMIT ${limit + 1}`);
+    const page = ids.slice(0, limit);
     const rows = await this.prisma.authoredLocalizationRequest.findMany({
-      where: { scopeId, ...(after ? { id: { gt: after } } : {}) },
+      where: { id: { in: page.map((row) => row.id) } },
       orderBy: { id: "asc" },
-      take: limit,
       select: {
         id: true,
         scopeId: true,
@@ -533,7 +586,7 @@ export class AuthoredLocalizationService
         reviews: true,
       },
     });
-    return rows.map((row) => ({
+    const items = rows.map((row) => ({
       ...row,
       entityType: AUTHORED_LOCALIZATION_ENTITIES[row.entityType],
       state: AUTHORED_LOCALIZATION_STATES[row.state],
@@ -547,6 +600,11 @@ export class AuthoredLocalizationService
             ? "vi"
             : null,
     }));
+    return {
+      items,
+      hasMore: ids.length > limit,
+      nextAfter: ids.length > limit ? page.at(-1)!.id : null,
+    };
   }
 
   /**
@@ -576,16 +634,13 @@ export class AuthoredLocalizationService
         randomUUID(),
         { status: HttpStatus.CONFLICT },
       );
-    const scopeRows = await this.prisma.authoredLocalizationRequest.findMany({
-      where: {
-        ...(afterScopeId ? { scopeId: { gt: afterScopeId } } : {}),
-        ...(entityType ? { entityType } : {}),
-      },
-      distinct: ["scopeId"],
-      orderBy: { scopeId: "asc" },
-      take: limit + 1,
-      select: { scopeId: true },
-    });
+    const scopeRows = await this.prisma.$queryRaw<
+      Array<{ scopeId: string }>
+    >(Prisma.sql`
+      SELECT DISTINCT "scopeId" FROM "AuthoredLocalizationRequest"
+      WHERE ${afterScopeId ? Prisma.sql`"scopeId">${afterScopeId}` : Prisma.sql`true`}
+      AND ${entityType ? Prisma.sql`"entityType"=${entityType}::"AuthoredLocalizationEntity"` : Prisma.sql`true`}
+      ORDER BY "scopeId" ASC LIMIT ${limit + 1}`);
     const hasMore = scopeRows.length > limit;
     const pageScopes = scopeRows.slice(0, limit).map((row) => row.scopeId);
     const nextAfterScopeId = hasMore
@@ -620,14 +675,69 @@ export class AuthoredLocalizationService
       ]);
       if (!scopeMap.has(key)) scopeMap.set(key, row);
     }
+    const aggregates = await this.prisma.$queryRaw<
+      Array<{
+        state: string;
+        count: bigint;
+        retries: bigint;
+        oldest: Date | null;
+        source: bigint;
+        candidate: bigint;
+        unknown: bigint;
+        mixed: bigint;
+        failed: bigint;
+        pending: bigint;
+        provider_failed: bigint;
+        provider_pending: bigint;
+      }>
+    >(Prisma.sql`
+      ${operationalJobsSql()} SELECT operational_state AS state, COUNT(*) AS count,
+      COALESCE(SUM(GREATEST("attempts"-1,0)),0)::bigint AS retries,
+      MIN("createdAt") FILTER (WHERE NOT reviewed AND "state"<>'FAILED') AS oldest,
+      COUNT(*) FILTER (WHERE NOT reviewed AND "sourceReviewedBy" IS NULL) AS source,
+      COUNT(*) FILTER (WHERE NOT reviewed AND (candidate_exists OR revision_exists OR "sourceLanguage"='MIXED' OR "errorCode"=${AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED})) AS candidate,
+      COUNT(*) FILTER (WHERE NOT reviewed AND "sourceLanguage"='UNKNOWN') AS unknown,
+      COUNT(*) FILTER (WHERE NOT reviewed AND "sourceLanguage"='MIXED') AS mixed,
+      COUNT(*) FILTER (WHERE NOT reviewed AND "state"='FAILED') AS failed,
+      COUNT(*) FILTER (WHERE NOT reviewed AND "state"<>'FAILED') AS pending,
+      COUNT(*) FILTER (WHERE NOT reviewed AND "attempts">0 AND NOT candidate_exists AND ("state"='FAILED' OR "errorCode" IN (${AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED},${AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE},${AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID}))) AS provider_failed,
+      COUNT(*) FILTER (WHERE NOT reviewed AND "state"='PENDING' AND "sourceReviewedBy" IS NOT NULL AND "sourceLanguage" IN ('EN','VI') AND NOT candidate_exists) AS provider_pending
+      FROM jobs ${entityType ? Prisma.sql`WHERE "entityType"=${entityType}::"AuthoredLocalizationEntity"` : Prisma.empty} GROUP BY operational_state`);
+    const globalCounts = emptyCounts();
+    for (const item of aggregates) {
+      if (item.state in globalCounts)
+        globalCounts[item.state as keyof typeof globalCounts] = Number(
+          item.count,
+        );
+    }
+    globalCounts.PROVIDER_PENDING = aggregates.reduce(
+      (n, x) => n + Number(x.provider_pending),
+      0,
+    );
+    globalCounts.PROVIDER_FAILED = aggregates.reduce(
+      (n, x) => n + Number(x.provider_failed),
+      0,
+    );
+    globalCounts.SOURCE_REVIEW_REQUIRED = aggregates.reduce(
+      (n, x) => n + Number(x.source),
+      0,
+    );
+    globalCounts.UNKNOWN_SOURCE = aggregates.reduce(
+      (n, x) => n + Number(x.unknown),
+      0,
+    );
+    globalCounts.MIXED_SOURCE = aggregates.reduce(
+      (n, x) => n + Number(x.mixed),
+      0,
+    );
+    globalCounts.OUTPUT_REVIEW_REQUIRED = aggregates.reduce(
+      (n, x) => n + Number(x.candidate),
+      0,
+    );
+    const oldest = aggregates.flatMap((x) =>
+      x.oldest ? [x.oldest.getTime()] : [],
+    );
     const nowMs = Date.now();
-    const totalCounts = emptyCounts();
-    let totalPending = 0;
-    let oldestPendingAgeSeconds = 0;
-    let totalRetries = 0;
-    let totalFailed = 0;
-    let candidateReviewsAwaitingAction = 0;
-    let sourceReviewsAwaitingAction = 0;
     const scopes = pageScopes.map((scopeId) => {
       const scopeJobs = [...(latestByScope.get(scopeId)?.values() ?? [])];
       const counts = emptyCounts();
@@ -642,37 +752,22 @@ export class AuthoredLocalizationService
       for (const job of scopeJobs) {
         entities.add(AUTHORED_LOCALIZATION_ENTITIES[job.entityType]);
         accumulateJobCounts(counts, job);
-        accumulateJobCounts(totalCounts, job);
         if (job.locale === AuthoredLocalizationLocale.EN) byLocale.en.push(job);
         else byLocale.vi.push(job);
         if (job.attempts > 1) {
           const retries = job.attempts - 1;
           scopeRetries += retries;
-          totalRetries += retries;
         }
         if (!hasReviewedLocale(job)) {
-          if (job.state === AuthoredLocalizationState.FAILED) {
-            totalFailed += 1;
-          } else {
+          if (job.state !== AuthoredLocalizationState.FAILED) {
             scopePending += 1;
-            totalPending += 1;
             const ageSeconds = Math.max(
               0,
               Math.floor((nowMs - job.createdAt.getTime()) / 1000),
             );
             if (ageSeconds > scopeOldestAgeSeconds)
               scopeOldestAgeSeconds = ageSeconds;
-            if (ageSeconds > oldestPendingAgeSeconds)
-              oldestPendingAgeSeconds = ageSeconds;
           }
-          if (!job.sourceReviewedBy) sourceReviewsAwaitingAction += 1;
-          if (
-            job.candidate ||
-            job.revision ||
-            job.sourceLanguage === AuthoredSourceLanguage.MIXED ||
-            job.errorCode === AUTHORED_LANGUAGE_REVIEW_CODES.OUTPUT_REQUIRED
-          )
-            candidateReviewsAwaitingAction += 1;
         }
       }
       /**
@@ -730,14 +825,22 @@ export class AuthoredLocalizationService
       };
     });
     return authoredLocalizationBacklogResponseSchema.parse({
-      counts: totalCounts,
+      counts: globalCounts,
       operations: {
-        pendingJobCount: totalPending,
-        oldestPendingAgeSeconds,
-        retryCount: totalRetries,
-        failedJobCount: totalFailed,
-        candidateReviewsAwaitingAction,
-        sourceReviewsAwaitingAction,
+        pendingJobCount: aggregates.reduce((n, x) => n + Number(x.pending), 0),
+        oldestPendingAgeSeconds: oldest.length
+          ? Math.max(0, Math.floor((Date.now() - Math.min(...oldest)) / 1000))
+          : 0,
+        retryCount: aggregates.reduce((n, x) => n + Number(x.retries), 0),
+        failedJobCount: aggregates.reduce((n, x) => n + Number(x.failed), 0),
+        candidateReviewsAwaitingAction: aggregates.reduce(
+          (n, x) => n + Number(x.candidate),
+          0,
+        ),
+        sourceReviewsAwaitingAction: aggregates.reduce(
+          (n, x) => n + Number(x.source),
+          0,
+        ),
         workerEnabled:
           process.env.LCSP_AUTHORED_TRANSLATION_WORKER_ENABLED === "1",
         providerConfigured: Boolean(
@@ -752,6 +855,7 @@ export class AuthoredLocalizationService
       },
       scopes,
       nextAfterScopeId,
+      hasMore,
     });
   }
 
@@ -1814,6 +1918,9 @@ export class AuthoredLocalizationService
       canonicalDigest?: string;
       translationRevision?: number;
     },
+    preloadedRows?: Prisma.AuthoredLocalizationRequestGetPayload<{
+      include: { revision: true };
+    }>[],
   ): Promise<Map<string, string>> {
     if (locale !== "en" && locale !== "vi")
       throw new Error("Unsupported localization locale");
@@ -1826,21 +1933,23 @@ export class AuthoredLocalizationService
         : AuthoredLocalizationLocale.VI;
     const { translationRevision: boundTranslationRevision, ...whereBinding } =
       binding;
-    const rows = await this.prisma.authoredLocalizationRequest.findMany({
-      where: {
-        scopeId,
-        locale: target,
-        ...whereBinding,
-        ...(boundTranslationRevision
-          ? { translationRevision: boundTranslationRevision }
-          : {}),
-        fieldPath: { in: [...new Set(requested.map((field) => field.path))] },
-        originSha256: {
-          in: [...new Set(requested.map((field) => digest(field.text)))],
+    const rows =
+      preloadedRows ??
+      (await this.prisma.authoredLocalizationRequest.findMany({
+        where: {
+          scopeId,
+          locale: target,
+          ...whereBinding,
+          ...(boundTranslationRevision
+            ? { translationRevision: boundTranslationRevision }
+            : {}),
+          fieldPath: { in: [...new Set(requested.map((field) => field.path))] },
+          originSha256: {
+            in: [...new Set(requested.map((field) => digest(field.text)))],
+          },
         },
-      },
-      include: { revision: true },
-    });
+        include: { revision: true },
+      }));
     const result = new Map<string, string>();
     const canonicalDigests = new Set<string>();
     for (const field of requested) {
@@ -1932,6 +2041,64 @@ export class AuthoredLocalizationService
     }
     for (const field of fields)
       if (!field.text.trim()) result.set(field.path, field.text);
+    return result;
+  }
+
+  /**
+   * Business purpose: Resolve coverage labels with one bounded query across exact pinned rule revisions.
+   * Business rules:
+   * - Only /concept is projected, with independent entity/revision/path/origin verification for every rule.
+   * Execution flow:
+   * 1. Bulk-read the requested identities and delegate verification to the existing path-addressed resolver.
+   * Failure cases:
+   * - Missing, foreign, stale or unreviewed records fail closed without canonical-language fallback.
+   * Side effects:
+   * - Reads persisted revisions only; no provider invocation or canonical mutation.
+   */
+  async projectRuleConcepts(
+    rules: readonly {
+      assessmentRuleId: string;
+      contentDigest: string;
+      concept: string;
+    }[],
+    locale: string,
+    scopeId: string,
+  ): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+    for (let offset = 0; offset < rules.length; offset += 200) {
+      const batch = rules.slice(offset, offset + 200);
+      const rows = await this.prisma.authoredLocalizationRequest.findMany({
+        where: {
+          scopeId,
+          locale:
+            locale === "en"
+              ? AuthoredLocalizationLocale.EN
+              : AuthoredLocalizationLocale.VI,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.ASSESSMENT_RULE,
+          fieldPath: "/concept",
+          OR: batch.map((rule) => ({
+            entityId: rule.assessmentRuleId,
+            canonicalRevision: rule.contentDigest,
+            originSha256: digest(rule.concept),
+          })),
+        },
+        include: { revision: true },
+      });
+      for (const rule of batch) {
+        const values = await this.projectFields(
+          [{ path: "/concept", text: rule.concept }],
+          locale,
+          scopeId,
+          {
+            entityType: AUTHORED_LOCALIZATION_ENTITIES.ASSESSMENT_RULE,
+            entityId: rule.assessmentRuleId,
+            canonicalRevision: rule.contentDigest,
+          },
+          rows,
+        );
+        result.set(rule.assessmentRuleId, values.get("/concept")!);
+      }
+    }
     return result;
   }
 

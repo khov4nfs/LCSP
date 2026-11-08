@@ -1,4 +1,7 @@
-import { AUTHORED_LOCALIZATION_ENTITIES } from "@lcsp/contracts/assessment-domain";
+import {
+  AUTHORED_LOCALIZATION_ENTITIES,
+  AUTHORED_LOCALIZATION_CODES,
+} from "@lcsp/contracts/assessment-domain";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
@@ -145,16 +148,53 @@ export class AssessmentDetailLoader {
               },
             })
           : null;
-        const concepts = new Map(
-          domainCase?.ruleSetVersionId
-            ? (
-                await tx.assessmentRule.findMany({
-                  where: { ruleSetVersionId: domainCase.ruleSetVersionId },
-                  select: { assessmentRuleId: true, concept: true },
-                })
-              ).map((rule) => [rule.assessmentRuleId, rule.concept] as const)
-            : [],
-        );
+        const coverageRules =
+          domainCase?.ruleSetVersionId && domainCase.coverage.length
+            ? await tx.assessmentRule.findMany({
+                where: {
+                  ruleSetVersionId: domainCase.ruleSetVersionId,
+                  OR: domainCase.coverage.map((item) => ({
+                    assessmentRuleId: item.assessmentRuleId,
+                    assessmentRuleVersion: item.assessmentRuleVersion,
+                  })),
+                },
+                select: {
+                  assessmentRuleId: true,
+                  assessmentRuleVersion: true,
+                  concept: true,
+                  contentDigest: true,
+                },
+              })
+            : [];
+        if (
+          domainCase?.ruleSetVersionId &&
+          domainCase.coverage.some(
+            (item) =>
+              !coverageRules.some(
+                (rule) =>
+                  rule.assessmentRuleId === item.assessmentRuleId &&
+                  rule.assessmentRuleVersion === item.assessmentRuleVersion,
+              ),
+          )
+        )
+          throw problemException(
+            AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        const concepts =
+          input.locale && domainCase?.ruleSetVersionId
+            ? await this.projectionService.projectRuleConcepts(
+                coverageRules,
+                resolveResponseLanguage(input.locale),
+                domainCase.ruleSetVersionId,
+              )
+            : new Map(
+                coverageRules.map((rule) => [
+                  rule.assessmentRuleId,
+                  rule.concept,
+                ]),
+              );
         // Event history is bounded; assessment totals come from every persisted invocation.
         const usage = await tx.llmUsageEvent.aggregate({
           where: { assessmentId: row.id, userId: input.sessionUserId },

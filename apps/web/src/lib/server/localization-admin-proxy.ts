@@ -10,6 +10,7 @@ import {
   authoredCandidateActionSchema,
   authoredLocalizationBacklogResponseSchema,
   authoredLocalizationQueueResponseSchema,
+  authoredLocalizationQueueQuerySchema,
   authoredOutputReviewSchema,
   authoredSourceReviewSchema,
 } from "@lcsp/contracts/assessment-domain";
@@ -47,12 +48,9 @@ export async function proxyLocalizationBacklog(request: NextRequest) {
   if (entityTypeRaw) params.set("entityType", entityTypeRaw);
   const query = params.toString();
   return validatedUpstreamJson(
-    await upstreamRequest(
-      `/admin/localization${query ? `?${query}` : ""}`,
-      {
-        bearerToken: session.token,
-      },
-    ),
+    await upstreamRequest(`/admin/localization${query ? `?${query}` : ""}`, {
+      bearerToken: session.token,
+    }),
     (data) => {
       const parsed = authoredLocalizationBacklogResponseSchema.safeParse(data);
       return parsed.success ? parsed.data : null;
@@ -88,8 +86,19 @@ export async function proxyLocalizationScope(
       return problemJson(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID, {
         status: 422,
       });
-    const after = request.nextUrl.searchParams.get("after")?.trim();
-    const query = after ? `?after=${encodeURIComponent(after)}` : "";
+    const parsedQuery = authoredLocalizationQueueQuerySchema.safeParse(
+      Object.fromEntries(request.nextUrl.searchParams),
+    );
+    if (!parsedQuery.success)
+      return problemJson(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID, {
+        status: 422,
+      });
+    const params = new URLSearchParams({
+      filter: parsedQuery.data.filter,
+      history: parsedQuery.data.history,
+    });
+    if (parsedQuery.data.after) params.set("after", parsedQuery.data.after);
+    const query = `?${params}`;
     return validatedUpstreamJson(
       await upstreamRequest(
         `/admin/localization/${encodeURIComponent(scopeId)}${query}`,

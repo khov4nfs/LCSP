@@ -422,3 +422,23 @@ test("customer state collapses lifecycle and execution into one customer word", 
   assert.equal(state(LIFE.FAILED, EXEC.FAILED), STATE.FAILED);
   assert.equal(customerAssessmentState(null, null), STATE.UNAVAILABLE);
 });
+
+for (const concept of ["Access control", "Ki?m so?t truy c?p"])
+  test(`decision turn uses the localized Detail coverage concept: ${concept}`, () => {
+    const localized = detail({ lifecycle: LIFE.ACTIVE, decisions: true });
+    localized.case!.coverage[0].concept = concept;
+    const originalDecision = JSON.stringify(localized.case!.decisions);
+    const projection = projectConversation({
+      assessmentId: ASSESSMENT_ID,
+      events: [...RUN.slice(0, 9), events.decision(10, 40)],
+      detail: localized,
+      requests: [],
+      repository: REPOSITORY,
+    });
+    const decision = projection.turns.find(
+      (turn) => turn.kind === KIND.DECISION,
+    );
+    assert.ok(decision && decision.kind === KIND.DECISION);
+    assert.equal(decision.concept, concept);
+    assert.equal(JSON.stringify(localized.case!.decisions), originalDecision);
+  });

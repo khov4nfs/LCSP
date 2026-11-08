@@ -96,7 +96,10 @@ export const authoredCandidateActionSchema = z.strictObject({
   action: z.enum(AUTHORED_CANDIDATE_ACTIONS),
   originSha256: z.string().regex(/^[a-f0-9]{64}$/),
   canonicalRevision: z.string().min(1),
-  candidateSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  candidateSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   evidence: z.string().trim().min(10).max(4000),
 });
 export type AuthoredCandidateAction = z.infer<
@@ -208,6 +211,7 @@ export const authoredLocalizationBacklogResponseSchema = z.strictObject({
   operations: authoredLocalizationOperationsSchema,
   scopes: z.array(authoredLocalizationBacklogScopeSchema),
   nextAfterScopeId: z.string().nullable(),
+  hasMore: z.boolean(),
 });
 export type AuthoredLocalizationBacklogResponse = z.infer<
   typeof authoredLocalizationBacklogResponseSchema
@@ -269,6 +273,21 @@ export const authoredLocalizationQueueItemSchema = z.object({
 export type AuthoredLocalizationQueueItem = z.infer<
   typeof authoredLocalizationQueueItemSchema
 >;
-export const authoredLocalizationQueueResponseSchema = z.array(
-  authoredLocalizationQueueItemSchema,
-);
+export const AUTHORED_LOCALIZATION_FILTERS = {
+  ALL: "ALL",
+  ...AUTHORED_LOCALIZATION_OPERATIONAL_STATES,
+} as const;
+export type AuthoredLocalizationFilter =
+  (typeof AUTHORED_LOCALIZATION_FILTERS)[keyof typeof AUTHORED_LOCALIZATION_FILTERS];
+export const authoredLocalizationQueueQuerySchema = z.object({
+  after: z.uuid().optional(),
+  filter: z
+    .enum(AUTHORED_LOCALIZATION_FILTERS)
+    .default(AUTHORED_LOCALIZATION_FILTERS.ALL),
+  history: z.enum(["true", "false"]).default("false"),
+});
+export const authoredLocalizationQueueResponseSchema = z.object({
+  items: z.array(authoredLocalizationQueueItemSchema),
+  nextAfter: z.uuid().nullable(),
+  hasMore: z.boolean(),
+});

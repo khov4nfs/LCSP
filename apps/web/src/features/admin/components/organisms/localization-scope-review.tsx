@@ -1,8 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { useEffect, useState, useRef } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AUTHORED_CANDIDATE_ACTIONS } from "@lcsp/contracts/assessment-domain";
+import {
+  AUTHORED_CANDIDATE_ACTIONS,
+  AUTHORED_LOCALIZATION_OPERATIONAL_STATES,
+  AUTHORED_LOCALIZATION_FILTERS,
+  type AuthoredLocalizationFilter,
+  type AuthoredLocalizationQueueItem,
+  type AuthoredBatchReviewResult,
+} from "@lcsp/contracts/assessment-domain";
 import type { MessageKey } from "@lcsp/i18n";
 import { useAppLocale } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -52,7 +59,17 @@ export function LocalizationScopeReview({
   useAppLocale();
   const t = (key: string) =>
     resolveAppMessage(`pages.localizationReview.${key}` as MessageKey);
-  const workflow = useLocalizationScopeReview(scopeId);
+  const [cursors, setCursors] = useState<string[]>([]);
+  const [filter, setFilter] = useState<AuthoredLocalizationFilter>(
+    AUTHORED_LOCALIZATION_FILTERS.ALL,
+  );
+  const workflow = useLocalizationScopeReview(scopeId, cursors.at(-1), filter);
+  const drafts = useRef(
+    new Map<string, LocalizationReviewForm["items"][number]>(),
+  );
+  const [results, setResults] = useState<AuthoredBatchReviewResult | null>(
+    null,
+  );
   const [actionError, setActionError] = useState(false);
   const form = useForm<LocalizationReviewForm>({
     resolver: zodResolver(localizationReviewFormSchema),
@@ -63,10 +80,30 @@ export function LocalizationScopeReview({
       items: [],
     },
   });
-  const items = workflow.queue.data;
+  const items = workflow.queue.data?.items;
+  const clearPageSelection = () =>
+    form
+      .getValues("items")
+      .forEach((_item, index) =>
+        form.setValue(`items.${index}.selected`, false),
+      );
+  const selectedCount = useWatch({
+    control: form.control,
+    name: "items",
+  }).filter((item) => item.selected).length;
+  const identity = (item: AuthoredLocalizationQueueItem) =>
+    JSON.stringify([
+      item.id,
+      item.canonicalRevision,
+      item.originSha256,
+      item.translationRevision,
+      item.fieldPath,
+      item.locale,
+    ]);
 
   useEffect(() => {
     if (!items) return;
+    const draftCache = drafts.current;
     const currentValues = form.getValues();
     form.reset({
       evidence: currentValues.evidence || "",
@@ -76,17 +113,28 @@ export function LocalizationScopeReview({
         currentValues.confirmsTargetLanguageAndMeaning ?? false,
       items: items.map((item) => ({
         requestId: item.id,
-        selected: false,
         sourceLanguage: item.sourceLanguage,
         normalizedContent: "",
+        ...drafts.current.get(identity(item)),
+        selected:
+          item.operationalState ===
+          AUTHORED_LOCALIZATION_OPERATIONAL_STATES.READY
+            ? false
+            : (drafts.current.get(identity(item))?.selected ?? false),
       })),
     });
+    return () => {
+      const values = form.getValues();
+      items.forEach((item, index) => {
+        if (values.items[index])
+          draftCache.set(identity(item), { ...values.items[index] });
+      });
+    };
   }, [items, form]);
 
   if (workflow.queue.isPending) return <p>{t("loading")}</p>;
   if (workflow.queue.isError || !items)
     return <p role="alert">{t("unavailable")}</p>;
-  if (!items.length) return <p>{t("empty")}</p>;
 
   const busy =
     workflow.reviewSource.isPending ||
@@ -100,7 +148,12 @@ export function LocalizationScopeReview({
     const values = form.getValues();
     const row = items![index];
     const formItem = values.items[index];
-    if (!row || !formItem || values.evidence.trim().length < 10) {
+    if (
+      !row ||
+      !formItem ||
+      formItem.requestId !== row.id ||
+      values.evidence.trim().length < 10
+    ) {
       setActionError(true);
       return;
     }
@@ -127,6 +180,7 @@ export function LocalizationScopeReview({
     if (
       !row ||
       !formItem ||
+      formItem.requestId !== row.id ||
       !values.confirmsTargetLanguageAndMeaning ||
       values.evidence.trim().length < 10
     ) {
@@ -207,10 +261,15 @@ export function LocalizationScopeReview({
     const values = form.getValues();
     const selected = values.items
       .map((item, idx) => ({ item, row: items![idx] }))
-      .filter((entry) => entry.item.selected && entry.row)
-      .slice(0, 50);
+      .filter(
+        (entry) =>
+          entry.item.selected &&
+          entry.row &&
+          entry.item.requestId === entry.row.id,
+      );
     if (
       !selected.length ||
+      selected.length > 50 ||
       !values.confirmsIndividualFieldReview ||
       values.evidence.trim().length < 10
     ) {
@@ -218,7 +277,7 @@ export function LocalizationScopeReview({
       return;
     }
     try {
-      await workflow.batchSource.mutateAsync({
+      const result = await workflow.batchSource.mutateAsync({
         confirmsIndividualFieldReview: true,
         evidence: values.evidence.trim(),
         items: selected.map(({ item, row }) => ({
@@ -227,6 +286,16 @@ export function LocalizationScopeReview({
           canonicalRevision: row.canonicalRevision,
           sourceLanguage: item.sourceLanguage,
         })),
+      });
+      setResults(result);
+      const accepted = new Set(
+        result.results
+          .filter((item) => item.accepted)
+          .map((item) => item.requestId),
+      );
+      form.getValues("items").forEach((item, index) => {
+        if (accepted.has(item.requestId))
+          form.setValue(`items.${index}.selected`, false);
       });
     } catch {
       setActionError(true);
@@ -238,10 +307,15 @@ export function LocalizationScopeReview({
     const values = form.getValues();
     const selected = values.items
       .map((item, idx) => ({ item, row: items![idx] }))
-      .filter((entry) => entry.item.selected && entry.row)
-      .slice(0, 50);
+      .filter(
+        (entry) =>
+          entry.item.selected &&
+          entry.row &&
+          entry.item.requestId === entry.row.id,
+      );
     if (
       !selected.length ||
+      selected.length > 50 ||
       !values.confirmsTargetLanguageAndMeaning ||
       values.evidence.trim().length < 10
     ) {
@@ -265,10 +339,20 @@ export function LocalizationScopeReview({
           };
         }),
       );
-      await workflow.batchOutput.mutateAsync({
+      const result = await workflow.batchOutput.mutateAsync({
         confirmsTargetLanguageAndMeaning: true,
         evidence: values.evidence.trim(),
         items: batchItems,
+      });
+      setResults(result);
+      const accepted = new Set(
+        result.results
+          .filter((item) => item.accepted)
+          .map((item) => item.requestId),
+      );
+      form.getValues("items").forEach((item, index) => {
+        if (accepted.has(item.requestId))
+          form.setValue(`items.${index}.selected`, false);
       });
     } catch {
       setActionError(true);
@@ -282,6 +366,61 @@ export function LocalizationScopeReview({
     >
       <h2 className="text-lg font-semibold">{t("scopeTitle")}</h2>
       <p className="text-sm text-muted-foreground">{t("scopeDescription")}</p>
+      <label>
+        {t("filter")}
+        <select
+          value={filter}
+          onChange={(event) => {
+            clearPageSelection();
+            setFilter(event.target.value as AuthoredLocalizationFilter);
+            setCursors([]);
+          }}
+        >
+          {Object.values(AUTHORED_LOCALIZATION_FILTERS).map((value) => (
+            <option key={value} value={value}>
+              {t(`filters.${value}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex gap-2">
+        <Button
+          disabled={!cursors.length || busy}
+          onClick={() => {
+            clearPageSelection();
+            setCursors((current) => current.slice(0, -1));
+          }}
+        >
+          {t("previousPage")}
+        </Button>
+        <Button
+          disabled={!workflow.queue.data?.hasMore || busy}
+          onClick={() => {
+            clearPageSelection();
+            setCursors((current) => [
+              ...current,
+              workflow.queue.data!.nextAfter!,
+            ]);
+          }}
+        >
+          {t("nextPage")}
+        </Button>
+      </div>
+      {!items.length ? <p>{t("empty")}</p> : null}
+      <p>
+        {t("pageSelection")} {selectedCount}/50
+      </p>
+      {selectedCount > 50 ? <p role="alert">{t("batchLimit")}</p> : null}
+      {results ? (
+        <ul aria-label={t("batchResults")}>
+          {results.results.map((item) => (
+            <li key={item.requestId}>
+              {item.requestId}: {item.accepted ? t("accepted") : t("rejected")}{" "}
+              {item.errorCode}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <FormProvider {...form}>
         <form
           className="flex flex-col gap-4"
@@ -328,7 +467,7 @@ export function LocalizationScopeReview({
           </div>
           {actionError ? <p role="alert">{t("invalid")}</p> : null}
           <div className="flex flex-col gap-3">
-            {items.slice(0, 50).map((item, index) => (
+            {items.map((item, index) => (
               <LocalizationQueueItemField
                 key={item.id}
                 item={item}

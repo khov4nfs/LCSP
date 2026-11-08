@@ -126,7 +126,7 @@ test("Admin discovers localization backlog without a known scopeId and executes 
   );
   const queue = authoredLocalizationQueueResponseSchema.parse(
     wire.localizationQueue,
-  );
+  ).items;
   const recordedPosts: Array<{ url: string; body: unknown }> = [];
   const original = globalThis.fetch;
   globalThis.fetch = (input, init) => {
@@ -177,7 +177,9 @@ test("Admin discovers localization backlog without a known scopeId and executes 
     return Promise.resolve(
       Response.json({
         ok: true,
-        data: url.includes(backlog.scopes[0].scopeId) ? queue : backlog,
+        data: url.includes(backlog.scopes[0].scopeId)
+          ? { items: queue, nextAfter: null, hasMore: false }
+          : backlog,
       }),
     );
   };
@@ -193,7 +195,10 @@ test("Admin discovers localization backlog without a known scopeId and executes 
     );
     await settle();
     assert.match(node.textContent ?? "", /Localization operational readiness/);
-    assert.match(node.textContent ?? "", /11111111-1111-4111-8111-111111111111/);
+    assert.match(
+      node.textContent ?? "",
+      /11111111-1111-4111-8111-111111111111/,
+    );
     assert.match(
       node.textContent ?? "",
       /Biện pháp bảo vệ giả lập \(ứng viên\)/,

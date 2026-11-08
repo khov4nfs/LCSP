@@ -76,43 +76,48 @@
         "retryCount": 0
       }
     ],
-    "nextAfterScopeId": null
+    "nextAfterScopeId": null,
+    "hasMore": false
   },
-  "localizationQueue": [
-    {
-      "id": "22222222-2222-4222-8222-222222222222",
-      "scopeId": "11111111-1111-4111-8111-111111111111",
-      "entityType": "ASSESSMENT_RULE",
-      "entityId": "fixture-rule",
-      "canonicalRevision": "1",
-      "canonicalDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-      "fieldPath": "/concept",
-      "translationRevision": 1,
-      "createdAt": "2026-11-08T10:00:00.000Z",
-      "locale": "vi",
-      "originalLanguage": "en",
-      "originalContent": "Synthetic safeguard",
-      "originSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-      "sourceLanguage": "EN",
-      "sourceReviewedBy": "source-reviewer",
-      "sourceReviewedAt": "2026-11-08T10:05:00.000Z",
-      "translationReviewedBy": null,
-      "translationReviewedAt": null,
-      "state": "PENDING",
-      "operationalState": "OUTPUT_REVIEW_REQUIRED",
-      "errorCode": "AUTHORED_OUTPUT_LANGUAGE_REVIEW_REQUIRED",
-      "attempts": 1,
-      "nextAttemptAt": "2026-11-08T10:05:00.000Z",
-      "candidate": {
-        "content": "Biện pháp bảo vệ giả lập (ứng viên)",
-        "contentSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "engine": "isolated-provider",
-        "engineVersion": "1"
-      },
-      "revision": null,
-      "reviews": []
-    }
-  ],
+  "localizationQueue": {
+    "items": [
+      {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "scopeId": "11111111-1111-4111-8111-111111111111",
+        "entityType": "ASSESSMENT_RULE",
+        "entityId": "fixture-rule",
+        "canonicalRevision": "1",
+        "canonicalDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "fieldPath": "/concept",
+        "translationRevision": 1,
+        "createdAt": "2026-11-08T10:00:00.000Z",
+        "locale": "vi",
+        "originalLanguage": "en",
+        "originalContent": "Synthetic safeguard",
+        "originSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "sourceLanguage": "EN",
+        "sourceReviewedBy": "source-reviewer",
+        "sourceReviewedAt": "2026-11-08T10:05:00.000Z",
+        "translationReviewedBy": null,
+        "translationReviewedAt": null,
+        "state": "PENDING",
+        "operationalState": "OUTPUT_REVIEW_REQUIRED",
+        "errorCode": "AUTHORED_OUTPUT_LANGUAGE_REVIEW_REQUIRED",
+        "attempts": 1,
+        "nextAttemptAt": "2026-11-08T10:05:00.000Z",
+        "candidate": {
+          "content": "Biện pháp bảo vệ giả lập (ứng viên)",
+          "contentSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "engine": "isolated-provider",
+          "engineVersion": "1"
+        },
+        "revision": null,
+        "reviews": []
+      }
+    ],
+    "nextAfter": null,
+    "hasMore": false
+  },
   "ruleCatalog": {
     "en": {
       "groups": [

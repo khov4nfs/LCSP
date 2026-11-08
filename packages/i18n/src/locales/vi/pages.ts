@@ -1,6 +1,26 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
   localizationReview: {
+    nextPage: "Trang ti?p",
+    previousPage: "Trang tr??c",
+    filter: "L?c c?ng vi?c",
+    pageSelection: "?? ch?n tr?n trang n?y (b? ch?n khi chuy?n trang):",
+    batchLimit: "Ch?n t?i ?a 50 tr??ng m?i ??t. Kh?ng b? qua tr??ng ?? ch?n.",
+    batchResults: "K?t qu? t?ng tr??ng",
+    accepted: "?? ghi nh?n",
+    rejected: "B? t? ch?i; ch?a ho?n t?t",
+    filters: {
+      ALL: "T?t c? c?ng vi?c hi?n t?i",
+      SOURCE_REVIEW_REQUIRED: "C?n duy?t ngu?n",
+      OUTPUT_REVIEW_REQUIRED: "C?n duy?t b?n d?ch",
+      PROVIDER_PENDING: "Ch? nh? cung c?p",
+      PROVIDER_FAILED: "C?n th? l?i nh? cung c?p",
+      FAILED: "Th?t b?i",
+      READY: "S?n s?ng",
+      UNKNOWN_SOURCE: "Ngu?n ch?a r?",
+      MIXED_SOURCE: "Ngu?n h?n h?p",
+    },
+
     title: "Sẵn sàng vận hành bản địa hóa",
     description:
       "Khám phá phạm vi chờ bản địa hóa, xác nhận ngôn ngữ gốc và rà soát hoặc chuẩn hóa bản dịch đích.",
@@ -43,7 +63,8 @@ export const viPages = {
     retryRequestSubmit: "Thử lại yêu cầu",
     yes: "Có",
     no: "Không",
-    invalid: "Vui lòng điền đầy đủ bằng chứng rà soát và xác nhận trước khi gửi.",
+    invalid:
+      "Vui lòng điền đầy đủ bằng chứng rà soát và xác nhận trước khi gửi.",
   },
   ruleGrouping: {
     localizationReady: "Trường bản địa hóa READY",

@@ -134,9 +134,7 @@ try {
   await page
     .getByText("Localization operational readiness", { exact: true })
     .waitFor();
-  await page
-    .getByText("Biện pháp bảo vệ giả lập (ứng viên)")
-    .waitFor();
+  await page.getByText("Biện pháp bảo vệ giả lập (ứng viên)").waitFor();
   await page
     .getByLabel("Review evidence")
     .fill("Browser verified target language and legal meaning.");
@@ -151,6 +149,40 @@ try {
   await page.waitForFunction(
     () => window.__fixture.localizationSubmissions.length === 1,
   );
+  await page.goto(`${origin}/pagination`);
+  await page.getByText("pagination-scope-01", { exact: true }).waitFor();
+  await page
+    .getByRole("button", { name: "Next page", exact: true })
+    .first()
+    .click();
+  await page.getByText("pagination-scope-30", { exact: true }).waitFor();
+  await page
+    .locator("li")
+    .filter({ has: page.getByText("pagination-scope-30", { exact: true }) })
+    .getByRole("button")
+    .click();
+  const queue = page.locator('[data-slot="localization-scope-review"]');
+  await queue
+    .locator('[data-slot="localization-queue-item"]')
+    .nth(99)
+    .waitFor();
+  await queue.getByRole("button", { name: "Next page", exact: true }).click();
+  await queue
+    .locator('[data-slot="localization-queue-item"]')
+    .nth(59)
+    .waitFor();
+  if (
+    (await queue.locator('[data-slot="localization-queue-item"]').count()) !==
+    60
+  )
+    throw Error("Missing second page jobs");
+  await queue
+    .getByRole("button", { name: "Previous page", exact: true })
+    .click();
+  await queue
+    .locator('[data-slot="localization-queue-item"]')
+    .nth(99)
+    .waitFor();
   await page.goto(`${origin}/catalog`);
   await page
     .getByText("EN: Architecture safety rule one", { exact: true })
@@ -171,6 +203,7 @@ try {
       mobile: true,
       reportEN_VI_EN: true,
       localizationQueueBrowser: true,
+      scope30AndJobsBeyond100: true,
       groupedCatalogEN_VI_EN: true,
       oldLanguageFlash: false,
       pending: true,

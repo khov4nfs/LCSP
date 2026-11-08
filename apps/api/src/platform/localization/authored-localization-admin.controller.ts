@@ -12,6 +12,7 @@ import {
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   authoredSourceReviewSchema,
+  authoredLocalizationQueueQuerySchema,
   authoredOutputReviewSchema,
   authoredBatchSourceReviewSchema,
   authoredBatchOutputReviewSchema,
@@ -69,8 +70,25 @@ export class AuthoredLocalizationAdminController {
    * - Reads durable localization work only, without provider invocation.
    */
   @Get(":scopeId")
-  list(@Param("scopeId") scopeId: string, @Query("after") after?: string) {
-    return this.localization.reviewQueue(scopeId, after).then(resultEnvelope);
+  list(
+    @Param("scopeId") scopeId: string,
+    @Query(
+      new ZodValidationPipe(
+        authoredLocalizationQueueQuerySchema,
+        AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+      ),
+    )
+    query: z.infer<typeof authoredLocalizationQueueQuerySchema>,
+  ) {
+    return this.localization
+      .reviewQueue(
+        scopeId,
+        query.after,
+        100,
+        query.filter,
+        query.history === "true",
+      )
+      .then(resultEnvelope);
   }
 
   /**

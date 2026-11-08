@@ -142,7 +142,7 @@ integration("reviewed authored language PostgreSQL workflow", () => {
       ),
     ).rejects.toThrow();
     expect(
-      (await service.reviewQueue(fixture.scopeId)).find(
+      (await service.reviewQueue(fixture.scopeId)).items.find(
         (row) => row.id === job.id,
       )?.sourceLanguage,
     ).toBe(AuthoredSourceLanguage.UNKNOWN);
@@ -158,7 +158,7 @@ integration("reviewed authored language PostgreSQL workflow", () => {
       "historical-reviewer",
     );
     expect(
-      (await replica.reviewQueue(fixture.scopeId)).find(
+      (await replica.reviewQueue(fixture.scopeId)).items.find(
         (row) => row.id === job.id,
       )?.originalLanguage,
     ).toBeNull();
@@ -899,7 +899,7 @@ integration("reviewed authored language PostgreSQL workflow", () => {
     expect(initialBacklog.operations.providerConfigured).toBe(true);
     expect(initialBacklog.operations.batchLimit).toBe(50);
 
-    const queue = await service.reviewQueue(scopeId);
+    const { items: queue } = await service.reviewQueue(scopeId);
     const summaryEn = queue.find(
       (row) => row.fieldPath === "/summary" && row.locale === "en",
     )!;
@@ -959,7 +959,7 @@ integration("reviewed authored language PostgreSQL workflow", () => {
       provider.mockRestore();
     }
 
-    const afterDrain = await service.reviewQueue(scopeId);
+    const { items: afterDrain } = await service.reviewQueue(scopeId);
     const titleVi = afterDrain.find(
       (row) => row.fieldPath === "/title" && row.locale === "vi",
     )!;
