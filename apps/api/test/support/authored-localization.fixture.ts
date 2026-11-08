@@ -12,6 +12,7 @@ export function authoredLocalizationFixture(
   initial: Record<string, string> = {},
 ) {
   const translations = new Map(Object.entries(initial));
+  const pathTranslations = new Map<string, { text: string; vi: string }>();
   const requestedTexts: string[] = [];
   const artifacts = new Map<
     string,
@@ -34,32 +35,81 @@ export function authoredLocalizationFixture(
         where,
       }: {
         where: {
+          scopeId?: string;
+          entityType?: string;
+          entityId?: string;
+          canonicalRevision?: string;
+          canonicalDigest?: string;
+          fieldPath?: { in: string[] } | string;
           locale: AuthoredLocalizationLocale;
           originSha256: { in: string[] };
         };
-      }) =>
-        Promise.resolve(
-          [...translations]
-            .filter(([text]) => where.originSha256.in.includes(hash(text)))
-            .map(([text, vi]) => {
-              requestedTexts.push(text);
-              const content =
-                where.locale === AuthoredLocalizationLocale.EN ? text : vi;
-              return {
-                originSha256: hash(text),
-                originalContent: text,
-                translationRevision: 1,
-                state: AuthoredLocalizationState.READY,
-                translationReviewedBy: "isolated-unit-fixture",
-                translationReviewedAt: new Date(),
-                revision: {
-                  content,
-                  contentSha256: hash(content),
-                  engine: "isolated-unit-fixture",
-                },
-              };
-            }),
-        ),
+      }) => {
+        const requestedPaths =
+          typeof where.fieldPath === "string"
+            ? [where.fieldPath]
+            : (where.fieldPath?.in ?? [""]);
+        const rows: Array<Record<string, unknown>> = [];
+        for (const [fieldPath, entry] of pathTranslations) {
+          if (!where.originSha256.in.includes(hash(entry.text))) continue;
+          if (where.fieldPath && !requestedPaths.includes(fieldPath)) continue;
+          requestedTexts.push(entry.text);
+          const content =
+            where.locale === AuthoredLocalizationLocale.EN
+              ? entry.text
+              : entry.vi;
+          rows.push({
+            scopeId: where.scopeId,
+            entityType: where.entityType,
+            entityId: where.entityId,
+            canonicalRevision: where.canonicalRevision,
+            canonicalDigest: where.canonicalDigest,
+            fieldPath,
+            locale: where.locale,
+            originSha256: hash(entry.text),
+            originalContent: entry.text,
+            translationRevision: 1,
+            state: AuthoredLocalizationState.READY,
+            translationReviewedBy: "isolated-unit-fixture",
+            translationReviewedAt: new Date(),
+            revision: {
+              content,
+              contentSha256: hash(content),
+              engine: "isolated-unit-fixture",
+            },
+          });
+        }
+        for (const [text, vi] of translations) {
+          if (!where.originSha256.in.includes(hash(text))) continue;
+          requestedTexts.push(text);
+          const content =
+            where.locale === AuthoredLocalizationLocale.EN ? text : vi;
+          for (const fieldPath of requestedPaths) {
+            if (pathTranslations.has(fieldPath)) continue;
+            rows.push({
+              scopeId: where.scopeId,
+              entityType: where.entityType,
+              entityId: where.entityId,
+              canonicalRevision: where.canonicalRevision,
+              canonicalDigest: where.canonicalDigest,
+              fieldPath,
+              locale: where.locale,
+              originSha256: hash(text),
+              originalContent: text,
+              translationRevision: 1,
+              state: AuthoredLocalizationState.READY,
+              translationReviewedBy: "isolated-unit-fixture",
+              translationReviewedAt: new Date(),
+              revision: {
+                content,
+                contentSha256: hash(content),
+                engine: "isolated-unit-fixture",
+              },
+            });
+          }
+        }
+        return Promise.resolve(rows);
+      },
     },
     localizedReportArtifact: {
       findUnique: ({
@@ -104,6 +154,11 @@ export function authoredLocalizationFixture(
     projection: new LocalePresentationProjectionService(service),
     requestedTexts,
     seed: (text: string, vi: string) => translations.set(text, vi),
-    clear: () => translations.clear(),
+    seedPath: (fieldPath: string, text: string, vi: string) =>
+      pathTranslations.set(fieldPath, { text, vi }),
+    clear: () => {
+      translations.clear();
+      pathTranslations.clear();
+    },
   };
 }

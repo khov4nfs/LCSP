@@ -686,4 +686,134 @@ integration("reviewed authored language PostgreSQL workflow", () => {
       }
     },
   );
+
+  it("projects /findings/0/summary and /findings/1/summary with identical canonical text to distinct path-bound reviewed translations without conflict or cross-field substitution", async () => {
+    const scopeId = randomUUID();
+    const entityId = randomUUID();
+    const sharedSummary = "Access tokens must expire within 15 minutes.";
+    const document = {
+      summary: "Overall report summary.",
+      findings: [
+        {
+          assessmentRuleId: "RULE-AUTH-01",
+          summary: sharedSummary,
+          recommendations: ["Configure short-lived access tokens."],
+        },
+        {
+          assessmentRuleId: "RULE-SESSION-02",
+          summary: sharedSummary,
+          recommendations: ["Enforce idle session timeout."],
+        },
+      ],
+    };
+    const canonicalRevision = hash(JSON.stringify(document));
+    await first.$transaction((tx) =>
+      enqueueAuthoredDocument(tx, {
+        scopeId,
+        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+        entityId,
+        canonicalRevision,
+        document,
+        sourceLanguages: {},
+      }),
+    );
+    const rows = await first.authoredLocalizationRequest.findMany({
+      where: { scopeId, entityId },
+    });
+    for (const row of rows) {
+      if (row.locale === AuthoredLocalizationLocale.EN) {
+        await service.reviewSource(
+          scopeId,
+          row.id,
+          {
+            sourceLanguage: AuthoredSourceLanguage.EN,
+            canonicalRevision,
+            originSha256: row.originSha256,
+            evidence: `Verified English source at ${row.fieldPath}`,
+          },
+          "source-reviewer",
+        );
+      }
+    }
+    const provider = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((_url, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          locale: string;
+          originSha256: string;
+        };
+        return Promise.resolve(
+          Response.json({
+            locale: body.locale,
+            originSha256: body.originSha256,
+            content: "Bản dịch ứng viên chờ người rà soát xác nhận.",
+            engine: "isolated-provider",
+            engineVersion: "1",
+          }),
+        );
+      });
+    try {
+      await service.drain();
+      await service.drain();
+    } finally {
+      provider.mockRestore();
+    }
+    const viRows = await first.authoredLocalizationRequest.findMany({
+      where: {
+        scopeId,
+        entityId,
+        locale: AuthoredLocalizationLocale.VI,
+      },
+      include: { candidate: true },
+    });
+    const f0Translation =
+      "Mã thông báo truy cập API phải hết hạn trong vòng 15 phút (Ngữ cảnh 0).";
+    const f1Translation =
+      "Phiên đăng nhập người dùng phải hết hạn sau 15 phút (Ngữ cảnh 1).";
+    for (const row of viRows) {
+      const normalizedContent =
+        row.fieldPath === "/findings/0/summary"
+          ? f0Translation
+          : row.fieldPath === "/findings/1/summary"
+            ? f1Translation
+            : row.candidate!.content;
+      await service.reviewOutput(
+        scopeId,
+        row.id,
+        {
+          originSha256: row.originSha256,
+          contentSha256: hash(normalizedContent),
+          ...(normalizedContent !== row.candidate!.content
+            ? { normalizedContent }
+            : {}),
+          confirmsTargetLanguageAndMeaning: true,
+          evidence: `Context-specific VI review for ${row.fieldPath}`,
+        },
+        "vi-output-reviewer",
+      );
+    }
+
+    const localizedDoc = await replica.projectDocument(
+      document,
+      "vi",
+      scopeId,
+      {
+        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+        entityId,
+        canonicalRevision,
+      },
+    );
+    expect(localizedDoc.findings[0].summary).toBe(f0Translation);
+    expect(localizedDoc.findings[1].summary).toBe(f1Translation);
+
+    const localizedReport = (await replica.localizedReportDocument(
+      scopeId,
+      entityId,
+      canonicalRevision,
+      document,
+      "vi",
+    )) as typeof document;
+    expect(localizedReport.findings[0].summary).toBe(f0Translation);
+    expect(localizedReport.findings[1].summary).toBe(f1Translation);
+  });
 });

@@ -889,6 +889,8 @@ export class AuthoredLocalizationService
       entityType?: AuthoredLocalizationEntity;
       canonicalDigest?: string;
       canonicalRevision?: string;
+      fieldPath?: string;
+      translationRevision?: number;
     },
   ): Promise<Map<string, string>> {
     if (locale !== "en" && locale !== "vi")
@@ -910,7 +912,11 @@ export class AuthoredLocalizationService
     const result = new Map<string, string>();
     for (const text of requested) {
       const candidates = rows.filter(
-        (row) => row.originSha256 === digest(text),
+        (row) =>
+          row.originSha256 === digest(text) &&
+          (!binding?.fieldPath || row.fieldPath === binding.fieldPath) &&
+          (!binding?.translationRevision ||
+            row.translationRevision === binding.translationRevision),
       );
       const latestRevision = Math.max(
         0,
@@ -965,12 +971,158 @@ export class AuthoredLocalizationService
   }
 
   /**
+   * Business purpose: Resolve path-addressed reviewed translations for one bound canonical document.
+   *
+   * Business rules:
+   * - Every field resolves only from its exact JSON-pointer path, scope, entity, canonical revision/digest, locale, and origin hash.
+   * - Two fields with identical canonical text may legitimately carry distinct path-specific reviewed translations without cross-path substitution.
+   * Execution flow:
+   * 1. Query localization rows bound to the scope, entity, canonical revision/digest, locale, and extracted paths/hashes.
+   * 2. Verify each path's latest reviewed revision, original content hash, and translated content hash independently.
+   * Failure cases:
+   * - Missing/pending/failed paths fail closed with INCOMPLETE; corrupt or conflicting revisions at the same path fail with PROVIDER_INVALID.
+   * Side effects:
+   * - Read persisted translation records only; no provider calls or fallback.
+   */
+  async projectFields(
+    fields: readonly { path: string; text: string }[],
+    locale: string,
+    scopeId: string,
+    binding: {
+      entityType: AuthoredLocalizationEntity;
+      entityId: string;
+      canonicalRevision: string;
+      canonicalDigest?: string;
+      translationRevision?: number;
+    },
+  ): Promise<Map<string, string>> {
+    if (locale !== "en" && locale !== "vi")
+      throw new Error("Unsupported localization locale");
+    const requested = fields.filter((field) => field.text.trim());
+    if (!requested.length)
+      return new Map(fields.map((field) => [field.path, field.text]));
+    const target =
+      locale === "en"
+        ? AuthoredLocalizationLocale.EN
+        : AuthoredLocalizationLocale.VI;
+    const { translationRevision: boundTranslationRevision, ...whereBinding } =
+      binding;
+    const rows = await this.prisma.authoredLocalizationRequest.findMany({
+      where: {
+        scopeId,
+        locale: target,
+        ...whereBinding,
+        ...(boundTranslationRevision
+          ? { translationRevision: boundTranslationRevision }
+          : {}),
+        fieldPath: { in: [...new Set(requested.map((field) => field.path))] },
+        originSha256: {
+          in: [...new Set(requested.map((field) => digest(field.text)))],
+        },
+      },
+      include: { revision: true },
+    });
+    const result = new Map<string, string>();
+    const canonicalDigests = new Set<string>();
+    for (const field of requested) {
+      const expectedOriginHash = digest(field.text);
+      const candidates = rows.filter(
+        (row) =>
+          row.fieldPath === field.path &&
+          row.originSha256 === expectedOriginHash &&
+          (row.scopeId === undefined || row.scopeId === scopeId) &&
+          (row.locale === undefined || row.locale === target) &&
+          (row.entityType === undefined ||
+            row.entityType === binding.entityType) &&
+          (row.entityId === undefined || row.entityId === binding.entityId) &&
+          (row.canonicalRevision === undefined ||
+            row.canonicalRevision === binding.canonicalRevision) &&
+          (!binding.canonicalDigest ||
+            row.canonicalDigest === undefined ||
+            row.canonicalDigest === binding.canonicalDigest) &&
+          (!boundTranslationRevision ||
+            row.translationRevision === boundTranslationRevision),
+      );
+      const latestRevision = Math.max(
+        0,
+        ...candidates.map((row) => row.translationRevision),
+      );
+      const matches = candidates.filter(
+        (row) => row.translationRevision === latestRevision,
+      );
+      const ready = matches.filter(
+        (row) =>
+          hasReviewedLocale(row) &&
+          digest(row.originalContent) === row.originSha256 &&
+          row.originSha256 === expectedOriginHash,
+      );
+      const variants = new Set(ready.map((row) => row.revision!.contentSha256));
+      if (
+        variants.size > 1 ||
+        matches.some(
+          (row) =>
+            hasReviewedLocale(row) &&
+            (digest(row.originalContent) !== row.originSha256 ||
+              digest(row.revision!.content) !== row.revision!.contentSha256),
+        )
+      ) {
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+          randomUUID(),
+          {
+            status: HttpStatus.CONFLICT,
+            meta: {
+              locale,
+              fieldPath: field.path,
+              state: AUTHORED_LOCALIZATION_STATES.FAILED,
+            },
+          },
+        );
+      }
+      if (!ready.length) {
+        throw problemException(
+          AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+          randomUUID(),
+          {
+            status: HttpStatus.CONFLICT,
+            meta: {
+              locale,
+              fieldPath: field.path,
+              state: matches.some(
+                (row) => row.state === AuthoredLocalizationState.FAILED,
+              )
+                ? AUTHORED_LOCALIZATION_STATES.FAILED
+                : AUTHORED_LOCALIZATION_STATES.PENDING,
+            },
+          },
+        );
+      }
+      const chosen = ready[0];
+      if (chosen.canonicalDigest) canonicalDigests.add(chosen.canonicalDigest);
+      result.set(field.path, chosen.revision!.content);
+    }
+    if (canonicalDigests.size > 1) {
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+        randomUUID(),
+        {
+          status: HttpStatus.CONFLICT,
+          meta: { locale, state: AUTHORED_LOCALIZATION_STATES.FAILED },
+        },
+      );
+    }
+    for (const field of fields)
+      if (!field.text.trim()) result.set(field.path, field.text);
+    return result;
+  }
+
+  /**
    * Business purpose: Apply version-bound narrative translations to a copy of canonical content.
    *
    * Business rules:
    * - Only extracted authored field paths may change; identifiers, quotations and source hashes remain original.
    * Execution flow:
-   * 1. Extract eligible fields, resolve their durable revisions and overlay the cloned document.
+   * 1. Extract eligible fields, resolve their durable path-addressed revisions and overlay the cloned document.
    * Failure cases:
    * - Unavailable revisions or invalid field traversal reject the projection.
    * Side effects:
@@ -984,15 +1136,12 @@ export class AuthoredLocalizationService
       entityType: AuthoredLocalizationEntity;
       entityId: string;
       canonicalRevision: string;
+      canonicalDigest?: string;
+      translationRevision?: number;
     },
   ): Promise<T> {
     const fields = authoredFields(document);
-    const values = await this.project(
-      fields.map((field) => field.text),
-      locale,
-      scopeId,
-      binding,
-    );
+    const values = await this.projectFields(fields, locale, scopeId, binding);
     const output = structuredClone(document);
     for (const field of fields) {
       const keys = field.path
@@ -1003,7 +1152,7 @@ export class AuthoredLocalizationService
       for (const key of keys.slice(0, -1))
         target = (target as Record<string, unknown>)[key];
       (target as Record<string, unknown>)[keys.at(-1)!] = values.get(
-        field.text,
+        field.path,
       )!;
     }
     return output;
@@ -1106,6 +1255,7 @@ export class AuthoredLocalizationService
         entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
         canonicalRevision: sourceSha256,
         canonicalDigest: digest(canonicalJson(report)),
+        fieldPath: { in: reportFields.map((field) => field.path) },
         originSha256: { in: reportFields.map((field) => digest(field.text)) },
       },
       select: { translationRevision: true },
@@ -1124,17 +1274,12 @@ export class AuthoredLocalizationService
       where: { scopeId_sourceArtifactId_locale_translationRevision: key },
     });
     if (existing) {
-      await this.project(
-        authoredFields(report).map((field) => field.text),
-        locale,
-        scopeId,
-        {
-          entityId: sourceArtifactId,
-          entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
-          canonicalRevision: sourceSha256,
-          canonicalDigest: digest(canonicalJson(report)),
-        },
-      );
+      await this.projectFields(reportFields, locale, scopeId, {
+        entityId: sourceArtifactId,
+        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+        canonicalRevision: sourceSha256,
+        canonicalDigest: digest(canonicalJson(report)),
+      });
       if (
         existing.scopeId !== scopeId ||
         existing.sourceArtifactId !== sourceArtifactId ||
@@ -1147,18 +1292,12 @@ export class AuthoredLocalizationService
         throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
       return existing;
     }
-    const fields = authoredFields(report);
-    const values = await this.project(
-      fields.map((field) => field.text),
-      locale,
-      scopeId,
-      {
-        entityId: sourceArtifactId,
-        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
-        canonicalRevision: sourceSha256,
-        canonicalDigest: digest(canonicalJson(report)),
-      },
-    );
+    const values = await this.projectFields(reportFields, locale, scopeId, {
+      entityId: sourceArtifactId,
+      entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+      canonicalRevision: sourceSha256,
+      canonicalDigest: digest(canonicalJson(report)),
+    });
     const id = randomUUID();
     const overlay = localizedReportArtifactSchema.parse({
       schemaVersion: LOCALIZED_REPORT_SCHEMA_VERSION,
@@ -1168,7 +1307,7 @@ export class AuthoredLocalizationService
       locale,
       translationRevision,
       localizedFields: Object.fromEntries(
-        fields.map((field) => [field.path, values.get(field.text)!]),
+        reportFields.map((field) => [field.path, values.get(field.path)!]),
       ),
     });
     const content = Buffer.from(JSON.stringify(overlay), "utf8");

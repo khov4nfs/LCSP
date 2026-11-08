@@ -199,12 +199,13 @@ export class AssessmentDetailLoader {
           if (locale) {
             projectedDecisions = await Promise.all(
               projectedDecisions.map(async (d) => {
-                const texts = [
-                  d.decision.rationale,
-                  ...d.decision.criteria.map((c) => c.rationale),
-                ];
-                const translations = await this.projectionService.projectBatch(
-                  texts,
+                const localized = await this.projectionService.projectDocument(
+                  {
+                    rationale: d.decision.rationale,
+                    criteria: d.decision.criteria.map((c) => ({
+                      rationale: c.rationale,
+                    })),
+                  },
                   locale,
                   input.assessmentId,
                   {
@@ -217,10 +218,10 @@ export class AssessmentDetailLoader {
                   ...d,
                   decision: {
                     ...d.decision,
-                    rationale: translations.get(d.decision.rationale)!,
-                    criteria: d.decision.criteria.map((c) => ({
+                    rationale: localized.rationale,
+                    criteria: d.decision.criteria.map((c, index) => ({
                       ...c,
-                      rationale: translations.get(c.rationale)!,
+                      rationale: localized.criteria[index]!.rationale,
                     })),
                   },
                 };

@@ -93,4 +93,42 @@ export class LocalePresentationProjectionService {
       );
     return this.localization.project(texts, targetLocale, scopeId, binding);
   }
+
+  /**
+   * Business purpose: Project a structured authored document using exact JSON-pointer field-path bindings.
+   *
+   * Business rules:
+   * - Each authored field resolves only from its exact fieldPath, entity identity, and canonical revision.
+   * Execution flow:
+   * 1. Validate locale/scope and delegate path-addressed projection to the durable localization service.
+   * Failure cases:
+   * - Invalid locale/scope or incomplete/corrupt field revisions propagate an actionable conflict.
+   * Side effects:
+   * - Database reads only; canonical document remains unchanged.
+   */
+  async projectDocument<T>(
+    document: T,
+    targetLocale: string | null | undefined,
+    scopeId: string,
+    binding: {
+      entityType: AuthoredLocalizationEntity;
+      entityId: string;
+      canonicalRevision: string;
+      canonicalDigest?: string;
+    },
+  ): Promise<T> {
+    if (!targetLocale) return document;
+    if (!scopeId || !isSupportedResponseLanguage(targetLocale))
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    return this.localization.projectDocument(
+      document,
+      targetLocale,
+      scopeId,
+      binding,
+    );
+  }
 }

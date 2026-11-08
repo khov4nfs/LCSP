@@ -83,23 +83,24 @@ export class AssessmentHumanRequestSupport {
     let choices = row.choices;
 
     if (locale) {
-      const textsToProject: string[] = [row.question, row.unresolvedFact];
-      if (Array.isArray(row.decisionImpact)) {
-        textsToProject.push(...(row.decisionImpact as string[]));
-      }
-      if (Array.isArray(row.resolutionAttempts)) {
-        textsToProject.push(...(row.resolutionAttempts as string[]));
-      }
-      if (Array.isArray(row.choices)) {
-        textsToProject.push(
-          ...(row.choices as Array<{ value: string; label: string }>).map(
-            (choice) => choice.label,
-          ),
-        );
-      }
-
-      const projections = await this.projectionService.projectBatch(
-        textsToProject,
+      const projected = await this.projectionService.projectDocument(
+        {
+          question: row.question,
+          unresolvedFact: row.unresolvedFact,
+          ...(Array.isArray(row.decisionImpact)
+            ? { decisionImpact: row.decisionImpact as string[] }
+            : {}),
+          ...(Array.isArray(row.resolutionAttempts)
+            ? { resolutionAttempts: row.resolutionAttempts as string[] }
+            : {}),
+          ...(Array.isArray(row.choices)
+            ? {
+                choices: (
+                  row.choices as Array<{ value: string; label: string }>
+                ).map((choice) => ({ label: choice.label })),
+              }
+            : {}),
+        },
         locale,
         row.assessmentId,
         {
@@ -109,24 +110,22 @@ export class AssessmentHumanRequestSupport {
         },
       );
 
-      question = projections.get(row.question) ?? row.question;
-      unresolvedFact =
-        projections.get(row.unresolvedFact) ?? row.unresolvedFact;
-      if (Array.isArray(row.decisionImpact)) {
-        decisionImpact = (row.decisionImpact as string[]).map(
-          (impact) => projections.get(impact) ?? impact,
-        );
+      question = projected.question;
+      unresolvedFact = projected.unresolvedFact;
+      if (Array.isArray(row.decisionImpact) && projected.decisionImpact) {
+        decisionImpact = projected.decisionImpact;
       }
-      if (Array.isArray(row.resolutionAttempts)) {
-        resolutionAttempts = (row.resolutionAttempts as string[]).map(
-          (attempt) => projections.get(attempt) ?? attempt,
-        );
+      if (
+        Array.isArray(row.resolutionAttempts) &&
+        projected.resolutionAttempts
+      ) {
+        resolutionAttempts = projected.resolutionAttempts;
       }
-      if (Array.isArray(row.choices)) {
+      if (Array.isArray(row.choices) && projected.choices) {
         choices = (row.choices as Array<{ value: string; label: string }>).map(
-          (choice) => ({
+          (choice, index) => ({
             value: choice.value,
-            label: projections.get(choice.label) ?? choice.label,
+            label: projected.choices![index]!.label,
           }),
         );
       }

@@ -127,7 +127,8 @@ type ProjectionWhere = Partial<
 > & {
   scopeId: string;
   locale: AuthoredLocalizationLocale;
-  translationRevision: number;
+  translationRevision?: number;
+  fieldPath?: { in: string[] } | string;
   originSha256: { in: string[] };
 };
 function persistence() {
@@ -155,11 +156,14 @@ function persistence() {
         return Promise.resolve(row);
       },
       findMany: ({ where }: { where: ProjectionWhere }) => {
-        const { originSha256, ...binding } = where;
+        const { originSha256, fieldPath, ...binding } = where;
+        const allowedPaths =
+          typeof fieldPath === "string" ? [fieldPath] : fieldPath?.in;
         return Promise.resolve(
           requests.filter(
             (row) =>
               originSha256.in.includes(row.originSha256) &&
+              (!allowedPaths || allowedPaths.includes(row.fieldPath)) &&
               Object.entries(binding).every(
                 ([key, value]) => row[key as keyof RequestRow] === value,
               ),
@@ -823,3 +827,133 @@ for (const locale of ["en", "vi"] as const)
       await api.close();
     }
   });
+
+test("path-addressed projection resolves identical canonical text at /findings/0/summary and /findings/1/summary to distinct reviewed translations without cross-path substitution", async () => {
+  const store = persistence();
+  const scopeId = randomUUID();
+  const artifactId = randomUUID();
+  const sharedText = "The control surface requires explicit verification.";
+  const doc = {
+    summary: "Overall report summary.",
+    findings: [
+      {
+        assessmentRuleId: "RULE-1",
+        summary: sharedText,
+        recommendations: ["Verify TLS configuration."],
+      },
+      {
+        assessmentRuleId: "RULE-2",
+        summary: sharedText,
+        recommendations: ["Verify audit logging."],
+      },
+    ],
+  };
+  const canonicalRevision = hash(JSON.stringify(doc));
+  await enqueueAuthoredDocument(store.db as never, {
+    scopeId,
+    entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+    entityId: artifactId,
+    canonicalRevision,
+    document: doc,
+  });
+  store.ready();
+  const f0Vi = store.requests.find(
+    (row) =>
+      row.locale === AuthoredLocalizationLocale.VI &&
+      row.fieldPath === "/findings/0/summary",
+  );
+  const f1Vi = store.requests.find(
+    (row) =>
+      row.locale === AuthoredLocalizationLocale.VI &&
+      row.fieldPath === "/findings/1/summary",
+  );
+  assert.ok(f0Vi && f1Vi);
+  const f0Translation =
+    "Bề mặt kiểm soát (Finding 0) yêu cầu xác minh tường minh.";
+  const f1Translation =
+    "Bề mặt kiểm soát (Finding 1) cần kiểm chứng theo ngữ cảnh riêng.";
+  f0Vi.revision = {
+    content: f0Translation,
+    contentSha256: hash(f0Translation),
+  };
+  f1Vi.revision = {
+    content: f1Translation,
+    contentSha256: hash(f1Translation),
+  };
+
+  const service = new AuthoredLocalizationService(store.db as never);
+  const projected = await service.projectDocument(doc, "vi", scopeId, {
+    entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+    entityId: artifactId,
+    canonicalRevision,
+  });
+  assert.equal(projected.findings[0].summary, f0Translation);
+  assert.equal(projected.findings[1].summary, f1Translation);
+
+  const reportDoc = (await service.localizedReportDocument(
+    scopeId,
+    artifactId,
+    canonicalRevision,
+    doc,
+    "vi",
+  )) as typeof doc;
+  assert.equal(reportDoc.findings[0].summary, f0Translation);
+  assert.equal(reportDoc.findings[1].summary, f1Translation);
+
+  // Standalone project() without fieldPath rejects ambiguous cross-path translations instead of guessing first match
+  await assert.rejects(
+    service.project([sharedText], "vi", scopeId, {
+      entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+      entityId: artifactId,
+      canonicalRevision,
+    }),
+    (error: unknown) =>
+      problem(error).code === AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+  );
+  // Explicit fieldPath binding in project() resolves deterministically
+  const boundF1 = await service.project([sharedText], "vi", scopeId, {
+    entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+    entityId: artifactId,
+    canonicalRevision,
+    fieldPath: "/findings/1/summary",
+  });
+  assert.equal(boundF1.get(sharedText), f1Translation);
+
+  // Wrong path / missing path cannot steal another path's translation even when originSha256 matches
+  f1Vi.fieldPath = "/findings/99/summary";
+  await assert.rejects(
+    service.projectDocument(doc, "vi", scopeId, {
+      entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+      entityId: artifactId,
+      canonicalRevision,
+    }),
+    (error: unknown) =>
+      problem(error).code === AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+  );
+  f1Vi.fieldPath = "/findings/1/summary";
+
+  // Unreviewed revision is rejected
+  f1Vi.translationReviewedBy = null;
+  await assert.rejects(
+    service.projectDocument(doc, "vi", scopeId, {
+      entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+      entityId: artifactId,
+      canonicalRevision,
+    }),
+    (error: unknown) =>
+      problem(error).code === AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+  );
+  f1Vi.translationReviewedBy = "isolated-localization-reviewer";
+
+  // Wrong originalContent hash is rejected as PROVIDER_INVALID
+  f1Vi.originalContent = "Tampered canonical text";
+  await assert.rejects(
+    service.projectDocument(doc, "vi", scopeId, {
+      entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+      entityId: artifactId,
+      canonicalRevision,
+    }),
+    (error: unknown) =>
+      problem(error).code === AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
+  );
+});
