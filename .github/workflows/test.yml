@@ -284,7 +284,19 @@ jobs:
       - name: Concurrent replicas, 10001-command broker deferral, fencing and quiescence
         run: pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --runTestsByPath test/assessment-root-capacity.integration.spec.ts
       - name: Build actual API kernel and publisher for mixed-version canary regression
+        # Keep the language/grouping authority tests on their own migrated database.
+        # They deliberately retain immutable review evidence and cannot share cleanup
+        # with the capacity or authentication fixtures.
         run: pnpm --filter @lcsp/api exec nest build
+      - name: Reviewed authored localization and grouping PostgreSQL workflows
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55438/lcsp347_localization_test?schema=public
+          LCSP_TEST_LOCALIZATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55438/lcsp347_localization_test?schema=public
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -p 55438 -U postgres -d postgres -c 'CREATE DATABASE lcsp347_localization_test'
+          pnpm --filter @lcsp/api prisma:migrate:deploy
+          pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --runTestsByPath test/authored-language.integration.spec.ts test/rule-grouping-workflow.integration.spec.ts
       - name: Isolated writer, old publisher, real broker and test ledger accounting
         run: node --test scripts/lcsp364-acceptance.integration.test.mjs
 
