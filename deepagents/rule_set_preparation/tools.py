@@ -179,6 +179,7 @@ class RuleSetPreparationContext:
     )
     # (section, label) of the items the latest validation failures name: the only ones that may be removed.
     removable: set[tuple[str, str]] = field(default_factory=set)
+    removal_validation_packet: dict[str, Any] | None = None
     # add_to_packet_draft calls since the last validation: past a few, the result asks for one.
     adds_since_validation: int = 0
     progress_revision: int = 0
@@ -695,6 +696,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         previous_validation = context.last_validation
         context.validated_packet = None
         context.last_validation = None
+        context.removable.clear()
+        context.removal_validation_packet = None
         try:
             from_draft = packet is None
             if from_draft:
@@ -739,7 +742,9 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             })
         if result != previous_validation:
             context.progress_revision += 1
-        context.removable = _items_named_by(result.get("failures") or [])
+        if from_draft and result.get("outcome") == "FAILED":
+            context.removable = _items_named_by(result.get("failures") or [])
+            context.removal_validation_packet = deepcopy(packet)
         if result.get("outcome") == "PASSED":
             context.validated_packet = deepcopy(packet)
         counts: dict[str, int] = {}
@@ -821,6 +826,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         # Any change to the draft revokes an earlier PASSED: the validated packet no longer exists.
         context.validated_packet = None
         context.last_validation = None
+        context.removable.clear()
+        context.removal_validation_packet = None
         context.trace.append({"tool": "draft_add", "added": added, "replaced": replaced})
         logger.info("RULE_SET_PREPARATION_DRAFT_ADDED", run_id=context.run_id, added=added,
                     replaced=replaced, draft=context.draft_counts())
@@ -861,11 +868,18 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         """
         if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
+        if context.inventory is not None:
+            return json.dumps(context.inventory.rejected("CLAIM_PHASE_INVALID", "draft", "Use typed authoring tools for frozen-inventory candidates"))
+        # Validation is authority only for the exact draft it inspected, not a same-labeled
+        # replacement, an independently supplied packet or a restored stale snapshot.
+        if context.removal_validation_packet != context.draft_packet():
+            context.removable.clear()
         removals = {"legalRequirements": legalRequirementIds, "assessmentRules": assessmentRuleIds,
                     "contextRelations": relationIds}
         removed = {key: 0 for key in removals}
         unknown: list[str] = []
         refused: list[str] = []
+        removed_labels: list[dict[str, str]] = []
         for key, labels in removals.items():
             for label in labels or ():
                 if label not in context.draft[key]:
@@ -876,9 +890,18 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                     del context.draft[key][label]
                     context.removable.discard((key, label))
                     removed[key] += 1
+                    removed_labels.append({"section": key, "label": label})
+        validation_failures = [{"code": f.get("code"), "ref": f.get("ref")} for f in (context.last_validation or {}).get("failures") or [] if isinstance(f, dict)]
         context.validated_packet = None
         context.last_validation = None
-        context.trace.append({"tool": "draft_remove", "removed": removed, "refused": len(refused)})
+        if removed_labels:
+            context.progress_revision += 1
+        context.removable.clear()
+        context.removal_validation_packet = None
+        context.trace.append({"tool": "draft_remove", "removed": removed, "refused": len(refused),
+                              "requested": deepcopy(removals), "removedLabels": removed_labels,
+                              "refusedLabels": list(refused), "unknownLabels": list(unknown),
+                              "validationFailures": validation_failures})
         logger.info("RULE_SET_PREPARATION_DRAFT_REMOVED", run_id=context.run_id, removed=removed,
                     refused=len(refused), unknown=len(unknown), draft=context.draft_counts())
         result: dict[str, Any] = {"removed": removed, "unknownLabels": unknown[:20], "draft": context.draft_counts()}
