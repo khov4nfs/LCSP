@@ -4,8 +4,10 @@ import {
   readFileSync,
   writeFileSync,
   mkdirSync,
+  linkSync,
+  rmSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 
 const EXPECTED_TOP_LEVEL_KEYS = new Set([
@@ -198,32 +200,74 @@ export function safePublishReviewArtifact(
 
   mkdirSync(path.dirname(resolved), { recursive: true });
 
+  const tempPath = path.join(
+    path.dirname(resolved),
+    `.${path.basename(resolved)}.tmp.${process.pid}.${Date.now()}.${randomUUID()}`,
+  );
+
   try {
-    writeFileSync(resolved, newBuf, { flag: "wx" });
-    return {
-      outcome: "CREATED",
-      bytes: newBuf,
-      sha256: newHash,
-    };
-  } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      (err as { code?: string }).code === "EEXIST"
-    ) {
-      const existingBuf = readFileSync(resolved);
-      if (Buffer.compare(existingBuf, newBuf) === 0) {
+    writeFileSync(tempPath, newBuf);
+    try {
+      linkSync(tempPath, resolved);
+      return {
+        outcome: "CREATED",
+        bytes: newBuf,
+        sha256: newHash,
+      };
+    } catch (linkErr: unknown) {
+      if (
+        linkErr &&
+        typeof linkErr === "object" &&
+        (linkErr as { code?: string }).code === "EEXIST"
+      ) {
+        const existingBuf = readFileSync(resolved);
+        if (Buffer.compare(existingBuf, newBuf) === 0) {
+          return {
+            outcome: "IDENTICAL_NOOP",
+            bytes: existingBuf,
+            sha256: newHash,
+          };
+        }
+        throw Error(
+          `Concurrent modification detected: existing ${artifactKindLabel} differs from generated content; refusing to overwrite`,
+          { cause: linkErr },
+        );
+      }
+      // Fallback for filesystems where linkSync is not supported
+      try {
+        writeFileSync(resolved, newBuf, { flag: "wx" });
         return {
-          outcome: "IDENTICAL_NOOP",
-          bytes: existingBuf,
+          outcome: "CREATED",
+          bytes: newBuf,
           sha256: newHash,
         };
+      } catch (wxErr: unknown) {
+        if (
+          wxErr &&
+          typeof wxErr === "object" &&
+          (wxErr as { code?: string }).code === "EEXIST"
+        ) {
+          const existingBuf = readFileSync(resolved);
+          if (Buffer.compare(existingBuf, newBuf) === 0) {
+            return {
+              outcome: "IDENTICAL_NOOP",
+              bytes: existingBuf,
+              sha256: newHash,
+            };
+          }
+          throw Error(
+            `Concurrent modification detected: existing ${artifactKindLabel} differs from generated content; refusing to overwrite`,
+            { cause: wxErr },
+          );
+        }
+        throw wxErr;
       }
-      throw Error(
-        `Concurrent modification detected: existing ${artifactKindLabel} differs from generated content; refusing to overwrite`,
-        { cause: err },
-      );
     }
-    throw err;
+  } finally {
+    try {
+      rmSync(tempPath, { force: true });
+    } catch {
+      // Ignored: best-effort temp file cleanup
+    }
   }
 }

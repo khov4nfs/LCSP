@@ -5,8 +5,10 @@ import {
   mkdirSync,
   realpathSync,
   lstatSync,
+  linkSync,
+  rmSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 const root = path.resolve(import.meta.dirname, "../deepagents");
 const output = path.resolve(
@@ -216,64 +218,22 @@ const result = {
   entries,
 };
 
-const bytes = Buffer.from(JSON.stringify(result, null, 2) + "\n", "utf8");
-const resolved = path.resolve(output);
-const newHash = hash(bytes);
+function publishInstructionReviewPackage() {
+  const bytes = Buffer.from(JSON.stringify(result, null, 2) + "\n", "utf8");
+  const resolved = path.resolve(output);
+  const newHash = hash(bytes);
 
-if (existsSync(resolved)) {
-  const stat = lstatSync(resolved);
-  if (stat.isSymbolicLink())
-    throw Error(
-      "Unsafe output path: symbolic link rejected for instruction review package",
-    );
-  if (!stat.isFile())
-    throw Error(
-      "Unsafe output path: non-regular file rejected for instruction review package",
-    );
+  if (existsSync(resolved)) {
+    const stat = lstatSync(resolved);
+    if (stat.isSymbolicLink())
+      throw Error(
+        "Unsafe output path: symbolic link rejected for instruction review package",
+      );
+    if (!stat.isFile())
+      throw Error(
+        "Unsafe output path: non-regular file rejected for instruction review package",
+      );
 
-  const existingBuf = readFileSync(resolved);
-  if (Buffer.compare(existingBuf, bytes) === 0) {
-    console.log(
-      JSON.stringify({
-        entries: entries.length,
-        packageSha256: newHash,
-        candidateManifestSha256: result.candidateManifestSha256,
-        approved: 0,
-        publishOutcome: "IDENTICAL_NOOP",
-      }),
-    );
-    process.exit(0);
-  }
-
-  let previous;
-  try {
-    previous = JSON.parse(existingBuf.toString("utf8"));
-  } catch {
-    throw Error(
-      "Existing instruction review package is malformed JSON; refusing to overwrite existing evidence",
-    );
-  }
-  assertUnreviewedInstructionPackage(previous);
-
-  throw Error(
-    "Existing instruction review package differs from generated content; refusing to overwrite",
-  );
-}
-
-mkdirSync(path.dirname(resolved), { recursive: true });
-try {
-  writeFileSync(resolved, bytes, { flag: "wx" });
-  console.log(
-    JSON.stringify({
-      entries: entries.length,
-      packageSha256: newHash,
-      candidateManifestSha256: result.candidateManifestSha256,
-      approved: 0,
-      publishOutcome: "CREATED",
-    }),
-  );
-} catch (err) {
-  if (err && typeof err === "object" && err.code === "EEXIST") {
     const existingBuf = readFileSync(resolved);
     if (Buffer.compare(existingBuf, bytes) === 0) {
       console.log(
@@ -285,11 +245,107 @@ try {
           publishOutcome: "IDENTICAL_NOOP",
         }),
       );
-      process.exit(0);
+      return;
     }
+
+    let previous;
+    try {
+      previous = JSON.parse(existingBuf.toString("utf8"));
+    } catch {
+      throw Error(
+        "Existing instruction review package is malformed JSON; refusing to overwrite existing evidence",
+      );
+    }
+    assertUnreviewedInstructionPackage(previous);
+
     throw Error(
-      "Concurrent modification detected: existing instruction review package differs from generated content; refusing to overwrite",
+      "Existing instruction review package differs from generated content; refusing to overwrite",
     );
   }
-  throw err;
+
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  const tempPath = path.join(
+    path.dirname(resolved),
+    `.${path.basename(resolved)}.tmp.${process.pid}.${Date.now()}.${randomUUID()}`,
+  );
+
+  try {
+    writeFileSync(tempPath, bytes);
+    try {
+      linkSync(tempPath, resolved);
+      console.log(
+        JSON.stringify({
+          entries: entries.length,
+          packageSha256: newHash,
+          candidateManifestSha256: result.candidateManifestSha256,
+          approved: 0,
+          publishOutcome: "CREATED",
+        }),
+      );
+      return;
+    } catch (linkErr) {
+      if (linkErr && typeof linkErr === "object" && linkErr.code === "EEXIST") {
+        const existingBuf = readFileSync(resolved);
+        if (Buffer.compare(existingBuf, bytes) === 0) {
+          console.log(
+            JSON.stringify({
+              entries: entries.length,
+              packageSha256: newHash,
+              candidateManifestSha256: result.candidateManifestSha256,
+              approved: 0,
+              publishOutcome: "IDENTICAL_NOOP",
+            }),
+          );
+          return;
+        }
+        throw Error(
+          "Concurrent modification detected: existing instruction review package differs from generated content; refusing to overwrite",
+          { cause: linkErr },
+        );
+      }
+      // Fallback if linkSync is not permitted on this filesystem
+      try {
+        writeFileSync(resolved, bytes, { flag: "wx" });
+        console.log(
+          JSON.stringify({
+            entries: entries.length,
+            packageSha256: newHash,
+            candidateManifestSha256: result.candidateManifestSha256,
+            approved: 0,
+            publishOutcome: "CREATED",
+          }),
+        );
+        return;
+      } catch (wxErr) {
+        if (wxErr && typeof wxErr === "object" && wxErr.code === "EEXIST") {
+          const existingBuf = readFileSync(resolved);
+          if (Buffer.compare(existingBuf, bytes) === 0) {
+            console.log(
+              JSON.stringify({
+                entries: entries.length,
+                packageSha256: newHash,
+                candidateManifestSha256: result.candidateManifestSha256,
+                approved: 0,
+                publishOutcome: "IDENTICAL_NOOP",
+              }),
+            );
+            return;
+          }
+          throw Error(
+            "Concurrent modification detected: existing instruction review package differs from generated content; refusing to overwrite",
+            { cause: wxErr },
+          );
+        }
+        throw wxErr;
+      }
+    }
+  } finally {
+    try {
+      rmSync(tempPath, { force: true });
+    } catch {
+      // Ignored: best-effort temp file cleanup
+    }
+  }
 }
+
+publishInstructionReviewPackage();

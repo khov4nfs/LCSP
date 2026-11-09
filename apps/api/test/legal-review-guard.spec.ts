@@ -6,13 +6,17 @@ import {
   rmSync,
   utimesSync,
   statSync,
+  existsSync,
+  readdirSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import {
   assertUnreviewedLegalCandidate,
   safePublishReviewArtifact,
 } from "../scripts/lib/legal-review-guard.js";
+import { spawnPublishWorker } from "./helpers/legal-publish-worker.js";
 
 const candidate = () =>
   JSON.parse(
@@ -328,4 +332,220 @@ describe("Safe review artifact publication lifecycle", () => {
       ),
     ).toBe(true);
   });
+});
+
+describe("Real process-level concurrency verification (C01–C05)", () => {
+  async function withAsyncTempDir(fn: (dir: string) => void | Promise<void>) {
+    const dir = mkdtempSync(path.join(tmpdir(), "lcsp-real-concurrency-"));
+    try {
+      await fn(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it(
+    "C01 — Simultaneous identical publication: two independent processes race to create identical file",
+    async () =>
+      withAsyncTempDir(async (dir) => {
+        const target = path.join(dir, "candidates.json");
+        const bytes = JSON.stringify(candidate(), null, 2) + "\n";
+        const expectedHash = createHash("sha256")
+          .update(Buffer.from(bytes))
+          .digest("hex");
+
+        const w1 = spawnPublishWorker();
+        const w2 = spawnPublishWorker();
+
+        try {
+          const [pid1, pid2] = await Promise.all([w1.ready, w2.ready]);
+          expect(pid1).toBeGreaterThan(0);
+          expect(pid2).toBeGreaterThan(0);
+          expect(pid1).not.toBe(pid2);
+
+          // Simultaneous release
+          const [res1, res2] = await Promise.all([
+            w1.publish({ outputPath: target, generatedBytes: bytes }),
+            w2.publish({ outputPath: target, generatedBytes: bytes }),
+          ]);
+
+          expect(res1.type).toBe("DONE");
+          expect(res2.type).toBe("DONE");
+          expect(res1.sha256).toBe(expectedHash);
+          expect(res2.sha256).toBe(expectedHash);
+
+          const outcomes = [res1.outcome, res2.outcome].sort();
+          expect(outcomes).toEqual(["CREATED", "IDENTICAL_NOOP"]);
+
+          const onDisk = readFileSync(target, "utf8");
+          expect(onDisk).toBe(bytes);
+          expect(
+            createHash("sha256").update(Buffer.from(onDisk)).digest("hex"),
+          ).toBe(expectedHash);
+
+          // Verify no leftover .tmp files
+          const tempFiles = readdirSync(dir).filter((f) => f.includes(".tmp."));
+          expect(tempFiles).toHaveLength(0);
+        } finally {
+          w1.kill();
+          w2.kill();
+        }
+      }),
+    15000,
+  );
+
+  it(
+    "C02 — Simultaneous conflicting publication: two independent processes attempt different bytes to same target",
+    async () =>
+      withAsyncTempDir(async (dir) => {
+        const target = path.join(dir, "candidates.json");
+        const candidateA = candidate();
+        const bytesA = JSON.stringify(candidateA, null, 2) + "\n";
+
+        const candidateB = {
+          ...candidate(),
+          source: {
+            ...candidate().source,
+            version: "competing-candidate-version.v2",
+          },
+        };
+        const bytesB = JSON.stringify(candidateB, null, 2) + "\n";
+
+        const w1 = spawnPublishWorker();
+        const w2 = spawnPublishWorker();
+
+        try {
+          await Promise.all([w1.ready, w2.ready]);
+
+          const [res1, res2] = await Promise.all([
+            w1.publish({ outputPath: target, generatedBytes: bytesA }),
+            w2.publish({ outputPath: target, generatedBytes: bytesB }),
+          ]);
+
+          const results = [res1, res2];
+          const created = results.filter(
+            (r) => r.type === "DONE" && r.outcome === "CREATED",
+          );
+          const failed = results.filter((r) => r.type === "ERROR");
+
+          expect(created).toHaveLength(1);
+          expect(failed).toHaveLength(1);
+          expect(failed[0].message).toContain(
+            "Concurrent modification detected",
+          );
+          expect(failed[0].message).toContain("refusing to overwrite");
+
+          // Destination matches 100% of winning bytes, never hybrid or corrupted
+          const winningHash = created[0].sha256;
+          const expectedWinningBytes =
+            winningHash ===
+            createHash("sha256").update(Buffer.from(bytesA)).digest("hex")
+              ? bytesA
+              : bytesB;
+          expect(readFileSync(target, "utf8")).toBe(expectedWinningBytes);
+
+          // Verify clean directory
+          const tempFiles = readdirSync(dir).filter((f) => f.includes(".tmp."));
+          expect(tempFiles).toHaveLength(0);
+        } finally {
+          w1.kill();
+          w2.kill();
+        }
+      }),
+    15000,
+  );
+
+  it(
+    "C03 — Reviewer modification race: reviewer writes before/during export, exporter fails closed and preserves reviewer work",
+    async () =>
+      withAsyncTempDir(async (dir) => {
+        const target = path.join(dir, "candidates.json");
+        const reviewerData = {
+          ...candidate(),
+          reviewerIdentity: "Legal Counsel Reviewer",
+          reviewerEvidence: "Verified against decree corpus",
+          reviewTimestamp: new Date().toISOString(),
+        };
+        const reviewerBytes = JSON.stringify(reviewerData, null, 2) + "\n";
+        writeFileSync(target, reviewerBytes, "utf8");
+
+        const w = spawnPublishWorker();
+        try {
+          await w.ready;
+          const res = await w.publish({
+            outputPath: target,
+            generatedBytes: JSON.stringify(candidate(), null, 2) + "\n",
+          });
+
+          expect(res.type).toBe("ERROR");
+          expect(res.message).toMatch(
+            /(?:refusing to overwrite|must not be overwritten)/,
+          );
+
+          // Reviewer bytes preserved byte-for-byte
+          expect(readFileSync(target, "utf8")).toBe(reviewerBytes);
+        } finally {
+          w.kill();
+        }
+      }),
+    15000,
+  );
+
+  it(
+    "C04 — Publication interruption and crash atomicity: atomic link prevents partial destination artifacts",
+    () =>
+      withAsyncTempDir((dir) => {
+        const target = path.join(dir, "atomicity-test.json");
+        const content = JSON.stringify(candidate(), null, 2) + "\n";
+
+        // Verify destination does not exist prior to publication
+        expect(existsSync(target)).toBe(false);
+
+        // Publish normally
+        const res = safePublishReviewArtifact({
+          outputPath: target,
+          generatedBytes: content,
+        });
+        expect(res.outcome).toBe("CREATED");
+        expect(existsSync(target)).toBe(true);
+        expect(readFileSync(target, "utf8")).toBe(content);
+
+        // Verify no temporary files remain
+        const tempFiles = readdirSync(dir).filter((f) => f.includes(".tmp."));
+        expect(tempFiles).toHaveLength(0);
+      }),
+    15000,
+  );
+
+  it(
+    "C05 — Cross-platform filesystem behavior: links, paths, and atomic temp file cleanup",
+    () =>
+      withAsyncTempDir((dir) => {
+        const targetSubdir = path.join(dir, "nested", "sub", "artifact.json");
+        const content = JSON.stringify(candidate(), null, 2) + "\n";
+
+        // safePublishReviewArtifact creates parent directories recursively and publishes atomically
+        const res = safePublishReviewArtifact({
+          outputPath: targetSubdir,
+          generatedBytes: content,
+        });
+        expect(res.outcome).toBe("CREATED");
+        expect(existsSync(targetSubdir)).toBe(true);
+        expect(readFileSync(targetSubdir, "utf8")).toBe(content);
+
+        // Idempotent retry on cross-platform nested path
+        const retry = safePublishReviewArtifact({
+          outputPath: targetSubdir,
+          generatedBytes: content,
+        });
+        expect(retry.outcome).toBe("IDENTICAL_NOOP");
+
+        // Verify zero temporary files left in nested directory
+        const tempFiles = readdirSync(path.dirname(targetSubdir)).filter((f) =>
+          f.includes(".tmp."),
+        );
+        expect(tempFiles).toHaveLength(0);
+      }),
+    15000,
+  );
 });

@@ -9,16 +9,18 @@ import {
   rmSync,
   utimesSync,
   statSync,
+  existsSync,
+  readdirSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync, spawn } from "node:child_process";
 
 const root = path.resolve(import.meta.dirname, "..");
 const resultPath =
   "docs/implementation-artifacts/lcsp347-pm-rereview/instruction-equivalence.pending.json";
 
-function isolated(run) {
+async function isolated(run) {
   const dir = mkdtempSync(path.join(tmpdir(), "lcsp347-review-"));
   try {
     mkdirSync(path.join(dir, "scripts"));
@@ -59,7 +61,7 @@ function isolated(run) {
         ["scripts/prepare-lcsp347-instruction-review.mjs"],
         { cwd: dir, encoding: "utf8" },
       );
-    run(dir, invoke);
+    await run(dir, invoke);
   } finally {
     assert.equal(path.dirname(path.resolve(dir)), path.resolve(tmpdir()));
     assert.ok(path.basename(dir).startsWith("lcsp347-review-"));
@@ -151,19 +153,88 @@ test("I03 — Unknown and nested reviewer annotations block replacement and pres
     assert.deepEqual(readFileSync(file), annotatedBytes);
   }));
 
-test("I06 — Concurrent export: competing processes converge safely to one creation and verified no-op", () =>
-  isolated((dir, invoke) => {
-    // Invoke first export
-    const first = invoke();
-    assert.equal(first.status, 0, first.stderr);
-    const file = path.join(dir, resultPath);
-    const firstBytes = readFileSync(file);
+test("I06 — Concurrent export: genuine simultaneous processes converge safely to one creation and verified no-op", () =>
+  isolated(async (dir) => {
+    const script = path.resolve(
+      dir,
+      "scripts/prepare-lcsp347-instruction-review.mjs",
+    );
+    const runProcess = () =>
+      new Promise((resolve) => {
+        const child = spawn(process.execPath, [script], {
+          cwd: dir,
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+        let stdout = "";
+        let stderr = "";
+        child.stdout.on("data", (d) => {
+          stdout += d;
+        });
+        child.stderr.on("data", (d) => {
+          stderr += d;
+        });
+        child.on("close", (status) => {
+          resolve({ status, stdout, stderr });
+        });
+      });
 
-    // Concurrent second invocation
-    const second = invoke();
-    assert.equal(second.status, 0, second.stderr);
-    assert.ok(second.stdout.includes('"publishOutcome":"IDENTICAL_NOOP"'));
-    assert.deepEqual(readFileSync(file), firstBytes);
+    // Launch two independent operating system processes simultaneously
+    const [p1, p2] = await Promise.all([runProcess(), runProcess()]);
+
+    assert.equal(p1.status, 0, `Process 1 stderr: ${p1.stderr}`);
+    assert.equal(p2.status, 0, `Process 2 stderr: ${p2.stderr}`);
+
+    const outcomes = [
+      p1.stdout.includes('"publishOutcome":"CREATED"')
+        ? "CREATED"
+        : p1.stdout.includes('"publishOutcome":"IDENTICAL_NOOP"')
+          ? "IDENTICAL_NOOP"
+          : "OTHER",
+      p2.stdout.includes('"publishOutcome":"CREATED"')
+        ? "CREATED"
+        : p2.stdout.includes('"publishOutcome":"IDENTICAL_NOOP"')
+          ? "IDENTICAL_NOOP"
+          : "OTHER",
+    ].sort();
+
+    assert.deepEqual(outcomes, ["CREATED", "IDENTICAL_NOOP"]);
+
+    const file = path.join(dir, resultPath);
+    assert.ok(existsSync(file));
+    const content = JSON.parse(readFileSync(file, "utf8"));
+    assert.equal(content.entries.length, 59);
+    assert.equal(content.productionApproval, "BLOCKED");
+
+    // Verify atomic temp file cleanup: no lingering .tmp.* files
+    const dirFiles = readdirSync(path.dirname(file));
+    const tempFiles = dirFiles.filter((f) => f.includes(".tmp."));
+    assert.equal(tempFiles.length, 0);
+  }));
+
+test("I09 — Concurrent reviewer modification: exporter fails closed and refuses to overwrite reviewed package", () =>
+  isolated((dir, invoke) => {
+    const file = path.join(dir, resultPath);
+    mkdirSync(path.dirname(file), { recursive: true });
+    const reviewerData = {
+      packageKind: "LCSP_347_INSTRUCTION_EQUIVALENCE_REVIEW_PACKAGE",
+      annotatedByHumanReviewer: "Reviewer Team A",
+      entries: [],
+      approval: { approvedByLegalGoldReview: false },
+    };
+    const reviewerBytes = JSON.stringify(reviewerData, null, 2) + "\n";
+    writeFileSync(file, reviewerBytes);
+
+    // Competing export runs while reviewer data is present
+    const res = invoke();
+    assert.notEqual(res.status, 0);
+    assert.ok(
+      res.stderr.includes("Existing independent review evidence must be preserved") ||
+        res.stderr.includes("refusing to overwrite"),
+      `Unexpected stderr: ${res.stderr}`,
+    );
+
+    // Reviewer content is preserved byte-for-byte
+    assert.equal(readFileSync(file, "utf8"), reviewerBytes);
   }));
 
 test("I07 — Partial publication failure / invalid input preserves existing valid review package", () =>
