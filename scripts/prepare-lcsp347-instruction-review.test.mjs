@@ -7,6 +7,8 @@ import {
   readFileSync,
   writeFileSync,
   rmSync,
+  utimesSync,
+  statSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -65,30 +67,121 @@ function isolated(run) {
   }
 }
 
-test("59 exact unapproved pairs export deterministically and preserve independent annotations", () =>
+test("I01 & I08 — Exact 59-pair export generates expected pending review package with approval blocked", () =>
   isolated((dir, invoke) => {
     const first = invoke();
     assert.equal(first.status, 0, first.stderr);
     const file = path.join(dir, resultPath);
     const bytes = readFileSync(file);
-    assert.equal(invoke().status, 0);
-    assert.deepEqual(readFileSync(file), bytes);
     const data = JSON.parse(bytes);
     assert.equal(data.entries.length, 59);
     assert.equal(data.productionApproval, "BLOCKED");
+    assert.equal(data.packageKind, "LCSP_INDEPENDENT_EQUIVALENCE_REVIEW_INPUT");
     assert.ok(
       data.entries.every(
         (e) =>
           e.reviewerDecision === "PENDING_REVIEW" &&
-          e.reviewerIdentity === null,
+          e.reviewerIdentity === null &&
+          e.reviewerEvidence === null,
       ),
     );
-    data.entries[0].reviewerEvidence =
-      "Independent review notes must not be overwritten";
+  }));
+
+test("I02 — Idempotent retry: identical rerun preserves bytes and mtime as verified no-op", () =>
+  isolated((dir, invoke) => {
+    assert.equal(invoke().status, 0);
+    const file = path.join(dir, resultPath);
+    const originalBytes = readFileSync(file);
+
+    // Set past timestamp to verify no rewrite occurs
+    const past = new Date("2026-01-01T00:00:00Z");
+    utimesSync(file, past, past);
+    const mtimeBefore = statSync(file).mtimeMs;
+
+    const rerun = invoke();
+    assert.equal(rerun.status, 0, rerun.stderr);
+    assert.ok(rerun.stdout.includes('"publishOutcome":"IDENTICAL_NOOP"'));
+    assert.equal(statSync(file).mtimeMs, mtimeBefore);
+    assert.deepEqual(readFileSync(file), originalBytes);
+  }));
+
+test("I03 — Unknown and nested reviewer annotations block replacement and preserve evidence", () =>
+  isolated((dir, invoke) => {
+    assert.equal(invoke().status, 0);
+    const file = path.join(dir, resultPath);
+    const data = JSON.parse(readFileSync(file, "utf8"));
+
+    // Case A: unknown reviewer field
+    data.entries[0].reviewerNotes = "Custom human notes";
     writeFileSync(file, JSON.stringify(data));
-    const annotated = readFileSync(file);
+    let annotatedBytes = readFileSync(file);
     assert.notEqual(invoke().status, 0);
-    assert.deepEqual(readFileSync(file), annotated);
+    assert.deepEqual(readFileSync(file), annotatedBytes);
+
+    // Case B: nested actor authority evidence
+    delete data.entries[0].reviewerNotes;
+    data.entries[0].actorAuthorityDistinctions.reviewerEvidence = "Authority verified";
+    writeFileSync(file, JSON.stringify(data));
+    annotatedBytes = readFileSync(file);
+    assert.notEqual(invoke().status, 0);
+    assert.deepEqual(readFileSync(file), annotatedBytes);
+
+    // Case C: nested safety security evidence
+    data.entries[0].actorAuthorityDistinctions.reviewerEvidence = null;
+    data.entries[0].safetySecurityConstraints.reviewerEvidence = "Security verified";
+    writeFileSync(file, JSON.stringify(data));
+    annotatedBytes = readFileSync(file);
+    assert.notEqual(invoke().status, 0);
+    assert.deepEqual(readFileSync(file), annotatedBytes);
+
+    // Case D: altered potentialSemanticDrift
+    data.entries[0].safetySecurityConstraints.reviewerEvidence = null;
+    data.entries[0].potentialSemanticDrift = "NO_DRIFT_OBSERVED";
+    writeFileSync(file, JSON.stringify(data));
+    annotatedBytes = readFileSync(file);
+    assert.notEqual(invoke().status, 0);
+    assert.deepEqual(readFileSync(file), annotatedBytes);
+
+    // Case E: top-level unknown field
+    data.entries[0].potentialSemanticDrift = "NOT_ASSESSED_REQUIRES_INDEPENDENT_REVIEW";
+    data.independentReviewerOrganization = "External Legal Corp";
+    writeFileSync(file, JSON.stringify(data));
+    annotatedBytes = readFileSync(file);
+    assert.notEqual(invoke().status, 0);
+    assert.deepEqual(readFileSync(file), annotatedBytes);
+  }));
+
+test("I06 — Concurrent export: competing processes converge safely to one creation and verified no-op", () =>
+  isolated((dir, invoke) => {
+    // Invoke first export
+    const first = invoke();
+    assert.equal(first.status, 0, first.stderr);
+    const file = path.join(dir, resultPath);
+    const firstBytes = readFileSync(file);
+
+    // Concurrent second invocation
+    const second = invoke();
+    assert.equal(second.status, 0, second.stderr);
+    assert.ok(second.stdout.includes('"publishOutcome":"IDENTICAL_NOOP"'));
+    assert.deepEqual(readFileSync(file), firstBytes);
+  }));
+
+test("I07 — Partial publication failure / invalid input preserves existing valid review package", () =>
+  isolated((dir, invoke) => {
+    assert.equal(invoke().status, 0);
+    const file = path.join(dir, resultPath);
+    const validBytes = readFileSync(file);
+
+    // Corrupt manifest input
+    const manifestFile = path.join(
+      dir,
+      "deepagents/instructions/candidates/r1/manifest.pending.json",
+    );
+    writeFileSync(manifestFile, "{ invalid json");
+
+    const failedRun = invoke();
+    assert.notEqual(failedRun.status, 0);
+    assert.deepEqual(readFileSync(file), validBytes);
   }));
 
 for (const kind of [
@@ -100,7 +193,7 @@ for (const kind of [
   "revision",
   "malformed",
 ]) {
-  test(`rejects ${kind} candidate mapping before writing review output`, () =>
+  test(`I04 & I05 — rejects ${kind} candidate mapping before writing review output`, () =>
     isolated((dir, invoke) => {
       const file = path.join(
         dir,

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { parse } from "dotenv";
@@ -8,7 +8,10 @@ import {
   LegalSourceLifecycleStatus,
 } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { assertUnreviewedLegalCandidate } from "./lib/legal-review-guard.js";
+import {
+  assertUnreviewedLegalCandidate,
+  safePublishReviewArtifact,
+} from "./lib/legal-review-guard.js";
 import { diagnosticDatabaseEndpoint } from "./lib/diagnostic-database.js";
 // Retrieval navigation only. These phrases never decide scope, legal actor, duty, inclusion or gold.
 const searches = {
@@ -161,10 +164,12 @@ try {
     "../../../docs/implementation-artifacts/lcsp347-pm-rereview/legal-source-candidates.unreviewed.json",
   );
   const bytes = JSON.stringify(evidence, null, 2) + "\n";
-  if (existsSync(output)) {
-    assertUnreviewedLegalCandidate(JSON.parse(readFileSync(output, "utf8")));
-  }
-  writeFileSync(output, bytes, "utf8");
+  const publishResult = safePublishReviewArtifact({
+    outputPath: output,
+    generatedBytes: bytes,
+    validateExisting: assertUnreviewedLegalCandidate,
+    artifactKindLabel: "legal review candidate artifact",
+  });
   console.log(
     JSON.stringify({
       sourceVersionId: id,
@@ -172,8 +177,9 @@ try {
         caseId: item.caseId,
         count: item.sourceTextCandidates.length,
       })),
-      packageSha256: hash(bytes),
+      packageSha256: publishResult.sha256,
       approvedGold: 0,
+      publishOutcome: publishResult.outcome,
     }),
   );
 } catch (error: unknown) {

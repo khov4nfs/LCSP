@@ -4,6 +4,7 @@ import {
   writeFileSync,
   mkdirSync,
   realpathSync,
+  lstatSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -120,21 +121,83 @@ if (entries.length !== 59)
   throw Error(
     `Expected reviewed baseline of 59 pairs; found ${entries.length}`,
   );
-if (existsSync(output)) {
-  const previous = JSON.parse(readFileSync(output, "utf8"));
+const EXPECTED_INSTRUCTION_PACKAGE_KEYS = new Set([
+  "packageKind",
+  "bundleId",
+  "candidateManifestSha256",
+  "vietnameseInventorySha256",
+  "englishBundleSha256",
+  "entryCount",
+  "productionApproval",
+  "permittedDecisions",
+  "warning",
+  "entries",
+]);
+
+const EXPECTED_INSTRUCTION_ENTRY_KEYS = new Set([
+  "sourceId",
+  "runtimeEntryId",
+  "usage",
+  "vietnameseSourcePath",
+  "vietnameseSourceRevision",
+  "vietnameseSha256",
+  "englishCandidatePath",
+  "englishSha256",
+  "vietnameseContent",
+  "englishCandidateContent",
+  "placeholderSchema",
+  "migrationReferences",
+  "terminologySensitiveClauses",
+  "actorAuthorityDistinctions",
+  "safetySecurityConstraints",
+  "potentialSemanticDrift",
+  "reviewerDecision",
+  "reviewerIdentity",
+  "reviewerEvidence",
+]);
+
+function assertUnreviewedInstructionPackage(parsed) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw Error("Malformed existing instruction review package");
   if (
-    previous.entries.some(
-      (entry) =>
-        entry.reviewerDecision !== "PENDING_REVIEW" ||
-        entry.reviewerIdentity ||
-        entry.reviewerEvidence,
-    )
+    parsed.packageKind !== "LCSP_INDEPENDENT_EQUIVALENCE_REVIEW_INPUT" ||
+    parsed.productionApproval !== "BLOCKED" ||
+    !Array.isArray(parsed.entries)
   )
     throw Error(
       "Existing independent review evidence must be preserved in its own immutable revision",
     );
+  for (const key of Object.keys(parsed)) {
+    if (!EXPECTED_INSTRUCTION_PACKAGE_KEYS.has(key))
+      throw Error(
+        "Existing independent review evidence must be preserved in its own immutable revision",
+      );
+  }
+  for (const entry of parsed.entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry))
+      throw Error("Malformed existing instruction review package");
+    for (const key of Object.keys(entry)) {
+      if (!EXPECTED_INSTRUCTION_ENTRY_KEYS.has(key))
+        throw Error(
+          "Existing independent review evidence must be preserved in its own immutable revision",
+        );
+    }
+    if (
+      entry.reviewerDecision !== "PENDING_REVIEW" ||
+      entry.reviewerIdentity !== null ||
+      entry.reviewerEvidence !== null ||
+      entry.potentialSemanticDrift !==
+        "NOT_ASSESSED_REQUIRES_INDEPENDENT_REVIEW" ||
+      entry.actorAuthorityDistinctions?.reviewerEvidence !== null ||
+      entry.safetySecurityConstraints?.reviewerEvidence !== null
+    ) {
+      throw Error(
+        "Existing independent review evidence must be preserved in its own immutable revision",
+      );
+    }
+  }
 }
-mkdirSync(path.dirname(output), { recursive: true });
+
 const result = {
   packageKind: "LCSP_INDEPENDENT_EQUIVALENCE_REVIEW_INPUT",
   bundleId: manifest.bundleId,
@@ -152,13 +215,81 @@ const result = {
     "Review input only. This is not a trusted approval registry or release manifest. Independent reviewer evidence and release authority are required.",
   entries,
 };
+
 const bytes = Buffer.from(JSON.stringify(result, null, 2) + "\n", "utf8");
-writeFileSync(output, bytes);
-console.log(
-  JSON.stringify({
-    entries: entries.length,
-    packageSha256: hash(bytes),
-    candidateManifestSha256: result.candidateManifestSha256,
-    approved: 0,
-  }),
-);
+const resolved = path.resolve(output);
+const newHash = hash(bytes);
+
+if (existsSync(resolved)) {
+  const stat = lstatSync(resolved);
+  if (stat.isSymbolicLink())
+    throw Error(
+      "Unsafe output path: symbolic link rejected for instruction review package",
+    );
+  if (!stat.isFile())
+    throw Error(
+      "Unsafe output path: non-regular file rejected for instruction review package",
+    );
+
+  const existingBuf = readFileSync(resolved);
+  if (Buffer.compare(existingBuf, bytes) === 0) {
+    console.log(
+      JSON.stringify({
+        entries: entries.length,
+        packageSha256: newHash,
+        candidateManifestSha256: result.candidateManifestSha256,
+        approved: 0,
+        publishOutcome: "IDENTICAL_NOOP",
+      }),
+    );
+    process.exit(0);
+  }
+
+  let previous;
+  try {
+    previous = JSON.parse(existingBuf.toString("utf8"));
+  } catch {
+    throw Error(
+      "Existing instruction review package is malformed JSON; refusing to overwrite existing evidence",
+    );
+  }
+  assertUnreviewedInstructionPackage(previous);
+
+  throw Error(
+    "Existing instruction review package differs from generated content; refusing to overwrite",
+  );
+}
+
+mkdirSync(path.dirname(resolved), { recursive: true });
+try {
+  writeFileSync(resolved, bytes, { flag: "wx" });
+  console.log(
+    JSON.stringify({
+      entries: entries.length,
+      packageSha256: newHash,
+      candidateManifestSha256: result.candidateManifestSha256,
+      approved: 0,
+      publishOutcome: "CREATED",
+    }),
+  );
+} catch (err) {
+  if (err && typeof err === "object" && err.code === "EEXIST") {
+    const existingBuf = readFileSync(resolved);
+    if (Buffer.compare(existingBuf, bytes) === 0) {
+      console.log(
+        JSON.stringify({
+          entries: entries.length,
+          packageSha256: newHash,
+          candidateManifestSha256: result.candidateManifestSha256,
+          approved: 0,
+          publishOutcome: "IDENTICAL_NOOP",
+        }),
+      );
+      process.exit(0);
+    }
+    throw Error(
+      "Concurrent modification detected: existing instruction review package differs from generated content; refusing to overwrite",
+    );
+  }
+  throw err;
+}
