@@ -296,7 +296,7 @@ jobs:
         run: |
           psql -h 127.0.0.1 -p 55438 -U postgres -d postgres -c 'CREATE DATABASE lcsp347_localization_test'
           pnpm --filter @lcsp/api prisma:migrate:deploy
-          pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --runTestsByPath test/authored-language.integration.spec.ts test/rule-grouping-workflow.integration.spec.ts test/localization-pagination.integration.spec.ts
+          pnpm --filter @lcsp/api exec cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --runInBand --runTestsByPath test/authored-language.integration.spec.ts test/rule-grouping-workflow.integration.spec.ts test/localization-pagination.integration.spec.ts test/preparation-observability.integration.spec.ts
       - name: Isolated writer, old publisher, real broker and test ledger accounting
         run: node --test scripts/lcsp364-acceptance.integration.test.mjs
 

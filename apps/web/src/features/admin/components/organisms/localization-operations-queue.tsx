@@ -32,7 +32,11 @@ export function LocalizationOperationsQueue() {
     return <p role="alert">{t("unavailable")}</p>;
 
   const { operations, scopes } = backlog.data;
-  const activeScopeId = selectedScopeId ?? scopes[0]?.scopeId ?? null;
+  const activeScopeId = scopes.some(
+    (scope) => scope.scopeId === selectedScopeId,
+  )
+    ? selectedScopeId
+    : null;
 
   return (
     <section
@@ -129,18 +133,22 @@ export function LocalizationOperationsQueue() {
       <div className="flex gap-2">
         <Button
           disabled={!cursors.length}
-          onClick={() => setCursors((current) => current.slice(0, -1))}
+          onClick={() => {
+            setSelectedScopeId(null);
+            setCursors((current) => current.slice(0, -1));
+          }}
         >
           {t("previousPage")}
         </Button>
         <Button
           disabled={!backlog.data.hasMore}
-          onClick={() =>
+          onClick={() => {
+            setSelectedScopeId(null);
             setCursors((current) => [
               ...current,
               backlog.data!.nextAfterScopeId!,
-            ])
-          }
+            ]);
+          }}
         >
           {t("nextPage")}
         </Button>

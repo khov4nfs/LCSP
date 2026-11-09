@@ -194,6 +194,12 @@ test("Admin discovers localization backlog without a known scopeId and executes 
       </QueryClientProvider>,
     );
     await settle();
+    click(
+      [...node.querySelectorAll("button")].find(
+        (button) => button.textContent === "Inspect scope",
+      ) ?? null,
+    );
+    await settle();
     assert.match(node.textContent ?? "", /Localization operational readiness/);
     assert.match(
       node.textContent ?? "",

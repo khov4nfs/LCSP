@@ -1,5 +1,7 @@
 // Isolated HTTP/UI fixture. PostgreSQL authority is verified separately by API integration tests.
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { RuleSetPreparationList } from "../../src/features/admin/components/organisms/rule-set-preparation-list";
+import preparation from "../../src/public/assets/mocks/preparation-observability.json";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RuleGroupingReview } from "../../src/features/admin/components/organisms/rule-grouping-review";
@@ -33,8 +35,47 @@ Object.assign(window, {
   __locale: setAppLocale,
   __clear: () => client.clear(),
 });
+if (location.pathname === "/preparation") {
+  globalThis.EventSource = class {
+    constructor() {
+      window.__preparationStream = this;
+      setTimeout(() => this.onopen?.(new Event("open")), 0);
+    }
+    addEventListener() {}
+    removeEventListener() {}
+    close() {}
+  };
+}
+function PreparationFixture() {
+  const [run, setRun] = useState(preparation.run);
+  useEffect(() => {
+    window.__preparationState = (state) =>
+      setRun((current) => ({
+        ...current,
+        executionState: state,
+        resumable: state === "PAUSED",
+        failureReason: state === "PAUSED" ? "AGENT_BUDGET_REACHED" : null,
+      }));
+    return () => {
+      delete window.__preparationState;
+    };
+  }, []);
+  return (
+    <RuleSetPreparationList
+      preparations={[run]}
+      availability={preparation.availability}
+      ruleSets={[]}
+    />
+  );
+}
 globalThis.fetch = async (input, init) => {
   const url = String(input);
+  if (location.pathname === "/preparation" && url.includes("/activity"))
+    return Response.json({
+      ok: true,
+      data: url.includes("cursor=") ? preparation.older : preparation.page,
+    });
+
   if (
     location.pathname === "/pagination" &&
     url.includes("/api/admin/localization")
@@ -167,7 +208,9 @@ const pathname = location.pathname;
 createRoot(document.getElementById("root")).render(
   <LocaleProvider initialLocale="en">
     <QueryClientProvider client={client}>
-      {pathname === "/report" ? (
+      {pathname === "/preparation" ? (
+        <PreparationFixture />
+      ) : pathname === "/report" ? (
         <AssessmentReportView assessmentId={id} />
       ) : pathname === "/localization" || pathname === "/pagination" ? (
         <LocalizationOperationsQueue />

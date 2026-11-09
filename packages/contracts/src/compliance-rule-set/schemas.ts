@@ -1,3 +1,4 @@
+import { PREPARATION_ACTIVITY_SCOPES } from "./scope-review.ts";
 import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "../legal-source/management.ts";
 import {
   PREPARATION_EXECUTION_CONTRACTS,
@@ -933,6 +934,11 @@ export const complianceRuleSetHistorySchema = z.strictObject({
   preparations: z.array(
     ruleSetPreparationRunSchema.extend({
       executionContract: z.enum(PREPARATION_EXECUTION_CONTRACTS).optional(),
+      startedAt: z.iso.datetime().nullable().optional(),
+      targetActivityScope: z.enum(PREPARATION_ACTIVITY_SCOPES).optional(),
+      claimPhase: z.enum(CLAIM_PREPARATION_PHASES).optional(),
+      persistedCoverageAvailable: z.boolean().optional(),
+      persistedDraftAvailable: z.boolean().optional(),
       resumable: z.boolean().optional(),
       draft: z
         .strictObject({

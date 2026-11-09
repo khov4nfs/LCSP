@@ -48,6 +48,9 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 const errors = [];
+page.on("console", (message) => {
+  if (message.type() === "error") errors.push(message.text().slice(0, 500));
+});
 page.on("pageerror", (error) => {
   errors.push(error.message);
   console.error("Browser error:", error.message);
@@ -132,6 +135,10 @@ try {
   });
   await page.goto(`${origin}/localization`);
   await page
+    .getByRole("button", { name: "Inspect scope", exact: true })
+    .first()
+    .click();
+  await page
     .getByText("Localization operational readiness", { exact: true })
     .waitFor();
   await page.getByText("Biện pháp bảo vệ giả lập (ứng viên)").waitFor();
@@ -183,6 +190,36 @@ try {
     .locator('[data-slot="localization-queue-item"]')
     .nth(99)
     .waitFor();
+  await page.goto(`${origin}/preparation`);
+  await page.locator('[data-slot="preparation-observability"]').waitFor();
+  await page.getByText("MODEL_EXECUTION", { exact: true }).waitFor();
+  if ((await page.locator("body").innerText()).includes("DO_NOT_RENDER"))
+    throw Error("Unsafe diagnostic content displayed");
+  await page
+    .getByRole("button", { name: "Load older persisted events", exact: true })
+    .click();
+  await page.waitForFunction(
+    () =>
+      !Array.from(document.querySelectorAll("button")).some(
+        (b) => b.textContent === "Load older persisted events",
+      ),
+  );
+  await page.evaluate(() =>
+    window.__preparationStream.onerror?.(new Event("error")),
+  );
+  await page.getByText("Reconnecting", { exact: false }).first().waitFor();
+  await page.evaluate(() => window.__preparationState("PAUSED"));
+  await page
+    .getByRole("button", { name: "Resume preparation", exact: true })
+    .waitFor();
+  if (
+    await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
+  )
+    throw Error("Mobile Preparation overflows");
+  await page.evaluate(() => window.__locale("vi"));
+  await page
+    .getByText("Preparation đã chọn — run canonical", { exact: true })
+    .waitFor();
   await page.goto(`${origin}/catalog`);
   await page
     .getByText("EN: Architecture safety rule one", { exact: true })
@@ -204,6 +241,7 @@ try {
       reportEN_VI_EN: true,
       localizationQueueBrowser: true,
       scope30AndJobsBeyond100: true,
+      preparationDiagnosticsHistoryMobileENVI: true,
       groupedCatalogEN_VI_EN: true,
       oldLanguageFlash: false,
       pending: true,

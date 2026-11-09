@@ -1,3 +1,9 @@
+import {
+  preparationActivityView,
+  PREPARATION_VISIBLE_EVENT_TYPES,
+} from "./preparation-activity-view.js";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
+import { problemException } from "../http/filters/error.factory.js";
 import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 import {
   AGENT_STREAM_BOUNDARY_TYPES,
@@ -11,7 +17,7 @@ import {
   type CanonicalAssessmentRuntimeSnapshot,
 } from "@lcsp/contracts/evidence";
 import { asRecord } from "@lcsp/contracts/shared";
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, HttpStatus } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import {
@@ -391,6 +397,17 @@ export class AssessmentRuntimeEventService {
       .sort(compareAgentStreamEvents);
   }
 
+  /**
+   * Business purpose: Read bounded persisted runtime activity for an owned Assessment.
+   * Business rules:
+   * - Owner verification precedes journal access; cursor pagination never changes lifecycle or evidence.
+   * Execution flow:
+   * 1. Verify Assessment ownership and delegate exact scope to the shared history paginator.
+   * Failure cases:
+   * - Foreign Assessments return no history; persistence errors propagate.
+   * Side effects:
+   * - Reads Assessment ownership and persisted journal rows only.
+   */
   async getAgentStreamHistoryPage(
     ownerId: string,
     assessmentId: string,
@@ -403,16 +420,85 @@ export class AssessmentRuntimeEventService {
     if (assessmentIds.length === 0) {
       return { events: [], nextCursor: null, hasMore: false };
     }
+    return this.readAgentStreamHistoryPage(
+      {
+        assessmentId,
+        assessment: { ownerId },
+        toolName: AGENT_STREAM_JOURNAL_TOOL_NAME,
+      },
+      options,
+    );
+  }
+
+  /**
+   * Business purpose: Read historical sanitized Preparation activity for an authenticated Admin endpoint.
+   * Business rules:
+   * - The caller must enforce Admin RBAC; only the exact Preparation journal is read and malformed cursors fail closed.
+   * Execution flow:
+   * 1. Bind the requested run and delegate to the existing durable journal paginator.
+   * Failure cases:
+   * - Invalid cursors reject; persistence failures propagate without claiming complete history.
+   * Side effects:
+   * - Read-only journal access; never invokes a provider or changes run state.
+   */
+  async getPreparationStreamHistoryPage(
+    preparationRunId: string,
+    options?: { cursor?: string | null; limit?: number | null },
+  ): Promise<AgentStreamHistoryPage> {
+    if (options?.cursor && !decodeAgentStreamHistoryCursor(options.cursor))
+      throw problemException(
+        SHARED_ERROR_CODES.validationFailed,
+        randomUUID(),
+        { status: HttpStatus.BAD_REQUEST },
+      );
+    const page = await this.readAgentStreamHistoryPage(
+      {
+        preparationRunId,
+        toolName: AGENT_STREAM_JOURNAL_TOOL_NAME,
+        OR: PREPARATION_VISIBLE_EVENT_TYPES.map((eventType) => ({
+          outputSummaryJson: {
+            path: ["agentStreamEvent", "eventType"],
+            equals: eventType,
+          },
+        })),
+      },
+      options,
+    );
+    return {
+      ...page,
+      events: page.events.flatMap((event) => {
+        if (
+          event.preparationRunId !== preparationRunId ||
+          event.boundaryType !== AGENT_STREAM_BOUNDARY_TYPES.ruleSetPreparation
+        )
+          return [];
+        const view = preparationActivityView(event);
+        return view ? [view] : [];
+      }),
+    };
+  }
+
+  /**
+   * Business purpose: Reuse stable reverse journal pagination for authorized runtime boundaries.
+   * Business rules:
+   * - Scope filters remain mandatory; createdAt, sequence and row ID determine cursor order.
+   * Execution flow:
+   * 1. Read limit plus one, restore chronological events and return the next older cursor.
+   * Failure cases:
+   * - Invalid journal payloads are excluded and database failures propagate.
+   * Side effects:
+   * - Reads persisted events only.
+   */
+  private async readAgentStreamHistoryPage(
+    scope: Prisma.AssessmentRuntimeEventWhereInput,
+    options?: { cursor?: string | null; limit?: number | null },
+  ): Promise<AgentStreamHistoryPage> {
     const limit = normalizeAgentStreamHistoryLimit(options?.limit);
     const cursor = decodeAgentStreamHistoryCursor(options?.cursor);
     const rows = await this.findMany({
       where: {
         AND: [
-          {
-            assessmentId,
-            assessment: { ownerId },
-            toolName: AGENT_STREAM_JOURNAL_TOOL_NAME,
-          },
+          scope,
           ...(cursor === null ? [] : [agentStreamHistoryCursorWhere(cursor)]),
         ],
       },

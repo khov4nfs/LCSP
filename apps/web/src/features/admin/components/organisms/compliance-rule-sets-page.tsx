@@ -48,8 +48,6 @@ export function ComplianceRuleSetsPage() {
         ruleSet={active}
         availability={history.data.preparation}
       />
-      <PendingRuleGroupings />
-      <LocalizationOperationsQueue />
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">
           {t("pages.complianceRuleSets.preparations")}
@@ -63,6 +61,8 @@ export function ComplianceRuleSetsPage() {
           <RuleSetPreparationAction availability={history.data.preparation} />
         ) : null}
       </section>
+      <PendingRuleGroupings />
+      <LocalizationOperationsQueue />
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">
           {t("pages.complianceRuleSets.history")}

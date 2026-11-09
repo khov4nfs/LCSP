@@ -1,5 +1,11 @@
 "use client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { preparationActivityPageSchema } from "@lcsp/contracts/evidence";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
 import {
   complianceRuleSetHistorySchema,
   complianceRuleSetResultSchema,
@@ -238,5 +244,56 @@ export function useResumeRuleSetPreparationMutation() {
      * - Marks matching history/result queries stale and may trigger active refetches.
      */
     onSettled: () => client.invalidateQueries({ queryKey: historyKey }),
+  });
+}
+
+/**
+ * Business purpose: Page older persisted Preparation events independently from live SSE connectivity.
+ * Business rules:
+ * - Run identity partitions caches; server cursors and cancellation govern exact historical pages.
+ * Execution flow:
+ * 1. Load the newest bounded journal page and request older pages only on operator intent.
+ * Failure cases:
+ * - Authorization, network and schema errors remain visible; failure never marks a build failed.
+ * Side effects:
+ * - Read-only journal requests through the BFF.
+ */
+export function usePreparationActivityHistory(runId: string | null) {
+  return useInfiniteQuery({
+    queryKey: ["admin", "preparation-activity", runId],
+    enabled: Boolean(runId),
+    initialPageParam: null as string | null,
+    /**
+     * Business purpose: Fetch one server-owned event window.
+     * Business rules:
+     * - Exact run and cursor are mandatory identities; never infer completeness from SSE.
+     * Execution flow:
+     * 1. Forward cursor, limit and cancellation to the validated API helper.
+     * Failure cases:
+     * - Incomplete or forbidden responses reject the page query.
+     * Side effects:
+     * - Reads persisted telemetry only.
+     */
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limit: "100" });
+      if (pageParam) params.set("cursor", pageParam);
+      return apiValidated(
+        `/api/admin/compliance-rule-sets/preparations/${encodeURIComponent(runId!)}/activity?${params}`,
+        preparationActivityPageSchema,
+        { signal },
+      );
+    },
+    /**
+     * Business purpose: Follow the server-owned boundary to the next older journal window.
+     * Business rules:
+     * - No cursor is fabricated when the server reports complete history.
+     * Execution flow:
+     * 1. Return the acknowledged next cursor only when hasMore is true.
+     * Failure cases:
+     * - Missing continuation leaves history complete or unavailable as reported by the server.
+     * Side effects:
+     * - None: query pagination metadata only.
+     */
+    getNextPageParam: (last) => (last.hasMore ? last.nextCursor : undefined),
   });
 }

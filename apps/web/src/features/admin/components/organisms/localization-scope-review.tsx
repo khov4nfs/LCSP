@@ -365,6 +365,12 @@ export function LocalizationScopeReview({
       data-slot="localization-scope-review"
     >
       <h2 className="text-lg font-semibold">{t("scopeTitle")}</h2>
+      <p
+        className="break-all font-mono text-sm"
+        data-slot="selected-localization-scope"
+      >
+        {scopeId}
+      </p>
       <p className="text-sm text-muted-foreground">{t("scopeDescription")}</p>
       <label>
         {t("filter")}

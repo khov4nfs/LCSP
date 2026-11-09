@@ -4,6 +4,8 @@ import {
   workspaceAssessmentSnapshotSchema,
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
+import { usePreparationActivityHistory } from "@/lib/api/compliance-rule-set-queries";
+import { mergePreparationEvents } from "../utils/rule-set-preparation-activity";
 import { useEffect, useState } from "react";
 
 /**
@@ -33,6 +35,11 @@ export function useRuleSetPreparationActivity(
   const [streams, setStreams] = useState<
     Record<string, { events: AssessmentAgentStreamEvent[]; connected: boolean }>
   >({});
+  const history = usePreparationActivityHistory(preparationRunId);
+  const refetchHistory = history.refetch;
+  useEffect(() => {
+    if (preparationRunId && terminal) void refetchHistory();
+  }, [preparationRunId, terminal, refetchHistory]);
   const current = preparationRunId ? streams[preparationRunId] : undefined;
 
   useEffect(() => {
@@ -107,7 +114,11 @@ export function useRuleSetPreparationActivity(
         setStreams((previous) => ({
           ...previous,
           [preparationRunId]: {
-            events,
+            events: mergePreparationEvents(
+              preparationRunId,
+              previous[preparationRunId]?.events ?? [],
+              events,
+            ).slice(-5000),
             connected: terminal
               ? false
               : (previous[preparationRunId]?.connected ?? true),
@@ -144,7 +155,14 @@ export function useRuleSetPreparationActivity(
   }, [preparationRunId, terminal]);
 
   return {
-    events: current?.events ?? [],
+    events: preparationRunId
+      ? mergePreparationEvents(
+          preparationRunId,
+          ...(history.data?.pages.map((page) => page.events) ?? []),
+          current?.events ?? [],
+        )
+      : [],
+    history,
     connected: current?.connected ?? false,
   };
 }

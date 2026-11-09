@@ -96,7 +96,22 @@ test("Admin navigates scope 30 and jobs beyond 100, retains exact draft edits, e
       [...container.querySelectorAll("button")].find(
         (button) => button.textContent === label,
       )!;
+    const scopeA = [...node.querySelectorAll("li")].find((row) =>
+      row.textContent?.includes("pagination-scope-01"),
+    )!;
+    click(scopeA.querySelector("button"));
+    await settle();
+    assert.equal(
+      node.querySelector('[data-slot="selected-localization-scope"]')
+        ?.textContent,
+      "pagination-scope-01",
+    );
     click(button(node, "Next page"));
+    await settle();
+    assert.equal(
+      node.querySelector('[data-slot="selected-localization-scope"]'),
+      null,
+    );
     await settle();
     assert.match(node.textContent!, /pagination-scope-30/);
     const scope30 = [...node.querySelectorAll("li")].find((row) =>
@@ -168,6 +183,11 @@ test("Admin navigates scope 30 and jobs beyond 100, retains exact draft edits, e
     click(button(section, "Batch attest source language"));
     await settle();
     assert.equal(posts.length, 1);
+    assert(
+      requests
+        .filter((url) => url.includes("batch-source-review"))
+        .every((url) => url.includes("pagination-scope-30")),
+    );
     assert.match(section.textContent!, /Rejected; review remains unresolved/);
     assert(requests.some((url) => url.includes("after=")));
     assert(requests.some((url) => url.includes("afterScopeId=")));

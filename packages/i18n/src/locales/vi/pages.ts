@@ -1,5 +1,89 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
+  preparationOps: {
+    persistedCoverage: "Tiến độ coverage đã lưu",
+    title: "Preparation đã chọn — run canonical",
+    runId: "Mã Preparation Run",
+    source: "Phiên bản / mã Legal Source",
+    scope: "Phạm vi Preparation",
+    contract: "Hợp đồng thực thi",
+    attempt: "Lần chạy",
+    state: "Trạng thái thực thi canonical",
+    started: "Bắt đầu lúc",
+    lastActivity: "Sự kiện ghi nhận gần nhất",
+    currentStage: "Giai đoạn Preparation đã lưu",
+    blockers: "Đơn vị nguồn bị chặn",
+    requirements: "Legal Requirements đã lưu",
+    rules: "Assessment Rules đã lưu",
+    retryPermitted: "Được retry",
+    resumePermitted: "Được resume",
+    yes: "Có",
+    no: "Không",
+    notReported: "NOT_REPORTED — chưa có bằng chứng",
+    canonicalState:
+      "Kết nối chỉ phản ánh telemetry. Kết quả run do trạng thái backend quyết định.",
+    failure: "Chẩn đoán lỗi an toàn",
+    resumeAction:
+      "Kiểm tra lỗi đã ghi nhận, rồi chủ động resume run này bằng thao tác hiện có.",
+    retryAction:
+      "Kiểm tra lỗi đã ghi nhận trước khi chủ động yêu cầu một lần retry mới.",
+    inspectAction:
+      "Kiểm tra nguồn, cấu hình runtime và các blocker review. Không tự động retry.",
+    persistedCounts:
+      "Counter đã lưu và snapshot stream là hai nguồn bằng chứng khác nhau. Counter thiếu không có nghĩa là 0.",
+    billingUnavailable:
+      "Billing đã lưu / chi phí provider đã đối soát: NOT_AVAILABLE ở màn hình này. Không khẳng định chi phí ước tính.",
+    observedUsage:
+      "Chỉ là usage quan sát từ stream; lịch sử chưa đầy đủ hoặc metadata token thiếu có thể thấp hơn usage/billing thực tế.",
+    partial: "Telemetry chưa đầy đủ: một số counter tiến độ chưa được báo cáo.",
+    inconsistent:
+      "Counter không nhất quán: các snapshot mâu thuẫn. Không coi đây là coverage nguồn hoàn tất.",
+    visibleHistory:
+      "Dòng activity hiển thị / đã tải (không phải toàn bộ lịch sử run)",
+    showEarlier: "Hiện activity đã tải trước đó",
+    loadOlder: "Tải sự kiện đã lưu cũ hơn",
+    historyLoading: "Đang tải lịch sử sự kiện đã lưu…",
+    historyError:
+      "Chưa đọc được lịch sử đã lưu; telemetry trực tiếp và trạng thái canonical vẫn độc lập.",
+    retryHistory: "Thử đọc lại lịch sử",
+    observedInput: "Input token quan sát",
+    observedOutput: "Output token quan sát",
+    observedTotal: "Tổng token quan sát",
+    stages: {
+      SOURCE_LOADING: "Nạp Legal Source",
+      SOURCE_DISCOVERY: "Khám phá nguồn",
+      CLAIM_INVENTORY: "Kiểm kê claim",
+      SOURCE_REVIEW: "Rà soát nguồn",
+      RULE_AUTHORING: "Soạn Rule",
+      RULE_VALIDATION: "Kiểm tra Rule",
+      SUBMISSION: "Nộp kết quả",
+      ACTIVATION: "Kích hoạt / hoàn tất có review",
+    },
+    statuses: {
+      NOT_REPORTED: "Chưa được báo cáo",
+      NOT_STARTED: "Chưa bắt đầu",
+      RUNNING: "Đang chạy",
+      COMPLETED: "Đã hoàn tất",
+      FAILED: "Thất bại",
+      BLOCKED: "Bị chặn",
+      PAUSED: "Tạm dừng",
+    },
+    diagnostics: {
+      failingModel: "Model/provider gây lỗi",
+      operation: "Thao tác model bị lỗi",
+      retryability: "Khả năng retry đã ghi nhận",
+      callbackStatus: "HTTP status của callback",
+      attempt: "Số thứ tự physical attempt (đã ghi nhận)",
+      lastSuccess: "Sự kiện thành công ghi nhận cuối",
+      stage: "Giai đoạn lỗi",
+      category: "Nhóm lỗi an toàn",
+      code: "Mã callback an toàn",
+      exceptionClass: "Loại exception",
+      reason: "Lý do lỗi",
+      lastModel: "Danh tính model call hoàn tất cuối",
+      activeTools: "Tên tool đang hoạt động",
+    },
+  },
   localizationReview: {
     nextPage: "Trang ti?p",
     previousPage: "Trang tr??c",

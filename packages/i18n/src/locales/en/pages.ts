@@ -1,5 +1,91 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
+  preparationOps: {
+    persistedCoverage: "Persisted source coverage",
+
+    title: "Selected Preparation - canonical run",
+    runId: "Preparation Run ID",
+    source: "Legal Source version / ID",
+    scope: "Preparation scope",
+    contract: "Execution contract",
+    attempt: "Attempt",
+    state: "Canonical execution state",
+    started: "Started at",
+    lastActivity: "Last confirmed event",
+    currentStage: "Persisted preparation stage",
+    blockers: "Blocked source units",
+    requirements: "Persisted Legal Requirements",
+    rules: "Persisted Assessment Rules",
+    retryPermitted: "Retry permitted",
+    resumePermitted: "Resume permitted",
+    yes: "Yes",
+    no: "No",
+    notReported: "NOT_REPORTED - unavailable evidence",
+    canonicalState:
+      "Connectivity is telemetry only. The backend execution state determines the run outcome.",
+    failure: "Safe failure diagnostics",
+    resumeAction:
+      "Inspect the recorded failure, then explicitly resume this run using the existing action.",
+    retryAction:
+      "Inspect the recorded failure before explicitly requesting a new retry attempt.",
+    inspectAction:
+      "Inspect source, runtime configuration and review blockers. No automatic retry will be started.",
+    persistedCounts:
+      "Persisted counters and observed stream snapshots are separate evidence. Missing counters are not zero.",
+    billingUnavailable:
+      "Persisted billing / reconciled provider cost: NOT_AVAILABLE in this view. No estimated charge is asserted.",
+    observedUsage:
+      "Observed stream usage only; partial history and missing token metadata may undercount real provider attempts or billing.",
+    partial: "Partial telemetry: some progress counters were not reported.",
+    inconsistent:
+      "Inconsistent counters: the recorded snapshots disagree. Do not treat this as complete source coverage.",
+    visibleHistory:
+      "Visible activity rows / loaded rows (not complete run history)",
+    showEarlier: "Show earlier loaded activity",
+    loadOlder: "Load older persisted events",
+    historyLoading: "Loading persisted event history...",
+    historyError:
+      "Persisted history unavailable; live telemetry and canonical run state remain separate.",
+    retryHistory: "Retry history read",
+    observedInput: "Observed input tokens",
+    observedOutput: "Observed output tokens",
+    observedTotal: "Observed total tokens",
+    stages: {
+      SOURCE_LOADING: "Legal Source loading",
+      SOURCE_DISCOVERY: "Source discovery",
+      CLAIM_INVENTORY: "Claim inventory",
+      SOURCE_REVIEW: "Source review",
+      RULE_AUTHORING: "Rule authoring",
+      RULE_VALIDATION: "Rule validation",
+      SUBMISSION: "Submission",
+      ACTIVATION: "Activation / reviewed completion",
+    },
+    statuses: {
+      NOT_REPORTED: "NOT_REPORTED",
+      NOT_STARTED: "NOT_STARTED",
+      RUNNING: "RUNNING",
+      COMPLETED: "COMPLETED",
+      FAILED: "FAILED",
+      BLOCKED: "BLOCKED",
+      PAUSED: "PAUSED",
+    },
+    diagnostics: {
+      failingModel: "Failing model/provider",
+      operation: "Failed model operation",
+      retryability: "Reported retryability",
+      callbackStatus: "Callback HTTP status",
+      attempt: "Physical attempt ordinal (reported)",
+      lastSuccess: "Last confirmed successful event",
+
+      stage: "Failed stage",
+      category: "Safe error category",
+      code: "Safe callback code",
+      exceptionClass: "Exception class",
+      reason: "Failure reason",
+      lastModel: "Last completed model call identity",
+      activeTools: "Active tool names",
+    },
+  },
   localizationReview: {
     nextPage: "Next page",
     previousPage: "Previous page",

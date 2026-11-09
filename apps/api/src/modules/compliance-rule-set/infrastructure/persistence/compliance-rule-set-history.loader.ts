@@ -34,7 +34,12 @@ export class ComplianceRuleSetHistoryLoader {
           }),
           tx.ruleSetPreparationRun.findMany({
             include: {
-              ruleSet: { select: { id: true } },
+              ruleSet: {
+                select: {
+                  id: true,
+                  _count: { select: { rules: true, assessmentRules: true } },
+                },
+              },
               legalSourceVersion: { select: { version: true, status: true } },
               reviewFrontiers: {
                 orderBy: { inventoryRevision: "desc" },
@@ -153,6 +158,11 @@ export class ComplianceRuleSetHistoryLoader {
                       : STAGE.PREPARING_RULE_SET;
             return {
               executionContract: row.executionContract,
+              targetActivityScope: row.targetActivityScope,
+              claimPhase: row.claimPhase,
+              startedAt: row.startedAt?.toISOString() ?? null,
+              persistedCoverageAvailable: Boolean(frontier),
+              persistedDraftAvailable: Boolean(saved || row.ruleSet),
               resumable:
                 row.ruleSet === null &&
                 row.legalSourceVersion.status === approved &&
@@ -183,8 +193,12 @@ export class ComplianceRuleSetHistoryLoader {
                     })),
                   )
                   .slice(0, 20),
-                requirementCount: saved?.requirementCount ?? 0,
-                assessmentRuleCount: saved?.assessmentRuleCount ?? 0,
+                requirementCount:
+                  row.ruleSet?._count.rules ?? saved?.requirementCount ?? 0,
+                assessmentRuleCount:
+                  row.ruleSet?._count.assessmentRules ??
+                  saved?.assessmentRuleCount ??
+                  0,
                 requirements: saved?.requirements ?? [],
                 assessmentRules: saved?.assessmentRules ?? [],
                 validation: validation.success ? validation.data : null,

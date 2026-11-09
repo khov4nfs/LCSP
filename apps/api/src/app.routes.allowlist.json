@@ -18,6 +18,7 @@
   "GET /admin/compliance-rule-sets/:ruleSetVersionId/groups",
   "GET /admin/compliance-rule-sets/:ruleSetVersionId/groups/proposal",
   "GET /admin/compliance-rule-sets/groups/pending",
+  "GET /admin/compliance-rule-sets/preparations/:preparationRunId/activity",
   "GET /admin/compliance-rule-sets/preparations/:preparationRunId/scope-reviews",
   "GET /admin/legal-source-versions/:versionId",
   "GET /admin/legal-source-versions/:versionId/documents/:documentRowId/chunks",

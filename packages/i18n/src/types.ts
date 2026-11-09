@@ -39,6 +39,82 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  preparationOps: {
+    persistedCoverage: string;
+
+    title: string;
+    runId: string;
+    source: string;
+    scope: string;
+    contract: string;
+    attempt: string;
+    state: string;
+    started: string;
+    lastActivity: string;
+    currentStage: string;
+    blockers: string;
+    requirements: string;
+    rules: string;
+    retryPermitted: string;
+    resumePermitted: string;
+    yes: string;
+    no: string;
+    notReported: string;
+    canonicalState: string;
+    failure: string;
+    resumeAction: string;
+    retryAction: string;
+    inspectAction: string;
+    persistedCounts: string;
+    billingUnavailable: string;
+    observedUsage: string;
+    partial: string;
+    inconsistent: string;
+    visibleHistory: string;
+    showEarlier: string;
+    loadOlder: string;
+    historyLoading: string;
+    historyError: string;
+    retryHistory: string;
+    observedInput: string;
+    observedOutput: string;
+    observedTotal: string;
+    stages: {
+      SOURCE_LOADING: string;
+      SOURCE_DISCOVERY: string;
+      CLAIM_INVENTORY: string;
+      SOURCE_REVIEW: string;
+      RULE_AUTHORING: string;
+      RULE_VALIDATION: string;
+      SUBMISSION: string;
+      ACTIVATION: string;
+    };
+    statuses: {
+      NOT_REPORTED: string;
+      NOT_STARTED: string;
+      RUNNING: string;
+      COMPLETED: string;
+      FAILED: string;
+      BLOCKED: string;
+      PAUSED: string;
+    };
+    diagnostics: {
+      failingModel: string;
+      operation: string;
+      retryability: string;
+      callbackStatus: string;
+      attempt: string;
+      lastSuccess: string;
+
+      stage: string;
+      category: string;
+      code: string;
+      exceptionClass: string;
+      reason: string;
+      lastModel: string;
+      activeTools: string;
+    };
+  };
   localizationReview: {
     nextPage: string;
     previousPage: string;

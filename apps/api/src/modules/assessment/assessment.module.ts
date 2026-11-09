@@ -1,3 +1,4 @@
+import { PreparationActivityController } from "./presentation/http/preparation-activity.controller.js";
 import { InternalAgentStreamController } from "./presentation/http/internal-agent-stream.controller.js";
 import { PublishAgentStreamEventHandler } from "./application/commands/publish-agent-stream-event/publish-agent-stream-event.handler.js";
 import { WorkspaceRuntimeEventsController } from "./presentation/http/workspace-runtime-events.controller.js";
@@ -102,6 +103,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     StorageModule,
   ],
   controllers: [
+    PreparationActivityController,
     AssessmentRootCapacityController,
     AdminAssessmentRootCapacityController,
     InternalAgentStreamController,
