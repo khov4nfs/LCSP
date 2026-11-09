@@ -7,6 +7,7 @@ from __future__ import annotations
 from copy import deepcopy
 from hashlib import sha256
 import json
+from pathlib import Path
 
 import pytest
 
@@ -14,6 +15,14 @@ from evals.run_manifest import stable_hash
 from rule_set_preparation.eval_cli import main
 from rule_set_preparation.reviewed_eval_gate import reviewed_eval_preflight
 from test_preparation_behavior_mutation_bank import CASES, seed
+
+
+def test_actual_unreviewed_legal_export_cannot_become_accepted_gold():
+    from rule_set_preparation.reviewed_eval_gate import reviewed_case_package_preflight
+    raw = (Path(__file__).resolve().parents[2] / "docs/implementation-artifacts/lcsp347-pm-rereview/legal-source-candidates.unreviewed.json").read_bytes()
+    errors = reviewed_case_package_preflight(json.loads(raw), raw, sha256(raw).hexdigest())
+    assert isinstance(errors, list)
+    assert "PM_REVIEW_PACKAGE_INDEPENDENT_APPROVAL_REQUIRED" in errors
 
 
 def inputs():

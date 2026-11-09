@@ -1,7 +1,12 @@
 import { ComplianceRuleSetHistoryLoader } from "../src/modules/compliance-rule-set/infrastructure/persistence/compliance-rule-set-history.loader.js";
+import { collectPreparationPreflight } from "../scripts/lib/preparation-preflight.js";
 import { beforeAll, afterAll, describe, it, expect } from "@jest/globals";
 import { randomUUID } from "node:crypto";
-import { PrismaClient, AgentStreamBoundaryType } from "@prisma/client";
+import {
+  PrismaClient,
+  AgentStreamBoundaryType,
+  LegalSourceLifecycleStatus,
+} from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
@@ -30,6 +35,43 @@ const url = process.env.LCSP_TEST_LOCALIZATION_DATABASE_URL;
     });
     afterAll(async () => {
       await Promise.all([first?.$disconnect(), second?.$disconnect()]);
+    });
+    it("blocks actual ambiguous ACTIVE fixtures inside a read-only transaction", async () => {
+      const ids: string[] = [randomUUID(), randomUUID()];
+      try {
+        await first.legalSourceVersion.createMany({
+          data: ids.map((id) => ({
+            id,
+            version: `preflight-disposable-${id}`,
+            sourceManifest: {},
+            status: LegalSourceLifecycleStatus.ACTIVE,
+          })),
+        });
+        const result = await second.$transaction(async (tx) => {
+          await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+          return collectPreparationPreflight(tx, new URL(url!));
+        });
+        expect(result.blockers).toContain(
+          "ACTIVE_SOURCE_SELECTION_AMBIGUOUS_OR_MISSING",
+        );
+        expect(result.canDispatch).toBe(false);
+        expect(result.schemaGaps).toEqual([]);
+        expect(result.sources.some((source) => ids.includes(source.id))).toBe(
+          true,
+        );
+        expect(
+          await first.legalSourceVersion.count({
+            where: {
+              id: { in: ids },
+              status: LegalSourceLifecycleStatus.ACTIVE,
+            },
+          }),
+        ).toBe(2);
+      } finally {
+        await first.legalSourceVersion.deleteMany({
+          where: { id: { in: ids } },
+        });
+      }
     });
     it("pages real persisted run history across replicas with no duplicates or foreign-run events", async () => {
       const source = await first.legalSourceVersion.create({

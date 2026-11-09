@@ -21,7 +21,7 @@
     "test:business-logic-docs": "node --test scripts/check-business-logic-docs.test.mjs",
     "check:contracts": "tsx scripts/check-contract-literals.mjs",
     "check:legal-v1-retired": "node scripts/check-legal-v1-authority-retired.mjs",
-    "test:dev-scripts": "node --test scripts/run-agent-runtime.test.mjs scripts/run-phoenix-config.test.mjs scripts/dev-stop.test.mjs scripts/dev-entry-command.test.mjs scripts/local-infra-launcher.test.mjs scripts/check-migration-privilege-preflight.test.mjs scripts/bootstrap-redeploy.test.mjs scripts/node-mac-fix.test.mjs tests/support/direct-root-admission-scope.test.mjs operator/t31_scoped_pilot_bootstrap.test.mjs scripts/resolve-last-hitl-playwright.test.mjs scripts/preparation-development-review-view.test.mjs",
+    "test:dev-scripts": "node --test scripts/run-agent-runtime.test.mjs scripts/run-phoenix-config.test.mjs scripts/dev-stop.test.mjs scripts/dev-entry-command.test.mjs scripts/local-infra-launcher.test.mjs scripts/check-migration-privilege-preflight.test.mjs scripts/bootstrap-redeploy.test.mjs scripts/node-mac-fix.test.mjs tests/support/direct-root-admission-scope.test.mjs operator/t31_scoped_pilot_bootstrap.test.mjs scripts/resolve-last-hitl-playwright.test.mjs scripts/preparation-development-review-view.test.mjs scripts/prepare-lcsp347-instruction-review.test.mjs",
     "eval:jev-decisions": "cd deepagents && uv run python -m decision.eval --dataset decision/eval_fixtures/lcsp_decision_eval_v1.json --output ../artifacts/decision/jev-decision-eval-report.json",
     "check:branch": "node scripts/check-branch-name.mjs",
     "check:commit-message": "node scripts/check-commit-message.mjs",

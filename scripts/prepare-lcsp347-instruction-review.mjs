@@ -20,6 +20,14 @@ const manifestBytes = readFileSync(
   path.join(root, "instructions/candidates/r1/manifest.pending.json"),
 );
 const manifest = JSON.parse(manifestBytes);
+if (
+  !Array.isArray(inventory.entries) ||
+  !Array.isArray(manifest.entries) ||
+  manifest.entries.length !== inventory.entries.length ||
+  new Set(manifest.entries.map((entry) => entry.sourceId)).size !==
+    manifest.entries.length
+)
+  throw Error("Incomplete or duplicate manifest source inventory");
 if (manifest.approvalStatus !== "PENDING")
   throw Error(
     "This exporter requires the unapproved candidate; release approval is external",
@@ -45,6 +53,7 @@ const entries = inventory.entries.map((entry) => {
   const vi = read(pinned.vietnameseSourcePath, pinned.vietnameseSourceSha256),
     en = read(pinned.englishRuntimePath, pinned.englishRuntimeSha256);
   if (
+    entry.vietnameseSourcePath !== pinned.vietnameseSourcePath ||
     entry.vietnameseSourceRevision !== pinned.vietnameseSourceRevision ||
     entry.englishCandidatePath !== pinned.englishRuntimePath ||
     entry.candidateOriginSha256 !== pinned.vietnameseSourceSha256 ||

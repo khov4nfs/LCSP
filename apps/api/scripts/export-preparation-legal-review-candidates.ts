@@ -8,6 +8,8 @@ import {
   LegalSourceLifecycleStatus,
 } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { assertUnreviewedLegalCandidate } from "./lib/legal-review-guard.js";
+import { diagnosticDatabaseEndpoint } from "./lib/diagnostic-database.js";
 // Retrieval navigation only. These phrases never decide scope, legal actor, duty, inclusion or gold.
 const searches = {
   RISK_CLASSIFICATION_BEFORE_USE: ["hồ sơ phân loại", "phân loại rủi ro"],
@@ -33,9 +35,8 @@ const file = process.env.LCSP_PREFLIGHT_ENV_FILE,
 if (!file || !id || !/^[a-f0-9-]{36}$/i.test(id))
   throw Error("Explicit private env file and selected source UUID required");
 const url = parse(readFileSync(file)).DATABASE_URL;
-if (!url || !["127.0.0.1", "localhost"].includes(new URL(url).hostname))
-  throw Error("Local diagnostic database required");
-const db = new PrismaClient({ adapter: new PrismaPg(url) });
+const endpoint = diagnosticDatabaseEndpoint(url);
+const db = new PrismaClient({ adapter: new PrismaPg(endpoint.href) });
 const hash = (text: string) =>
   createHash("sha256").update(text, "utf8").digest("hex");
 try {
@@ -161,26 +162,7 @@ try {
   );
   const bytes = JSON.stringify(evidence, null, 2) + "\n";
   if (existsSync(output)) {
-    const previous = JSON.parse(readFileSync(output, "utf8")) as {
-      approvedGold?: boolean;
-      candidates?: Array<{
-        mappingStatus?: string;
-        independentReviewerIdentity?: unknown;
-        expectedDecision?: unknown;
-        goldHash?: unknown;
-      }>;
-    };
-    if (
-      previous.approvedGold ||
-      previous.candidates?.some(
-        (item) =>
-          item.independentReviewerIdentity ||
-          item.expectedDecision !== null ||
-          item.goldHash ||
-          item.mappingStatus !== "PENDING_INDEPENDENT_REVIEW",
-      )
-    )
-      throw Error("Existing legal review evidence must not be overwritten");
+    assertUnreviewedLegalCandidate(JSON.parse(readFileSync(output, "utf8")));
   }
   writeFileSync(output, bytes, "utf8");
   console.log(

@@ -19,12 +19,15 @@ PENDING = ROOT / "instructions/candidates/r1/manifest.pending.json"
     ("revoked", "RUNTIME_BUNDLE_REVOKED"),
     ("corrupt_pin", "BUNDLE_APPROVAL_UNTRUSTED"),
     ("test_approval", "BUNDLE_APPROVAL_UNTRUSTED"),
+    ("review_package", "RUNTIME_BUNDLE_VERSION_UNSUPPORTED"),
 ])
 def test_unpatched_production_bundle_rejects_without_authority(tmp_path, case, expected):
     env = {key: value for key, value in os.environ.items() if key not in (
         "LCSP_RUNTIME_INSTRUCTION_MANIFEST", "LCSP_APPROVED_INSTRUCTION_MANIFEST_SHA256",
     )}
     path = PENDING
+    if case == "review_package":
+        path = ROOT.parent / "docs/implementation-artifacts/lcsp347-pm-rereview/instruction-equivalence.pending.json"
     if case == "test_approval":
         from approved_bundle_fixture import build_test_bundle
         build_test_bundle(tmp_path)

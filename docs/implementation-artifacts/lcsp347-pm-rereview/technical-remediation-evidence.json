@@ -1,0 +1,310 @@
+{
+  "baselineHead": "34e567eb54786591b7c64b751f2f608c5b705422",
+  "baseHead": "e3669b04e791e59f06cbe19f8f51f49705e05e96",
+  "baselineChecks": {
+    "total": 37,
+    "success": 36,
+    "failure": 1
+  },
+  "originalTrustablCheckId": 129140599374,
+  "originalTrustablAlert": 139,
+  "scannerVersion": "0.1.16",
+  "scannerRulesDigest": "b55cbae4eb9f36ab3db73783061b9ad5d083e7b5ef80d0df9ef202432b874c7f",
+  "rulesOrigin": {
+    "signed": true,
+    "channel": "production"
+  },
+  "sameVersionFindingMultisetMatchesDevelop": true,
+  "originalCounts": {
+    "info": 4,
+    "low": 17
+  },
+  "afterCounts": {
+    "info": 4,
+    "low": 17
+  },
+  "productionFindings": 2,
+  "testPathFindings": 19,
+  "nativeScannerExit": 0,
+  "sarifGenerated": true,
+  "securitySeverityLC028": "0.5",
+  "defaultSarifLevelLC028": "note",
+  "newGitHubCodeScanningStatus": "PENDING_PUBLICATION",
+  "unavailableEvidence": {
+    "endpoint": "GET /repos/khov4nfs/LCSP/code-scanning/default-setup",
+    "httpStatus": 403,
+    "detail": "Current credentials cannot read repository Code Scanning default setup; no policy settings changed."
+  },
+  "findings": [
+    {
+      "rule_id": "META-003",
+      "severity": "info",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 251,
+      "tool_name": "",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-001",
+      "severity": "low",
+      "file_path": "deepagents/rule_set_preparation/claim_tools.py",
+      "start_line": 1011,
+      "tool_name": "invoke",
+      "origin": null,
+      "disposition": "EXPLICIT_STRUCTURED_TOOL_DESCRIPTION_VERIFIED_EXISTING_ALERT_DISMISSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-008",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 246,
+      "tool_name": "count_items",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-008",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_native_researcher_task_preparation.py",
+      "start_line": 102,
+      "tool_name": "failing_read",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_agent_run_budget.py",
+      "start_line": 173,
+      "tool_name": "read_file",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 246,
+      "tool_name": "count_items",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 374,
+      "tool_name": "execute",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 445,
+      "tool_name": "execute",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 474,
+      "tool_name": "task",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 499,
+      "tool_name": "validate",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 554,
+      "tool_name": "task",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_output_cap_reaches_provider.py",
+      "start_line": 41,
+      "tool_name": "read_thing",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_provider_schema_compatibility.py",
+      "start_line": 239,
+      "tool_name": "search_repository",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_response_localization.py",
+      "start_line": 386,
+      "tool_name": "read_legal_document",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_tool_argument_precheck.py",
+      "start_line": 43,
+      "tool_name": "task",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-019",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_tool_argument_precheck.py",
+      "start_line": 267,
+      "tool_name": "task",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-024",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 374,
+      "tool_name": "execute",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-024",
+      "severity": "low",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 445,
+      "tool_name": "execute",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-028",
+      "severity": "info",
+      "file_path": "deepagents/rule_set_preparation/tools.py",
+      "start_line": 837,
+      "tool_name": "remove_from_packet_draft",
+      "origin": null,
+      "disposition": "EXISTING_STRUCTURED_INTENT_RECOMMENDATION_REPAIR_HARDENED_SECURITY_DISPOSITION_EXTERNAL",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-028",
+      "severity": "info",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 374,
+      "tool_name": "execute",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    },
+    {
+      "rule_id": "LC-028",
+      "severity": "info",
+      "file_path": "deepagents/tests/test_model_governance.py",
+      "start_line": 445,
+      "tool_name": "execute",
+      "origin": "test",
+      "disposition": "EXISTING_TEST_FINDING_SCANNER_EXTERNALLY_SUPPRESSED",
+      "presentOnDevelopWithSameScanner": true
+    }
+  ],
+  "sourcePreflight": {
+    "preflightState": "BLOCKED_RUNTIME_CONFIGURATION",
+    "blockers": [
+      "SCHEMA_COLUMN_MISSING:ComplianceRuleSetVersion.targetActivityScope",
+      "SCHEMA_COLUMN_MISSING:RuleSetPreparationRun.targetActivityScope",
+      "ACTIVE_SOURCE_SELECTION_AMBIGUOUS_OR_MISSING"
+    ],
+    "schemaGaps": [
+      "ComplianceRuleSetVersion.targetActivityScope",
+      "RuleSetPreparationRun.targetActivityScope"
+    ],
+    "canDispatch": false,
+    "runtimePrerequisites": {
+      "checkpointCompatibility": "NOT_PROVEN",
+      "agentServerCompatibility": "NOT_PROVEN",
+      "executionContractAndScopeAgreement": "NOT_PROVEN",
+      "approvedInstructionBundle": "NOT_PROVEN",
+      "paidAdmissionAuthorization": "NOT_PROVEN"
+    }
+  },
+  "instructionEntries": 59,
+  "constructionSites": 354,
+  "frameworkSurfaces": 19,
+  "candidateManifestSha256": "78c60051168044a332364a0f7d2e43f7acf06228d46a77469683826d910c67e2",
+  "instructionReviewPackageSha256": "50e773f16d5a7d4833265e5f9df7ab522033f2c45d079618285614da7d2061a2",
+  "independentlyApprovedInstructions": 0,
+  "independentlyApprovedLegalCases": 0,
+  "tests": {
+    "python": {
+      "passed": 157,
+      "failed": 0,
+      "skipped": 0
+    },
+    "api": {
+      "passed": 65,
+      "failed": 0,
+      "skipped": 0
+    },
+    "web": {
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    "reviewExporter": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "finalRepairTraceCheck": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "paidModelCalls": 0,
+  "canonicalSnapshotMutations": 0,
+  "disposableFixtureWrites": true,
+  "productionLoaderPatched": false,
+  "securityWorkflowModified": false,
+  "prDraft": true
+}
