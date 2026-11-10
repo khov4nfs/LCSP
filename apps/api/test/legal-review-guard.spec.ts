@@ -430,10 +430,12 @@ describe("Real process-level concurrency verification (C01–C05)", () => {
 
           expect(created).toHaveLength(1);
           expect(failed).toHaveLength(1);
+          // Both race interleavings are valid: the loser may observe an existing
+          // artifact before publication or lose the exclusive link attempt.
+          // Assert the invariant (different bytes are refused), not the branch.
           expect(failed[0].message).toContain(
-            "Concurrent modification detected",
+            "differs from generated content; refusing to overwrite",
           );
-          expect(failed[0].message).toContain("refusing to overwrite");
 
           // Destination matches 100% of winning bytes, never hybrid or corrupted
           const winningHash = created[0].sha256;
