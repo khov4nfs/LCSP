@@ -912,7 +912,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         6. Return boolean validity, outcome code, and explanatory diagnostic reason.
 
         Failure cases:
-        - Missing, malformed, forged, mismatched, or high-risk claims return False with specific diagnostic codes.
+        - Missing, malformed, forged, mismatched, or unacceptable risk-tier claims return False with specific diagnostic codes.
 
         Side effects:
         - Pure diagnostic check; no state is mutated.
