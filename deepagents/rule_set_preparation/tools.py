@@ -10,7 +10,7 @@ from functools import wraps
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any, Protocol
+from typing import Any, Protocol, TypedDict
 from uuid import uuid4
 
 from langchain_core.tools import tool
@@ -62,12 +62,57 @@ DRAFT_PART_SCHEMA = {
                          if key in GRAPH_SECTIONS else _PACKET_PROPERTIES[key]) for key in ITEM_ID_KEYS},
     "additionalProperties": False,
 }
+class ToolInvocationExplanation(TypedDict, total=False):
+    """Structured claim explaining and justifying a tool call before side effects occur."""
+
+    schema_version: str
+    intent_class: str
+    selected_tool: str
+    expected_effect: str
+    risk_tier: str
+    uncertainty: float | str
+    untrusted_context: bool
+    evidence_refs: list[str]
+    target_labels: list[str]
+    summary: str
+
+
+TOOL_INVOCATION_CLAIM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "schema_version": {"type": "string", "enum": ["1.0", "v1"]},
+        "intent_class": {"type": "string", "enum": ["PACKET_DRAFT_REPAIR"]},
+        "selected_tool": {"type": "string", "enum": ["remove_from_packet_draft"]},
+        "expected_effect": {"type": "string", "enum": ["REMOVE_VALIDATION_FAILURES"]},
+        "risk_tier": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+        "uncertainty": {"type": ["number", "string"]},
+        "untrusted_context": {"type": "boolean"},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "target_labels": {"type": "array", "items": {"type": "string"}},
+        "summary": {"type": "string"},
+    },
+    "required": [
+        "schema_version",
+        "intent_class",
+        "selected_tool",
+        "expected_effect",
+        "risk_tier",
+        "uncertainty",
+        "untrusted_context",
+        "evidence_refs",
+    ],
+    "additionalProperties": False,
+}
 DRAFT_REMOVAL_SCHEMA = {
     "type": "object",
     "properties": {
-        name: {"type": "array", "items": {"type": "string"}}
-        for name in ("legalRequirementIds", "assessmentRuleIds", "relationIds")
+        "claim": TOOL_INVOCATION_CLAIM_SCHEMA,
+        **{
+            name: {"type": "array", "items": {"type": "string"}}
+            for name in ("legalRequirementIds", "assessmentRuleIds", "relationIds")
+        },
     },
+    "required": ["claim"],
     "additionalProperties": False,
 }
 PREPARATION_PROGRESS_SCHEMA = {
@@ -840,8 +885,108 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             result["validation"] = json.loads(run_validation())
         return json.dumps(result)
 
+    def _mediate_draft_removal_claim(
+        claim: Any,
+        removals: dict[str, list[str] | None],
+        context: RuleSetPreparationContext,
+    ) -> tuple[bool, str, str]:
+        """Mediate a structured ToolInvocationExplanation claim before draft removal.
+
+        Business purpose: Verify that a model invocation explains its intent, tool identity,
+        risk level, expected effect, and evidence grounding against active validation failures.
+
+        Business rules:
+        - Claim must identify 'remove_from_packet_draft' with intent 'PACKET_DRAFT_REPAIR'.
+        - Untrusted context is rejected; risk_tier must be LOW or MEDIUM.
+        - Uncertainty must be resolved (<= 0.0).
+        - Evidence references must correspond to actual failures from latest validation.
+        - Requested labels must correspond to the claim's justified scope.
+        - The claim is explanatory evidence; it never overrides snapshot authority or allowlists.
+
+        Execution flow:
+        1. Validate presence and dictionary structure of the claim.
+        2. Validate schema_version, selected_tool, intent_class, and expected_effect.
+        3. Reject untrusted context, unacceptable risk tiers, or unresolved uncertainty.
+        4. Match evidence references against active failures from the latest validation.
+        5. Verify that requested label arguments correspond to the claim and active failures.
+        6. Return boolean validity, outcome code, and explanatory diagnostic reason.
+
+        Failure cases:
+        - Missing, malformed, forged, mismatched, or high-risk claims return False with specific diagnostic codes.
+
+        Side effects:
+        - Pure diagnostic check; no state is mutated.
+        """
+        if claim is None or not isinstance(claim, dict):
+            return False, "CLAIM_REQUIRED", "Draft removal requires a structured ToolInvocationExplanation claim."
+
+        schema_ver = claim.get("schema_version")
+        if not schema_ver or schema_ver not in ("1.0", "v1"):
+            return False, "INVALID_SCHEMA_VERSION", f"Unsupported claim schema_version: {schema_ver!r}."
+
+        selected_tool = claim.get("selected_tool")
+        if selected_tool != "remove_from_packet_draft":
+            return False, "TOOL_MISMATCH", f"Claim selected_tool {selected_tool!r} does not match remove_from_packet_draft."
+
+        intent_class = claim.get("intent_class")
+        if intent_class != "PACKET_DRAFT_REPAIR":
+            return False, "INVALID_INTENT_CLASS", f"Claim intent_class {intent_class!r} is not PACKET_DRAFT_REPAIR."
+
+        expected_effect = claim.get("expected_effect")
+        if expected_effect != "REMOVE_VALIDATION_FAILURES":
+            return False, "INVALID_EXPECTED_EFFECT", f"Claim expected_effect {expected_effect!r} is not REMOVE_VALIDATION_FAILURES."
+
+        if claim.get("untrusted_context") is not False:
+            return False, "UNTRUSTED_CONTEXT", "Claim based on untrusted context cannot authorize draft removal."
+
+        risk_tier = claim.get("risk_tier")
+        if risk_tier not in ("LOW", "MEDIUM"):
+            return False, "UNACCEPTABLE_RISK_TIER", f"Claim risk_tier {risk_tier!r} exceeds automated repair threshold."
+
+        uncertainty = claim.get("uncertainty")
+        try:
+            unc_val = float(uncertainty) if uncertainty is not None else 1.0
+        except (ValueError, TypeError):
+            unc_val = 1.0
+        if unc_val > 0.0:
+            return False, "UNRESOLVED_UNCERTAINTY", f"Claim has unresolved uncertainty: {uncertainty!r}."
+
+        evidence_refs = claim.get("evidence_refs")
+        if not isinstance(evidence_refs, list) or len(evidence_refs) == 0:
+            return False, "MISSING_EVIDENCE_REFS", "Claim must include evidence_refs justifying the removal."
+
+        validation_failures = (context.last_validation or {}).get("failures") or []
+        if not validation_failures:
+            return False, "NO_VALIDATION_FAILURES", "No prior validation failures exist to authorize removal."
+
+        known_refs = {f.get("ref") for f in validation_failures if isinstance(f, dict) and f.get("ref")}
+        known_codes = {f.get("code") for f in validation_failures if isinstance(f, dict) and f.get("code")}
+
+        for ref in evidence_refs:
+            if not isinstance(ref, str) or not ref.strip():
+                return False, "INVALID_EVIDENCE_REF", "Evidence ref must be a non-empty string."
+            if ref not in known_refs and ref not in known_codes and not any(ref in k_ref for k_ref in known_refs):
+                return False, "FORGED_EVIDENCE_REF", f"Evidence ref {ref!r} does not correspond to any active validation failure."
+
+        all_requested = [lbl for labels in removals.values() for lbl in (labels or ())]
+        target_labels = claim.get("target_labels")
+        if target_labels is not None:
+            if not isinstance(target_labels, list) or set(all_requested) != set(target_labels):
+                return False, "ARGUMENT_MISMATCH", f"Requested labels {all_requested} do not match claim target_labels {target_labels}."
+
+        if all_requested:
+            matched_any = any(
+                any(lbl in eref for eref in evidence_refs) or any(lbl in k_ref for k_ref in known_refs)
+                for lbl in all_requested
+            )
+            if not matched_any:
+                return False, "ARGUMENT_MISMATCH", f"None of the requested labels {all_requested} match claim evidence_refs."
+
+        return True, "OK", ""
+
     @tool(args_schema=DRAFT_REMOVAL_SCHEMA)
     def remove_from_packet_draft(
+        claim: ToolInvocationExplanation = None,
         legalRequirementIds: list[str] | None = None,
         assessmentRuleIds: list[str] | None = None,
         relationIds: list[str] | None = None,
@@ -854,28 +999,57 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
 
         Business rules:
         - Terminal runs cannot change; unknown labels and items not named by the latest validation failure are retained and reported.
+        - Every invocation requires a valid structured ToolInvocationExplanation claim justifying the repair action before mutation.
+        - The most restrictive decision wins: valid claim never overrides snapshot binding or removable allowlist.
 
         Execution flow:
-        1. Reject terminal state.
-        2. Process requested Requirement, AssessmentRule and relation labels against the current draft and removable allowlist.
-        3. Clear stale validation, record removal counts and return unknown/refused labels with repair guidance.
+        1. Reject terminal state and frozen-inventory runs.
+        2. Validate the structured ToolInvocationExplanation claim against latest validation failures and requested arguments.
+        3. Reject with fail-closed outcome if claim is missing, mismatched, forged or unacceptable risk.
+        4. Validate draft snapshot authority against context.draft_packet(); invalidate allowlist if snapshot is stale.
+        5. Process requested Requirement, AssessmentRule and relation labels against current draft and removable allowlist.
+        6. Record removal trace with claimMediation outcome and return repair guidance.
 
         Failure cases:
-        - Labels absent from the draft or not named by the latest validation failure are not deleted; malformed requests are rejected by the declared schema.
+        - Missing or invalid claim is denied without mutating draft; labels absent from the draft or not named by latest validation failure are refused.
 
         Side effects:
-        - Mutates local draft/removable state and validation trace; it does not persist or activate the packet.
+        - Mutates local draft/removable state and records trace; it does not persist or activate the packet.
         """
         if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
         if context.inventory is not None:
             return json.dumps(context.inventory.rejected("CLAIM_PHASE_INVALID", "draft", "Use typed authoring tools for frozen-inventory candidates"))
+
+        removals = {"legalRequirements": legalRequirementIds, "assessmentRules": assessmentRuleIds,
+                    "contextRelations": relationIds}
+        all_requested = [lbl for labels in removals.values() for lbl in (labels or ())]
+
+        claim_ok, claim_code, claim_reason = _mediate_draft_removal_claim(claim, removals, context)
+        if not claim_ok:
+            context.trace.append({
+                "tool": "draft_remove",
+                "claimMediation": {
+                    "outcome": "REJECTED",
+                    "code": claim_code,
+                    "reason": claim_reason,
+                },
+                "requested": deepcopy(removals),
+            })
+            logger.warning("RULE_SET_PREPARATION_REMOVAL_CLAIM_REJECTED", run_id=context.run_id,
+                           code=claim_code, reason=claim_reason)
+            return json.dumps({
+                "error": f"Claim mediation failed: {claim_reason}",
+                "code": claim_code,
+                "refused": all_requested,
+                "why": claim_reason,
+            })
+
         # Validation is authority only for the exact draft it inspected, not a same-labeled
         # replacement, an independently supplied packet or a restored stale snapshot.
         if context.removal_validation_packet != context.draft_packet():
             context.removable.clear()
-        removals = {"legalRequirements": legalRequirementIds, "assessmentRules": assessmentRuleIds,
-                    "contextRelations": relationIds}
+
         removed = {key: 0 for key in removals}
         unknown: list[str] = []
         refused: list[str] = []
@@ -898,10 +1072,21 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             context.progress_revision += 1
         context.removable.clear()
         context.removal_validation_packet = None
-        context.trace.append({"tool": "draft_remove", "removed": removed, "refused": len(refused),
-                              "requested": deepcopy(removals), "removedLabels": removed_labels,
-                              "refusedLabels": list(refused), "unknownLabels": list(unknown),
-                              "validationFailures": validation_failures})
+        context.trace.append({
+            "tool": "draft_remove",
+            "claimMediation": {
+                "outcome": "PASSED",
+                "intentClass": (claim or {}).get("intent_class"),
+                "riskTier": (claim or {}).get("risk_tier"),
+            },
+            "removed": removed,
+            "refused": len(refused),
+            "requested": deepcopy(removals),
+            "removedLabels": removed_labels,
+            "refusedLabels": list(refused),
+            "unknownLabels": list(unknown),
+            "validationFailures": validation_failures,
+        })
         logger.info("RULE_SET_PREPARATION_DRAFT_REMOVED", run_id=context.run_id, removed=removed,
                     refused=len(refused), unknown=len(unknown), draft=context.draft_counts())
         result: dict[str, Any] = {"removed": removed, "unknownLabels": unknown[:20], "draft": context.draft_counts()}

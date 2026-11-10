@@ -7574,9 +7574,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::add_to_packet_draft::PROMOTED_TOOL_DOCSTRING::770:6ed48ab08e3eac7d",
+      "siteId": "ast:rule_set_preparation/tools.py::add_to_packet_draft::PROMOTED_TOOL_DOCSTRING::815:6ed48ab08e3eac7d",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 770,
+      "lineNumber": 815,
       "symbolName": "add_to_packet_draft",
       "constructionSha256": "6ed48ab08e3eac7d0f08e84d80e342ca255beaa6168b1e42503da7a83afda931",
       "evidence": "\"\"\"Add one PART of the rule set packet to the draft, so a large source is authored in\n        several small calls instead of one huge packet. Each item is identified by its label\n        (legalRequirementId, assessmentRuleId, relationId): an item with a label that is already\n        in the draft REPLACES it, which is how you correct an item. Nothing is checked here; call\n        validate_compliance_rule_set with no arguments to validate the whole draft.\n\n        Business purpose: Add or replace labeled parts of the legacy Rule Set packet draft before the whole packet is validated.\n\n        Business rules:\n        - Terminal runs reject mutation; frozen-inventory runs must use typed authoring tools; every submitted item needs its canonical identity label, and an existing label replaces that item.\n        - Any changed draft invalidates previous validation; the tool never interprets or validates legal meaning as part of the add.\n\n        Execution flow:\n        1. Reject terminal or frozen-inventory usage.\n        2. Verify labels for all supplied packet sections before changing anything.\n        3. Add/replace labeled items, advance progress when content changes and clear stale validation.\n        4. Return counts and automatically attach a dry-run validation after the configured number of add calls.\n\n        Failure cases:\n        - Missing labels reject the entire add; terminal/frozen phases return repair feedback; validation failures remain attached rather than accepting a pass.\n\n        Side effects:\n        - Mutates the run-local packet draft, trace and progress revision and may publish progress/validation events.\n        \"\"\"",
@@ -7594,9 +7594,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1101:1aaa82b576c8228a",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1286:1aaa82b576c8228a",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1101,
+      "lineNumber": 1286,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "1aaa82b576c8228ab951dd5b11b221526b6e4687539a7241c2fd2d0055733f57",
       "evidence": "\"Validate current Rule candidates against the frozen inventory revision, returning grouped claim/provenance/fidelity gaps. No arguments or replacement packet. A pass enters SUBMISSION_READY without publishing authority.\"",
@@ -7614,9 +7614,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1102:6a68eb9793ebb48b",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1287:6a68eb9793ebb48b",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1102,
+      "lineNumber": 1287,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "6a68eb9793ebb48be8d44daf5f073c5cb5403b21726a4a13dfc1e25075e27792",
       "evidence": "\"Explicitly submit the exact validated frozen-inventory draft once through the Completion Gate. No arguments or replacement packet.\"",
@@ -7634,9 +7634,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1139:80369ba4167fc5bf",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1324:80369ba4167fc5bf",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1139,
+      "lineNumber": 1324,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "80369ba4167fc5bfe0be68be096aa41f3945d28392ad25c1fae6c8fdd139e71c",
       "evidence": "\"Validate the persisted Rule Set Draft, exact source support, source coverage, references, legal effects and rule bindings. Returns specific errors. No arguments.\"",
@@ -7654,9 +7654,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1140:476821dc1348d828",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1325:476821dc1348d828",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1140,
+      "lineNumber": 1325,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "476821dc1348d828af9f47123ab7bf543885396f524ce2cc35794b997e513404",
       "evidence": "\"Activate the exact validated Rule Set Draft through the governed API. Validation must pass first. No arguments.\"",
@@ -7674,9 +7674,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::SCHEMA_DESCRIPTION::1033:34ef0b818a22e07a",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::SCHEMA_DESCRIPTION::1218:34ef0b818a22e07a",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1033,
+      "lineNumber": 1218,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "34ef0b818a22e07ab2a63a816aae392c059c043320fdd1270b7c1a6b66b0b607",
       "evidence": "\"Affected absolute path inside /legal-source.\"",
@@ -7694,9 +7694,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::record_preparation_progress::PROMOTED_TOOL_DOCSTRING::586:53e13cd45ddce285",
+      "siteId": "ast:rule_set_preparation/tools.py::record_preparation_progress::PROMOTED_TOOL_DOCSTRING::631:53e13cd45ddce285",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 586,
+      "lineNumber": 631,
       "symbolName": "record_preparation_progress",
       "constructionSha256": "53e13cd45ddce285f6a3f45d8b12d29868913b08c385123f01e46c2d56991582",
       "evidence": "\"\"\"Record concise source-grounded findings, unresolved work and the next factual investigation action.\n\n        This is an execution-local working ledger, not legal output or chain-of-thought. Do not include\n        private reasoning; cite source identifiers/locators when useful.\n\n        Business purpose: Maintain a concise execution-local ledger of source-grounded findings, unresolved work and the next factual investigation action.\n\n        Business rules:\n        - Omitted fields preserve their current values; this ledger is not legal output or chain-of-thought and must not contain private reasoning.\n\n        Execution flow:\n        1. Merge supplied fields with current progress state.\n        2. Under the observation lock, increment progress revision when established findings or unresolved work change.\n        3. Save the new progress state and return it with its revision.\n\n        Failure cases:\n        - Schema-invalid values are rejected by the tool contract; internal state update errors propagate.\n\n        Side effects:\n        - Updates only run-local progress state and may advance progress revision.\n        \"\"\"",
@@ -7714,12 +7714,12 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::remove_from_packet_draft::PROMOTED_TOOL_DOCSTRING::850:dc32d59f44099237",
+      "siteId": "ast:rule_set_preparation/tools.py::remove_from_packet_draft::PROMOTED_TOOL_DOCSTRING::995:c93e39e1bec5dc90",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 850,
+      "lineNumber": 995,
       "symbolName": "remove_from_packet_draft",
-      "constructionSha256": "dc32d59f4409923789e77a9392039bbfab76253e24a18705cfcb224a42f1cad3",
-      "evidence": "\"\"\"Remove items from the packet draft by label. Only items named by the latest validation\n        failures can be removed; to change any other item send it again with the same label.\n\n        Business purpose: Remove only packet items that the most recent validation failure explicitly identifies as removable.\n\n        Business rules:\n        - Terminal runs cannot change; unknown labels and items not named by the latest validation failure are retained and reported.\n\n        Execution flow:\n        1. Reject terminal state.\n        2. Process requested Requirement, AssessmentRule and relation labels against the current draft and removable allowlist.\n        3. Clear stale validation, record removal counts and return unknown/refused labels with repair guidance.\n\n        Failure cases:\n        - Labels absent from the draft or not named by the latest validation failure are not deleted; malformed requests are rejected by the declared schema.\n\n        Side effects:\n        - Mutates local draft/removable state and validation trace; it does not persist or activate the packet.\n        \"\"\"",
+      "constructionSha256": "c93e39e1bec5dc901f832fd4a7701662aba5362b5635b88fd01dc218fbbe55d1",
+      "evidence": "\"\"\"Remove items from the packet draft by label. Only items named by the latest validation\n        failures can be removed; to change any other item send it again with the same label.\n\n        Business purpose: Remove only packet items that the most recent validation failure explicitly identifies as removable.\n\n        Business rules:\n        - Terminal runs cannot change; unknown labels and items not named by the latest validation failure are retained and reported.\n        - Every invocation requires a valid structured ToolInvocationExplanation claim justifying the repair action before mutation.\n        - The most restrictive decision wins: valid claim never overrides snapshot binding or removable allowlist.\n\n        Execution flow:\n        1. Reject terminal state and frozen-inventory runs.\n        2. Validate the structured ToolInvocationExplanation claim against latest validation failures and requested arguments.\n        3. Reject with fail-closed outcome if claim is missing, mismatched, forged or unacceptable risk.\n        4. Validate draft snapshot authority against context.draft_packet(); invalidate allowlist if snapshot is stale.\n        5. Process requested Requirement, AssessmentRule and relation labels against current draft and removable allowlist.\n        6. Record removal trace with claimMediation outcome and return repair guidance.\n\n        Failure cases:\n        - Missing or invalid claim is denied without mutating draft; labels absent from the draft or not named by latest validation failure are refused.\n\n        Side effects:\n        - Mutates local draft/removable state and records trace; it does not persist or activate the packet.\n        \"\"\"",
       "astKind": "PROMOTED_TOOL_DOCSTRING",
       "constructionType": "MAINTAINED_TOOL_DESCRIPTION",
       "modelFacingConsumer": "rule_set_preparation/tools.py::remove_from_packet_draft",
@@ -7734,9 +7734,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::report_rule_set_source_blocked::PROMOTED_TOOL_DOCSTRING::1039:ed1a381fce087133",
+      "siteId": "ast:rule_set_preparation/tools.py::report_rule_set_source_blocked::PROMOTED_TOOL_DOCSTRING::1224:ed1a381fce087133",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1039,
+      "lineNumber": 1224,
       "symbolName": "report_rule_set_source_blocked",
       "constructionSha256": "ed1a381fce087133e326d6b7eefe5366a3666b7d9f6478ae21317c8d6b824730",
       "evidence": "\"\"\"End WITHOUT submission only when the pinned source cannot be read or its pins\n        are inconsistent. Do not use for unfinished work, ambiguous provisions or validation\n        feedback that can be corrected. Name the affected pinned source path and reason.\n\n        Business purpose: End Preparation without submission only when the pinned source cannot be read or its recorded pins are inconsistent.\n\n        Business rules:\n        - Reasons and paths are constrained to declared source-blocking cases under `/legal-source`; an intact readable source refutes the claim and requires work to continue.\n\n        Execution flow:\n        1. Reject already submitted runs, unsupported reasons and paths outside the pinned source tree.\n        2. Verify readability or immutable index hashes when a local source root exists.\n        3. Return a refutation when evidence contradicts the block claim; otherwise retain the reported blocker as terminal context.\n\n        Failure cases:\n        - Invalid reason/path or a concrete refutation returns repair guidance; a missing/unreadable source index or mismatched hash does not count as a refutation and leaves the blocker report recorded.\n\n        Side effects:\n        - A retained blocker updates run-local terminal/progress/trace state and logging; it does not submit, validate or activate a Rule Set.\n        \"\"\"",
@@ -7754,9 +7754,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::submit_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::948:5935ea1913f7f2b5",
+      "siteId": "ast:rule_set_preparation/tools.py::submit_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::1133:5935ea1913f7f2b5",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 948,
+      "lineNumber": 1133,
       "symbolName": "submit_compliance_rule_set",
       "constructionSha256": "5935ea1913f7f2b5cb17634532ebd21e3d33735154fb97e816d6d93167034cf3",
       "evidence": "\"\"\"Claim completion for a packet, run the deterministic integrity gate, then submit once.\n\n        A rejected gate returns its exact mechanical gaps to this same agent for repair. The gate\n        checks structure and provenance only; this agent owns legal interpretation and completeness.\n        A passing claim is submitted through the canonical atomic activation operation.\n\n        Business purpose: Submit the exact mechanically validated Rule Set candidate once through the canonical governed API.\n\n        Business rules:\n        - Frozen-inventory calls accept no replacement packet; only a passing exact candidate may be submitted, and existing submission/source-blocked/concluded states are terminal.\n        - The deterministic gate checks structure and provenance; legal interpretation and completeness remain agent responsibilities.\n\n        Execution flow:\n        1. Return the existing terminal result when already submitted or blocked/concluded.\n        2. Restore/flush the current draft, select the exact validated candidate and run or reuse its validation gate.\n        3. Return repair gaps for a failed gate, tracking repeated unchanged completion attempts.\n        4. Submit a passing packet with the run's idempotency key, transition inventory and record completion provenance.\n\n        Failure cases:\n        - Gate failures remain rejected; callback/value errors are returned as errors; repeated same candidate/gaps/progress raises NoProgressDetected.\n\n        Side effects:\n        - Calls the governed submission API and may transition inventory, update run trace/revision and publish durable completion events.\n        \"\"\"",
@@ -7774,9 +7774,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::validate_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::916:e121cb89777d870d",
+      "siteId": "ast:rule_set_preparation/tools.py::validate_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::1101:e121cb89777d870d",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 916,
+      "lineNumber": 1101,
       "symbolName": "validate_compliance_rule_set",
       "constructionSha256": "e121cb89777d870dc8f61ed991ab36a06a09125a78ce3a78ba340eefd27fe343",
       "evidence": "\"\"\"Dry-run the mechanical integrity validation of a COMPLETE rule set packet.\n\n        Call it with no arguments to validate the draft built with add_to_packet_draft, or pass\n        a complete packet. Nothing is persisted. Returns {\"outcome\": \"PASSED\"|\"FAILED\",\n        \"failures\": [...]}; each failure has a code, the packet-local ref it concerns and a short\n        detail, and uncovered source provisions are listed under \"uncoveredProvisions\". Fix every\n        failure and validate again before the single submission.\n\n        Business purpose: Expose a dry-run validation of the current Rule Set draft or a complete packet in legacy mode.\n\n        Business rules:\n        - Frozen-inventory calls accept no packet replacement and validate the current persisted authoring draft; passing a gate does not submit or activate the Rule Set.\n\n        Execution flow:\n        1. Reject packet arguments when a frozen inventory owns the draft.\n        2. Flush the current authoring draft when applicable.\n        3. Run the shared validator and serialize its mechanical findings.\n\n        Failure cases:\n        - Wrong phase, malformed packet or failed validation returns explicit repair gaps; no passing result is fabricated.\n\n        Side effects:\n        - May flush the current authoring draft and update validation/phase telemetry; no submission or activation occurs.\n        \"\"\"",

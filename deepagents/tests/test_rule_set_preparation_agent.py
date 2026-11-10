@@ -974,7 +974,17 @@ def test_only_items_named_by_the_latest_validation_failures_can_be_removed() -> 
     assert context.draft_counts() == {"legalRequirements": 1, "assessmentRules": 1, "contextRelations": 1}
 
     validate.invoke({})
-    removed = json.loads(remove.invoke({"legalRequirementIds": ["LR-RET"], "relationIds": ["REL-1", "REL-missing"]}))
+    claim = {
+        "schema_version": "1.0",
+        "intent_class": "PACKET_DRAFT_REPAIR",
+        "selected_tool": "remove_from_packet_draft",
+        "expected_effect": "REMOVE_VALIDATION_FAILURES",
+        "risk_tier": "LOW",
+        "uncertainty": 0.0,
+        "untrusted_context": False,
+        "evidence_refs": [f"relation:REL-1|locator:{DOC}::art-2::cl-1"],
+    }
+    removed = json.loads(remove.invoke({"claim": claim, "legalRequirementIds": ["LR-RET"], "relationIds": ["REL-1", "REL-missing"]}))
     assert removed["removed"] == {"legalRequirements": 0, "assessmentRules": 0, "contextRelations": 1}
     assert removed["refused"] == ["LR-RET"] and removed["unknownLabels"] == ["REL-missing"]
     assert context.draft_counts() == {"legalRequirements": 1, "assessmentRules": 1, "contextRelations": 0}
