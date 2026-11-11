@@ -23,7 +23,6 @@ export type RuleSetPreparationActionProps = {
 };
 export type ComplianceRuleSetActiveCardProps = {
   ruleSet: ComplianceRuleSetRow | undefined;
-  availability: RuleSetPreparationAvailability;
 };
 export type ComplianceRuleSetHistoryTableProps = {
   ruleSets: ComplianceRuleSetRow[];

@@ -208,7 +208,9 @@ export const enPages = {
       PREPARING_RULE_SET: "Preparing Rule Set",
       VALIDATION_REQUIRED: "Validation Required",
       VALIDATION_FAILED: "Validation Failed",
-      RULE_SET_READY: "Rule Set Ready",
+      DRAFT_VALIDATED: "Draft validated; no Rule Set Version is persisted",
+      RULE_SET_READY: "Rule Set Version persisted; activation not confirmed",
+      SUCCEEDED_WITHOUT_ARTIFACT: "Preparation succeeded without an artifact",
       ACTIVE: "Active",
     },
     draft: {
@@ -220,6 +222,8 @@ export const enPages = {
       validationErrors: "Validation errors",
       available: "Assessments can use this active Rule Set.",
       unavailable: "Assessments cannot use this draft yet.",
+      historicalSuccessWithoutArtifact:
+        "This historical run succeeded, but no persisted draft or Rule Set Version is available in this environment. It is not an Assessment-ready Rule Set.",
       boundedPreview: "Showing the first 20 candidates.",
     },
     title: "Compliance rule sets",
@@ -239,6 +243,41 @@ export const enPages = {
     preparations: "Rule Set Preparation",
     emptyPreparations: "No Rule Set Preparation has run yet.",
     prepare: "Prepare rule set",
+    prepareSectionTitle: "Prepare Rule Set",
+    prepareSectionDescription:
+      "Review the pinned Legal Source and eligibility before starting a governed Preparation.",
+    preparationTargetSource: "Target Legal Source Version",
+    activeSourceCandidates: "ACTIVE sources (diagnostic only; not selected)",
+    sourceEvidenceComplete: "Source prerequisites are complete",
+    sourceEvidenceIncomplete: "Required source evidence is incomplete",
+    preparationScope: "Preparation scope",
+    currentPreparation: "Current Preparation",
+    currentActiveRuleSet: "Current Active Rule Set",
+    noCurrentPreparation: "No Preparation is currently running",
+    sourceNotSelected: "No unique eligible source selected",
+    sourceAdminNextStep:
+      "Ask an authorized Legal Source administrator to resolve source eligibility. This page does not change source activation or integrity records.",
+    preparationUnavailable: "Preparation unavailable",
+    scopes: {
+      FULL_SOURCE: "Full Source",
+      DEVELOPMENT_ONLY: "Development only",
+    },
+    blockers: {
+      ACTIVE_SOURCE_AMBIGUOUS:
+        "More than one Legal Source Version is ACTIVE. The server requires exactly one active source and cannot select a target safely.",
+      SOURCE_VERSION_NOT_ELIGIBLE:
+        "There is no uniquely selected ACTIVE Legal Source Version with the required activation, integrity, retrieval, document, and chunk evidence.",
+      ACTIVE_RULE_SET_EXISTS:
+        "An Active Rule Set exists. Starting a replacement requires explicit replacement intent.",
+      PREPARATION_IN_PROGRESS:
+        "A Preparation is already queued or running. A second run cannot be started.",
+      SOURCE_VERSION_NOT_ACTIVE:
+        "The previously selected source is no longer ACTIVE. Refresh to load the current eligibility decision.",
+      RUN_NOT_FAILED:
+        "The selected Preparation is not in a retryable failed state.",
+      RUN_NOT_LATEST_ATTEMPT:
+        "Only the latest Preparation attempt can be retried.",
+    },
     preparing: "Preparing rule set…",
     prepareFailed:
       "Preparation could not be started. Refresh the page and check the current state.",

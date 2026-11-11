@@ -1,4 +1,5 @@
 import type { MessageKey } from "@lcsp/i18n";
+import { RULE_SET_PREPARATION_STAGES } from "@lcsp/contracts/compliance-rule-set";
 import { resolveAppMessage } from "@/lib/i18n";
 import { WorkDisclosure } from "@/components/molecules/work-disclosure";
 import type { RuleSetPreparationDraftProps } from "../../types/compliance-rule-sets.types";
@@ -15,6 +16,15 @@ export function RuleSetPreparationDraft({
       <h3 className="font-semibold">
         {t(`pages.complianceRuleSets.stages.${draft.stage}`)}
       </h3>
+      {draft.stage ===
+      RULE_SET_PREPARATION_STAGES.SUCCEEDED_WITHOUT_ARTIFACT ? (
+        <p
+          className="mt-1 text-sm text-amber-700 dark:text-amber-300"
+          role="status"
+        >
+          {t("pages.complianceRuleSets.draft.historicalSuccessWithoutArtifact")}
+        </p>
+      ) : null}
       <p className="mt-1 text-sm text-muted-foreground">
         {t(
           draft.assessmentsCanUseRuleSet

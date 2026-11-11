@@ -314,7 +314,9 @@ describe("Admin current-source preparation", () => {
           problem: {
             meta: {
               reason:
-                RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ELIGIBLE,
+                condition === "ambiguous"
+                  ? RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_SOURCE_AMBIGUOUS
+                  : RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ELIGIBLE,
             },
           },
         },

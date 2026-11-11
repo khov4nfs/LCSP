@@ -205,7 +205,10 @@ export const viPages = {
       PREPARING_RULE_SET: "Đang chuẩn bị bộ quy tắc",
       VALIDATION_REQUIRED: "Cần kiểm tra tính hợp lệ",
       VALIDATION_FAILED: "Kiểm tra tính hợp lệ thất bại",
-      RULE_SET_READY: "Bộ quy tắc đã sẵn sàng",
+      DRAFT_VALIDATED: "Bản nháp đã hợp lệ; chưa lưu phiên bản bộ quy tắc",
+      RULE_SET_READY: "Đã lưu phiên bản bộ quy tắc; chưa xác nhận kích hoạt",
+      SUCCEEDED_WITHOUT_ARTIFACT:
+        "Lượt chuẩn bị thành công nhưng không có hiện vật",
       ACTIVE: "Đang hoạt động",
     },
     draft: {
@@ -217,6 +220,8 @@ export const viPages = {
       validationErrors: "Lỗi kiểm tra tính hợp lệ",
       available: "Các đánh giá có thể sử dụng bộ quy tắc đang hoạt động này.",
       unavailable: "Các đánh giá chưa thể sử dụng bản nháp này.",
+      historicalSuccessWithoutArtifact:
+        "Lượt chạy lịch sử này đã thành công nhưng môi trường hiện tại không có bản nháp hoặc Phiên bản bộ quy tắc đã lưu. Đây không phải bộ quy tắc sẵn sàng cho Đánh giá.",
       boundedPreview: "Đang hiển thị 20 mục đầu tiên.",
     },
     title: "Bộ quy tắc tuân thủ",
@@ -236,6 +241,41 @@ export const viPages = {
     preparations: "Chuẩn bị bộ quy tắc",
     emptyPreparations: "Chưa có lượt chuẩn bị bộ quy tắc nào.",
     prepare: "Chuẩn bị bộ quy tắc",
+    prepareSectionTitle: "Chuẩn bị Bộ quy tắc",
+    prepareSectionDescription:
+      "Kiểm tra Phiên bản nguồn pháp lý đã ghim và điều kiện trước khi bắt đầu lượt Chuẩn bị theo quy trình.",
+    preparationTargetSource: "Phiên bản nguồn pháp lý đích",
+    activeSourceCandidates:
+      "Các nguồn ACTIVE (chỉ để chẩn đoán; chưa được chọn)",
+    sourceEvidenceComplete: "Đã có đủ điều kiện nguồn",
+    sourceEvidenceIncomplete: "Bằng chứng nguồn bắt buộc chưa đầy đủ",
+    preparationScope: "Phạm vi Chuẩn bị",
+    currentPreparation: "Lượt Chuẩn bị hiện tại",
+    currentActiveRuleSet: "Bộ quy tắc đang hoạt động hiện tại",
+    noCurrentPreparation: "Hiện không có lượt Chuẩn bị nào đang chạy",
+    sourceNotSelected: "Chưa chọn được nguồn đủ điều kiện duy nhất",
+    sourceAdminNextStep:
+      "Yêu cầu quản trị viên Nguồn pháp lý được ủy quyền xử lý điều kiện nguồn. Trang này không thay đổi trạng thái kích hoạt hoặc hồ sơ toàn vẹn của nguồn.",
+    preparationUnavailable: "Chưa thể Chuẩn bị",
+    scopes: {
+      FULL_SOURCE: "Toàn bộ nguồn",
+      DEVELOPMENT_ONLY: "Chỉ phạm vi Phát triển",
+    },
+    blockers: {
+      ACTIVE_SOURCE_AMBIGUOUS:
+        "Có nhiều Phiên bản nguồn pháp lý đang ACTIVE. Máy chủ yêu cầu đúng một nguồn đang hoạt động và không thể tự chọn nguồn đích an toàn.",
+      SOURCE_VERSION_NOT_ELIGIBLE:
+        "Không có Phiên bản nguồn pháp lý ACTIVE được chọn duy nhất với đầy đủ bằng chứng kích hoạt, toàn vẹn, truy xuất, tài liệu và đoạn nguồn.",
+      ACTIVE_RULE_SET_EXISTS:
+        "Đã có Bộ quy tắc đang hoạt động. Muốn thay thế cần xác nhận rõ ý định thay thế.",
+      PREPARATION_IN_PROGRESS:
+        "Một lượt Chuẩn bị đã được xếp hàng hoặc đang chạy. Không thể bắt đầu lượt thứ hai.",
+      SOURCE_VERSION_NOT_ACTIVE:
+        "Nguồn đã chọn không còn ACTIVE. Hãy tải lại để nhận quyết định điều kiện hiện tại.",
+      RUN_NOT_FAILED:
+        "Lượt Chuẩn bị được chọn không ở trạng thái lỗi có thể thử lại.",
+      RUN_NOT_LATEST_ATTEMPT: "Chỉ có thể thử lại lượt Chuẩn bị mới nhất.",
+    },
     preparing: "Đang chuẩn bị bộ quy tắc…",
     prepareFailed:
       "Không thể bắt đầu chuẩn bị. Hãy làm mới trang và kiểm tra trạng thái hiện tại.",

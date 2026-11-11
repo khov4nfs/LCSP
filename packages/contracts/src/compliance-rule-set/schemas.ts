@@ -647,6 +647,17 @@ export type RuleSetPreparationAdminRequest = z.infer<
 export const ruleSetPreparationAvailabilitySchema = z.strictObject({
   legalSourceVersionId: z.uuid().nullable(),
   legalSourceVersion: z.string().min(1).nullable(),
+  /** Bounded, read-only diagnostics. Candidates are never an implicit source-selection control. */
+  activeSourceCandidates: z
+    .array(
+      z.strictObject({
+        legalSourceVersionId: z.uuid(),
+        version: z.string().min(1),
+        sourceEvidenceComplete: z.boolean(),
+      }),
+    )
+    .max(2)
+    .default([]),
   /** The ACTIVE rule set of the current source, which stays ACTIVE until a replacement activates. */
   activeRuleSetVersionId: z.uuid().nullable(),
   /** A first preparation may start: no ACTIVE rule set and nothing in progress. */

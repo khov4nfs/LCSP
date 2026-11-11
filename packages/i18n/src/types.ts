@@ -222,7 +222,9 @@ export type PagesMessages = {
       PREPARING_RULE_SET: string;
       VALIDATION_REQUIRED: string;
       VALIDATION_FAILED: string;
+      DRAFT_VALIDATED: string;
       RULE_SET_READY: string;
+      SUCCEEDED_WITHOUT_ARTIFACT: string;
       ACTIVE: string;
     };
     draft: {
@@ -234,10 +236,34 @@ export type PagesMessages = {
       validationErrors: string;
       available: string;
       unavailable: string;
+      historicalSuccessWithoutArtifact: string;
       boundedPreview: string;
     };
     title: string;
     description: string;
+    prepareSectionTitle: string;
+    prepareSectionDescription: string;
+    preparationTargetSource: string;
+    activeSourceCandidates: string;
+    sourceEvidenceComplete: string;
+    sourceEvidenceIncomplete: string;
+    preparationScope: string;
+    currentPreparation: string;
+    currentActiveRuleSet: string;
+    noCurrentPreparation: string;
+    sourceNotSelected: string;
+    sourceAdminNextStep: string;
+    preparationUnavailable: string;
+    scopes: { FULL_SOURCE: string; DEVELOPMENT_ONLY: string };
+    blockers: {
+      ACTIVE_SOURCE_AMBIGUOUS: string;
+      SOURCE_VERSION_NOT_ELIGIBLE: string;
+      ACTIVE_RULE_SET_EXISTS: string;
+      PREPARATION_IN_PROGRESS: string;
+      SOURCE_VERSION_NOT_ACTIVE: string;
+      RUN_NOT_FAILED: string;
+      RUN_NOT_LATEST_ATTEMPT: string;
+    };
     active: string;
     unavailable: string;
     sourceVersion: string;
