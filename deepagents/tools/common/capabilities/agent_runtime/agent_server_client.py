@@ -523,6 +523,24 @@ def _positive_float_env(name: str, default: float) -> float:
 
 
 def _raise_for_terminal_run(status: str, state: Any) -> None:
+    """Map a terminal Agent Server state to the correct broker settlement.
+
+    Business purpose:
+    - Preserve retry authority for transient managed-document task failures.
+
+    Business rules:
+    - Allowlisted transient remote failures remain retryable; unknown and permanent failures are terminal.
+
+    Execution flow:
+    1. Inspect task errors for a bounded retryable classification.
+    2. Raise the corresponding retryable or terminal boundary exception.
+
+    Failure cases:
+    - Malformed state and unrecognized errors settle as terminal Agent Server failures.
+
+    Side effects:
+    - None; the caller owns broker settlement.
+    """
     raw_error: Any = None
     if isinstance(state, Mapping):
         tasks = state.get("tasks")
@@ -552,6 +570,24 @@ def _raise_for_terminal_run(status: str, state: Any) -> None:
 
 
 def _raise_for_agent_server_error(result: Any) -> None:
+    """Translate Agent Server request errors into boundary settlement authority.
+
+    Business purpose:
+    - Keep transient transport and managed-document failures eligible for bounded retry.
+
+    Business rules:
+    - Retry only allowlisted transient errors; permanent and unknown errors remain terminal.
+
+    Execution flow:
+    1. Read the structured Agent Server error envelope.
+    2. Classify transient failures or raise a terminal run error.
+
+    Failure cases:
+    - Missing error envelopes are ignored; malformed or unknown error types remain terminal.
+
+    Side effects:
+    - None; no remote error body is logged or exposed here.
+    """
     if not isinstance(result, Mapping):
         return
     raw_error = result.get("__error__")
