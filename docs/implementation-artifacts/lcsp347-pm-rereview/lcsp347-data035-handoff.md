@@ -33,3 +33,8 @@ A dedicated retryable boundary exception now preserves transient HTTP 429/5xx an
 - Ruff was unavailable in the frozen environment. `git diff --check` passed.
 
 See `legal-source-data035-fault-injection.md`, its JSON receipt, and `legal-source-data035-broker-settlement.md` for identities and scenario detail.
+
+## Publication
+
+Code and regression commit: 0bd49c00d. This handoff update is committed in the publication documentation commit. Final published HEAD and GitHub check conclusions are recorded in the turn handoff after push; CI is not claimed green before checks complete.
+
