@@ -1,0 +1,67 @@
+﻿{
+  "schema": "lcsp347.data034.ingestion-replay-recovery.v1",
+  "baseline": {
+    "head": "e51b73d26065e1256bdb41f4baccc51ab463f38a",
+    "pr": 456,
+    "state": "OPEN_DRAFT"
+  },
+  "sourceSha256": "ced80bf1fd45a576a785994da3471d9a2fbdc54e799216e0c9dba5da62d45af7",
+  "residualQueue": {
+    "vhost": "/lcsp-data032",
+    "queue": "data032-32fd4612cf7d.managed_document_ingest_requested",
+    "readyObserved": 5,
+    "unackedObserved": 0,
+    "consumersObserved": 0,
+    "retryQueueMessagesObserved": 0,
+    "payloadInspection": "BLOCKED_HTTP_401",
+    "messages": [
+      { "ordinal": 1, "classification": "UNKNOWN_REQUIRES_REVIEW", "documentId": "NOT_CAPTURED", "attempt": "NOT_CAPTURED", "eventTimestamp": "NOT_CAPTURED" },
+      { "ordinal": 2, "classification": "UNKNOWN_REQUIRES_REVIEW", "documentId": "NOT_CAPTURED", "attempt": "NOT_CAPTURED", "eventTimestamp": "NOT_CAPTURED" },
+      { "ordinal": 3, "classification": "UNKNOWN_REQUIRES_REVIEW", "documentId": "NOT_CAPTURED", "attempt": "NOT_CAPTURED", "eventTimestamp": "NOT_CAPTURED" },
+      { "ordinal": 4, "classification": "UNKNOWN_REQUIRES_REVIEW", "documentId": "NOT_CAPTURED", "attempt": "NOT_CAPTURED", "eventTimestamp": "NOT_CAPTURED" },
+      { "ordinal": 5, "classification": "UNKNOWN_REQUIRES_REVIEW", "documentId": "NOT_CAPTURED", "attempt": "NOT_CAPTURED", "eventTimestamp": "NOT_CAPTURED" }
+    ],
+    "consumedOrAcknowledged": false,
+    "purged": false
+  },
+  "newIsolation": {
+    "brokerContainer": "lcsp347-data031-rabbit",
+    "vhost": "/lcsp-data034",
+    "created": true,
+    "permissionsScopedToVhost": true,
+    "queues": 0,
+    "bindings": 0,
+    "consumers": 0,
+    "messages": 0,
+    "workerStarted": false
+  },
+  "scenarios": {
+    "R01_NORMAL_DELIVERY": { "status": "PASS_REUSED_DATA033", "documentCount": 3, "uniqueSourceDocumentCount": 1, "details": "All three DATA-03.3 attempts completed; see DATA-03.3 receipt." },
+    "R02_API_OUTAGE_RECOVERY": { "status": "NOT_RUN" },
+    "R03_WORKER_RESTART": { "status": "NOT_RUN" },
+    "R04_DUPLICATE_BROKER_DELIVERY": { "status": "NOT_RUN_LIVE", "unitCoverage": "PARTIAL" },
+    "R05_CALLBACK_RESPONSE_LOSS": { "status": "NOT_RUN" },
+    "R06_STALE_ATTEMPT": { "status": "PARTIAL_UNIT_ONLY" },
+    "R07_WRONG_WORKER_KEY": { "status": "NOT_RUN_LIVE" },
+    "R08_WRONG_SOURCE_ENVIRONMENT": { "status": "NOT_RUN" },
+    "R09_PARSER_FAILURE": { "status": "PASS_DETERMINISTIC_UNIT_ONLY", "livePersistenceNegative": "NOT_RUN" },
+    "R10_NO_PAID_EXECUTION": { "status": "PASS_DATA033_BOUNDARY_EVIDENCE", "DATA034_RUNS": 0, "usageRowsPriorRun": 0 },
+    "R11_NO_HISTORICAL_EVENT_CONSUMPTION": { "status": "PASS_NOT_CONNECTED_TO_SHARED_BROKER", "old_task_vhost_messages_left_untouched": 5 },
+    "R12_ORIGINAL_EVIDENCE_PRESERVATION": { "status": "PASS_HASH_RECHECKED", "sha256": "ced80bf1fd45a576a785994da3471d9a2fbdc54e799216e0c9dba5da62d45af7" }
+  },
+  "data034Writes": {
+    "postgresWrites": 0,
+    "sourceActivations": 0,
+    "preparationRuns": 0,
+    "paidModelCalls": 0
+  },
+  "verification": {
+    "python": { "command": "uv run --frozen pytest -q tests/test_managed_document_ingest.py tests/test_agent_runtime_rabbitmq_consumer.py tests/test_agent_server_client.py", "passed": 101, "failed": 0, "warnings": 1 },
+    "api": { "command": "pnpm exec cross-env NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./jest.config.ts --runInBand --runTestsByPath src/http-body-parser.spec.ts src/modules/legal-source/application/services/document-media-type.spec.ts", "suitesPassed": 2, "testsPassed": 12, "failed": 0 }
+  },
+  "limitations": [
+    "Residual message payloads could not be read with available management authorization; no message was consumed or requeued.",
+    "Worker restart, real duplicate delivery, callback response loss, wrong-worker-key live rejection, and wrong-environment isolation were not exercised against real PostgreSQL/RabbitMQ.",
+    "No legal semantic completeness or human legal review is claimed."
+  ]
+}
