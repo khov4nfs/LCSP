@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import {
+  PREPARATION_ACTIVITY_SCOPES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -61,6 +62,7 @@ test("Admin confirms Prepare once, sees running state, then shared ACTIVE metada
     // Prepare names the version on screen so a stale page cannot prepare a newer one.
     expect(route.request().postDataJSON()).toEqual({
       legalSourceVersionId: fixture.clean.preparation.legalSourceVersionId,
+      targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
     });
     const run = fixture.queuedRun;
     history = {
@@ -104,6 +106,8 @@ test("Admin confirms Prepare once, sees running state, then shared ACTIVE metada
     preparation: {
       ...fixture.clean.preparation,
       canStart: false,
+      canReplace: true,
+      activeRuleSetVersionId: fixture.activeRuleSet.ruleSetVersionId,
       refusalReason:
         RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
       currentRun: {
@@ -123,8 +127,8 @@ test("Admin confirms Prepare once, sees running state, then shared ACTIVE metada
     { timeout: 10_000 },
   );
   await expect(
-    page.getByRole("button", { name: "Prepare rule set", exact: true }),
-  ).toHaveCount(0);
+    page.getByRole("button", { name: "Prepare new version", exact: true }),
+  ).toBeEnabled();
   await expect(page.getByText("110", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("66", { exact: true }).first()).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -249,6 +253,7 @@ test("three failed attempts let Admin Prepare once and see Attempt 4 queued", as
     // Prepare names the version on screen so a stale page cannot prepare a newer one.
     expect(route.request().postDataJSON()).toEqual({
       legalSourceVersionId: fixture.clean.preparation.legalSourceVersionId,
+      targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
     });
     history = {
       ...fixture.clean,
