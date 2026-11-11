@@ -5,11 +5,13 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import httpx
 from structlog import get_logger
 
 from tools.common.capabilities.agent_runtime.boundary import (
     AgentBoundaryBase,
     NonRetryableAgentBoundaryError,
+    RetryableAgentBoundaryError,
 )
 from tools.legal.managed_documents.client import DocumentIngestionClient, IngestionApiError
 from tools.legal.managed_documents.ingest import FAILURE_EXTRACTION, failed, ingest_document
@@ -72,8 +74,14 @@ class ManagedDocumentIngestBoundary(AgentBoundaryBase):
             if error.code in _SETTLED:
                 return {"state": "SKIPPED", "reason": error.code}
             if error.retryable:
-                raise
+                raise RetryableAgentBoundaryError(
+                    f"managed document API returned retryable HTTP status {error.status}"
+                ) from error
             raise NonRetryableAgentBoundaryError(f"document ingest rejected: {error.code}") from error
+        except httpx.RequestError as error:
+            raise RetryableAgentBoundaryError(
+                "managed document original fetch transport failed"
+            ) from error
 
         try:
             result = ingest_document(
@@ -92,9 +100,15 @@ class ManagedDocumentIngestBoundary(AgentBoundaryBase):
             if error.code in _SETTLED:
                 return {"state": "SKIPPED", "reason": error.code}
             if error.retryable:
-                raise
+                raise RetryableAgentBoundaryError(
+                    f"managed document API returned retryable HTTP status {error.status}"
+                ) from error
             # The API refused the content itself (for example a chunk it cannot verify): record it.
             outcome = self._client.post_result(document_row_id, failed(attempt, FAILURE_EXTRACTION))
+        except httpx.RequestError as error:
+            raise RetryableAgentBoundaryError(
+                "managed document callback transport failed"
+            ) from error
         logger.info(
             "LEGAL_SOURCE_DOCUMENT_INGESTED",
             document_row_id=document_row_id,

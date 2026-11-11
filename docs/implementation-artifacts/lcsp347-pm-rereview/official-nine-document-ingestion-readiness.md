@@ -35,3 +35,10 @@ All nine original files were rehashed on 2026-11-12 from paths recorded in the l
 - Complete text/structure review: 0/9 independently completed.
 - Human legal approval: 0/9.
 - Corpus import readiness: PARTIAL; seven DOCX are format-ready, but six remain un-ingested and both legacy DOCs need supported source representation/conversion decisions. Do not start corpus-wide intake until replay/recovery controls are exercised and the residual old-vhost messages have authorized disposition.
+
+
+## DATA-03.5 update (2026-11-12)
+
+The prior readiness assessment above is preserved as recorded. DATA-03.5 now demonstrates repeatable provider-free Law 134 ingestion through the isolated API, outbox, RabbitMQ, Python worker, Agent Server and callback path, including an API outage/recovery and a callback-commit/response-loss replay. Original bytes remained hash-identical; successful test documents reached READY with 265 unique chunks and VALID indexes, while a corrupt PDF failed with zero chunks/index. This remains technical ingestion evidence only.
+
+The DATA-03.5 disposable vhost /lcsp-data034 is no longer empty: its one task queue prefix was declared and consumed during the completed reliability run. Managed-document queues ended with zero ready/unacknowledged messages and the temporary consumer was stopped. The old /lcsp-data032 messages were not accessed. Seven DOCX remain candidates for later batch import, two legacy DOC originals remain blocked pending supported representation/conversion, and legal-effect/corpus review remains pending. No source activation, Preparation, Assessment, or paid model invocation occurred. See legal-source-data035-broker-settlement.md and lcsp347-data035-handoff.md.

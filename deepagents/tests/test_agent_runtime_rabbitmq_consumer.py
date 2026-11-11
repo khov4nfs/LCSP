@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from tools.common.capabilities.agent_runtime import rabbitmq_consumer
+from tools.common.capabilities.agent_runtime.boundary import RetryableAgentBoundaryError
 
 
 @pytest.mark.parametrize("mode_variable", ["LCSP_AGENT_RUNTIME_MODE", "NODE_ENV"])
@@ -547,7 +548,7 @@ def test_retryable_delivery_failure_republishes_to_retry_queue_without_blocking(
         cluster_id="deprecated-cluster",
     )
     completed = Future()
-    completed.set_exception(RuntimeError("retryable"))
+    completed.set_exception(RetryableAgentBoundaryError("transient managed-document API failure"))
 
     rabbitmq_consumer._schedule_delivery_settlement(
         connection=FakeConnection(),
@@ -686,7 +687,7 @@ def test_retry_attempt_header_increments_and_exhaustion_stops_requeue():
         correlation_id="corr-2",
     )
     completed = Future()
-    completed.set_exception(RuntimeError("retryable"))
+    completed.set_exception(RetryableAgentBoundaryError("transient managed-document API failure"))
 
     rabbitmq_consumer._settle_delivery(
         channel=channel,
@@ -727,7 +728,7 @@ def test_retry_publish_not_confirmed_keeps_original_delivery_requeued():
     channel = FakeChannel()
     channel.publish_result = False
     completed = Future()
-    completed.set_exception(RuntimeError("retryable"))
+    completed.set_exception(RetryableAgentBoundaryError("transient managed-document API failure"))
 
     rabbitmq_consumer._settle_delivery(
         channel=channel,

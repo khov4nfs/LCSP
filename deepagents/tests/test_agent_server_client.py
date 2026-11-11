@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from tools.common.capabilities.agent_runtime import agent_server_client
+from tools.common.capabilities.agent_runtime.boundary import RetryableAgentBoundaryError
 
 
 
@@ -310,3 +311,26 @@ def test_an_interrupted_run_settles_without_error_so_it_is_not_retried(monkeypat
     # A customer stop is not a failure: no exception, so the broker delivery is
     # acked and the stopped Investigator does not restart until Continue.
     assert result == {"status": "INTERRUPTED", "runId": "created-run"}
+
+
+@pytest.mark.parametrize(
+    ("remote_error", "expected_retryable"),
+    [
+        ("IngestionApiError('HTTP_503 (503)')", True),
+        ("RetryableAgentBoundaryError: transient dependency failure", True),
+        ("IngestionApiError('HTTP_429 (429)')", True),
+        ("IngestionApiError('HTTP_401 (401)')", False),
+        ("httpx.RemoteProtocolError('connection lost')", True),
+        ("ValueError('invalid result')", False),
+    ],
+)
+def test_terminal_agent_server_task_error_preserves_only_allowlisted_retry_authority(
+    remote_error, expected_retryable
+):
+    state = {"tasks": [{"error": remote_error}]}
+    if expected_retryable:
+        with pytest.raises(RetryableAgentBoundaryError):
+            agent_server_client._raise_for_terminal_run("error", state)
+    else:
+        with pytest.raises(agent_server_client.AgentServerRunError):
+            agent_server_client._raise_for_terminal_run("error", state)

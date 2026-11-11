@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Mapping
@@ -14,6 +15,7 @@ from langgraph_sdk import get_sync_client
 
 from tools.common.capabilities.agent_runtime.boundary import (
     NonRetryableAgentBoundaryError,
+    RetryableAgentBoundaryError,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
@@ -457,6 +459,56 @@ def _run_status(run: Any, default: str) -> str:
     return default
 
 
+def _retryable_remote_task_error(raw_error: Any) -> str | None:
+    """Classify safe transient Agent Server task failures for broker retry.
+
+    Business purpose:
+    - Preserve bounded broker recovery for transient API and transport failures.
+
+    Business rules:
+    - Retry only explicit transient markers, managed-document 429/5xx, or allowlisted HTTP transport errors.
+    - Keep permanent API responses and unknown Agent Server errors terminal.
+
+    Execution flow:
+    1. Parse only the remote error type and managed-document HTTP status.
+    2. Return a sanitized reason for an allowlisted transient failure.
+
+    Failure cases:
+    - Missing, malformed, permanent, and unrecognized errors return None.
+
+    Side effects:
+    - None; this helper does not log or expose the remote error message.
+    """
+    if not isinstance(raw_error, str):
+        return None
+    error_prefix = raw_error.split("(", 1)[0].split(":", 1)[0].strip()
+    error_type = error_prefix.rsplit(".", 1)[-1]
+    if error_type == "RetryableAgentBoundaryError":
+        return "Agent Server reported a retryable boundary dependency failure"
+    if error_type == "IngestionApiError":
+        status_match = re.search(r"\((\d{3})\)\W*$", raw_error)
+        if status_match:
+            status = int(status_match.group(1))
+            if status == 429 or 500 <= status <= 599:
+                return f"managed document API returned retryable HTTP status {status}"
+        return None
+    retryable_transport_errors = {
+        "ConnectError",
+        "ConnectTimeout",
+        "NetworkError",
+        "PoolTimeout",
+        "ReadError",
+        "ReadTimeout",
+        "RemoteProtocolError",
+        "TimeoutException",
+        "WriteError",
+        "WriteTimeout",
+    }
+    if error_type in retryable_transport_errors:
+        return "Agent Server reported a retryable API transport failure"
+    return None
+
+
 def _positive_float_env(name: str, default: float) -> float:
     raw = os.getenv(name)
     if raw is None or not raw.strip():
@@ -473,6 +525,14 @@ def _positive_float_env(name: str, default: float) -> float:
 def _raise_for_terminal_run(status: str, state: Any) -> None:
     raw_error: Any = None
     if isinstance(state, Mapping):
+        tasks = state.get("tasks")
+        if isinstance(tasks, (list, tuple)):
+            for task in tasks:
+                if not isinstance(task, Mapping):
+                    continue
+                retry_reason = _retryable_remote_task_error(task.get("error"))
+                if retry_reason:
+                    raise RetryableAgentBoundaryError(retry_reason)
         raw_error = state.get("error") or state.get("__error__")
         values = state.get("values")
         if raw_error is None and isinstance(values, Mapping):
@@ -499,6 +559,11 @@ def _raise_for_agent_server_error(result: Any) -> None:
         return
     remote_error_type = raw_error.get("error")
     message = raw_error.get("message")
+    retry_reason = _retryable_remote_task_error(
+        f"{remote_error_type}({message})" if remote_error_type else message
+    )
+    if retry_reason:
+        raise RetryableAgentBoundaryError(retry_reason)
     raise AgentServerRunError(
         str(remote_error_type or "AgentServerRunError"),
         str(message or "Agent Server run failed"),
