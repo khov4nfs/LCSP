@@ -52,6 +52,9 @@ if (process.argv[2] === "--self-check") {
       "a review marker in another path cannot bypass retired-name checks",
     );
     for (const file of [
+      "docs/COMPLIANCE_RULESET_1TO1_LEGAL_REVIEW_VI.md",
+      "docs/COMPLIANCE_RULESET_1TO1_MAPPING_DRAFT_VI.json",
+      "docs/COMPLIANCE_RULE_SETS_REVIEW.md",
       "docs/RULE_SET_PREPARATION_1TO1_MAPPING_DRAFT_VI.json",
       "docs/RULE_SET_PREPARATION_1TO1_QUALITY_REVIEW_VI.md",
     ]) {
@@ -79,6 +82,27 @@ const retired =
 // a path-based blanket exemption: each file must also carry its non-activation markers.
 // A copied marker in source code, tests, or another document never grants an exemption.
 const reviewOnlySourceSnapshots = new Map([
+  [
+    "docs/COMPLIANCE_RULESET_1TO1_LEGAL_REVIEW_VI.md",
+    [
+      "# Đối chiếu 1:1 Legal Rule ↔ Điều/Khoản/Điểm — BẢN REVIEW",
+      "**Chỉ dùng để review; không phải Rule Set ACTIVE.**",
+    ],
+  ],
+  [
+    "docs/COMPLIANCE_RULESET_1TO1_MAPPING_DRAFT_VI.json",
+    [
+      '"documentType": "REVIEW_ONLY_LEGAL_UNIT_MAPPING"',
+      '"documentStatus": "DRAFT_REVIEW_NOT_ACTIVATED"',
+    ],
+  ],
+  [
+    "docs/COMPLIANCE_RULE_SETS_REVIEW.md",
+    [
+      "# LCSP Compliance Rule Sets — Tổng Hợp Toàn Bộ Danh Mục Quy Tắc Phục Vụ Review",
+      "HỒ SƠ LỊCH SỬ / REVIEW ONLY — KHÔNG PHẢI LEGAL GOLD",
+    ],
+  ],
   [
     "docs/RULE_SET_PREPARATION_1TO1_MAPPING_DRAFT_VI.json",
     [
