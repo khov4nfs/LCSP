@@ -28,11 +28,15 @@ import {
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS,
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES,
   ASSESSMENT_REPORT_V3_LIMITS,
+  ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS,
   assessmentFinalReportArtifactVersionedSchema,
   assessmentFinalReportV2Schema,
   assessmentFinalReportV3Schema,
+  assessmentReportApplicabilityBasisReferenceSchema,
+  assessmentReportDecisionReferenceSchema,
   classifyLegacyAssessmentReportSourceScope,
   measureAssessmentFinalReportV3Size,
+  resolveV3BoundedActionPlanItems,
   utf8ByteLength,
   type AssessmentFinalReportV2,
   type AssessmentFinalReportV3,
@@ -230,13 +234,13 @@ function createV3Fixture(
         decision,
         decisionReferences: [
           {
-            origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.decision,
+            origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.decision,
             reference: decisionRef,
           },
         ],
         applicabilityBasisReferences: [
           {
-            origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.applicabilityBasis,
+            origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.applicabilityBasis,
             legalRequirementId: "req-1",
             kind: RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION,
             index: 0,
@@ -245,7 +249,7 @@ function createV3Fixture(
         ],
         factEvidenceReferences: [
           {
-            origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.factEvidence,
+            origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.factEvidence,
             factId: FACT_HUMAN_ID,
             reference: {
               type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
@@ -253,7 +257,7 @@ function createV3Fixture(
             },
           },
           {
-            origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.factEvidence,
+            origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.factEvidence,
             factId: FACT_REPO_ID,
             reference: {
               type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
@@ -266,12 +270,11 @@ function createV3Fixture(
             ? [
                 {
                   criterionId: "criterion-1",
-                  statement: "Automated retention purge job is configured.",
                   outcome: criterionOutcome,
                   rationale: "Repository source check evaluated the control.",
                   references: [
                     {
-                      origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.criterion,
+                      origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.criterion,
                       reference: criterionRef,
                     },
                   ],
@@ -360,7 +363,7 @@ function createV3Fixture(
       truncated:
         recommendationCount >
         ASSESSMENT_REPORT_V3_LIMITS.MAX_ACTION_PLAN_HIGHLIGHTS,
-      items: recommendations.slice(0, includedCount).map((summary, index) => ({
+      items: recommendations.slice(0, includedCount).map((_summary, index) => ({
         actionId: `rule-1#${index}`,
         assessmentRuleId: "rule-1",
         ruleDetailRef: "/ruleDetails/0",
@@ -369,7 +372,6 @@ function createV3Fixture(
           compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT
             ? ASSESSMENT_REPORT_ACTION_PRIORITIES.HIGH
             : ASSESSMENT_REPORT_ACTION_PRIORITIES.LOW,
-        summary,
       })),
     },
     publicationProvenance: {
@@ -404,7 +406,13 @@ function createV2HistoricalFixture(): AssessmentFinalReportV2 {
         decisionRevision: v3.ruleDetails[0].decisionRevision,
         decision: v3.ruleDetails[0].decision,
         decisionReferences: v3.ruleDetails[0].decisionReferences,
-        criteriaDecisions: v3.ruleDetails[0].criteriaDecisions,
+        criteriaDecisions: v3.ruleDetails[0].criteriaDecisions.map((item) => ({
+          ...item,
+          statement:
+            v3.ruleDetails[0].criteria.find(
+              (criterion) => criterion.criterionId === item.criterionId,
+            )?.statement ?? item.criterionId,
+        })),
         narrative: v3.ruleDetails[0].narrative,
         factIds: v3.ruleDetails[0].factIds,
         evidenceIds: v3.ruleDetails[0].evidenceIds,
@@ -672,7 +680,7 @@ test("references & provenance: enforces applicabilityBasis-only references and r
   );
   // Adding the second reference to decisionReferences -> accepted
   twoDecisionRefs.ruleDetails[0].decisionReferences.push({
-    origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.decision,
+    origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.decision,
     reference: {
       type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
       evidenceId: EVIDENCE_REPO_ID,
@@ -752,7 +760,6 @@ test("references & provenance: preserves HUMAN_PROVIDED authority and shared evi
     ruleDetailRef: "/ruleDetails/1",
     recommendationIndex: 0,
     priority: ASSESSMENT_REPORT_ACTION_PRIORITIES.LOW,
-    summary: secondRule.narrative.recommendations[0],
   });
   const parsed = assessmentFinalReportV3Schema.parse(shared);
   assert.equal(parsed.ruleDetails.length, 2);
@@ -952,21 +959,19 @@ test("size boundaries: validates 199, 200, and 201 aggregate recommendations wit
     omittedCount: 1,
     truncated: true,
     items: [
-      ...r201.ruleDetails[0].narrative.recommendations.map((summary, index) => ({
+      ...r201.ruleDetails[0].narrative.recommendations.map((_summary, index) => ({
         actionId: `rule-1#${index}`,
         assessmentRuleId: "rule-1",
         ruleDetailRef: "/ruleDetails/0",
         recommendationIndex: index,
         priority: ASSESSMENT_REPORT_ACTION_PRIORITIES.LOW,
-        summary,
       })),
-      ...rule2.narrative.recommendations.slice(0, 50).map((summary, index) => ({
+      ...rule2.narrative.recommendations.slice(0, 50).map((_summary, index) => ({
         actionId: `rule-2#${index}`,
         assessmentRuleId: "rule-2",
         ruleDetailRef: "/ruleDetails/1",
         recommendationIndex: index,
         priority: ASSESSMENT_REPORT_ACTION_PRIORITIES.LOW,
-        summary,
       })),
     ],
   };
@@ -999,7 +1004,6 @@ test("size boundaries: validates 199, 200, and 201 aggregate recommendations wit
     ruleDetailRef: "/ruleDetails/1",
     recommendationIndex: 50,
     priority: ASSESSMENT_REPORT_ACTION_PRIORITIES.LOW,
-    summary: rule2.narrative.recommendations[50],
   });
   overflowItems.boundedActionPlan.omittedCount = 0;
   overflowItems.boundedActionPlan.truncated = false;
@@ -1080,5 +1084,190 @@ test("localization compatibility: explicit V3 field classification distinguishes
       );
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// 7. PR #481 C1 review regressions (P1-01, P1-02, P1-03, P2-01, P2-02)
+// ---------------------------------------------------------------------------
+
+test("P1-01: rejects malformed, non-canonical, traversal, and excluded REPOSITORY_SOURCE locators", () => {
+  const malformedUnderSubtree = createV3Fixture();
+  malformedUnderSubtree.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL,
+    sourcePathPrefix: "apps/api",
+    excludedPaths: [],
+    limitationReasons: [],
+    searchCoverageEvidenceIds: [],
+  };
+  malformedUnderSubtree.evidenceIndex[1].safeLocator =
+    "apps/web/outside.ts:invalid-range";
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(malformedUnderSubtree).success,
+    false,
+  );
+
+  for (const badLocator of [
+    "apps/api/../apps/web/outside.ts:1-5",
+    "/apps/api/src/retention/purge.ts:1-5",
+    "apps/api/src/retention/purge.ts:20-10",
+    "apps/api/src/retention/purge.ts:0-5",
+    "apps/api/src/retention/purge.ts:1-2001",
+    "apps/api/src/retention/purge.ts",
+  ]) {
+    const candidate = createV3Fixture();
+    candidate.evidenceIndex[1].safeLocator = badLocator;
+    assert.equal(
+      assessmentFinalReportV3Schema.safeParse(candidate).success,
+      false,
+      `Expected malformed locator to be rejected: ${badLocator}`,
+    );
+  }
+
+  const excludedLocator = createV3Fixture();
+  excludedLocator.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED,
+    sourcePathPrefix: "apps/api",
+    excludedPaths: ["apps/api/src/retention"],
+    limitationReasons: [
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.EXCLUDED_PATHS,
+    ],
+    searchCoverageEvidenceIds: [],
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(excludedLocator).success,
+    false,
+  );
+});
+
+test("P1-02: prevents contradictory criterion statements on criteriaDecisions by enforcing single canonical source", () => {
+  const contradictory = createV3Fixture();
+  (
+    contradictory.ruleDetails[0].criteriaDecisions[0] as Record<string, unknown>
+  ).statement = "CONTRADICTORY: No retention purge job is required.";
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(contradictory).success,
+    false,
+  );
+});
+
+test("P1-03: prevents independently mutable action summaries and derives presentation text from canonical rule recommendations", () => {
+  const contradictoryAction = createV3Fixture();
+  (
+    contradictoryAction.boundedActionPlan.items[0] as Record<string, unknown>
+  ).summary = "CONTRADICTORY: Disable retention purge and ignore compliance.";
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(contradictoryAction).success,
+    false,
+  );
+
+  const valid = assessmentFinalReportV3Schema.parse(createV3Fixture());
+  const resolved = resolveV3BoundedActionPlanItems(valid);
+  assert.deepEqual(resolved, [
+    {
+      actionId: "rule-1#0",
+      assessmentRuleId: "rule-1",
+      ruleDetailRef: "/ruleDetails/0",
+      recommendationIndex: 0,
+      priority: ASSESSMENT_REPORT_ACTION_PRIORITIES.LOW,
+      recommendation: "Actionable remediation step 1.",
+    },
+  ]);
+});
+
+test("P2-01: validates decision.legalContextRefs as a non-empty unique subset of rule.legalRequirementIds", () => {
+  // Positive control: linked subset when rule links two requirements and decision cites one
+  const linkedSubset = createV3Fixture();
+  linkedSubset.legalRequirements.push({
+    ...linkedSubset.legalRequirements[0],
+    legalRequirementId: "req-2",
+  });
+  linkedSubset.ruleDetails[0].legalRequirementIds = ["req-1", "req-2"];
+  linkedSubset.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-1" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(linkedSubset).success,
+    true,
+  );
+
+  // Unknown legalContextId
+  const unknownContext = createV3Fixture();
+  unknownContext.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-unknown" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unknownContext).success,
+    false,
+  );
+
+  // Duplicate legalContextId
+  const duplicateContext = createV3Fixture();
+  duplicateContext.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-1" },
+    { legalContextId: "req-1" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(duplicateContext).success,
+    false,
+  );
+
+  // Unlinked legalContextId (exists in report.legalRequirements but NOT in rule.legalRequirementIds)
+  const unlinkedContext = createV3Fixture();
+  unlinkedContext.legalRequirements.push({
+    ...unlinkedContext.legalRequirements[0],
+    legalRequirementId: "req-2",
+  });
+  unlinkedContext.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-2" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unlinkedContext).success,
+    false,
+  );
+});
+
+test("P2-02: preserves historical V2 reference-origin value set while supporting APPLICABILITY_BASIS in V3", () => {
+  assert.deepEqual(
+    Object.values(ASSESSMENT_REPORT_REFERENCE_ORIGINS).sort(),
+    ["CRITERION", "DECISION", "FACT_EVIDENCE"],
+  );
+  for (const origin of Object.values(ASSESSMENT_REPORT_REFERENCE_ORIGINS)) {
+    assert.equal(
+      assessmentReportDecisionReferenceSchema.safeParse({
+        origin,
+        reference: {
+          type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+          evidenceId: EVIDENCE_REPO_ID,
+        },
+      }).success,
+      true,
+    );
+  }
+  assert.equal(
+    assessmentReportDecisionReferenceSchema.safeParse({
+      origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.applicabilityBasis,
+      reference: {
+        type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+        evidenceId: EVIDENCE_REPO_ID,
+      },
+    }).success,
+    false,
+  );
+  assert.equal(
+    assessmentReportApplicabilityBasisReferenceSchema.safeParse({
+      origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.applicabilityBasis,
+      legalRequirementId: "req-1",
+      kind: RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION,
+      index: 0,
+      reference: {
+        type: RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT,
+        factId: FACT_HUMAN_ID,
+        caseRevision: 1,
+      },
+    }).success,
+    true,
+  );
 });
 
