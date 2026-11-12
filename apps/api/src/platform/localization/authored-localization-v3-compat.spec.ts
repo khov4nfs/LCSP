@@ -356,8 +356,10 @@ describe("Report V3 compatibility with B1 authoredFields localization extractor"
     };
     const escapedFields = authoredFields(nestedSpecial);
     expect(escapedFields).toEqual([
-      { path: "/nested/0/a~1b~0c$d/summary", text: "Escaped pointer narrative" },
+      {
+        path: "/nested/0/a~1b~0c$d/summary",
+        text: "Escaped pointer narrative",
+      },
     ]);
   });
 });
-
