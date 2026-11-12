@@ -17,12 +17,15 @@ import {
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
 } from "@lcsp/contracts/assessment-domain";
 import {
+  ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS,
   ASSESSMENT_REPORT_ACTION_PRIORITIES,
-  ASSESSMENT_REPORT_REFERENCE_ORIGINS,
+  ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS,
   ASSESSMENT_REPORT_SOURCE_SCOPE_MODES,
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES,
   ASSESSMENT_REPORT_V3_LIMITS,
+  ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS,
   assessmentFinalReportV3Schema,
+  resolveV3BoundedActionPlanItems,
   type AssessmentFinalReportV3,
 } from "@lcsp/contracts/assessment-report";
 import { LEGAL_REQUIREMENT_COVERAGE_STATES } from "@lcsp/contracts/compliance-rule-set";
@@ -146,13 +149,13 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
         },
         decisionReferences: [
           {
-            origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.decision,
+            origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.decision,
             reference: criterionRef,
           },
         ],
         applicabilityBasisReferences: [
           {
-            origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.applicabilityBasis,
+            origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.applicabilityBasis,
             legalRequirementId: "req-1",
             kind: RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION,
             index: 0,
@@ -161,7 +164,7 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
         ],
         factEvidenceReferences: [
           {
-            origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.factEvidence,
+            origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.factEvidence,
             factId: FACT_HUMAN_ID,
             reference: {
               type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
@@ -172,12 +175,11 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
         criteriaDecisions: [
           {
             criterionId: "crit-1",
-            statement: "Criterion statement",
             outcome: RULE_DECISION_CRITERION_OUTCOMES.MET,
             rationale: "Projected criterion rationale",
             references: [
               {
-                origin: ASSESSMENT_REPORT_REFERENCE_ORIGINS.criterion,
+                origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.criterion,
                 reference: criterionRef,
               },
             ],
@@ -249,7 +251,6 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
           ruleDetailRef: "/ruleDetails/0",
           recommendationIndex: 0,
           priority: ASSESSMENT_REPORT_ACTION_PRIORITIES.LOW,
-          summary: "Rule recommendation 1",
         },
       ],
     },
@@ -275,23 +276,53 @@ describe("Report V3 compatibility with B1 authoredFields localization extractor"
       "/ruleDetails/0/criteria/0/statement",
       "/ruleDetails/0/decision/rationale",
       "/ruleDetails/0/decision/applicabilityBasis/0/rationale",
-      "/ruleDetails/0/criteria/0/rationale",
-      "/ruleDetails/0/criteriaDecisions/0/statement",
+      "/ruleDetails/0/decision/criteria/0/rationale",
       "/ruleDetails/0/criteriaDecisions/0/rationale",
       "/ruleDetails/0/narrative/summary",
       "/ruleDetails/0/narrative/recommendations/0",
       "/boundedNarrative/summary",
       "/boundedNarrative/scopeLimitations/0",
-      "/boundedActionPlan/items/0/summary",
     ];
-    // Note: /ruleDetails/0/decision/criteria/0/rationale is the actual path for decision criterion rationale
-    const normalizedExpected = expectedNarrativePaths.map((p) =>
-      p === "/ruleDetails/0/criteria/0/rationale"
-        ? "/ruleDetails/0/decision/criteria/0/rationale"
-        : p,
-    );
 
-    expect([...paths].sort()).toEqual([...normalizedExpected].sort());
+    expect([...paths].sort()).toEqual([...expectedNarrativePaths].sort());
+
+    const matchesPattern = (concretePath: string, patternGroup: string) =>
+      patternGroup
+        .split(",")
+        .map((p) => p.trim())
+        .some((pattern) => {
+          const regexSource = `^${pattern
+            .replace(/\*/gu, "[^/]+")
+            .replace(/\//gu, "\\/")}(?:\\/.*)?$`;
+          return new RegExp(regexSource, "u").test(concretePath);
+        });
+
+    for (const concretePath of paths) {
+      const matched =
+        ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS.filter((entry) =>
+          matchesPattern(concretePath, entry.pathPattern),
+        );
+      expect(matched.length).toBeGreaterThan(0);
+      for (const entry of matched) {
+        expect(entry.classification).toBe(
+          ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.LOCALIZABLE_NARRATIVE,
+        );
+      }
+    }
+
+    for (const entry of ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS) {
+      const matchedPaths = [...paths].filter((p) =>
+        matchesPattern(p, entry.pathPattern),
+      );
+      if (
+        entry.classification ===
+        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.LOCALIZABLE_NARRATIVE
+      ) {
+        expect(matchedPaths.length).toBeGreaterThan(0);
+      } else {
+        expect(matchedPaths).toEqual([]);
+      }
+    }
 
     const forbiddenValues = [
       "ASSESSMENT_FINAL_REPORT_V3",
@@ -335,9 +366,9 @@ describe("Report V3 compatibility with B1 authoredFields localization extractor"
     expect(parsedLocalized.boundedNarrative.summary).toBe(
       "[VI] Overall report summary",
     );
-    expect(parsedLocalized.boundedActionPlan.items[0].summary).toBe(
-      "[VI] Rule recommendation 1",
-    );
+    expect(
+      resolveV3BoundedActionPlanItems(parsedLocalized)[0].recommendation,
+    ).toBe("[VI] Rule recommendation 1");
     expect(parsedLocalized.sourceScope.sourcePathPrefix).toBe("apps/api");
     expect(parsedLocalized.factIndex[0].statement).toBe(
       "Customer answer statement",
