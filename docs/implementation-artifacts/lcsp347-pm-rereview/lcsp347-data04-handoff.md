@@ -24,6 +24,10 @@ The isolated API had declared its normal empty billing and activation queues; no
 
 ## DATA-04 disposition
 
+The first pushed SHA's Docker sandbox E2E failed in `python tests/release-images.py`: its canonical terminology preflight found the retired term in the proposed source identifier and the matrix title. These were documentation-only scanner defects, not a Docker/runtime assertion. The proposed identity/title were changed to canonical current vocabulary, and the repository terminology check now passes locally. This correction is being published separately; CI for the corrected SHA must be read again.
+
+Job evidence: https://github.com/khov4nfs/LCSP/actions/runs/43161318975/job/130993005343
+
 | Gate | Result |
 |---|---|
 | Retry authority scope/tests | PASS |

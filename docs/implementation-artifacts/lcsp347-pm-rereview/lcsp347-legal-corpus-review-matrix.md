@@ -1,4 +1,4 @@
-# DATA-04 legal-corpus review matrix
+# DATA-04 legal-source review matrix
 
 This is a technical candidate set only. No legal conclusions or approval labels are asserted.
 

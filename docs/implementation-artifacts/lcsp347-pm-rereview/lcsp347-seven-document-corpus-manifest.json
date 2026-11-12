@@ -1,5 +1,5 @@
 {
-  "corpusIdentity": "lcsp347-official-legal-corpus-dev",
+  "proposedSourceIdentity": "lcsp347-official-legal-source-dev",
   "corpusPurpose": "technical ingestion benchmark; legal review pending",
   "historicalLcsp360V1V4Equivalence": "NOT_PROVEN",
   "createdInEnvironment": false,
