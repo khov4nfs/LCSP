@@ -604,7 +604,7 @@ export const ruleSetPreparationStartRequestSchema = z
   .object({
     legalSourceVersionId: z.string().uuid(),
     idempotencyKey: z.string().min(8).max(128),
-    targetActivityScope: z.enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"]).optional(),
+    targetActivityScope: z.enum(PREPARATION_ACTIVITY_SCOPES).optional(),
   })
   .strict();
 export type RuleSetPreparationStartRequest = z.infer<
@@ -631,7 +631,7 @@ export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
 export const ruleSetPreparationAdminRequestSchema = z
   .strictObject({
     replaceActive: z.boolean().optional(),
-    targetActivityScope: z.enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"]).optional(),
+    targetActivityScope: z.enum(PREPARATION_ACTIVITY_SCOPES).optional(),
     /**
      * The Legal Source Version the operator is looking at. Preparation always targets the active
      * version; naming it makes the request refuse (instead of silently preparing another version)
