@@ -22,12 +22,19 @@ export type AssessmentReportOutcomeBucket =
 export const ASSESSMENT_REPORT_REFERENCE_ORIGINS = {
   decision: "DECISION",
   criterion: "CRITERION",
-  applicabilityBasis: "APPLICABILITY_BASIS",
   factEvidence: "FACT_EVIDENCE",
 } as const;
 
 export type AssessmentReportReferenceOrigin =
   (typeof ASSESSMENT_REPORT_REFERENCE_ORIGINS)[keyof typeof ASSESSMENT_REPORT_REFERENCE_ORIGINS];
+
+export const ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS = {
+  ...ASSESSMENT_REPORT_REFERENCE_ORIGINS,
+  applicabilityBasis: "APPLICABILITY_BASIS",
+} as const;
+
+export type AssessmentReportV3ReferenceOrigin =
+  (typeof ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS)[keyof typeof ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS];
 
 export const ASSESSMENT_REPORT_SOURCE_SCOPE_MODES = {
   WHOLE_REPOSITORY: "WHOLE_REPOSITORY",
