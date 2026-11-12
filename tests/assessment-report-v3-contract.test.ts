@@ -18,6 +18,7 @@ import {
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  SEARCH_COVERAGE_SCOPE_KINDS,
 } from "@lcsp/contracts/assessment-domain";
 import {
   ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS,
@@ -41,7 +42,10 @@ import {
   type AssessmentFinalReportV2,
   type AssessmentFinalReportV3,
 } from "@lcsp/contracts/assessment-report";
-import { LEGAL_REQUIREMENT_COVERAGE_STATES } from "@lcsp/contracts/compliance-rule-set";
+import {
+  LEGAL_CONTEXT_RELATION_KINDS,
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
+} from "@lcsp/contracts/compliance-rule-set";
 
 const LEGAL_SOURCE_ID = "11111111-1111-4111-8111-111111111111";
 const RULE_SET_ID = "22222222-2222-4222-8222-222222222222";
@@ -190,6 +194,7 @@ function createV3Fixture(
       repositorySnapshotId: SNAPSHOT_ID,
       repositoryScanJobId: SCAN_JOB_ID,
       repositoryCommit: COMMIT,
+      sourcePathPrefix: null,
     },
     caseRevision: 1,
     decisionFingerprint: sha("c"),
@@ -220,6 +225,7 @@ function createV3Fixture(
         assessmentRuleId: "rule-1",
         assessmentRuleVersion: "1",
         legalRequirementIds: ["req-1"],
+        relatedLegalContexts: [],
         concept: "Data retention control",
         legalIntent: "Ensure bounded retention policies are implemented.",
         applicabilityGuidance: "Evaluate when personal records are stored.",
@@ -329,6 +335,17 @@ function createV3Fixture(
         contentSha256: sha("f"),
         repositoryCommit: COMMIT,
         safeLocator: null,
+        searchCoverage: {
+          scopes: [
+            {
+              kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+              path: ".",
+            },
+          ],
+          truncatedQueriesCount: 0,
+          knownGapsCount: 0,
+          directFallbackCount: 0,
+        },
       },
     ],
     outcomeSummary:
@@ -383,13 +400,14 @@ function createV3Fixture(
 
 function createV2HistoricalFixture(): AssessmentFinalReportV2 {
   const v3 = createV3Fixture();
+  const { sourcePathPrefix: _pinnedPrefix, ...v2Pins } = v3.pins;
   return {
     schemaVersion: ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
     artifactId: v3.artifactId,
     assessmentId: v3.assessmentId,
     kind: v3.kind,
     identity: v3.identity,
-    pins: v3.pins,
+    pins: v2Pins,
     caseRevision: v3.caseRevision,
     decisionFingerprint: v3.decisionFingerprint,
     legalRequirements: v3.legalRequirements,
@@ -420,7 +438,9 @@ function createV2HistoricalFixture(): AssessmentFinalReportV2 {
       },
     ],
     factIndex: v3.factIndex,
-    evidenceIndex: v3.evidenceIndex,
+    evidenceIndex: v3.evidenceIndex.map(
+      ({ searchCoverage: _searchCoverage, ...entry }) => entry,
+    ),
     outcomeSummary: v3.outcomeSummary,
     boundedNarrative: {
       summary: v3.boundedNarrative.summary,
@@ -778,6 +798,7 @@ test("source scope: supports WHOLE_REPOSITORY, SUBTREE, KNOWN_LIMITED, and UNKNO
   );
 
   const subtree = createV3Fixture();
+  subtree.pins.sourcePathPrefix = "apps/api";
   subtree.sourceScope = {
     mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
     visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL,
@@ -786,12 +807,24 @@ test("source scope: supports WHOLE_REPOSITORY, SUBTREE, KNOWN_LIMITED, and UNKNO
     limitationReasons: [],
     searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
   };
+  subtree.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+  };
   assert.equal(
     assessmentFinalReportV3Schema.parse(subtree).sourceScope.sourcePathPrefix,
     "apps/api",
   );
 
   const knownLimited = createV3Fixture();
+  knownLimited.pins.sourcePathPrefix = "apps/api";
   knownLimited.sourceScope = {
     mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
     visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED,
@@ -802,6 +835,17 @@ test("source scope: supports WHOLE_REPOSITORY, SUBTREE, KNOWN_LIMITED, and UNKNO
       ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.SEARCH_TRUNCATED,
     ],
     searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
+  };
+  knownLimited.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    truncatedQueriesCount: 1,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
   };
   assert.equal(
     assessmentFinalReportV3Schema.parse(knownLimited).sourceScope.visibility,
@@ -863,13 +907,25 @@ test("source scope: rejects malformed or contradictory scope and refuses to infe
   );
 
   const outsideSubtreeEvidence = createV3Fixture();
+  outsideSubtreeEvidence.pins.sourcePathPrefix = "apps/web";
   outsideSubtreeEvidence.sourceScope = {
     mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
     visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL,
     sourcePathPrefix: "apps/web",
     excludedPaths: [],
     limitationReasons: [],
-    searchCoverageEvidenceIds: [],
+    searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
+  };
+  outsideSubtreeEvidence.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/web",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
   };
   // EVIDENCE_REPO_ID safeLocator is apps/api/src/retention/purge.ts:10-42
   assert.equal(
@@ -1092,13 +1148,25 @@ test("localization compatibility: explicit V3 field classification distinguishes
 
 test("P1-01: rejects malformed, non-canonical, traversal, and excluded REPOSITORY_SOURCE locators", () => {
   const malformedUnderSubtree = createV3Fixture();
+  malformedUnderSubtree.pins.sourcePathPrefix = "apps/api";
   malformedUnderSubtree.sourceScope = {
     mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
     visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL,
     sourcePathPrefix: "apps/api",
     excludedPaths: [],
     limitationReasons: [],
-    searchCoverageEvidenceIds: [],
+    searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
+  };
+  malformedUnderSubtree.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
   };
   malformedUnderSubtree.evidenceIndex[1].safeLocator =
     "apps/web/outside.ts:invalid-range";
@@ -1125,6 +1193,7 @@ test("P1-01: rejects malformed, non-canonical, traversal, and excluded REPOSITOR
   }
 
   const excludedLocator = createV3Fixture();
+  excludedLocator.pins.sourcePathPrefix = "apps/api";
   excludedLocator.sourceScope = {
     mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
     visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED,
@@ -1268,6 +1337,390 @@ test("P2-02: preserves historical V2 reference-origin value set while supporting
       },
     }).success,
     true,
+  );
+});
+
+test("P1-04: authorizes direct and pinned related legal contexts while rejecting unknown, unrelated, or duplicate contexts", () => {
+  // Positive control: rule links req-1 directly and relates req-2 via a pinned LegalRequirementContextRelation
+  const withRelatedContext = createV3Fixture();
+  withRelatedContext.legalRequirements.push({
+    ...withRelatedContext.legalRequirements[0],
+    legalRequirementId: "req-2",
+    title: "Defined personal record term",
+    sourceRefs: [sourceRef("law-def")],
+  });
+  withRelatedContext.ruleDetails[0].relatedLegalContexts = [
+    {
+      relationId: "rel-1",
+      kind: LEGAL_CONTEXT_RELATION_KINDS.DEFINITION,
+      fromLegalRequirementId: "req-1",
+      toLegalRequirementId: "req-2",
+      sourceRefs: [sourceRef("law-def")],
+    },
+  ];
+  withRelatedContext.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-1" },
+    { legalContextId: "req-2" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(withRelatedContext).success,
+    true,
+  );
+
+  // Reject unrelated requirement without any pinned relation on the rule
+  const unrelatedWithoutRelation = createV3Fixture();
+  unrelatedWithoutRelation.legalRequirements.push({
+    ...unrelatedWithoutRelation.legalRequirements[0],
+    legalRequirementId: "req-2",
+  });
+  unrelatedWithoutRelation.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-1" },
+    { legalContextId: "req-2" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unrelatedWithoutRelation).success,
+    false,
+  );
+
+  // Reject fabricated relation whose fromLegalRequirementId is not directly linked to this rule
+  const unlinkedRelationOrigin = createV3Fixture();
+  unlinkedRelationOrigin.legalRequirements.push(
+    {
+      ...unlinkedRelationOrigin.legalRequirements[0],
+      legalRequirementId: "req-2",
+    },
+    {
+      ...unlinkedRelationOrigin.legalRequirements[0],
+      legalRequirementId: "req-3",
+    },
+  );
+  unlinkedRelationOrigin.ruleDetails[0].relatedLegalContexts = [
+    {
+      relationId: "rel-bad-origin",
+      kind: LEGAL_CONTEXT_RELATION_KINDS.EXCEPTION,
+      fromLegalRequirementId: "req-3",
+      toLegalRequirementId: "req-2",
+      sourceRefs: [sourceRef("law-def")],
+    },
+  ];
+  unlinkedRelationOrigin.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-1" },
+    { legalContextId: "req-2" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unlinkedRelationOrigin).success,
+    false,
+  );
+
+  // Reject relation targeting an unknown LegalRequirement not present in report.legalRequirements
+  const missingTarget = createV3Fixture();
+  missingTarget.ruleDetails[0].relatedLegalContexts = [
+    {
+      relationId: "rel-missing-target",
+      kind: LEGAL_CONTEXT_RELATION_KINDS.CROSS_REFERENCE,
+      fromLegalRequirementId: "req-1",
+      toLegalRequirementId: "req-missing",
+      sourceRefs: [sourceRef("law-def")],
+    },
+  ];
+  missingTarget.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-1" },
+    { legalContextId: "req-missing" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(missingTarget).success,
+    false,
+  );
+
+  // Reject relation whose sourceRefs legalSourceVersion disagrees with pinned version
+  const unpinnedRelationSource = createV3Fixture();
+  unpinnedRelationSource.legalRequirements.push({
+    ...unpinnedRelationSource.legalRequirements[0],
+    legalRequirementId: "req-2",
+  });
+  unpinnedRelationSource.ruleDetails[0].relatedLegalContexts = [
+    {
+      relationId: "rel-bad-pin",
+      kind: LEGAL_CONTEXT_RELATION_KINDS.DEFINITION,
+      fromLegalRequirementId: "req-1",
+      toLegalRequirementId: "req-2",
+      sourceRefs: [
+        {
+          ...sourceRef("law-def"),
+          legalSourceVersion: "LAW-STALE",
+        },
+      ],
+    },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unpinnedRelationSource).success,
+    false,
+  );
+
+  // Reject duplicate relationId or duplicate legalContextId via related contexts
+  const duplicateRelation = createV3Fixture();
+  duplicateRelation.legalRequirements.push({
+    ...duplicateRelation.legalRequirements[0],
+    legalRequirementId: "req-2",
+  });
+  duplicateRelation.ruleDetails[0].relatedLegalContexts = [
+    {
+      relationId: "rel-dup",
+      kind: LEGAL_CONTEXT_RELATION_KINDS.DEFINITION,
+      fromLegalRequirementId: "req-1",
+      toLegalRequirementId: "req-2",
+      sourceRefs: [sourceRef("law-def")],
+    },
+    {
+      relationId: "rel-dup",
+      kind: LEGAL_CONTEXT_RELATION_KINDS.CROSS_REFERENCE,
+      fromLegalRequirementId: "req-1",
+      toLegalRequirementId: "req-2",
+      sourceRefs: [sourceRef("law-def")],
+    },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(duplicateRelation).success,
+    false,
+  );
+
+  // Reject duplicate cited related context
+  const duplicateCitedRelated = createV3Fixture();
+  duplicateCitedRelated.legalRequirements.push({
+    ...duplicateCitedRelated.legalRequirements[0],
+    legalRequirementId: "req-2",
+  });
+  duplicateCitedRelated.ruleDetails[0].relatedLegalContexts = [
+    {
+      relationId: "rel-1",
+      kind: LEGAL_CONTEXT_RELATION_KINDS.DEFINITION,
+      fromLegalRequirementId: "req-1",
+      toLegalRequirementId: "req-2",
+      sourceRefs: [sourceRef("law-def")],
+    },
+  ];
+  duplicateCitedRelated.ruleDetails[0].decision.legalContextRefs = [
+    { legalContextId: "req-2" },
+    { legalContextId: "req-2" },
+  ];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(duplicateCitedRelated).success,
+    false,
+  );
+});
+
+test("P1-05: binds sourceScope to pinned snapshot prefix and requires verified non-truncated coverage for KNOWN_FULL", () => {
+  // 1. Pinned apps/api + matching SUBTREE PASS
+  const pinnedSubtree = createV3Fixture();
+  pinnedSubtree.pins.sourcePathPrefix = "apps/api";
+  pinnedSubtree.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL,
+    sourcePathPrefix: "apps/api",
+    excludedPaths: [],
+    limitationReasons: [],
+    searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
+  };
+  pinnedSubtree.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(pinnedSubtree).success,
+    true,
+  );
+
+  // 2. Pinned apps/api + WHOLE_REPOSITORY REJECT
+  const pinnedSubtreeClaimingWhole = createV3Fixture();
+  pinnedSubtreeClaimingWhole.pins.sourcePathPrefix = "apps/api";
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(pinnedSubtreeClaimingWhole).success,
+    false,
+  );
+
+  // 3. Pinned apps/api + mismatched subtree apps/web REJECT
+  const pinnedSubtreeClaimingWeb = createV3Fixture();
+  pinnedSubtreeClaimingWeb.pins.sourcePathPrefix = "apps/api";
+  pinnedSubtreeClaimingWeb.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED,
+    sourcePathPrefix: "apps/web",
+    excludedPaths: [],
+    limitationReasons: [
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.PARTIAL_COVERAGE_RECORDED,
+    ],
+    searchCoverageEvidenceIds: [],
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(pinnedSubtreeClaimingWeb).success,
+    false,
+  );
+
+  // 4. Pinned whole repo (null) + unsupported SUBTREE scope REJECT
+  const pinnedWholeClaimingSubtree = createV3Fixture();
+  pinnedWholeClaimingSubtree.pins.sourcePathPrefix = null;
+  pinnedWholeClaimingSubtree.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL,
+    sourcePathPrefix: "apps/api",
+    excludedPaths: [],
+    limitationReasons: [],
+    searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(pinnedWholeClaimingSubtree).success,
+    false,
+  );
+
+  // 5. UNKNOWN visibility/mode preserved for both pinned whole-repo and pinned subtree
+  const unknownWhole = createV3Fixture();
+  unknownWhole.pins.sourcePathPrefix = null;
+  unknownWhole.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.UNKNOWN,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.UNKNOWN,
+    sourcePathPrefix: null,
+    excludedPaths: [],
+    limitationReasons: [
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.VISIBILITY_UNKNOWN,
+    ],
+    searchCoverageEvidenceIds: [],
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unknownWhole).success,
+    true,
+  );
+
+  const unknownSubtree = createV3Fixture();
+  unknownSubtree.pins.sourcePathPrefix = "apps/api";
+  unknownSubtree.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.UNKNOWN,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.UNKNOWN,
+    sourcePathPrefix: null,
+    excludedPaths: [],
+    limitationReasons: [
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.VISIBILITY_UNKNOWN,
+    ],
+    searchCoverageEvidenceIds: [],
+  };
+  unknownSubtree.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unknownSubtree).success,
+    true,
+  );
+
+  // 6. Evidence outside authorized pinned prefix even when sourceScope is UNKNOWN REJECT
+  const outsidePinnedPrefixUnknown = createV3Fixture();
+  outsidePinnedPrefixUnknown.pins.sourcePathPrefix = "apps/api";
+  outsidePinnedPrefixUnknown.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.UNKNOWN,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.UNKNOWN,
+    sourcePathPrefix: null,
+    excludedPaths: [],
+    limitationReasons: [
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.VISIBILITY_UNKNOWN,
+    ],
+    searchCoverageEvidenceIds: [],
+  };
+  outsidePinnedPrefixUnknown.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+  };
+  outsidePinnedPrefixUnknown.evidenceIndex[1].safeLocator =
+    "apps/web/outside.ts:10-20";
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(outsidePinnedPrefixUnknown).success,
+    false,
+  );
+
+  // 7. Missing/unverified/truncated/gapped coverage cannot establish KNOWN_FULL
+  const fullWithoutCoverageIds = createV3Fixture();
+  fullWithoutCoverageIds.sourceScope.searchCoverageEvidenceIds = [];
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(fullWithoutCoverageIds).success,
+    false,
+  );
+
+  const fullWithoutMetadata = createV3Fixture();
+  delete fullWithoutMetadata.evidenceIndex[2].searchCoverage;
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(fullWithoutMetadata).success,
+    false,
+  );
+
+  const fullWithTruncatedQueries = createV3Fixture();
+  fullWithTruncatedQueries.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    truncatedQueriesCount: 1,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(fullWithTruncatedQueries).success,
+    false,
+  );
+
+  const fullWithKnownGaps = createV3Fixture();
+  fullWithKnownGaps.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 2,
+    directFallbackCount: 0,
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(fullWithKnownGaps).success,
+    false,
+  );
+
+  const fullWholeRepoOnlyNarrowScope = createV3Fixture();
+  fullWholeRepoOnlyNarrowScope.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(fullWholeRepoOnlyNarrowScope)
+      .success,
+    false,
   );
 });
 
