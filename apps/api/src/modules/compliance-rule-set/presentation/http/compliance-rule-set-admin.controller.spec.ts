@@ -1,3 +1,4 @@
+import { RuleCatalogGroupsService } from "../../infrastructure/persistence/rule-catalog-groups.service.js";
 import { ResumeRuleSetPreparationCommand } from "../../application/commands/resume-rule-set-preparation/resume-rule-set-preparation.command.js";
 import type { Server } from "node:http";
 import {
@@ -28,6 +29,7 @@ import { CancelRuleSetPreparationCommand } from "../../application/commands/canc
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
+import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 
 describe("Admin preparation HTTP authorization and command boundary", () => {
@@ -68,8 +70,21 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
     const module = await Test.createTestingModule({
       controllers: [ComplianceRuleSetAdminController],
       providers: [
+        {
+          provide: RuleCatalogGroupsService,
+          useValue: { get: jest.fn(), submit: jest.fn(), approve: jest.fn() },
+        },
         { provide: CommandBus, useValue: { execute } },
         { provide: QueryBus, useValue: { execute: jest.fn() } },
+        {
+          provide: PreparationScopeReviewService,
+          useValue: {
+            get: jest.fn(),
+            submit: jest.fn(),
+            approve: jest.fn(),
+            activate: jest.fn(),
+          },
+        },
       ],
     })
       .overrideGuard(RbacGuard)

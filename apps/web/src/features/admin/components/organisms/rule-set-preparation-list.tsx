@@ -1,8 +1,13 @@
+import { useAppLocale } from "@/components/providers/locale-provider";
+import { PreparationObservability } from "../molecules/preparation-observability";
 import type { MessageKey } from "@lcsp/i18n";
 import Link from "next/link";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { useState } from "react";
-import { RULE_SET_PREPARATION_SYSTEM_ACTOR, PREPARATION_EXECUTION_CONTRACTS } from "@lcsp/contracts/compliance-rule-set";
+import {
+  RULE_SET_PREPARATION_SYSTEM_ACTOR,
+  PREPARATION_EXECUTION_CONTRACTS,
+} from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,14 +43,21 @@ export function RuleSetPreparationList({
   availability,
   ruleSets,
 }: RuleSetPreparationListProps) {
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(
-    preparations[0]?.preparationRunId ?? null,
-  );
+  useAppLocale();
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const preferred =
+    preparations.find(
+      (run) => run.executionState === AGENT_EXECUTION_STATES.RUNNING,
+    ) ??
+    preparations.find(
+      (run) => run.executionState === AGENT_EXECUTION_STATES.QUEUED,
+    ) ??
+    preparations[0];
   const activeRunId = preparations.some(
     (run) => run.preparationRunId === selectedRunId,
   )
     ? selectedRunId
-    : (preparations[0]?.preparationRunId ?? null);
+    : (preferred?.preparationRunId ?? null);
   const retry = useRetryRuleSetPreparationMutation();
   const cancel = useCancelRuleSetPreparationMutation();
   const resume = useResumeRuleSetPreparationMutation();
@@ -70,7 +82,10 @@ export function RuleSetPreparationList({
     );
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-border">
+      {selectedRun ? (
+        <PreparationObservability run={selectedRun} events={activity.events} />
+      ) : null}
+      <ul className="flex max-h-72 flex-col divide-y divide-border overflow-y-auto">
         {preparations.map((run) => (
           <li
             key={run.preparationRunId}
@@ -104,8 +119,25 @@ export function RuleSetPreparationList({
                 </span>
               ) : null}
             </div>
-            {run.resumable ? <Button type="button" variant="outline" size="sm" disabled={resume.isPending || cancel.isPending || retry.isPending} onClick={() => resume.mutate(run.preparationRunId)}>{t(resume.isPending ? "pages.complianceRuleSets.resuming" : "pages.complianceRuleSets.resume")}</Button> : null}
-            {!run.resumable && run.retryable &&
+            {run.resumable ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  resume.isPending || cancel.isPending || retry.isPending
+                }
+                onClick={() => resume.mutate(run.preparationRunId)}
+              >
+                {t(
+                  resume.isPending
+                    ? "pages.complianceRuleSets.resuming"
+                    : "pages.complianceRuleSets.resume",
+                )}
+              </Button>
+            ) : null}
+            {!run.resumable &&
+            run.retryable &&
             run.executionState === AGENT_EXECUTION_STATES.FAILED ? (
               <Button
                 type="button"
@@ -166,17 +198,41 @@ export function RuleSetPreparationList({
           </li>
         ))}
       </ul>
-      {selectedRun?.draft ? <RuleSetPreparationDraft draft={selectedRun.draft} /> : null}
+      {selectedRun?.draft ? (
+        <RuleSetPreparationDraft
+          draft={selectedRun.draft}
+          coverageAvailable={selectedRun.persistedCoverageAvailable}
+          draftAvailable={selectedRun.persistedDraftAvailable}
+        />
+      ) : null}
       {activeRunId ? (
         <RuleSetPreparationActivity
           events={activity.events}
           connected={activity.connected}
           terminal={terminal}
           executionState={selectedRun?.executionState ?? null}
-          directDraft={selectedRun?.executionContract === PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1}
+          key={activeRunId}
+          hasOlder={Boolean(activity.history.hasNextPage)}
+          historyError={activity.history.isError}
+          historyLoading={activity.history.isPending}
+          loadingOlder={activity.history.isFetchingNextPage}
+          onLoadOlder={() => {
+            if (activity.history.isError) void activity.history.refetch();
+            else void activity.history.fetchNextPage();
+          }}
+          directDraft={
+            selectedRun?.executionContract ===
+            PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1
+          }
         />
       ) : null}
-      {resume.isError ? <Alert variant="destructive"><AlertDescription>{t("pages.complianceRuleSets.resumeFailed")}</AlertDescription></Alert> : null}
+      {resume.isError ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {t("pages.complianceRuleSets.resumeFailed")}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {retry.isError ? (
         <Alert variant="destructive">
           <AlertDescription>

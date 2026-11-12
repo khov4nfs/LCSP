@@ -1,4 +1,5 @@
 "use client";
+import { useSyncExternalStore } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { RuleAuditCatalog } from "@lcsp/contracts/assessment-domain";
 import { RULE_AUDIT_PROGRESS_STATES } from "@lcsp/contracts/assessment-domain";
@@ -11,6 +12,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Card } from "@/components/ui/card";
+import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import type { RuleAuditSelection } from "../../schemas/rule-audit-selection.schema";
 import { copy } from "../../utils/conversation-copy";
 
@@ -25,6 +27,11 @@ export function RuleAuditOption({
   onView: (decisionId: string) => void;
 }) {
   const { control } = useFormContext<RuleAuditSelection>();
+  useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
   const ready = rule.progress === RULE_AUDIT_PROGRESS_STATES.RESULT_READY;
   return (
     <li data-rule-id={rule.assessmentRuleId}>
@@ -60,6 +67,7 @@ export function RuleAuditOption({
                   }
                 />
                 <div className="min-w-0 flex-1">
+                  {rule.membership ? <p className="mb-1 text-xs text-muted-foreground">{copy("ruleAudit.actorStage", { actor: rule.membership.actor, stage: copy("ruleAudit.developmentStage") })}</p> : null}
                   <div className="flex items-center gap-2">
                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="text-sm font-semibold leading-5">

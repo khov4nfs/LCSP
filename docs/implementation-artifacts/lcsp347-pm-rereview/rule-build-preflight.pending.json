@@ -1,0 +1,241 @@
+{
+  "evidenceKind": "PENDING_CONTROLLED_PREPARATION_PREFLIGHT_NOT_RUN_EVIDENCE",
+  "selectionAuthority": "User requested the source with latest createdAt; no activation/status mutation authorized or performed",
+  "requestedScope": "DEVELOPMENT_ONLY",
+  "selectedSource": {
+    "id": "ea43540c-513e-4b76-969a-8415f06696f2",
+    "version": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+    "status": "ACTIVE",
+    "activatedAt": "2026-10-25T08:50:43.206Z",
+    "createdAt": "2026-10-25T08:49:38.069Z",
+    "integrityManifestRef": "structural-integrity:038052812015ac771ec774cee86c0bb2ab7836e8ec1f0876489dd3195b71b664",
+    "_count": {
+      "documents": 8,
+      "chunks": 2915
+    },
+    "activations": [
+      {
+        "integrityManifestRef": "structural-integrity:038052812015ac771ec774cee86c0bb2ab7836e8ec1f0876489dd3195b71b664",
+        "retrievalValidationRef": "structural-validation:038052812015ac771ec774cee86c0bb2ab7836e8ec1f0876489dd3195b71b664"
+      }
+    ],
+    "retrievalIndexes": [
+      {
+        "status": "VALID",
+        "validationManifestRef": "structural-validation:038052812015ac771ec774cee86c0bb2ab7836e8ec1f0876489dd3195b71b664",
+        "validatedAt": "2026-10-25T08:50:43.110Z"
+      }
+    ],
+    "diagnosticManifestJsonSha256": "0ab8e166b973e8d4cc931e2d278c54dc3b2000093d505e65697fe93ef0331ac7",
+    "digestCaveat": "Diagnostic JSON serialization hash, not a substitute for the activated integrity-manifest identity"
+  },
+  "observedActiveSources": [
+    {
+      "id": "ea43540c-513e-4b76-969a-8415f06696f2",
+      "version": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+      "createdAt": "2026-10-25T08:49:38.069Z",
+      "integrityManifestRef": "structural-integrity:038052812015ac771ec774cee86c0bb2ab7836e8ec1f0876489dd3195b71b664"
+    },
+    {
+      "id": "3edc9c2a-4900-4c5a-a4a0-660cf99639fc",
+      "version": "vn-ai-official-2026.v3",
+      "createdAt": "2026-10-23T10:55:43.824Z",
+      "integrityManifestRef": "structural-integrity:0606f52716cbd831d3a3189fccc55845125d5de79ff57111b1df78ab7a263647"
+    }
+  ],
+  "readOnlyInspection": {
+    "environment": "Local snapshot on loopback port 55432",
+    "readOnlyTransaction": true,
+    "sourceEligibility": "BLOCKED_RUNTIME_CONFIGURATION",
+    "schemaGaps": [
+      "ComplianceRuleSetVersion.targetActivityScope",
+      "RuleSetPreparationRun.targetActivityScope"
+    ],
+    "activeSourceCount": 2,
+    "activeRuleSets": [
+      {
+        "id": "97004ff3-9240-4e37-8a94-9ade8832c00a",
+        "version": "lcsp-360-official-eight-document-acceptance-corpus.v1.p1",
+        "ruleSetDigest": "f06180635588eb5c026a3dc2e9d3c4da1c3c92853258bb8463f2b52c2478d1ce",
+        "legalSourceVersionId": "ea43540c-513e-4b76-969a-8415f06696f2"
+      }
+    ],
+    "historicalRuns": [
+      {
+        "id": "630eed1a-1577-4ca7-84bc-4ba17df911f1",
+        "legalSourceVersionId": "ea43540c-513e-4b76-969a-8415f06696f2",
+        "executionState": "SUCCEEDED",
+        "failureReason": null,
+        "createdAt": "2026-10-25T08:50:45.795Z",
+        "startedAt": "2026-10-25T23:33:10.531Z",
+        "completedAt": "2026-10-25T23:33:37.593Z"
+      },
+      {
+        "id": "98228c59-cdc4-4351-9b7d-dc8976aca29d",
+        "legalSourceVersionId": "3edc9c2a-4900-4c5a-a4a0-660cf99639fc",
+        "executionState": "CANCELLED",
+        "failureReason": null,
+        "createdAt": "2026-10-23T15:34:30.856Z",
+        "startedAt": "2026-10-23T17:25:21.790Z",
+        "completedAt": "2026-10-23T17:33:48.219Z"
+      },
+      {
+        "id": "df1aca65-63a7-403b-a40d-145b6da06855",
+        "legalSourceVersionId": "3edc9c2a-4900-4c5a-a4a0-660cf99639fc",
+        "executionState": "FAILED",
+        "failureReason": "RUNTIME_ERROR",
+        "createdAt": "2026-10-23T11:50:01.515Z",
+        "startedAt": "2026-10-23T11:50:03.099Z",
+        "completedAt": "2026-10-23T11:59:44.818Z"
+      },
+      {
+        "id": "9b251221-57d8-424f-aca8-2027ce9df1c6",
+        "legalSourceVersionId": "3edc9c2a-4900-4c5a-a4a0-660cf99639fc",
+        "executionState": "FAILED",
+        "failureReason": "RUNTIME_ERROR",
+        "createdAt": "2026-10-23T11:24:55.432Z",
+        "startedAt": "2026-10-23T11:24:56.856Z",
+        "completedAt": "2026-10-23T11:41:27.802Z"
+      },
+      {
+        "id": "d26d3895-99dc-4f59-8a86-9974f8e001b7",
+        "legalSourceVersionId": "3edc9c2a-4900-4c5a-a4a0-660cf99639fc",
+        "executionState": "FAILED",
+        "failureReason": "MODEL_ERROR",
+        "createdAt": "2026-10-23T10:56:29.153Z",
+        "startedAt": "2026-10-23T10:57:09.482Z",
+        "completedAt": "2026-10-23T11:15:59.665Z"
+      }
+    ]
+  },
+  "runtime": {
+    "strictInventory": "PASS",
+    "frameworkSurfaces": 19,
+    "independentApprovedPairs": 0,
+    "pairs": 59,
+    "candidateStatus": "PENDING",
+    "candidateManifestSha256": "78c60051168044a332364a0f7d2e43f7acf06228d46a77469683826d910c67e2",
+    "englishCandidateBundleSha256": "74ce5eee8e7c6a3d5e26e6f9c8762b8896890f761f5aabd399891cfd78c0cf6a",
+    "reviewInputPackageSha256": "50e773f16d5a7d4833265e5f9df7ab522033f2c45d079618285614da7d2061a2",
+    "unpatchedLoaderNegativeResult": "BUNDLE_MISSING",
+    "productionApproval": "BLOCKED",
+    "runtimeCutover": "NOT_RUN",
+    "authorizedDiagnosticRuntime": "NOT_FOUND",
+    "testFixturesAreApprovalEvidence": false
+  },
+  "configuredRepositoryProfile": {
+    "route": "preparation",
+    "provider": "inception",
+    "model": "mercury-3",
+    "contextWindowTokens": 1000000,
+    "perCallMaxOutputTokens": 65536,
+    "fallback": "google_genai/gemini-3.5-flash-lite",
+    "routesFileSha256": "7fba86f960c31992711f288b32c23b8ea996578fb37b129d14b64f6c420a12ee",
+    "parentAndClaimAuthorSameRoute": true,
+    "runtimeProviderAccess": "NOT_PROVEN"
+  },
+  "credentials": {
+    "inceptionConfiguredInOriginalWorkspace": true,
+    "anthropicConfigured": false,
+    "validityAndQuota": "NOT_PROVEN",
+    "keyMaterialIncluded": false,
+    "note": "No secret was copied into this worktree or committed. A Claude key cannot replace an Inception credential without an explicitly authorized different provider/model experiment."
+  },
+  "budgetProposal": {
+    "approvalStatus": "PENDING_USER_APPROVAL",
+    "maxSpendUsd": "10.00",
+    "spendCapIsNotAPriceEstimate": true,
+    "maxInputTokens": 200000,
+    "maxAggregateOutputTokens": 65536,
+    "maxPhysicalProviderAttempts": 12,
+    "maxLogicalCalls": 12,
+    "maxPreparationBuildAttempts": 1,
+    "perCallOutputCeiling": 65536,
+    "wallClockDeadlineSeconds": 1200,
+    "automaticRetryOrResume": false,
+    "providerAndModelPinned": "inception/mercury-3",
+    "fallbackAllowed": false,
+    "requiresReviewedDiagnosticProfile": true,
+    "enforcement": [
+      "Existing measured admission reserves physical attempts and token bounds across parent, child, summary and retries before dispatch",
+      "Existing LCSP_RSP_MAX_MODEL_CALLS and LCSP_RSP_MAX_INPUT_TOKENS gate logical calls/estimated input; they do not alone enforce USD or aggregate output limits",
+      "Verified provider-side spend cap or exact pricing-backed existing billing admission must enforce the USD ceiling; otherwise no paid dispatch",
+      "Current route fallback must not silently change model: any alternate provider/model is a distinct authorized experiment",
+      "Budget/limit pause flushes committed work; no automatic paid restart; further resume requires explicit budget authorization and preserved ledger receipts"
+    ],
+    "stopConditions": [
+      "Any source, approved bundle, model, scope or credential-governance drift",
+      "Any missing/untrusted runtime approval, missing budget/pricing evidence or ambiguous source eligibility",
+      "Physical/token/spend/deadline ceiling reached",
+      "Scope review/HITL required or uncertain physical attempt awaiting operator reconciliation"
+    ],
+    "receiptsRequired": [
+      "Invocation and physical attempt identities",
+      "Provider response IDs and actual token categories",
+      "Failed and successful provider attempts",
+      "Existing billing/pricing snapshots and reconciled provider cost",
+      "Run/source/model/bundle/code hashes and attempt lineage"
+    ],
+    "qualityCaveat": "A bounded pilot may PAUSE before full Rule Set completion. Budget-limited partial output is not legal quality acceptance."
+  },
+  "blockingDependencies": [
+    "Create a separate current-schema diagnostic database from the exact selected source export; preserve original snapshot, source IDs/integrity evidence and existing active Rule Set",
+    "Resolve single-source eligibility in that isolated environment without rewriting canonical source records",
+    "Provision actual Agent Server/checkpoint/retrieval artifacts and an authentically authorized instruction bundle",
+    "Independent VI/EN equivalence and exact manifest authorization; test bundles are not a paid-runtime workaround",
+    "User-approved budget plus verified hard physical/token/spend admission",
+    "Independent source-pinned legal gold, positive/mixed/HITL controls and authorized matched-model rubric/holdout"
+  ],
+  "realBuild": {
+    "state": "NOT_RUN",
+    "preparationRunId": null,
+    "ruleSetVersionId": null,
+    "ruleSetDigest": null,
+    "usageReceipts": null,
+    "providerCost": null
+  },
+  "legalEvaluation": {
+    "approvedCases": 0,
+    "reportedCases": 7,
+    "liveModelComparison": "NOT_RUN",
+    "existingReviewPackage": "deepagents/evals/fixtures/lcsp347_pm_review_package.pending.json",
+    "preflight": "BLOCKED_EXTERNAL_REVIEW_INPUT",
+    "retrievalCandidatePackageSha256": "978e6bd787fccf0d7e207fed761d7af262d26fd29f13fb80b443b4fc5bfafadd",
+    "candidateCounts": [
+      {
+        "caseId": "RISK_CLASSIFICATION_BEFORE_USE",
+        "unreviewedTextCandidates": 5
+      },
+      {
+        "caseId": "DATA_PROCESSING_IMPACT_DOSSIER",
+        "unreviewedTextCandidates": 5
+      },
+      {
+        "caseId": "RISK_DOSSIER_CONTENT",
+        "unreviewedTextCandidates": 5
+      },
+      {
+        "caseId": "RISK_DOSSIER_RETENTION",
+        "unreviewedTextCandidates": 5
+      },
+      {
+        "caseId": "MATERIAL_CHANGE_REASSESSMENT",
+        "unreviewedTextCandidates": 5
+      },
+      {
+        "caseId": "OPERATIONAL_INFORMATION_MEASURES",
+        "unreviewedTextCandidates": 5
+      },
+      {
+        "caseId": "CHILD_PRIVACY_DISCLOSURE_CONSENT",
+        "unreviewedTextCandidates": 1
+      },
+      {
+        "caseId": "UNREVIEWED_DEVELOPER_CONTEXT",
+        "unreviewedTextCandidates": 5
+      }
+    ],
+    "candidateMappingIsGold": false
+  },
+  "fullAuthenticatedAssessmentJourney": "NOT_RUN"
+}

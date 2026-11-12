@@ -1,0 +1,1 @@
+KHI DÙNG: đã thực sự đọc đúng dòng trong source snapshot. ĐỌC: path:start-end và hành vi quan sát. TIẾP: dùng evidence ID do tool trả về. LỖI: README, code không chạy, search hit hoặc code graph không tự chứng minh execution.

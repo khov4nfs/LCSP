@@ -123,7 +123,19 @@ def bridge_mode():
 
 
 def main():
+    """Business purpose: Exercise owned-process Root failures against real API, PG and MQ authority.
+
+    Business rules:
+    - Only the external model and repository are fixtures; real admission, fencing and recovery must hold.
+    Execution flow:
+    1. Launch owned server/bridge processes, inject faults and verify durable execution/checkpoint state.
+    Failure cases:
+    - Failed progress or authority assertions fail the scenario and emit allowlisted child diagnostics.
+    Side effects:
+    - Creates fixture requests and checkpoints, terminates owned processes and writes sanitized evidence.
+    """
     events=[];scenarios={};children=[];requests=[];request_lock=threading.Lock();timeline=[]
+    child_names={}
     release_signals = {identity: directory / ('release-' + identity) for identity in held}
     class Provider(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -146,7 +158,7 @@ def main():
     def launch(mode,name):
         file=directory/(name+'.log');out=file.open('a');file.chmod(0o600)
         process=subprocess.Popen([sys.executable,str(Path(__file__).resolve()),sys.argv[1],mode],cwd=root/'deepagents',env=os.environ.copy(),stdout=out,stderr=subprocess.STDOUT)
-        out.close();children.append(process);return process
+        out.close();children.append(process);child_names[process]=name;return process
     def wait(condition,label,timeout=45):
         deadline=time.monotonic()+timeout
         while True:
@@ -284,6 +296,22 @@ def main():
                 process.terminate()
                 try:process.wait(8)
                 except subprocess.TimeoutExpired:process.kill();process.wait(5)
+        diagnostics=None
+        if failure is not None:
+            # Never publish raw private logs: copy only fixed markers/codes and process status.
+            instruction_codes=("BUNDLE_MISSING","BUNDLE_APPROVAL_UNTRUSTED","BUNDLE_UNAPPROVED",
+                "BUNDLE_REVOKED","BUNDLE_STALE","BUNDLE_CORRUPT","SOURCE_INVENTORY_MISMATCH",
+                "INSTRUCTION_ENTRY_MISSING","INSTRUCTION_DIGEST_MISMATCH")
+            diagnostics={"fixtureModelRequests":len(requests),"childProcesses":[]}
+            for process in children:
+                name=child_names[process]
+                log=(directory/(name+'.log')).read_text(encoding='utf-8',errors='replace')
+                diagnostics["childProcesses"].append({"name":name,"exitCode":process.poll(),
+                    "rootFailures":log.count("ASSESSMENT_ROOT_RUN_FAILED"),
+                    "runtimeInstructionFailure":"RuntimeInstructionBundleError" in log,
+                    "instructionErrorCodes":[code for code in instruction_codes if code in log],
+                    "bridgeStarted":"Starting Agent Runtime RabbitMQ consumer" in log})
+            print(json.dumps({"activeFaultDiagnostics":diagnostics}),flush=True)
         provider.shutdown();provider.server_close()
         if failure is None:
             # Delete only queues/exchange named by this owned, unique fixture.
@@ -294,6 +322,7 @@ def main():
             channel.exchange_delete(os.environ['RABBITMQ_EXCHANGE'])
         runtime=[r[0] for r in db.execute('SELECT to_jsonb(r)-\'leaseToken\' FROM "AssessmentRuntime" r')]
         payload={'scope':'ISOLATED_PROVIDER_FREE_ACTIVE_REAL_PROCESSES_PG_MQ_NATIVE_ROOT','status':'FAILED' if failure else 'PASS','errorType':type(failure).__name__ if failure else None,'error':str(failure) if failure else None,'paidProviderCalls':0,'modelAdapter':'OWNED_EXTERNAL_HTTP_FIXTURE_SURVIVES_SERVER_DEATH','scenarios':scenarios,'events':events,'fixtureModelRequests':requests,'physicalSlots':slots(),'runtime':runtime,'timeline':timeline,'limitations':['Synthetic legal/business facts and model responses','Local repository filesystem, not production sandbox workload','No paid provider or production failure injection claim']}
+        if diagnostics is not None:payload['childProcessDiagnostics']=diagnostics
         Path(data['output']).write_text(json.dumps(payload,indent=2,default=str))
         checkpoint.close();db.close();connection.close()
     if failure:raise failure
@@ -301,6 +330,10 @@ def main():
 
 
 if __name__=='__main__':
-    if len(sys.argv)>2 and sys.argv[2]=='--server':server_mode()
+    if len(sys.argv)>2 and sys.argv[2]=='--server':
+        from approved_bundle_fixture import offline_instruction_bundle
+        # Each incarnation owns one context spanning the server and all Root workers.
+        with offline_instruction_bundle():
+            server_mode()
     elif len(sys.argv)>2 and sys.argv[2]=='--bridge':bridge_mode()
     else:main()

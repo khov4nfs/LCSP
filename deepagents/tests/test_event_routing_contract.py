@@ -1,5 +1,8 @@
 import re
+import tomllib
 from pathlib import Path
+
+from packaging.requirements import Requirement
 
 from assessment_root.boundary import AssessmentRootBoundary
 from rule_set_preparation.boundary import RuleSetPreparationBoundary
@@ -66,10 +69,19 @@ def test_fogewise_deploys_agent_runtime_not_legacy_managed_service():
 
 def test_fogewise_langgraph_server_image_has_docker_sandbox_control_plane():
     dockerfile = read_contract("deepagents-langgraph/Dockerfile")
-    pyproject = read_contract("deepagents/pyproject.toml")
-    runtime_dependencies = pyproject.split(
-        "[project.optional-dependencies]", maxsplit=1
-    )[0]
+    pyproject = tomllib.loads(read_contract("deepagents/pyproject.toml"))
+    runtime_dependencies = {
+        Requirement(dependency).name
+        for dependency in pyproject["project"]["dependencies"]
+    }
+    development_dependencies = [
+        Requirement(dependency)
+        for dependency in pyproject["project"]["optional-dependencies"]["dev"]
+    ]
+    security_constraints = {
+        Requirement(dependency).name
+        for dependency in pyproject["tool"]["uv"]["constraint-dependencies"]
+    }
 
     assert "FROM python:3.11-slim-trixie" in dockerfile
     assert "langchain/langgraph-api" not in dockerfile
@@ -89,9 +101,13 @@ def test_fogewise_langgraph_server_image_has_docker_sandbox_control_plane():
         '"tools.common.capabilities.agent_runtime.local_server"]'
         in dockerfile
     )
-    assert '"langgraph-api' not in pyproject
-    assert "langgraph-cli[inmem]" not in runtime_dependencies
-    assert '"langgraph-cli[inmem]>=0.4.31"' in pyproject
+    assert "langgraph-api" not in runtime_dependencies
+    assert "langgraph-cli" not in runtime_dependencies
+    assert any(
+        dependency.name == "langgraph-cli" and "inmem" in dependency.extras
+        for dependency in development_dependencies
+    )
+    assert "langgraph-api" in security_constraints
 
 
 def test_ci_tracks_fogewise_agent_server_image_changes():

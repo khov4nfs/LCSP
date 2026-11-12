@@ -1,0 +1,615 @@
+{
+  "packageKind": "UNREVIEWED_PINNED_LEGAL_RETRIEVAL_CANDIDATES",
+  "source": {
+    "id": "ea43540c-513e-4b76-969a-8415f06696f2",
+    "version": "lcsp-360-official-eight-document-acceptance-corpus.v1",
+    "status": "ACTIVE",
+    "createdAt": "2026-10-25T08:49:38.069Z",
+    "integrityManifestRef": "structural-integrity:038052812015ac771ec774cee86c0bb2ab7836e8ec1f0876489dd3195b71b664"
+  },
+  "classificationPerformed": false,
+  "approvedGold": false,
+  "candidates": [
+    {
+      "caseId": "RISK_CLASSIFICATION_BEFORE_USE",
+      "searchPhrases": [
+        "hồ sơ phân loại",
+        "phân loại rủi ro"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-10::cl-1",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-10::cl-1",
+          "contentSha256": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử dụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ phân loại kèm theo.",
+          "sourceSha256": "ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-10::cl-7",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-10::cl-7",
+          "contentSha256": "sha256:5bb361c8182b8e71fcb1b8cf572a7bc4c85f15df26c162e840f0be1e611357b2",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự, thủ tục thông báo và hướng dẫn kỹ thuật về phân loại rủi ro.",
+          "sourceSha256": "5bb361c8182b8e71fcb1b8cf572a7bc4c85f15df26c162e840f0be1e611357b2",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-9::cl-2",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-9::cl-2",
+          "contentSha256": "sha256:0018eb35c7a9b62957d04f6b2003316aba60e4f1a51f841babb1abca75e573f3",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "2. Việc phân loại rủi ro của hệ thống trí tuệ nhân tạo được xác định trên cơ sở các tiêu chí về mức độ tác động đến quyền con người, an toàn, an ninh; lĩnh vực sử dụng của hệ thống, đặc biệt là lĩnh vực thiết yếu hoặc liên quan trực tiếp đến lợi ích công cộng; phạm vi người sử dụng và quy mô ảnh hưởng của hệ thống.",
+          "sourceSha256": "0018eb35c7a9b62957d04f6b2003316aba60e4f1a51f841babb1abca75e573f3",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-10",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-10",
+          "contentSha256": "sha256:1fa44492303a462649ae880bab4a52b43b19e7975de37ac37293bf22b6391467",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "Điều 10. Công cụ hỗ trợ phân loại rủi ro tự động",
+          "sourceSha256": "1fa44492303a462649ae880bab4a52b43b19e7975de37ac37293bf22b6391467",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-10::cl-1",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-10::cl-1",
+          "contentSha256": "sha256:c5607d0d3afb61a4b51727200e2f2e8810f6e82adf707adb8a491da3275ce564",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Bộ Khoa học và Công nghệ thiết lập, duy trì Công cụ hỗ trợ phân loại rủi ro tự động trên Cổng thông tin điện tử một cửa về trí tuệ nhân tạo nhằm hỗ trợ nhà cung cấp, bên triển khai tự đánh giá, phân loại hệ thống trí tuệ nhân tạo.",
+          "sourceSha256": "c5607d0d3afb61a4b51727200e2f2e8810f6e82adf707adb8a491da3275ce564",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    },
+    {
+      "caseId": "DATA_PROCESSING_IMPACT_DOSSIER",
+      "searchPhrases": [
+        "đánh giá tác động xử lý dữ liệu",
+        "đánh giá tác động bảo vệ dữ liệu"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-21",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21",
+          "contentSha256": "sha256:ebb0d606dad3bd705c5c7124ed811e7f0a09c01670b7cc9abaf82782a7304e26",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "Điều 21. Đánh giá tác động xử lý dữ liệu cá nhân",
+          "sourceSha256": "ebb0d606dad3bd705c5c7124ed811e7f0a09c01670b7cc9abaf82782a7304e26",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-21::cl-1",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21::cl-1",
+          "contentSha256": "sha256:788e248c8f076eefc57ba4be113bd26d2160d764bcb02073e0a9d7df8eef5a3d",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệ u cá nhân lập,\nlưu trữ hồ sơ đánh giá tác động xử lý dữ liệu cá nhân và gửi 01 bản chính cho cơ\nquan chuyên trách bảo vệ dữ liệu cá nhân trong thời gian 60 ngà y kể từ ngày đầu\ntiên xử lý dữ liệu cá nhân, trừ trường hợp quy định tại khoản 6 Điều này.",
+          "sourceSha256": "788e248c8f076eefc57ba4be113bd26d2160d764bcb02073e0a9d7df8eef5a3d",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-21::cl-2",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21::cl-2",
+          "contentSha256": "sha256:7450d50c161954a8093b93c2e846f3f34ce95860ffe0eb8aa2c0b2f92fdb3162",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "2. Đánh giá tác động xử lý dữ liệu cá nhân được thực hiện 01 lầ n cho suốt thời\ngian hoạt động của bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu\ncá nhân và được cập nhật theo quy định tại Điều 22 của Luật này.\n26 CÔNG BÁO/Số 971 + 972/Ngày 24-7-2025",
+          "sourceSha256": "7450d50c161954a8093b93c2e846f3f34ce95860ffe0eb8aa2c0b2f92fdb3162",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-21::cl-4",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21::cl-4",
+          "contentSha256": "sha256:1098a328aa3a54e9840a4284e325adae554e024a277937ee0e3ae009819edefc",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "4. Cơ quan chuyên trách bảo vệ dữ liệu cá nhân đánh giá, yêu cầ u bên kiểm\nsoát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệu cá nhân, b ên xử lý dữ liệu cá\nnhân hoàn thiện hồ sơ đánh giá tác động xử lý dữ liệu cá nhân trong trường hợp hồ\nsơ chưa đầy đủ và đúng quy định.",
+          "sourceSha256": "1098a328aa3a54e9840a4284e325adae554e024a277937ee0e3ae009819edefc",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-21::cl-5",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21::cl-5",
+          "contentSha256": "sha256:8024981ca49461da76b60954e8d8316f000dee17bd6e55e4f958820874ce6f8b",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "5. Bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệ u cá nhân, bên\nxử lý dữ liệu cá nhân cập nhật, bổ sung hồ sơ đánh giá tác động xử lý dữ liệu cá\nnhân khi có sự thay đổi về nội dung hồ sơ đã gửi cho cơ quan ch uyên trách bảo vệ\ndữ liệu cá nhân.",
+          "sourceSha256": "8024981ca49461da76b60954e8d8316f000dee17bd6e55e4f958820874ce6f8b",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    },
+    {
+      "caseId": "RISK_DOSSIER_CONTENT",
+      "searchPhrases": [
+        "hồ sơ phân loại"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-10::cl-1",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-10::cl-1",
+          "contentSha256": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử dụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ phân loại kèm theo.",
+          "sourceSha256": "ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-10::cl-3",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-10::cl-3",
+          "contentSha256": "sha256:c2342e0cc5ed1fe2048698a1915feafbdd6b7b599ab276c6211ca3672a87780f",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "3. Kết quả phân loại rủi ro từ Công cụ hỗ trợ phân loại rủi ro tự động được xác định là một tài liệu điện tử hợp lệ của hồ sơ phân loại rủi ro và là một trong các căn cứ thực tế để cơ quan nhà nước có thẩm quyền xem xét, đánh giá việc tuân thủ pháp luật về phân loại rủi ro của nhà cung cấp.",
+          "sourceSha256": "c2342e0cc5ed1fe2048698a1915feafbdd6b7b599ab276c6211ca3672a87780f",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-12",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-12",
+          "contentSha256": "sha256:3fa059d5229f5dc1fbbb867970ad7dcf344866625625c6197f0147fb378eb8bc",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "Điều 12. Hồ sơ phân loại rủi ro của hệ thống trí tuệ nhân tạo",
+          "sourceSha256": "3fa059d5229f5dc1fbbb867970ad7dcf344866625625c6197f0147fb378eb8bc",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-12::cl-1",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-12::cl-1",
+          "contentSha256": "sha256:01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo có rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống vào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.",
+          "sourceSha256": "01a25527cf77f068199b8d4f9a93c2dc7b4e9da8537398549c11ba9832b7c11c",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-12::cl-2",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-12::cl-2",
+          "contentSha256": "sha256:6f5c4ce5a665f44f15f99940e3a6a3a511507862884909a918bf3e093845f479",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "2. Đối với hệ thống trí tuệ nhân tạo có rủi ro cao và rủi ro trung bình, nhà cung cấp phải bảo đảm hồ sơ phân loại rủi ro bao gồm các tài liệu sau đây:",
+          "sourceSha256": "6f5c4ce5a665f44f15f99940e3a6a3a511507862884909a918bf3e093845f479",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    },
+    {
+      "caseId": "RISK_DOSSIER_RETENTION",
+      "searchPhrases": [
+        "lưu giữ hồ sơ",
+        "lưu trữ hồ sơ"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-14::cl-1::pt-c",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-14::cl-1::pt-c",
+          "contentSha256": "sha256:6f27357be27414b892b25d195b926af347a31cce9d5123bf5d84893c4d2796ea",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "c) Lập, cập nhật, lưu giữ hồ sơ kỹ thuật và nhật ký hoạt động ở mức cần thiết cho việc đánh giá sự phù hợp và kiểm tra sau khi đưa vào sử dụng; cung cấp các thông tin này cho cơ quan nhà nước có thẩm quyền theo nguyên tắc cần thiết, tương xứng với mục đích kiểm tra và không làm lộ bí mật kinh doanh;",
+          "sourceSha256": "6f27357be27414b892b25d195b926af347a31cce9d5123bf5d84893c4d2796ea",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-21::cl-1",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21::cl-1",
+          "contentSha256": "sha256:788e248c8f076eefc57ba4be113bd26d2160d764bcb02073e0a9d7df8eef5a3d",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Bên kiểm soát dữ liệu cá nhân, bên kiểm soát và xử lý dữ liệ u cá nhân lập,\nlưu trữ hồ sơ đánh giá tác động xử lý dữ liệu cá nhân và gửi 01 bản chính cho cơ\nquan chuyên trách bảo vệ dữ liệu cá nhân trong thời gian 60 ngà y kể từ ngày đầu\ntiên xử lý dữ liệu cá nhân, trừ trường hợp quy định tại khoản 6 Điều này.",
+          "sourceSha256": "788e248c8f076eefc57ba4be113bd26d2160d764bcb02073e0a9d7df8eef5a3d",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-21::cl-3",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-21::cl-3",
+          "contentSha256": "sha256:1bcc77390c3665c657eb37acfcacba4dceab543800cad991d5373a7e7192b24c",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "3. Bên xử lý dữ liệu cá nhân lập và lưu trữ hồ sơ đánh giá tác động xử lý dữ\nliệu cá nhân theo thỏa thuận với bên kiểm soát dữ liệu cá nhân, bên kiểm soát và\nxử lý dữ liệu cá nhân, trừ trường hợp quy định tại khoản 6 Điều này.",
+          "sourceSha256": "1bcc77390c3665c657eb37acfcacba4dceab543800cad991d5373a7e7192b24c",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-12::cl-6",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-12::cl-6",
+          "contentSha256": "sha256:50845565486c7622681ce6985327d1c74204ab429426cddc1b7bb7923c4bce7d",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "6. Nhà cung cấp, bên triển khai có trách nhiệm lưu trữ hồ sơ phân loại trong suốt thời gian hệ thống hoạt động.",
+          "sourceSha256": "50845565486c7622681ce6985327d1c74204ab429426cddc1b7bb7923c4bce7d",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-5::cl-10::part-2",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-5::cl-10::part-2",
+          "contentSha256": "sha256:1317035e0ab985c0a7fd8a8d878ceb444a54e5359d7cebd926f2b28a91964348",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "2. [Tên tổ chức] cam kết đã thực hiện thử nghiệm hệ thống trí tuệ nhân tạo trong phạm vi, điều kiện và giới hạn được ghi nhận tại Giấy xác nhận tham gia thử nghiệm có kiểm soát, trừ trường hợp có nội dung điều chỉnh đã được cơ quan có thẩm quyền chấp thuận hoặc ghi nhận theo quy định của pháp luật.\n3. [Tên tổ chức] cam kết không cung cấp, thương mại hóa hoặc mở rộng triển khai hệ thống trí tuệ nhân tạo vượt quá phạm vi, điều kiện và giới hạn thử nghiệm đã được ghi nhận tại Giấy xác nhận tham gia thử nghiệm có kiểm soát, trừ trường hợp đã được cơ quan có thẩm quyền chấp thuận.\n4. [Tên tổ chức] cam kết tiếp tục lưu giữ hồ sơ, nhật ký và tài liệu liên quan đến quá trình thử nghiệm để phục vụ việc kiểm tra, giám sát, đánh giá kết quả thử nghiệm và xử lý các vấn đề phát sinh theo quy định của pháp luật.\nNơi nhận: - Như trên; - ……………; - Lưu: … | ĐẠI DIỆN TỔ CHỨC BÁO CÁO (Ký, ghi rõ họ tên, chức vụ và đóng dấu nếu có) ………………………………\nMẫu AI08b:\nBáo cáo tổng kết kết quả thử nghiệm có kiểm soát hệ thống trí tuệ nhân tạo dành cho cá nhân\nCỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM Độc lập - Tự do - Hạnh phúc\n………, ngày … tháng … năm …\nBÁO CÁO\nTổng kết kết quả thử nghiệm có kiểm soát hệ thống trí tuệ nhân tạo\nKính gửi: [Tên cơ quan đã cấp Giấy xác nhận tham gia thử nghiệm]\nCăn cứ Luật Trí tuệ nhân tạo số 134/2025/QH15;\nCăn cứ Nghị định số …/2026/NĐ-CP ngày … tháng … năm … của Chính phủ quy định chi tiết một số điều và biện pháp thi hành Luật Trí tuệ nhân tạo;\nCăn cứ Giấy xác nhận tham gia thử nghiệm có kiểm soát hệ thống trí tuệ nhân tạo số …/GXN-[MÃ] ngày … tháng … năm … của [Tên cơ quan cấp];\n[Họ và tên cá nhân] báo cáo tổng kết kết quả thử nghiệm có kiểm soát hệ thống trí tuệ nhân tạo như sau:\nI. THÔNG TIN CHUNG\n1. Thông tin cá nhân tham gia thử nghiệm",
+          "sourceSha256": "1317035e0ab985c0a7fd8a8d878ceb444a54e5359d7cebd926f2b28a91964348",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    },
+    {
+      "caseId": "MATERIAL_CHANGE_REASSESSMENT",
+      "searchPhrases": [
+        "thay đổi đáng kể",
+        "đánh giá lại"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-12::cl-3",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-12::cl-3",
+          "contentSha256": "sha256:87cb147fb2f18ba36ce037dae24b6712c907678bba340aaeb86680e0d63ac61b",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "3. Cơ quan quản lý nhà nước có thẩm quyền tiếp nhận, xác minh và hướng dẫn xử lý sự cố; khi cần thiết, có quyền yêu cầu tạm dừng, thu hồi hoặc đánh giá lại hệ thống trí tuệ nhân tạo.",
+          "sourceSha256": "87cb147fb2f18ba36ce037dae24b6712c907678bba340aaeb86680e0d63ac61b",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-13::cl-1",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-13::cl-1",
+          "contentSha256": "sha256:8184b75f08c50c6a0a703ab43d315d2896f33ee4da19e2e68b8e9fbd56355552",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Hệ thống trí tuệ nhân tạo có rủi ro cao phải được đánh giá sự phù hợp theo quy định của Luật này trước khi đưa vào sử dụng hoặc khi có thay đổi đáng kể trong quá trình sử dụng. Trường hợp có tiêu chuẩn, quy chuẩn kỹ thuật về hệ thống trí tuệ nhân tạo thì còn phải thực hiện đánh giá sự phù hợp theo quy định của pháp luật về tiêu chuẩn, quy chuẩn kỹ thuật.",
+          "sourceSha256": "8184b75f08c50c6a0a703ab43d315d2896f33ee4da19e2e68b8e9fbd56355552",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-14::cl-1::pt-a",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-14::cl-1::pt-a",
+          "contentSha256": "sha256:2536807d0408bdd833315bf7553c8070d6a74e55ac61e0dbd65d26907af372e1",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "a) Thiết lập và duy trì biện pháp quản lý rủi ro và thường xuyên rà soát khi hệ thống có thay đổi đáng kể hoặc phát sinh rủi ro mới;",
+          "sourceSha256": "2536807d0408bdd833315bf7553c8070d6a74e55ac61e0dbd65d26907af372e1",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-11::cl-1::pt-a",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-11::cl-1::pt-a",
+          "contentSha256": "sha256:4019431e7115aaf9841709ae94356b025370ee40bdda904e910ce78d42a12915",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "a) Hệ thống có sự thay đổi đáng kể về chức năng, mục đích sử dụng hoặc ngữ cảnh triển khai làm ảnh hưởng đến tiêu chí phân loại rủi ro ban đầu của hệ thống;",
+          "sourceSha256": "4019431e7115aaf9841709ae94356b025370ee40bdda904e910ce78d42a12915",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat::art-13::cl-1",
+          "documentId": "nghi-dinh-so-142-2026-nd-cp-quy-dinh-chi-tiet-thi-hanh-luat",
+          "locator": "art-13::cl-1",
+          "contentSha256": "sha256:238dcdf23a5e3c48f734fb2aef773dbeba9912744683b3d8fadc718d3395914f",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro cao phải thực hiện đánh giá sự phù hợp trước khi đưa hệ thống vào sử dụng theo quy định tại khoản 1 Điều 13 của Luật Trí tuệ nhân tạo.\nTrong quá trình sử dụng, nhà cung cấp phải thực hiện đánh giá lại sự phù hợp khi có thay đổi đáng kể làm ảnh hưởng đến kết quả đánh giá sự phù hợp ban đầu, bao gồm một trong các trường hợp sau đây:",
+          "sourceSha256": "238dcdf23a5e3c48f734fb2aef773dbeba9912744683b3d8fadc718d3395914f",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    },
+    {
+      "caseId": "OPERATIONAL_INFORMATION_MEASURES",
+      "searchPhrases": [
+        "biện pháp quản lý",
+        "biện pháp kỹ thuật"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-116-2025-qh15-luat-an-ninh-mang::art-10::cl-2::pt-d",
+          "documentId": "luat-so-116-2025-qh15-luat-an-ninh-mang",
+          "locator": "art-10::cl-2::pt-d",
+          "contentSha256": "sha256:d4ea75a7e8d66bc4973fd521d0bce4a9eae7c106ccae13f1e58a86842f0e2600",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "d) Áp dụng biện pháp quản lý theo tiêu chuẩn, quy chuẩn kỹ thuật về an ninh mạng, nghiên cứu xây dựng hệ thống tường lửa quốc gia để phòng, chống nguy cơ, khắc phục sự cố an ninh mạng;",
+          "sourceSha256": "d4ea75a7e8d66bc4973fd521d0bce4a9eae7c106ccae13f1e58a86842f0e2600",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-116-2025-qh15-luat-an-ninh-mang::art-10::cl-2::pt-e",
+          "documentId": "luat-so-116-2025-qh15-luat-an-ninh-mang",
+          "locator": "art-10::cl-2::pt-e",
+          "contentSha256": "sha256:99bae409e964106f812de9af2668fa630eaf463b9241880b1221385f80505e78",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "e) Kiểm tra, giám sát việc tuân thủ quy định và đánh giá hiệu quả của các biện pháp quản lý và kỹ thuật được áp dụng;",
+          "sourceSha256": "99bae409e964106f812de9af2668fa630eaf463b9241880b1221385f80505e78",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-116-2025-qh15-luat-an-ninh-mang::art-14::cl-1",
+          "documentId": "luat-so-116-2025-qh15-luat-an-ninh-mang",
+          "locator": "art-14::cl-1",
+          "contentSha256": "sha256:1948f69e254b3a60b143bd286ba2aa874d625bbbd920442ea74c4ad372d61db6",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Chủ quản hệ thống thông tin, doanh nghiệp trong nước và nước ngoài cung cấp dịch vụ trên mạng viễn thông, mạng Internet, các dịch vụ gia tăng trên không gian mạng có trách nhiệm triển khai biện pháp quản lý, kỹ thuật để phòng ngừa, phát hiện, ngăn chặn, gỡ bỏ thông tin có nội dung quy định tại các khoản 1, 2 và 3 Điều 13 của Luật này trên hệ thống thông tin thuộc phạm vi quản lý hoặc khi có yêu cầu của lực lượng chuyên trách bảo vệ an ninh mạng.",
+          "sourceSha256": "1948f69e254b3a60b143bd286ba2aa874d625bbbd920442ea74c4ad372d61db6",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-116-2025-qh15-luat-an-ninh-mang::art-15::cl-1::pt-c",
+          "documentId": "luat-so-116-2025-qh15-luat-an-ninh-mang",
+          "locator": "art-15::cl-1::pt-c",
+          "contentSha256": "sha256:87642bb798798587769f5147c0c33b06f5140324e72493ab1d7710949f95cd57",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "c) Cố ý thay đổi, hủy bỏ hoặc làm vô hiệu hóa biện pháp kỹ thuật được xây dựng, áp dụng để bảo vệ thông tin thuộc bí mật nhà nước, bí mật công tác, bí mật kinh doanh, bí mật cá nhân, bí mật gia đình và đời sống riêng tư;",
+          "sourceSha256": "87642bb798798587769f5147c0c33b06f5140324e72493ab1d7710949f95cd57",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-116-2025-qh15-luat-an-ninh-mang::art-15::cl-2::pt-b",
+          "documentId": "luat-so-116-2025-qh15-luat-an-ninh-mang",
+          "locator": "art-15::cl-2::pt-b",
+          "contentSha256": "sha256:adf0941bf12efaaf91d62e21c0e4dc28a5c5125f0236172a4fc6e5525afb44c3",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "b) Triển khai biện pháp quản lý, kỹ thuật để phòng ngừa, phát hiện, ngăn chặn hành vi gián điệp mạng, xâm phạm bí mật nhà nước, bí mật công tác, bí mật kinh doanh, bí mật cá nhân, bí mật gia đình và đời sống riêng tư trên hệ thống thông tin và kịp thời gỡ bỏ thông tin liên quan đến hành vi này;",
+          "sourceSha256": "adf0941bf12efaaf91d62e21c0e4dc28a5c5125f0236172a4fc6e5525afb44c3",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    },
+    {
+      "caseId": "CHILD_PRIVACY_DISCLOSURE_CONSENT",
+      "searchPhrases": [
+        "từ đủ 7 tuổi",
+        "từ đủ bảy tuổi",
+        "07 tuổi",
+        "7 tuổi",
+        "bảy tuổi"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan::art-24::cl-2",
+          "documentId": "luat-so-91-2025-qh15-luat-bao-ve-du-lieu-ca-nhan",
+          "locator": "art-24::cl-2",
+          "contentSha256": "sha256:fdcb3e3d88bab230deaf3d5c462b300dabafd97d80896571cf73ac8bd84f62a9",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "2. Đối với trẻ em, người bị mất hoặc hạn chế năng lực hành vi d ân sự hoặc\nngười có khó khăn trong nhận thức, làm chủ hành vi thì người đạ i diện theo\npháp luật thay mặt thực hiện các quyền của chủ thể dữ liệu cá n hân, trừ các\ntrường hợp quy định tại khoản 1 Điề u 19 của Luật n ày. Việc xử l ý dữ liệu cá\nnhân của trẻ em nhằm công bố, ti ết lộ thông tin về đời sống riê ng tư, bí mật cá\nnhân của trẻ em từ đủ 07 tuổi trở lên thì phải có sự đồng ý của trẻ em và người\nđại diện theo pháp luật.",
+          "sourceSha256": "fdcb3e3d88bab230deaf3d5c462b300dabafd97d80896571cf73ac8bd84f62a9",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    },
+    {
+      "caseId": "UNREVIEWED_DEVELOPER_CONTEXT",
+      "searchPhrases": [
+        "nhà phát triển",
+        "giai đoạn phát triển"
+      ],
+      "mappingStatus": "PENDING_INDEPENDENT_REVIEW",
+      "warning": "Lexical retrieval candidates only; neither applicability nor a legal disposition has been established",
+      "sourceTextCandidates": [
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-12::cl-1",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-12::cl-1",
+          "contentSha256": "sha256:e0171ac2231cd7724c67ef0cb612707e0eedbe17582358daf7452e96302f1fee",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "1. Nhà phát triển, nhà cung cấp, bên triển khai và người sử dụng hệ thống trí tuệ nhân tạo có trách nhiệm bảo đảm an toàn, an ninh, độ tin cậy và kịp thời phát hiện, khắc phục sự cố có khả năng gây tổn hại đến con người, tài sản, dữ liệu hoặc trật tự xã hội.",
+          "sourceSha256": "e0171ac2231cd7724c67ef0cb612707e0eedbe17582358daf7452e96302f1fee",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-12::cl-2",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-12::cl-2",
+          "contentSha256": "sha256:7e296b9ea922e136887f6a6a2bde05c2dd3d6ceabd0b6f620773337a5f8dd4a7",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "2. Khi hệ thống trí tuệ nhân tạo xảy ra sự cố nghiêm trọng, nhà phát triển, nhà cung cấp, bên triển khai, người sử dụng hệ thống trí tuệ nhân tạo có trách nhiệm sau đây:",
+          "sourceSha256": "7e296b9ea922e136887f6a6a2bde05c2dd3d6ceabd0b6f620773337a5f8dd4a7",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-12::cl-2::pt-a",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-12::cl-2::pt-a",
+          "contentSha256": "sha256:f180e558f700f3ba4199720a668ee147492ced31b23d7f2571ec3dab437ab9c5",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "a) Nhà phát triển, nhà cung cấp phải khẩn trương áp dụng biện pháp kỹ thuật để khắc phục, tạm dừng hoặc thu hồi hệ thống, đồng thời thông báo cho cơ quan có thẩm quyền;",
+          "sourceSha256": "f180e558f700f3ba4199720a668ee147492ced31b23d7f2571ec3dab437ab9c5",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-18::cl-5",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-18::cl-5",
+          "contentSha256": "sha256:fc6b35ad5725e1e248f2b678032d3f34ff967f35adede0f425025ccf265060fb",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "5. Chính phủ quy định chi tiết cơ chế, tiêu chí và biện pháp thúc đẩy làm chủ công nghệ trí tuệ nhân tạo, phù hợp từng giai đoạn phát triển và yêu cầu bảo đảm an toàn, an ninh quốc gia.",
+          "sourceSha256": "fc6b35ad5725e1e248f2b678032d3f34ff967f35adede0f425025ccf265060fb",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        },
+        {
+          "id": "ea43540c-513e-4b76-969a-8415f06696f2::luat-so-134-2025-qh15-luat-tri-tue-nhan-tao::art-29::cl-2",
+          "documentId": "luat-so-134-2025-qh15-luat-tri-tue-nhan-tao",
+          "locator": "art-29::cl-2",
+          "contentSha256": "sha256:abf0a49d1bb9036b575f62f27bfe35028a6a8350b2afded10e8440d06344eaac",
+          "legalStatus": "UNKNOWN",
+          "legalEffectStatus": "EFFECTIVE",
+          "sourceText": "2. Trường hợp hệ thống trí tuệ nhân tạo có rủi ro cao được quản lý, vận hành và sử dụng đúng quy định nhưng vẫn phát sinh thiệt hại thì bên triển khai phải chịu trách nhiệm bồi thường cho người bị thiệt hại. Sau khi bồi thường, bên triển khai yêu cầu nhà cung cấp, nhà phát triển hoặc các bên liên quan hoàn trả khoản tiền bồi thường nếu có thỏa thuận giữa các bên.",
+          "sourceSha256": "abf0a49d1bb9036b575f62f27bfe35028a6a8350b2afded10e8440d06344eaac",
+          "hashVerified": true,
+          "effectMetadataAvailable": true
+        }
+      ],
+      "actor": null,
+      "action": null,
+      "trigger": null,
+      "lifecycleStage": null,
+      "developerApplicability": null,
+      "expectedDecision": null,
+      "independentReviewerIdentity": null,
+      "goldRevision": null,
+      "goldHash": null
+    }
+  ],
+  "requiredIndependentControls": [
+    "POSITIVE_DEVELOPMENT",
+    "MIXED",
+    "LEGAL_REVIEW_REQUIRED",
+    "HITL_UNRESOLVED"
+  ],
+  "warning": "Original sources are unchanged. An independent legal reviewer must establish the exact effective provision, actor/action/stage, disposition, positive/mixed/HITL controls and immutable gold hash before evaluator admission."
+}

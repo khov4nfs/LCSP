@@ -36,6 +36,8 @@ test("frontier counters use the latest recorded progress without inventing missi
     {
       reviewed: 5,
       total: 3231,
+      partial: true,
+      inconsistent: false,
       remaining: null,
       reviewedWithClaims: null,
       reviewedNoClaims: null,

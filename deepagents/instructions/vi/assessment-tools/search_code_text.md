@@ -1,0 +1,1 @@
+KHI DÙNG: tìm manh mối implementation có giới hạn. ĐỌC: pattern, paths, giới hạn và truncated. TIẾP: đọc file đúng, mở rộng khi có căn cứ. LỖI: zero hit hoặc truncated không chứng minh vắng mặt toàn cục.

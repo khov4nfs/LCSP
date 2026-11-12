@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { Server } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -111,6 +112,67 @@ integration(
     const suffix = randomUUID();
     const owners = [`lcsp364-owner-a-${suffix}`, `lcsp364-owner-b-${suffix}`];
     const ids: string[] = [];
+    let pendingBacklog: Promise<void> | undefined;
+
+    /**
+     * Business purpose: Locate slow disposable-database fixture and admission stages.
+     * Business rules: Emit only stage names, row counts and monotonic durations.
+     * Execution flow: Await the operation and report completion or failure.
+     * Failure cases: Preserve the original rejection; timing never converts it to success.
+     * Side effects: Writes sanitized test diagnostics to stdout.
+     */
+    async function timed<T>(
+      stage: string,
+      rows: number,
+      work: () => Promise<T>,
+    ) {
+      const started = performance.now();
+      process.stdout.write(`[capacity] ${stage} start rows=${rows}\n`);
+      const slow = setTimeout(() => {
+        process.stdout.write(
+          `[capacity] ${stage} pending ms=${Math.round(performance.now() - started)} rows=${rows}\n`,
+        );
+      }, 5000);
+      try {
+        return await work();
+      } finally {
+        clearTimeout(slow);
+        process.stdout.write(
+          `[capacity] ${stage} settled ms=${Math.round(performance.now() - started)} rows=${rows}\n`,
+        );
+      }
+    }
+
+    /**
+     * Business purpose: Bound Prisma serialization while retaining all 10,001 real commands.
+     * Business rules: Insert sequential 500-row batches in the caller's single transaction.
+     * Execution flow: Slice each table's fixture rows and await every write before advancing.
+     * Failure cases: Propagate a failed batch so the complete fixture transaction rolls back.
+     * Side effects: Inserts only disposable fixture rows; emits one timing per table.
+     */
+    async function insertBatches<T>(
+      stage: string,
+      data: T[],
+      insert: (batch: T[]) => Promise<unknown>,
+    ) {
+      await timed(stage, data.length, async () => {
+        for (let offset = 0; offset < data.length; offset += 500) {
+          await insert(data.slice(offset, offset + 500));
+        }
+      });
+    }
+
+    /**
+     * Business purpose: Prevent timed-out backlog scenarios from writing during the next reset.
+     * Business rules: Jest retains the original scenario rejection and all business assertions.
+     * Execution flow: Retain the complete scenario promise for the next hook to drain.
+     * Failure cases: Return the original promise without catching or converting its error.
+     * Side effects: Tracks test work only; does not cancel or mock native admission.
+     */
+    function backlogScenario(work: () => Promise<void>) {
+      pendingBacklog = work();
+      return pendingBacklog;
+    }
 
     async function report(
       service: AssessmentRootCapacityService,
@@ -237,8 +299,14 @@ integration(
           "Dedicated local lcsp364_capacity disposable database required",
         );
       }
-      first = new PrismaClient({ adapter: new PrismaPg(url!) });
-      second = new PrismaClient({ adapter: new PrismaPg(url!) });
+      // A Jest timeout does not cancel an in-flight PostgreSQL statement. Both
+      // disposable test pools bound server-side work, including lock acquisition.
+      const testConnection = {
+        connectionString: url!,
+        options: "-c statement_timeout=10000 -c lock_timeout=5000",
+      };
+      first = new PrismaClient({ adapter: new PrismaPg(testConnection) });
+      second = new PrismaClient({ adapter: new PrismaPg(testConnection) });
       await Promise.all([first.$connect(), second.$connect()]);
       a = new AssessmentRootCapacityService(first as PrismaService);
       b = new AssessmentRootCapacityService(second as PrismaService);
@@ -269,15 +337,31 @@ integration(
     });
 
     beforeEach(async () => {
-      await first.assessmentRootExecutionSlot.deleteMany();
-      await first.assessmentRootAdmissionRequest.deleteMany();
-      await first.assessmentRootCapacityDecision.deleteMany();
-      await first.assessmentRootCapacity.deleteMany();
-      await first.outboxMessage.deleteMany({
-        where: { aggregateId: { in: ids } },
+      const resetStarted = performance.now();
+      const previousRows = ids.length;
+      if (pendingBacklog) {
+        const previous = pendingBacklog;
+        const [settled] = await timed(
+          "drain-previous-backlog",
+          previousRows,
+          () => Promise.allSettled([previous]),
+        );
+        process.stdout.write(`[capacity] previous-backlog ${settled.status}\n`);
+        pendingBacklog = undefined;
+      }
+      await timed("cleanup", previousRows, async () => {
+        await first.assessmentRootExecutionSlot.deleteMany();
+        await first.assessmentRootAdmissionRequest.deleteMany();
+        await first.assessmentRootCapacityDecision.deleteMany();
+        await first.assessmentRootCapacity.deleteMany();
+        await first.outboxMessage.deleteMany({
+          where: { aggregateId: { in: ids } },
+        });
+        await first.assessment.deleteMany({
+          where: { ownerId: { in: owners } },
+        });
+        ids.length = 0;
       });
-      await first.assessment.deleteMany({ where: { ownerId: { in: owners } } });
-      ids.length = 0;
       incarnationId = randomUUID();
       await a.register({
         hostId: host,
@@ -300,9 +384,13 @@ integration(
         liveRunIds: [],
         metrics: metrics(),
       });
+      process.stdout.write(
+        `[capacity] reset settled ms=${Math.round(performance.now() - resetStarted)} rows=${previousRows}\n`,
+      );
     }, 30_000);
 
     afterAll(async () => {
+      if (pendingBacklog) await Promise.allSettled([pendingBacklog]);
       if (first) {
         await first.assessment.deleteMany({
           where: { ownerId: { in: owners } },
@@ -987,6 +1075,7 @@ integration(
     });
 
     async function enqueueLargeBacklog() {
+      const started = performance.now();
       const requestedAt = Date.now() - 60_000;
       const jobs = Array.from({ length: 10_001 }, (_, index) => {
         const assessmentId = randomUUID();
@@ -1002,49 +1091,70 @@ integration(
         };
       });
       ids.push(...jobs.map((job) => job.assessmentId));
-      await first.$transaction(
-        async (tx) => {
-          await tx.assessment.createMany({
-            data: jobs.map((job) => ({
-              id: job.assessmentId,
-              ownerId: job.ownerId,
-              name: "Provider-free backlog fixture",
-              lifecycleState: AssessmentLifecycleState.ACTIVE,
-              lifecycleRevision: 1,
-            })),
-          });
-          await tx.assessmentRuntime.createMany({
-            data: jobs.map((job) => ({
-              assessmentId: job.assessmentId,
-              threadId: randomUUID(),
-              rootAgentVersion: "lcsp-assessment-root.v1",
-              checkpointNamespace: job.assessmentId,
-              executionState: AgentExecutionState.QUEUED,
-            })),
-          });
-          await tx.outboxMessage.createMany({
-            data: jobs.map((job) => ({
-              id: job.commandId,
-              aggregateType: OutboxAggregateType.ASSESSMENT,
-              aggregateId: job.assessmentId,
-              eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
-              status: OutboxStatus.PUBLISHED,
-              payload: {
+      process.stdout.write(
+        `[capacity] identities settled ms=${Math.round(performance.now() - started)} rows=${jobs.length}\n`,
+      );
+      let insertsFinished = started;
+      await timed("fixture-transaction", jobs.length, () =>
+        first.$transaction(
+          async (tx) => {
+            await insertBatches(
+              "insert-assessments",
+              jobs.map((job) => ({
+                id: job.assessmentId,
+                ownerId: job.ownerId,
+                name: "Provider-free backlog fixture",
+                lifecycleState: AssessmentLifecycleState.ACTIVE,
+                lifecycleRevision: 1,
+              })),
+              (data) => tx.assessment.createMany({ data }),
+            );
+            await insertBatches(
+              "insert-runtimes",
+              jobs.map((job) => ({
                 assessmentId: job.assessmentId,
-                idempotencyKey: job.commandKey,
-              },
-              createdAt: job.requestedAt,
-            })),
-          });
-          await tx.assessmentRootAdmissionRequest.createMany({
-            data: jobs.map((job) => ({
-              assessmentId: job.assessmentId,
-              commandId: job.commandId,
-              requestedAt: job.requestedAt,
-            })),
-          });
-        },
-        { timeout: 30_000 },
+                threadId: randomUUID(),
+                rootAgentVersion: "lcsp-assessment-root.v1",
+                checkpointNamespace: job.assessmentId,
+                executionState: AgentExecutionState.QUEUED,
+              })),
+              (data) => tx.assessmentRuntime.createMany({ data }),
+            );
+            await insertBatches(
+              "insert-outbox",
+              jobs.map((job) => ({
+                id: job.commandId,
+                aggregateType: OutboxAggregateType.ASSESSMENT,
+                aggregateId: job.assessmentId,
+                eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+                status: OutboxStatus.PUBLISHED,
+                payload: {
+                  assessmentId: job.assessmentId,
+                  idempotencyKey: job.commandKey,
+                },
+                createdAt: job.requestedAt,
+              })),
+              (data) => tx.outboxMessage.createMany({ data }),
+            );
+            await insertBatches(
+              "insert-admissions",
+              jobs.map((job) => ({
+                assessmentId: job.assessmentId,
+                commandId: job.commandId,
+                requestedAt: job.requestedAt,
+              })),
+              (data) => tx.assessmentRootAdmissionRequest.createMany({ data }),
+            );
+            insertsFinished = performance.now();
+          },
+          { timeout: 30_000 },
+        ),
+      );
+      process.stdout.write(
+        `[capacity] commit settled ms=${Math.round(performance.now() - insertsFinished)} rows=${jobs.length}\n`,
+      );
+      process.stdout.write(
+        `[capacity] fixture-committed ms=${Math.round(performance.now() - started)} rows=${jobs.length}\n`,
       );
       const reservation = (job: (typeof jobs)[number]) => ({
         assessmentId: job.assessmentId,
@@ -1183,63 +1293,79 @@ integration(
       expect((await a.status()).active).toBe(1);
     });
 
-    it("defers an eligible out-of-order command beyond 10000 candidates and later admits its owner", async () => {
-      const { head, tail } = await enqueueLargeBacklog();
-      expect(await first.assessmentRootAdmissionRequest.count()).toBe(10_001);
-      const deferred = await b.reserve(tail);
-      expect(deferred).not.toHaveProperty("obsolete", true);
-      expect(deferred).toMatchObject({
-        admitted: false,
-        reason: Reasons.fairness,
-      });
-      expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
-      expect(await a.reserve(head)).toMatchObject({ admitted: true });
-      await a.release(head);
-      expect(await b.reserve(tail)).toMatchObject({ admitted: true });
-      expect((await a.status()).active).toBe(1);
-    }, 60_000);
+    it(
+      "defers an eligible out-of-order command beyond 10000 candidates and later admits its owner",
+      () =>
+        backlogScenario(async () => {
+          const { head, tail } = await enqueueLargeBacklog();
+          expect(
+            await timed("count-admissions", 10_001, () =>
+              first.assessmentRootAdmissionRequest.count(),
+            ),
+          ).toBe(10_001);
+          const deferred = await timed("reserve-tail-deferred", 10_001, () =>
+            b.reserve(tail),
+          );
+          expect(deferred).not.toHaveProperty("obsolete", true);
+          expect(deferred).toMatchObject({
+            admitted: false,
+            reason: Reasons.fairness,
+          });
+          expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
+          expect(
+            await timed("reserve-head", 10_001, () => a.reserve(head)),
+          ).toMatchObject({ admitted: true });
+          await timed("release-head", 10_001, () => a.release(head));
+          expect(
+            await timed("reserve-tail-admitted", 10_001, () => b.reserve(tail)),
+          ).toMatchObject({ admitted: true });
+          expect((await a.status()).active).toBe(1);
+        }),
+      60_000,
+    );
 
     brokerIntegration(
       "preserves a delivery beyond 10000 candidates through real SDK HTTP and RabbitMQ retry settlement",
-      async () => {
-        const { tail } = await enqueueLargeBacklog();
-        const address = app.getHttpServer().address();
-        if (!address || typeof address === "string")
-          throw new Error("Local worker HTTP server unavailable");
-        const { stdout } = await execFileAsync(
-          process.env.LCSP_TEST_PYTHON ?? "python",
-          [
-            "-m",
-            "pytest",
-            "-q",
-            "-s",
-            "tests/test_assessment_concurrency_rabbitmq.py::test_large_postgres_backlog_delivery_preserves_durable_retry",
-          ],
-          {
-            cwd: fileURLToPath(
-              new URL("../../../deepagents/", import.meta.url),
-            ),
-            timeout: 60_000,
-            env: {
-              ...process.env,
-              NESTJS_API_BASE_URL: `http://127.0.0.1:${address.port}`,
-              WORKER_API_KEY: workerKey,
-              LCSP_TEST_CAPACITY_BACKLOG_RESERVATION: JSON.stringify(tail),
-              LANGSMITH_TRACING: "false",
-              LANGCHAIN_TRACING_V2: "false",
+      () =>
+        backlogScenario(async () => {
+          const { tail } = await enqueueLargeBacklog();
+          const address = app.getHttpServer().address();
+          if (!address || typeof address === "string")
+            throw new Error("Local worker HTTP server unavailable");
+          const { stdout } = await execFileAsync(
+            process.env.LCSP_TEST_PYTHON ?? "python",
+            [
+              "-m",
+              "pytest",
+              "-q",
+              "-s",
+              "tests/test_assessment_concurrency_rabbitmq.py::test_large_postgres_backlog_delivery_preserves_durable_retry",
+            ],
+            {
+              cwd: fileURLToPath(
+                new URL("../../../deepagents/", import.meta.url),
+              ),
+              timeout: 60_000,
+              env: {
+                ...process.env,
+                NESTJS_API_BASE_URL: `http://127.0.0.1:${address.port}`,
+                WORKER_API_KEY: workerKey,
+                LCSP_TEST_CAPACITY_BACKLOG_RESERVATION: JSON.stringify(tail),
+                LANGSMITH_TRACING: "false",
+                LANGCHAIN_TRACING_V2: "false",
+              },
             },
-          },
-        );
-        expect(stdout).toContain("LCSP364_BACKLOG_BROKER_PASS");
-        process.stdout.write(stdout);
-        expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
-        expect(
-          await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
-            where: { commandId: `fixture-command:${tail.assessmentId}` },
-          }),
-        ).toMatchObject({ admittedRunId: null, completedAt: null });
-        expect((await a.status()).admissionDeferrals).toBeGreaterThan(0);
-      },
+          );
+          expect(stdout).toContain("LCSP364_BACKLOG_BROKER_PASS");
+          process.stdout.write(stdout);
+          expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
+          expect(
+            await first.assessmentRootAdmissionRequest.findUniqueOrThrow({
+              where: { commandId: `fixture-command:${tail.assessmentId}` },
+            }),
+          ).toMatchObject({ admittedRunId: null, completedAt: null });
+          expect((await a.status()).admissionDeferrals).toBeGreaterThan(0);
+        }),
       90_000,
     );
 

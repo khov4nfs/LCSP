@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from runtime_instruction_bundle import runtime_instruction
+
 import dataclasses
 import hashlib
 import json
@@ -17,7 +19,6 @@ from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPer
 from deepagents.profiles.harness import harness_profiles
 from langchain.agents.middleware import (
     AgentMiddleware,
-    ModelCallLimitMiddleware,
     AgentState,
     TracePolicy,
     TodoListMiddleware,
@@ -25,10 +26,12 @@ from langchain.agents.middleware import (
     omit_payload,
 )
 from langchain_core.messages import AIMessage, HumanMessage
+from evals.run_manifest import build_runtime_manifest, checked_in_skill_hashes, save_runtime_manifest, settle_runtime_manifest
 from langchain_core.messages import ToolMessage
 from langgraph.runtime import Runtime
 from middleware.failure_policy import NoProgressDetected
 from middleware.agent_run_budget import AgentRunBudgetMiddleware, _positive_env
+from middleware.approved_instructions import ApprovedModelCallLimitMiddleware
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, governed_summarization_middleware
 from middleware.usage_metering import AgentRoleMiddleware
 from orchestration.agent_stream import publish_agent_stream_event
@@ -46,7 +49,7 @@ RULE_SET_PREPARATION_ROLE = "rule-set-preparation"
 CLAIM_AUTHOR_ROLE = "claim-author"
 CLAIM_AUTHOR_MODEL_CALLS = 16
 READ_ONLY_TOOLS = ["ls", "glob", "grep", "read_file"]
-_PROFILE_LOCK = threading.Lock()
+_PROFILE_LOCK = threading.RLock()
 logger = get_logger(__name__)
 
 
@@ -327,21 +330,12 @@ class PreparationCompletionMiddleware(AgentMiddleware):
                     text_chars=len(text), text_head=" ".join(text.split())[:300])
         if context.discovery_only:
             workflow = "Use write_todos and task(claim-author), commit_claims, then discovery_status"
-            return {"messages": [HumanMessage(content="Continue the SAME discovery session. " + workflow + " until discoveryCompleteEligible=true. Then finalize_semantic_claim_inventory and STOP at CLAIM_INVENTORY_READY. No Rule authoring, validation or submission is authorized.")], "jump_to": "model"}
+            return {"messages": [HumanMessage(content=runtime_instruction("preparation.continuation"))], "jump_to": "model"}
         if context.direct_draft:
-            return {"messages": [HumanMessage(content="Continue the persisted Rule Set Draft. Get the next legal analysis package, submit source-backed candidates and dispositions, correct specific errors, then validate_compliance_rule_set and submit_compliance_rule_set. Accepted candidates are durable; do not recreate them.")], "jump_to": "model"}
+            return {"messages": [HumanMessage(content=runtime_instruction("preparation.continuation"))], "jump_to": "model"}
         return {
             "messages": [HumanMessage(content=(
-                "Preparation is not finished. Continue the same pinned-source work and preserve "
-                "your existing reading and inventory. Use actual tool calls, not tool-call text in "
-                "an assistant response: get_claim_inventory to inspect the current phase, "
-                "commit claim files and finalize_semantic_claim_inventory before Rule authoring; "
-                "validate_compliance_rule_set until PASSED, then submit_compliance_rule_set once "
-                "for the exact validated draft. There is no length limit. If every unit is reviewed and "
-                "complete and the source states no obligation, conclude_no_operative_obligations ends the "
-                "run; never register an obligation the source does not state. If the pinned source "
-                "is truly unreadable or its pins inconsistent, use report_rule_set_source_blocked "
-                "instead."
+                runtime_instruction("preparation.continuation")
             ))],
             "jump_to": "model",
         }
@@ -350,9 +344,9 @@ class PreparationCompletionMiddleware(AgentMiddleware):
 # The parent only coordinates discovery: it cannot read source or write/commit claim files itself. Measured: a parent that did the
 # authors' work (read 6 articles, write 6 files, commit) carried a context growing from 6k to 155k tokens per turn and spent 75% of a
 # run's tokens; the claim-author children hold small, per-assignment contexts.
-DISCOVERY_TOOLS = frozenset({"write_todos", "task", "discovery_status", "finalize_semantic_claim_inventory", "conclude_no_operative_obligations",
+DISCOVERY_TOOLS = frozenset({"list_preparation_skills", "load_preparation_skill", "write_todos", "task", "discovery_status", "finalize_semantic_claim_inventory", "conclude_no_operative_obligations",
     "report_rule_set_source_blocked", "record_preparation_progress", "get_applicable_legal_state"})
-AUTHORING_TOOLS = frozenset({"ls", "glob", "grep", "read_file", "write_todos", "start_rule_authoring", "reopen_semantic_claim_inventory",
+AUTHORING_TOOLS = frozenset({"list_preparation_skills", "load_preparation_skill", "ls", "glob", "grep", "read_file", "write_todos", "start_rule_authoring", "reopen_semantic_claim_inventory",
     "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_applicable_legal_state",
     "author_legal_requirement", "author_assessment_rule", "remove_rule_candidate", "validate_compliance_rule_set", "submit_compliance_rule_set",
     "report_rule_set_source_blocked", "record_preparation_progress"})
@@ -362,12 +356,12 @@ def phase_instructions(context):
     """Business purpose: Select the system instructions matching the current Rule Set Preparation lifecycle.
 
     Business rules:
-    - Direct drafting uses its dedicated prompt; otherwise prompt selection follows whether the claim inventory is frozen and whether discovery-only mode forbids authoring.
+    - Direct drafting uses its dedicated prompt; otherwise prompt selection follows the frozen inventory. Server-provided scope and locale select additional instructions.
 
     Execution flow:
     1. Read the direct-draft mode and inventory freeze state.
     2. Load the common prompt plus the correct discovery or authoring instructions.
-    3. Append the discovery-only stop condition when that lifecycle flag is active.
+    3. Append trusted scope and locale overlays and the discovery-only stop condition when active.
 
     Failure cases:
     - Missing prompt files or read errors propagate so Preparation cannot run with partial instructions.
@@ -375,45 +369,57 @@ def phase_instructions(context):
     Side effects:
     - Reads local instruction files and returns text; it does not mutate run or legal-source state.
     """
+    from runtime_instruction_bundle import runtime_instruction
     if context.direct_draft:
-        return Path(__file__).with_name("instructions-direct.md").read_text()
-    part = "authoring" if context.inventory and context.inventory.frozen else "discovery"
-    base = Path(__file__).parent
-    prompt = (base / "instructions-common.md").read_text() + "\n" + (base / f"instructions-{part}.md").read_text()
+        prompt = runtime_instruction("preparation.direct")
+    else:
+        part = "authoring" if context.inventory and context.inventory.frozen else "discovery"
+        prompt = runtime_instruction("preparation.common") + "\n" + runtime_instruction("preparation." + part)
+    from rule_set_preparation.preparation_skills import development_scope_overlay
+    prompt += development_scope_overlay(getattr(context, "target_activity_scope", "FULL_SOURCE"))
+    from rule_set_preparation.preparation_skills import preparation_locale_overlay
+    prompt += preparation_locale_overlay(getattr(context, "response_language", "vi"))
     if context.discovery_only:
-        prompt += "\nDISCOVERY ONLY: finalize then STOP at CLAIM_INVENTORY_READY. No Rule authoring, validation or submission."
+        prompt += "\n" + runtime_instruction("preparation.continuation")
     return prompt
 
 
+class ScopeReviewPauseRequired(RuntimeError):
+    """Server froze the legal inventory; stop before a new model invocation."""
+
+
 class PreparationPhaseMiddleware(AgentMiddleware):
-    def __init__(self, context):
+    def __init__(self, context, model=None):
         self.context = context
+        self.model = model
 
     def _request(self, request):
-        """Business purpose: Present only the tool set authorized for the active Preparation phase and refresh the phase-specific system instructions.
+        """Business purpose:
+        Bind each model request to the current governed Preparation phase.
 
         Business rules:
-        - Direct draft, frozen-inventory authoring and discovery each use a separate allowlist; tool availability is a server-side runtime boundary, not a legal judgment.
-        - The post-phase system prompt suffix is preserved while the phase instructions are refreshed.
+        - Stop after a server review pause and allow only phase-specific tools.
 
         Execution flow:
-        1. Select the allowed tool names from the current lifecycle state.
-        2. Retain only matching tools in the model request.
-        3. Replace the phase prefix while preserving the existing suffix and return the overridden request.
+        1. Select exact localized prompt/tool list, hash config, and replace request.
 
         Failure cases:
-        - Tools outside the selected phase are omitted; malformed request objects or prompt loading errors propagate.
+        - Missing source pins, invalid skills or locale and paused runs fail closed.
 
         Side effects:
-        - Constructs an in-memory model request; it does not execute tools or change persisted state.
-        """
-        allowed = ({*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "write_todos", "get_next_legal_analysis_package", "get_rule_set_draft_candidate", "submit_rule_set_draft_candidates", "correct_rule_set_draft_submission", "get_applicable_legal_state", "validate_compliance_rule_set", "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked"}
+        - Tracks run receipts; optionally persists immutable metadata, never changes the legal source."""
+        if getattr(self.context, "scope_review_paused", False):
+            raise ScopeReviewPauseRequired("SCOPE_REVIEW_PAUSED_BY_SERVER")
+        allowed = ({*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "list_preparation_skills", "load_preparation_skill", "write_todos", "get_next_legal_analysis_package", "get_rule_set_draft_candidate", "submit_rule_set_draft_candidates", "correct_rule_set_draft_submission", "get_applicable_legal_state", "validate_compliance_rule_set", "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked"}
                    if self.context.direct_draft else AUTHORING_TOOLS if self.context.inventory and self.context.inventory.frozen else DISCOVERY_TOOLS)
         from langchain_core.messages import SystemMessage
         system = request.system_message.content if request.system_message else ""
         suffix = system.partition("<LCSP_PHASE_END>")[2] if isinstance(system, str) else ""
-        return request.override(tools=[t for t in request.tools if (t.get("name") if isinstance(t, dict) else t.name) in allowed],
-            system_message=SystemMessage(content=phase_instructions(self.context) + "\n<LCSP_PHASE_END>" + suffix))
+        included = [t for t in request.tools if (t.get("name") if isinstance(t, dict) else t.name) in allowed]
+        actual_prompt = phase_instructions(self.context) + "\n<LCSP_PHASE_END>" + suffix
+        # The innermost approved-instruction guard records the final model request.
+        return request.override(
+            tools=included, system_message=SystemMessage(content=actual_prompt))
 
     def wrap_model_call(self, request, handler):
         """Business purpose: Apply the Preparation phase's tool and instruction boundary to synchronous model requests.
@@ -470,21 +476,48 @@ def preparation_filesystem(backend, *, files):
     Side effects:
     - Constructs middleware and changes tool validation handlers in memory; it does not itself read or write source files.
     """
+    from runtime_instruction_bundle import production_runtime_bundle
+    native = json.loads(production_runtime_bundle().instruction("framework.injected-policy"))
     permissions = [FilesystemPermission(["read"], [LEGAL_SOURCE_ROOT, f"{LEGAL_SOURCE_ROOT}/**"], mode="allow")]
     if files:
         permissions += [FilesystemPermission(["read", "write"], ["/work", "/work/**"], mode="allow")]
     permissions += [FilesystemPermission(["read", "write"], ["/**"], mode="deny")]
-    filesystem = FilesystemMiddleware(backend=backend, tools=["ls", "grep", "read_file", "write_file", "edit_file"] if files else READ_ONLY_TOOLS, _permissions=permissions)
+    filesystem = FilesystemMiddleware(backend=backend, tools=["ls", "grep", "read_file", "write_file", "edit_file"] if files else READ_ONLY_TOOLS, _permissions=permissions,
+        system_prompt=native["filesystem_system"], custom_tool_descriptions={name: text for key, text in native.items() if key.startswith("tool.") for name in [key[5:]]})
     for native in filesystem.tools:
         native.handle_validation_error = lambda error, name=native.name: f"Error invoking tool '{name}': {str(error)[:600]}"
     return filesystem
+
+
+def preparation_source_pins(context):
+    """Business purpose: Bind Preparation receipts to the authoritative pinned source version.
+
+    Business rules:
+    - Explicit context pins and a materialized source graph must agree; neither may be guessed.
+    Execution flow:
+    1. Read the server-bound context and materialized graph version.
+    2. Reject disagreement or absence and return the actual legal source identity.
+    Failure cases:
+    - Missing pins or inconsistent source authorities reject inference before receipt creation.
+    Side effects:
+    - None: reads the existing run context without altering source records.
+    """
+    explicit = getattr(context, "pinned_source_version_id", None)
+    graph = getattr(context, "source_graph", None)
+    materialized = getattr(graph, "version", None)
+    if explicit and materialized and explicit != materialized:
+        raise ValueError("MANIFEST_SOURCE_PIN_MISMATCH")
+    version = explicit or materialized
+    if not isinstance(version, str) or not version:
+        raise ValueError("MANIFEST_MISSING_PIN_OR_PROMPT")
+    return {"legalSourceVersionId": version}
 
 
 def claim_author_subagent(context, model, backend, budget):
     """Business purpose: Configure one native child agent to complete exactly one assigned Article claim file.
 
     Business rules:
-    - The prompt assigns one claims subtree and forbids sibling edits; filesystem permissions allow writes throughout /work rather than enforcing that per-Article boundary. The only governed domain tool exposed is `commit_claims`.
+    - The prompt assigns one claims subtree; filesystem permissions allow writes throughout /work. The only governed mutation is `commit_claims`; both skill tools are read-only.
     - It must not delegate, finalize, validate or submit; the configured model-call limit ends a stuck child for coordinator reassignment.
 
     Execution flow:
@@ -498,30 +531,53 @@ def claim_author_subagent(context, model, backend, budget):
     Side effects:
     - Creates an in-memory subagent configuration; the child may later write its assigned claim file and commit it through governed tools.
     """
-    return {"name": "claim-author", "description": "Read one whole assigned Article, write its claim file and commit it; return one summary line.",
-        "model": model, "tools": [t for t in build_rule_set_tools(context) if t.name == "commit_claims"],
-        "system_prompt": phase_instructions(context) + "\nYou own exactly one Article assignment (one source file and its claim file) given by the parent. Read source only under /legal-source and existing work only under /work. Write only your assigned /work/claims subtree. Never delegate, finalize, validate or submit. Return exactly ONE line: done: X articles, Y claims, Z waiting reference.",
+    # A child can now load exactly the same read-only, source-controlled methodology
+    # as the parent. Domain mutations remain limited to commit_claims.
+    allowed_child_tools = {"commit_claims", "list_preparation_skills", "load_preparation_skill"}
+    child_skills = build_rule_set_tools(context)
+    child_prompt = phase_instructions(context) + "\n" + runtime_instruction("claim-author.system")
+    child_assignment = (
+        ""
+    )
+    return {"name": "claim-author", "mode": "isolated", "description": "Read one whole assigned Article, write its claim file and commit it; return one summary line.",
+        "model": model, "tools": [t for t in child_skills if t.name in allowed_child_tools],
+        "system_prompt": child_prompt + child_assignment,
         # A child stuck in a fix loop re-sends its whole history every turn (measured: one child spent 3.9M tokens on two Articles). After
         # this many model calls it ends; the coordinator's next discovery_status reassigns the Article to a fresh, small context.
-        "middleware": [preparation_filesystem(backend, files=True), budget, ModelCallLimitMiddleware(run_limit=CLAIM_AUTHOR_MODEL_CALLS, exit_behavior="end"),
-            governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE),
-            AgentRoleMiddleware(CLAIM_AUTHOR_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE, AuthoringToolCallRecorder(context)]}
+        "middleware": [preparation_filesystem(backend, files=True), budget, ApprovedModelCallLimitMiddleware(run_limit=CLAIM_AUTHOR_MODEL_CALLS, exit_behavior="end"),
+            governed_summarization_middleware(model, backend=backend, role=RULE_SET_PREPARATION_ROLE, system_prompt=child_prompt + child_assignment,
+                receipt_context=lambda: {"run_id": context.run_id, "component": CLAIM_AUTHOR_ROLE, "locale": context.response_language, "pins": preparation_source_pins(context)},
+                receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest})),
+            AgentRoleMiddleware(CLAIM_AUTHOR_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE, AuthoringToolCallRecorder(context),
+            __import__("middleware.approved_instructions", fromlist=["ApprovedInstructionMiddleware"]).ApprovedInstructionMiddleware(["preparation.common", "preparation.discovery", "claim-author.system"] + (["preparation.development-overlay"] if context.target_activity_scope == "DEVELOPMENT_ONLY" else []),
+                presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft, "target_activity_scope": context.target_activity_scope},
+                receipt_context=lambda: {"run_id": context.run_id, "component": CLAIM_AUTHOR_ROLE, "locale": context.response_language,
+                    "pins": preparation_source_pins(context), "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
+                receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}))]}
 
 
 @contextmanager
 def _without_general_purpose_subagent(profile_key: str) -> Iterator[None]:
-    """Disable the default general-purpose subagent for graphs built inside the block.
+    """Business purpose: Construct isolated delegates without uncontrolled profile middleware.
 
-    Harness profiles are a process-global registry keyed by ``provider:model`` and
-    ``register_harness_profile`` MERGES into an existing entry, so it cannot be undone.
-    The entry is therefore swapped directly and restored to the exact previous object
-    (or removed), keeping the Root agent in the same process unaffected. The profile is
-    read at graph build time only. Pinned by ``test_rule_set_preparation_agent.py``.
+    Business rules:
+    - Profiles cannot install post-guard middleware or exclude instruction guards; the default general-purpose delegate stays disabled.
+    - The shared reentrant lock covers parent and differently routed child profiles during graph construction.
+    Execution flow:
+    1. Validate the existing profile, swap its general-purpose setting and restore the exact prior entry on exit.
+    Failure cases:
+    - Unsupported profile middleware rejects construction; graph failures still restore the registry.
+    Side effects:
+    - Temporarily replace one in-process harness profile without changing persistent configuration or tool authority.
     """
     registry = harness_profiles._HARNESS_PROFILES
     with _PROFILE_LOCK:
         harness_profiles._ensure_harness_profiles_loaded()
         previous = registry.get(profile_key)
+        protected = {"ApprovedInstructionMiddleware", "ApprovedSummaryInstructions", "SummarizationMiddleware", "ApprovedModelCallLimitMiddleware"}
+        if previous and (previous.extra_middleware or protected.intersection(previous.excluded_middleware)):
+            from runtime_instruction_bundle import RuntimeInstructionBundleError
+            raise RuntimeInstructionBundleError("UNCONTROLLED_HARNESS_MIDDLEWARE")
         registry[profile_key] = dataclasses.replace(
             previous or HarnessProfile(),
             general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False),
@@ -586,6 +642,12 @@ def create_rule_set_preparation_agent(
     Side effects:
     - Creates the local work directory and agent objects and updates the run context's source root; actual model/tool execution occurs only when the caller invokes the graph.
     """
+    from rule_set_preparation.preparation_skills import enforce_runtime_scope
+    from runtime_instruction_bundle import production_runtime_bundle
+    from middleware.approved_instructions import ApprovedInstructionMiddleware
+    bundle = production_runtime_bundle()
+    enforce_runtime_scope(getattr(context, "target_activity_scope", "FULL_SOURCE"),
+                          getattr(context, "approved_scope_digest", None))
     author_model = model
     if model is None:
         from model_policy import resolve_agent_model
@@ -602,7 +664,7 @@ def create_rule_set_preparation_agent(
     read_only = preparation_filesystem(backend, files=not context.direct_draft)
     budget = AgentRunBudgetMiddleware(run_quotas={name: _positive_env(env, 1) for name, env in
         [("model_calls", "LCSP_RSP_MAX_MODEL_CALLS"), ("input_tokens", "LCSP_RSP_MAX_INPUT_TOKENS")] if os.environ.get(env)})
-    with _without_general_purpose_subagent(_lookup_profile_key(model)):
+    with _without_general_purpose_subagent(_lookup_profile_key(model)), _without_general_purpose_subagent(_lookup_profile_key(author_model)):
         return create_deep_agent(
             name="lcsp-rule-set-preparation",
             model=model,
@@ -611,7 +673,7 @@ def create_rule_set_preparation_agent(
             tools=[*[t for t in build_rule_set_tools(context) if t.name != "commit_claims"], *(build_source_graph_tools(context.source_graph) if context.source_graph else [])],
             middleware=[
                 read_only,
-                TodoListMiddleware(), PreparationPhaseMiddleware(context), budget,
+                TodoListMiddleware(system_prompt=json.loads(bundle.instruction("framework.injected-policy"))["todo_system"], tool_description=json.loads(bundle.instruction("framework.injected-policy"))["tool.write_todos"]), PreparationPhaseMiddleware(context, model=model), budget,
                 observation_middleware,
                 PreparationCompletionMiddleware(context),
                 DraftHistoryMiddleware(context),
@@ -620,7 +682,10 @@ def create_rule_set_preparation_agent(
                     if context.direct_draft
                     else [
                         governed_summarization_middleware(
-                            model, backend=backend, role=RULE_SET_PREPARATION_ROLE
+                            model, backend=backend, role=RULE_SET_PREPARATION_ROLE,
+                            system_prompt=instructions,
+                            receipt_context=lambda: {"run_id": context.run_id, "component": RULE_SET_PREPARATION_ROLE, "locale": context.response_language, "pins": preparation_source_pins(context)},
+                            receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}),
                         )
                     ]
                 ),
@@ -628,6 +693,11 @@ def create_rule_set_preparation_agent(
                 *MODEL_GOVERNANCE_MIDDLEWARE,
                 # Innermost: sees the raw model response and tool result before governance can raise on them.
                 AuthoringToolCallRecorder(context),
+                ApprovedInstructionMiddleware(lambda: (["preparation.direct"] if context.direct_draft else ["preparation.common", "preparation.authoring" if context.inventory and context.inventory.frozen else "preparation.discovery"]) + (["preparation.development-overlay"] if context.target_activity_scope == "DEVELOPMENT_ONLY" else []) + ["preparation.presentation"] + (["preparation.continuation"] if context.discovery_only else []),
+                    receipt_context=lambda: {"run_id": context.run_id, "component": RULE_SET_PREPARATION_ROLE, "locale": context.response_language,
+                        "pins": preparation_source_pins(context), "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
+                    receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}),
+                    presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft, "target_activity_scope": context.target_activity_scope}),
             ],
             subagents=[] if context.direct_draft else [claim_author_subagent(context, author_model, backend, budget)],
             # False, not None: None would inherit the Agent Server run's Postgres checkpointer, and

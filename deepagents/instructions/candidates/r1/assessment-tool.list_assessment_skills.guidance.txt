@@ -1,0 +1,1 @@
+WHEN: Reconnaissance identifies a bounded investigation problem. READ: methodology catalog only. NEXT: choose minimal relevant skill or none. FAILURE: listing a skill never proves a technology or duty.

@@ -1,0 +1,1 @@
+WHEN: A source term, exception or cross-reference needs resolution. READ: pinned results and effect metadata. NEXT: read_legal_source exact provision, not search snippet. FAILURE: empty search cannot establish absence of a legal condition.

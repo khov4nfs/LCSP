@@ -251,9 +251,9 @@ def test_framework_summarization_uses_full_model_governance(monkeypatch, termina
         with activate_agent_stream(_summary_test_stream()), activate_agent_run_state(state):
             if terminal:
                 with pytest.raises(Exception) as caught:
-                    middleware._lc_helper._summary_model.invoke("summarize this")
+                    middleware._lc_helper._summary_model.invoke(__import__("runtime_instruction_bundle", fromlist=["runtime_instruction"]).runtime_instruction("framework.injected-policy", "summary_prompt").format(messages="summarize this"))
             else:
-                response = middleware._lc_helper._summary_model.invoke("summarize this")
+                response = middleware._lc_helper._summary_model.invoke(__import__("runtime_instruction_bundle", fromlist=["runtime_instruction"]).runtime_instruction("framework.injected-policy", "summary_prompt").format(messages="summarize this"))
     finally:
         token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
         token_fallback._RATE_LIMITED_UNTIL.clear()

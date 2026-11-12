@@ -217,3 +217,19 @@ export const ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS = {
   reasoningSummary: "REASONING_SUMMARY",
   runtimeProgress: "RUNTIME_PROGRESS",
 } as const;
+
+/** Bounded sanitized journal history; telemetry does not authorize lifecycle transitions. */
+export const preparationActivityPageSchema = z.object({
+  events: z.array(agentStreamEventSchema),
+  nextCursor: z.string().nullable(),
+  hasMore: z.boolean(),
+});
+export const preparationActivityQuerySchema = z.object({
+  cursor: z
+    .string()
+    .min(1)
+    .max(2048)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+});

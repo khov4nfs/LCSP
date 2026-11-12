@@ -1,5 +1,6 @@
 """Offline admission proofs. Synthetic tariffs here are never provider price evidence."""
 import asyncio
+from contextlib import contextmanager
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextvars import copy_context
 import hashlib
@@ -30,6 +31,51 @@ from model_policy import DEFAULT_ROUTES_FILE, build_model, load_model_routes, mo
 from vertical.live_preparation import LiveUsage, recover_usage
 
 OFFLINE_CREDENTIAL_SALT = "c" * 64
+
+
+@pytest.mark.parametrize("window,reason", [("budget", "BUDGET_EXPIRED"), ("policy", "UNVERIFIED_POLICY")])
+def test_authorization_expiring_during_journal_lock_wait_rejects_before_dispatch(tmp_path, monkeypatch, window, reason):
+    model = native()
+    policy = policy_for(model)
+    expires = 200
+    state = state_for(tmp_path, model,
+                      expires_at=expires if window == "budget" else 400,
+                      policies=(policy.model_copy(update={"expires_at": expires if window == "policy" else 400}),))
+    clock = [100]
+    monkeypatch.setattr(paid_admission.time, "time", lambda: clock[0])
+    original = state.admission._transaction
+
+    @contextmanager
+    def after_lock_wait():
+        with original() as db:
+            clock[0] = 201
+            yield db
+
+    monkeypatch.setattr(state.admission, "_transaction", after_lock_wait)
+    seen = []
+    with pytest.raises(PaidAdmissionError, match=reason):
+        invoke(state, model, lambda request: seen.append(request))
+    assert not seen
+    result = snapshot(state)
+    assert result["admittedAttempts"] == 0 and result["terminalReason"] == reason
+
+
+def test_expired_reservation_cannot_be_dispatched_or_reset_on_resume(tmp_path, monkeypatch):
+    model = native()
+    monkeypatch.setattr(paid_admission.time, "time", lambda: 100)
+    state = state_for(tmp_path, model, expires_at=200)
+    admission = state.admission
+    admission.admit("reserved", request_identity(model))
+    monkeypatch.setattr(paid_admission.time, "time", lambda: 201)
+    with pytest.raises(PaidAdmissionError, match="BUDGET_EXPIRED"):
+        admission.transition("reserved", "IN_FLIGHT")
+    result = snapshot(state)
+    assert result["attempts"][0]["state"] == "ADMITTED"
+    assert result["unresolvedAttempts"] == 1 and result["chargeExposureNanoUSD"] > 0
+    resumed = RunAdmission(state.store, admission.budget, admission.identity)
+    with pytest.raises(PaidAdmissionError, match="BUDGET_EXPIRED"):
+        resumed.admit("resume", request_identity(model))
+    assert snapshot(state)["admittedAttempts"] == 1
 
 
 def request_identity(model):
@@ -279,10 +325,14 @@ b=RunBudget.model_validate_json(sys.argv[2])
 a=RunAdmission(sys.argv[1],b,fingerprint(b.model_dump(mode='json')))
 a.admit('killed',json.loads(sys.argv[3]))
 if sys.argv[4]=='IN_FLIGHT': a.transition('killed','IN_FLIGHT')
-os.kill(os.getpid(),signal.SIGKILL)
+if os.name == 'nt':
+    # Windows os.kill(SIGTERM) uses TerminateProcess; no Python cleanup runs.
+    os.kill(os.getpid(), signal.SIGTERM)
+else:
+    os.kill(os.getpid(),signal.SIGKILL)
 """
     child = subprocess.run([sys.executable, "-c", script, str(state.store), state.admission.budget.model_dump_json(), json.dumps(request_identity(model)), stage])
-    assert child.returncode == -9
+    assert child.returncode == (15 if os.name == "nt" else -9)
     result = recover_usage(str(tmp_path / "run.json"), "run")["admission"]
     assert result["unresolvedAttempts"] == 1 and result["inputExposure"] == 1000
     assert result["attempts"][0]["state"] == stage and result["knownActualChargeNanoUSD"] == 0
@@ -494,7 +544,7 @@ def test_real_governed_parent_author_and_internal_runnable_share_budget(tmp_path
     with activate_agent_run_state(state):
         for role, model in [("rule-set-preparation", primary), ("claim-author", author)]:
             create_agent(model, tools=[], middleware=[AgentRoleMiddleware(role), *MODEL_GOVERNANCE_MIDDLEWARE]).invoke({"messages": [HumanMessage("offline")]})
-        _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SUMMARIZATION").invoke("offline")
+        _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SUMMARIZATION").invoke(__import__("runtime_instruction_bundle", fromlist=["runtime_instruction"]).runtime_instruction("framework.injected-policy", "summary_prompt").format(messages="offline"))
         with pytest.raises(PaidAdmissionError, match="CALL_LIMIT"):
             _GovernedInternalModelRunnable(primary, role="rule-set-preparation", operation_type="SOURCE_READER").invoke("offline")
     assert seen == ["primary", "primary", "primary"]

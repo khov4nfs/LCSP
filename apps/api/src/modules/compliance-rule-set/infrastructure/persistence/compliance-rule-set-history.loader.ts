@@ -9,13 +9,13 @@ import {
   complianceRuleSetHistorySchema,
   complianceRuleSetValidateResultSchema,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as OUTCOME,
-  RULE_SET_PREPARATION_STAGES as STAGE,
   RULE_SET_PREPARATION_FAILURE_REASONS as FAILURE,
 } from "@lcsp/contracts/compliance-rule-set";
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { loadRuleSetPreparationAvailability } from "./rule-set-preparation-availability.loader.js";
+import { preparationHistoryStage } from "./preparation-history-stage.js";
 
 @Injectable()
 export class ComplianceRuleSetHistoryLoader {
@@ -34,7 +34,12 @@ export class ComplianceRuleSetHistoryLoader {
           }),
           tx.ruleSetPreparationRun.findMany({
             include: {
-              ruleSet: { select: { id: true } },
+              ruleSet: {
+                select: {
+                  id: true,
+                  _count: { select: { rules: true, assessmentRules: true } },
+                },
+              },
               legalSourceVersion: { select: { version: true, status: true } },
               reviewFrontiers: {
                 orderBy: { inventoryRevision: "desc" },
@@ -138,21 +143,26 @@ export class ComplianceRuleSetHistoryLoader {
                 r.id === row.ruleSet?.id &&
                 r.lifecycleState === ArtifactLifecycleState.ACTIVE,
             );
-            const stage = active
-              ? STAGE.ACTIVE
-              : row.executionState === PrismaAgentExecutionState.SUCCEEDED
-                ? STAGE.RULE_SET_READY
-                : validation.success
-                  ? validation.data.outcome === OUTCOME.PASSED
-                    ? STAGE.RULE_SET_READY
-                    : STAGE.VALIDATION_FAILED
-                  : frontier && completed === frontier.unitCount
-                    ? STAGE.VALIDATION_REQUIRED
-                    : row.executionState === PrismaAgentExecutionState.QUEUED
-                      ? STAGE.CORPUS_READY
-                      : STAGE.PREPARING_RULE_SET;
+            const validationOutcome = validation.success
+              ? validation.data.outcome
+              : null;
+            const stage = preparationHistoryStage({
+              executionState: row.executionState,
+              active,
+              hasRuleSetVersion: row.ruleSet !== null,
+              hasValidatedDraft:
+                saved !== undefined && validationOutcome === OUTCOME.PASSED,
+              validationOutcome,
+              coverageComplete:
+                frontier !== undefined && completed === frontier.unitCount,
+            });
             return {
               executionContract: row.executionContract,
+              targetActivityScope: row.targetActivityScope,
+              claimPhase: row.claimPhase,
+              startedAt: row.startedAt?.toISOString() ?? null,
+              persistedCoverageAvailable: Boolean(frontier),
+              persistedDraftAvailable: Boolean(saved || row.ruleSet),
               resumable:
                 row.ruleSet === null &&
                 row.legalSourceVersion.status === approved &&
@@ -183,8 +193,12 @@ export class ComplianceRuleSetHistoryLoader {
                     })),
                   )
                   .slice(0, 20),
-                requirementCount: saved?.requirementCount ?? 0,
-                assessmentRuleCount: saved?.assessmentRuleCount ?? 0,
+                requirementCount:
+                  row.ruleSet?._count.rules ?? saved?.requirementCount ?? 0,
+                assessmentRuleCount:
+                  row.ruleSet?._count.assessmentRules ??
+                  saved?.assessmentRuleCount ??
+                  0,
                 requirements: saved?.requirements ?? [],
                 assessmentRules: saved?.assessmentRules ?? [],
                 validation: validation.success ? validation.data : null,

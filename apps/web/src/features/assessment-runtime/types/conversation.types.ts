@@ -66,6 +66,7 @@ export type UsageTotals = {
 };
 
 export type TechnicalEvent = {
+  summary?: string | null;
   eventId: string;
   sequence: number;
   timestamp: string;

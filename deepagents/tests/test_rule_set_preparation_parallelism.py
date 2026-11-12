@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from middleware import usage_metering
 from pydantic import PrivateAttr
@@ -113,11 +113,13 @@ class _ParallelPreparationModel(RuleSetPreparationScriptedModel):
     def _generate(self, messages: list[Any], **kwargs: Any) -> ChatResult:
         prompt = list(messages)
         system_prompt = str(getattr(prompt[0], "content", "")) if prompt else ""
-        if "You own exactly one Article assignment" in system_prompt:
+        # Stable role marker: do not couple the scripted model to EN/VI wording.
+        from runtime_instruction_bundle import runtime_instruction
+        if runtime_instruction("claim-author.system") in system_prompt:
             with self._lock:
                 self._child_prompts.append(prompt)
             self._document_barrier.wait(timeout=5)
-            description = str(getattr(prompt[-1], "content", ""))
+            description = next(str(message.content) for message in reversed(prompt) if isinstance(message, HumanMessage) and any(document in str(message.content) for document in DOCUMENTS))
             document_id = next(
                 document for document in DOCUMENTS if document in description
             )
@@ -199,19 +201,17 @@ def test_two_document_tasks_run_natively_in_parallel_and_parent_synthesizes(
     api = _Api()
 
     result = create_rule_set_preparation_agent(
-        context=RuleSetPreparationContext(RUN_ID, api),
+        context=RuleSetPreparationContext(RUN_ID, api, pinned_source_version_id=_bundle()["legalSourceVersionId"]),
         legal_source_root=tmp_path,
         model=model,
     ).invoke({"messages": [{"role": "user", "content": "prepare"}]})
 
     assert len(model.child_prompts) == 2
-    assert {
-        next(document for document in DOCUMENTS if document in str(prompt[-1].content))
-        for prompt in model.child_prompts
-    } == set(DOCUMENTS)
-    assert all(
-        "/legal-source/" in str(prompt[-1].content) for prompt in model.child_prompts
-    )
+    assignments = [next(str(message.content) for message in reversed(prompt)
+        if isinstance(message, HumanMessage) and any(document in str(message.content) for document in DOCUMENTS))
+        for prompt in model.child_prompts]
+    assert {next(document for document in DOCUMENTS if document in assignment) for assignment in assignments} == set(DOCUMENTS)
+    assert all("/legal-source/" in assignment for assignment in assignments)
     assert len(model.parent_prompts) == 3
     assert api.calls == ["validate", "submit"]
     assert (

@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-INSTRUCTIONS = "\n".join((Path(__file__).parents[1] / "rule_set_preparation" / name).read_text()
+INSTRUCTIONS = "\n".join((Path(__file__).parents[1] / "rule_set_preparation" / name).read_text(encoding="utf-8")
     for name in ("instructions-common.md", "instructions-discovery.md", "instructions-authoring.md"))
 
 
@@ -245,7 +245,7 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
     from langchain_core.utils.function_calling import convert_to_openai_tool
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    tools = build_rule_set_tools(RuleSetPreparationContext(RUN_ID, FakeApi()))
+    tools = build_rule_set_tools(RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"]))
     # Binding exercises Gemini's schema conversion without a provider request.
     ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", api_key="fixture").bind_tools(tools)
     for tool in tools:
@@ -254,6 +254,13 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
             assert schema["properties"]["reason"]["enum"] == ["SOURCE_UNREADABLE", "SOURCE_PINS_INCONSISTENT"]
             continue
         if tool.name == "remove_from_packet_draft":
+            continue
+        if tool.name == "list_preparation_skills":
+            assert not schema["properties"]
+            continue
+        if tool.name == "load_preparation_skill":
+            assert "name" in schema["required"]
+            assert "locale" in schema["properties"]
             continue
         if tool.name == "record_preparation_progress":
             assert set(schema["required"]) == {
@@ -309,11 +316,11 @@ def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_leg
     source = PinnedSourceGraph(bundle['documentGraph'], [c for d in bundle['documents'] for c in d['chunks']])
     assert paths[0] == INDEX_PATH
     for path, ids in source.source_files.items():
-        text = (tmp_path / path.lstrip('/')).read_text()
+        text = (tmp_path / path.lstrip('/')).read_text(encoding="utf-8")
         for nid in ids:
             assert text.count('[' + source.locators[nid] + ']') == 1
             assert source.nodes[nid]['content'] in text
-    index = (tmp_path / 'legal-source/INDEX.md').read_text()
+    index = (tmp_path / 'legal-source/INDEX.md').read_text(encoding="utf-8")
     assert DOC in index and 'Immutable file hashes' in index
     assert not (tmp_path / 'legal-source/nodes').exists()
 
@@ -328,7 +335,7 @@ def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_to
         AIMessage(content="done"),
     ])
     agent = create_rule_set_preparation_agent(
-        context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
+        context=RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"]), legal_source_root=tmp_path, model=model
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     bound = {name for names in model.bound_tool_names for name in names}
@@ -339,11 +346,15 @@ def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_to
     forbidden = {"write_file", "edit_file", "execute", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
     assert "task" in bound
-    assert preparation_agent.phase_instructions(RuleSetPreparationContext(RUN_ID, FakeApi())) in model.prompts[0][0].content
+    from runtime_instruction_bundle import runtime_instruction
+    expected = "\n\n".join(runtime_instruction(identity) for identity in
+        ("preparation.common", "preparation.discovery", "preparation.presentation"))
+    expected += "\n\n" + json.loads(runtime_instruction("framework.injected-policy"))["todo_system"]
+    assert model.prompts[0][0].content == expected
 
 
 def test_progress_ledger_advances_for_findings_not_strategy_alone() -> None:
-    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+    context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"])
     tool = next(tool for tool in build_rule_set_tools(context) if tool.name == "record_preparation_progress")
 
     first = json.loads(tool.invoke({
@@ -367,7 +378,7 @@ def test_progress_ledger_advances_for_findings_not_strategy_alone() -> None:
 
 
 def test_progress_ledger_accepts_partial_arguments_without_type_error() -> None:
-    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+    context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"])
     tool = next(tool for tool in build_rule_set_tools(context) if tool.name == "record_preparation_progress")
 
     # Calling with only establishedFindings must succeed and not raise TypeError
@@ -631,7 +642,7 @@ def test_no_submission_is_recorded_as_failed(tmp_path: Path, monkeypatch: pytest
 
 def _source_block_tool(tmp_path: Path) -> tuple[Any, RuleSetPreparationContext, list[str]]:
     paths = materialize_legal_source(_bundle(), tmp_path)
-    context = RuleSetPreparationContext(run_id=RUN_ID, api=FakeApi(), source_root=tmp_path)
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=FakeApi(), source_root=tmp_path, pinned_source_version_id=_bundle()["legalSourceVersionId"])
     tool = next(t for t in build_rule_set_tools(context) if t.name == "report_rule_set_source_blocked")
     return tool, context, paths
 
@@ -792,7 +803,7 @@ def test_forbidden_tools_and_paths_outside_the_legal_source_are_unavailable(tmp_
     ]
     model = _model(attempts)
     agent = create_rule_set_preparation_agent(
-        context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
+        context=RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"]), legal_source_root=tmp_path, model=model
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     messages = _tool_messages(model)
@@ -848,7 +859,7 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
     # The parent has only the explicitly configured claim-author delegation.
     materialize_legal_source(_bundle(), tmp_path)
     agent = create_rule_set_preparation_agent(
-        context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
+        context=RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"]), legal_source_root=tmp_path, model=model
     )
     tools = set(agent.nodes["tools"].bound.tools_by_name)
     assert {"read_file", "validate_compliance_rule_set", "submit_compliance_rule_set"} <= tools
@@ -886,7 +897,7 @@ def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_
             self.calls.append(("validate", (run_id, packet)))
             return {"outcome": "FAILED", "failures": failures}
 
-    context = RuleSetPreparationContext(run_id=RUN_ID, api=CoverageApi(), source_root=tmp_path)
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=CoverageApi(), source_root=tmp_path, pinned_source_version_id=_bundle()["legalSourceVersionId"])
     tool = next(t for t in build_rule_set_tools(context) if t.name == "validate_compliance_rule_set")
     seen = json.loads(tool.invoke({"packet": _packet()}))
     assert seen["failures"] == [failures[-1]]
@@ -904,7 +915,7 @@ def test_instructions_require_operative_accounting_without_citation_buckets() ->
 
 
 def _draft_tools(api: FakeApi | None = None) -> tuple[RuleSetPreparationContext, dict[str, Any]]:
-    context = RuleSetPreparationContext(run_id=RUN_ID, api=api or FakeApi())
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=api or FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"])
     return context, {tool.name: tool for tool in build_rule_set_tools(context)}
 
 
@@ -963,7 +974,17 @@ def test_only_items_named_by_the_latest_validation_failures_can_be_removed() -> 
     assert context.draft_counts() == {"legalRequirements": 1, "assessmentRules": 1, "contextRelations": 1}
 
     validate.invoke({})
-    removed = json.loads(remove.invoke({"legalRequirementIds": ["LR-RET"], "relationIds": ["REL-1", "REL-missing"]}))
+    claim = {
+        "schema_version": "1.0",
+        "intent_class": "PACKET_DRAFT_REPAIR",
+        "selected_tool": "remove_from_packet_draft",
+        "expected_effect": "REMOVE_VALIDATION_FAILURES",
+        "risk_tier": "LOW",
+        "uncertainty": 0.0,
+        "untrusted_context": False,
+        "evidence_refs": [f"relation:REL-1|locator:{DOC}::art-2::cl-1"],
+    }
+    removed = json.loads(remove.invoke({"claim": claim, "legalRequirementIds": ["LR-RET"], "relationIds": ["REL-1", "REL-missing"]}))
     assert removed["removed"] == {"legalRequirements": 0, "assessmentRules": 0, "contextRelations": 1}
     assert removed["refused"] == ["LR-RET"] and removed["unknownLabels"] == ["REL-missing"]
     assert context.draft_counts() == {"legalRequirements": 1, "assessmentRules": 1, "contextRelations": 0}
@@ -1011,7 +1032,7 @@ def test_stale_hash_feedback_names_the_pinned_identity_so_the_item_is_corrected_
         def validate_compliance_rule_set(self, run_id, packet):
             return {"outcome": "FAILED", "failures": failures}
 
-    context = RuleSetPreparationContext(run_id=RUN_ID, api=StaleApi(), source_root=tmp_path)
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=StaleApi(), source_root=tmp_path, pinned_source_version_id=_bundle()["legalSourceVersionId"])
     tool = next(t for t in build_rule_set_tools(context) if t.name == "validate_compliance_rule_set")
     from rule_set_preparation.source_graph import PinnedSourceGraph
     bundle = _bundle()

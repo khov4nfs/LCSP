@@ -9,6 +9,16 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { contractChunkIds } from "./compliance-rule-set.mappers.js";
+import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
+import {
+  AUTHORED_LOCALIZATION_ENTITIES,
+  AUTHORED_LOCALIZATION_STATES,
+} from "@lcsp/contracts/assessment-domain";
+import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
+import {
+  canonicalJson,
+  sha256Hex,
+} from "../../../assessment/domain/domain-ids.js";
 import {
   semanticGraphInclude,
   readSemanticGraph,
@@ -17,7 +27,10 @@ import {
 /** Builds the validated read model of one stored rule set version. */
 @Injectable()
 export class ComplianceRuleSetReadModelLoader {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly localization: AuthoredLocalizationService,
+  ) {}
 
   /**
    * Business purpose: Reconstruct one stored Rule Set version as the validated contract read model used by Assessment and admin flows.
@@ -41,6 +54,7 @@ export class ComplianceRuleSetReadModelLoader {
   async load(
     where: Prisma.ComplianceRuleSetVersionWhereInput,
     correlationId: string,
+    requestedLocale?: string | null,
   ): Promise<ComplianceRuleSetReadModel> {
     const active = await this.prisma.complianceRuleSetVersion.findFirst({
       where,
@@ -114,7 +128,7 @@ export class ComplianceRuleSetReadModelLoader {
     const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
 
     const frozen = active.preparationRun?.claimInventories?.[0];
-    return complianceRuleSetReadModelSchema.parse({
+    const canonical = complianceRuleSetReadModelSchema.parse({
       ...(frozen
         ? {
             claimInventory: {
@@ -146,6 +160,7 @@ export class ComplianceRuleSetReadModelLoader {
           }
         : {}),
       ruleSetVersionId: active.id,
+      targetActivityScope: active.targetActivityScope,
       version: active.version,
       legalSourceVersionId: active.legalSourceVersionId,
       ruleSetDigest: active.ruleSetDigest,
@@ -244,6 +259,41 @@ export class ComplianceRuleSetReadModelLoader {
             }
           : null,
       })),
+    });
+    if (!requestedLocale) return canonical;
+    const locale = resolveResponseLanguage(requestedLocale);
+    const legalRequirements = await Promise.all(
+      canonical.legalRequirements.map((rule) =>
+        this.localization.projectDocument(rule, locale, active.id, {
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.LEGAL_REQUIREMENT,
+          entityId: rule.legalRequirementId,
+          canonicalRevision: active.rules.find(
+            (row) => row.legalRequirementId === rule.legalRequirementId,
+          )!.contentDigest,
+        }),
+      ),
+    );
+    const assessmentRules = await Promise.all(
+      canonical.assessmentRules.map((rule) =>
+        this.localization.projectDocument(rule, locale, active.id, {
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.ASSESSMENT_RULE,
+          entityId: rule.assessmentRuleId,
+          canonicalRevision: active.assessmentRules.find(
+            (row) => row.assessmentRuleId === rule.assessmentRuleId,
+          )!.contentDigest,
+        }),
+      ),
+    );
+    return complianceRuleSetReadModelSchema.parse({
+      ...canonical,
+      legalRequirements,
+      assessmentRules,
+      localization: {
+        locale,
+        state: AUTHORED_LOCALIZATION_STATES.READY,
+        canonicalDigest: sha256Hex(canonicalJson(canonical)),
+        translationRevision: 1,
+      },
     });
   }
 }

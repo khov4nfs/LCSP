@@ -751,6 +751,8 @@ class ClaimInventory:
             result = self.context.api.claim_inventory_operation(self.context.run_id, CONCLUDE_ACTION if conclude else "FINALIZE" if finalize else "VALIDATE", self.revision,
                                                                 graph=graph, identities=self.identities, **({"reason": conclude} if conclude else {}))
         self.last_failures = result.get("failures", [])
+        if finalize and result.get("outcome") == "PASSED" and result.get("scopeReviewHold") is True:
+            self.context.scope_review_paused = True
         codes = {f.get("code") for f in result.get("failures", [])}
         if "SEMANTIC_CLOSURE_INVALID" in codes:
             result = {**result, "requiredAction": "commit_claims",

@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useIsMutating } from "@tanstack/react-query";
-import { RULE_SET_PREPARATION_REFUSAL_REASONS } from "@lcsp/contracts/compliance-rule-set";
+import type { MessageKey } from "@lcsp/i18n";
+import {
+  PREPARATION_ACTIVITY_SCOPES,
+  RULE_SET_PREPARATION_REFUSAL_REASONS,
+} from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,13 +41,18 @@ export function RuleSetPreparationAction({
   const canPrepare = replaceActive
     ? availability.canReplace
     : availability.canStart;
-  if (!canPrepare && !running) return null;
+  const canSubmit = canPrepare && availability.legalSourceVersionId !== null;
+  const blockerId = "rule-set-preparation-blocker";
+  const blockerKey = availability.refusalReason
+    ? `pages.complianceRuleSets.blockers.${availability.refusalReason}`
+    : "pages.complianceRuleSets.blockers.SOURCE_VERSION_NOT_ELIGIBLE";
   return (
     <div className="flex flex-col items-start gap-3">
       <Button
         type="button"
-        disabled={running}
+        disabled={running || !canSubmit}
         aria-busy={running}
+        aria-describedby={!canSubmit ? blockerId : undefined}
         onClick={() => setConfirming(true)}
       >
         {resolveAppMessage(
@@ -56,6 +65,21 @@ export function RuleSetPreparationAction({
                 : "pages.complianceRuleSets.prepare",
         )}
       </Button>
+      {!canSubmit ? (
+        <div id={blockerId} className="max-w-2xl text-sm" role="status">
+          <p className="font-medium">
+            {resolveAppMessage(
+              "pages.complianceRuleSets.preparationUnavailable",
+            )}
+          </p>
+          <p className="text-muted-foreground">
+            {resolveAppMessage(blockerKey as MessageKey)}
+          </p>
+          <p className="text-muted-foreground">
+            {resolveAppMessage("pages.complianceRuleSets.sourceAdminNextStep")}
+          </p>
+        </div>
+      ) : null}
       {prepare.isError ? (
         <Alert variant="destructive">
           <AlertDescription>
@@ -79,6 +103,18 @@ export function RuleSetPreparationAction({
                   ? "pages.complianceRuleSets.confirmReplaceDescription"
                   : "pages.complianceRuleSets.confirmDescription",
               )}
+              <span className="mt-2 block font-medium">
+                {availability.legalSourceVersion ??
+                  resolveAppMessage(
+                    "pages.complianceRuleSets.sourceNotSelected",
+                  )}
+                {availability.legalSourceVersionId
+                  ? ` · ${availability.legalSourceVersionId}`
+                  : ""}
+                {` · ${resolveAppMessage(
+                  `pages.complianceRuleSets.scopes.${PREPARATION_ACTIVITY_SCOPES[1]}`,
+                )}`}
+              </span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-row justify-end pt-5">
@@ -86,7 +122,7 @@ export function RuleSetPreparationAction({
               {resolveAppMessage("pages.complianceRuleSets.cancel")}
             </Button>
             <Button
-              disabled={running || !canPrepare}
+              disabled={running || !canSubmit}
               onClick={() => {
                 setConfirming(false);
                 // Name the version on screen so a stale page cannot prepare a newer one by accident.
@@ -97,6 +133,7 @@ export function RuleSetPreparationAction({
                         legalSourceVersionId: availability.legalSourceVersionId,
                       }
                     : {}),
+                  targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
                 });
               }}
             >

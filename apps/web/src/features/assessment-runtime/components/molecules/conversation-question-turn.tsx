@@ -40,16 +40,30 @@ export function ConversationQuestionTurn({
         <p id={titleId} className="font-medium whitespace-pre-wrap">
           {request.question}
         </p>
-        {request.decisionImpact.length > 0 ? (
+        {request.decisionImpact.length > 0 ||
+        Boolean(request.unresolvedFact) ||
+        request.resolutionAttempts.length > 0 ? (
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer list-none rounded-md select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
               {copy("question.whyAsking")}
             </summary>
-            <ul className="mt-1 list-disc pl-5">
-              {request.decisionImpact.map((impact) => (
-                <li key={impact}>{impact}</li>
-              ))}
-            </ul>
+            {request.unresolvedFact ? (
+              <p className="mt-1">{request.unresolvedFact}</p>
+            ) : null}
+            {request.decisionImpact.length > 0 ? (
+              <ul className="mt-1 list-disc pl-5">
+                {request.decisionImpact.map((impact) => (
+                  <li key={impact}>{impact}</li>
+                ))}
+              </ul>
+            ) : null}
+            {request.resolutionAttempts.length > 0 ? (
+              <ul className="mt-1 list-disc pl-5">
+                {request.resolutionAttempts.map((attempt) => (
+                  <li key={attempt}>{attempt}</li>
+                ))}
+              </ul>
+            ) : null}
           </details>
         ) : null}
         {turn.open ? (

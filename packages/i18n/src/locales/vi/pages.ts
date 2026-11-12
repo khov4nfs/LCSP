@@ -1,5 +1,200 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
+  preparationOps: {
+    persistedCoverage: "Tiến độ coverage đã lưu",
+    title: "Preparation đã chọn — run canonical",
+    runId: "Mã Preparation Run",
+    source: "Phiên bản / mã Legal Source",
+    scope: "Phạm vi Preparation",
+    contract: "Hợp đồng thực thi",
+    attempt: "Lần chạy",
+    state: "Trạng thái thực thi canonical",
+    started: "Bắt đầu lúc",
+    lastActivity: "Sự kiện ghi nhận gần nhất",
+    currentStage: "Giai đoạn Preparation đã lưu",
+    blockers: "Đơn vị nguồn bị chặn",
+    requirements: "Legal Requirements đã lưu",
+    rules: "Assessment Rules đã lưu",
+    retryPermitted: "Được retry",
+    resumePermitted: "Được resume",
+    yes: "Có",
+    no: "Không",
+    notReported: "NOT_REPORTED — chưa có bằng chứng",
+    canonicalState:
+      "Kết nối chỉ phản ánh telemetry. Kết quả run do trạng thái backend quyết định.",
+    failure: "Chẩn đoán lỗi an toàn",
+    resumeAction:
+      "Kiểm tra lỗi đã ghi nhận, rồi chủ động resume run này bằng thao tác hiện có.",
+    retryAction:
+      "Kiểm tra lỗi đã ghi nhận trước khi chủ động yêu cầu một lần retry mới.",
+    inspectAction:
+      "Kiểm tra nguồn, cấu hình runtime và các blocker review. Không tự động retry.",
+    persistedCounts:
+      "Counter đã lưu và snapshot stream là hai nguồn bằng chứng khác nhau. Counter thiếu không có nghĩa là 0.",
+    billingUnavailable:
+      "Billing đã lưu / chi phí provider đã đối soát: NOT_AVAILABLE ở màn hình này. Không khẳng định chi phí ước tính.",
+    observedUsage:
+      "Chỉ là usage quan sát từ stream; lịch sử chưa đầy đủ hoặc metadata token thiếu có thể thấp hơn usage/billing thực tế.",
+    partial: "Telemetry chưa đầy đủ: một số counter tiến độ chưa được báo cáo.",
+    inconsistent:
+      "Counter không nhất quán: các snapshot mâu thuẫn. Không coi đây là coverage nguồn hoàn tất.",
+    visibleHistory:
+      "Dòng activity hiển thị / đã tải (không phải toàn bộ lịch sử run)",
+    showEarlier: "Hiện activity đã tải trước đó",
+    loadOlder: "Tải sự kiện đã lưu cũ hơn",
+    historyLoading: "Đang tải lịch sử sự kiện đã lưu…",
+    historyError:
+      "Chưa đọc được lịch sử đã lưu; telemetry trực tiếp và trạng thái canonical vẫn độc lập.",
+    retryHistory: "Thử đọc lại lịch sử",
+    observedInput: "Input token quan sát",
+    observedOutput: "Output token quan sát",
+    observedTotal: "Tổng token quan sát",
+    stages: {
+      SOURCE_LOADING: "Nạp Legal Source",
+      SOURCE_DISCOVERY: "Khám phá nguồn",
+      CLAIM_INVENTORY: "Kiểm kê claim",
+      SOURCE_REVIEW: "Rà soát nguồn",
+      RULE_AUTHORING: "Soạn Rule",
+      RULE_VALIDATION: "Kiểm tra Rule",
+      SUBMISSION: "Nộp kết quả",
+      ACTIVATION: "Kích hoạt / hoàn tất có review",
+    },
+    statuses: {
+      NOT_REPORTED: "Chưa được báo cáo",
+      NOT_STARTED: "Chưa bắt đầu",
+      RUNNING: "Đang chạy",
+      COMPLETED: "Đã hoàn tất",
+      FAILED: "Thất bại",
+      BLOCKED: "Bị chặn",
+      PAUSED: "Tạm dừng",
+    },
+    diagnostics: {
+      failingModel: "Model/provider gây lỗi",
+      operation: "Thao tác model bị lỗi",
+      retryability: "Khả năng retry đã ghi nhận",
+      callbackStatus: "HTTP status của callback",
+      attempt: "Số thứ tự physical attempt (đã ghi nhận)",
+      lastSuccess: "Sự kiện thành công ghi nhận cuối",
+      stage: "Giai đoạn lỗi",
+      category: "Nhóm lỗi an toàn",
+      code: "Mã callback an toàn",
+      exceptionClass: "Loại exception",
+      reason: "Lý do lỗi",
+      lastModel: "Danh tính model call hoàn tất cuối",
+      activeTools: "Tên tool đang hoạt động",
+    },
+  },
+  localizationReview: {
+    nextPage: "Trang ti?p",
+    previousPage: "Trang tr??c",
+    filter: "L?c c?ng vi?c",
+    pageSelection: "?? ch?n tr?n trang n?y (b? ch?n khi chuy?n trang):",
+    batchLimit: "Ch?n t?i ?a 50 tr??ng m?i ??t. Kh?ng b? qua tr??ng ?? ch?n.",
+    batchResults: "K?t qu? t?ng tr??ng",
+    accepted: "?? ghi nh?n",
+    rejected: "B? t? ch?i; ch?a ho?n t?t",
+    filters: {
+      ALL: "T?t c? c?ng vi?c hi?n t?i",
+      SOURCE_REVIEW_REQUIRED: "C?n duy?t ngu?n",
+      OUTPUT_REVIEW_REQUIRED: "C?n duy?t b?n d?ch",
+      PROVIDER_PENDING: "Ch? nh? cung c?p",
+      PROVIDER_FAILED: "C?n th? l?i nh? cung c?p",
+      FAILED: "Th?t b?i",
+      READY: "S?n s?ng",
+      UNKNOWN_SOURCE: "Ngu?n ch?a r?",
+      MIXED_SOURCE: "Ngu?n h?n h?p",
+    },
+
+    title: "Sẵn sàng vận hành bản địa hóa",
+    description:
+      "Khám phá phạm vi chờ bản địa hóa, xác nhận ngôn ngữ gốc và rà soát hoặc chuẩn hóa bản dịch đích.",
+    loading: "Đang tải hàng đợi bản địa hóa",
+    unavailable: "Hàng đợi vận hành bản địa hóa chưa khả dụng.",
+    empty: "Không có phạm vi bản địa hóa nào cần rà soát.",
+    scopeTitle: "Rà soát bản địa hóa phạm vi",
+    scopeDescription:
+      "Kiểm tra nguồn gốc từng trường, xác nhận ngôn ngữ gốc và phê duyệt, chuẩn hóa, từ chối hoặc thử lại bản dịch đích.",
+    selectScope: "Kiểm tra phạm vi",
+    workerEnabled: "Worker bật",
+    providerConfigured: "Nhà cung cấp đã cấu hình",
+    pendingJobs: "Công việc đang chờ",
+    oldestPendingSeconds: "Thời gian chờ lâu nhất (giây)",
+    retries: "Số lần thử lại",
+    failedJobs: "Công việc thất bại",
+    sourceReviewsAwaiting: "Chờ duyệt ngôn ngữ gốc",
+    outputReviewsAwaiting: "Chờ duyệt bản dịch đích",
+    readinessEn: "Sẵn sàng EN",
+    readinessVi: "Sẵn sàng VI",
+    sourceLanguage: "Ngôn ngữ gốc",
+    targetLocale: "Ngôn ngữ đích",
+    fieldPath: "Đường dẫn trường",
+    entity: "Thực thể",
+    canonicalRevision: "Phiên bản chuẩn",
+    originSha256: "Mã băm gốc SHA-256",
+    originalContent: "Nội dung gốc",
+    candidateContent: "Bản dịch ứng viên / đã duyệt",
+    normalizedContent: "Nội dung đích chuẩn hóa (tùy chọn)",
+    evidenceLabel: "Bằng chứng rà soát",
+    confirmsIndividualFieldReview:
+      "Tôi xác nhận từng trường được chọn đã được kiểm tra ngôn ngữ gốc riêng biệt.",
+    confirmsTargetLanguageAndMeaning:
+      "Tôi xác nhận ngôn ngữ đích và ý nghĩa pháp lý/kỹ thuật khớp với bản gốc chuẩn.",
+    reviewSourceSubmit: "Lưu duyệt ngôn ngữ gốc",
+    batchSourceSubmit: "Xác nhận ngôn ngữ gốc theo lô",
+    approveOutputSubmit: "Phê duyệt / chuẩn hóa bản dịch",
+    batchOutputSubmit: "Phê duyệt bản dịch theo lô",
+    rejectCandidateSubmit: "Từ chối bản dịch ứng viên",
+    retryRequestSubmit: "Thử lại yêu cầu",
+    yes: "Có",
+    no: "Không",
+    invalid:
+      "Vui lòng điền đầy đủ bằng chứng rà soát và xác nhận trước khi gửi.",
+  },
+  ruleGrouping: {
+    localizationReady: "Trường bản địa hóa READY",
+    localizationPending: "Trường bản địa hóa PENDING / cần rà soát",
+    localizationFailed: "Trường bản địa hóa FAILED",
+    submitter: "Người gửi",
+    reviewer: "Người phê duyệt",
+    groupDescriptions: {
+      ARCHITECTURE_SAFETY_BY_DESIGN:
+        "Trách nhiệm kiến trúc và an toàn trước phát hành đã được rà soát.",
+      DATA_MODEL_LIFECYCLE:
+        "Trách nhiệm kỹ thuật trong phát triển dữ liệu và mô hình đã được rà soát.",
+      CYBERSECURITY_TECHNICAL_CONTROLS:
+        "Việc triển khai biện pháp an ninh và kiểm soát kỹ thuật đã được rà soát.",
+      TESTING_CHANGE_ASSURANCE:
+        "Trách nhiệm kiểm thử và bảo đảm thay đổi phát triển đã được rà soát.",
+      USER_FACING_TRANSPARENCY:
+        "Việc phát triển công bố và minh bạch với người dùng đã được rà soát.",
+      HUMAN_OVERSIGHT_INTERVENTION:
+        "Hỗ trợ kỹ thuật cho giám sát và can thiệp của con người đã được rà soát.",
+    },
+    title: "Duyệt phân nhóm quy tắc",
+    description:
+      "Rà soát từng phân nhóm trước khi yêu cầu người khác phê duyệt.",
+    loading: "Đang tải đề xuất",
+    unavailable: "Phân nhóm cần bộ quy tắc chỉ cho phát triển đang hoạt động.",
+    unassigned: "Chọn nhóm chính",
+    rationaleEn: "Lý do tiếng Anh",
+    rationaleVi: "Lý do tiếng Việt",
+    submit: "Gửi toàn bộ phân nhóm",
+    approve: "Phê duyệt độc lập mã băm hiển thị",
+    previous: "Trước",
+    next: "Tiếp",
+    invalid:
+      "Xử lý mục thiếu, phiên bản cũ hoặc tự phê duyệt trước khi tiếp tục.",
+    digest: "Mã băm phân nhóm",
+    status: "Trạng thái duyệt",
+    groups: {
+      ARCHITECTURE_SAFETY_BY_DESIGN: "Kiến trúc và an toàn từ thiết kế",
+      DATA_MODEL_LIFECYCLE: "Vòng đời dữ liệu và mô hình",
+      CYBERSECURITY_TECHNICAL_CONTROLS: "An ninh mạng và kiểm soát kỹ thuật",
+      TESTING_CHANGE_ASSURANCE: "Kiểm thử và bảo đảm thay đổi",
+      USER_FACING_TRANSPARENCY: "Minh bạch với người dùng",
+      HUMAN_OVERSIGHT_INTERVENTION: "Giám sát và can thiệp của con người",
+    },
+  },
   complianceRuleSets: {
     resume: "Tiếp tục chuẩn bị",
     resuming: "Đang tiếp tục…",
@@ -10,7 +205,10 @@ export const viPages = {
       PREPARING_RULE_SET: "Đang chuẩn bị bộ quy tắc",
       VALIDATION_REQUIRED: "Cần kiểm tra tính hợp lệ",
       VALIDATION_FAILED: "Kiểm tra tính hợp lệ thất bại",
-      RULE_SET_READY: "Bộ quy tắc đã sẵn sàng",
+      DRAFT_VALIDATED: "Bản nháp đã hợp lệ; chưa lưu phiên bản bộ quy tắc",
+      RULE_SET_READY: "Đã lưu phiên bản bộ quy tắc; chưa xác nhận kích hoạt",
+      SUCCEEDED_WITHOUT_ARTIFACT:
+        "Lượt chuẩn bị thành công nhưng không có hiện vật",
       ACTIVE: "Đang hoạt động",
     },
     draft: {
@@ -22,6 +220,8 @@ export const viPages = {
       validationErrors: "Lỗi kiểm tra tính hợp lệ",
       available: "Các đánh giá có thể sử dụng bộ quy tắc đang hoạt động này.",
       unavailable: "Các đánh giá chưa thể sử dụng bản nháp này.",
+      historicalSuccessWithoutArtifact:
+        "Lượt chạy lịch sử này đã thành công nhưng môi trường hiện tại không có bản nháp hoặc Phiên bản bộ quy tắc đã lưu. Đây không phải bộ quy tắc sẵn sàng cho Đánh giá.",
       boundedPreview: "Đang hiển thị 20 mục đầu tiên.",
     },
     title: "Bộ quy tắc tuân thủ",
@@ -41,6 +241,41 @@ export const viPages = {
     preparations: "Chuẩn bị bộ quy tắc",
     emptyPreparations: "Chưa có lượt chuẩn bị bộ quy tắc nào.",
     prepare: "Chuẩn bị bộ quy tắc",
+    prepareSectionTitle: "Chuẩn bị Bộ quy tắc",
+    prepareSectionDescription:
+      "Kiểm tra Phiên bản nguồn pháp lý đã ghim và điều kiện trước khi bắt đầu lượt Chuẩn bị theo quy trình.",
+    preparationTargetSource: "Phiên bản nguồn pháp lý đích",
+    activeSourceCandidates:
+      "Các nguồn ACTIVE (chỉ để chẩn đoán; chưa được chọn)",
+    sourceEvidenceComplete: "Đã có đủ điều kiện nguồn",
+    sourceEvidenceIncomplete: "Bằng chứng nguồn bắt buộc chưa đầy đủ",
+    preparationScope: "Phạm vi Chuẩn bị",
+    currentPreparation: "Lượt Chuẩn bị hiện tại",
+    currentActiveRuleSet: "Bộ quy tắc đang hoạt động hiện tại",
+    noCurrentPreparation: "Hiện không có lượt Chuẩn bị nào đang chạy",
+    sourceNotSelected: "Chưa chọn được nguồn đủ điều kiện duy nhất",
+    sourceAdminNextStep:
+      "Yêu cầu quản trị viên Nguồn pháp lý được ủy quyền xử lý điều kiện nguồn. Trang này không thay đổi trạng thái kích hoạt hoặc hồ sơ toàn vẹn của nguồn.",
+    preparationUnavailable: "Chưa thể Chuẩn bị",
+    scopes: {
+      FULL_SOURCE: "Toàn bộ nguồn",
+      DEVELOPMENT_ONLY: "Chỉ phạm vi Phát triển",
+    },
+    blockers: {
+      ACTIVE_SOURCE_AMBIGUOUS:
+        "Có nhiều Phiên bản nguồn pháp lý đang ACTIVE. Máy chủ yêu cầu đúng một nguồn đang hoạt động và không thể tự chọn nguồn đích an toàn.",
+      SOURCE_VERSION_NOT_ELIGIBLE:
+        "Không có Phiên bản nguồn pháp lý ACTIVE được chọn duy nhất với đầy đủ bằng chứng kích hoạt, toàn vẹn, truy xuất, tài liệu và đoạn nguồn.",
+      ACTIVE_RULE_SET_EXISTS:
+        "Đã có Bộ quy tắc đang hoạt động. Muốn thay thế cần xác nhận rõ ý định thay thế.",
+      PREPARATION_IN_PROGRESS:
+        "Một lượt Chuẩn bị đã được xếp hàng hoặc đang chạy. Không thể bắt đầu lượt thứ hai.",
+      SOURCE_VERSION_NOT_ACTIVE:
+        "Nguồn đã chọn không còn ACTIVE. Hãy tải lại để nhận quyết định điều kiện hiện tại.",
+      RUN_NOT_FAILED:
+        "Lượt Chuẩn bị được chọn không ở trạng thái lỗi có thể thử lại.",
+      RUN_NOT_LATEST_ATTEMPT: "Chỉ có thể thử lại lượt Chuẩn bị mới nhất.",
+    },
     preparing: "Đang chuẩn bị bộ quy tắc…",
     prepareFailed:
       "Không thể bắt đầu chuẩn bị. Hãy làm mới trang và kiểm tra trạng thái hiện tại.",
@@ -223,6 +458,19 @@ export const viPages = {
   },
   assessmentConversation: {
     ruleAudit: {
+      selectGroup: "Chọn nhóm: {name}",
+      clearGroup: "Bỏ chọn nhóm: {name}",
+      selectedGroups: "Nhóm đã chọn: {count}/{total}",
+      actorStage: "Chủ thể: {actor} · Giai đoạn: {stage}",
+      developmentStage: "Phát triển",
+      groupingReviewRequired:
+        "Phân nhóm đang chờ xét duyệt độc lập. Hiện chưa thể chọn các quy tắc này.",
+      localizationReviewRequired:
+        "Bản địa hóa cho ngôn ngữ đang chọn đang chờ rà soát. Hãy chuyển ngôn ngữ hoặc chờ hoàn tất rà soát bản địa hóa.",
+      localizationPending:
+        "Bản địa hóa cho ngôn ngữ đang chọn đang được xử lý.",
+      localizationFailed:
+        "Bản địa hóa cho ngôn ngữ đang chọn không đạt xác minh và cần quản trị viên thử lại hoặc chuẩn hóa.",
       title: "Chọn quy tắc cần đánh giá",
       description:
         "Chỉ các quy tắc bạn yêu cầu mới được điều tra. Quy tắc chưa yêu cầu chưa có kết luận đánh giá.",

@@ -1,0 +1,1 @@
+KHI DÙNG: rule RESOLVED hoặc cần sửa decision. ĐỌC: packet, revision, reference, trạng thái mất hiệu lực. TIẾP: tái sử dụng nếu còn đúng; mở lại khi có phản chứng trọng yếu. LỖI: API từng nhận không chứng minh nghĩa đúng.

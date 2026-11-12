@@ -1,0 +1,1 @@
+WHEN: Authenticated accepted evidence proves the fact can NEVER be obtained. READ: specific unresolved fact and permanent barrier. NEXT: submit supported unresolvable report. FAILURE: timeout/unanswered request is not permanent impossibility.

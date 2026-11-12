@@ -1,0 +1,1 @@
+KHI DÙNG: phải mô tả cuộc tìm kiếm negative. ĐỌC: entrypoint đã kiểm và direct source fallback. TIẾP: lưu rõ gap, truncated và negative control. LỖI: zero hit không chứng minh không tồn tại toàn cục hoặc thực tiễn bên ngoài repo.

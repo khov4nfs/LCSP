@@ -1,0 +1,1 @@
+WHEN: off-repository fact changes applicability, outcome or needed evidence. READ: related selected rule, why code could not answer, exact fact, owner and decision impact. NEXT: invoke native interrupt; resume on same pinned case revision. FAILURE: do not ask the human to make the legal verdict or repeat an answered question.

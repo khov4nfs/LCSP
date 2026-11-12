@@ -49,7 +49,7 @@ def pipeline_context():
     run_id = fixture["identity"]["preparationRunId"]
     ready = api.claim_inventory_operation(run_id, "FINALIZE", 1, graph=graph, identities=identities)
     assert ready["outcome"] == "PASSED", ready
-    ctx = RuleSetPreparationContext(run_id, api, source_graph=source, frontier_enabled=True)
+    ctx = RuleSetPreparationContext(run_id, api, source_graph=source, frontier_enabled=True, pinned_source_version_id=source_snapshot["legalSourceVersionId"])
     tools = {t.name: t for t in build_rule_set_tools(ctx)}
     for field, key in [("semanticClaims", "claims"), ("claimRelations", "relations"), ("sourceAccounting", "sourceAccounting"), ("referenceAccounting", "referenceAccounting")]:
         identity = {"claims": "claimId", "relations": "relationId", "sourceAccounting": "sourceNodeId", "referenceAccounting": "referenceId"}[key]

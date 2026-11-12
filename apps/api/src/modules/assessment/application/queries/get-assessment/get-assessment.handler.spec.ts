@@ -1,3 +1,4 @@
+import { authoredLocalizationFixture } from "../../../../../../test/support/authored-localization.fixture.js";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
   AGENT_EXECUTION_STATES,
@@ -65,7 +66,12 @@ function handler(row: unknown) {
     $transaction: async (read: (tx: unknown) => Promise<unknown>) => read(tx),
   } as unknown as PrismaService;
   return {
-    handler: new GetAssessmentHandler(new AssessmentDetailLoader(prisma)),
+    handler: new GetAssessmentHandler(
+      new AssessmentDetailLoader(
+        prisma,
+        authoredLocalizationFixture().projection,
+      ),
+    ),
     findUnique,
   };
 }

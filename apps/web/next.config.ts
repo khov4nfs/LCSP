@@ -7,6 +7,7 @@ const webRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   allowedDevOrigins: [
     "flanked-shredding-theatrics.ngrok-free.dev",
     "127.0.0.1",

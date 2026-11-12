@@ -1,0 +1,255 @@
+{
+  "proposal": {
+    "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+    "ruleSetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "state": "REVIEW_REQUIRED",
+    "entries": [
+      {
+        "assessmentRuleId": "fixture-rule",
+        "assessmentRuleVersion": "1",
+        "concept": "Synthetic safeguard",
+        "legalIntent": "Synthetic developer safeguard before release.",
+        "actor": "Synthetic developer",
+        "lifecycleStage": "DEVELOPMENT",
+        "sourceReferences": [
+          {
+            "documentId": "synthetic-fixture",
+            "locator": "fixture-1"
+          }
+        ],
+        "operativePropositions": [],
+        "proposedGroupId": null,
+        "state": "REVIEW_REQUIRED"
+      }
+    ]
+  },
+  "ledger": {
+    "memberships": [],
+    "membershipDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "localizationBacklog": {
+    "counts": {
+      "UNKNOWN_SOURCE": 1,
+      "MIXED_SOURCE": 0,
+      "SOURCE_REVIEW_REQUIRED": 1,
+      "PROVIDER_PENDING": 0,
+      "PROVIDER_FAILED": 0,
+      "OUTPUT_REVIEW_REQUIRED": 1,
+      "READY": 0,
+      "FAILED": 0
+    },
+    "operations": {
+      "pendingJobCount": 2,
+      "oldestPendingAgeSeconds": 45,
+      "retryCount": 0,
+      "failedJobCount": 0,
+      "candidateReviewsAwaitingAction": 1,
+      "sourceReviewsAwaitingAction": 1,
+      "workerEnabled": true,
+      "providerConfigured": true,
+      "batchLimit": 50,
+      "workerLeaseLimit": 5,
+      "maxAttempts": 5,
+      "reviewSlaTargetMinutes": 60,
+      "processingSlaTargetMinutes": 15
+    },
+    "scopes": [
+      {
+        "scopeId": "11111111-1111-4111-8111-111111111111",
+        "entityTypes": ["ASSESSMENT_RULE"],
+        "counts": {
+          "UNKNOWN_SOURCE": 1,
+          "MIXED_SOURCE": 0,
+          "SOURCE_REVIEW_REQUIRED": 1,
+          "PROVIDER_PENDING": 0,
+          "PROVIDER_FAILED": 0,
+          "OUTPUT_REVIEW_REQUIRED": 1,
+          "READY": 0,
+          "FAILED": 0
+        },
+        "readiness": {
+          "en": "REVIEW_REQUIRED",
+          "vi": "REVIEW_REQUIRED"
+        },
+        "pendingJobCount": 2,
+        "oldestPendingAgeSeconds": 45,
+        "retryCount": 0
+      }
+    ],
+    "nextAfterScopeId": null,
+    "hasMore": false
+  },
+  "localizationQueue": {
+    "items": [
+      {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "scopeId": "11111111-1111-4111-8111-111111111111",
+        "entityType": "ASSESSMENT_RULE",
+        "entityId": "fixture-rule",
+        "canonicalRevision": "1",
+        "canonicalDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "fieldPath": "/concept",
+        "translationRevision": 1,
+        "createdAt": "2026-11-08T10:00:00.000Z",
+        "locale": "vi",
+        "originalLanguage": "en",
+        "originalContent": "Synthetic safeguard",
+        "originSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "sourceLanguage": "EN",
+        "sourceReviewedBy": "source-reviewer",
+        "sourceReviewedAt": "2026-11-08T10:05:00.000Z",
+        "translationReviewedBy": null,
+        "translationReviewedAt": null,
+        "state": "PENDING",
+        "operationalState": "OUTPUT_REVIEW_REQUIRED",
+        "errorCode": "AUTHORED_OUTPUT_LANGUAGE_REVIEW_REQUIRED",
+        "attempts": 1,
+        "nextAttemptAt": "2026-11-08T10:05:00.000Z",
+        "candidate": {
+          "content": "Biện pháp bảo vệ giả lập (ứng viên)",
+          "contentSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "engine": "isolated-provider",
+          "engineVersion": "1"
+        },
+        "revision": null,
+        "reviews": []
+      }
+    ],
+    "nextAfter": null,
+    "hasMore": false
+  },
+  "ruleCatalog": {
+    "en": {
+      "groups": [
+        {
+          "groupId": "ARCHITECTURE_SAFETY_BY_DESIGN",
+          "taxonomyVersion": "LCSP_RULE_THEMES_V1",
+          "nameEn": "Architecture and Safety by Design",
+          "nameVi": "Kiến trúc và an toàn từ thiết kế",
+          "descriptionEn": "Reviewed architecture and pre-release safety responsibilities.",
+          "descriptionVi": "Trách nhiệm kiến trúc và an toàn trước phát hành đã được rà soát.",
+          "count": 1,
+          "ruleIds": ["rule-1"]
+        }
+      ],
+      "groupingState": "APPROVED",
+      "localizationState": "READY",
+      "excludedRuleCount": 0,
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "auditMode": "CUSTOMER_SELECTED",
+      "auditRevision": 1,
+      "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+      "ruleSetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repositorySnapshotId": "snap-1",
+      "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+      "latestRequestId": null,
+      "latestRequestStatus": null,
+      "total": 1,
+      "offset": 0,
+      "nextOffset": null,
+      "rules": [
+        {
+          "assessmentRuleId": "rule-1",
+          "assessmentRuleVersion": "1",
+          "membership": {
+            "groupId": "ARCHITECTURE_SAFETY_BY_DESIGN",
+            "ordinal": 0,
+            "taxonomyVersion": "LCSP_RULE_THEMES_V1",
+            "rationaleEn": "EN: Reviewed architecture group rationale.",
+            "rationaleVi": "VI: Lý do phân nhóm kiến trúc đã được rà soát.",
+            "actor": "AI System Developer",
+            "lifecycleStage": "DEVELOPMENT",
+            "sourceReferences": [
+              {
+                "documentId": "doc-1",
+                "locator": "Article 12.1"
+              }
+            ]
+          },
+          "concept": "EN: Architecture safety rule one",
+          "summary": "EN: Verify pre-release safety architecture.",
+          "legalRequirements": [
+            {
+              "legalRequirementId": "req-1",
+              "title": "EN: Article 12.1 Safety Architecture",
+              "sources": [
+                {
+                  "documentId": "doc-1",
+                  "locator": "Article 12.1"
+                }
+              ]
+            }
+          ],
+          "progress": "NOT_SELECTED",
+          "decisionId": null
+        }
+      ]
+    },
+    "vi": {
+      "groups": [
+        {
+          "groupId": "ARCHITECTURE_SAFETY_BY_DESIGN",
+          "taxonomyVersion": "LCSP_RULE_THEMES_V1",
+          "nameEn": "Architecture and Safety by Design",
+          "nameVi": "Kiến trúc và an toàn từ thiết kế",
+          "descriptionEn": "Reviewed architecture and pre-release safety responsibilities.",
+          "descriptionVi": "Trách nhiệm kiến trúc và an toàn trước phát hành đã được rà soát.",
+          "count": 1,
+          "ruleIds": ["rule-1"]
+        }
+      ],
+      "groupingState": "APPROVED",
+      "localizationState": "READY",
+      "excludedRuleCount": 0,
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "auditMode": "CUSTOMER_SELECTED",
+      "auditRevision": 1,
+      "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+      "ruleSetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repositorySnapshotId": "snap-1",
+      "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+      "latestRequestId": null,
+      "latestRequestStatus": null,
+      "total": 1,
+      "offset": 0,
+      "nextOffset": null,
+      "rules": [
+        {
+          "assessmentRuleId": "rule-1",
+          "assessmentRuleVersion": "1",
+          "membership": {
+            "groupId": "ARCHITECTURE_SAFETY_BY_DESIGN",
+            "ordinal": 0,
+            "taxonomyVersion": "LCSP_RULE_THEMES_V1",
+            "rationaleEn": "EN: Reviewed architecture group rationale.",
+            "rationaleVi": "VI: Lý do phân nhóm kiến trúc đã được rà soát.",
+            "actor": "AI System Developer",
+            "lifecycleStage": "DEVELOPMENT",
+            "sourceReferences": [
+              {
+                "documentId": "doc-1",
+                "locator": "Article 12.1"
+              }
+            ]
+          },
+          "concept": "VI: Quy tắc an toàn kiến trúc một",
+          "summary": "VI: Xác minh kiến trúc an toàn trước phát hành.",
+          "legalRequirements": [
+            {
+              "legalRequirementId": "req-1",
+              "title": "VI: Điều 12.1 Kiến trúc an toàn",
+              "sources": [
+                {
+                  "documentId": "doc-1",
+                  "locator": "Article 12.1"
+                }
+              ]
+            }
+          ],
+          "progress": "NOT_SELECTED",
+          "decisionId": null
+        }
+      ]
+    }
+  }
+}

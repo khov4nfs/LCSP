@@ -1,5 +1,9 @@
+import { preparationActivityView } from "../../../../platform/runtime-events/preparation-activity-view.js";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { workspaceAssessmentSnapshotSchema } from "@lcsp/contracts/evidence";
+import {
+  workspaceAssessmentSnapshotSchema,
+  type AssessmentAgentStreamEvent,
+} from "@lcsp/contracts/evidence";
 import {
   Controller,
   Query,
@@ -66,7 +70,16 @@ export class WorkspaceRuntimeEventsController {
               emitted_at: data.emittedAt,
               canonical_assessments: data.canonicalAssessments,
               canonical_events: data.canonicalEvents,
-              agent_stream_events: data.agentStreamEvents,
+              agent_stream_events: preparationScope
+                ? data.agentStreamEvents.flatMap(
+                    (event: AssessmentAgentStreamEvent) => {
+                      if (event.preparationRunId !== preparationScope)
+                        return [];
+                      const view = preparationActivityView(event);
+                      return view ? [view] : [];
+                    },
+                  )
+                : data.agentStreamEvents,
             }),
           })),
         ),

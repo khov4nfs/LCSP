@@ -1,6 +1,11 @@
+import { PREPARATION_ACTIVITY_SCOPES } from "./scope-review.ts";
 import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "../legal-source/management.ts";
-import { PREPARATION_EXECUTION_CONTRACTS, RULE_SET_PREPARATION_STAGES } from "./direct-draft.ts";
+import {
+  PREPARATION_EXECUTION_CONTRACTS,
+  RULE_SET_PREPARATION_STAGES,
+} from "./direct-draft.ts";
 import { z } from "zod";
+import { authoredLocalizationStatusSchema } from "../assessment-domain/localization.ts";
 import {
   claimInventoryBindingSchema,
   type ClaimInventoryBinding,
@@ -599,6 +604,7 @@ export const ruleSetPreparationStartRequestSchema = z
   .object({
     legalSourceVersionId: z.string().uuid(),
     idempotencyKey: z.string().min(8).max(128),
+    targetActivityScope: z.enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"]).optional(),
   })
   .strict();
 export type RuleSetPreparationStartRequest = z.infer<
@@ -625,6 +631,7 @@ export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
 export const ruleSetPreparationAdminRequestSchema = z
   .strictObject({
     replaceActive: z.boolean().optional(),
+    targetActivityScope: z.enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"]).optional(),
     /**
      * The Legal Source Version the operator is looking at. Preparation always targets the active
      * version; naming it makes the request refuse (instead of silently preparing another version)
@@ -640,6 +647,17 @@ export type RuleSetPreparationAdminRequest = z.infer<
 export const ruleSetPreparationAvailabilitySchema = z.strictObject({
   legalSourceVersionId: z.uuid().nullable(),
   legalSourceVersion: z.string().min(1).nullable(),
+  /** Bounded, read-only diagnostics. Candidates are never an implicit source-selection control. */
+  activeSourceCandidates: z
+    .array(
+      z.strictObject({
+        legalSourceVersionId: z.uuid(),
+        version: z.string().min(1),
+        sourceEvidenceComplete: z.boolean(),
+      }),
+    )
+    .max(2)
+    .default([]),
   /** The ACTIVE rule set of the current source, which stays ACTIVE until a replacement activates. */
   activeRuleSetVersionId: z.uuid().nullable(),
   /** A first preparation may start: no ACTIVE rule set and nothing in progress. */
@@ -728,9 +746,13 @@ export const complianceRuleSetResolvedSourceSchema = z
 /** The single runtime reader contract: the explicit ACTIVE rule set. */
 export const complianceRuleSetReadModelSchema = z
   .object({
+    localization: authoredLocalizationStatusSchema.optional(),
     claimInventory: claimInventoryBindingSchema.optional(),
     semanticGraph: legalSemanticGraphSchema.optional(),
     ruleSetVersionId: z.string().uuid(),
+    targetActivityScope: z
+      .enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"])
+      .default("FULL_SOURCE"),
     version: z.string().min(1),
     legalSourceVersionId: z.string().uuid(),
     ruleSetDigest: sha256Schema,
@@ -795,7 +817,13 @@ export type ComplianceRuleSetValidateResult = z.infer<
 >;
 
 export const ruleSetPreparationClaimRequestSchema = z
-  .object({ preparationRunId: z.string().uuid(), supportedExecutionContracts: z.array(z.enum(PREPARATION_EXECUTION_CONTRACTS)).min(1).optional() })
+  .object({
+    preparationRunId: z.string().uuid(),
+    supportedExecutionContracts: z
+      .array(z.enum(PREPARATION_EXECUTION_CONTRACTS))
+      .min(1)
+      .optional(),
+  })
   .strict();
 export type RuleSetPreparationClaimRequest = z.infer<
   typeof ruleSetPreparationClaimRequestSchema
@@ -808,8 +836,18 @@ export type RuleSetPreparationClaimRequest = z.infer<
 export const ruleSetPreparationLegalSourceBundleSchema = z
   .object({
     documentGraph: legalDocumentGraphSchema,
-    executionContract: z.enum(PREPARATION_EXECUTION_CONTRACTS).default(PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1),
+    executionContract: z
+      .enum(PREPARATION_EXECUTION_CONTRACTS)
+      .default(PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1),
     targetDate: z.string().date().optional(),
+    // Server-owned activity scope. Until scoped validation exists, only FULL_SOURCE is issued.
+    targetActivityScope: z
+      .enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"])
+      .default("FULL_SOURCE"),
+    scopeReviewRequested: z.boolean().default(false),
+    approvedScopeDigest: sha256Schema.optional(),
+    // Server selects the Preparation prompt/skill locale; never infer from legal text.
+    responseLanguage: z.enum(["vi", "en"]).default("vi"),
     preparationRunId: z.string().uuid(),
     executionState: agentExecutionStateSchema,
     claimInventoryRevision: z.number().int().positive(),
@@ -907,19 +945,54 @@ export const complianceRuleSetHistorySchema = z.strictObject({
   preparations: z.array(
     ruleSetPreparationRunSchema.extend({
       executionContract: z.enum(PREPARATION_EXECUTION_CONTRACTS).optional(),
+      startedAt: z.iso.datetime().nullable().optional(),
+      targetActivityScope: z.enum(PREPARATION_ACTIVITY_SCOPES).optional(),
+      claimPhase: z.enum(CLAIM_PREPARATION_PHASES).optional(),
+      persistedCoverageAvailable: z.boolean().optional(),
+      persistedDraftAvailable: z.boolean().optional(),
       resumable: z.boolean().optional(),
-      draft: z.strictObject({
-        stage: z.enum(RULE_SET_PREPARATION_STAGES),
-        sourceDocuments: z.array(z.strictObject({ documentId: z.string(), title: z.string() })),
-        coverage: z.strictObject({ total: z.number().int().nonnegative(), completed: z.number().int().nonnegative(), blocked: z.number().int().nonnegative() }),
-        requirementCount: z.number().int().nonnegative(),
-        assessmentRuleCount: z.number().int().nonnegative(),
-        requirements: z.array(z.strictObject({ legalRequirementId: idSchema, title: z.string() })).max(20),
-        assessmentRules: z.array(z.strictObject({ assessmentRuleId: idSchema, concept: z.string() })).max(20),
-        validation: complianceRuleSetValidateResultSchema.nullable(),
-        assessmentsCanUseRuleSet: z.boolean(),
-        unresolvedReferences: z.array(z.strictObject({ referenceId: sha256Schema, sourceNodeId: sha256Schema, reason: z.string().nullable() })).max(20),
-      }).optional(),
+      draft: z
+        .strictObject({
+          stage: z.enum(RULE_SET_PREPARATION_STAGES),
+          sourceDocuments: z.array(
+            z.strictObject({ documentId: z.string(), title: z.string() }),
+          ),
+          coverage: z.strictObject({
+            total: z.number().int().nonnegative(),
+            completed: z.number().int().nonnegative(),
+            blocked: z.number().int().nonnegative(),
+          }),
+          requirementCount: z.number().int().nonnegative(),
+          assessmentRuleCount: z.number().int().nonnegative(),
+          requirements: z
+            .array(
+              z.strictObject({
+                legalRequirementId: idSchema,
+                title: z.string(),
+              }),
+            )
+            .max(20),
+          assessmentRules: z
+            .array(
+              z.strictObject({
+                assessmentRuleId: idSchema,
+                concept: z.string(),
+              }),
+            )
+            .max(20),
+          validation: complianceRuleSetValidateResultSchema.nullable(),
+          assessmentsCanUseRuleSet: z.boolean(),
+          unresolvedReferences: z
+            .array(
+              z.strictObject({
+                referenceId: sha256Schema,
+                sourceNodeId: sha256Schema,
+                reason: z.string().nullable(),
+              }),
+            )
+            .max(20),
+        })
+        .optional(),
       legalSourceVersion: z.string().min(1),
       createdAt: z.iso.datetime(),
       completedAt: z.iso.datetime().nullable(),

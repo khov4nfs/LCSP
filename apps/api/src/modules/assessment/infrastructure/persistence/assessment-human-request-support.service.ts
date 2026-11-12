@@ -1,3 +1,4 @@
+import { AUTHORED_LOCALIZATION_ENTITIES } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { assessmentHumanRequestViewSchema } from "@lcsp/contracts/assessment-domain";
@@ -12,24 +13,13 @@ import { humanRequestDependenciesOf } from "./assessment-human-request-dependenc
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
-import {
-  LocalePresentationProjectionService,
-  getPresentationProjection,
-  registerPresentationProjection,
-  clearPresentationProjections,
-} from "../presentation/locale-presentation-projection.service.js";
-
-export {
-  getPresentationProjection,
-  registerPresentationProjection,
-  clearPresentationProjections,
-};
+import { LocalePresentationProjectionService } from "../presentation/locale-presentation-projection.service.js";
 
 /** Owner-scoped persistence projection shared by human request reads and answers. */
 @Injectable()
 export class AssessmentHumanRequestSupport {
   constructor(
-    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
+    private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
   async requireOwner(
@@ -93,44 +83,50 @@ export class AssessmentHumanRequestSupport {
     let choices = row.choices;
 
     if (locale) {
-      const textsToProject: string[] = [row.question, row.unresolvedFact];
-      if (Array.isArray(row.decisionImpact)) {
-        textsToProject.push(...(row.decisionImpact as string[]));
-      }
-      if (Array.isArray(row.resolutionAttempts)) {
-        textsToProject.push(...(row.resolutionAttempts as string[]));
-      }
-      if (Array.isArray(row.choices)) {
-        textsToProject.push(
-          ...(row.choices as Array<{ value: string; label: string }>).map(
-            (choice) => choice.label,
-          ),
-        );
-      }
-
-      const projections = await this.projectionService.projectBatch(
-        textsToProject,
+      const projected = await this.projectionService.projectDocument(
+        {
+          question: row.question,
+          unresolvedFact: row.unresolvedFact,
+          ...(Array.isArray(row.decisionImpact)
+            ? { decisionImpact: row.decisionImpact as string[] }
+            : {}),
+          ...(Array.isArray(row.resolutionAttempts)
+            ? { resolutionAttempts: row.resolutionAttempts as string[] }
+            : {}),
+          ...(Array.isArray(row.choices)
+            ? {
+                choices: (
+                  row.choices as Array<{ value: string; label: string }>
+                ).map((choice) => ({ label: choice.label })),
+              }
+            : {}),
+        },
         locale,
+        row.assessmentId,
+        {
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.HUMAN_REQUEST,
+          entityId: row.requestId,
+          canonicalRevision: String(row.requestRevision),
+        },
       );
 
-      question = projections.get(row.question) ?? row.question;
-      unresolvedFact =
-        projections.get(row.unresolvedFact) ?? row.unresolvedFact;
-      if (Array.isArray(row.decisionImpact)) {
-        decisionImpact = (row.decisionImpact as string[]).map(
-          (impact) => projections.get(impact) ?? impact,
-        );
+      question = projected.question;
+      unresolvedFact = projected.unresolvedFact;
+      if (Array.isArray(row.decisionImpact) && projected.decisionImpact) {
+        decisionImpact = projected.decisionImpact;
       }
-      if (Array.isArray(row.resolutionAttempts)) {
-        resolutionAttempts = (row.resolutionAttempts as string[]).map(
-          (attempt) => projections.get(attempt) ?? attempt,
-        );
+      if (
+        Array.isArray(row.resolutionAttempts) &&
+        projected.resolutionAttempts
+      ) {
+        resolutionAttempts = projected.resolutionAttempts;
       }
-      if (Array.isArray(row.choices)) {
+      if (Array.isArray(row.choices) && projected.choices) {
+        const projectedChoices = projected.choices;
         choices = (row.choices as Array<{ value: string; label: string }>).map(
-          (choice) => ({
+          (choice, index) => ({
             value: choice.value,
-            label: projections.get(choice.label) ?? choice.label,
+            label: projectedChoices[index]?.label ?? choice.label,
           }),
         );
       }

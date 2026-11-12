@@ -1,0 +1,1 @@
+WHEN: Symbol or call-site discovery needs narrowing. READ: indexed candidate paths and graph coverage warnings. NEXT: inspect pinned source lines. FAILURE: missing graph nodes never prove absent behavior.

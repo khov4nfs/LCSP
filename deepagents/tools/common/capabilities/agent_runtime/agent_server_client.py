@@ -3,24 +3,29 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Mapping
-from uuid import UUID, uuid5
 from urllib.parse import urlsplit
+from uuid import UUID, uuid5
 
 import httpx
 from langgraph_sdk import get_sync_client
 
 from tools.common.capabilities.agent_runtime.boundary import (
     NonRetryableAgentBoundaryError,
+    RetryableAgentBoundaryError,
+)
+from tools.common.capabilities.agent_runtime.root_capacity import (
+    CAPACITY_UNAVAILABLE,
+    ROOT_BOUNDARY,
+    ROOT_COMMAND_OBSOLETE,
+    RootCapacityUnavailable,
+    RootCommandObsolete,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
-from tools.common.capabilities.agent_runtime.root_capacity import (
-    CAPACITY_UNAVAILABLE, RootCapacityUnavailable, ROOT_COMMAND_OBSOLETE, RootCommandObsolete, ROOT_BOUNDARY,
-)
-
 
 DEFAULT_AGENT_SERVER_URL = "http://127.0.0.1:2024"
 DEFAULT_ASSISTANT_ID = "lcsp-agent"
@@ -206,6 +211,7 @@ def dispatch_agent_runtime_event(
             if budget is not None
             else None
         ),
+        boundary_name=boundary_name,
     )
 
 
@@ -218,8 +224,29 @@ def _poll_run_until_terminal(
     run_id: str,
     run: Mapping[str, Any],
     timeout_seconds: float | None,
+    boundary_name: str | None = None,
 ) -> Any:
-    """Poll a created/reused run to a terminal state and return its result values."""
+    """Poll one dispatched Agent Server run and preserve the dispatcher's retry authority.
+
+    Business purpose:
+    - Wait for a created or reattached Agent Server run and translate its terminal state for broker settlement.
+
+    Business rules:
+    - Only the canonical boundary supplied by the dispatcher may authorize boundary-specific remote error retry.
+    - Run metadata and remote error text are diagnostic data, not authority.
+    - Interrupted runs return their status without manufacturing a retryable failure.
+
+    Execution flow:
+    1. Poll the run until it reaches a terminal status or the trusted deadline expires.
+    2. Read terminal state and classify errors with the supplied canonical boundary identity.
+    3. Return result values only after terminal error validation succeeds.
+
+    Failure cases:
+    - Transport, timeout, malformed state, and terminal task failures preserve their existing typed settlement behavior.
+
+    Side effects:
+    - Performs bounded Agent Server status/state reads; it does not create a new run or alter broker settlement directly.
+    """
     deadline_seconds = _run_budget_seconds(timeout_seconds)
     poll_seconds = _positive_float_env(
         "LCSP_AGENT_SERVER_POLL_SECONDS",
@@ -267,9 +294,9 @@ def _poll_run_until_terminal(
         return {"status": "INTERRUPTED", "runId": run_id}
     state = client.threads.get_state(thread_id)
     if last_status != "success":
-        _raise_for_terminal_run(last_status, state)
+        _raise_for_terminal_run(last_status, state, boundary_name=boundary_name)
     result = state.get("values", state) if isinstance(state, Mapping) else state
-    _raise_for_agent_server_error(result)
+    _raise_for_agent_server_error(result, boundary_name=boundary_name)
     return result
 
 
@@ -414,6 +441,7 @@ def resume_agent_runtime_run(
         run_id=run_id,
         run=run,
         timeout_seconds=timeout_seconds,
+        boundary_name=boundary_name,
     )
 
 
@@ -457,6 +485,83 @@ def _run_status(run: Any, default: str) -> str:
     return default
 
 
+MANAGED_DOCUMENT_INGEST_BOUNDARIES: frozenset[str] = frozenset({
+    "managed_document_ingest_requested",
+})
+BOUNDED_SOURCE_TRANSPORT_RETRY_BOUNDARIES: frozenset[str] = frozenset({
+    *MANAGED_DOCUMENT_INGEST_BOUNDARIES,
+    "legal_source_ingest_requested",
+    "official_text_extraction_requested",
+    "legal_change_detection_requested",
+})
+
+
+def _retryable_remote_task_error(
+    raw_error: Any,
+    boundary_name: str | None = None,
+) -> str | None:
+    """Classify safe transient Agent Server task failures for broker retry.
+
+    Business purpose:
+    - Preserve bounded broker recovery for transient API and transport failures.
+
+    Business rules:
+    - Retry authority is bound to explicit boundaries with a bounded source-work retry policy.
+    - Managed-document API status and typed retry errors are recognized only for managed-document ingestion.
+    - Assessment Root and Rule Set Preparation boundaries must NEVER acquire managed-document retry authority.
+    - Remote task error strings are diagnostic evidence only, never standalone authorization.
+    - Retry only explicit boundary-appropriate transient markers, managed-document 429/5xx, or allowlisted transports.
+    - Keep permanent API responses (401, 403, 404, 422), malformed errors, and unknown Agent Server errors terminal.
+
+    Execution flow:
+    1. Verify the originating canonical boundary has an explicit bounded transport retry policy.
+    2. Parse only the remote error type and, for managed documents, the HTTP status.
+    3. Return a sanitized reason for an allowlisted transient failure.
+
+    Failure cases:
+    - Unbound boundaries, missing, malformed, permanent, and unrecognized errors return None.
+
+    Side effects:
+    - None; this helper does not log or expose the remote error message.
+    """
+    if boundary_name not in BOUNDED_SOURCE_TRANSPORT_RETRY_BOUNDARIES:
+        return None
+    if not isinstance(raw_error, str):
+        return None
+    error_prefix = raw_error.split("(", 1)[0].split(":", 1)[0].strip()
+    error_type = error_prefix.rsplit(".", 1)[-1]
+    if (
+        boundary_name in MANAGED_DOCUMENT_INGEST_BOUNDARIES
+        and error_type == "RetryableAgentBoundaryError"
+    ):
+        return "Agent Server reported a retryable boundary dependency failure"
+    if (
+        boundary_name in MANAGED_DOCUMENT_INGEST_BOUNDARIES
+        and error_type == "IngestionApiError"
+    ):
+        status_match = re.search(r"\((\d{3})\)\W*$", raw_error)
+        if status_match:
+            status = int(status_match.group(1))
+            if status == 429 or 500 <= status <= 599:
+                return f"managed document API returned retryable HTTP status {status}"
+        return None
+    retryable_transport_errors = {
+        "ConnectError",
+        "ConnectTimeout",
+        "NetworkError",
+        "PoolTimeout",
+        "ReadError",
+        "ReadTimeout",
+        "RemoteProtocolError",
+        "TimeoutException",
+        "WriteError",
+        "WriteTimeout",
+    }
+    if error_type in retryable_transport_errors:
+        return "Agent Server reported a retryable API transport failure"
+    return None
+
+
 def _positive_float_env(name: str, default: float) -> float:
     raw = os.getenv(name)
     if raw is None or not raw.strip():
@@ -470,9 +575,45 @@ def _positive_float_env(name: str, default: float) -> float:
     return value
 
 
-def _raise_for_terminal_run(status: str, state: Any) -> None:
+def _raise_for_terminal_run(
+    status: str,
+    state: Any,
+    *,
+    boundary_name: str | None = None,
+) -> None:
+    """Map a terminal Agent Server state to the correct broker settlement.
+
+    Business purpose:
+    - Preserve retry authority for transient managed-document task failures.
+
+    Business rules:
+    - Allowlisted transient remote failures remain retryable; unknown and permanent failures are terminal.
+
+    Execution flow:
+    1. Inspect task errors for a bounded retryable classification.
+    2. Raise the corresponding retryable or terminal boundary exception.
+
+    Failure cases:
+    - Malformed state and unrecognized errors settle as terminal Agent Server failures.
+
+    Side effects:
+    - None; the caller owns broker settlement.
+    """
     raw_error: Any = None
+    # Retry authority must come from the canonical dispatcher, never serialized run state.
+    effective_boundary = boundary_name
     if isinstance(state, Mapping):
+        tasks = state.get("tasks")
+        if isinstance(tasks, (list, tuple)):
+            for task in tasks:
+                if not isinstance(task, Mapping):
+                    continue
+                retry_reason = _retryable_remote_task_error(
+                    task.get("error"),
+                    boundary_name=effective_boundary,
+                )
+                if retry_reason:
+                    raise RetryableAgentBoundaryError(retry_reason)
         raw_error = state.get("error") or state.get("__error__")
         values = state.get("values")
         if raw_error is None and isinstance(values, Mapping):
@@ -491,7 +632,29 @@ def _raise_for_terminal_run(status: str, state: Any) -> None:
     )
 
 
-def _raise_for_agent_server_error(result: Any) -> None:
+def _raise_for_agent_server_error(
+    result: Any,
+    *,
+    boundary_name: str | None = None,
+) -> None:
+    """Translate Agent Server request errors into boundary settlement authority.
+
+    Business purpose:
+    - Keep transient transport and managed-document failures eligible for bounded retry.
+
+    Business rules:
+    - Retry only allowlisted transient errors; permanent and unknown errors remain terminal.
+
+    Execution flow:
+    1. Read the structured Agent Server error envelope.
+    2. Classify transient failures or raise a terminal run error.
+
+    Failure cases:
+    - Missing error envelopes are ignored; malformed or unknown error types remain terminal.
+
+    Side effects:
+    - None; no remote error body is logged or exposed here.
+    """
     if not isinstance(result, Mapping):
         return
     raw_error = result.get("__error__")
@@ -499,6 +662,14 @@ def _raise_for_agent_server_error(result: Any) -> None:
         return
     remote_error_type = raw_error.get("error")
     message = raw_error.get("message")
+    # Result metadata is diagnostic; only the canonical dispatcher can authorize retry.
+    effective_boundary = boundary_name
+    retry_reason = _retryable_remote_task_error(
+        f"{remote_error_type}({message})" if remote_error_type else message,
+        boundary_name=effective_boundary,
+    )
+    if retry_reason:
+        raise RetryableAgentBoundaryError(retry_reason)
     raise AgentServerRunError(
         str(remote_error_type or "AgentServerRunError"),
         str(message or "Agent Server run failed"),

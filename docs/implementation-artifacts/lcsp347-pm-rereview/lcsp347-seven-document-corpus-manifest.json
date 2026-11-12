@@ -1,0 +1,100 @@
+{
+  "proposedSourceIdentity": "lcsp347-official-legal-source-dev",
+  "corpusPurpose": "technical ingestion benchmark; legal review pending",
+  "historicalLcsp360V1V4Equivalence": "NOT_PROVEN",
+  "createdInEnvironment": false,
+  "sourceVersionId": null,
+  "lifecycleState": "NOT_CREATED",
+  "documents": [
+    {
+      "instrument": "Law 134/2025/QH15",
+      "officialMetadataPage": "https://congbao.chinhphu.vn/van-ban/luat-so-134-2025-qh15-468694/61695.htm",
+      "originalFormat": "DOCX",
+      "localOriginal": "%TEMP%/lcsp347-data031-word/134.docx",
+      "byteLength": 66110,
+      "sha256": "ced80bf1fd45a576a785994da3471d9a2fbdc54e799216e0c9dba5da62d45af7",
+      "expectedHashMatch": true,
+      "technicalImport": "NOT_RUN",
+      "legalEffect": "UNKNOWN",
+      "corpusRole": "REQUIRES_REVIEW"
+    },
+    {
+      "instrument": "Decree 142/2026/NĐ-CP",
+      "officialMetadataPage": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-142-2026-nd-cp-469480.htm",
+      "originalFormat": "DOCX",
+      "localOriginal": "%TEMP%/lcsp347-data031-word/142.docx",
+      "byteLength": 241572,
+      "sha256": "110928d40055ca86d7278785f9c44aa165ab70bdf82013e8da677a1edc864000",
+      "expectedHashMatch": true,
+      "technicalImport": "NOT_RUN",
+      "legalEffect": "UNKNOWN",
+      "corpusRole": "REQUIRES_REVIEW"
+    },
+    {
+      "instrument": "Decision 33/2026/QĐ-TTg",
+      "officialMetadataPage": "https://congbao.chinhphu.vn/van-ban/quyet-dinh-so-33-2026-qd-ttg-469951.htm",
+      "originalFormat": "DOCX",
+      "localOriginal": "%TEMP%/lcsp347-data031-word/33.docx",
+      "byteLength": 71718,
+      "sha256": "a0e042c90787edf7ef08a35ba7905e6d65758772ba0fd19bbcf31d201464297a",
+      "expectedHashMatch": true,
+      "technicalImport": "NOT_RUN",
+      "legalEffect": "UNKNOWN",
+      "corpusRole": "REQUIRES_REVIEW"
+    },
+    {
+      "instrument": "Circular 05/2026/TT-BKHCN",
+      "officialMetadataPage": "https://congbao.chinhphu.vn/van-ban/thong-tu-so-05-2026-tt-bkhcn-469079/63291.htm",
+      "originalFormat": "DOCX",
+      "localOriginal": "%TEMP%/lcsp347-data031-word/05.docx",
+      "byteLength": 61198,
+      "sha256": "299dc939784b39450f17492b8799e3776c9f56cfae4e832f14e3836e23a76a66",
+      "expectedHashMatch": true,
+      "technicalImport": "NOT_RUN",
+      "legalEffect": "UNKNOWN",
+      "corpusRole": "REQUIRES_REVIEW"
+    },
+    {
+      "instrument": "Decision 1671/QĐ-TTg",
+      "officialMetadataPage": "https://congbao.chinhphu.vn/van-ban/quyet-dinh-so-1671-qd-ttg-470384.htm",
+      "originalFormat": "DOCX",
+      "localOriginal": "%TEMP%/lcsp347-data031-word/1671.docx",
+      "byteLength": 133808,
+      "sha256": "d6dcdb889cccf2c1f6beaa331a1399662241b89377ba9cd7f45344e507908b21",
+      "expectedHashMatch": true,
+      "technicalImport": "NOT_RUN",
+      "legalEffect": "UNKNOWN",
+      "corpusRole": "REQUIRES_REVIEW"
+    },
+    {
+      "instrument": "Decree 356/2025/NĐ-CP",
+      "officialMetadataPage": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-356-2025-nd-cp-468371.htm",
+      "originalFormat": "DOCX",
+      "localOriginal": "%TEMP%/lcsp347-data031-word/356.docx",
+      "byteLength": 143174,
+      "sha256": "c36a6740d034031abb2d4a3a0350b99dfe395a40f8bff1f9dd98502267f8c4de",
+      "expectedHashMatch": true,
+      "technicalImport": "NOT_RUN",
+      "legalEffect": "UNKNOWN",
+      "corpusRole": "REQUIRES_REVIEW"
+    },
+    {
+      "instrument": "Law 116/2025/QH15",
+      "officialMetadataPage": "https://congbao.chinhphu.vn/van-ban/luat-so-116-2025-qh15-468678/61574.htm",
+      "originalFormat": "DOCX",
+      "localOriginal": "%TEMP%/lcsp347-data031-word/116.docx",
+      "byteLength": 86919,
+      "sha256": "b3bb2ad8e013881361a7ae2325aecb660d55e41f48755ed590a6f23cb44d1150",
+      "expectedHashMatch": true,
+      "technicalImport": "NOT_RUN",
+      "legalEffect": "UNKNOWN",
+      "corpusRole": "REQUIRES_REVIEW"
+    }
+  ],
+  "excludedLegacyDocs": [
+    { "instrument": "Law 71/2025/QH15", "format": "DOC", "technicalImport": "OUT_OF_WAVE_A_UNSUPPORTED_FORMAT" },
+    { "instrument": "Law 91/2025/QH15", "format": "DOC", "technicalImport": "OUT_OF_WAVE_A_UNSUPPORTED_FORMAT" }
+  ],
+  "humanLegalReview": "0/7 independently approved",
+  "ingestionBlocker": "Provider-free Agent Server launch could not be established under the current command execution policy; no DRAFT was created."
+}
