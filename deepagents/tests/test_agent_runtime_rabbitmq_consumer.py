@@ -153,7 +153,9 @@ def test_claim_time_is_deducted_from_dispatch_budget(monkeypatch):
 
 @pytest.mark.parametrize("remote_type", ["AgentRuntimeBoundaryTimeout", "AgentServerRunTimeout"])
 def test_remote_boundary_deadline_is_not_misreported_as_provider_timeout(remote_type):
-    from tools.common.capabilities.agent_runtime.agent_server_client import AgentServerRunError
+    from tools.common.capabilities.agent_runtime.agent_server_client import (
+        AgentServerRunError,
+    )
 
     assert rabbitmq_consumer._delivery_failure_reason_code(AgentServerRunError(remote_type, "deadline reached")) == "AGENT_RUNTIME_BOUNDARY_TIMEOUT"
 
@@ -431,7 +433,34 @@ def test_delivery_timeout_prevents_indefinite_unacked_slot(monkeypatch):
 def test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one(monkeypatch):
     calls = []
     first_entered = Event()
+    second_entered = Event()
     release_first = Event()
+
+    class DeterministicTimeout:
+        starts = 0
+
+        def __init__(self, _delay, callback):
+            self.callback = callback
+            self.daemon = False
+
+        def start(self):
+            type(self).starts += 1
+            if type(self).starts == 1:
+                self.callback()
+
+        def cancel(self):
+            pass
+
+    class DispatchStartedExecutor:
+        def __init__(self, executor):
+            self.executor = executor
+
+        def submit(self, function, *args):
+            future = self.executor.submit(function, *args)
+            run_id = json.loads(args[2])["runId"]
+            entered = first_entered if run_id == "scan-first" else second_entered
+            assert entered.wait(2)
+            return future
 
     def dispatch(_boundary_name, message, _correlation_id, timeout_seconds=None):
         if message["runId"] == "scan-first":
@@ -439,13 +468,16 @@ def test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one(monkey
             release_first.wait(5)
             return
         calls.append(message["runId"])
+        second_entered.set()
 
     monkeypatch.setattr(rabbitmq_consumer, "_worker_client_or_none", lambda: None)
     monkeypatch.setattr(rabbitmq_consumer, "dispatch_agent_runtime_event", dispatch)
+    monkeypatch.setattr(rabbitmq_consumer, "Timer", DeterministicTimeout)
     channel = FakeChannel()
     connection = FakeConnection()
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        executor = DispatchStartedExecutor(pool)
         handler = rabbitmq_consumer._delivery_handler(
             "assessment_root_requested",
             connection=connection,
@@ -453,7 +485,9 @@ def test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one(monkey
             queue_name="lcsp.agent_runtime.test.assessment_root_requested",
             requeue_on_error=True,
             retry_delays_seconds=(),
-            timeout_seconds=0.01,
+            # The fake timer below controls the first timeout; keep the command deadline
+            # long so executor scheduling speed cannot expire either dispatch beforehand.
+            timeout_seconds=60,
         )
         handler(
             channel,
@@ -464,8 +498,6 @@ def test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one(monkey
             SimpleNamespace(headers={}),
             json.dumps({"runId": "scan-first"}).encode("utf-8"),
         )
-        assert first_entered.wait(1)
-        time.sleep(0.05)
         assert channel.nacked == [("delivery-first", False)]
 
         handler(
@@ -477,7 +509,6 @@ def test_timed_out_delivery_does_not_block_next_scan_when_prefetch_is_one(monkey
             SimpleNamespace(headers={}),
             json.dumps({"runId": "scan-second"}).encode("utf-8"),
         )
-        time.sleep(0.05)
         release_first.set()
 
     assert calls == ["scan-second"]

@@ -7,8 +7,6 @@ from tools.common.capabilities.agent_runtime import agent_server_client
 from tools.common.capabilities.agent_runtime.boundary import RetryableAgentBoundaryError
 
 
-
-
 class _FakeThreads:
     def __init__(self):
         self.created = []
@@ -330,7 +328,120 @@ def test_terminal_agent_server_task_error_preserves_only_allowlisted_retry_autho
     state = {"tasks": [{"error": remote_error}]}
     if expected_retryable:
         with pytest.raises(RetryableAgentBoundaryError):
-            agent_server_client._raise_for_terminal_run("error", state)
+            agent_server_client._raise_for_terminal_run(
+                "error", state, boundary_name="managed_document_ingest_requested"
+            )
     else:
         with pytest.raises(agent_server_client.AgentServerRunError):
             agent_server_client._raise_for_terminal_run("error", state)
+
+
+def test_s01_managed_document_503_remains_retryable():
+    state = {"tasks": [{"error": "IngestionApiError('HTTP_503 (503)')"}]}
+    with pytest.raises(RetryableAgentBoundaryError, match="HTTP status 503"):
+        agent_server_client._raise_for_terminal_run(
+            "error",
+            state,
+            boundary_name="managed_document_ingest_requested",
+        )
+
+
+def test_s02_managed_document_429_remains_retryable():
+    state = {"tasks": [{"error": "IngestionApiError('HTTP_429 (429)')"}]}
+    with pytest.raises(RetryableAgentBoundaryError, match="HTTP status 429"):
+        agent_server_client._raise_for_terminal_run(
+            "error",
+            state,
+            boundary_name="managed_document_ingest_requested",
+        )
+
+
+def test_s03_managed_document_network_failure_remains_retryable():
+    state = {"tasks": [{"error": "httpx.ConnectError('connection failed')"}]}
+    with pytest.raises(RetryableAgentBoundaryError, match="API transport failure"):
+        agent_server_client._raise_for_terminal_run(
+            "error",
+            state,
+            boundary_name="managed_document_ingest_requested",
+        )
+
+
+@pytest.mark.parametrize("status", [401, 403, 404, 422])
+def test_s04_managed_document_permanent_errors_remain_terminal(status):
+    state = {"tasks": [{"error": f"IngestionApiError('HTTP_{status} ({status})')"}]}
+    with pytest.raises(agent_server_client.AgentServerRunError):
+        agent_server_client._raise_for_terminal_run(
+            "error",
+            state,
+            boundary_name="managed_document_ingest_requested",
+        )
+
+
+@pytest.mark.parametrize("malformed", [None, 12345, [], {}, "UnrecognizedFormat", "ValueError('invalid')"])
+def test_s05_unknown_malformed_remote_error_remains_terminal(malformed):
+    state = {"tasks": [{"error": malformed}]}
+    with pytest.raises(agent_server_client.AgentServerRunError):
+        agent_server_client._raise_for_terminal_run(
+            "error",
+            state,
+            boundary_name="managed_document_ingest_requested",
+        )
+
+
+@pytest.mark.parametrize(
+    "error_string",
+    [
+        "IngestionApiError('HTTP_503 (503)')",
+        "IngestionApiError('HTTP_429 (429)')",
+        "RetryableAgentBoundaryError: transient dependency failure",
+        "httpx.ConnectError('connection refused')",
+    ],
+)
+def test_s06_assessment_task_with_ingestion_error_must_not_acquire_retry_authority(error_string):
+    state = {"tasks": [{"error": error_string}]}
+    with pytest.raises(agent_server_client.AgentServerRunError):
+        agent_server_client._raise_for_terminal_run(
+            "error",
+            state,
+            boundary_name="assessment_root_requested",
+        )
+
+
+@pytest.mark.parametrize(
+    "error_string",
+    [
+        "IngestionApiError('HTTP_503 (503)')",
+        "IngestionApiError('HTTP_429 (429)')",
+        "RetryableAgentBoundaryError: transient dependency failure",
+        "httpx.ConnectError('connection refused')",
+    ],
+)
+def test_s07_rule_set_preparation_task_with_ingestion_error_must_not_acquire_retry_authority(error_string):
+    state = {"tasks": [{"error": error_string}]}
+    with pytest.raises(agent_server_client.AgentServerRunError):
+        agent_server_client._raise_for_terminal_run(
+            "error",
+            state,
+            boundary_name="rule_set_preparation_requested",
+        )
+
+
+def test_unbound_task_error_without_boundary_never_acquires_retry_authority():
+    state = {
+        "metadata": {"lcsp_boundary_name": "managed_document_ingest_requested"},
+        "tasks": [{"error": "IngestionApiError('HTTP_503 (503)')"}],
+    }
+    with pytest.raises(agent_server_client.AgentServerRunError):
+        agent_server_client._raise_for_terminal_run("error", state)
+
+
+def test_agent_server_result_metadata_cannot_authorize_retry_without_canonical_boundary():
+    result = {
+        "metadata": {"lcsp_boundary_name": "managed_document_ingest_requested"},
+        "__error__": {
+            "error": "IngestionApiError",
+            "message": "HTTP_503 (503)",
+        },
+    }
+    with pytest.raises(agent_server_client.AgentServerRunError):
+        agent_server_client._raise_for_agent_server_error(result)
