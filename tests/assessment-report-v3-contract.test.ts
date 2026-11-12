@@ -342,9 +342,12 @@ function createV3Fixture(
               path: ".",
             },
           ],
+          executedQueriesCount: 1,
+          inspectedEntryPointsCount: 1,
           truncatedQueriesCount: 0,
           knownGapsCount: 0,
           directFallbackCount: 0,
+          verifiedCompleteness: true,
         },
       },
     ],
@@ -814,9 +817,12 @@ test("source scope: supports WHOLE_REPOSITORY, SUBTREE, KNOWN_LIMITED, and UNKNO
         path: "apps/api",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: true,
   };
   assert.equal(
     assessmentFinalReportV3Schema.parse(subtree).sourceScope.sourcePathPrefix,
@@ -843,9 +849,12 @@ test("source scope: supports WHOLE_REPOSITORY, SUBTREE, KNOWN_LIMITED, and UNKNO
         path: "apps/api",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 1,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: false,
   };
   assert.equal(
     assessmentFinalReportV3Schema.parse(knownLimited).sourceScope.visibility,
@@ -923,9 +932,12 @@ test("source scope: rejects malformed or contradictory scope and refuses to infe
         path: "apps/web",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: true,
   };
   // EVIDENCE_REPO_ID safeLocator is apps/api/src/retention/purge.ts:10-42
   assert.equal(
@@ -1164,9 +1176,12 @@ test("P1-01: rejects malformed, non-canonical, traversal, and excluded REPOSITOR
         path: "apps/api",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: true,
   };
   malformedUnderSubtree.evidenceIndex[1].safeLocator =
     "apps/web/outside.ts:invalid-range";
@@ -1528,9 +1543,12 @@ test("P1-05: binds sourceScope to pinned snapshot prefix and requires verified n
         path: "apps/api",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: true,
   };
   assert.equal(
     assessmentFinalReportV3Schema.safeParse(pinnedSubtree).success,
@@ -1616,9 +1634,12 @@ test("P1-05: binds sourceScope to pinned snapshot prefix and requires verified n
         path: "apps/api",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: true,
   };
   assert.equal(
     assessmentFinalReportV3Schema.safeParse(unknownSubtree).success,
@@ -1645,9 +1666,12 @@ test("P1-05: binds sourceScope to pinned snapshot prefix and requires verified n
         path: "apps/api",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: true,
   };
   outsidePinnedPrefixUnknown.evidenceIndex[1].safeLocator =
     "apps/web/outside.ts:10-20";
@@ -1679,9 +1703,12 @@ test("P1-05: binds sourceScope to pinned snapshot prefix and requires verified n
         path: ".",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 1,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: false,
   };
   assert.equal(
     assessmentFinalReportV3Schema.safeParse(fullWithTruncatedQueries).success,
@@ -1696,9 +1723,12 @@ test("P1-05: binds sourceScope to pinned snapshot prefix and requires verified n
         path: ".",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 2,
     directFallbackCount: 0,
+    verifiedCompleteness: false,
   };
   assert.equal(
     assessmentFinalReportV3Schema.safeParse(fullWithKnownGaps).success,
@@ -1713,14 +1743,303 @@ test("P1-05: binds sourceScope to pinned snapshot prefix and requires verified n
         path: "apps/api",
       },
     ],
+    executedQueriesCount: 1,
+    inspectedEntryPointsCount: 1,
     truncatedQueriesCount: 0,
     knownGapsCount: 0,
     directFallbackCount: 0,
+    verifiedCompleteness: true,
   };
   assert.equal(
     assessmentFinalReportV3Schema.safeParse(fullWholeRepoOnlyNarrowScope)
       .success,
     false,
+  );
+});
+
+test("P1-06: enforces KNOWN_FULL coverage authority and rejects unverified or superficial coverage", () => {
+  // 1. Root-scoped coverage record without meaningful search activity (0 queries, 0 entry points) REJECT
+  const noActivity = createV3Fixture();
+  noActivity.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 0,
+    inspectedEntryPointsCount: 0,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  const noActivityParsed = assessmentFinalReportV3Schema.safeParse(noActivity);
+  assert.equal(noActivityParsed.success, false);
+  assert.match(
+    noActivityParsed.error.issues.map((i) => i.message).join(" "),
+    /lacks meaningful search activity/,
+  );
+
+  // 2. GRAPH_INDEX or SOURCE_FILE scope used as proof of whole-repository completeness REJECT
+  const graphIndexScope = createV3Fixture();
+  graphIndexScope.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.GRAPH_INDEX,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 10,
+    inspectedEntryPointsCount: 5,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  const graphIndexParsed =
+    assessmentFinalReportV3Schema.safeParse(graphIndexScope);
+  assert.equal(graphIndexParsed.success, false);
+  assert.match(
+    graphIndexParsed.error.issues.map((i) => i.message).join(" "),
+    /requires verified SOURCE_DIRECTORY search coverage covering repository root/,
+  );
+
+  const sourceFileScope = createV3Fixture();
+  sourceFileScope.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_FILE,
+        path: "package.json",
+      },
+    ],
+    executedQueriesCount: 5,
+    inspectedEntryPointsCount: 1,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  const sourceFileParsed =
+    assessmentFinalReportV3Schema.safeParse(sourceFileScope);
+  assert.equal(sourceFileParsed.success, false);
+  assert.match(
+    sourceFileParsed.error.issues.map((i) => i.message).join(" "),
+    /requires verified SOURCE_DIRECTORY search coverage covering repository root/,
+  );
+
+  // 3. Zero recorded gaps even though actual coverage completeness is unproven (verifiedCompleteness: false) REJECT
+  const unverifiedCompleteness = createV3Fixture();
+  unverifiedCompleteness.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 15,
+    inspectedEntryPointsCount: 6,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: false,
+  };
+  const unverifiedParsed = assessmentFinalReportV3Schema.safeParse(
+    unverifiedCompleteness,
+  );
+  assert.equal(unverifiedParsed.success, false);
+  assert.match(
+    unverifiedParsed.error.issues.map((i) => i.message).join(" "),
+    /unverified completeness \(Root observation only\) and cannot establish KNOWN_FULL visibility/,
+  );
+
+  // 4. Coverage metadata with invalid, insufficient or inconsistent provenance REJECT
+  // 4a. verifiedCompleteness: true but truncatedQueriesCount > 0
+  const inconsistentTruncated = createV3Fixture();
+  inconsistentTruncated.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 10,
+    inspectedEntryPointsCount: 4,
+    truncatedQueriesCount: 2,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  const inconsistentTruncatedParsed = assessmentFinalReportV3Schema.safeParse(
+    inconsistentTruncated,
+  );
+  assert.equal(inconsistentTruncatedParsed.success, false);
+  assert.match(
+    inconsistentTruncatedParsed.error.issues.map((i) => i.message).join(" "),
+    /cannot claim verifiedCompleteness when truncated queries exist/,
+  );
+
+  // 4b. verifiedCompleteness: true but knownGapsCount > 0
+  const inconsistentGaps = createV3Fixture();
+  inconsistentGaps.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 10,
+    inspectedEntryPointsCount: 4,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 3,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  const inconsistentGapsParsed =
+    assessmentFinalReportV3Schema.safeParse(inconsistentGaps);
+  assert.equal(inconsistentGapsParsed.success, false);
+  assert.match(
+    inconsistentGapsParsed.error.issues.map((i) => i.message).join(" "),
+    /cannot claim verifiedCompleteness when known gaps exist/,
+  );
+
+  // 4c. verifiedCompleteness: true but 0 queries and 0 entry points (checked on item itself in invariant)
+  const inconsistentZeroActivity = createV3Fixture();
+  inconsistentZeroActivity.sourceScope.visibility =
+    ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED;
+  inconsistentZeroActivity.sourceScope.limitationReasons = [
+    ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.PARTIAL_COVERAGE_RECORDED,
+  ];
+  inconsistentZeroActivity.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 0,
+    inspectedEntryPointsCount: 0,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  const inconsistentZeroActivityParsed = assessmentFinalReportV3Schema.safeParse(
+    inconsistentZeroActivity,
+  );
+  assert.equal(inconsistentZeroActivityParsed.success, false);
+  assert.match(
+    inconsistentZeroActivityParsed.error.issues.map((i) => i.message).join(" "),
+    /cannot claim verifiedCompleteness without meaningful search activity/,
+  );
+
+  // 5. A report claiming KNOWN_FULL when only UNKNOWN or KNOWN_LIMITED is justified
+  const unverifiedAgentObservation = createV3Fixture();
+  unverifiedAgentObservation.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 20,
+    inspectedEntryPointsCount: 8,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: false,
+  };
+  // Claiming KNOWN_FULL fails
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(unverifiedAgentObservation).success,
+    false,
+  );
+
+  // Changing to conservative KNOWN_LIMITED succeeds
+  const conservativeLimited = {
+    ...unverifiedAgentObservation,
+    sourceScope: {
+      ...unverifiedAgentObservation.sourceScope,
+      visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED,
+      limitationReasons: [
+        ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.PARTIAL_COVERAGE_RECORDED,
+      ],
+    },
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(conservativeLimited).success,
+    true,
+  );
+
+  // Changing to conservative UNKNOWN succeeds
+  const conservativeUnknown = {
+    ...unverifiedAgentObservation,
+    sourceScope: {
+      mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.UNKNOWN,
+      visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.UNKNOWN,
+      sourcePathPrefix: null,
+      excludedPaths: [],
+      limitationReasons: [
+        ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.VISIBILITY_UNKNOWN,
+      ],
+      searchCoverageEvidenceIds: [],
+    },
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(conservativeUnknown).success,
+    true,
+  );
+
+  // 6. Positive cases: genuine trusted coverage evidence
+  // 6a. Trusted WHOLE_REPOSITORY KNOWN_FULL
+  const trustedWhole = createV3Fixture();
+  trustedWhole.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: ".",
+      },
+    ],
+    executedQueriesCount: 25,
+    inspectedEntryPointsCount: 7,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(trustedWhole).success,
+    true,
+  );
+
+  // 6b. Trusted SUBTREE KNOWN_FULL
+  const trustedSubtree = createV3Fixture();
+  trustedSubtree.pins.sourcePathPrefix = "apps/api";
+  trustedSubtree.sourceScope = {
+    mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
+    visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL,
+    sourcePathPrefix: "apps/api",
+    excludedPaths: [],
+    limitationReasons: [],
+    searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
+  };
+  trustedSubtree.evidenceIndex[2].searchCoverage = {
+    scopes: [
+      {
+        kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+        path: "apps/api",
+      },
+    ],
+    executedQueriesCount: 14,
+    inspectedEntryPointsCount: 4,
+    truncatedQueriesCount: 0,
+    knownGapsCount: 0,
+    directFallbackCount: 0,
+    verifiedCompleteness: true,
+  };
+  assert.equal(
+    assessmentFinalReportV3Schema.safeParse(trustedSubtree).success,
+    true,
   );
 });
 
