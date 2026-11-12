@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_DECISION_SCOPE,
+  ASSESSMENT_DOMAIN_LIMITS,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
@@ -21,17 +22,18 @@ import {
   type RuleDecisionReference,
 } from "../assessment/agentic-runtime.ts";
 import {
+  isCanonicalRepositorySourcePath,
   isRepositoryPathInSourceScope,
   repositorySourcePathPrefixSchema,
 } from "../github-integration/source-scope.ts";
 import {
   ASSESSMENT_REPORT_ACTION_PRIORITIES,
   ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS,
-  ASSESSMENT_REPORT_REFERENCE_ORIGINS,
   ASSESSMENT_REPORT_SOURCE_SCOPE_MODES,
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS,
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES,
   ASSESSMENT_REPORT_V3_LIMITS,
+  ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS,
   type AssessmentReportFieldClassification,
   type AssessmentReportSourceScopeMode,
   type AssessmentReportSourceVisibilityLimitationReason,
@@ -127,17 +129,17 @@ const factIndexSchemaV3 = z.strictObject({
 });
 
 const decisionReferenceEntrySchemaV3 = z.strictObject({
-  origin: z.literal(ASSESSMENT_REPORT_REFERENCE_ORIGINS.decision),
+  origin: z.literal(ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.decision),
   reference: ruleDecisionReferenceSchema,
 });
 
 const criterionReferenceEntrySchemaV3 = z.strictObject({
-  origin: z.literal(ASSESSMENT_REPORT_REFERENCE_ORIGINS.criterion),
+  origin: z.literal(ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.criterion),
   reference: ruleDecisionReferenceSchema,
 });
 
 export const assessmentReportApplicabilityBasisReferenceSchema = z.strictObject({
-  origin: z.literal(ASSESSMENT_REPORT_REFERENCE_ORIGINS.applicabilityBasis),
+  origin: z.literal(ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.applicabilityBasis),
   legalRequirementId: identifierSchema,
   kind: z.enum(RULE_DECISION_BASIS_KINDS),
   index: z.number().int().nonnegative(),
@@ -148,7 +150,7 @@ export type AssessmentReportApplicabilityBasisReference = z.infer<
 >;
 
 export const assessmentReportFactEvidenceReferenceSchema = z.strictObject({
-  origin: z.literal(ASSESSMENT_REPORT_REFERENCE_ORIGINS.factEvidence),
+  origin: z.literal(ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.factEvidence),
   factId: uuidSchema,
   reference: z.strictObject({
     type: z.literal(RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE),
@@ -161,7 +163,6 @@ export type AssessmentReportFactEvidenceReference = z.infer<
 
 const criterionSchemaV3 = z.strictObject({
   criterionId: identifierSchema,
-  statement: boundedTextSchema,
   outcome: z.enum(RULE_DECISION_CRITERION_OUTCOMES),
   rationale: boundedTextSchema,
   references: z
@@ -247,7 +248,6 @@ const actionPlanHighlightItemSchemaV3 = z.strictObject({
   ruleDetailRef: identifierSchema,
   recommendationIndex: z.number().int().nonnegative(),
   priority: z.enum(ASSESSMENT_REPORT_ACTION_PRIORITIES),
-  summary: boundedTextSchema,
 });
 
 export const assessmentReportBoundedActionPlanSchema = z.strictObject({
@@ -325,23 +325,41 @@ function haveSameReferenceMultiset(
 }
 
 /**
- * Business purpose: Extract the repository-relative path from a formatted repository evidence safeLocator (`path:start-end`).
+ * Business purpose: Parse and validate a formatted repository evidence safeLocator (`path:start-end`) into a canonical repository-relative path and line span.
  *
  * Business rules:
- * - Only locators ending with `:<positiveInt>-<positiveInt>` yield a repository path; other strings return null.
+ * - Only locators matching `<canonicalPath>:<positiveInt>-<positiveInt>` with `endLine >= startLine` and span `< MAX_LINE_SPAN` are valid.
+ * - Absolute paths, traversal (`..`), alternate separators, encoded paths, control characters, and malformed ranges return null.
  *
  * Execution flow:
- * 1. Match the trailing line-range suffix and return the path prefix before it.
+ * 1. Match the trailing positive-integer line-range suffix (`:<start>-<end>`).
+ * 2. Validate the extracted path with `isCanonicalRepositorySourcePath` and verify integer line-range bounds.
  *
  * Failure cases:
- * - Malformed or non-line-range locators return null rather than guessing a directory prefix.
+ * - Unmatched, non-canonical, or out-of-bounds locators return null so callers fail closed rather than bypassing scope containment.
  *
  * Side effects:
- * - None: pure string inspection.
+ * - None: pure string and integer validation.
  */
-function extractRepositorySourcePathFromLocator(locator: string): string | null {
-  const match = locator.match(/^(.+):(\d+)-(\d+)$/u);
-  return match ? match[1] : null;
+function parseRepositorySourceSafeLocator(
+  locator: string,
+): { path: string; startLine: number; endLine: number } | null {
+  const match = locator.match(/^(.+):([1-9]\d*)-([1-9]\d*)$/u);
+  if (!match) return null;
+  const [, path, startText, endText] = match;
+  if (!isCanonicalRepositorySourcePath(path)) return null;
+  const startLine = Number(startText);
+  const endLine = Number(endText);
+  if (
+    !Number.isSafeInteger(startLine) ||
+    !Number.isSafeInteger(endLine) ||
+    startLine < 1 ||
+    endLine < startLine ||
+    endLine - startLine >= ASSESSMENT_DOMAIN_LIMITS.MAX_LINE_SPAN
+  ) {
+    return null;
+  }
+  return { path, startLine, endLine };
 }
 
 /**
@@ -572,36 +590,44 @@ function validateV3SourceScope(
   }
 
   for (const [index, item] of report.evidenceIndex.entries()) {
-    if (
-      item.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE &&
-      item.safeLocator !== null
-    ) {
-      const path = extractRepositorySourcePathFromLocator(item.safeLocator);
-      if (path) {
-        if (
-          sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE &&
-          sourceScope.sourcePathPrefix !== null &&
-          !isRepositoryPathInSourceScope(path, sourceScope.sourcePathPrefix)
-        ) {
-          context.addIssue({
-            code: "custom",
-            path: ["evidenceIndex", index, "safeLocator"],
-            message:
-              "REPOSITORY_SOURCE evidence path lies outside declared SUBTREE sourcePathPrefix",
-          });
-        }
-        if (
-          sourceScope.excludedPaths.some((excluded) =>
-            isRepositoryPathInSourceScope(path, excluded),
-          )
-        ) {
-          context.addIssue({
-            code: "custom",
-            path: ["evidenceIndex", index, "safeLocator"],
-            message:
-              "REPOSITORY_SOURCE evidence path falls inside declared excludedPaths",
-          });
-        }
+    if (item.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE) {
+      if (item.safeLocator === null) continue;
+      const parsedLocator = parseRepositorySourceSafeLocator(item.safeLocator);
+      if (!parsedLocator) {
+        context.addIssue({
+          code: "custom",
+          path: ["evidenceIndex", index, "safeLocator"],
+          message:
+            "REPOSITORY_SOURCE evidence safeLocator must match canonical <path>:<startLine>-<endLine>",
+        });
+        continue;
+      }
+      if (
+        sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE &&
+        sourceScope.sourcePathPrefix !== null &&
+        !isRepositoryPathInSourceScope(
+          parsedLocator.path,
+          sourceScope.sourcePathPrefix,
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["evidenceIndex", index, "safeLocator"],
+          message:
+            "REPOSITORY_SOURCE evidence path lies outside declared SUBTREE sourcePathPrefix",
+        });
+      }
+      if (
+        sourceScope.excludedPaths.some((excluded) =>
+          isRepositoryPathInSourceScope(parsedLocator.path, excluded),
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["evidenceIndex", index, "safeLocator"],
+          message:
+            "REPOSITORY_SOURCE evidence path falls inside declared excludedPaths",
+        });
       }
     }
   }
@@ -983,6 +1009,37 @@ function validateAssessmentFinalReportV3Invariants(
           code: "custom",
           path: ["ruleDetails", ruleIndex, "legalRequirementIds"],
           message: `Unknown LegalRequirement ${requirementId}`,
+        });
+      }
+    }
+
+    const seenLegalContextIds = new Set<string>();
+    for (const [contextIdx, legalContext] of rule.decision.legalContextRefs.entries()) {
+      if (seenLegalContextIds.has(legalContext.legalContextId)) {
+        context.addIssue({
+          code: "custom",
+          path: [
+            "ruleDetails",
+            ruleIndex,
+            "decision",
+            "legalContextRefs",
+            contextIdx,
+          ],
+          message: `Duplicate legalContextId ${legalContext.legalContextId} in decision.legalContextRefs`,
+        });
+      }
+      seenLegalContextIds.add(legalContext.legalContextId);
+      if (!ruleRequirementIds.has(legalContext.legalContextId)) {
+        context.addIssue({
+          code: "custom",
+          path: [
+            "ruleDetails",
+            ruleIndex,
+            "decision",
+            "legalContextRefs",
+            contextIdx,
+          ],
+          message: `legalContextId ${legalContext.legalContextId} is not linked to rule ${rule.assessmentRuleId}`,
         });
       }
     }
@@ -1649,14 +1706,13 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
       notes: "Projected criterion ID and canonical MET/NOT_MET outcome.",
     },
     {
-      pathPattern:
-        "/ruleDetails/*/criteriaDecisions/*/statement, /ruleDetails/*/criteriaDecisions/*/rationale",
+      pathPattern: "/ruleDetails/*/criteriaDecisions/*/rationale",
       classification:
         ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.LOCALIZABLE_NARRATIVE,
       b1AuthoredFieldsIncluded: true,
       c2ProtectedKeysRecommendation: null,
       notes:
-        "Covered by B1 statement path regex and rationale allowlist; schema never enforces translated prose equality.",
+        "Covered by B1 rationale allowlist; criterion statement lives solely on ruleDetails/*/criteria/*/statement.",
     },
     {
       pathPattern: "/ruleDetails/*/criteriaDecisions/*/references/*",
@@ -1716,18 +1772,60 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
         ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.CANONICAL_AUTHORITATIVE,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation:
-        "actionId, ruleDetailRef, priority",
+        "boundedActionPlan, actionId, ruleDetailRef, priority",
       notes:
-        "Container key boundedActionPlan is outside authoredKeys so structural counters, IDs, JSON-pointer refs, and priority enums are never translated. Add actionId/ruleDetailRef/priority to protectedKeys in C2 for defense-in-depth.",
-    },
-    {
-      pathPattern: "/boundedActionPlan/items/*/summary",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.LOCALIZABLE_NARRATIVE,
-      b1AuthoredFieldsIncluded: true,
-      c2ProtectedKeysRecommendation: null,
-      notes:
-        "Covered by B1 authoredKeys (summary); boundedActionPlan container stays outside authoredKeys so only the summary leaf is translated.",
+        "Container key boundedActionPlan is outside authoredKeys and carries pointer/priority metadata only; presentation text is derived from ruleDetails/*/narrative/recommendations/* without duplicating writable prose. Add boundedActionPlan/actionId/ruleDetailRef/priority to protectedKeys in C2 for defense-in-depth.",
     },
   ];
+
+export interface ResolvedV3BoundedActionPlanItem {
+  actionId: string;
+  assessmentRuleId: string;
+  ruleDetailRef: string;
+  recommendationIndex: number;
+  priority: AssessmentFinalReportV3["boundedActionPlan"]["items"][number]["priority"];
+  recommendation: string;
+}
+
+/**
+ * Business purpose: Derive bounded action-plan presentation text solely from the canonical per-rule recommendations in `ruleDetails`.
+ *
+ * Business rules:
+ * - Action items carry pointer and priority metadata only; recommendation prose is never stored independently on `boundedActionPlan`.
+ *
+ * Execution flow:
+ * 1. Map each rule in `ruleDetails` by `assessmentRuleId`.
+ * 2. Resolve each `boundedActionPlan.items` pointer to its canonical or reviewed-localized `rule.narrative.recommendations[recommendationIndex]`.
+ *
+ * Failure cases:
+ * - Dangling rule or recommendation index pointers throw explicitly instead of fabricating placeholder text.
+ *
+ * Side effects:
+ * - None: pure in-memory projection.
+ */
+export function resolveV3BoundedActionPlanItems(
+  report: AssessmentFinalReportV3,
+): ResolvedV3BoundedActionPlanItem[] {
+  const ruleById = new Map(
+    report.ruleDetails.map((rule) => [rule.assessmentRuleId, rule]),
+  );
+  return report.boundedActionPlan.items.map((item) => {
+    const rule = ruleById.get(item.assessmentRuleId);
+    const recommendation =
+      rule?.narrative.recommendations[item.recommendationIndex];
+    if (!rule || recommendation === undefined) {
+      throw new Error(
+        `Unresolvable boundedActionPlan item ${item.actionId} (${item.ruleDetailRef})`,
+      );
+    }
+    return {
+      actionId: item.actionId,
+      assessmentRuleId: item.assessmentRuleId,
+      ruleDetailRef: item.ruleDetailRef,
+      recommendationIndex: item.recommendationIndex,
+      priority: item.priority,
+      recommendation,
+    };
+  });
+}
 
