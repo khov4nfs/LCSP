@@ -119,15 +119,21 @@ const searchCoverageEvidenceScopeSchemaV3 = z.strictObject({
   path: z.string().min(1).max(REPOSITORY_SOURCE_PATH_MAX_LENGTH),
 });
 
-const searchCoverageRecordSchemaV3 = z.strictObject({
+export const searchCoverageRecordSchemaV3 = z.strictObject({
   scopes: z
     .array(searchCoverageEvidenceScopeSchemaV3)
     .min(1)
     .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS),
+  executedQueriesCount: revisionSchema,
+  inspectedEntryPointsCount: revisionSchema,
   truncatedQueriesCount: revisionSchema,
   knownGapsCount: revisionSchema,
   directFallbackCount: revisionSchema,
+  verifiedCompleteness: z.boolean(),
 });
+export type SearchCoverageRecordV3 = z.infer<
+  typeof searchCoverageRecordSchemaV3
+>;
 
 const evidenceIndexSchemaV3 = z.strictObject({
   evidenceId: uuidSchema,
@@ -403,22 +409,23 @@ function parseRepositorySourceSafeLocator(
 }
 
 /**
- * Business purpose: Enforce structural, snapshot-pinned scope binding, coverage provenance, and evidence-index consistency for V3 repository source scope declarations.
+ * Business purpose: Enforce structural, snapshot-pinned scope binding, coverage provenance, and evidence-index consistency for V3 repository source scope declarations, ensuring KNOWN_FULL visibility is backed by verified platform scan completeness rather than unverified agent observations.
  *
  * Business rules:
  * - `sourceScope` cannot widen beyond `pins.sourcePathPrefix`: a pinned subtree snapshot (`pins.sourcePathPrefix !== null`) forbids `WHOLE_REPOSITORY` and requires `SUBTREE` `sourcePathPrefix === pins.sourcePathPrefix` (or `UNKNOWN` scope/visibility), while a whole-repository snapshot pin (`pins.sourcePathPrefix === null`) forbids `SUBTREE` without an authoritative narrowing policy.
  * - `WHOLE_REPOSITORY` forbids a `sourcePathPrefix`; `SUBTREE` requires a canonical `sourcePathPrefix`; `UNKNOWN` mode requires `null` prefix and `UNKNOWN` visibility.
- * - `KNOWN_FULL` forbids exclusions/limitation reasons AND requires at least one verified `SEARCH_COVERAGE` evidence entry (`truncatedQueriesCount === 0`, `knownGapsCount === 0`) covering the pinned snapshot scope (`'.'` for whole repo or `pins.sourcePathPrefix` for subtree); missing, truncated, or gapped coverage cannot establish `KNOWN_FULL`.
+ * - `KNOWN_FULL` visibility represents verified full source visibility and completeness across the target repository scope. It forbids exclusions or limitation reasons AND requires at least one verified `SEARCH_COVERAGE` evidence entry. Each referenced `SEARCH_COVERAGE` entry must have `verifiedCompleteness: true` backed by authoritative platform scan completion, meaningful search activity (`executedQueriesCount >= 1` or `inspectedEntryPointsCount >= 1`), `truncatedQueriesCount === 0`, `knownGapsCount === 0`, and must include a scope with `kind === SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY` covering the pinned root (`.` for whole repo or `pins.sourcePathPrefix` for subtree). Agent self-reported observations (`verifiedCompleteness: false`), empty activity (0 queries and 0 entry points), file/graph scopes (`GRAPH_INDEX`, `SOURCE_FILE`), truncated queries, or known gaps cannot establish `KNOWN_FULL`.
+ * - Mandatory C3 writer gate: C3 writer derives query/gap/entrypoint counts and MUST NOT set `verifiedCompleteness: true` from agent self-reporting alone without platform scan completion (e.g. `RepositoryScanJob` status `READY` without exclusions). When completeness is unproven, the report must remain conservative (`KNOWN_LIMITED` or `UNKNOWN`).
  * - `KNOWN_LIMITED` requires explicit exclusions or limitation reasons and never `VISIBILITY_UNKNOWN`; `UNKNOWN` visibility forbids exclusions and known-limitation codes.
  * - `REPOSITORY_SOURCE` evidence locators must lie within `pins.sourcePathPrefix`, declared `sourceScope.sourcePathPrefix`, and outside `excludedPaths`.
  *
  * Execution flow:
  * 1. Validate mode, prefix, snapshot-pin binding (`pins.sourcePathPrefix`), visibility, exclusions, and limitation reasons.
- * 2. Verify uniqueness, `SEARCH_COVERAGE` type, non-null verified coverage metadata, and `KNOWN_FULL` completeness guarantees.
+ * 2. Verify uniqueness, `SEARCH_COVERAGE` type, non-null verified coverage metadata, meaningful search activity, verified completeness, zero truncations/gaps, and directory-level root coverage guarantees for `KNOWN_FULL`.
  * 3. Check `REPOSITORY_SOURCE` evidence locators against pinned snapshot prefix, declared subtree, and excluded path boundaries.
  *
  * Failure cases:
- * - Contradictory, broadened, duplicate, unverified-full-coverage, or out-of-scope declarations add targeted Zod custom issues.
+ * - Contradictory, broadened, duplicate, unverified, superficial, out-of-scope, or unproven-full-coverage declarations add targeted Zod custom issues.
  *
  * Side effects:
  * - None: records validation issues on the Zod refinement context only.
@@ -689,6 +696,23 @@ function validateV3SourceScope(
           message: `Search coverage evidence ${coverageId} must include verified searchCoverage metadata to establish KNOWN_FULL visibility`,
         });
       } else {
+        if (!entry.searchCoverage.verifiedCompleteness) {
+          context.addIssue({
+            code: "custom",
+            path: ["sourceScope", "searchCoverageEvidenceIds", index],
+            message: `Search coverage evidence ${coverageId} has unverified completeness (Root observation only) and cannot establish KNOWN_FULL visibility`,
+          });
+        }
+        if (
+          entry.searchCoverage.executedQueriesCount === 0 &&
+          entry.searchCoverage.inspectedEntryPointsCount === 0
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["sourceScope", "searchCoverageEvidenceIds", index],
+            message: `Search coverage evidence ${coverageId} lacks meaningful search activity (0 queries and 0 entry points) and cannot establish KNOWN_FULL visibility`,
+          });
+        }
         if (entry.searchCoverage.truncatedQueriesCount > 0) {
           context.addIssue({
             code: "custom",
@@ -706,7 +730,9 @@ function validateV3SourceScope(
         const expectedRoot = pinnedPrefix === null ? "." : pinnedPrefix;
         if (
           entry.searchCoverage.scopes.some(
-            (scope) => scope.path === expectedRoot,
+            (scope) =>
+              scope.kind === SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY &&
+              scope.path === expectedRoot,
           )
         ) {
           hasPinnedCoverageScope = true;
@@ -726,8 +752,8 @@ function validateV3SourceScope(
       path: ["sourceScope", "searchCoverageEvidenceIds"],
       message:
         pinnedPrefix === null
-          ? "WHOLE_REPOSITORY KNOWN_FULL visibility requires verified search coverage covering repository root ('.')"
-          : `SUBTREE KNOWN_FULL visibility requires verified search coverage covering '${pinnedPrefix}'`,
+          ? "WHOLE_REPOSITORY KNOWN_FULL visibility requires verified SOURCE_DIRECTORY search coverage covering repository root ('.')"
+          : `SUBTREE KNOWN_FULL visibility requires verified SOURCE_DIRECTORY search coverage covering '${pinnedPrefix}'`,
     });
   }
 
@@ -923,7 +949,7 @@ function validateV3BoundedActionPlan(
  *
  * Execution flow:
  * 1. Validate identity/pins and index uniqueness for requirements, rules, facts, and evidence.
- * 2. Validate evidence types, locators, and `SEARCH_COVERAGE` scope metadata boundaries.
+ * 2. Validate evidence types, locators, and `SEARCH_COVERAGE` scope and verified completeness metadata boundaries.
  * 3. Validate each rule's pins, direct + related legal context authorization, criteria projection, reference multisets, transitive fact->evidence closure, and source pins.
  * 4. Validate outcome totals, snapshot-pinned source scope & coverage provenance, and bounded action-plan invariants.
  *
@@ -1062,6 +1088,50 @@ function validateAssessmentFinalReportV3Invariants(
         });
       }
       if (item.searchCoverage) {
+        if (item.searchCoverage.verifiedCompleteness) {
+          if (
+            item.searchCoverage.executedQueriesCount === 0 &&
+            item.searchCoverage.inspectedEntryPointsCount === 0
+          ) {
+            context.addIssue({
+              code: "custom",
+              path: [
+                "evidenceIndex",
+                index,
+                "searchCoverage",
+                "verifiedCompleteness",
+              ],
+              message:
+                "SEARCH_COVERAGE cannot claim verifiedCompleteness without meaningful search activity (0 queries and 0 entry points)",
+            });
+          }
+          if (item.searchCoverage.truncatedQueriesCount > 0) {
+            context.addIssue({
+              code: "custom",
+              path: [
+                "evidenceIndex",
+                index,
+                "searchCoverage",
+                "verifiedCompleteness",
+              ],
+              message:
+                "SEARCH_COVERAGE cannot claim verifiedCompleteness when truncated queries exist",
+            });
+          }
+          if (item.searchCoverage.knownGapsCount > 0) {
+            context.addIssue({
+              code: "custom",
+              path: [
+                "evidenceIndex",
+                index,
+                "searchCoverage",
+                "verifiedCompleteness",
+              ],
+              message:
+                "SEARCH_COVERAGE cannot claim verifiedCompleteness when known gaps exist",
+            });
+          }
+        }
         for (const [
           scopeIdx,
           scopeEntry,
