@@ -108,6 +108,9 @@ function buildHandler(
     Promise.resolve(options.existingArtifact ?? null),
   );
   const tx = {
+    authoredLocalizationRequest: {
+      upsert: jest.fn((input: unknown) => Promise.resolve(input)),
+    },
     assessmentArtifact: {
       findUnique: findExistingArtifact,
       create: jest.fn((_payload: unknown) => {

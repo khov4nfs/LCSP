@@ -129,4 +129,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    from approved_bundle_fixture import offline_instruction_bundle
+    with offline_instruction_bundle():
+        raise SystemExit(main())

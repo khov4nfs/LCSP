@@ -153,4 +153,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from approved_bundle_fixture import offline_instruction_bundle
+    with offline_instruction_bundle():
+        main()

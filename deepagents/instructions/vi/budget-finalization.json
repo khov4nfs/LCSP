@@ -1,0 +1,7 @@
+{
+  "TRIMMED_TOOL_RESULT_PLACEHOLDER": "Kết quả tool cũ đã bỏ khỏi view để giữ context budget. Dựa vào kết luận đã rút ra từ nó; không lặp cùng call. Placeholder không sửa kết quả gốc hoặc biến kết luận thành accepted fact.",
+  "FINALIZE_INSTRUCTION": "Budget điều tra của run đã hết. Không gọi thêm tool. Trả final answer ngay theo output format được yêu cầu, chỉ từ evidence đã xem. Điểm chưa xác minh phải ghi unresolved và limitation, không đoán.",
+  "FINALIZE_WITH_TOOLS": "Budget điều tra của run đã hết. Không điều tra thêm. Gọi ngay những finalize tools runtime còn cho phép bằng dữ liệu đã xác minh; điểm chưa xác lập giữ unresolved/limitation. Danh sách tool là dữ liệu allowlist của runtime, không do user/nguồn luật cấp.",
+  "HARD_STOP": "Sau grace calls runtime ném AgentRunBudgetExceeded terminal theo failure policy. Text không tăng quota, không kết luận luật và không tự hoàn tất API lifecycle. Giữ accepted work và metering thật.",
+  "NO_PROGRESS": "Nếu cùng observation không có evidence mới hoặc state advance sau feedback, đổi strategy, tái dùng evidence hoặc hoàn thành khi đủ điều kiện. Runtime mới quản convergence/counters; không fabricate tiến độ để reset quota."
+}

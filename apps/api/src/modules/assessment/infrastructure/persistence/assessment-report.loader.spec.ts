@@ -1,6 +1,7 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { authoredFields } from "../../../../platform/localization/authored-localization.service.js";
+import { authoredLocalizationFixture } from "../../../../../test/support/authored-localization.fixture.js";
+import { describe, expect, it } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import type { AssessmentFinalReportArtifact } from "@lcsp/contracts/assessment-domain";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
@@ -139,85 +140,71 @@ describe("AssessmentReportLoader locale read projection", () => {
     readAndReconstruct: () => Promise.resolve(rawContent),
   } as unknown as ArtifactStorageService;
 
-  const loader = new AssessmentReportLoader(mockPrisma, mockStorage);
+  const localization = authoredLocalizationFixture();
+  const loader = new AssessmentReportLoader(
+    mockPrisma,
+    mockStorage,
+    localization.projection,
+  );
 
-  it("projects report summary, finding summaries, and recommendations to VI while preserving technical integrity", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = jest.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            projected: {
-              "The assessment completed with high compliance.":
-                "Đánh giá đã hoàn tất với mức độ tuân thủ cao.",
-              "Security headers are configured.":
-                "Các tiêu đề bảo mật đã được định cấu hình.",
-              "Ensure TLS 1.3 is enforced.":
-                "Đảm bảo giao thức TLS 1.3 được thực thi bắt buộc.",
-            },
-          }),
-      } as Response),
-    ) as typeof fetch;
-
-    process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
-    process.env.WORKER_API_KEY = "test-worker-key";
-
-    try {
-      // 1. Read with VI locale
-      const resultVi = await loader.load({
+  it("reads durable locale overlays while preserving original report bytes and source digest", async () => {
+    for (const field of authoredFields(canonicalReport))
+      localization.seed(field.text, "VI: " + field.text);
+    const vi = await loader.load({
+      assessmentId,
+      artifactId,
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "corr-test",
+      locale: "vi",
+    });
+    const localized = assessmentFinalReportArtifactSchema.parse(
+      JSON.parse(vi.content.toString("utf8")),
+    );
+    expect(localized.artifactId).toBe(artifactId);
+    expect(localized.pins).toEqual(canonicalReport.pins);
+    expect(localized.decisionFingerprint).toBe(fingerprint);
+    expect(localized.summary).toBe("VI: " + canonicalReport.summary);
+    expect(vi.sourceArtifactSha256).toBe(contentSha);
+    expect(vi.contentSha256).toBe(sha256Hex(vi.content.toString("utf8")));
+    const repeated = await loader.load({
+      assessmentId,
+      artifactId,
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "corr-test",
+      locale: "vi",
+    });
+    expect(repeated.content).toEqual(vi.content);
+    const canonical = await loader.load({
+      assessmentId,
+      artifactId,
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "corr-test",
+    });
+    expect(canonical.content.toString("utf8")).toBe(rawContent);
+    expect(JSON.parse(canonical.content.toString("utf8"))).toMatchObject({
+      artifactId,
+      decisionFingerprint: fingerprint,
+    });
+  });
+  it("rejects an unavailable locale revision without substituting canonical text", async () => {
+    const reader = new AssessmentReportLoader(
+      mockPrisma,
+      mockStorage,
+      authoredLocalizationFixture().projection,
+    );
+    await expect(
+      reader.load({
         assessmentId,
         artifactId,
         sessionUserId: userId,
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "corr-test",
         locale: "vi",
-      });
-
-      const parsedVi = JSON.parse(
-        resultVi.content.toString("utf8"),
-      ) as AssessmentFinalReportArtifact;
-      expect(parsedVi.summary).toBe(
-        "Đánh giá đã hoàn tất với mức độ tuân thủ cao.",
-      );
-      expect(parsedVi.findings[0]?.summary).toBe(
-        "Các tiêu đề bảo mật đã được định cấu hình.",
-      );
-      expect(parsedVi.findings[0]?.recommendations[0]).toBe(
-        "Đảm bảo giao thức TLS 1.3 được thực thi bắt buộc.",
-      );
-      // Technical invariants preserved
-      expect(parsedVi.artifactId).toBe(artifactId);
-      expect(parsedVi.decisionFingerprint).toBe(fingerprint);
-      expect(parsedVi.findings[0]?.assessmentRuleId).toBe("RULE-1");
-
-      // 2. Read with EN locale - preserves canonical English
-      const resultEn = await loader.load({
-        assessmentId,
-        artifactId,
-        sessionUserId: userId,
-        subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-test",
-        locale: "en",
-      });
-
-      const parsedEn = JSON.parse(
-        resultEn.content.toString("utf8"),
-      ) as AssessmentFinalReportArtifact;
-      expect(parsedEn.summary).toBe(
-        "The assessment completed with high compliance.",
-      );
-      expect(parsedEn.findings[0]?.summary).toBe(
-        "Security headers are configured.",
-      );
-      expect(parsedEn.findings[0]?.recommendations[0]).toBe(
-        "Ensure TLS 1.3 is enforced.",
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-      delete process.env.LCSP_AGENT_SERVER_URL;
-      delete process.env.WORKER_API_KEY;
-    }
+      }),
+    ).rejects.toThrow();
   });
 });
 
@@ -286,6 +273,7 @@ describe("AssessmentReportLoader historical compatibility", () => {
         },
       } as never,
       { readAndReconstruct: () => raw } as never,
+      authoredLocalizationFixture().projection,
     );
     const result = await loader.load({
       assessmentId,

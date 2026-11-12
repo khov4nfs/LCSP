@@ -553,9 +553,9 @@ def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_t
     # The researcher is the only task target and holds no governed assessment tool at all.
     assert not (child_tools & set(ROOT_TOOL_NAMES))
     assert "task" not in child_tools
-    model_task_tool = next(t for bound in model.bound_tools[:1] for t in bound if getattr(t, "name", "") == "task")
-    assert RESEARCHER_NAME in model_task_tool.description
-    assert "general-purpose" not in model_task_tool.description
+    model_task_tool = next(t["function"] for bound in model.bound_tools[:1] for t in bound if t.get("function", {}).get("name") == "task")
+    assert RESEARCHER_NAME in model_task_tool["description"]
+    assert model_task_tool["parameters"]["properties"]["subagent_type"]
     # Registration owns delegate execution; the model receives a concise description copy.
     task_tool = agent.get_graph().nodes["tools"].data.tools_by_name["task"]
     agent_types = task_tool.description.split("Available agent types", 1)[1].split("Specify subagent_type", 1)[0]

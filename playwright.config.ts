@@ -27,7 +27,7 @@ export default defineConfig({
       url: "http://127.0.0.1:3100",
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
-      env: { LCSP_API_BASE_URL: "http://127.0.0.1:3102" },
+      env: { LCSP_API_BASE_URL: "http://127.0.0.1:3102", NEXT_DIST_DIR: ".next/e2e" },
     },
   ],
   projects: [

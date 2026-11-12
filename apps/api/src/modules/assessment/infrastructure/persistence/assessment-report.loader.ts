@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpStatus, HttpException } from "@nestjs/common";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import {
   ARTIFACT_LIFECYCLE_STATES,
@@ -24,7 +24,7 @@ export class AssessmentReportLoader {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ArtifactStorageService,
-    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
+    private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
   async load(input: {
@@ -128,40 +128,32 @@ export class AssessmentReportLoader {
       const locale = input.locale
         ? resolveResponseLanguage(input.locale)
         : null;
-      if (locale && "findings" in report) {
-        const textsToProject: string[] = [report.summary];
-        for (const finding of report.findings) {
-          textsToProject.push(finding.summary, ...finding.recommendations);
-        }
-        const projections = await this.projectionService.projectBatch(
-          textsToProject,
-          locale,
+      if (locale) {
+        const localized = assessmentFinalReportArtifactVersionedSchema.parse(
+          await this.projectionService.localizedReportDocument(
+            input.assessmentId,
+            artifact.artifactId,
+            sha256Hex(content),
+            report,
+            locale,
+          ),
         );
-        const projectedReport = {
-          ...report,
-          summary: projections.get(report.summary) ?? report.summary,
-          findings: report.findings.map((finding) => ({
-            ...finding,
-            summary: projections.get(finding.summary) ?? finding.summary,
-            recommendations: finding.recommendations.map(
-              (recommendation) =>
-                projections.get(recommendation) ?? recommendation,
-            ),
-          })),
-        };
-        const projectedContent = JSON.stringify(projectedReport);
+        const localizedContent = Buffer.from(JSON.stringify(localized), "utf8");
         return {
           artifactId: artifact.artifactId,
-          content: Buffer.from(projectedContent),
-          contentSha256: sha256Hex(projectedContent),
+          content: localizedContent,
+          contentSha256: sha256Hex(localizedContent.toString("utf8")),
+          sourceArtifactSha256: sha256Hex(content),
         };
       }
       return {
         artifactId: artifact.artifactId,
         content: Buffer.from(content),
         contentSha256: sha256Hex(content),
+        sourceArtifactSha256: sha256Hex(content),
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw problemException(
         ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
         input.correlationId,

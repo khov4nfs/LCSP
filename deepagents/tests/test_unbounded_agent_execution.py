@@ -87,7 +87,7 @@ def preparation_responses() -> list[AIMessage]:
 
 
 def test_old_preparation_ceiling_reproduces_framework_exhaustion(tmp_path: Path) -> None:
-    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+    context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=_bundle()["legalSourceVersionId"])
     materialize_legal_source(_bundle(), tmp_path)
     model = _model(preparation_responses())
     agent = create_rule_set_preparation_agent(context=context, legal_source_root=tmp_path, model=model)

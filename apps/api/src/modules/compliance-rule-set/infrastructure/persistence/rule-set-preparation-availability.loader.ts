@@ -52,6 +52,7 @@ export async function loadRuleSetPreparationAvailability(
   const unavailable: RuleSetPreparationAvailability = {
     legalSourceVersionId: null,
     legalSourceVersion: null,
+    activeSourceCandidates: [],
     activeRuleSetVersionId: null,
     canStart: false,
     canReplace: false,
@@ -59,7 +60,33 @@ export async function loadRuleSetPreparationAvailability(
       RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ELIGIBLE,
     currentRun: null,
   };
-  if (sources.length !== 1) return unavailable;
+  const activeSourceCandidates = sources.map((source) => {
+    const activation = source.activations[0];
+    const sourceEvidenceComplete = Boolean(
+      source.integrityManifestRef &&
+      activation?.integrityManifestRef === source.integrityManifestRef &&
+      activation.retrievalValidationRef &&
+      source.retrievalIndexes.some(
+        (index) =>
+          index.validationManifestRef === activation.retrievalValidationRef,
+      ) &&
+      source.documents.length > 0 &&
+      source.documents.every((document) => document._count.chunks > 0),
+    );
+    return {
+      legalSourceVersionId: source.id,
+      version: source.version,
+      sourceEvidenceComplete,
+    };
+  });
+  if (sources.length > 1)
+    return {
+      ...unavailable,
+      activeSourceCandidates,
+      refusalReason:
+        RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_SOURCE_AMBIGUOUS,
+    };
+  if (sources.length !== 1) return { ...unavailable, activeSourceCandidates };
   const source = sources[0];
   const activation = source.activations[0];
   if (
@@ -73,7 +100,7 @@ export async function loadRuleSetPreparationAvailability(
     source.documents.length === 0 ||
     source.documents.some((document) => document._count.chunks === 0)
   )
-    return unavailable;
+    return { ...unavailable, activeSourceCandidates };
 
   const [ruleSet, run] = await Promise.all([
     tx.complianceRuleSetVersion.findFirst({
@@ -102,6 +129,7 @@ export async function loadRuleSetPreparationAvailability(
   return {
     legalSourceVersionId: source.id,
     legalSourceVersion: source.version,
+    activeSourceCandidates,
     activeRuleSetVersionId: ruleSet?.id ?? null,
     canStart: refusalReason === null,
     canReplace: ruleSet !== null && !preparing,

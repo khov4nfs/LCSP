@@ -65,7 +65,7 @@ def test_native_scratch_permission_does_not_allow_editing_the_runtime_pin_marker
 
     replies = {m.tool_call_id: str(m.content) for m in result["messages"] if isinstance(m, ToolMessage)}
     assert "denied" in replies["tamper"].lower()
-    assert marker.read_text() == "server-only-pins"
+    assert marker.read_text(encoding="utf-8") == "server-only-pins"
     assert marker.with_name("agent").joinpath("investigation.md").is_file()
 
 
@@ -133,7 +133,7 @@ def test_native_context_compaction_uses_existing_governed_summary_path(tmp_path,
         {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNuoAAAAASUVORK5CYII="}},
     ]
     captured = json.loads((Path(__file__).parents[2] /
-        "docs/implementation-artifacts/lcsp360-cheatshield-20261026/genuine-decision-audit.json").read_text())
+        "docs/implementation-artifacts/lcsp360-cheatshield-20261026/genuine-decision-audit.json").read_text(encoding="utf-8"))
     fact_context = json.dumps({"facts": captured["facts"], "evidence": captured["evidence"]})
     history[1:1] = [
         _call("get_assessment_context", {}, "captured-context"),
@@ -148,7 +148,8 @@ def test_native_context_compaction_uses_existing_governed_summary_path(tmp_path,
     assert summaries, "native compaction must pass through the Root's configured governance"
     assert "Earlier investigation observation" in str(summaries[0].messages)
     assert summaries[0].system_message is not None, "compaction lost the investigator's authority instructions"
-    assert summaries[0].system_message.content == ROOT_INSTRUCTIONS
+    from runtime_instruction_bundle import runtime_instruction
+    assert summaries[0].system_message.content == runtime_instruction("assessment-root.system")
     assert fact_context in str(summaries[0].messages), "retain the actual fact authority and evidence for model-authored compaction"
     saved_history = tmp_path / "repo/.lcsp/agent/conversation_history"
     assert list(saved_history.glob("*.md"))
@@ -237,9 +238,9 @@ def test_selected_root_catalog_exposes_only_authorized_rules_across_pages(tmp_pa
 def test_captured_genuine_packet_can_be_reinvestigated_then_pause_for_human_facts(tmp_path):
     """Replay tool/context plumbing only: scripted choices are not a live semantic verdict."""
     captured = json.loads((Path(__file__).parents[2] /
-        "docs/implementation-artifacts/lcsp360-cheatshield-20261026/genuine-decision-audit.json").read_text())
+        "docs/implementation-artifacts/lcsp360-cheatshield-20261026/genuine-decision-audit.json").read_text(encoding="utf-8"))
     trace = json.loads((Path(__file__).parents[2] /
-        "docs/implementation-artifacts/lcsp360-cheatshield-20261026/native-root-investigation-trace-20261027.json").read_text())
+        "docs/implementation-artifacts/lcsp360-cheatshield-20261026/native-root-investigation-trace-20261027.json").read_text(encoding="utf-8"))
     assert trace["assessmentId"] == captured["assessmentId"]
     prior = next(row for row in captured["acceptedDecisions"] if row["assessmentRuleId"] == "ar-c12-rec")
     basis = captured["latestDecisionPinnedLegalContext"]

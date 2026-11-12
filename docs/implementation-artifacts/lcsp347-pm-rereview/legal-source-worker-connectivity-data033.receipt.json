@@ -1,0 +1,137 @@
+﻿{
+  "schema": "lcsp347.data033.worker-ingestion-receipt.v1",
+  "recordedAt": "2026-11-12",
+  "repository": {
+    "branch": "feat/LCSP-347-assessment-prompt-locales",
+    "head": "b9ad65585b63ca9ee5e1cff41b9b63dd0e967713",
+    "pr": 456,
+    "state": "OPEN_DRAFT"
+  },
+  "environment": {
+    "postgresContainer": "lcsp347-data031-postgres",
+    "database": "lcsp_data032_http_worker",
+    "role": "lcsp_test",
+    "postgresPublishedPort": 55445,
+    "rabbitContainer": "lcsp347-data031-rabbit",
+    "rabbitVhost": "/lcsp-data032",
+    "rabbitPublishedPort": 5678,
+    "workerRuntime": "native Windows process, deepagents/.venv/Scripts/python.exe, Python 3.11.16",
+    "apiBaseUrl": "http://127.0.0.1:43132",
+    "agentServer": "http://127.0.0.1:2024"
+  },
+  "source": {
+    "instrument": "Law 134/2025/QH15",
+    "sha256": "ced80bf1fd45a576a785994da3471d9a2fbdc54e799216e0c9dba5da62d45af7",
+    "byteLength": 66110,
+    "extractor": "managed-document-ingest:docx-xml",
+    "extractorVersion": "1.1.0",
+    "profile": "ARTICLES",
+    "extractedCharacters": 48832,
+    "extractedTextSha256": "sha256:6370b7cbb224af43601d2c5e94f21e2c566d5e956fcb40a0dd54db94a71eb4e9",
+    "parserGaps": [],
+    "articleHeadings": 35,
+    "articleHeadingSequence": "1-35"
+  },
+  "rootCause": {
+    "status": "CONFIRMED",
+    "diagnostic": "Earlier httpx.ConnectError was connection refused to the absent local LangGraph Agent Server at 127.0.0.1:2024; the consumer had been launched without its required Agent Server.",
+    "correctedTopology": "Both Agent Server and RabbitMQ consumer explicitly targeted the isolated Nest API at 127.0.0.1:43132."
+  },
+  "scenarios": [
+    {
+      "kind": "AUTHENTICATED_HTTP_UPLOAD",
+      "documentId": "637a96fc-4b7e-464a-8286-9cbfe920b668",
+      "draftVersionId": "00b8ec4c-6fb5-4852-8830-bc01b55bdeba",
+      "attempt": 2,
+      "outboxId": "outbox:9aa28e4b672bb41a66dbe6bb76b5e53397d717e4e5189303fbfb5b7889caf344",
+      "correlationId": "631bef91-3abb-4c41-9795-b96e3a2c2a79",
+      "agentThreadId": "fecbc9ed-38a2-5cc5-9db7-165edeefd4eb",
+      "agentRunId": "01a1cbb7-4ae5-77d3-8264-232ac3383994",
+      "agentRequestId": "NOT_CAPTURED",
+      "brokerMessageId": "NOT_CAPTURED",
+      "brokerDeliveryTag": "NOT_CAPTURED",
+      "workerOriginalFetch": "HTTP_200_AUTHENTICATED",
+      "workerCallback": "HTTP_200_APPLIED_READY",
+      "finalDocumentState": "READY",
+      "storedOriginalHashParity": "PASS",
+      "chunks": 265,
+      "uniqueLocators": 265,
+      "chunkHashes": "PASS",
+      "structuralIndex": "VALID"
+    },
+    {
+      "kind": "AUTHENTICATED_HTTP_UPLOAD",
+      "documentId": "94983e3a-f465-4fac-972a-24bfecd81021",
+      "draftVersionId": "bfbe8ea7-a455-40ea-a088-589d5aa43c44",
+      "attempt": 2,
+      "outboxId": "outbox:be815911610ebf53826b9461821e0d949cd6cc2b8cc09800c9336643f573fcf0",
+      "correlationId": "80a31867-9075-4a8d-81c2-507f33c912a2",
+      "agentThreadId": "e2b13726-147a-58b2-8be1-25b91bc289c7",
+      "agentRunId": "01a1cbb7-50df-79d3-9d47-533b658662f0",
+      "agentRequestId": "2fb5a3be-312a-4915-8b18-1319e42c4e07",
+      "brokerMessageId": "NOT_CAPTURED",
+      "brokerDeliveryTag": "NOT_CAPTURED",
+      "workerOriginalFetch": "HTTP_200_AUTHENTICATED",
+      "workerCallback": "HTTP_200_APPLIED_READY",
+      "finalDocumentState": "READY",
+      "storedOriginalHashParity": "PASS",
+      "chunks": 265,
+      "uniqueLocators": 265,
+      "chunkHashes": "PASS",
+      "structuralIndex": "VALID"
+    },
+    {
+      "kind": "AUTHENTICATED_HTTP_URL_IMPORT",
+      "documentId": "79c06b08-aebc-4e05-9400-f3af4591f6cc",
+      "draftVersionId": "fa7328eb-2201-4105-94fb-a0032b91085c",
+      "attempt": 2,
+      "outboxId": "outbox:5c4327f77ea9d07d3c555300a4f19680fde01fa8cb5b0504b2cab9ef866e9828",
+      "correlationId": "fa996a25-ed24-487b-ab9f-dcb53ddbdaa5",
+      "agentThreadId": "37521d36-5ba2-5966-bb8c-08b431a8e996",
+      "agentRunId": "01a1cbb7-54fc-75e1-8230-0415226f5f60",
+      "agentRequestId": "115f73f2-d8b4-48d7-a001-dc1fcebd91e3",
+      "brokerMessageId": "NOT_CAPTURED",
+      "brokerDeliveryTag": "NOT_CAPTURED",
+      "workerOriginalFetch": "HTTP_200_AUTHENTICATED",
+      "workerCallback": "HTTP_200_APPLIED_READY",
+      "finalDocumentState": "READY",
+      "storedOriginalHashParity": "PASS",
+      "chunks": 265,
+      "uniqueLocators": 265,
+      "chunkHashes": "PASS",
+      "structuralIndex": "VALID"
+    }
+  ],
+  "finalCounts": {
+    "documentsReady": 3,
+    "sourceVersionsDraft": 3,
+    "activations": 0,
+    "preparationRuns": 0,
+    "llmUsageEvents": 0,
+    "paidModelCalls": 0
+  },
+  "queueResidue": {
+    "activeTestPrefixQueues": "empty; no consumer left running",
+    "priorTaskPrefix": "data032-32fd4612cf7d",
+    "readyMessagesLeftUntouched": 5,
+    "unackedMessages": 0,
+    "consumerCount": 0,
+    "note": "Task-owned residual messages in isolated vhost; not purged, consumed, or acknowledged. Reconcile before any future consumer start."
+  },
+  "verification": {
+    "pythonCommand": "cd deepagents && uv run --frozen pytest -q tests/test_managed_document_ingest.py tests/test_agent_runtime_rabbitmq_consumer.py tests/test_agent_server_client.py",
+    "pythonResult": "101 passed, 1 warning, 0 failed",
+    "apiCommand": "cd apps/api && pnpm exec cross-env NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./jest.config.ts --runInBand --runTestsByPath src/http-body-parser.spec.ts src/modules/legal-source/application/services/document-media-type.spec.ts",
+    "apiResult": "2 suites passed, 12 tests passed",
+    "legalCompleteness": "NOT_PROVEN; no independent page-linked legal review"
+  },
+  "authorityBoundaries": {
+    "historicalDatabasesMutated": false,
+    "activeSourceMutations": 0,
+    "sourceActivation": false,
+    "preparationRuns": 0,
+    "paidModelCalls": 0,
+    "legalApprovalClaimed": false
+  },
+  "codeChanges": "NONE; corrected local runtime topology and test harness configuration only"
+}

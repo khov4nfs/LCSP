@@ -1,0 +1,20 @@
+{
+  "status": "BLOCKED_EXTERNAL_REVIEW_INPUT",
+  "blockingReasons": [
+    "PM_REVIEW_PACKAGE_EXTERNAL_DIGEST_REQUIRED",
+    "PM_REVIEW_PACKAGE_INDEPENDENT_APPROVAL_REQUIRED",
+    "PM_MODEL_EVALUATION_AUTHORIZATION_REQUIRED",
+    "PM_REVIEW_CONTROL_REQUIRED:development",
+    "PM_REVIEW_CONTROL_REQUIRED:mixed",
+    "PM_REVIEW_CONTROL_REQUIRED:legalReviewRequired",
+    "PM_REVIEW_CASE_EVIDENCE_REQUIRED:RISK_CLASSIFICATION_BEFORE_USE:legalSourceVersionId,legalSourceVersion,effectiveProvision,locator,sourceText,sourceSha256,effectStatus,actor,action,trigger,lifecycleStage,repositoryVerifiableAspect,proposedDisposition,independentReviewerId,goldRevision,approvedGoldDigest",
+    "PM_REVIEW_CASE_EVIDENCE_REQUIRED:DATA_PROCESSING_IMPACT_DOSSIER:legalSourceVersionId,legalSourceVersion,effectiveProvision,locator,sourceText,sourceSha256,effectStatus,actor,action,trigger,lifecycleStage,repositoryVerifiableAspect,proposedDisposition,independentReviewerId,goldRevision,approvedGoldDigest",
+    "PM_REVIEW_CASE_EVIDENCE_REQUIRED:RISK_DOSSIER_CONTENT:legalSourceVersionId,legalSourceVersion,effectiveProvision,locator,sourceText,sourceSha256,effectStatus,actor,action,trigger,lifecycleStage,repositoryVerifiableAspect,proposedDisposition,independentReviewerId,goldRevision,approvedGoldDigest",
+    "PM_REVIEW_CASE_EVIDENCE_REQUIRED:RISK_DOSSIER_RETENTION:legalSourceVersionId,legalSourceVersion,effectiveProvision,locator,sourceText,sourceSha256,effectStatus,actor,action,trigger,lifecycleStage,repositoryVerifiableAspect,proposedDisposition,independentReviewerId,goldRevision,approvedGoldDigest",
+    "PM_REVIEW_CASE_EVIDENCE_REQUIRED:MATERIAL_CHANGE_REASSESSMENT:legalSourceVersionId,legalSourceVersion,effectiveProvision,locator,sourceText,sourceSha256,effectStatus,actor,action,trigger,lifecycleStage,repositoryVerifiableAspect,proposedDisposition,independentReviewerId,goldRevision,approvedGoldDigest",
+    "PM_REVIEW_CASE_EVIDENCE_REQUIRED:OPERATIONAL_INFORMATION_MEASURES:legalSourceVersionId,legalSourceVersion,effectiveProvision,locator,sourceText,sourceSha256,effectStatus,actor,action,trigger,lifecycleStage,repositoryVerifiableAspect,proposedDisposition,independentReviewerId,goldRevision,approvedGoldDigest",
+    "PM_REVIEW_CASE_EVIDENCE_REQUIRED:CHILD_PRIVACY_DISCLOSURE_CONSENT:legalSourceVersionId,legalSourceVersion,effectiveProvision,locator,sourceText,sourceSha256,effectStatus,actor,action,trigger,lifecycleStage,repositoryVerifiableAspect,proposedDisposition,independentReviewerId,goldRevision,approvedGoldDigest"
+  ],
+  "paidModelCalls": 0,
+  "modelEvaluation": "NOT_RUN"
+}

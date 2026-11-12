@@ -1,149 +1,167 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, HttpStatus } from "@nestjs/common";
+import { isSupportedResponseLanguage } from "@lcsp/contracts/shared/locale";
 import {
-  resolveResponseLanguage,
-  isSupportedResponseLanguage,
-} from "@lcsp/contracts/shared/locale";
+  AUTHORED_LOCALIZATION_CODES,
+  type AuthoredLocalizationEntity,
+} from "@lcsp/contracts/assessment-domain";
+import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { randomUUID } from "node:crypto";
 
-const presentationProjectionCache = new Map<string, string>();
-
-export function getPresentationProjection(
-  text: string,
-  locale: string,
-): string | undefined {
-  return presentationProjectionCache.get(`${locale}:${text}`);
-}
-
-export function registerPresentationProjection(
-  text: string,
-  locale: string,
-  projectedText: string,
-): void {
-  presentationProjectionCache.set(`${locale}:${text}`, projectedText);
-}
-
-export function clearPresentationProjections(): void {
-  presentationProjectionCache.clear();
-}
-
-/**
- * Service providing locale-aware presentation projection for customer-visible narrative data.
- * Keeps domain and database records strictly canonical while delivering translated representations
- * on demand at the read/presentation boundary.
- */
+/** Durable projection only. No provider calls, language guessing or local cache. */
 @Injectable()
 export class LocalePresentationProjectionService {
-  getPresentationProjection(text: string, locale: string): string | undefined {
-    return getPresentationProjection(text, locale);
+  constructor(private readonly localization: AuthoredLocalizationService) {}
+
+  /**
+   * Business purpose: Present pinned coverage concepts in the requested customer locale.
+   * Business rules:
+   * - Validate locale and scope; preserve exact rule identities and canonical content revisions.
+   * Execution flow:
+   * 1. Delegate bounded bulk resolution to the path-addressed localization service.
+   * Failure cases:
+   * - Missing reviewed concepts or unsupported locale fail closed.
+   * Side effects:
+   * - Database reads only; no translation on GET.
+   */
+  async projectRuleConcepts(
+    rules: readonly {
+      assessmentRuleId: string;
+      contentDigest: string;
+      concept: string;
+    }[],
+    locale: string | null,
+    scopeId: string,
+  ) {
+    if (!locale)
+      return new Map(
+        rules.map((rule) => [rule.assessmentRuleId, rule.concept]),
+      );
+    if (!scopeId || !isSupportedResponseLanguage(locale))
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    return this.localization.projectRuleConcepts(rules, locale, scopeId);
   }
 
-  registerPresentationProjection(
-    text: string,
+  /**
+   * Business purpose: Read or freeze a locale artifact bound to the immutable report source.
+   *
+   * Business rules:
+   * - Canonical report bytes and source identity cannot be rewritten by localization.
+   * Execution flow:
+   * 1. Delegate to the durable localization service with exact scope, artifact and source digest.
+   * Failure cases:
+   * - Missing or inconsistent translations propagate an explicit incomplete/integrity failure.
+   * Side effects:
+   * - May persist a new immutable localized artifact after all translations are ready.
+   */
+  localizedReportDocument(
+    scopeId: string,
+    sourceArtifactId: string,
+    sourceSha256: string,
+    report: unknown,
     locale: string,
-    projectedText: string,
-  ): void {
-    registerPresentationProjection(text, locale, projectedText);
+  ) {
+    return this.localization.localizedReportDocument(
+      scopeId,
+      sourceArtifactId,
+      sourceSha256,
+      report,
+      locale,
+    );
   }
 
-  clearPresentationProjections(): void {
-    clearPresentationProjections();
-  }
-
+  /**
+   * Business purpose: Return one persisted locale-specific authored string.
+   *
+   * Business rules:
+   * - Canonical reads remain available when no locale is requested; localized reads never guess another language.
+   * Execution flow:
+   * 1. Resolve the text through the shared batch projection and retrieve its exact result.
+   * Failure cases:
+   * - Unavailable or invalid locale projections propagate explicit errors.
+   * Side effects:
+   * - Read durable translation records without making provider calls.
+   */
   async projectText(
     text: string,
-    targetLocale?: string | null,
+    targetLocale: string | null | undefined,
+    scopeId: string,
   ): Promise<string> {
-    const results = await this.projectBatch([text], targetLocale);
-    return results.get(text) ?? text;
+    const projected = await this.projectBatch([text], targetLocale, scopeId);
+    return projected.get(text)!;
   }
 
+  /**
+   * Business purpose: Project authored strings from durable locale revisions.
+   *
+   * Business rules:
+   * - Requested locale and authorized scope are required; entity/revision bindings constrain reuse when supplied.
+   * Execution flow:
+   * 1. Validate locale/scope and delegate the requested texts and binding to persistent projection.
+   * Failure cases:
+   * - Invalid locale/scope or unavailable translations return an actionable conflict.
+   * Side effects:
+   * - Database reads only; no process-local cache or GET-time translation.
+   */
   async projectBatch(
     texts: string[],
-    targetLocale?: string | null,
+    targetLocale: string | null | undefined,
+    scopeId: string,
+    binding?: {
+      entityType: AuthoredLocalizationEntity;
+      entityId: string;
+      canonicalRevision: string;
+    },
   ): Promise<Map<string, string>> {
-    const result = new Map<string, string>();
-    if (!texts.length) return result;
+    if (!targetLocale) return new Map(texts.map((text) => [text, text]));
+    if (!scopeId || !isSupportedResponseLanguage(targetLocale))
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    return this.localization.project(texts, targetLocale, scopeId, binding);
+  }
 
-    if (!targetLocale || !isSupportedResponseLanguage(targetLocale)) {
-      for (const text of texts) {
-        result.set(text, text);
-      }
-      return result;
-    }
-
-    const locale = resolveResponseLanguage(targetLocale);
-    const missing: string[] = [];
-    const isAscii = (str: string) => !/[^\t\n\r\x20-\x7E]/.test(str);
-
-    for (const text of texts) {
-      if (!text || text.trim() === "") {
-        result.set(text, text);
-        continue;
-      }
-      if (locale === "en" && isAscii(text)) {
-        result.set(text, text);
-        continue;
-      }
-      const cached = presentationProjectionCache.get(`${locale}:${text}`);
-      if (cached !== undefined) {
-        result.set(text, cached);
-      } else {
-        missing.push(text);
-      }
-    }
-
-    if (missing.length === 0) {
-      return result;
-    }
-
-    // Attempt upstream translation via Agent Server runtime if configured
-    const agentServerUrl = process.env.LCSP_AGENT_SERVER_URL;
-    const workerApiKey = process.env.WORKER_API_KEY;
-
-    if (agentServerUrl && workerApiKey) {
-      try {
-        const response = await fetch(
-          new URL("/internal/project-locale", agentServerUrl),
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Worker-Api-Key": workerApiKey,
-            },
-            body: JSON.stringify({
-              texts: missing,
-              targetLocale: locale,
-            }),
-            signal: AbortSignal.timeout(10_000),
-          },
-        );
-
-        if (response.ok) {
-          const body = (await response.json()) as {
-            projected?: Record<string, string>;
-          };
-          if (body?.projected && typeof body.projected === "object") {
-            for (const [orig, projected] of Object.entries(body.projected)) {
-              if (typeof projected === "string") {
-                presentationProjectionCache.set(`${locale}:${orig}`, projected);
-                result.set(orig, projected);
-              }
-            }
-          }
-        }
-      } catch {
-        // Fall back gracefully on network or timeout failure
-      }
-    }
-
-    // Populate any remaining missing texts from cache (if populated concurrently) or canonical fallback
-    for (const text of missing) {
-      if (!result.has(text)) {
-        const cached = presentationProjectionCache.get(`${locale}:${text}`);
-        const finalValue = cached !== undefined ? cached : text;
-        result.set(text, finalValue);
-      }
-    }
-
-    return result;
+  /**
+   * Business purpose: Project a structured authored document using exact JSON-pointer field-path bindings.
+   *
+   * Business rules:
+   * - Each authored field resolves only from its exact fieldPath, entity identity, and canonical revision.
+   * Execution flow:
+   * 1. Validate locale/scope and delegate path-addressed projection to the durable localization service.
+   * Failure cases:
+   * - Invalid locale/scope or incomplete/corrupt field revisions propagate an actionable conflict.
+   * Side effects:
+   * - Database reads only; canonical document remains unchanged.
+   */
+  async projectDocument<T>(
+    document: T,
+    targetLocale: string | null | undefined,
+    scopeId: string,
+    binding: {
+      entityType: AuthoredLocalizationEntity;
+      entityId: string;
+      canonicalRevision: string;
+      canonicalDigest?: string;
+    },
+  ): Promise<T> {
+    if (!targetLocale) return document;
+    if (!scopeId || !isSupportedResponseLanguage(targetLocale))
+      throw problemException(
+        AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    return this.localization.projectDocument(
+      document,
+      targetLocale,
+      scopeId,
+      binding,
+    );
   }
 }

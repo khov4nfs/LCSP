@@ -1,5 +1,203 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
+  preparationOps: {
+    persistedCoverage: "Persisted source coverage",
+
+    title: "Selected Preparation - canonical run",
+    runId: "Preparation Run ID",
+    source: "Legal Source version / ID",
+    scope: "Preparation scope",
+    contract: "Execution contract",
+    attempt: "Attempt",
+    state: "Canonical execution state",
+    started: "Started at",
+    lastActivity: "Last confirmed event",
+    currentStage: "Persisted preparation stage",
+    blockers: "Blocked source units",
+    requirements: "Persisted Legal Requirements",
+    rules: "Persisted Assessment Rules",
+    retryPermitted: "Retry permitted",
+    resumePermitted: "Resume permitted",
+    yes: "Yes",
+    no: "No",
+    notReported: "NOT_REPORTED - unavailable evidence",
+    canonicalState:
+      "Connectivity is telemetry only. The backend execution state determines the run outcome.",
+    failure: "Safe failure diagnostics",
+    resumeAction:
+      "Inspect the recorded failure, then explicitly resume this run using the existing action.",
+    retryAction:
+      "Inspect the recorded failure before explicitly requesting a new retry attempt.",
+    inspectAction:
+      "Inspect source, runtime configuration and review blockers. No automatic retry will be started.",
+    persistedCounts:
+      "Persisted counters and observed stream snapshots are separate evidence. Missing counters are not zero.",
+    billingUnavailable:
+      "Persisted billing / reconciled provider cost: NOT_AVAILABLE in this view. No estimated charge is asserted.",
+    observedUsage:
+      "Observed stream usage only; partial history and missing token metadata may undercount real provider attempts or billing.",
+    partial: "Partial telemetry: some progress counters were not reported.",
+    inconsistent:
+      "Inconsistent counters: the recorded snapshots disagree. Do not treat this as complete source coverage.",
+    visibleHistory:
+      "Visible activity rows / loaded rows (not complete run history)",
+    showEarlier: "Show earlier loaded activity",
+    loadOlder: "Load older persisted events",
+    historyLoading: "Loading persisted event history...",
+    historyError:
+      "Persisted history unavailable; live telemetry and canonical run state remain separate.",
+    retryHistory: "Retry history read",
+    observedInput: "Observed input tokens",
+    observedOutput: "Observed output tokens",
+    observedTotal: "Observed total tokens",
+    stages: {
+      SOURCE_LOADING: "Legal Source loading",
+      SOURCE_DISCOVERY: "Source discovery",
+      CLAIM_INVENTORY: "Claim inventory",
+      SOURCE_REVIEW: "Source review",
+      RULE_AUTHORING: "Rule authoring",
+      RULE_VALIDATION: "Rule validation",
+      SUBMISSION: "Submission",
+      ACTIVATION: "Activation / reviewed completion",
+    },
+    statuses: {
+      NOT_REPORTED: "NOT_REPORTED",
+      NOT_STARTED: "NOT_STARTED",
+      RUNNING: "RUNNING",
+      COMPLETED: "COMPLETED",
+      FAILED: "FAILED",
+      BLOCKED: "BLOCKED",
+      PAUSED: "PAUSED",
+    },
+    diagnostics: {
+      failingModel: "Failing model/provider",
+      operation: "Failed model operation",
+      retryability: "Reported retryability",
+      callbackStatus: "Callback HTTP status",
+      attempt: "Physical attempt ordinal (reported)",
+      lastSuccess: "Last confirmed successful event",
+
+      stage: "Failed stage",
+      category: "Safe error category",
+      code: "Safe callback code",
+      exceptionClass: "Exception class",
+      reason: "Failure reason",
+      lastModel: "Last completed model call identity",
+      activeTools: "Active tool names",
+    },
+  },
+  localizationReview: {
+    nextPage: "Next page",
+    previousPage: "Previous page",
+    filter: "Work filter",
+    pageSelection: "Selected on this page (selection clears when navigating):",
+    batchLimit:
+      "Select at most 50 fields per batch. No selected fields will be silently omitted.",
+    batchResults: "Individual review results",
+    accepted: "Accepted",
+    rejected: "Rejected; review remains unresolved",
+    filters: {
+      ALL: "All current jobs",
+      SOURCE_REVIEW_REQUIRED: "Source review required",
+      OUTPUT_REVIEW_REQUIRED: "Output review required",
+      PROVIDER_PENDING: "Provider pending",
+      PROVIDER_FAILED: "Provider retry required",
+      FAILED: "Failed",
+      READY: "Ready",
+      UNKNOWN_SOURCE: "Unknown source",
+      MIXED_SOURCE: "Mixed source",
+    },
+
+    title: "Localization operational readiness",
+    description:
+      "Discover pending localization scopes, attest source language provenance, and review or normalize target-language candidates.",
+    loading: "Loading localization queue",
+    unavailable: "Localization operational queue is unavailable.",
+    empty: "No localization scopes require review.",
+    scopeTitle: "Scope localization review",
+    scopeDescription:
+      "Inspect exact field provenance, attest source language, and approve, normalize, reject, or retry target-language candidates.",
+    selectScope: "Inspect scope",
+    workerEnabled: "Worker enabled",
+    providerConfigured: "Provider configured",
+    pendingJobs: "Pending jobs",
+    oldestPendingSeconds: "Oldest pending age (s)",
+    retries: "Retries",
+    failedJobs: "Failed jobs",
+    sourceReviewsAwaiting: "Source reviews awaiting",
+    outputReviewsAwaiting: "Candidate/output reviews awaiting",
+    readinessEn: "EN readiness",
+    readinessVi: "VI readiness",
+    sourceLanguage: "Source language",
+    targetLocale: "Target locale",
+    fieldPath: "Field path",
+    entity: "Entity",
+    canonicalRevision: "Canonical revision",
+    originSha256: "Origin SHA-256",
+    originalContent: "Original content",
+    candidateContent: "Candidate / revision output",
+    normalizedContent: "Normalized target content (optional)",
+    evidenceLabel: "Review evidence",
+    confirmsIndividualFieldReview:
+      "I confirm each selected field's source language was individually inspected.",
+    confirmsTargetLanguageAndMeaning:
+      "I confirm the target language and legal/technical meaning match the canonical source.",
+    reviewSourceSubmit: "Record source review",
+    batchSourceSubmit: "Batch attest source language",
+    approveOutputSubmit: "Approve / normalize output",
+    batchOutputSubmit: "Batch approve output",
+    rejectCandidateSubmit: "Reject candidate",
+    retryRequestSubmit: "Retry request",
+    yes: "Yes",
+    no: "No",
+    invalid:
+      "Complete required review evidence and confirmations before submitting.",
+  },
+  ruleGrouping: {
+    localizationReady: "Localized fields READY",
+    localizationPending: "Localized fields PENDING / review required",
+    localizationFailed: "Localized fields FAILED",
+    submitter: "Submitted by",
+    reviewer: "Approved by",
+    groupDescriptions: {
+      ARCHITECTURE_SAFETY_BY_DESIGN:
+        "Reviewed architecture and pre-release safety responsibilities.",
+      DATA_MODEL_LIFECYCLE:
+        "Reviewed technical responsibilities across data and model development.",
+      CYBERSECURITY_TECHNICAL_CONTROLS:
+        "Reviewed implementation of security safeguards and technical controls.",
+      TESTING_CHANGE_ASSURANCE:
+        "Reviewed testing and assurance responsibilities for development changes.",
+      USER_FACING_TRANSPARENCY:
+        "Reviewed development of user-facing disclosures and transparency.",
+      HUMAN_OVERSIGHT_INTERVENTION:
+        "Reviewed technical support for human oversight and intervention.",
+    },
+    title: "Review rule grouping",
+    description:
+      "Review each assignment before requesting independent approval.",
+    loading: "Loading proposal",
+    unavailable: "Grouping requires an active Development-only Rule Set.",
+    unassigned: "Select primary group",
+    rationaleEn: "English rationale",
+    rationaleVi: "Vietnamese rationale",
+    submit: "Submit complete grouping",
+    approve: "Approve displayed digest independently",
+    previous: "Previous",
+    next: "Next",
+    invalid:
+      "Resolve incomplete entries, stale pins or self-approval before continuing.",
+    digest: "Membership digest",
+    status: "Review status",
+    groups: {
+      ARCHITECTURE_SAFETY_BY_DESIGN: "Architecture and Safety by Design",
+      DATA_MODEL_LIFECYCLE: "Data and Model Lifecycle",
+      CYBERSECURITY_TECHNICAL_CONTROLS: "Cybersecurity and Technical Controls",
+      TESTING_CHANGE_ASSURANCE: "Testing and Change Assurance",
+      USER_FACING_TRANSPARENCY: "User-facing Transparency",
+      HUMAN_OVERSIGHT_INTERVENTION: "Human Oversight and Intervention",
+    },
+  },
   complianceRuleSets: {
     resume: "Resume preparation",
     resuming: "Resuming…",
@@ -10,7 +208,9 @@ export const enPages = {
       PREPARING_RULE_SET: "Preparing Rule Set",
       VALIDATION_REQUIRED: "Validation Required",
       VALIDATION_FAILED: "Validation Failed",
-      RULE_SET_READY: "Rule Set Ready",
+      DRAFT_VALIDATED: "Draft validated; no Rule Set Version is persisted",
+      RULE_SET_READY: "Rule Set Version persisted; activation not confirmed",
+      SUCCEEDED_WITHOUT_ARTIFACT: "Preparation succeeded without an artifact",
       ACTIVE: "Active",
     },
     draft: {
@@ -22,6 +222,8 @@ export const enPages = {
       validationErrors: "Validation errors",
       available: "Assessments can use this active Rule Set.",
       unavailable: "Assessments cannot use this draft yet.",
+      historicalSuccessWithoutArtifact:
+        "This historical run succeeded, but no persisted draft or Rule Set Version is available in this environment. It is not an Assessment-ready Rule Set.",
       boundedPreview: "Showing the first 20 candidates.",
     },
     title: "Compliance rule sets",
@@ -41,6 +243,41 @@ export const enPages = {
     preparations: "Rule Set Preparation",
     emptyPreparations: "No Rule Set Preparation has run yet.",
     prepare: "Prepare rule set",
+    prepareSectionTitle: "Prepare Rule Set",
+    prepareSectionDescription:
+      "Review the pinned Legal Source and eligibility before starting a governed Preparation.",
+    preparationTargetSource: "Target Legal Source Version",
+    activeSourceCandidates: "ACTIVE sources (diagnostic only; not selected)",
+    sourceEvidenceComplete: "Source prerequisites are complete",
+    sourceEvidenceIncomplete: "Required source evidence is incomplete",
+    preparationScope: "Preparation scope",
+    currentPreparation: "Current Preparation",
+    currentActiveRuleSet: "Current Active Rule Set",
+    noCurrentPreparation: "No Preparation is currently running",
+    sourceNotSelected: "No unique eligible source selected",
+    sourceAdminNextStep:
+      "Ask an authorized Legal Source administrator to resolve source eligibility. This page does not change source activation or integrity records.",
+    preparationUnavailable: "Preparation unavailable",
+    scopes: {
+      FULL_SOURCE: "Full Source",
+      DEVELOPMENT_ONLY: "Development only",
+    },
+    blockers: {
+      ACTIVE_SOURCE_AMBIGUOUS:
+        "More than one Legal Source Version is ACTIVE. The server requires exactly one active source and cannot select a target safely.",
+      SOURCE_VERSION_NOT_ELIGIBLE:
+        "There is no uniquely selected ACTIVE Legal Source Version with the required activation, integrity, retrieval, document, and chunk evidence.",
+      ACTIVE_RULE_SET_EXISTS:
+        "An Active Rule Set exists. Starting a replacement requires explicit replacement intent.",
+      PREPARATION_IN_PROGRESS:
+        "A Preparation is already queued or running. A second run cannot be started.",
+      SOURCE_VERSION_NOT_ACTIVE:
+        "The previously selected source is no longer ACTIVE. Refresh to load the current eligibility decision.",
+      RUN_NOT_FAILED:
+        "The selected Preparation is not in a retryable failed state.",
+      RUN_NOT_LATEST_ATTEMPT:
+        "Only the latest Preparation attempt can be retried.",
+    },
     preparing: "Preparing rule set…",
     prepareFailed:
       "Preparation could not be started. Refresh the page and check the current state.",
@@ -223,6 +460,19 @@ export const enPages = {
   },
   assessmentConversation: {
     ruleAudit: {
+      selectGroup: "Select group: {name}",
+      clearGroup: "Clear group: {name}",
+      selectedGroups: "Groups selected: {count}/{total}",
+      actorStage: "Actor: {actor} · Stage: {stage}",
+      developmentStage: "Development",
+      groupingReviewRequired:
+        "Rule grouping is awaiting independent review. These rules cannot be selected yet.",
+      localizationReviewRequired:
+        "Bilingual localization for the selected language is awaiting review. Switch language or wait until localization review completes.",
+      localizationPending:
+        "Bilingual localization for the selected language is still in progress.",
+      localizationFailed:
+        "Bilingual localization for the selected language failed verification and requires administrative retry or normalization.",
       title: "Choose rules to audit",
       description:
         "Only the rules you request will be investigated. Unrequested rules have no audit decision.",

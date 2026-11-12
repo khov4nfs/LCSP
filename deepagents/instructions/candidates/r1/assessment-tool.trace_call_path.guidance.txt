@@ -1,0 +1,1 @@
+WHEN: A reachable path matters to one selected criterion. READ: entrypoint, branches, side effects and coverage gaps. NEXT: verify exact implementation and negative paths. FAILURE: a possible indexed edge is not runtime proof.

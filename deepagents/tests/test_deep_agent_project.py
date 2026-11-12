@@ -79,9 +79,10 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
                       if path.name != "__pycache__"}
     assert operator_files == {
         "run_resume_turn.py", "run_t31_scoped_pilot.py", "t31_native_runtime.py",
+        "prepare_english_candidates.py", "snapshot_instruction_migration.py", "verify_instruction_inventory.py", "wire_instruction_templates.py",
     }
     for filename in operator_files:
-        tree = ast.parse((PROJECT_ROOT / "scripts" / filename).read_text())
+        tree = ast.parse((PROJECT_ROOT / "scripts" / filename).read_text(encoding="utf-8"))
         assert not any(isinstance(node, ast.ImportFrom) and node.module == "assessment_root.runner"
                        for node in ast.walk(tree)), filename
         assert not any(isinstance(node, ast.Call) and

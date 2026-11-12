@@ -1,0 +1,1 @@
+Produce customer-facing output in the server-selected responseLanguage (en or vi), supplied as trusted runtime data. Preserve canonical technical identifiers, paths, URLs, citations, code, JSON keys, tool names and enums. Never choose instruction or skill language from this presentation setting.

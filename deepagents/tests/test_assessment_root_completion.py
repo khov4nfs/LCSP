@@ -160,7 +160,7 @@ def test_human_blocker_remains_native_interrupted_execution(tmp_path):
     assert ("finish", "SUCCEEDED") not in client.calls
 
 
-def test_generic_conversational_root_accepts_one_natural_response(monkeypatch):
+def test_transport_supervisor_rejects_conversation_before_model_inference(monkeypatch):
     import importlib
 
     model = RootScriptedModel(responses=[AIMessage(content="A conversational answer.")])
@@ -171,6 +171,30 @@ def test_generic_conversational_root_accepts_one_natural_response(monkeypatch):
     root = importlib.import_module("agent")
     monkeypatch.setattr(root, "resolve_agent_model", lambda role: model)
     monkeypatch.setattr(root, "MODEL_GOVERNANCE_MIDDLEWARE", [])
-    output = root.create_root_agent().invoke({"messages": [{"role": "user", "content": "Hello"}]})
-    assert output["messages"][-1].content == "A conversational answer."
-    assert len(model.prompts) == 1
+    from runtime_instruction_bundle import RuntimeInstructionBundleError
+    with pytest.raises(RuntimeInstructionBundleError, match="UNSUPPORTED_SUPERVISOR_MODEL_INFERENCE"):
+        root.create_root_agent().invoke({"messages": [{"role": "user", "content": "Hello"}]})
+    assert model.prompts == []
+
+
+def test_transport_supervisor_dispatches_registered_event_without_model_inference(monkeypatch):
+    import importlib
+    from orchestration.context import LCSPRunContext
+    from tools.common.capabilities.agent_runtime.invocation import invocation_boundary_manifest
+
+    model = RootScriptedModel(responses=[])
+    monkeypatch.setattr("model_policy.resolve_agent_model", lambda role: model)
+    monkeypatch.setattr("model_policy.effective_model_configs", lambda: [])
+    monkeypatch.setattr("tools.mcp.load_optional_mcp_tools", lambda: [])
+    root = importlib.import_module("agent")
+    monkeypatch.setattr(root, "resolve_agent_model", lambda role: model)
+    monkeypatch.setattr(root, "MODEL_GOVERNANCE_MIDDLEWARE", [])
+    registered = next(boundary for boundary in invocation_boundary_manifest() if boundary["name"] == "assessment_root_requested")
+    event = {"assessmentId": ASSESSMENT, "eventType": registered["source_event"]}
+    dispatched = []
+    monkeypatch.setattr("middleware.system_event_dispatch.invoke_boundary", lambda name, body, correlation: dispatched.append((name, body, correlation)))
+    root.create_root_agent().invoke({"messages": []}, context=LCSPRunContext(
+        system_boundary_name="assessment_root_requested", system_event=event, correlation_id="supervisor-dispatch-fixture",
+    ))
+    assert dispatched == [("assessment_root_requested", event, "supervisor-dispatch-fixture")]
+    assert model.prompts == []

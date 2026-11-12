@@ -48,10 +48,36 @@ class _SystemEventDispatchMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["end"])
     def before_agent(self, state, runtime) -> dict[str, Any] | None:
-        return _dispatch_system_event(state, runtime)
+        """Business purpose: Keep the transport supervisor restricted to trusted system-event dispatch.
+
+        Business rules:
+        - The supervisor has no interactive inference authority; domain boundaries own reasoning and source pins.
+        Execution flow:
+        1. Dispatch the authenticated runtime event and end; reject a missing dispatch context before model hooks.
+        Failure cases:
+        - Unsupported interactive fallback fails closed; domain/cancellation failures propagate.
+        Side effects:
+        - May execute the authorized boundary, but never the supervisor model or its compaction defaults.
+        """
+        result = _dispatch_system_event(state, runtime)
+        if result is None:
+            from runtime_instruction_bundle import RuntimeInstructionBundleError
+            raise RuntimeInstructionBundleError("UNSUPPORTED_SUPERVISOR_MODEL_INFERENCE")
+        return result
 
     @hook_config(can_jump_to=["end"])
     async def abefore_agent(self, state, runtime) -> dict[str, Any] | None:
+        """Business purpose: Dispatch owned system events without blocking the server event loop.
+
+        Business rules:
+        - Missing event authority cannot fall through to supervisor inference; cancellation waits for physical boundary cleanup.
+        Execution flow:
+        1. Propagate native runtime identity to a worker thread, await dispatch and end the transport graph.
+        Failure cases:
+        - Unsupported fallback rejects; cancellation and boundary failures preserve existing cleanup semantics.
+        Side effects:
+        - Runs the authorized boundary in a thread and restores the cancellation scope on exit.
+        """
         cancel = active_agent_stream_cancel.get() or Event()
         token = active_agent_stream_cancel.set(cancel)
         try:
@@ -64,7 +90,11 @@ class _SystemEventDispatchMiddleware(AgentMiddleware):
             asyncio.to_thread(_dispatch_hosted_system_event, state, runtime, configured)
         )
         try:
-            return await asyncio.shield(task)
+            result = await asyncio.shield(task)
+            if result is None:
+                from runtime_instruction_bundle import RuntimeInstructionBundleError
+                raise RuntimeInstructionBundleError("UNSUPPORTED_SUPERVISOR_MODEL_INFERENCE")
+            return result
         except asyncio.CancelledError:
             # Cancelling to_thread's await does not stop its underlying thread.
             # Keep the native run active until boundary/checkpoint cleanup drains;

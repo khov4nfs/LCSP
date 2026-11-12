@@ -1,0 +1,1 @@
+WHEN: bounded exact lines have been read in pinned snapshot. READ: path:start-end and observed behavior. NEXT: cite returned evidence ID, never fabricated IDs. FAILURE: README, unused code, search hits or a code index alone do not prove actual execution.

@@ -1,3 +1,4 @@
+import { authoredLocalizationFixture } from "../../../../../test/support/authored-localization.fixture.js";
 import { randomUUID } from "node:crypto";
 import { jest } from "@jest/globals";
 import {
@@ -115,6 +116,7 @@ function submitFixture() {
     prisma as unknown as PrismaService,
     { enqueue: enqueued } as unknown as OutboxRepository,
     {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
   );
   jest
     .spyOn(service, "request")
@@ -370,6 +372,7 @@ it("shows Rule 3 ready while Rule 9 investigates or awaits a customer answer", a
     prisma as unknown as PrismaService,
     {} as OutboxRepository,
     {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
   );
 
   const first = await service.request(ASSESSMENT, OWNER, randomUUID(), REQUEST);

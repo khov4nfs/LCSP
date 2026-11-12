@@ -1,3 +1,7 @@
+import {
+  AUTHORED_LOCALIZATION_ENTITIES,
+  AUTHORED_LOCALIZATION_CODES,
+} from "@lcsp/contracts/assessment-domain";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
@@ -5,7 +9,6 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import {
-  ASSESSMENT_FACT_AUTHORITIES,
   assessmentDetailSchema,
   assessmentListSchema,
 } from "@lcsp/contracts/assessment-domain";
@@ -19,7 +22,7 @@ import { LocalePresentationProjectionService } from "../presentation/locale-pres
 export class AssessmentDetailLoader {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
+    private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
   async list(input: {
@@ -145,16 +148,53 @@ export class AssessmentDetailLoader {
               },
             })
           : null;
-        const concepts = new Map(
-          domainCase?.ruleSetVersionId
-            ? (
-                await tx.assessmentRule.findMany({
-                  where: { ruleSetVersionId: domainCase.ruleSetVersionId },
-                  select: { assessmentRuleId: true, concept: true },
-                })
-              ).map((rule) => [rule.assessmentRuleId, rule.concept] as const)
-            : [],
-        );
+        const coverageRules =
+          domainCase?.ruleSetVersionId && domainCase.coverage.length
+            ? await tx.assessmentRule.findMany({
+                where: {
+                  ruleSetVersionId: domainCase.ruleSetVersionId,
+                  OR: domainCase.coverage.map((item) => ({
+                    assessmentRuleId: item.assessmentRuleId,
+                    assessmentRuleVersion: item.assessmentRuleVersion,
+                  })),
+                },
+                select: {
+                  assessmentRuleId: true,
+                  assessmentRuleVersion: true,
+                  concept: true,
+                  contentDigest: true,
+                },
+              })
+            : [];
+        if (
+          domainCase?.ruleSetVersionId &&
+          domainCase.coverage.some(
+            (item) =>
+              !coverageRules.some(
+                (rule) =>
+                  rule.assessmentRuleId === item.assessmentRuleId &&
+                  rule.assessmentRuleVersion === item.assessmentRuleVersion,
+              ),
+          )
+        )
+          throw problemException(
+            AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        const concepts =
+          input.locale && domainCase?.ruleSetVersionId
+            ? await this.projectionService.projectRuleConcepts(
+                coverageRules,
+                resolveResponseLanguage(input.locale),
+                domainCase.ruleSetVersionId,
+              )
+            : new Map(
+                coverageRules.map((rule) => [
+                  rule.assessmentRuleId,
+                  rule.concept,
+                ]),
+              );
         // Event history is bounded; assessment totals come from every persisted invocation.
         const usage = await tx.llmUsageEvent.aggregate({
           where: { assessmentId: row.id, userId: input.sessionUserId },
@@ -184,7 +224,7 @@ export class AssessmentDetailLoader {
             decision: ruleDecisionSchema.parse(decision.decision),
             createdAt: decision.createdAt.toISOString(),
           }));
-          let projectedFacts = domainCase.facts.map((fact) => ({
+          const projectedFacts = domainCase.facts.map((fact) => ({
             factId: fact.factId,
             assessmentId: fact.assessmentId,
             caseRevision: fact.caseRevision,
@@ -197,116 +237,37 @@ export class AssessmentDetailLoader {
           }));
 
           if (locale) {
-            const textsToProject: string[] = [];
-            for (const d of projectedDecisions) {
-              textsToProject.push(d.decision.rationale);
-              for (const c of d.decision.criteria) {
-                textsToProject.push(c.rationale);
-              }
-            }
-            const humanRequestByFactId = new Map(
-              (
-                (
-                  domainCase as {
-                    humanRequests?: Array<{
-                      resolvedFactId: string | null;
-                      unresolvedFact: string;
-                      answers?: unknown;
-                    }>;
-                  }
-                )?.humanRequests ?? []
-              )
-                .filter((hr) => hr.resolvedFactId)
-                .map((hr) => [hr.resolvedFactId as string, hr]),
+            projectedDecisions = await Promise.all(
+              projectedDecisions.map(async (d) => {
+                const localized = await this.projectionService.projectDocument(
+                  {
+                    rationale: d.decision.rationale,
+                    criteria: d.decision.criteria.map((c) => ({
+                      rationale: c.rationale,
+                    })),
+                  },
+                  locale,
+                  input.assessmentId,
+                  {
+                    entityType: AUTHORED_LOCALIZATION_ENTITIES.DECISION,
+                    entityId: d.decisionId,
+                    canonicalRevision: String(d.decisionRevision),
+                  },
+                );
+                return {
+                  ...d,
+                  decision: {
+                    ...d.decision,
+                    rationale: localized.rationale,
+                    criteria: d.decision.criteria.map((c, index) => ({
+                      ...c,
+                      rationale:
+                        localized.criteria[index]?.rationale ?? c.rationale,
+                    })),
+                  },
+                };
+              }),
             );
-            const humanProvidedParts = new Map<
-              string,
-              { prefix: string; answer: string }
-            >();
-            for (const f of projectedFacts) {
-              if (f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED) {
-                textsToProject.push(f.statement);
-              } else if (
-                f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
-              ) {
-                const hr = humanRequestByFactId.get(f.factId);
-                if (
-                  hr &&
-                  typeof hr.unresolvedFact === "string" &&
-                  hr.unresolvedFact.trim().length > 0
-                ) {
-                  const prefix = hr.unresolvedFact;
-                  let answer: string | null = null;
-                  if (Array.isArray(hr.answers)) {
-                    for (let i = hr.answers.length - 1; i >= 0; i--) {
-                      const entry = hr.answers[i] as {
-                        doesNotKnow?: boolean;
-                        answer?: unknown;
-                      };
-                      if (
-                        entry &&
-                        !entry.doesNotKnow &&
-                        typeof entry.answer === "string" &&
-                        entry.answer.trim().length > 0
-                      ) {
-                        answer = entry.answer;
-                        break;
-                      }
-                    }
-                  }
-                  if (
-                    answer !== null &&
-                    f.statement === `${prefix}: ${answer}`
-                  ) {
-                    humanProvidedParts.set(f.factId, { prefix, answer });
-                    textsToProject.push(prefix);
-                  }
-                }
-              }
-            }
-            if (textsToProject.length > 0) {
-              const projections = await this.projectionService.projectBatch(
-                textsToProject,
-                locale,
-              );
-              projectedDecisions = projectedDecisions.map((d) => ({
-                ...d,
-                decision: {
-                  ...d.decision,
-                  rationale:
-                    projections.get(d.decision.rationale) ??
-                    d.decision.rationale,
-                  criteria: d.decision.criteria.map((c) => ({
-                    ...c,
-                    rationale: projections.get(c.rationale) ?? c.rationale,
-                  })),
-                },
-              }));
-              projectedFacts = projectedFacts.map((f) => {
-                if (
-                  f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED
-                ) {
-                  return {
-                    ...f,
-                    statement: projections.get(f.statement) ?? f.statement,
-                  };
-                }
-                if (
-                  f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
-                ) {
-                  const parts = humanProvidedParts.get(f.factId);
-                  if (parts) {
-                    const projectedPrefix =
-                      projections.get(parts.prefix) ?? parts.prefix;
-                    return {
-                      ...f,
-                      statement: `${projectedPrefix}: ${parts.answer}`,
-                    };
-                  }
-                }
-                return f;
-              });
-            }
           }
 
           return {

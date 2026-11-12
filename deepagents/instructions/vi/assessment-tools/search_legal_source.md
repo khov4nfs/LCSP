@@ -1,0 +1,1 @@
+KHI DÙNG: cần làm rõ định nghĩa, ngoại lệ, dẫn chiếu. ĐỌC: kết quả có pin và hiệu lực. TIẾP: read_legal_source vào điều khoản chính xác. LỖI: không tìm thấy không chứng minh điều kiện pháp lý vắng mặt.

@@ -15,6 +15,10 @@ class NonRetryableAgentBoundaryError(RuntimeError):
     """Signals a terminal boundary failure already represented in domain state."""
 
 
+class RetryableAgentBoundaryError(RuntimeError):
+    """Signals a transient dependency failure that must retain bounded broker retry authority."""
+
+
 class AgentRuntimeBoundaryTimeout(NonRetryableAgentBoundaryError):
     """The trusted boundary deadline stopped nested agent execution."""
 

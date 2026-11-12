@@ -6,16 +6,16 @@ ARG GITLAB_CLI_SHA256=80928175a2d66c6262c8303aeee9dd5c5a67dafc03668c8b073a495110
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl openssl \
-    && curl --fail --silent --show-error --location --output /tmp/gh.deb \
+    && curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-max-time 180 --connect-timeout 15 --max-time 60 --output /tmp/gh.deb \
       "https://github.com/cli/cli/releases/download/v${GITHUB_CLI_VERSION}/gh_${GITHUB_CLI_VERSION}_linux_amd64.deb" \
-    && curl --fail --silent --show-error --location --output /tmp/gh-checksums.txt \
+    && curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-max-time 180 --connect-timeout 15 --max-time 60 --output /tmp/gh-checksums.txt \
       "https://github.com/cli/cli/releases/download/v${GITHUB_CLI_VERSION}/gh_${GITHUB_CLI_VERSION}_checksums.txt" \
     && grep " gh_${GITHUB_CLI_VERSION}_linux_amd64.deb$" /tmp/gh-checksums.txt \
       | sed "s# gh_${GITHUB_CLI_VERSION}_linux_amd64.deb# /tmp/gh.deb#" \
       | sha256sum --check --strict \
     && apt-get install -y --no-install-recommends /tmp/gh.deb \
     && gh --version | grep --fixed-strings "gh version ${GITHUB_CLI_VERSION}" \
-    && curl --fail --silent --show-error --location --output /tmp/glab.deb \
+    && curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-max-time 180 --connect-timeout 15 --max-time 60 --output /tmp/glab.deb \
       "https://gitlab.com/gitlab-org/cli/-/releases/v${GITLAB_CLI_VERSION}/downloads/glab_${GITLAB_CLI_VERSION}_linux_amd64.deb" \
     && echo "${GITLAB_CLI_SHA256}  /tmp/glab.deb" | sha256sum --check --strict \
     && apt-get install -y --no-install-recommends /tmp/glab.deb \

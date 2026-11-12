@@ -9,6 +9,7 @@ import pytest
 from deepagents import create_deep_agent
 from langgraph.checkpoint.memory import InMemorySaver
 
+from middleware import system_event_dispatch
 from middleware.system_event_dispatch import dispatch_agent_runtime_system_event
 from orchestration.context import LCSPRunContext
 from tests.test_native_researcher_task_preparation import ScriptedModel
@@ -102,6 +103,45 @@ async def test_health_dispatch_hydrates_native_thread_and_isolates_backends(
         assert json.loads(raw.write.call_args.args[1])["correlationId"] == thread
         state = graph.get_state({"configurable": {"thread_id": thread}})
         assert state.config["configurable"]["checkpoint_id"]
+
+
+def test_managed_document_system_event_dispatches_without_model_inference(monkeypatch) -> None:
+    """The graph supervisor dispatches managed ingestion and ends before its model turn."""
+    model = ScriptedModel()
+    dispatched = []
+    monkeypatch.setattr(
+        system_event_dispatch,
+        "invoke_boundary",
+        lambda name, event, correlation_id: dispatched.append(
+            (name, event, correlation_id)
+        ),
+    )
+    graph = create_deep_agent(
+        model=model,
+        middleware=[dispatch_agent_runtime_system_event],
+        context_schema=LCSPRunContext,
+        checkpointer=InMemorySaver(),
+    )
+    context = LCSPRunContext(
+        system_boundary_name="managed_document_ingest_requested",
+        correlation_id="managed-document-provider-free-probe",
+        system_event={"documentId": "document-probe", "attempt": 1},
+    )
+
+    graph.invoke(
+        {"messages": []},
+        {"configurable": {"thread_id": "managed-document-provider-free-probe"}},
+        context=context,
+    )
+
+    assert dispatched == [
+        (
+            "managed_document_ingest_requested",
+            {"documentId": "document-probe", "attempt": 1},
+            "managed-document-provider-free-probe",
+        )
+    ]
+    assert model.prompts == []
 
 
 @pytest.mark.parametrize("missing", ["snapshotId", "scanJobId"])

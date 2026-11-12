@@ -119,8 +119,9 @@ def test_dynamic_prompt_injection(locale: str, expected_substring: str) -> None:
     text = "\n".join(b["text"] for b in overridden.content_blocks)
 
     assert "You are an LCSP agent." in text
-    assert expected_substring in text
-    assert "Keep all technical identifiers" in text
+    assert get_language_prompt_instruction(locale) in text
+    assert get_language_prompt_instruction("en") == get_language_prompt_instruction("vi")
+    assert "canonical technical identifiers" in text
     handler.assert_called_once()
 
 
@@ -339,32 +340,9 @@ def test_disabled_localization_skips_cleanly() -> None:
 # 10. Extensibility Test (Adding a 3rd Locale)
 
 def test_extensibility_adding_third_locale() -> None:
-    """Adding a new locale definition immediately supports dynamic prompt and localization."""
-    custom_locales = {
-        **SUPPORTED_LOCALES,
-        "ja": LocaleDefinition(
-            code="ja",
-            name="日本語",
-            english_name="Japanese",
-            instruction="Produce your final user-visible response in Japanese (日本語).",
-        ),
-    }
-
-    with patch("orchestration.localization.SUPPORTED_LOCALES", custom_locales):
-        prompt_instruction = get_language_prompt_instruction("ja")
-        assert "Japanese" in prompt_instruction
-        assert "日本語" in prompt_instruction
-
-        mock_model = MockChatModel(responses=["分析が完了しました。"])
-        config = ResponseLocalizationConfig(supported_locales=("en", "vi", "ja"))
-        result, telemetry = transform_response_text(
-            "Analysis complete",
-            "ja",
-            model=mock_model,
-            config=config,
-        )
-        assert result == "分析が完了しました。"
-        assert telemetry["status"] == "APPLIED"
+    with pytest.raises(ValueError, match="unsupported response language"):
+        get_language_prompt_instruction("ja")
+    assert set(SUPPORTED_RESPONSE_LANGUAGES) == {"en", "vi"}
 
 
 # 11. End-to-End Agent Workflow Integration Tests
@@ -398,7 +376,7 @@ def test_agent_direct_qa_flow(locale: str, target_translated: str) -> None:
     # Verify primary model was prompted with language directive
     assert len(primary_model.calls) == 1
     system_msgs = [m for m in primary_model.calls[0] if isinstance(m, SystemMessage)]
-    assert any("Final Response Language Directive" in str(m.content) for m in system_msgs)
+    assert any(get_language_prompt_instruction(locale) in (m.content if isinstance(m.content, str) else "\n".join(block.get("text", "") for block in m.content if isinstance(block, dict))) for m in system_msgs)
 
 
 def test_agent_tool_calling_flow_preserves_tool_execution_and_localizes_final() -> None:
@@ -941,7 +919,7 @@ def test_assessment_root_runner_persisted_locale_authority(tmp_path) -> None:
     )
     assert result_default["state"] == "SUCCEEDED"
     prompt_text_default = str([getattr(m, "content", "") for m in captured_messages_default[0]])
-    assert "Vietnamese" in prompt_text_default or "tiếng Việt" in prompt_text_default
+    assert '"response_language": "vi"' in prompt_text_default
 
     # 2. Same-thread locale switching: EN -> VI -> EN
     client_shared_thread = AuthoritativeRootContextClient(thread_id="thread-shared-authority")
@@ -964,7 +942,7 @@ def test_assessment_root_runner_persisted_locale_authority(tmp_path) -> None:
     )
     assert result_turn1["state"] == "SUCCEEDED"
     prompt_text_turn1 = str([getattr(m, "content", "") for m in captured_messages_turn1[0]])
-    assert "English" in prompt_text_turn1
+    assert '"response_language": "en"' in prompt_text_turn1
 
     # Turn 2 ON SAME THREAD: user changes setting to Vietnamese, persisted to server state
     client_shared_thread.lifecycle_state = "ACTIVE"
@@ -985,7 +963,7 @@ def test_assessment_root_runner_persisted_locale_authority(tmp_path) -> None:
     )
     assert result_turn2["state"] == "SUCCEEDED"
     prompt_text_turn2 = str([getattr(m, "content", "") for m in captured_messages_turn2[0]])
-    assert "Vietnamese" in prompt_text_turn2 or "tiếng Việt" in prompt_text_turn2
+    assert '"response_language": "vi"' in prompt_text_turn2
 
     # Turn 3 ON SAME THREAD: user changes setting back to English, persisted to server state
     client_shared_thread.lifecycle_state = "ACTIVE"
@@ -1006,7 +984,7 @@ def test_assessment_root_runner_persisted_locale_authority(tmp_path) -> None:
     )
     assert result_turn3["state"] == "SUCCEEDED"
     prompt_text_turn3 = str([getattr(m, "content", "") for m in captured_messages_turn3[0]])
-    assert "English" in prompt_text_turn3
+    assert '"response_language": "en"' in prompt_text_turn3
 
 
 # 16. Nested Structured Response & Root Tools Persisted Localization Regressions (LCSP-323)

@@ -305,7 +305,9 @@ def test_files_factory_uses_native_todos_shared_budget_and_exclusive_child_tools
     child = captured['subagents'][0]
     assert captured['config']['max_concurrency'] == 2
     assert child['name'] == 'claim-author'
-    assert {t.name for t in child['tools']} == {'commit_claims'}
+    assert {t.name for t in child['tools']} == {
+        'commit_claims', 'list_preparation_skills', 'load_preparation_skill',
+    }  # Two additional read-only methodology tools; no validation/submission.
     filesystem = child['middleware'][0]
     assert {t.name for t in filesystem.tools} == {'ls', 'grep', 'read_file', 'write_file', 'edit_file'}
     parent_budget = next(m for m in captured['middleware'] if isinstance(m, AgentRunBudgetMiddleware))
@@ -314,7 +316,12 @@ def test_files_factory_uses_native_todos_shared_budget_and_exclusive_child_tools
     from langchain.agents.middleware import ModelCallLimitMiddleware
     limit = next(m for m in child['middleware'] if isinstance(m, ModelCallLimitMiddleware))
     assert limit.run_limit == agent_module.CLAIM_AUTHOR_MODEL_CALLS and limit.exit_behavior == 'end'
-    assert 'ONE line: done: X articles, Y claims, Z waiting reference' in child['system_prompt']
+    assert 'done: X articles, Y claims, Z waiting reference' in child['system_prompt']
+    from runtime_instruction_bundle import runtime_instruction
+    assert runtime_instruction("claim-author.system") in child['system_prompt']
+    assert "Return exactly one line" in child['system_prompt']
+    assert "Never delegate, finalize discovery, validate or submit" in child['system_prompt']
+
 
 
 

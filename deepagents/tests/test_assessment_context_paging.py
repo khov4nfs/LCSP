@@ -6,6 +6,7 @@ No model client, provider request, live database, or customer assessment is invo
 
 from __future__ import annotations
 
+from assessment_root.tools import ROOT_TOOL_NAMES
 from copy import deepcopy
 from dataclasses import replace
 import hashlib
@@ -650,7 +651,8 @@ def test_native_root_keeps_registered_todos_grep_and_full_catalog_with_compact_m
     registered = [registered_by_name[name] for name in model.bound_tool_names[0]]
     assert governed.requests
     for request in governed.requests:
-        assert len(request.tools) == len(registered) == 36
+        assert len(request.tools) == len(registered) == 38
+        assert {tool.name for tool in registered} == set(ROOT_TOOL_NAMES) | {"ls", "read_file", "write_file", "edit_file", "delete", "glob", "grep", "task", "write_todos", "search_code_graph", "search_code_text", "get_repository_architecture", "trace_call_path"}
         assert [tool.name for tool in request.tools] == [tool.name for tool in registered]
         for shown in request.tools:
             native = registered_by_name[shown.name]
@@ -658,20 +660,26 @@ def test_native_root_keeps_registered_todos_grep_and_full_catalog_with_compact_m
             assert getattr(shown, "func", None) is getattr(native, "func", None)
             assert getattr(shown, "coroutine", None) is getattr(native, "coroutine", None)
             assert shown.return_direct == native.return_direct
-            if shown.name in _REVIEWED_TOOL_NAMES:
-                assert shown.description != native.description
+            if shown.name == "grep":
+                assert "LITERAL" in shown.description
+                assert "execute tool" not in shown.description
             else:
                 assert shown.description == native.description
         prompt_content = request.system_message.content
         prompt = (prompt_content if isinstance(prompt_content, str) else "\n".join(
             block if isinstance(block, str) else block.get("text", "") for block in prompt_content
         ))
-        assert ROOT_INSTRUCTIONS in prompt
-        assert "Never call it in parallel." in prompt
-        assert "substantive result in a separate message" in prompt
-    model_tools = {tool.name: tool for tool in governed.requests[0].tools}
-    assert "never regex" in model_tools["grep"].description
-    assert all(status in model_tools["write_todos"].description for status in ("pending", "in_progress", "completed"))
+    from runtime_instruction_bundle import production_runtime_bundle
+    from middleware.approved_instructions import approved_tool_specs
+    bundle = production_runtime_bundle()
+    assert model.bound_tools[0] == approved_tool_specs(registered, bundle)
+    for messages in model.prompts:
+        system = next(message.content for message in messages if isinstance(message, SystemMessage))
+        assert bundle.instruction("assessment-root.system") in system
+        assert json.loads(bundle.instruction("framework.injected-policy"))["todo_system"] in system
+    model_tools = {item["function"]["name"]: item["function"] for item in model.bound_tools[0]}
+    assert model_tools["grep"]["description"] == json.loads(bundle.instruction("framework.injected-policy"))["tool.grep"]
+    assert all(status in model_tools["write_todos"]["description"] for status in ("pending", "in_progress", "completed"))
     assert result["todos"] == [{"content": task, "status": "completed"}]
     tool_results = {
         message.tool_call_id: str(message.content)

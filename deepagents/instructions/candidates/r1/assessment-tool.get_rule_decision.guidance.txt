@@ -1,0 +1,1 @@
+WHEN: A prior rule is RESOLVED or a decision must be corrected. READ: latest accepted packet, revision, references and invalidation. NEXT: reuse if still current; reopen only material contradiction. FAILURE: old acceptance is not proof of semantic correctness.

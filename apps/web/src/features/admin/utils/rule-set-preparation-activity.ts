@@ -44,6 +44,7 @@ const ACTIVITY_STATUSES = {
   failed: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
   cancelled: AGENT_EXECUTION_STATES.CANCELLED,
   paused: AGENT_EXECUTION_STATES.PAUSED,
+  unreported: "NOT_REPORTED",
 } as const;
 type PreparationActivityStatus =
   (typeof ACTIVITY_STATUSES)[keyof typeof ACTIVITY_STATUSES];
@@ -147,7 +148,7 @@ export function projectPreparationActivity(
                   }
                 : {
                     key: ACTIVITY_KEYS.executionFinished,
-                    status: ACTIVITY_STATUSES.completed,
+                    status: ACTIVITY_STATUSES.unreported,
                   };
       add(drafts, byId, activity(event, outcome.key, outcome.status));
       continue;
@@ -187,6 +188,13 @@ export function projectPreparationActivity(
             ACTIVITY_KEYS.loadedSource,
             ACTIVITY_STATUSES.completed,
           ),
+        );
+      }
+      if (key === CLAIM_DISCOVERY_ACTIVITY_KINDS.PREPARATION_FAILURE) {
+        add(
+          drafts,
+          byId,
+          activity(event, ACTIVITY_KEYS.failed, ACTIVITY_STATUSES.failed),
         );
       }
       if (key === CLAIM_DISCOVERY_ACTIVITY_KINDS.PREPARATION_PAUSED) {
@@ -245,7 +253,9 @@ export function projectPreparationActivity(
           ? ACTIVITY_STATUSES.failed
           : executionState === AGENT_EXECUTION_STATES.CANCELLED
             ? ACTIVITY_STATUSES.cancelled
-            : ACTIVITY_STATUSES.completed;
+            : executionState === AGENT_EXECUTION_STATES.SUCCEEDED
+              ? ACTIVITY_STATUSES.completed
+              : ACTIVITY_STATUSES.unreported;
     for (const draft of drafts) {
       if (draft.status === ACTIVITY_STATUSES.running) {
         draft.status = terminalStatus;
@@ -300,16 +310,33 @@ export function preparationTokenUsage(
  * Side effects:
  * - None: pure telemetry aggregation.
  */
-export function preparationModelCalls(events: AssessmentAgentStreamEvent[]): number {
-  return new Set(events.filter((e) => e.eventType === EVENT_TYPES.modelCallStarted || e.eventType === EVENT_TYPES.modelCallCompleted).map((event) => {
-    const data = record(event.data);
-    return stringValue(data?.invocation_id) ?? stringValue(data?.model_step_id) ?? event.messageId ?? event.eventId;
-  })).size;
+export function preparationModelCalls(
+  events: AssessmentAgentStreamEvent[],
+): number {
+  return new Set(
+    events
+      .filter(
+        (e) =>
+          e.eventType === EVENT_TYPES.modelCallStarted ||
+          e.eventType === EVENT_TYPES.modelCallCompleted,
+      )
+      .map((event) => {
+        const data = record(event.data);
+        return (
+          stringValue(data?.invocation_id) ??
+          stringValue(data?.model_step_id) ??
+          event.messageId ??
+          event.eventId
+        );
+      }),
+  ).size;
 }
 
 export type PreparationProgressSummary = {
-  reviewed: number;
+  reviewed: number | null;
   total: number;
+  inconsistent: boolean;
+  partial: boolean;
   remaining: number | null;
   reviewedWithClaims: number | null;
   reviewedNoClaims: number | null;
@@ -353,23 +380,38 @@ export function preparationProgress(
     const data = record(event.data);
     const progress = record(record(data?.review_frontier)?.progress);
     const total = numberOrNull(progress?.total);
-    const verifiedFrontier =
-      (numberOrNull(progress?.reviewedWithClaims) ?? 0) +
-      (numberOrNull(progress?.reviewedNoClaims) ?? 0);
-    const reviewed = Math.max(
-      numberOrNull(data?.source_nodes_reviewed) ?? 0,
-      verifiedFrontier,
-    );
+    const withClaims = numberOrNull(progress?.reviewedWithClaims),
+      noClaims = numberOrNull(progress?.reviewedNoClaims);
+    const frontier =
+      withClaims !== null && noClaims !== null ? withClaims + noClaims : null;
+    const reported = numberOrNull(data?.source_nodes_reviewed);
+    const reviewed = frontier ?? reported;
+    const pending = numberOrNull(progress?.pending),
+      inReview = numberOrNull(progress?.inReview),
+      blocked = numberOrNull(progress?.blocked);
+    const remaining =
+      pending !== null && inReview !== null && blocked !== null
+        ? pending + inReview + blocked
+        : numberOrNull(data?.source_nodes_remaining);
     if (total === null) continue;
     return {
       reviewed,
       total,
-      remaining:
-        progress?.pending !== undefined
-          ? numberValue(progress.pending) +
-            numberValue(progress.inReview) +
-            numberValue(progress.blocked)
-          : numberOrNull(data?.source_nodes_remaining),
+      partial: [
+        withClaims,
+        noClaims,
+        pending,
+        inReview,
+        blocked,
+        reviewed,
+      ].some((value) => value === null),
+      inconsistent:
+        (reported !== null && frontier !== null && reported !== frontier) ||
+        (reviewed !== null && reviewed > total) ||
+        (reviewed !== null &&
+          remaining !== null &&
+          reviewed + remaining !== total),
+      remaining,
       reviewedWithClaims: numberOrNull(progress?.reviewedWithClaims),
       reviewedNoClaims: numberOrNull(progress?.reviewedNoClaims),
       inReview: numberOrNull(progress?.inReview),
@@ -554,8 +596,21 @@ function numberValue(value: unknown): number {
     : 0;
 }
 
+/**
+ * Business purpose: Preserve missing or malformed telemetry as unavailable counter evidence.
+ * Business rules:
+ * - Only nonnegative safe integer counters are accepted; absence is never interpreted as zero.
+ * Execution flow:
+ * 1. Check the value type, integer bounds and sign.
+ * Failure cases:
+ * - Unsupported values return null rather than a fabricated count.
+ * Side effects:
+ * - None: pure counter validation.
+ */
 function numberOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : null;
 }
 
 function statusOf(value: string | null): PreparationActivity["status"] {
@@ -589,4 +644,63 @@ function countOrNull(value: unknown): number | null {
     : record(value)
       ? Object.keys(value as Record<string, unknown>).length
       : numberOrNull(value);
+}
+
+/**
+ * Business purpose: Reconcile replay, historical pages and live events without cross-run leakage.
+ * Business rules:
+ * - Stable event IDs deduplicate reconnects; deterministic sequence/time/ID order preserves journal chronology.
+ * Execution flow:
+ * 1. Keep matching run events, deduplicate identity, then sort without mutating inputs.
+ * Failure cases:
+ * - Foreign run events are excluded rather than displayed under another run.
+ * Side effects:
+ * - None: pure projection.
+ */
+export function mergePreparationEvents(
+  runId: string,
+  ...groups: readonly AssessmentAgentStreamEvent[][]
+): AssessmentAgentStreamEvent[] {
+  const byId = new Map<string, AssessmentAgentStreamEvent>();
+  for (const events of groups)
+    for (const event of events)
+      if (event.preparationRunId === runId) byId.set(event.eventId, event);
+  return [...byId.values()].sort(
+    (a, b) =>
+      a.sequence - b.sequence ||
+      a.emittedAt.localeCompare(b.emittedAt) ||
+      a.eventId.localeCompare(b.eventId),
+  );
+}
+
+/**
+ * Business purpose: Identify which observed usage totals have actual token evidence.
+ * Business rules:
+ * - Missing model usage is not a zero provider charge; each token dimension is checked separately.
+ * Execution flow:
+ * 1. Inspect completed-call metadata for finite nonnegative token counters.
+ * Failure cases:
+ * - Absent or malformed usage remains unreported.
+ * Side effects:
+ * - None: pure metadata inspection.
+ */
+export function preparationUsageEvidence(events: AssessmentAgentStreamEvent[]) {
+  const completed = events.filter(
+    (event) => event.eventType === EVENT_TYPES.modelCallCompleted,
+  );
+  const counters = completed.map((event) => record(record(event.data)?.usage));
+  return {
+    input: counters.some((usage) => numberOrNull(usage?.input_tokens) !== null),
+    output: counters.some(
+      (usage) => numberOrNull(usage?.output_tokens) !== null,
+    ),
+    total: counters.some((usage) => numberOrNull(usage?.total_tokens) !== null),
+    partial:
+      !completed.length ||
+      counters.some((usage) =>
+        [usage?.input_tokens, usage?.output_tokens, usage?.total_tokens].some(
+          (value) => numberOrNull(value) === null,
+        ),
+      ),
+  };
 }

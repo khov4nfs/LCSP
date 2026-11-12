@@ -1,0 +1,1 @@
+WHEN: source and legal effect must be established. READ: the pinned provision, actor, exception, transition, commencement and dependencies. NEXT: compare source against criterion. FAILURE: incomplete/repealed/draft source is not an effective legal duty without verification.

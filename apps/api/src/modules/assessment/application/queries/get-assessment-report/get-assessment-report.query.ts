@@ -5,6 +5,7 @@ export class GetAssessmentReportQuery extends Query<{
   artifactId: string;
   content: Buffer;
   contentSha256: string;
+  sourceArtifactSha256: string;
 }> {
   constructor(
     public readonly assessmentId: string,

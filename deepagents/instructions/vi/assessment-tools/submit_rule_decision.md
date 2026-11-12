@@ -1,0 +1,1 @@
+KHI DÙNG: applicability và toàn bộ criterion trọng yếu có chứng cứ hiện hành. ĐỌC: accepted facts, phạm vi luật, citation và phản chứng. TIẾP: submit trạng thái typed và nguồn tham chiếu. LỖI: fact trọng yếu chưa rõ phải điều tra/HITL, không ép NOT_APPLICABLE hay COMPLIANT.

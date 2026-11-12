@@ -1,0 +1,1 @@
+WHEN: Before investigating the selected rule. READ: criterion/condition IDs and inherited legal predicates. NEXT: read pinned operative legal source, then inspect relevant repository evidence. FAILURE: absent/unselected rule is not authority to invent a criterion.

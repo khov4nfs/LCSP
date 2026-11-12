@@ -1,0 +1,1 @@
+WHEN: First map input, effect and deployment boundary. READ: candidate entrypoints and excluded source. NEXT: trace actual code in pinned snapshot. FAILURE: architecture summary cannot establish operator practice.

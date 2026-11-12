@@ -34,6 +34,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.runtime import Runtime
 from assessment_root.boundary import AssessmentRootBoundary
 from assessment_root.runner import run_assessment_root
+from approved_bundle_fixture import offline_instruction_bundle
 from tools.common.capabilities.agent_runtime import local_server, rabbitmq_consumer as bridge
 from tools.common.capabilities.agent_runtime.root_capacity import RootCapacityClient
 from vertical.scripted_root import DynamicScriptedModel, full_script, _call
@@ -236,4 +237,8 @@ def main():
                         pass
 
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    # One process-wide fixture covers concurrent workers and their nested Roots.
+    # Restore production loading only after main has shut down its workers/server.
+    with offline_instruction_bundle():
+        main()

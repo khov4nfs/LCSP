@@ -58,6 +58,9 @@ export class AssessmentRuleAuditController {
         req.correlationId || randomUUID(),
         page.offset,
         page.limit,
+        typeof req.headers?.["x-lcsp-locale"] === "string"
+          ? req.headers["x-lcsp-locale"]
+          : null,
       ),
     );
   }

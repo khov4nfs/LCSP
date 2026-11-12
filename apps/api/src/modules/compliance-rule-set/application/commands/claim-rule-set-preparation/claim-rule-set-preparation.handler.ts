@@ -19,6 +19,7 @@ import { problemException } from "../../../../../platform/http/filters/error.fac
 import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.command.js";
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
+import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
 
 /**
  * Claims a run for exactly one worker: QUEUED -> RUNNING. A duplicated or redelivered command
@@ -81,6 +82,15 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
           meta: { reason: "WORKER_EXECUTION_CONTRACT_UNSUPPORTED" },
         },
       );
+    // Verify the approved, pinned source BEFORE claiming and spending tokens.
+    const approvedScope = await requireApprovedDevelopmentScope(
+      this.prisma,
+      run.id,
+      run.claimInventoryRevision,
+      run.legalSourceVersionId,
+      run.targetActivityScope,
+      input.correlationId,
+    );
     const now = new Date();
     const leaseCutoff = new Date(
       now.getTime() - RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS * 1000,
@@ -184,6 +194,17 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         : await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
       executionContract: run.executionContract,
+      // The server issues scoped authoring only after the review ledger, pinned
+      // inventory and approval are revalidated before worker admission.
+      targetActivityScope: run.targetActivityScope,
+      scopeReviewRequested:
+        run.scopeReviewRequested && run.targetActivityScope === "FULL_SOURCE",
+      ...(approvedScope
+        ? { approvedScopeDigest: approvedScope.decisionsDigest }
+        : {}),
+      // Vi is the explicit server-owned Preparation locale until per-run
+      // responseLanguage is persisted and selected through an authorized flow.
+      responseLanguage: "vi",
       ...(run.targetDate
         ? { targetDate: run.targetDate.toISOString().slice(0, 10) }
         : {}),

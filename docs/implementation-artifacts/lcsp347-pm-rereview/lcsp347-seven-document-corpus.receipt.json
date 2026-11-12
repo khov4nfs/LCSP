@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "task": "LCSP-347 DATA-04.1",
+  "sourceSet": {
+    "proposedIdentity": "lcsp347-official-legal-source-dev",
+    "created": false,
+    "sourceId": null,
+    "draftVersionId": null,
+    "lifecycleState": "NOT_CREATED",
+    "expectedDocumentCount": 7,
+    "persistedDocumentCount": 0,
+    "persistedReadyDocumentCount": 0,
+    "activation": "NOT_RUN"
+  },
+  "offlinePipeline": {
+    "implementation": "deepagents/tools/legal/managed_documents/ingest.py::ingest_document",
+    "extractor": "managed-document-ingest:docx-xml",
+    "extractorVersion": "1.1.0",
+    "structureProfile": "ARTICLES",
+    "documents": [
+      {"id":"134","instrument":"Law 134/2025/QH15","bytes":66110,"originalSha256":"ced80bf1fd45a576a785994da3471d9a2fbdc54e799216e0c9dba5da62d45af7","expectedHashMatch":true,"textSha256":"sha256:6370b7cbb224af43601d2c5e94f21e2c566d5e956fcb40a0dd54db94a71eb4e9","characters":48832,"chapters":"I-VIII","articleRanges":"1-35","articleHeadingCount":35,"repeatedArticleNumbers":0,"tables":2,"chunks":265,"duplicateLocatorSuffixes":0,"extractionGaps":0,"unicodeReplacementCharacters":0,"chunkHashesValid":true,"locatorUniqueWithinDocument":true,"sourceToChunkNonWhitespaceParity":true,"outcome":"OFFLINE_TECHNICAL_READY"},
+      {"id":"142","instrument":"Decree 142/2026/NĐ-CP","bytes":241572,"originalSha256":"110928d40055ca86d7278785f9c44aa165ab70bdf82013e8da677a1edc864000","expectedHashMatch":true,"textSha256":"sha256:b468b67eeea04fb016fb8d056f1b74732286728903dd7312f590148908ef2e98","characters":181148,"chapters":"I-VIII","articleRanges":"1-46, 1-5, 1-7, 1-7","articleHeadingCount":65,"repeatedArticleNumbers":19,"tables":37,"chunks":840,"duplicateLocatorSuffixes":163,"extractionGaps":0,"unicodeReplacementCharacters":0,"chunkHashesValid":true,"locatorUniqueWithinDocument":true,"sourceToChunkNonWhitespaceParity":true,"outcome":"OFFLINE_TECHNICAL_READY_REQUIRES_STRUCTURE_REVIEW"},
+      {"id":"33","instrument":"Decision 33/2026/QĐ-TTg","bytes":71718,"originalSha256":"a0e042c90787edf7ef08a35ba7905e6d65758772ba0fd19bbcf31d201464297a","expectedHashMatch":true,"textSha256":"sha256:0d8f7245b9a282c1247801c7b08524452dc8ad2c06f1d23fb6d08323b4c62a26","characters":22437,"chapters":"NONE_DETECTED","articleRanges":"1-4","articleHeadingCount":4,"repeatedArticleNumbers":0,"tables":3,"chunks":19,"duplicateLocatorSuffixes":0,"extractionGaps":0,"unicodeReplacementCharacters":0,"chunkHashesValid":true,"locatorUniqueWithinDocument":true,"sourceToChunkNonWhitespaceParity":true,"outcome":"OFFLINE_TECHNICAL_READY"},
+      {"id":"05","instrument":"Circular 05/2026/TT-BKHCN","bytes":61198,"originalSha256":"299dc939784b39450f17492b8799e3776c9f56cfae4e832f14e3836e23a76a66","expectedHashMatch":true,"textSha256":"sha256:1d02f89e928f3265f2af94a1c70b38aae3759d785cd981749997292c76db5538","characters":12879,"chapters":"NONE_DETECTED","articleRanges":"1-5","articleHeadingCount":5,"repeatedArticleNumbers":0,"tables":3,"chunks":53,"duplicateLocatorSuffixes":11,"extractionGaps":0,"unicodeReplacementCharacters":0,"chunkHashesValid":true,"locatorUniqueWithinDocument":true,"sourceToChunkNonWhitespaceParity":true,"outcome":"OFFLINE_TECHNICAL_READY_REQUIRES_LOCATOR_REVIEW"},
+      {"id":"1671","instrument":"Decision 1671/QĐ-TTg","bytes":133808,"originalSha256":"d6dcdb889cccf2c1f6beaa331a1399662241b89377ba9cd7f45344e507908b21","expectedHashMatch":true,"textSha256":"sha256:5e2c40b6e87a85434d323d99c2698d68a1eddbfe0eaee686cba968b46f4fa711","characters":103017,"chapters":"NONE_DETECTED","articleRanges":"1-3","articleHeadingCount":3,"repeatedArticleNumbers":0,"tables":4,"chunks":191,"duplicateLocatorSuffixes":79,"extractionGaps":0,"unicodeReplacementCharacters":0,"chunkHashesValid":true,"locatorUniqueWithinDocument":true,"sourceToChunkNonWhitespaceParity":true,"outcome":"OFFLINE_TECHNICAL_READY_REQUIRES_LOCATOR_REVIEW"},
+      {"id":"356","instrument":"Decree 356/2025/NĐ-CP","bytes":143174,"originalSha256":"c36a6740d034031abb2d4a3a0350b99dfe395a40f8bff1f9dd98502267f8c4de","expectedHashMatch":true,"textSha256":"sha256:632b7cf13ab907f45a91890ef32820aaa75a18cb0d150fccf51aa4121525ccee","characters":115964,"chapters":"I-V","articleRanges":"1-42, 1-3, 1-3","articleHeadingCount":48,"repeatedArticleNumbers":6,"tables":29,"chunks":470,"duplicateLocatorSuffixes":29,"extractionGaps":0,"unicodeReplacementCharacters":0,"chunkHashesValid":true,"locatorUniqueWithinDocument":true,"sourceToChunkNonWhitespaceParity":true,"outcome":"OFFLINE_TECHNICAL_READY_REQUIRES_STRUCTURE_REVIEW"},
+      {"id":"116","instrument":"Law 116/2025/QH15","bytes":86919,"originalSha256":"b3bb2ad8e013881361a7ae2325aecb660d55e41f48755ed590a6f23cb44d1150","expectedHashMatch":true,"textSha256":"sha256:48d7b4e886f6cb75bd61785fbb425cf92c43768dae3de9e1657a7f50f8bd7c09","characters":86605,"chapters":"I-VIII","articleRanges":"1-45","articleHeadingCount":45,"repeatedArticleNumbers":0,"tables":2,"chunks":543,"duplicateLocatorSuffixes":0,"extractionGaps":0,"unicodeReplacementCharacters":0,"chunkHashesValid":true,"locatorUniqueWithinDocument":true,"sourceToChunkNonWhitespaceParity":true,"outcome":"OFFLINE_TECHNICAL_READY"}
+    ],
+    "aggregate": {
+      "documents": 7,
+      "distinctOriginalHashes": 7,
+      "chunks": 2381,
+      "allOriginalHashMatches": true,
+      "allOfflineTechnicalReady": true,
+      "allChunkHashesValid": true,
+      "allSourceToChunkParity": true
+    }
+  },
+  "realHttpImport": "NOT_RUN",
+  "realRabbitMqDelivery": "NOT_RUN",
+  "realAgentServerWorker": "NOT_RUN",
+  "persistedIndex": {"status":"NOT_RUN","indexId":null,"completeDocumentMembership":null},
+  "humanLegalReview": {"approved":0,"required":7,"status":"REQUIRES_REVIEW"},
+  "prohibitedActions": {"activation":"NOT_RUN","ruleSetPreparation":"NOT_RUN","assessment":"NOT_RUN","paidModelCalls":0,"historicalDatabaseMutations":0}
+}

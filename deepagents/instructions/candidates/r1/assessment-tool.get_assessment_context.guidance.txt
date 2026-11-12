@@ -1,0 +1,1 @@
+WHEN: First call and every resume, or after accepted case change. READ: server pins, selected rules, accepted facts, open human blockers and decision revisions. NEXT: reload rule before making any evidence claim. FAILURE: stale/missing context stops decisions; never substitute checkpoint memory.
