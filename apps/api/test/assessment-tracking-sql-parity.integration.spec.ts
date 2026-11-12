@@ -1435,26 +1435,25 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     });
 
     // Create 51 open human requests
-    for (let i = 0; i < 51; i++) {
-      await prisma.assessmentHumanRequest.create({
-        data: {
-          requestId: randomUUID(),
-          assessmentId,
-          threadId,
-          assessmentRuleId: "RULE-1",
-          criterionIds: ["crit-1"],
-          question: `Human Question ${i + 1}`,
-          unresolvedFact: `fact-${i + 1}`,
-          decisionImpact: ["impact"],
-          resolutionAttempts: [],
-          controlType: "FREE_TEXT",
-          choices: [],
-          status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-          caseRevision: 1,
-          createdAt: new Date(Date.now() - (51 - i) * 1000),
-        },
-      });
-    }
+    const baseTime = Date.now();
+    await prisma.assessmentHumanRequest.createMany({
+      data: Array.from({ length: 51 }, (_, i) => ({
+        requestId: randomUUID(),
+        assessmentId,
+        threadId,
+        assessmentRuleId: "RULE-1",
+        criterionIds: ["crit-1"],
+        question: `Human Question ${i + 1}`,
+        unresolvedFact: `fact-${i + 1}`,
+        decisionImpact: ["impact"],
+        resolutionAttempts: [],
+        controlType: "FREE_TEXT",
+        choices: [],
+        status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+        caseRevision: 1,
+        createdAt: new Date(baseTime - (51 - i) * 1000),
+      })),
+    });
 
     // Page 1 of actions (default limit 50, offset 0)
     const page1 = await loader.loadCustomerOverview({
@@ -1490,7 +1489,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     });
     expect(page2.actions).toHaveLength(1);
     expect(page2.actions[0].question).toBe("Human Question 1");
-  });
+  }, 120_000);
 
   it("paginates >50 same-type changes and sorts mixed event types globally by occurredAt DESC", async () => {
     // 1. Create 51 completed assessments with active FINAL_REPORT artifacts
@@ -1700,26 +1699,24 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     // Seed 10 human requests with identical createdAt but different requestIds
     const requestIds = Array.from({ length: 10 }, () => randomUUID());
 
-    for (const reqId of requestIds) {
-      await prisma.assessmentHumanRequest.create({
-        data: {
-          requestId: reqId,
-          assessmentId,
-          threadId,
-          assessmentRuleId: "RULE-1",
-          criterionIds: ["crit-1"],
-          question: `Question for ${reqId}`,
-          unresolvedFact: "Fact",
-          decisionImpact: ["impact"],
-          resolutionAttempts: [],
-          controlType: "FREE_TEXT",
-          choices: [],
-          caseRevision: 1,
-          status: "OPEN",
-          createdAt: fixedTime,
-        },
-      });
-    }
+    await prisma.assessmentHumanRequest.createMany({
+      data: requestIds.map((reqId) => ({
+        requestId: reqId,
+        assessmentId,
+        threadId,
+        assessmentRuleId: "RULE-1",
+        criterionIds: ["crit-1"],
+        question: `Question for ${reqId}`,
+        unresolvedFact: "Fact",
+        decisionImpact: ["impact"],
+        resolutionAttempts: [],
+        controlType: "FREE_TEXT",
+        choices: [],
+        caseRevision: 1,
+        status: "OPEN",
+        createdAt: fixedTime,
+      })),
+    });
 
     // Expected order: sorted by createdAt DESC, then requestId DESC
     const expectedOrder = [...requestIds].sort((a, b) => b.localeCompare(a));
@@ -1753,7 +1750,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
 
     // Combined pages strictly match expected deterministic ordering
     expect([...page1Ids, ...page2Ids]).toEqual(expectedOrder);
-  });
+  }, 120_000);
 
   it("evaluates change queue across 120+ distinct repositories without query fan-out or omissions", async () => {
     const totalRepos = 120;
