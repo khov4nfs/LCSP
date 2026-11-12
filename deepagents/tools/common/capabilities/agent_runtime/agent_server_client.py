@@ -488,6 +488,12 @@ def _run_status(run: Any, default: str) -> str:
 MANAGED_DOCUMENT_INGEST_BOUNDARIES: frozenset[str] = frozenset({
     "managed_document_ingest_requested",
 })
+BOUNDED_SOURCE_TRANSPORT_RETRY_BOUNDARIES: frozenset[str] = frozenset({
+    *MANAGED_DOCUMENT_INGEST_BOUNDARIES,
+    "legal_source_ingest_requested",
+    "official_text_extraction_requested",
+    "legal_change_detection_requested",
+})
 
 
 def _retryable_remote_task_error(
@@ -500,15 +506,16 @@ def _retryable_remote_task_error(
     - Preserve bounded broker recovery for transient API and transport failures.
 
     Business rules:
-    - Retry authority is strictly bound to authorized managed-document ingestion boundaries.
+    - Retry authority is bound to explicit boundaries with a bounded source-work retry policy.
+    - Managed-document API status and typed retry errors are recognized only for managed-document ingestion.
     - Assessment Root and Rule Set Preparation boundaries must NEVER acquire managed-document retry authority.
     - Remote task error strings are diagnostic evidence only, never standalone authorization.
-    - Retry only explicit transient markers, managed-document 429/5xx, or allowlisted HTTP transport errors.
+    - Retry only explicit boundary-appropriate transient markers, managed-document 429/5xx, or allowlisted transports.
     - Keep permanent API responses (401, 403, 404, 422), malformed errors, and unknown Agent Server errors terminal.
 
     Execution flow:
-    1. Verify the originating boundary is authorized for managed document ingestion retry.
-    2. Parse only the remote error type and managed-document HTTP status.
+    1. Verify the originating canonical boundary has an explicit bounded transport retry policy.
+    2. Parse only the remote error type and, for managed documents, the HTTP status.
     3. Return a sanitized reason for an allowlisted transient failure.
 
     Failure cases:
@@ -517,15 +524,21 @@ def _retryable_remote_task_error(
     Side effects:
     - None; this helper does not log or expose the remote error message.
     """
-    if boundary_name not in MANAGED_DOCUMENT_INGEST_BOUNDARIES:
+    if boundary_name not in BOUNDED_SOURCE_TRANSPORT_RETRY_BOUNDARIES:
         return None
     if not isinstance(raw_error, str):
         return None
     error_prefix = raw_error.split("(", 1)[0].split(":", 1)[0].strip()
     error_type = error_prefix.rsplit(".", 1)[-1]
-    if error_type == "RetryableAgentBoundaryError":
+    if (
+        boundary_name in MANAGED_DOCUMENT_INGEST_BOUNDARIES
+        and error_type == "RetryableAgentBoundaryError"
+    ):
         return "Agent Server reported a retryable boundary dependency failure"
-    if error_type == "IngestionApiError":
+    if (
+        boundary_name in MANAGED_DOCUMENT_INGEST_BOUNDARIES
+        and error_type == "IngestionApiError"
+    ):
         status_match = re.search(r"\((\d{3})\)\W*$", raw_error)
         if status_match:
             status = int(status_match.group(1))

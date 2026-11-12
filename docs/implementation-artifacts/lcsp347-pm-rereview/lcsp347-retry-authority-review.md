@@ -6,7 +6,7 @@ Agent Server terminal-result processing is shared across runtime boundaries. The
 
 ## Fix
 
-`dispatch_agent_runtime_event` and resume pass their canonical boundary name into the terminal-result handlers. `_retryable_remote_task_error` now recognizes the bounded managed-document transient set only when that explicit name is `managed_document_ingest_requested`. Run/result metadata is not used as a fallback. Unknown/malformed values and permanent 4xx responses remain terminal. Broker retry count and managed-document delay schedule remain bounded by the existing boundary manifest.
+`dispatch_agent_runtime_event` and resume pass their canonical boundary name into the terminal-result handlers. `_retryable_remote_task_error` recognizes managed-document API and typed transient errors only for `managed_document_ingest_requested`. Transport failures also remain retryable for the three other source boundaries whose existing retry schedules are explicit: `legal_source_ingest_requested`, `official_text_extraction_requested`, and `legal_change_detection_requested`. Run/result metadata is not used as a fallback. Unknown/malformed values and permanent 4xx responses remain terminal. Broker retry counts remain bounded by each existing boundary manifest.
 
 Assessment Root and Rule Set Preparation do not gain managed-document retry authority from error strings. Their boundary handlers, admission, idempotency, Root capacity, cancellation, model retry, and billing controls were not changed. This review does not prove live paid retry behavior; no Assessment or Preparation was run.
 
@@ -18,9 +18,9 @@ Command from `deepagents`:
 uv run --frozen pytest -q --tb=short tests/test_managed_document_ingest.py tests/test_agent_runtime_rabbitmq_consumer.py tests/test_agent_server_client.py
 ```
 
-The prior flaky consumer test depended on a 10 ms real deadline and assumed the first executor thread would start before it expired; under combined-suite load the consumer correctly settled an already-expired delivery before invoking the fake dispatch. Replacing only the second-dispatch sleep with an Event was insufficient. The final test uses a controlled timer callback for the first delivery and a long test-local deadline, and waits for each dispatch to enter before proceeding. This removes scheduler-speed assumptions without changing production timeout behavior. After this correction, the combined suite passed twice consecutively (132 passed each, 7.16s and 6.42s).
+The prior flaky consumer test depended on a 10 ms real deadline and assumed the first executor thread would start before it expired; under combined-suite load the consumer correctly settled an already-expired delivery before invoking the fake dispatch. Replacing only the second-dispatch sleep with an Event was insufficient. The final test uses a controlled timer callback for the first delivery and a long test-local deadline, and waits for each dispatch to enter before proceeding. This removes scheduler-speed assumptions without changing production timeout behavior. After adding positive controls for the three existing source-boundary transport retry policies, the expanded combined suite passed twice consecutively: 135 passed in 11.35s and 135 passed in 7.55s.
 
-Ruff 0.17.4 via `uvx`: `--select I` passed on the three touched Python files. Full Ruff reports 10 findings, all in existing lint debt (legacy import/unused imports/date style/broad catches); the frozen project environment does not include Ruff. No broad lint cleanup was made. `compileall` passed before the final deterministic test-only adjustment; pytest then imported and executed the adjusted module successfully.
+Ruff 0.17.4 via `uvx`: `--select I` passed on all three touched Python files after the final boundary update. Full Ruff reports 10 pre-existing findings in the touched files (legacy import/unused-import/date-style/broad-catch items); the frozen project environment does not include Ruff. No unrelated lint cleanup was made. `compileall` and `git diff --check` passed. Business-logic documentation, import policy, contract-literal policy, and canonical terminology gates passed.
 
 ## Boundary evidence
 
@@ -28,6 +28,7 @@ Ruff 0.17.4 via `uvx`: `--select I` passed on the three touched Python files. Fu
 |---|---|
 | Managed-document 429/503 and allowlisted transport errors | Retryable only with canonical managed-document boundary; bounded broker schedule remains in force |
 | Managed-document 401/403/404/422 | Terminal |
+| Legal Source ingest, official-text extraction, legal-change detection transport failure | Retains each boundary's existing bounded transport retry policy |
 | Unknown or malformed remote error | Terminal |
 | Assessment Root with ingestion-looking remote error | Terminal Agent Server run error; no managed-document broker retry |
 | Rule Set Preparation with ingestion-looking remote error | Terminal Agent Server run error; no managed-document broker retry |

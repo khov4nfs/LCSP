@@ -366,6 +366,22 @@ def test_s03_managed_document_network_failure_remains_retryable():
         )
 
 
+@pytest.mark.parametrize(
+    "boundary_name",
+    [
+        "legal_source_ingest_requested",
+        "official_text_extraction_requested",
+        "legal_change_detection_requested",
+    ],
+)
+def test_s11_bounded_legal_source_boundaries_keep_transport_retry(boundary_name):
+    state = {"tasks": [{"error": "httpx.ConnectError('connection failed')"}]}
+    with pytest.raises(RetryableAgentBoundaryError, match="API transport failure"):
+        agent_server_client._raise_for_terminal_run(
+            "error", state, boundary_name=boundary_name
+        )
+
+
 @pytest.mark.parametrize("status", [401, 403, 404, 422])
 def test_s04_managed_document_permanent_errors_remain_terminal(status):
     state = {"tasks": [{"error": f"IngestionApiError('HTTP_{status} ({status})')"}]}
