@@ -15,6 +15,7 @@ import {
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  SEARCH_COVERAGE_SCOPE_KINDS,
 } from "@lcsp/contracts/assessment-domain";
 import {
   ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS,
@@ -44,6 +45,7 @@ const DECISION_ID = "77777777-7777-4777-8777-777777777771";
 const FACT_HUMAN_ID = "88888888-8888-4888-8888-888888888881";
 const EVIDENCE_HUMAN_ID = "99999999-9999-4999-8999-999999999991";
 const EVIDENCE_REPO_ID = "99999999-9999-4999-8999-999999999992";
+const EVIDENCE_COVERAGE_ID = "99999999-9999-4999-8999-999999999993";
 
 function createV3LocalizationFixture(): AssessmentFinalReportV3 {
   const basisRef = {
@@ -70,6 +72,7 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
       repositorySnapshotId: SNAPSHOT_ID,
       repositoryScanJobId: SCAN_JOB_ID,
       repositoryCommit: COMMIT,
+      sourcePathPrefix: "apps/api",
     },
     caseRevision: 1,
     decisionFingerprint: sha("c"),
@@ -79,7 +82,7 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
       sourcePathPrefix: "apps/api",
       excludedPaths: [],
       limitationReasons: [],
-      searchCoverageEvidenceIds: [],
+      searchCoverageEvidenceIds: [EVIDENCE_COVERAGE_ID],
     },
     legalRequirements: [
       {
@@ -109,6 +112,7 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
         assessmentRuleId: "rule-1",
         assessmentRuleVersion: "1",
         legalRequirementIds: ["req-1"],
+        relatedLegalContexts: [],
         concept: "Rule concept",
         legalIntent: "Rule legal intent",
         applicabilityGuidance: "Rule applicability guidance",
@@ -227,6 +231,24 @@ function createV3LocalizationFixture(): AssessmentFinalReportV3 {
         contentSha256: sha("e"),
         repositoryCommit: COMMIT,
         safeLocator: "apps/api/src/index.ts:1-20",
+      },
+      {
+        evidenceId: EVIDENCE_COVERAGE_ID,
+        type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
+        contentSha256: sha("f"),
+        repositoryCommit: COMMIT,
+        safeLocator: null,
+        searchCoverage: {
+          scopes: [
+            {
+              kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+              path: "apps/api",
+            },
+          ],
+          truncatedQueriesCount: 0,
+          knownGapsCount: 0,
+          directFallbackCount: 0,
+        },
       },
     ],
     outcomeSummary: {
