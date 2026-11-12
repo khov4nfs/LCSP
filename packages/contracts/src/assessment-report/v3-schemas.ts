@@ -8,8 +8,12 @@ import {
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  SEARCH_COVERAGE_SCOPE_KINDS,
 } from "../assessment-domain/constants.ts";
-import { LEGAL_REQUIREMENT_COVERAGE_STATES } from "../compliance-rule-set/constants.ts";
+import {
+  LEGAL_CONTEXT_RELATION_KINDS,
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
+} from "../compliance-rule-set/constants.ts";
 import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_BASIS_KINDS,
@@ -22,6 +26,7 @@ import {
   type RuleDecisionReference,
 } from "../assessment/agentic-runtime.ts";
 import {
+  REPOSITORY_SOURCE_PATH_MAX_LENGTH,
   isCanonicalRepositorySourcePath,
   isRepositoryPathInSourceScope,
   repositorySourcePathPrefixSchema,
@@ -109,12 +114,28 @@ const legalRequirementSchemaV3 = z.strictObject({
     .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS),
 });
 
+const searchCoverageEvidenceScopeSchemaV3 = z.strictObject({
+  kind: z.enum(SEARCH_COVERAGE_SCOPE_KINDS),
+  path: z.string().min(1).max(REPOSITORY_SOURCE_PATH_MAX_LENGTH),
+});
+
+const searchCoverageRecordSchemaV3 = z.strictObject({
+  scopes: z
+    .array(searchCoverageEvidenceScopeSchemaV3)
+    .min(1)
+    .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS),
+  truncatedQueriesCount: revisionSchema,
+  knownGapsCount: revisionSchema,
+  directFallbackCount: revisionSchema,
+});
+
 const evidenceIndexSchemaV3 = z.strictObject({
   evidenceId: uuidSchema,
   type: z.enum(ASSESSMENT_EVIDENCE_TYPES),
   contentSha256: sha256Schema,
   repositoryCommit: commitSchema.nullable(),
   safeLocator: boundedTextSchema.nullable(),
+  searchCoverage: searchCoverageRecordSchemaV3.nullable().optional(),
 });
 
 const factIndexSchemaV3 = z.strictObject({
@@ -181,12 +202,31 @@ const criterionDefinitionSchemaV3 = z.strictObject({
   statement: boundedTextSchema,
 });
 
+/**
+ * Bounded, source-pinned projection of a `LegalRequirementContextRelation` (`toRuleId != null`)
+ * linked to one of the rule's direct `legalRequirementIds` within the same `ruleSetVersionId`.
+ * C3 builds this solely from trusted rule-set persistence, never from model-authored output.
+ */
+const relatedLegalContextSchemaV3 = z.strictObject({
+  relationId: identifierSchema,
+  kind: z.enum(LEGAL_CONTEXT_RELATION_KINDS),
+  fromLegalRequirementId: identifierSchema,
+  toLegalRequirementId: identifierSchema,
+  sourceRefs: z
+    .array(sourceReferenceSchemaV3)
+    .min(1)
+    .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS),
+});
+
 const ruleDetailSchemaV3 = z.strictObject({
   assessmentRuleId: identifierSchema,
   assessmentRuleVersion: identifierSchema,
   legalRequirementIds: z
     .array(identifierSchema)
     .min(1)
+    .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS),
+  relatedLegalContexts: z
+    .array(relatedLegalContextSchemaV3)
     .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS),
   concept: boundedTextSchema,
   legalIntent: boundedTextSchema,
@@ -363,26 +403,32 @@ function parseRepositorySourceSafeLocator(
 }
 
 /**
- * Business purpose: Enforce structural and evidence-index consistency for V3 repository source scope declarations.
+ * Business purpose: Enforce structural, snapshot-pinned scope binding, coverage provenance, and evidence-index consistency for V3 repository source scope declarations.
  *
  * Business rules:
- * - WHOLE_REPOSITORY forbids a `sourcePathPrefix`; SUBTREE requires a canonical `sourcePathPrefix`; UNKNOWN mode requires `null` prefix and `UNKNOWN` visibility.
- * - KNOWN_FULL forbids exclusions or limitation reasons; KNOWN_LIMITED requires explicit limitation signals and never `VISIBILITY_UNKNOWN`; UNKNOWN visibility forbids exclusions and known-limitation codes.
- * - Every `searchCoverageEvidenceIds` entry must exist in `evidenceIndex` as `SEARCH_COVERAGE`, and REPOSITORY_SOURCE evidence paths must lie within `sourceScope` and outside `excludedPaths`.
+ * - `sourceScope` cannot widen beyond `pins.sourcePathPrefix`: a pinned subtree snapshot (`pins.sourcePathPrefix !== null`) forbids `WHOLE_REPOSITORY` and requires `SUBTREE` `sourcePathPrefix === pins.sourcePathPrefix` (or `UNKNOWN` scope/visibility), while a whole-repository snapshot pin (`pins.sourcePathPrefix === null`) forbids `SUBTREE` without an authoritative narrowing policy.
+ * - `WHOLE_REPOSITORY` forbids a `sourcePathPrefix`; `SUBTREE` requires a canonical `sourcePathPrefix`; `UNKNOWN` mode requires `null` prefix and `UNKNOWN` visibility.
+ * - `KNOWN_FULL` forbids exclusions/limitation reasons AND requires at least one verified `SEARCH_COVERAGE` evidence entry (`truncatedQueriesCount === 0`, `knownGapsCount === 0`) covering the pinned snapshot scope (`'.'` for whole repo or `pins.sourcePathPrefix` for subtree); missing, truncated, or gapped coverage cannot establish `KNOWN_FULL`.
+ * - `KNOWN_LIMITED` requires explicit exclusions or limitation reasons and never `VISIBILITY_UNKNOWN`; `UNKNOWN` visibility forbids exclusions and known-limitation codes.
+ * - `REPOSITORY_SOURCE` evidence locators must lie within `pins.sourcePathPrefix`, declared `sourceScope.sourcePathPrefix`, and outside `excludedPaths`.
  *
  * Execution flow:
- * 1. Validate mode, prefix, visibility, exclusions, and limitation reason combinations.
- * 2. Verify uniqueness and evidence-index references for `searchCoverageEvidenceIds`.
- * 3. Check `REPOSITORY_SOURCE` evidence locators against subtree and excluded path boundaries.
+ * 1. Validate mode, prefix, snapshot-pin binding (`pins.sourcePathPrefix`), visibility, exclusions, and limitation reasons.
+ * 2. Verify uniqueness, `SEARCH_COVERAGE` type, non-null verified coverage metadata, and `KNOWN_FULL` completeness guarantees.
+ * 3. Check `REPOSITORY_SOURCE` evidence locators against pinned snapshot prefix, declared subtree, and excluded path boundaries.
  *
  * Failure cases:
- * - Contradictory, duplicate, or dangling scope declarations add targeted Zod custom issues.
+ * - Contradictory, broadened, duplicate, unverified-full-coverage, or out-of-scope declarations add targeted Zod custom issues.
  *
  * Side effects:
  * - None: records validation issues on the Zod refinement context only.
  */
 function validateV3SourceScope(
   report: {
+    pins: {
+      sourcePathPrefix?: string | null;
+      repositoryCommit: string;
+    };
     sourceScope: AssessmentReportSourceScope;
     evidenceIndex: ReadonlyArray<z.infer<typeof evidenceIndexSchemaV3>>;
   },
@@ -390,6 +436,38 @@ function validateV3SourceScope(
   context: z.RefinementCtx,
 ): void {
   const { sourceScope } = report;
+  const pinnedPrefix = report.pins.sourcePathPrefix ?? null;
+
+  if (pinnedPrefix !== null) {
+    if (
+      sourceScope.mode ===
+      ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.WHOLE_REPOSITORY
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["sourceScope", "mode"],
+        message:
+          "Cannot declare WHOLE_REPOSITORY source scope when repositorySnapshot is pinned to a SUBTREE",
+      });
+    } else if (
+      sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE &&
+      sourceScope.sourcePathPrefix !== null &&
+      sourceScope.sourcePathPrefix !== pinnedPrefix
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["sourceScope", "sourcePathPrefix"],
+        message: `SUBTREE sourcePathPrefix (${sourceScope.sourcePathPrefix}) does not match pinned repositorySnapshot sourcePathPrefix (${pinnedPrefix})`,
+      });
+    }
+  } else if (sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE) {
+    context.addIssue({
+      code: "custom",
+      path: ["sourceScope", "mode"],
+      message:
+        "SUBTREE source scope is unsupported when pinned repositorySnapshot is whole repository without an authoritative narrowing policy",
+    });
+  }
 
   if (
     sourceScope.mode ===
@@ -569,6 +647,20 @@ function validateV3SourceScope(
     }
   }
 
+  if (
+    sourceScope.visibility ===
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL &&
+    sourceScope.searchCoverageEvidenceIds.length === 0
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["sourceScope", "searchCoverageEvidenceIds"],
+      message:
+        "KNOWN_FULL source visibility requires at least one verified search coverage evidence entry",
+    });
+  }
+
+  let hasPinnedCoverageScope = false;
   for (const [
     index,
     coverageId,
@@ -586,7 +678,57 @@ function validateV3SourceScope(
         path: ["sourceScope", "searchCoverageEvidenceIds", index],
         message: `Evidence ${coverageId} must have type SEARCH_COVERAGE`,
       });
+    } else if (
+      sourceScope.visibility ===
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL
+    ) {
+      if (!entry.searchCoverage) {
+        context.addIssue({
+          code: "custom",
+          path: ["sourceScope", "searchCoverageEvidenceIds", index],
+          message: `Search coverage evidence ${coverageId} must include verified searchCoverage metadata to establish KNOWN_FULL visibility`,
+        });
+      } else {
+        if (entry.searchCoverage.truncatedQueriesCount > 0) {
+          context.addIssue({
+            code: "custom",
+            path: ["sourceScope", "searchCoverageEvidenceIds", index],
+            message: `Search coverage evidence ${coverageId} has truncated queries (${entry.searchCoverage.truncatedQueriesCount}) and cannot establish KNOWN_FULL visibility`,
+          });
+        }
+        if (entry.searchCoverage.knownGapsCount > 0) {
+          context.addIssue({
+            code: "custom",
+            path: ["sourceScope", "searchCoverageEvidenceIds", index],
+            message: `Search coverage evidence ${coverageId} has known coverage gaps (${entry.searchCoverage.knownGapsCount}) and cannot establish KNOWN_FULL visibility`,
+          });
+        }
+        const expectedRoot = pinnedPrefix === null ? "." : pinnedPrefix;
+        if (
+          entry.searchCoverage.scopes.some(
+            (scope) => scope.path === expectedRoot,
+          )
+        ) {
+          hasPinnedCoverageScope = true;
+        }
+      }
     }
+  }
+
+  if (
+    sourceScope.visibility ===
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL &&
+    sourceScope.searchCoverageEvidenceIds.length > 0 &&
+    !hasPinnedCoverageScope
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["sourceScope", "searchCoverageEvidenceIds"],
+      message:
+        pinnedPrefix === null
+          ? "WHOLE_REPOSITORY KNOWN_FULL visibility requires verified search coverage covering repository root ('.')"
+          : `SUBTREE KNOWN_FULL visibility requires verified search coverage covering '${pinnedPrefix}'`,
+    });
   }
 
   for (const [index, item] of report.evidenceIndex.entries()) {
@@ -601,6 +743,17 @@ function validateV3SourceScope(
             "REPOSITORY_SOURCE evidence safeLocator must match canonical <path>:<startLine>-<endLine>",
         });
         continue;
+      }
+      if (
+        pinnedPrefix !== null &&
+        !isRepositoryPathInSourceScope(parsedLocator.path, pinnedPrefix)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["evidenceIndex", index, "safeLocator"],
+          message:
+            "REPOSITORY_SOURCE evidence path lies outside pinned repositorySnapshot sourcePathPrefix",
+        });
       }
       if (
         sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE &&
@@ -760,21 +913,22 @@ function validateV3BoundedActionPlan(
 }
 
 /**
- * Business purpose: Validate all V3 report cross-field invariants covering pins, criterion equality, reference/evidence transitive closure, source scope, outcome totals, and bounded action plan.
+ * Business purpose: Validate all V3 report cross-field invariants covering pins, criterion equality, related legal context authorization, reference/evidence transitive closure, source scope, outcome totals, and bounded action plan.
  *
  * Business rules:
- * - Identity, decision pins, rule versions, legal source pins, and unique IDs must remain strictly consistent.
+ * - Identity, decision pins, rule versions, legal source pins, snapshot `sourcePathPrefix`, and unique IDs must remain strictly consistent.
  * - Projected criteria must correspond 1-to-1 with declared and accepted criteria and match canonical outcomes and references without relying on prose equality.
+ * - `decision.legalContextRefs` IDs must be unique and authorized either by direct `rule.legalRequirementIds` or by a pinned `rule.relatedLegalContexts` target (`toLegalRequirementId`), matching `AssessmentCaseSupport` + `DecisionValidator` authority without fabricating context links.
  * - Decision, criterion, applicability-basis, and fact-linked evidence references must achieve full transitive closure into `factIndex` and `evidenceIndex` while preserving origin and `HUMAN_PROVIDED` authority.
  *
  * Execution flow:
  * 1. Validate identity/pins and index uniqueness for requirements, rules, facts, and evidence.
- * 2. Validate evidence types/locators and fact authority/evidence-type boundaries.
- * 3. Validate each rule's pins, criteria projection, reference multisets, transitive fact->evidence closure, and source pins.
- * 4. Validate outcome totals, source scope boundaries, and bounded action-plan invariants.
+ * 2. Validate evidence types, locators, and `SEARCH_COVERAGE` scope metadata boundaries.
+ * 3. Validate each rule's pins, direct + related legal context authorization, criteria projection, reference multisets, transitive fact->evidence closure, and source pins.
+ * 4. Validate outcome totals, snapshot-pinned source scope & coverage provenance, and bounded action-plan invariants.
  *
  * Failure cases:
- * - Any canonical inconsistency, dangling reference, authority elevation, or scope contradiction adds structured Zod issues.
+ * - Any canonical inconsistency, unauthorized or duplicate legal context ref, dangling reference, authority elevation, or scope contradiction adds structured Zod issues.
  *
  * Side effects:
  * - None: pure validation on the parsed candidate V3 report.
@@ -858,6 +1012,17 @@ function validateAssessmentFinalReportV3Invariants(
     }
 
     const pinnedCommit = report.pins.repositoryCommit.toLowerCase();
+    if (
+      item.type !== ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE &&
+      item.searchCoverage !== undefined &&
+      item.searchCoverage !== null
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["evidenceIndex", index, "searchCoverage"],
+        message: "Non-SEARCH_COVERAGE evidence cannot carry searchCoverage metadata",
+      });
+    }
     if (item.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE) {
       if (
         item.repositoryCommit === null ||
@@ -895,6 +1060,43 @@ function validateAssessmentFinalReportV3Invariants(
           path: ["evidenceIndex", index, "safeLocator"],
           message: "SEARCH_COVERAGE evidence must have null safeLocator",
         });
+      }
+      if (item.searchCoverage) {
+        for (const [
+          scopeIdx,
+          scopeEntry,
+        ] of item.searchCoverage.scopes.entries()) {
+          if (scopeEntry.path === ".") {
+            if (report.pins.sourcePathPrefix !== null) {
+              context.addIssue({
+                code: "custom",
+                path: ["evidenceIndex", index, "searchCoverage", "scopes", scopeIdx, "path"],
+                message:
+                  "Search coverage scope '.' is only valid when pinned sourcePathPrefix is null",
+              });
+            }
+          } else if (!isCanonicalRepositorySourcePath(scopeEntry.path)) {
+            context.addIssue({
+              code: "custom",
+              path: ["evidenceIndex", index, "searchCoverage", "scopes", scopeIdx, "path"],
+              message:
+                "Search coverage scope path must be canonical repository path or '.'",
+            });
+          } else if (
+            report.pins.sourcePathPrefix !== null &&
+            !isRepositoryPathInSourceScope(
+              scopeEntry.path,
+              report.pins.sourcePathPrefix,
+            )
+          ) {
+            context.addIssue({
+              code: "custom",
+              path: ["evidenceIndex", index, "searchCoverage", "scopes", scopeIdx, "path"],
+              message:
+                "Search coverage scope path lies outside pinned repositorySnapshot sourcePathPrefix",
+            });
+          }
+        }
       }
     } else {
       if (item.safeLocator !== null) {
@@ -1013,6 +1215,92 @@ function validateAssessmentFinalReportV3Invariants(
       }
     }
 
+    const seenRelationIds = new Set<string>();
+    const seenRelationTuples = new Set<string>();
+    const relatedContextTargetIds = new Set<string>();
+    for (const [relIdx, relation] of rule.relatedLegalContexts.entries()) {
+      if (seenRelationIds.has(relation.relationId)) {
+        context.addIssue({
+          code: "custom",
+          path: [
+            "ruleDetails",
+            ruleIndex,
+            "relatedLegalContexts",
+            relIdx,
+            "relationId",
+          ],
+          message: `Duplicate relationId ${relation.relationId} in relatedLegalContexts`,
+        });
+      }
+      seenRelationIds.add(relation.relationId);
+
+      const relationTuple = `${relation.fromLegalRequirementId}:${relation.toLegalRequirementId}:${relation.kind}`;
+      if (seenRelationTuples.has(relationTuple)) {
+        context.addIssue({
+          code: "custom",
+          path: ["ruleDetails", ruleIndex, "relatedLegalContexts", relIdx],
+          message: `Duplicate relation (${relationTuple}) in relatedLegalContexts`,
+        });
+      }
+      seenRelationTuples.add(relationTuple);
+
+      if (!ruleRequirementIds.has(relation.fromLegalRequirementId)) {
+        context.addIssue({
+          code: "custom",
+          path: [
+            "ruleDetails",
+            ruleIndex,
+            "relatedLegalContexts",
+            relIdx,
+            "fromLegalRequirementId",
+          ],
+          message: `fromLegalRequirementId ${relation.fromLegalRequirementId} is not directly linked to rule ${rule.assessmentRuleId}`,
+        });
+      }
+
+      if (!requirementIds.has(relation.toLegalRequirementId)) {
+        context.addIssue({
+          code: "custom",
+          path: [
+            "ruleDetails",
+            ruleIndex,
+            "relatedLegalContexts",
+            relIdx,
+            "toLegalRequirementId",
+          ],
+          message: `Unknown LegalRequirement ${relation.toLegalRequirementId} in relatedLegalContexts`,
+        });
+      } else {
+        relatedContextTargetIds.add(relation.toLegalRequirementId);
+      }
+
+      for (const [sourceIdx, source] of relation.sourceRefs.entries()) {
+        if (
+          source.legalSourceVersionId !== report.pins.legalSourceVersionId ||
+          source.legalSourceVersion !== report.pins.legalSourceVersion
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: [
+              "ruleDetails",
+              ruleIndex,
+              "relatedLegalContexts",
+              relIdx,
+              "sourceRefs",
+              sourceIdx,
+            ],
+            message:
+              "Related legal context source does not match pinned LegalSourceVersion",
+          });
+        }
+      }
+    }
+
+    const authorizedLegalContextIds = new Set([
+      ...rule.legalRequirementIds,
+      ...relatedContextTargetIds,
+    ]);
+
     const seenLegalContextIds = new Set<string>();
     for (const [contextIdx, legalContext] of rule.decision.legalContextRefs.entries()) {
       if (seenLegalContextIds.has(legalContext.legalContextId)) {
@@ -1029,7 +1317,7 @@ function validateAssessmentFinalReportV3Invariants(
         });
       }
       seenLegalContextIds.add(legalContext.legalContextId);
-      if (!ruleRequirementIds.has(legalContext.legalContextId)) {
+      if (!authorizedLegalContextIds.has(legalContext.legalContextId)) {
         context.addIssue({
           code: "custom",
           path: [
@@ -1039,7 +1327,7 @@ function validateAssessmentFinalReportV3Invariants(
             "legalContextRefs",
             contextIdx,
           ],
-          message: `legalContextId ${legalContext.legalContextId} is not linked to rule ${rule.assessmentRuleId}`,
+          message: `legalContextId ${legalContext.legalContextId} is not linked to rule ${rule.assessmentRuleId} directly or via authorized related legal context`,
         });
       }
     }
@@ -1408,6 +1696,8 @@ export const assessmentFinalReportV3Schema = z
       repositorySnapshotId: identifierSchema,
       repositoryScanJobId: identifierSchema,
       repositoryCommit: commitSchema,
+      /** Authoritative snapshot scope pin populated in C3 from `RepositorySnapshot.sourcePathPrefix`. */
+      sourcePathPrefix: repositorySourcePathPrefixSchema.nullable(),
     }),
     caseRevision: revisionSchema,
     decisionFingerprint: sha256Schema,
@@ -1625,6 +1915,15 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
       notes: "Rule/decision/fact/evidence identifiers and revisions.",
     },
     {
+      pathPattern: "/ruleDetails/*/relatedLegalContexts/*",
+      classification:
+        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      b1AuthoredFieldsIncluded: false,
+      c2ProtectedKeysRecommendation: "relatedLegalContexts",
+      notes:
+        "Bounded, source-pinned related legal context authority derived in C3 from LegalRequirementContextRelation (toRuleId != null); outside authoredKeys, add relatedLegalContexts to protectedKeys in C2.",
+    },
+    {
       pathPattern:
         "/ruleDetails/*/concept, /ruleDetails/*/legalIntent, /ruleDetails/*/applicabilityGuidance",
       classification:
@@ -1746,7 +2045,7 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
       notes:
-        "Excluded by B1 protectedKeys (factIndex, evidenceIndex); preserves accepted facts, customer answers, commits, hashes, and locators verbatim.",
+        "Excluded by B1 protectedKeys (factIndex, evidenceIndex); preserves accepted facts, customer answers, commits, hashes, locators, and verified search coverage provenance verbatim.",
     },
     {
       pathPattern: "/outcomeSummary/*",
