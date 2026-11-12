@@ -1,0 +1,133 @@
+{
+  "task": "LCSP-347 DATA-03.5",
+  "baselineHead": "a4a63371ecc2873864752d962c2deae50135ee93",
+  "database": "lcsp_data035_faults",
+  "rabbitVhost": "/lcsp-data034",
+  "queuePrefix": "data035-faults-20261112",
+  "oldVhostTouched": false,
+  "source": {
+    "identity": "Law 134/2025/QH15 official DOCX",
+    "sha256": "ced80bf1fd45a576a785994da3471d9a2fbdc54e799216e0c9dba5da62d45af7",
+    "byteLength": 66110
+  },
+  "scenarios": [
+    {
+      "id": "F01",
+      "status": "PASS",
+      "versionId": "99d7c765-3238-4c92-81a7-67580e86d3d9",
+      "documentId": "14687d35-17e1-445c-b720-48b6fe5b43c0",
+      "attempt": 1,
+      "outboxId": "outbox:5f447e117a1ea89b67718f46e11905fe4d953867b3d3e2ae157eddde4c990f44",
+      "correlationId": "2fe2c6d5-7d52-484d-bcf8-820d41a5bc92",
+      "agentThreadId": "c6ad8b71-1e2d-5644-8d98-78ae95d98583",
+      "agentRunId": "01a1cbef-79a8-7d02-a8ff-e1c9cde8a532",
+      "agentRequestId": "77305ccd-abea-4df6-acf3-4705bb69c599",
+      "originalGet": 200,
+      "callback": 200,
+      "documentState": "READY",
+      "chunks": 265,
+      "uniqueLocators": 265,
+      "chunkHashesValid": true,
+      "index": "VALID",
+      "versionState": "DRAFT"
+    },
+    {
+      "id": "F02",
+      "status": "PASS",
+      "versionId": "01419ce1-352b-49c1-9311-f731e4e94dc6",
+      "documentId": "dd7461bf-3dc7-47dd-989d-a411318a59ac",
+      "attempt": 1,
+      "outboxId": "outbox:fc3b7d9c4fddb784b71b7f8f1754f2ac1c21f6395baf1e0b0b5a1c4adf8d5da8",
+      "correlationId": "0b34317f-41cc-4d4a-bab5-ae57fb0cf7e7",
+      "proxyTrace": [
+        {"method": "GET", "result": 503, "mode": "unavailable"},
+        {"method": "GET", "result": 200, "mode": "forward"},
+        {"method": "POST", "result": 200, "mode": "forward"}
+      ],
+      "recovery": "RabbitMQ delayed retry after API restoration",
+      "documentState": "READY",
+      "chunks": 265,
+      "uniqueLocators": 265,
+      "chunkHashesValid": true,
+      "index": "VALID",
+      "versionState": "DRAFT",
+      "agentRunIds": "NOT_CAPTURED"
+    },
+    {
+      "id": "F03",
+      "status": "PARTIAL",
+      "setup": "Real consumer stop/restart while delayed task-owned retry deliveries were outstanding",
+      "observed": "Retry messages survived process restart and later settled through supported processing",
+      "hardCrashDuringActiveUnacknowledgedTask": "NOT_RUN",
+      "agentRunIds": "NOT_CAPTURED"
+    },
+    {
+      "id": "F04_F05",
+      "status": "PASS",
+      "versionId": "262e7fca-362c-456c-aa34-dbd2549f4d5c",
+      "documentId": "e84b3d8b-bfcd-4edb-b8bb-8ad9732aac0f",
+      "attempt": 1,
+      "outboxId": "outbox:c03decc8acf8e0380bd328c190ff30a3bdc85c53517175a6598b83784d4e8d54",
+      "correlationId": "7d5e41e1-9887-4202-8270-4d9e897023bd",
+      "proxyTrace": [
+        {"method": "GET", "result": 200, "mode": "forward"},
+        {"method": "POST", "result": 200, "mode": "callback-committed-response-dropped"},
+        {"method": "GET", "result": 200, "mode": "forward"},
+        {"method": "POST", "result": 200, "mode": "forward"}
+      ],
+      "documentState": "READY",
+      "chunks": 265,
+      "uniqueLocators": 265,
+      "chunkHashesValid": true,
+      "index": "VALID",
+      "versionState": "DRAFT",
+      "agentRunIds": "NOT_CAPTURED"
+    },
+    {
+      "id": "F06",
+      "status": "NOT_RUN",
+      "note": "No genuinely superseded earlier valid attempt existed; attempt=0 was rejected 422 LEGAL_SOURCE_REQUEST_INVALID."
+    },
+    {
+      "id": "F07",
+      "status": "PASS",
+      "wrongWorkerOriginalGet": "401 SESSION_INVALID",
+      "wrongWorkerCallback": "401 SESSION_INVALID"
+    },
+    {
+      "id": "F08",
+      "status": "PARTIAL",
+      "validWorkerKeyUnknownDocument": "404 LEGAL_SOURCE_DOCUMENT_NOT_FOUND",
+      "wrongDatabaseWorker": "NOT_RUN"
+    },
+    {
+      "id": "F09",
+      "status": "PASS",
+      "versionId": "fb5879a3-8738-4068-9cdb-6aea942a625f",
+      "documentId": "3d0bd887-b76e-4ba4-bf19-d0556b8a3d2c",
+      "attempt": 1,
+      "fixtureSha256": "76ecf42da26abed78934415a14dbb7a5ff20dd1d448af91739f852a6c2e59be0",
+      "documentState": "FAILED",
+      "chunks": 0,
+      "index": "NONE"
+    },
+    {
+      "id": "F10",
+      "status": "PASS",
+      "activationCount": 0,
+      "preparationRunCount": 0,
+      "assessmentCount": 0,
+      "llmUsageEventCount": 0,
+      "externalModelStubPosts": 0,
+      "providerRoute": "local-only guard, no fallback"
+    }
+  ],
+  "databaseReadback": {
+    "law134ReadyRecords": "Each READY record: blob hash equals source SHA; 265 chunks; 265 unique locators; all chunk hashes valid; VALID retrieval index sha256:1c3947275cd3736ad198768bbcba09189e0454e5c05a5355e888c2c5c6232f60",
+    "sourceVersionsActivated": 0,
+    "preparationRuns": 0,
+    "assessments": 0,
+    "llmUsageEvents": 0
+  },
+  "finalBrokerState": "See legal-source-data035-broker-settlement.md; old /lcsp-data032 was not accessed."
+}

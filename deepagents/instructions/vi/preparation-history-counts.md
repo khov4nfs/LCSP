@@ -1,0 +1,1 @@
+Rule Set Draft đã accepted được lưu tại PostgreSQL, version {draft_version}: {requirement_count} requirements và {rule_count} assessment rules. Dùng get_rule_set_draft_candidate để sửa có mục tiêu; không tạo lại công việc đã accepted.

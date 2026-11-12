@@ -13,7 +13,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import (
+    NonRetryableAgentBoundaryError,
+    RetryableAgentBoundaryError,
+)
 from tools.common.capabilities.agent_runtime.invocation import AGENT_INVOCATION_BOUNDARIES
 from tools.legal.managed_documents.boundary import (
     LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
@@ -437,8 +440,24 @@ class TestBoundary:
         assert client.posted == []
 
     def test_a_server_error_is_left_to_the_queue_to_redeliver(self):
-        with pytest.raises(IngestionApiError):
+        with pytest.raises(RetryableAgentBoundaryError):
             boundary(FakeClient(fetch_error=IngestionApiError(503, "HTTP_503"))).handle(MESSAGE, "corr")
+
+    def test_an_api_transport_failure_is_left_to_the_queue_to_redeliver(self):
+        import httpx
+
+        with pytest.raises(RetryableAgentBoundaryError):
+            boundary(
+                FakeClient(fetch_error=httpx.ConnectError("connection refused"))
+            ).handle(MESSAGE, "corr")
+
+    def test_a_callback_transport_failure_is_left_to_the_queue_to_redeliver(self):
+        import httpx
+
+        with pytest.raises(RetryableAgentBoundaryError):
+            boundary(
+                FakeClient(post_errors=[httpx.ConnectError("connection lost")])
+            ).handle(MESSAGE, "corr")
 
     def test_a_rejected_request_is_terminal(self):
         with pytest.raises(NonRetryableAgentBoundaryError):

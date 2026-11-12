@@ -1,0 +1,1 @@
+KHI DÙNG: nguồn đã đọc xác nhận một phương pháp phù hợp. ĐỌC: skill được phép và ranh giới non-authoritative. TIẾP: áp dụng cho điều tra, không tạo duty. LỖI: tên/locale sai hay skill lỗi không cho phép tự bịa fallback.

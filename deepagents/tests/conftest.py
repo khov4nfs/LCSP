@@ -53,6 +53,23 @@ def _ensure_default_model_routes() -> None:
 _ensure_default_model_routes()
 
 
+@pytest.fixture(scope="session")
+def offline_instruction_snapshot(tmp_path_factory):
+    from approved_bundle_fixture import build_test_bundle
+    return build_test_bundle(tmp_path_factory.mktemp("approved-instructions-test-only"))
+
+
+@pytest.fixture(autouse=True)
+def approved_offline_instructions(request, monkeypatch, offline_instruction_snapshot):
+    # Loader/inventory tests exercise real rejection paths and must never inherit injection.
+    if request.node.path.name.startswith(("test_runtime_instruction_bundle", "test_instruction_")) or request.node.get_closest_marker("production_instruction_bundle"):
+        yield
+        return
+    import runtime_instruction_bundle
+    monkeypatch.setattr(runtime_instruction_bundle, "production_runtime_bundle", lambda: offline_instruction_snapshot)
+    yield offline_instruction_snapshot
+
+
 @pytest.fixture(autouse=True)
 def _fresh_model_routes_cache() -> Generator[None, None, None]:
     def clear() -> None:

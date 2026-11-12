@@ -7,28 +7,37 @@ with source references; only the Root verifies and accepts evidence.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Sequence
+
+from orchestration.context import resolve_response_language
 
 from deepagents.middleware.filesystem import FilesystemPermission
 
 RESEARCHER_NAME = "repository-researcher"
 
-RESEARCHER_PROMPT = """You are a read-only Repository Researcher helping the Assessment Root.
+RESEARCHER_PROMPT = (Path(__file__).with_name("researcher.en.md")).read_text(encoding="utf-8")
+RESEARCHER_PROMPT_VI = (Path(__file__).with_name("researcher.vi.md")).read_text(encoding="utf-8")
 
-You receive ONE self-contained question about the assessed repository. Answer it by reading and
-searching the repository (native filesystem tools; you may also use code-graph search tools if
-present). You cannot and must not change files, decide legal applicability or compliance, or decide
-whether anything is sufficient evidence.
 
-Focus strictly on what the codebase files implement and state. Never make claims or draw inferences
-about the legal status, organizational identity, or external real-world practices of the entity
-operating the software.
+def researcher_prompt_for_locale(locale: str) -> str:
+    """Business purpose:
+    Select the canonical locale-specific read-only researcher instructions.
 
-Return a short report:
-- Findings: each one a plain statement tied to `path:start-end` line ranges you actually read.
-- Not found / gaps: what you searched (paths, patterns) and did not find, and what you could not
-  check. Never present "I found nothing" as proof of absence.
-Keep it concise and factual. Your findings are candidates; the Root verifies every range itself."""
+    Business rules:
+    - Supported locales are en/vi; only the prompt language changes, never tool permissions.
+
+    Execution flow:
+    1. Normalize the trusted response locale and select the checked-in researcher instructions.
+
+    Failure cases:
+    - If an unsupported locale is supplied, normalize through the product fallback; missing localized source files cause a visible loading error instead of fabricated prompt text.
+
+    Side effects:
+    - Selects an immutable in-process prompt only; does not mutate repository or Assessment state.
+    """
+    from runtime_instruction_bundle import runtime_instruction
+    return runtime_instruction("repository-researcher.system")
 
 
 def read_only_permissions() -> list[FilesystemPermission]:
@@ -53,7 +62,7 @@ def read_only_permissions() -> list[FilesystemPermission]:
     ]
 
 
-def researcher_subagent(graph_tools: list[Any], *, middleware: Sequence[Any] = ()) -> dict[str, Any]:
+def researcher_subagent(graph_tools: list[Any], *, middleware: Sequence[Any] = (), locale: str = "en") -> dict[str, Any]:
     """Business purpose: Configure the Root's existing read-only native research delegate with its model-governance policy.
 
     Business rules:
@@ -73,13 +82,17 @@ def researcher_subagent(graph_tools: list[Any], *, middleware: Sequence[Any] = (
     return {
         "name": RESEARCHER_NAME,
         "description": (
-            "Read-only bounded repository research. Give it one self-contained question; it "
-            "returns candidate findings with file/line ranges and the gaps it could not cover. "
-            "It cannot record evidence or decide anything."
+            ("Điều tra kỹ thuật repository ở chế độ chỉ đọc; truy vết đường xử lý, "
+             "phản chứng và giới hạn tìm kiếm; không sửa mã nguồn hay quyết định pháp lý."
+             if resolve_response_language(locale) == "vi" else
+             "Read-only technical investigation with causal source tracing, "
+             "counterevidence and bounded search gaps. No coding, source mutation "
+             "or legal decision authority.")
         ),
-        "system_prompt": RESEARCHER_PROMPT,
+        "system_prompt": researcher_prompt_for_locale(locale),
+        "mode": "isolated",
         # Explicit empty/read-only tool set: no governed assessment tool is ever inherited.
         "tools": list(graph_tools),
-        "middleware": list(middleware),
+        "middleware": [*middleware, __import__("middleware.approved_instructions", fromlist=["ApprovedInstructionMiddleware"]).ApprovedInstructionMiddleware(["repository-researcher.system", "runtime.response-language"], presentation_context=lambda: {"response_language": locale})],
         "permissions": read_only_permissions(),
     }

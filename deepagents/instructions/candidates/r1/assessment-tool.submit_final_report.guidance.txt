@@ -1,0 +1,1 @@
+WHEN: FULL_RULE_SET is FINALIZING and all rules have current accepted decisions. READ: frozen accepted IDs, rule coverage and evidence. NEXT: submit exactly supported findings. FAILURE: SELECTED_RULES cannot publish a full report.

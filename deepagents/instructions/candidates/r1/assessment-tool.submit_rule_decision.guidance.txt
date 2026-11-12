@@ -1,0 +1,1 @@
+WHEN: every material applicability element and criterion has current supported evidence. READ: API-accepted facts, actual legal predicate, source references and contrary evidence. NEXT: submit typed applicability/criterion results, preserve references. FAILURE: unknown material fact requires investigation/HITL, not NOT_APPLICABLE or COMPLIANT.

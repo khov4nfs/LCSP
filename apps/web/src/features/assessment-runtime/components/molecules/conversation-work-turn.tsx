@@ -67,6 +67,13 @@ export function ConversationWorkTurn({ turn }: { turn: WorkTurn }) {
             ))}
           </ul>
         ) : null}
+        {turn.technical
+          .filter((event) => event.summary)
+          .map((event) => (
+            <p key={event.eventId} className="whitespace-pre-wrap text-sm">
+              {event.summary}
+            </p>
+          ))}
         <ConversationTechnicalDetails events={turn.technical} />
       </WorkDisclosure>
     </ChatMessage>

@@ -1,8 +1,10 @@
+import { PreparationActivityController } from "./presentation/http/preparation-activity.controller.js";
 import { InternalAgentStreamController } from "./presentation/http/internal-agent-stream.controller.js";
 import { PublishAgentStreamEventHandler } from "./application/commands/publish-agent-stream-event/publish-agent-stream-event.handler.js";
 import { WorkspaceRuntimeEventsController } from "./presentation/http/workspace-runtime-events.controller.js";
 import { GetWorkspaceRuntimeHandler } from "./application/queries/get-workspace-runtime/get-workspace-runtime.handler.js";
 import { Module } from "@nestjs/common";
+import { AuthoredLocalizationModule } from "../../platform/localization/localization.module.js";
 import { AssessmentRootCapacityService } from "./application/services/assessment-root-capacity.service.js";
 import {
   AssessmentRootCapacityController,
@@ -97,9 +99,11 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AuditModule,
     BillingModule,
     ComplianceRuleSetModule,
+    AuthoredLocalizationModule,
     StorageModule,
   ],
   controllers: [
+    PreparationActivityController,
     AssessmentRootCapacityController,
     AdminAssessmentRootCapacityController,
     InternalAgentStreamController,

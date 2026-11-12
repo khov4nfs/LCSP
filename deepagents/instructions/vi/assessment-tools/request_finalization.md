@@ -1,0 +1,1 @@
+KHI DÙNG: các decision trong phạm vi đã chấp nhận đủ, không còn blocker trọng yếu. ĐỌC: API coverage và request status. TIẾP: chỉ API xác nhận hoàn tất. LỖI: selected-only không được tự tạo báo cáo full-rule-set.

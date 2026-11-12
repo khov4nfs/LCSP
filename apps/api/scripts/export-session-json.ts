@@ -1,3 +1,5 @@
+import { LocalePresentationProjectionService } from "../src/modules/assessment/infrastructure/presentation/locale-presentation-projection.service.js";
+import { AuthoredLocalizationService } from "../src/platform/localization/authored-localization.service.js";
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -51,7 +53,13 @@ async function main(): Promise<void> {
   try {
     await prisma.onModuleInit();
     const storage = new ArtifactStorageService();
-    const reports = new AssessmentReportLoader(prisma, storage);
+    const reports = new AssessmentReportLoader(
+      prisma,
+      storage,
+      new LocalePresentationProjectionService(
+        new AuthoredLocalizationService(prisma),
+      ),
+    );
     const provenance = new AssessmentProvenanceLoader(prisma);
     const loader = new AssessmentSessionExportLoader(
       prisma,

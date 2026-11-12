@@ -1,0 +1,1 @@
+KHI DÙNG: trước khi điều tra rule được chọn. ĐỌC: ID criterion/condition và phạm vi pháp lý kế thừa. TIẾP: đọc nguồn luật pin trước khi xem code. LỖI: rule thiếu/không được chọn không cho phép tạo criterion mới.

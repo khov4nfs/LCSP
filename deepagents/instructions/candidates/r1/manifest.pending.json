@@ -1,0 +1,481 @@
+{
+  "bundleSchemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
+  "bundleId": "lcsp-347-vi-draft-r1",
+  "approvalStatus": "PENDING",
+  "vietnameseInventorySha256": "c35680943500c68a0b713f5ecf3c4e69c6bed1d2d50138994f3db656c037ba3e",
+  "englishBundleSha256": "74ce5eee8e7c6a3d5e26e6f9c8762b8896890f761f5aabd399891cfd78c0cf6a",
+  "entries": [
+    {
+      "sourceId": "assessment-root.continuation",
+      "vietnameseSourcePath": "instructions/vi/assessment-continuation.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "63230b1abf90cf93d8cfcb8b12733372ac91a1178c2decadb37e1d9e3086f197",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-root.continuation.txt",
+      "englishRuntimeSha256": "1f47b1ef1b66be59642e76c276fb6714f43546a6583b312daa89e998aed12fc5"
+    },
+    {
+      "sourceId": "assessment-root.resume",
+      "vietnameseSourcePath": "instructions/vi/assessment-resume.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "ff73929990f705015ed5b928da75bcfee94ae46c0d816ead3279376efb478cd9",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-root.resume.txt",
+      "englishRuntimeSha256": "3ab2c42f073ea3080682d8c6cadc297885b1d9319433f6b3cd03d6054cf8d3b9"
+    },
+    {
+      "sourceId": "assessment-root.system",
+      "vietnameseSourcePath": "assessment_root/instructions.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "b84cc05bfecff6197854286d552b67a43faa9cd2f5e1c3b3dcf602635b58df95",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-root.system.txt",
+      "englishRuntimeSha256": "8f7b3aa1100b3aca4289ddbd03c4755e2e677881d29e139e065671094a3484ac"
+    },
+    {
+      "sourceId": "assessment-tool.accept_case_fact.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/accept_case_fact.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "ed2da7e88c939d6b65c2c18a189aa4870450dda75d1240e4f5d46b3e3f42fe76",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.accept_case_fact.guidance.txt",
+      "englishRuntimeSha256": "22fe9c9d393c40600ceafa1102504d5e0a87ace4692a427fc6f49cd998fa47f8"
+    },
+    {
+      "sourceId": "assessment-tool.cite_repository_source.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/cite_repository_source.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "3d6ee5e68cd72326c1e7a0eebf28761cfe1f73c794835101b17cf2dde5040e73",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.cite_repository_source.guidance.txt",
+      "englishRuntimeSha256": "63b745e70e8a1620d263185f1f1a40c51af1fbb7f45eafa8ed929f8d4bc4b6ff"
+    },
+    {
+      "sourceId": "assessment-tool.get_assessment_context.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_assessment_context.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "4044378b7482075711c934c32e69660930034052c333719ad8bf19d46c13ae2f",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_assessment_context.guidance.txt",
+      "englishRuntimeSha256": "6a1fbce35975c0228e21ef5676f459b98a431316c4d9a57c646ebc920079cbf7"
+    },
+    {
+      "sourceId": "assessment-tool.get_assessment_rule.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_assessment_rule.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "926fedfeae0eb7703481ae69599c1417be063a410716236b19ce98b5732b6444",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_assessment_rule.guidance.txt",
+      "englishRuntimeSha256": "c9fe259b3ca96378eb02c48ecf238138b8518573068e74664a8e4b0ab2fef17e"
+    },
+    {
+      "sourceId": "assessment-tool.get_pinned_rule_set.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_pinned_rule_set.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "b5c8c02b6cc14ceac41bf5fe81b99f74b1e35673ea6a68321f3b1161464f8675",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_pinned_rule_set.guidance.txt",
+      "englishRuntimeSha256": "7d753d89563ded64a3993406ed85a3d65f238c99e794763fa64a543d3368d626"
+    },
+    {
+      "sourceId": "assessment-tool.get_repository_architecture.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_repository_architecture.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "545ad4c73291a37d0af536673796b7813617c6927d882964d19cb74e592fcb30",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_repository_architecture.guidance.txt",
+      "englishRuntimeSha256": "2b82feabc5f93bb66091715d8a31b641b722790e770ea3e7dbbd1618fb111b49"
+    },
+    {
+      "sourceId": "assessment-tool.get_rule_decision.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_rule_decision.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "657597148c0e748177fcd831af44e518af063d4a4527a7e82ac8fe57ae0d2952",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_rule_decision.guidance.txt",
+      "englishRuntimeSha256": "9c2c6d05c4af445f9d291caea73a89f00fa69097d7498eafabfd2da33cd019cb"
+    },
+    {
+      "sourceId": "assessment-tool.list_assessment_skills.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/list_assessment_skills.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "739429f0311be24abf8aa4b72f555a006d79b9b85428b4cbd40e01a342f81034",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.list_assessment_skills.guidance.txt",
+      "englishRuntimeSha256": "8425c5541c02c8e06546a7bc67ea68c56bff95b59c9a72b3564a6b83220cc393"
+    },
+    {
+      "sourceId": "assessment-tool.load_assessment_skill.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/load_assessment_skill.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "f886b07619f085333fe86d8a3f1331cfd41c5ebeaeb0870c672fbb0159a64bd6",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.load_assessment_skill.guidance.txt",
+      "englishRuntimeSha256": "78a918a2a0228b0d04b8e0b25e4a8ced45594ffc1387d92297bc109aae8d66b3"
+    },
+    {
+      "sourceId": "assessment-tool.open_human_request.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/open_human_request.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "0e29d9d9cb85af2ecebdf7f8e0a5551616e9bb01554396c7bf77e41cc2a23e87",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.open_human_request.guidance.txt",
+      "englishRuntimeSha256": "d55e06db5f2dd693535c80e9fa06b65cae4be3cd403d88b661913ae542cd5f28"
+    },
+    {
+      "sourceId": "assessment-tool.read_legal_source.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/read_legal_source.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "5e5fdb229efdf43c091988590b728b8bbf9dbcf296ac3fcc269f9f3071409261",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.read_legal_source.guidance.txt",
+      "englishRuntimeSha256": "08b26104e32d5d2771e1359bcce42aca0e9989f7e8ed33084b17a95017fce57d"
+    },
+    {
+      "sourceId": "assessment-tool.record_search_coverage.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/record_search_coverage.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "a2a62dba027004b0262deb1dde532cd7d1eafb7f041daa177483938b0b846439",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.record_search_coverage.guidance.txt",
+      "englishRuntimeSha256": "33e32f9810f5fbfdeea7d553308954c990b335be54ca5226834294cfe8547510"
+    },
+    {
+      "sourceId": "assessment-tool.report_human_fact_unresolvable.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/report_human_fact_unresolvable.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "9d257f63b86b4dd88c3e94d0663b109432e1361926740d7d3de021d92106a4d3",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.report_human_fact_unresolvable.guidance.txt",
+      "englishRuntimeSha256": "62d7607f0c3eb0c44b91b9db163c154cc69a21c2a1629114e4c5074694a6c794"
+    },
+    {
+      "sourceId": "assessment-tool.request_finalization.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/request_finalization.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "3e920ebf8a2f1d57427fed8c96774a01f426ce02ab429565ce97908d77ce2ce3",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.request_finalization.guidance.txt",
+      "englishRuntimeSha256": "0af52ea6c9619413a71b7481a6596b6d85e30cb8a5ff4445354d53742f22138c"
+    },
+    {
+      "sourceId": "assessment-tool.search_code_graph.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/search_code_graph.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "6b41e70a8ecdc7594cdd355945447f305acb4b6727f39f659550811446db9f9c",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.search_code_graph.guidance.txt",
+      "englishRuntimeSha256": "203ff773b30d71b873379b02415249783e4cf2d828be2d68f501288194bd0703"
+    },
+    {
+      "sourceId": "assessment-tool.search_code_text.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/search_code_text.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "d69cddd08709a59cf0ec440fa30980aeb44baa5f406a4c2174ce723b91ed6081",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.search_code_text.guidance.txt",
+      "englishRuntimeSha256": "662850ba60ef6be4a5dca383bd000f01a5f22e8660cc54dbbdfae01a6ac447e8"
+    },
+    {
+      "sourceId": "assessment-tool.search_legal_source.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/search_legal_source.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "c749e31aea3bc74e1ee6c0081e16d29cd64d8d7c54b345947ff62f11be55d8ec",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.search_legal_source.guidance.txt",
+      "englishRuntimeSha256": "5a361c7f55234a755d5d20982c6bcae89f261ab274f8c098fd1f2650977c7454"
+    },
+    {
+      "sourceId": "assessment-tool.start_rule_investigation.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/start_rule_investigation.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "0f8da362b84a83720f353daca7a19d63196d85f90b4f676be1165a624d98ea2c",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.start_rule_investigation.guidance.txt",
+      "englishRuntimeSha256": "01fbfe4aa42f7c12337a258f47a06cc7e490d383a202523455a5bf42a66665c7"
+    },
+    {
+      "sourceId": "assessment-tool.submit_final_report.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/submit_final_report.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "d5e1dc2212197358695adff3b435d8e6f56a86ca7d30d8afac64866776c6322b",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.submit_final_report.guidance.txt",
+      "englishRuntimeSha256": "c0da171ddc664dc0cdc9a393a70debf39d20f8a77fe3f4888bd9987a2d5e7d0f"
+    },
+    {
+      "sourceId": "assessment-tool.submit_rule_decision.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/submit_rule_decision.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "373eb03399e1d32b33cc5fa34a9110675d13167d21882721ea2efd5fb0acbcf8",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.submit_rule_decision.guidance.txt",
+      "englishRuntimeSha256": "28924411aaca66350af971551125262357a48943ec953e13203306d44103fd2e"
+    },
+    {
+      "sourceId": "assessment-tool.trace_call_path.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/trace_call_path.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "9caa2cab737e4f51731da4cd920f3117c8f96304461680a9441c004a0b3103f3",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.trace_call_path.guidance.txt",
+      "englishRuntimeSha256": "e48882b3acb758ecfd628c18bc30feb655bf5d86da75bb51dbeb5e0b4d0d6127"
+    },
+    {
+      "sourceId": "assessment-tools.descriptions",
+      "vietnameseSourcePath": "instructions/vi/root-tool-descriptions.json",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "db093013fabd294679b4fdd86dc8609c35138a0766ad973b2dfd070fe9b02e83",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tools.descriptions.txt",
+      "englishRuntimeSha256": "2380b6970ad4847f0770db1a74f4666e53a35a0ec2bc6667057b9cd53c80037c"
+    },
+    {
+      "sourceId": "assessment-tools.upstream",
+      "vietnameseSourcePath": "instructions/vi/upstream-assessment-tools.json",
+      "vietnameseSourceRevision": "lcsp-347-upstream-r1",
+      "vietnameseSourceSha256": "df986400eaaf4d0713b4fb9b2ad3946eb49961e7608bd6376fb19842b9f67d4c",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tools.upstream.txt",
+      "englishRuntimeSha256": "407271bc18b53776123863ab245d301704e714cf5dc058c9b2940831d805ab38"
+    },
+    {
+      "sourceId": "claim-author.system",
+      "vietnameseSourcePath": "instructions/vi/claim-author.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "7d7bc258431c305653e8a82d0e15d9044a64ed4cfa3f4789737fa0f72da54889",
+      "englishRuntimePath": "instructions/candidates/r1/claim-author.system.txt",
+      "englishRuntimeSha256": "00fc39ee921cb6eaf6e40cdf32f3e682f3bed8933c2b18733636fbf44365fc76"
+    },
+    {
+      "sourceId": "framework.file-deletion",
+      "vietnameseSourcePath": "instructions/vi/framework-file-deletion.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "13026989b49e35813c0309e99201645bffb833446dee7921ce14c8bfb1b8aded",
+      "englishRuntimePath": "instructions/candidates/r1/framework.file-deletion.txt",
+      "englishRuntimeSha256": "8134ad829c4559508256e4995298ea3fdff30566826df827109c485a1f7398b7"
+    },
+    {
+      "sourceId": "framework.injected-policy",
+      "vietnameseSourcePath": "instructions/vi/framework-guidance.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "31d05818d844c018c3727fefc4fc975273cb125184dc70795e6b54ef65a7acf3",
+      "englishRuntimePath": "instructions/candidates/r1/framework.injected-policy.txt",
+      "englishRuntimeSha256": "d3e852eecbda456fec5e6062dd49c7ddf0e48958ca3c9006044354a9cf5e99f9"
+    },
+    {
+      "sourceId": "preparation-tools.descriptions",
+      "vietnameseSourcePath": "instructions/vi/preparation-tool-guidance.json",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "b69048a508658870e2696d0ba5f82e324757f95827d803d5d4f758d6442ce034",
+      "englishRuntimePath": "instructions/candidates/r1/preparation-tools.descriptions.txt",
+      "englishRuntimeSha256": "0caa392d25352f8876a99147288acd3db8b48f5098b899d9f54bca8d8fd26a4b"
+    },
+    {
+      "sourceId": "preparation.authoring",
+      "vietnameseSourcePath": "instructions/vi/preparation-authoring.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "d9891c7118903e95ba67d256b1e3a61cde9b18abdfd105730b5fb0a4fda9f89d",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.authoring.txt",
+      "englishRuntimeSha256": "f988c6a605a32821f1df23b5b78ceda9809c7937e8c24c007fd0dcd7a17575d6"
+    },
+    {
+      "sourceId": "preparation.authoring-state",
+      "vietnameseSourcePath": "instructions/vi/authoring-state-guidance.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "6c46ae9de0820dae2a9415ef1da96f28dab7ac6c5dfb508d89ff7730b2b9776b",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.authoring-state.txt",
+      "englishRuntimeSha256": "a26d3f310bc19aa9c95ee97376993fb221828d738c5fe00d327785677ed937c7"
+    },
+    {
+      "sourceId": "preparation.common",
+      "vietnameseSourcePath": "instructions/vi/preparation-common.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "5d6e39bb55078a78028b6c5cce4524003a7c641cf18330f7af74aebf2c1a2440",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.common.txt",
+      "englishRuntimeSha256": "a7c1b809bc748df6b38053244e8a65e981021c84f4502e256c41e1c61a28c9c3"
+    },
+    {
+      "sourceId": "preparation.continuation",
+      "vietnameseSourcePath": "instructions/vi/preparation-continuation.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "6922934adfd20cedb0114d0357040b3853cc5c4b755653fa6d13f9055b5805c6",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.continuation.txt",
+      "englishRuntimeSha256": "b48b6e144425ecc262996f1502c200e0bab5ffabf73ec87aefb9a653124b82ce"
+    },
+    {
+      "sourceId": "preparation.development-overlay",
+      "vietnameseSourcePath": "instructions/vi/preparation-development.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "a8cddcb07f3ac9fe0bd4d7637935aa2d2a335e5e0388004dfcd331c1158a9e71",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.development-overlay.txt",
+      "englishRuntimeSha256": "3514c77fae290608653162ebbc6b9dbbc9741ec7c35ae552c45b51822f0f9d7b"
+    },
+    {
+      "sourceId": "preparation.direct",
+      "vietnameseSourcePath": "instructions/vi/preparation-direct.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "eeb5cfa7f6bf58c35f15864a55b5f6620e896fdc9ee920388381b8fb5e6c3873",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.direct.txt",
+      "englishRuntimeSha256": "878917d6ae163f7c398091a220c0633c790214e9e895c192e7ce3efebb6ebff6"
+    },
+    {
+      "sourceId": "preparation.discovery",
+      "vietnameseSourcePath": "instructions/vi/preparation-discovery.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "8bd424b6665dfbc2dd8bf56bbde8be34b40a67bc4b25c44bf1d461b4207abccb",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.discovery.txt",
+      "englishRuntimeSha256": "e36a3337602da20c044b8099e2a226ef7e5d65dd79e70bd125a668ad6eaaa08d"
+    },
+    {
+      "sourceId": "preparation.history",
+      "vietnameseSourcePath": "instructions/vi/preparation-history.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "a9dcba8b22bca9396828d6c9e28d2cf2662bedf42e827137e94a313e5249d0e8",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.history.txt",
+      "englishRuntimeSha256": "3acb33dcaf5ac3502be8ab8dd063920a6b2e5ae95a5bfba9e63e08a03ef35f94"
+    },
+    {
+      "sourceId": "preparation.history-counts",
+      "vietnameseSourcePath": "instructions/vi/preparation-history-counts.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "dea4b3ebe4a3e2b336938b6a02212a9365eb080e7b21fc318c031ce7758aa7da",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.history-counts.txt",
+      "englishRuntimeSha256": "977f12e034c5391549c020148e60e2fd480da2a5c4a9234ebb5718b1354bf7d2"
+    },
+    {
+      "sourceId": "preparation.materialized-source-guidance",
+      "vietnameseSourcePath": "instructions/vi/materialized-source-guidance.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "bcb2b886480be2bba27086f1cd6e35d55811a9a7d0c75587023067ade583fe96",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.materialized-source-guidance.txt",
+      "englishRuntimeSha256": "ab53f6b37a25b139863eb202d53ca65b34eb0ed86ba501579ddf57574a378929"
+    },
+    {
+      "sourceId": "preparation.observation-errors",
+      "vietnameseSourcePath": "instructions/vi/observation-error-guidance.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "de45b2205ad8766f4b1adc688b53f3d2e3b1f690b23c4b14aa08b93c08f9fb1f",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.observation-errors.txt",
+      "englishRuntimeSha256": "e61fc1df5a2a5369eb97fc8d5c5193bc739fde937fdef4a14683db7484a97e92"
+    },
+    {
+      "sourceId": "preparation.presentation",
+      "vietnameseSourcePath": "instructions/vi/preparation-presentation.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "a7bd55de4edd383b2ef01a9d7978811313dcec7235f652db2fdd68c08b198deb",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.presentation.txt",
+      "englishRuntimeSha256": "b0e3fa7382316ba0c4b5e3584cf8b9a9cd8bcaf584daab8eb72196b2114aff66"
+    },
+    {
+      "sourceId": "repository-researcher.system",
+      "vietnameseSourcePath": "assessment_root/researcher.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "b634a9fe1efeef5050400cc80191f53a3750cfe7e332b280afa3b860662cd4be",
+      "englishRuntimePath": "instructions/candidates/r1/repository-researcher.system.txt",
+      "englishRuntimeSha256": "28db35de5844fdae8b6518892d3899fcb75397e5dd9308149ef67dce899fed68"
+    },
+    {
+      "sourceId": "runtime.budget-finalization",
+      "vietnameseSourcePath": "instructions/vi/budget-finalization.json",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "4abb5ce64bcee0f553de0734f001dbd3c743e267cbcb8347d300db0c1347a225",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.budget-finalization.txt",
+      "englishRuntimeSha256": "09f8b0bcfba9d5d5462338bb9d381ebd7ef084ad2d6c2ccfdefcf0e4096bae14"
+    },
+    {
+      "sourceId": "runtime.context-identifiers",
+      "vietnameseSourcePath": "instructions/vi/runtime-context.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "83450199d9b18c90dda92af386a868b8fa73efe8bb1028347f559374abf3ee40",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.context-identifiers.txt",
+      "englishRuntimeSha256": "33bbeb5621c2f2a783d0f6a29582eb0123dbcb6849a0055d04bdfa90a26bb826"
+    },
+    {
+      "sourceId": "runtime.response-language",
+      "vietnameseSourcePath": "instructions/vi/response-language.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "2856f74ee4dbdd76185c32d371f85ab092c42aeeed38301a3fea39e23cb72bee",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.response-language.txt",
+      "englishRuntimeSha256": "ca199315124c17e0d982f0d52e9a2eb96fae614d71d69a587378e10f25113eca"
+    },
+    {
+      "sourceId": "runtime.response-transform",
+      "vietnameseSourcePath": "instructions/vi/response-transform.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceSha256": "1b30bfc82a74865417f4860406fab217782ffa8da3b4fab10c758c7ea28cc965",
+      "englishRuntimePath": "instructions/candidates/r2/runtime.response-transform.txt",
+      "englishRuntimeSha256": "7bd7e677c9810b9db749896274267000c7c82860b4654b18e1a0aa6902c7f1f7"
+    },
+    {
+      "sourceId": "runtime.skill-catalogs",
+      "vietnameseSourcePath": "instructions/vi/skill-catalogs.json",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "ab2c4d67de63bf8ab27f6381daa88f9080f5ac15797ea77718b18bbe6159f093",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.skill-catalogs.txt",
+      "englishRuntimeSha256": "0daebc68571572c49bc76931dc767a7c95050d04bdef9917c98c4ae1131cd122"
+    },
+    {
+      "sourceId": "runtime.structured-transform",
+      "vietnameseSourcePath": "instructions/vi/structured-transform.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceSha256": "82d6af52293980b103482aacf7c3ac3e512bf0826fb73737cfa821fcd83bc394",
+      "englishRuntimePath": "instructions/candidates/r2/runtime.structured-transform.txt",
+      "englishRuntimeSha256": "1dd086b9ec375345c06b1c8c9692305d9cb9f9df1665383f4f2967c217f310ce"
+    },
+    {
+      "sourceId": "skill.assessment-automated-outcomes",
+      "vietnameseSourcePath": "skills/assessment-automated-outcomes/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "c72c81b26f4456bc61a569a19f682a320efc5f5d97f8a7cf5f1a3044b381d03b",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-automated-outcomes.txt",
+      "englishRuntimeSha256": "6db9ab0245df225bfd9ac7ba9008dc99b5fe82f0206a735ffafb626f2de5e9c9"
+    },
+    {
+      "sourceId": "skill.assessment-controls-and-claims",
+      "vietnameseSourcePath": "skills/assessment-controls-and-claims/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "035865d10cb03796d4e5eff47612735e3b638c6e69ad65289c440420b7675f68",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-controls-and-claims.txt",
+      "englishRuntimeSha256": "79b6202858b1be01345229b420c709b21d934ad281e25fb3f2db1a0f28950b99"
+    },
+    {
+      "sourceId": "skill.assessment-data-lifecycle",
+      "vietnameseSourcePath": "skills/assessment-data-lifecycle/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "e76a0037118b7f844a36e3c304ce711113c0506f995950a3b676fc9a94068541",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-data-lifecycle.txt",
+      "englishRuntimeSha256": "0ef374de4c49f0cd964feb64b8f795d9034f47e77c74beae2e9ab199f8895525"
+    },
+    {
+      "sourceId": "skill.assessment-model-integrity",
+      "vietnameseSourcePath": "skills/assessment-model-integrity/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "ec9b9fe53687890f8f16b426e7399ec6cb0bae5e3bf5f69b8820eeeb4d49fdf6",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-model-integrity.txt",
+      "englishRuntimeSha256": "0cbdc4608cf729c681cf05a7918d8ffa4c6acd2e0ca1242fc514f3ea7b3a0aa5"
+    },
+    {
+      "sourceId": "skill.assessment-system-boundaries",
+      "vietnameseSourcePath": "skills/assessment-system-boundaries/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "773feedf4684b9930c8b3346b515cc6e123ae1de6a59b111b2bccd070700067d",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-system-boundaries.txt",
+      "englishRuntimeSha256": "97746345f2484fd0d0422d27138dd7c562c870a73e311ee9011891039ec7c6a5"
+    },
+    {
+      "sourceId": "skill.rule-preparation-actor-stage",
+      "vietnameseSourcePath": "skills/rule-preparation-actor-stage/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "56e7d4a8aa9662ee535319b7d80c2d4d17852de983063614b59818cdff674d4e",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-actor-stage.txt",
+      "englishRuntimeSha256": "f3a7e32d3b19c1f325318f7b5e3f104ede87f37fa6ba07912edbb1ee731780a1"
+    },
+    {
+      "sourceId": "skill.rule-preparation-material-context",
+      "vietnameseSourcePath": "skills/rule-preparation-material-context/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "694a64848189403d2867d35c279742323a37acf7cbf8b0a834e8071f204e0ea0",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-material-context.txt",
+      "englishRuntimeSha256": "c2f8cc1d43ee24940a69ff18f46d92662536d47a2e7ad9e345a0b4aff57deebb"
+    },
+    {
+      "sourceId": "skill.rule-preparation-mixed-claims",
+      "vietnameseSourcePath": "skills/rule-preparation-mixed-claims/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "a249493edd29fb5b0877a6a0a830a9ae66b1c7d018154d1f832e540a5e082184",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-mixed-claims.txt",
+      "englishRuntimeSha256": "fc803b54d02b2459ae1e184e756fcc1c61da2c062a3be9bfb450066481b91624"
+    },
+    {
+      "sourceId": "skill.rule-preparation-scope-quality",
+      "vietnameseSourcePath": "skills/rule-preparation-scope-quality/SKILL.vi.md",
+      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceSha256": "c277521c9b1188b75b3e88e6697ea4dc6c8d42fdcc1021c1766145c511fb40d3",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-scope-quality.txt",
+      "englishRuntimeSha256": "b61a06e1a96a9e2fd1a5fe7dddb804d0315c409013343026ee0c67d571309996"
+    },
+    {
+      "sourceId": "tools.schema-guidance",
+      "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
+      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
+      "englishRuntimePath": "instructions/candidates/r2/tools.schema-guidance.txt",
+      "englishRuntimeSha256": "566d7fc6b5f74409e56b379656eb460c2d81b87afc58dba3a950b42cc7fde3fd"
+    }
+  ]
+}

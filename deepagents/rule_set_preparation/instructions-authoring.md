@@ -83,3 +83,32 @@ never include private reasoning. report_rule_set_source_blocked is only for trul
 source or inconsistent pins, with its exact /legal-source path; unfinished work, ambiguity and
 validation errors are not source-blocking reasons. Chunks, inspected nodes and accounted semantic
 claims remain separate observability measures. Only complete valid claim accounting permits completion.
+
+## Development relevance is a scoped projection, not claim deletion
+
+Do not merge claims with different legal addressees, modalities, conditions, time windows, or assessability just because they share Điều/Khoản/Điểm. Each Requirement follows its actual operative anchor and verified closure; the source ancestor of a point may provide applicability without becoming a duplicated Requirement. Preserve source-grounded development obligations and all independent external/operation duties in the full legal packet. A fact about an operational actor cannot silently become an obligation of a different actor who designs or builds the system. Actors and regulated activities come exclusively from the pinned source.
+
+For a development-facing technical rule, preserve the exact legal predicate (e.g. built-in human oversight or data-quality assurance) and its risk classification, actor and exceptions. An investigation focus may suggest exploring a control, but no specific API/framework, dashboard, encryption method or file may be mandated unless the legal source does. For MIXED duties, retain both repository-observable and external-fulfillment aspects; finding code is not evidence that an administrative or physical act happened. Material legal context must remain accessible even if the product scope omits the neighboring operational rule.
+
+The existing validation requires full-source legal-claim accounting. Do not suppress or remove an otherwise valid Assessment Rule solely to imitate a development-only catalog in the current packet. A development-only projection requires explicit server-bound scope decisions, separate source-faithful exclusions and a compatible validator before publication. Use rule-preparation-material-context and rule-preparation-scope-quality skills for source-backed checks before validate_compliance_rule_set.
+
+## Source-grounded pre-validation review
+
+Before final validation, audit the current source-to-candidate graph rather than only the generated rule count:
+
+1. Confirm that each operative DUTY/PROHIBITION/PERMISSION has exactly its source-defined actor, regulated action, triggers, modifiers and evidence constraints; a clause with several independent propositions must not be flattened into one vague duty.
+2. Confirm that any article or clause lead-in used by a point is attached through the actual semantic dependency; the same lead-in must not become a second independently actionable duty.
+3. Confirm that obligations involving operations, customer action or administrative performance remain legally accounted in a full-source packet. A development-focused catalog is a separate server-validated projection, not a reason to relabel an operative source as NO_REQUIREMENT.
+4. For every derived technical criterion, identify the parent operative proposition and show that the criterion does not require a specific API, library, UI, deployment configuration or document location absent from the law.
+5. Treat missing external/customer evidence as an unresolved factual dependency for later Assessment, never as proof of non-compliance or proof that the source's duty is non-assessable.
+6. Preserve exact Vietnamese source locators and the full parent chain, including the distinct point `đ`. Where source extraction joins a section heading to a clause or drops a printed point label, record the source integrity defect; the model must not invent the corrected text or locator.
+
+Use the allowlisted semantic-context and quality skills for method guidance. They cannot override source provenance, frozen claim identities, validation failures or server-owned scope.
+
+## Development output suppression of deployment clauses
+
+For the development output view, exclude all independent operational/production/deployment/user/public-authority legal requirements and any context linked only to those excluded requirements. A claim that defines a condition or exception for a surviving development duty is not irrelevant merely because it resides in an operational article: include the *minimal material predicate with provenance and direction*, not the entire deployment paragraph.
+
+Do not synthesize an AssessmentRule for an excluded operational obligation or use it as a technical criterion for a development rule. Mixed actor/phase requirements must first be separated at the operative proposition level. Unverified context relations must remain flagged for legal review rather than copied into a developer checklist.
+
+This rule applies to a server-approved DEVELOPMENT_ONLY projection. FULL_SOURCE still requires the full legal inventory and its normal authoring and validation; never fake NO_REQUIREMENT to meet development suppression. Preserve out-of-scope requirements with NON_ASSESSABLE coverage and an OUT_OF_SCOPE_TARGET: reason under the approved scoped contract.

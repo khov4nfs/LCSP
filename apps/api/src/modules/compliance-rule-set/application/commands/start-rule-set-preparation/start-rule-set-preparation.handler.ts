@@ -68,6 +68,8 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     input: StartRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationRun> {
     const { legalSourceVersionId, idempotencyKey } = input.request;
+    const reviewRequested =
+      input.request.targetActivityScope === "DEVELOPMENT_ONLY";
 
     const existing = await this.findByKey(idempotencyKey);
     if (existing) {
@@ -75,6 +77,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
         existing,
         legalSourceVersionId,
         input.correlationId,
+        reviewRequested,
       );
     }
 
@@ -114,6 +117,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
             idempotencyKey,
             executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
             targetDate: new Date(),
+            scopeReviewRequested: reviewRequested,
             legalSourceVersionId: source.id,
             requestedBy: input.requestedBy,
             correlationId: input.correlationId,
@@ -154,6 +158,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
             raced,
             legalSourceVersionId,
             input.correlationId,
+            reviewRequested,
           );
         }
       }
@@ -168,17 +173,34 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     });
   }
 
+  /**
+   * Business purpose:
+   * Recover only an idempotent Preparation request for the same pinned source and scope intent.
+   * Business rules:
+   * - A repeated key must not silently change the user-selected target scope.
+   * Execution flow:
+   * 1. Compare existing run source and requested scope before returning it.
+   * Failure cases:
+   * - Source/scope conflicts become canonical idempotency failures.
+   * Side effects:
+   * - Returns the existing run without creating a second one.
+   */
   private replayPreparation(
     existing: {
       id: string;
       legalSourceVersionId: string;
       executionState: PrismaAgentExecutionState;
       ruleSet: { id: string } | null;
+      scopeReviewRequested: boolean;
     },
     legalSourceVersionId: string,
     correlationId: string,
+    reviewRequested: boolean,
   ): RuleSetPreparationRun {
-    if (existing.legalSourceVersionId !== legalSourceVersionId) {
+    if (
+      existing.legalSourceVersionId !== legalSourceVersionId ||
+      existing.scopeReviewRequested !== reviewRequested
+    ) {
       throw problemException(
         COMPLIANCE_RULE_SET_ERROR_CODES.idempotencyConflict,
         correlationId,

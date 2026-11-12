@@ -1,0 +1,22 @@
+{
+  "DISCOVERED_SITES_TOTAL": 354,
+  "ORIGINAL_SITES_ACCOUNTED": 120,
+  "NEW_SITES_DISCOVERED": 234,
+  "UNIQUE_MAINTAINED_SOURCES": 59,
+  "TOTAL_RUNTIME_CONSUMERS": 123,
+  "SHARED_SOURCE_CONSUMER_SITES": 316,
+  "RUNTIME_DATA_SITES": 8,
+  "NON_MODEL_FACING_SITES": 20,
+  "THIRD_PARTY_SITES": 10,
+  "FRAMEWORK_INSTRUCTION_SURFACES": 19,
+  "PENDING_SOURCE_MAPPINGS": 0,
+  "UNRESOLVED_INSTRUCTION_PATHS": [],
+  "MISSING_VI_SOURCES": [],
+  "MISSING_EN_CANDIDATES": [],
+  "SOURCE_DIGEST_VALIDATION": "PASS",
+  "STRICT_INVENTORY_RESULT": "PASS",
+  "STRICT_INVENTORY_REASON": null,
+  "RUNTIME_CUTOVER": "NOT_RUN",
+  "PRODUCTION_APPROVAL": "BLOCKED",
+  "countDefinitions": "Sites are expression/legacy-line records. Consumers are distinct local file+symbol pairs. Framework package surfaces are reported separately, not added to local site totals. Overlapping line/AST records do not count as new unique sources. ORIGINAL_SITES_ACCOUNTED counts current matches of the historical discovery query, not the immutable 98-site baseline audit."
+}

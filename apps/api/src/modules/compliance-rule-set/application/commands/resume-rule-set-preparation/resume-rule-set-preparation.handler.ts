@@ -71,7 +71,10 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
         return toRun(run, null);
       const resumable =
         (run.executionState === State.PAUSED &&
-          run.failureReason === R.AGENT_BUDGET_REACHED) ||
+          (run.failureReason === R.AGENT_BUDGET_REACHED ||
+            (run.scopeReviewRequested &&
+              run.targetActivityScope === "DEVELOPMENT_ONLY" &&
+              run.claimPhase === "CLAIM_INVENTORY_READY"))) ||
         (run.executionState === State.FAILED &&
           [R.MODEL_ERROR, R.RUNTIME_ERROR].includes(
             run.failureReason as never,

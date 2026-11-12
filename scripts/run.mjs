@@ -822,6 +822,8 @@ function dockerAgentRuntimeTarget() {
       containerName,
       "--memory",
       "768m",
+      "-p",
+      "127.0.0.1:2024:2024",
       "--add-host",
       "host.docker.internal:host-gateway",
       "--mount",
@@ -902,6 +904,15 @@ function dockerWorkerEnv() {
     NESTJS_API_BASE_URL: apiBaseUrl,
     LCSP_API_BASE_URL: apiBaseUrl,
     WORKER_API_KEY: process.env.WORKER_API_KEY ?? rootEnv.WORKER_API_KEY ?? "",
+    LANGGRAPH_CHECKPOINT_DATABASE_URL: dockerizeLocalhost(
+      process.env.LANGGRAPH_CHECKPOINT_DATABASE_URL ??
+        rootEnv.LANGGRAPH_CHECKPOINT_DATABASE_URL ??
+        rootEnv.DATABASE_URL ??
+        "",
+    ),
+    DATABASE_URL: dockerizeLocalhost(
+      process.env.DATABASE_URL ?? rootEnv.DATABASE_URL ?? "",
+    ),
     // Docker dev does not start a Phoenix collector.  Keep tracing opt-in here
     // so the worker does not repeatedly send spans to an unavailable host port.
     PHOENIX_TRACING: defaultDockerPhoenixTracing,
@@ -920,6 +931,8 @@ function dockerWorkerEnv() {
       rootEnv.LCSP_LANGSMITH_TRACING ??
       "false",
     LCSP_GRAPH_STORAGE_PATH: "/app/deepagents/tmp",
+    LCSP_AGENT_RUNTIME_SERVER_COMMAND:
+      "langgraph dev --host 0.0.0.0 --port 2024 --no-browser --no-reload --allow-blocking --n-jobs-per-worker 8",
     LCSP_AGENT_SERVER_GENERATION_URL: "http://127.0.0.1:2024",
     LCSP_AGENT_SERVER_GENERATION_STARTED_AT: new Date().toISOString(),
     ...(dockerModelRoutesFile()

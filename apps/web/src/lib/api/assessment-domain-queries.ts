@@ -1,4 +1,6 @@
 "use client";
+import { getAppLocaleSnapshot, subscribeToAppLocale } from "../locale";
+import { useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ASSESSMENT_EVENTS_PAGE_LIMIT,
@@ -23,14 +25,50 @@ export const assessmentDomainKeys = {
   events: (id: string) => ["assessment", id, "events"] as const,
   provenance: (id: string) => ["assessment", id, "provenance"] as const,
 };
+/**
+ * Business purpose: Read Assessment detail in the actively selected presentation language.
+ * Business rules:
+ * - Keep assessment-prefix invalidation and isolate locale caches without cross-language placeholder data.
+ * Execution flow:
+ * 1. Subscribe to locale changes, fetch with the captured locale and discard superseded requests.
+ * Failure cases:
+ * - Invalid responses, localization problems and locale changes reject without narrative fallback.
+ * Side effects:
+ * - Performs an owner-authorized BFF read and updates only the captured locale's cache.
+ */
 export function useAssessmentDetailQuery(id: string) {
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
   return useQuery({
-    queryKey: assessmentDomainKeys.detail(id),
-    queryFn: () =>
-      apiValidated(
+    queryKey: [...assessmentDomainKeys.detail(id), locale],
+    /**
+     * Business purpose: Retrieve the locale-bound detail projection without stale-language cache writes.
+     * Business rules:
+     * - The captured locale must remain current before and after the request.
+     * Execution flow:
+     * 1. Send the locale header and cancellation signal, validate the response, then recheck locale.
+     * Failure cases:
+     * - Cancellation, locale changes and API validation failures reject the query.
+     * Side effects:
+     * - Executes one BFF GET with the authenticated browser session.
+     */
+    queryFn: async ({ signal }) => {
+      signal.throwIfAborted();
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed before request");
+      const result = await apiValidated(
         `/api/assessments/${encodeURIComponent(id)}`,
         assessmentDetailSchema,
-      ),
+        { signal, headers: { "x-lcsp-locale": locale } },
+      );
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed during request");
+      return result;
+    },
+    placeholderData: undefined,
     enabled: Boolean(id),
   });
 }
@@ -104,14 +142,51 @@ export function useReconcileOrphanedAssessment(id: string) {
     },
   });
 }
+/**
+ * Business purpose: Read open and resolved HITL human-resolution requests in the active presentation language.
+ * Business rules:
+ * - Partition the query cache by locale while preserving assessmentDomainKeys.requests(id) prefix invalidation.
+ * - Reject stale responses if the user switches locale while a request is in flight.
+ * Execution flow:
+ * 1. Subscribe to the active app locale, send x-lcsp-locale and AbortSignal, and validate the response.
+ * Failure cases:
+ * - Cancellation, locale changes and localization readiness conflicts reject without cross-language fallback.
+ * Side effects:
+ * - Performs an owner-authorized BFF read and updates only the captured locale's cache.
+ */
 export function useHumanRequestsQuery(id: string) {
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
   return useQuery({
-    queryKey: assessmentDomainKeys.requests(id),
-    queryFn: () =>
-      apiValidated(
+    queryKey: [...assessmentDomainKeys.requests(id), locale],
+    /**
+     * Business purpose: Fetch the assessment's human-resolution requests for the captured locale.
+     * Business rules:
+     * - Send x-lcsp-locale and abort if the active locale changes before or during the request.
+     * Execution flow:
+     * 1. Check signal and locale, call apiValidated and re-verify locale before returning.
+     * Failure cases:
+     * - Aborted or stale-locale responses throw without populating the cache.
+     * Side effects:
+     * - Performs one authenticated BFF read.
+     */
+    queryFn: async ({ signal }) => {
+      signal.throwIfAborted();
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed before request");
+      const result = await apiValidated(
         `/api/assessments/${encodeURIComponent(id)}/human-requests`,
         assessmentHumanRequestsResultSchema,
-      ),
+        { signal, headers: { "x-lcsp-locale": locale } },
+      );
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed during request");
+      return result;
+    },
+    placeholderData: undefined,
     enabled: Boolean(id),
   });
 }
@@ -119,25 +194,54 @@ export function useHumanRequestsQuery(id: string) {
 const MAX_EVENT_PAGES = 40;
 
 /**
- * Every canonical event of one assessment, ascending by sequence: the conversation's single source,
- * identical for live updates and reloads. Refetches are incremental (only events after the last one
- * already held) and merge by sequence, so the same event can never render twice.
+ * Business purpose: Load the conversation's deterministic locale-bound event history.
+ * Business rules:
+ * - Locale partitions cached history so incremental replay cannot reuse another language's narratives.
+ * - Canonical sequence deduplicates events; authorization and translation readiness stay server-owned.
+ * Execution flow:
+ * 1. Read the active locale cache, follow bounded sequence pages and merge each returned event by sequence.
+ * Failure cases:
+ * - Missing/failed translations and invalid API responses reject the query without canonical fallback.
+ * Side effects:
+ * - Fetches owner-scoped event pages and populates only the requested locale's query cache.
  */
 export function useAssessmentEventsQuery(id: string) {
   const client = useQueryClient();
-  const key = assessmentDomainKeys.events(id);
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
+  const key = [...assessmentDomainKeys.events(id), locale];
   return useQuery({
     queryKey: key,
     enabled: Boolean(id),
-    queryFn: async () => {
+    /**
+     * Business purpose: Replay the locale-bound persisted event sequence.
+     * Business rules:
+     * - Preserve sequence deduplication and reject pages retrieved under a superseded locale.
+     * Execution flow:
+     * 1. Follow bounded pages using the captured locale and cancellation signal, then merge by sequence.
+     * Failure cases:
+     * - Cancellation, locale changes and unavailable localization reject without alternate-language fallback.
+     * Side effects:
+     * - Reads authorized BFF event pages without modifying canonical events.
+     */
+    queryFn: async ({ signal }) => {
       const known = client.getQueryData<AssessmentEvent[]>(key) ?? [];
       const bySequence = new Map(known.map((event) => [event.sequence, event]));
       let after = known.at(-1)?.sequence ?? 0;
       for (let page = 0; page < MAX_EVENT_PAGES; page += 1) {
+        signal.throwIfAborted();
+        if (getAppLocaleSnapshot() !== locale)
+          throw new Error("Assessment locale changed before request");
         const result = await apiValidated(
           `/api/assessments/${encodeURIComponent(id)}/events?afterSequence=${after}&limit=${ASSESSMENT_EVENTS_PAGE_LIMIT}`,
           assessmentEventsPageSchema,
+          { signal, headers: { "x-lcsp-locale": locale } },
         );
+        if (getAppLocaleSnapshot() !== locale)
+          throw new Error("Assessment locale changed during request");
         for (const event of result.events)
           bySequence.set(event.sequence, event);
         if (!result.hasMore || result.nextAfterSequence === null) break;
@@ -226,8 +330,14 @@ export function useAssessmentReportQuery(
   id: string,
   artifactId: string | null,
 ) {
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
   return useQuery({
-    queryKey: ["assessment", id, "report", artifactId] as const,
+    queryKey: ["assessment", id, "report", artifactId, locale] as const,
+    placeholderData: undefined,
     /**
      * Business purpose: Retrieve only the report artifact identified by the active assessment view.
      *
@@ -244,11 +354,19 @@ export function useAssessmentReportQuery(
      * Side effects:
      * - Performs a read-only API request; no report data is modified.
      */
-    queryFn: () =>
-      apiValidated(
+    queryFn: async ({ signal }) => {
+      signal.throwIfAborted();
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed before request");
+      const result = await apiValidated(
         `/api/assessments/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId ?? "")}/report`,
         assessmentFinalReportArtifactVersionedSchema,
-      ),
+        { signal, headers: { "x-lcsp-locale": locale } },
+      );
+      if (getAppLocaleSnapshot() !== locale)
+        throw new Error("Assessment locale changed during request");
+      return result;
+    },
     enabled: Boolean(id) && artifactId !== null,
   });
 }

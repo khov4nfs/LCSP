@@ -7,7 +7,10 @@ assessment domain only through the governed tools of :mod:`assessment_root.tools
 
 from __future__ import annotations
 
+from runtime_instruction_bundle import runtime_instruction
+
 from pathlib import Path
+import os
 from typing import Any, Sequence
 
 from deepagents import create_deep_agent
@@ -18,13 +21,17 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import BaseTool
 from langgraph.runtime import Runtime
 
-from assessment_root.researcher import RESEARCHER_NAME, RESEARCHER_PROMPT, researcher_subagent
+from assessment_root.researcher import RESEARCHER_NAME, researcher_prompt_for_locale, researcher_subagent
+from assessment_root.skills import ALLOWED as ASSESSMENT_SKILLS
+from evals.run_manifest import build_runtime_manifest, checked_in_skill_hashes
+from assessment_root.tool_contracts import describe_tool
 from assessment_root.tools import RootRun, build_root_tools
 from rule_set_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
 from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.logging import get_logger
 
 ROOT_INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
+ROOT_INSTRUCTIONS_VI = (Path(__file__).with_name("instructions.vi.md")).read_text(encoding="utf-8")
 ASSESSMENT_ROOT_ROLE = "assessment-root"
 # Graph tools search; governed Root tools mint accepted source references.
 _GRAPH_TOOL_NAMES = {"search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
@@ -175,12 +182,7 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
                     execution_id=self.run.execution_id, lifecycle_state=context["lifecycleState"])
         return {
             "messages": [HumanMessage(content=(
-                "The API has not confirmed this assessment COMPLETE. Continue this same "
-                "assessment and preserve accepted evidence and decisions. Reload governed "
-                "context, resolve remaining authorized rules, request_finalization, then "
-                "submit_final_report only for a FULL_RULE_SET request when the Completion Gate permits it. Use native tools, "
-                "not tool-call text. Use the native human request interrupt for missing "
-                "customer facts; do not infer lifecycle completion from your response."
+                (runtime_instruction("assessment-root.continuation"))
             ))],
             "jump_to": "model",
         }
@@ -209,10 +211,28 @@ def root_permissions() -> list[FilesystemPermission]:
     ]
 
 
-def _graph_tools() -> list[Any]:
+def _graph_tools(locale: str = "en") -> list[Any]:
+    """Business purpose:
+    Select approved read-only repository graph tools with decision-authority caveats.
+
+    Business rules:
+    - Only the existing four graph tools may be exposed; descriptions do not change capability.
+
+    Execution flow:
+    1. Select known tools and create copies with appended retrieval limitations.
+
+    Failure cases:
+    - Missing graph tools simply result in a smaller delegated search surface.
+
+    Side effects:
+    - Constructs tool specifications; cannot alter source, legal rules or decisions.
+    """
     from tools.common.codebase_memory_graph import CODEBASE_MEMORY_GRAPH_TOOLS
 
-    return [tool for tool in CODEBASE_MEMORY_GRAPH_TOOLS if tool.name in _GRAPH_TOOL_NAMES]
+    return [
+        tool.model_copy(update={"description": describe_tool(tool.name, tool.description, locale=locale)})
+        for tool in CODEBASE_MEMORY_GRAPH_TOOLS if tool.name in _GRAPH_TOOL_NAMES
+    ]
 
 
 def create_assessment_root_agent(
@@ -245,6 +265,9 @@ def create_assessment_root_agent(
     Side effects:
     - Constructs a native graph; later invocations persist its planning/checkpoint state and perform only the authorized tool effects.
     """
+    from runtime_instruction_bundle import production_runtime_bundle
+    from middleware.approved_instructions import ApprovedInstructionMiddleware
+    bundle = production_runtime_bundle()
     if model is None:
         from model_policy import resolve_agent_model
 
@@ -256,13 +279,29 @@ def create_assessment_root_agent(
         governance = [AgentRoleMiddleware(ASSESSMENT_ROOT_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE]
     from middleware.localization import ResponseLocalizationMiddleware
     from middleware.model_governance import governed_summarization_middleware
-    from orchestration.context import LCSPRunContext
+    from orchestration.context import LCSPRunContext, resolve_response_language
 
-    tools = graph_tools if graph_tools is not None else _graph_tools()
+    runtime_locale = resolve_response_language(run.response_language)
+    root_prompt = bundle.instruction("assessment-root.system")
+    researcher_prompt = researcher_prompt_for_locale(runtime_locale)
+    tools = graph_tools if graph_tools is not None else _graph_tools(runtime_locale)
+    root_tools = build_root_tools(run)
+    run.prompt_manifest = build_runtime_manifest(
+        run_id=run.execution_id, component=ASSESSMENT_ROOT_ROLE, locale=runtime_locale,
+        model=model, prompts={"assessment_root": root_prompt, "repository_researcher": researcher_prompt},
+        tools=[*root_tools, *tools],
+        skill_hashes=checked_in_skill_hashes(
+            ASSESSMENT_SKILLS, runtime_locale, Path(__file__).resolve().parents[1] / "skills"
+        ),
+        pins=run.pins or {"assessmentId": run.assessment_id},
+        gold_revision=os.environ.get("LCSP_EVAL_GOLD_REVISION"),
+    )
     summary_backend = CompositeBackend(default=run.backend, routes={}, artifacts_root="/.lcsp/agent")
     researcher_middleware = [*governance, governed_summarization_middleware(
         model, backend=summary_backend, role=RESEARCHER_NAME, governance=governance,
-        system_prompt=RESEARCHER_PROMPT,
+        system_prompt=researcher_prompt,
+        receipt_context=lambda: {"run_id": run.execution_id, "component": RESEARCHER_NAME, "locale": run.response_language, "pins": run.pins or {"assessmentId": run.assessment_id}},
+        receipt_sink=lambda manifest: run.internal_model_manifests.update({manifest["manifestSha256"]: manifest}),
     )]
     # The default general-purpose subagent would inherit the governed tools; disable it so the
     # researcher is the only delegate and it holds none of them.
@@ -271,14 +310,21 @@ def create_assessment_root_agent(
             name="lcsp-assessment-root",
             model=model,
             backend=run.backend,
-            system_prompt=ROOT_INSTRUCTIONS,
-            tools=[*build_root_tools(run), *tools],
-            subagents=[researcher_subagent(tools, middleware=researcher_middleware)],
+            system_prompt=root_prompt,
+            tools=[*root_tools, *tools],
+            subagents=[researcher_subagent(tools, middleware=researcher_middleware, locale=runtime_locale)],
             permissions=root_permissions(),
-            middleware=[TodoListMiddleware(system_prompt=_ROOT_PLANNING_INSTRUCTIONS), AssessmentToolDescriptionsMiddleware(), ResponseLocalizationMiddleware(), *governance,
+            middleware=[TodoListMiddleware(system_prompt=__import__("json").loads(bundle.instruction("framework.injected-policy"))["todo_system"], tool_description=__import__("json").loads(bundle.instruction("framework.injected-policy"))["tool.write_todos"]), ResponseLocalizationMiddleware(), *governance,
                         governed_summarization_middleware(model, backend=summary_backend, role=ASSESSMENT_ROOT_ROLE, governance=governance,
-                                                         system_prompt=ROOT_INSTRUCTIONS),
-                        AssessmentCompletionMiddleware(run), *middleware],
+                            system_prompt=root_prompt,
+                            receipt_context=lambda: {"run_id": run.execution_id, "component": ASSESSMENT_ROOT_ROLE, "locale": run.response_language, "pins": run.pins or {"assessmentId": run.assessment_id}},
+                            receipt_sink=lambda manifest: run.internal_model_manifests.update({manifest["manifestSha256"]: manifest})),
+                        AssessmentCompletionMiddleware(run), *middleware,
+                        ApprovedInstructionMiddleware(["assessment-root.system", "runtime.response-language", "runtime.context-identifiers"],
+                            receipt_context=lambda: {"run_id": run.execution_id, "component": ASSESSMENT_ROOT_ROLE, "locale": run.response_language,
+                                "pins": run.pins or {"assessmentId": run.assessment_id}, "skill_names": ASSESSMENT_SKILLS, "selected_skills": run.used_skill_hashes},
+                            receipt_sink=lambda manifest: setattr(run, "prompt_manifest", manifest),
+                            presentation_context=lambda: {"response_language": run.response_language, "assessment_id": run.assessment_id})],
             context_schema=LCSPRunContext,
             checkpointer=checkpointer,
             store=store,

@@ -1,28 +1,23 @@
 "use client";
+import { useAppLocale } from "@/components/providers/locale-provider";
 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import type { PreparationActivityProps } from "../../types/preparation-observability.types";
 import type { MessageKey } from "@lcsp/i18n";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
-import type { AgentExecutionState } from "@lcsp/contracts/assessment";
 import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { WorkDisclosure } from "@/components/molecules/work-disclosure";
 import {
   preparationTokenUsage,
+  preparationUsageEvidence,
   preparationModelCalls,
   preparationProgress,
   projectPreparationActivity,
 } from "../../utils/rule-set-preparation-activity";
-import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
 import { PREPARATION_ACTIVITY_VISIBLE_LIMIT } from "../../config/preparation-activity.config";
-
-type Props = {
-  events: AssessmentAgentStreamEvent[];
-  terminal: boolean;
-  executionState: AgentExecutionState | null;
-  connected: boolean;
-  directDraft?: boolean;
-};
 
 export function RuleSetPreparationActivity({
   events,
@@ -30,27 +25,46 @@ export function RuleSetPreparationActivity({
   executionState,
   connected,
   directDraft = false,
-}: Props) {
+  hasOlder = false,
+  loadingOlder = false,
+  historyError = false,
+  historyLoading = false,
+  onLoadOlder,
+}: PreparationActivityProps) {
+  useAppLocale();
+  const [visibleCount, setVisibleCount] = useState(
+    PREPARATION_ACTIVITY_VISIBLE_LIMIT,
+  );
   const activities = projectPreparationActivity(
     events,
     terminal,
     executionState,
   );
   const usage = preparationTokenUsage(events);
+  const usageEvidence = preparationUsageEvidence(events);
   const progress = preparationProgress(events);
-  const visibleActivities = activities.slice(
-    -PREPARATION_ACTIVITY_VISIBLE_LIMIT,
-  );
+  const visibleActivities = activities.slice(-visibleCount);
   const coverageRate =
-    progress && progress.total > 0
+    progress &&
+    progress.reviewed !== null &&
+    !progress.inconsistent &&
+    progress.total > 0
       ? `${((progress.reviewed / progress.total) * 100).toFixed(1)}%`
       : null;
   const tokensPerUnit =
-    progress && progress.reviewed > 0
+    progress &&
+    !progress.inconsistent &&
+    usageEvidence.total &&
+    progress.reviewed !== null &&
+    progress.reviewed > 0
       ? Math.round(usage.totalTokens / progress.reviewed)
       : null;
   const tokensPerClaim =
-    progress && progress.persistedClaims && progress.persistedClaims > 0
+    progress &&
+    !progress.inconsistent &&
+    usageEvidence.total &&
+    progress.persistedClaims &&
+    progress.persistedClaims > 0
       ? Math.round(usage.totalTokens / progress.persistedClaims)
       : null;
   return (
@@ -84,28 +98,55 @@ export function RuleSetPreparationActivity({
                 )}
         </span>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {resolveAppMessage("pages.preparationOps.observedUsage")}
+      </p>
+      {historyError || historyLoading ? (
+        <p role={historyError ? "alert" : "status"}>
+          {resolveAppMessage(
+            historyError
+              ? "pages.preparationOps.historyError"
+              : "pages.preparationOps.historyLoading",
+          )}
+        </p>
+      ) : null}
+      {progress?.partial ? (
+        <p role="status">{resolveAppMessage("pages.preparationOps.partial")}</p>
+      ) : null}
+      {progress?.inconsistent ? (
+        <p role="alert">
+          {resolveAppMessage("pages.preparationOps.inconsistent")}
+        </p>
+      ) : null}
+      {progress === null ? (
+        <p>{resolveAppMessage("pages.preparationOps.notReported")}</p>
+      ) : null}
       {progress ? (
         <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <Detail
             labelKey="pages.complianceRuleSets.activity.sourceCoverage"
-            value={`${progress.reviewed.toLocaleString()} / ${progress.total.toLocaleString()}${coverageRate ? ` (${coverageRate})` : ""}`}
+            value={`${progress.reviewed?.toLocaleString() ?? resolveAppMessage("pages.preparationOps.notReported")} / ${progress.total.toLocaleString()}${coverageRate ? ` (${coverageRate})` : ""}`}
           />
           <Detail
             labelKey="pages.complianceRuleSets.activity.sourceRemaining"
             value={
               progress.remaining !== null
                 ? progress.remaining.toLocaleString()
-                : (progress.total - progress.reviewed).toLocaleString()
+                : null
             }
           />
-          {!directDraft ? <Detail
-            labelKey="pages.complianceRuleSets.activity.reviewedWithClaims"
-            value={progress.reviewedWithClaims?.toLocaleString() ?? null}
-          /> : null}
-          {!directDraft ? <Detail
-            labelKey="pages.complianceRuleSets.activity.reviewedNoClaims"
-            value={progress.reviewedNoClaims?.toLocaleString() ?? null}
-          /> : null}
+          {!directDraft ? (
+            <Detail
+              labelKey="pages.complianceRuleSets.activity.reviewedWithClaims"
+              value={progress.reviewedWithClaims?.toLocaleString() ?? null}
+            />
+          ) : null}
+          {!directDraft ? (
+            <Detail
+              labelKey="pages.complianceRuleSets.activity.reviewedNoClaims"
+              value={progress.reviewedNoClaims?.toLocaleString() ?? null}
+            />
+          ) : null}
 
           <Detail
             labelKey="pages.complianceRuleSets.activity.inReview"
@@ -115,14 +156,22 @@ export function RuleSetPreparationActivity({
             labelKey="pages.complianceRuleSets.activity.pendingUnits"
             value={progress.pending?.toLocaleString() ?? null}
           />
-          {!directDraft ? <Detail
-            labelKey="pages.complianceRuleSets.activity.verifiedClaims"
-            value={progress.persistedClaims?.toLocaleString() ?? null}
-          /> : null}
-          {!directDraft ? <Detail
-            labelKey="pages.complianceRuleSets.activity.draftClaims"
-            value={progress.claims?.toLocaleString() ?? null}
-          /> : null}
+          <Detail
+            labelKey="pages.preparationOps.blockers"
+            value={progress.blocked?.toLocaleString() ?? null}
+          />
+          {!directDraft ? (
+            <Detail
+              labelKey="pages.complianceRuleSets.activity.verifiedClaims"
+              value={progress.persistedClaims?.toLocaleString() ?? null}
+            />
+          ) : null}
+          {!directDraft ? (
+            <Detail
+              labelKey="pages.complianceRuleSets.activity.draftClaims"
+              value={progress.claims?.toLocaleString() ?? null}
+            />
+          ) : null}
           <Detail
             labelKey="pages.complianceRuleSets.activity.tokenEfficiency"
             value={
@@ -134,17 +183,19 @@ export function RuleSetPreparationActivity({
                 : null
             }
           />
-          {!directDraft ? <Detail
-            labelKey="pages.complianceRuleSets.activity.tokensPerClaim"
-            value={
-              tokensPerClaim !== null
-                ? formatAppMessage(
-                    "pages.complianceRuleSets.activity.tokensPerClaimValue",
-                    { count: tokensPerClaim.toLocaleString() },
-                  )
-                : null
-            }
-          /> : null}
+          {!directDraft ? (
+            <Detail
+              labelKey="pages.complianceRuleSets.activity.tokensPerClaim"
+              value={
+                tokensPerClaim !== null
+                  ? formatAppMessage(
+                      "pages.complianceRuleSets.activity.tokensPerClaimValue",
+                      { count: tokensPerClaim.toLocaleString() },
+                    )
+                  : null
+              }
+            />
+          ) : null}
           <Detail
             labelKey="pages.complianceRuleSets.activity.requirements"
             value={progress.requirements?.toLocaleString() ?? null}
@@ -198,9 +249,11 @@ export function RuleSetPreparationActivity({
                           : item.status ===
                               ASSESSMENT_RUNTIME_RUN_STATUSES.completed
                             ? "pages.complianceRuleSets.activity.statuses.COMPLETED"
-                            : item.status === AGENT_EXECUTION_STATES.PAUSED
-                              ? "pages.complianceRuleSets.activity.statuses.PAUSED"
-                              : "pages.complianceRuleSets.activity.statuses.CANCELLED",
+                            : item.status === "NOT_REPORTED"
+                              ? "pages.preparationOps.notReported"
+                              : item.status === AGENT_EXECUTION_STATES.PAUSED
+                                ? "pages.complianceRuleSets.activity.statuses.PAUSED"
+                                : "pages.complianceRuleSets.activity.statuses.CANCELLED",
                     )}
                     {item.details.provider || item.details.model
                       ? ` · ${[item.details.provider, item.details.model]
@@ -278,12 +331,58 @@ export function RuleSetPreparationActivity({
           ))}
         </ol>
       )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <p>
+          {resolveAppMessage("pages.preparationOps.visibleHistory")}:{" "}
+          {visibleActivities.length} / {activities.length}
+        </p>
+        {activities.length > visibleCount ? (
+          <Button
+            type="button"
+            onClick={() => setVisibleCount((current) => current + 100)}
+          >
+            {resolveAppMessage("pages.preparationOps.showEarlier")}
+          </Button>
+        ) : null}
+        {hasOlder ? (
+          <Button
+            type="button"
+            disabled={loadingOlder}
+            onClick={() => {
+              setVisibleCount((current) => current + 100);
+              onLoadOlder?.();
+            }}
+          >
+            {resolveAppMessage("pages.preparationOps.loadOlder")}
+          </Button>
+        ) : null}
+        {historyError && onLoadOlder ? (
+          <Button type="button" onClick={onLoadOlder}>
+            {resolveAppMessage("pages.preparationOps.retryHistory")}
+          </Button>
+        ) : null}
+      </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        {resolveAppMessage("pages.complianceRuleSets.activity.modelCalls")}: {preparationModelCalls(events).toLocaleString()}
+        {resolveAppMessage("pages.complianceRuleSets.activity.modelCalls")}:{" "}
+        {preparationModelCalls(events).toLocaleString()}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {resolveAppMessage("pages.preparationOps.observedInput")}:{" "}
+        {usageEvidence.input
+          ? usage.inputTokens.toLocaleString()
+          : resolveAppMessage("pages.preparationOps.notReported")}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {resolveAppMessage("pages.preparationOps.observedOutput")}:{" "}
+        {usageEvidence.output
+          ? usage.outputTokens.toLocaleString()
+          : resolveAppMessage("pages.preparationOps.notReported")}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         {resolveAppMessage("pages.complianceRuleSets.activity.tokenUsage")}:{" "}
-        {usage.totalTokens.toLocaleString()}
+        {usageEvidence.total
+          ? usage.totalTokens.toLocaleString()
+          : resolveAppMessage("pages.preparationOps.notReported")}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         {resolveAppMessage("pages.complianceRuleSets.activity.historyScope")}

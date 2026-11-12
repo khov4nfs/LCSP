@@ -894,13 +894,14 @@ export type HumanResolutionRequest = z.infer<
   typeof humanResolutionRequestSchema
 >;
 
-/** Customer-safe activity uses a catalog key, not free-form agent/provider text. */
+/** Catalog labels remain structural; optional authored summaries require durable locale projection. */
 export const assessmentActivityPayloadSchema = z.strictObject({
   kind: z.enum(ASSESSMENT_ACTIVITY_KINDS),
   labelKey: z
     .string()
     .regex(/^[a-zA-Z][a-zA-Z0-9]*(?:\.[a-zA-Z][a-zA-Z0-9]*)+$/)
     .max(200),
+  summary: privateTextSchema.optional(),
 });
 export type AssessmentActivityPayload = z.infer<
   typeof assessmentActivityPayloadSchema

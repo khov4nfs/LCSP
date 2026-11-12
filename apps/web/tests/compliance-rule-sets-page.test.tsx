@@ -18,6 +18,8 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   complianceRuleSetHistorySchema,
+  PREPARATION_ACTIVITY_SCOPES,
+  RULE_SET_PREPARATION_STAGES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -435,10 +437,165 @@ test("Prepare sends no source/content and refreshes the running server state", a
     // version on screen.
     assert.deepEqual(JSON.parse(String(posts[0].body ?? "{}")), {
       legalSourceVersionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
     });
     assert.ok(stub.calls.filter((call) => call.method === "GET").length >= 2);
   } finally {
     release();
+    stub.restore();
+  }
+});
+
+test("ambiguous active sources keep Prepare visible, disabled, and explained", async () => {
+  const ambiguous = complianceRuleSetHistorySchema.parse({
+    ...clean,
+    preparation: {
+      ...clean.preparation,
+      legalSourceVersionId: null,
+      legalSourceVersion: null,
+      activeSourceCandidates: [
+        {
+          legalSourceVersionId: SOURCE_V1,
+          version: "vn-ai-official-2026.v3",
+          sourceEvidenceComplete: false,
+        },
+        {
+          legalSourceVersionId: SOURCE_V2,
+          version: "lcsp-360-official-eight-document-acceptance-corpus.v1",
+          sourceEvidenceComplete: false,
+        },
+      ],
+      canStart: false,
+      canReplace: false,
+      refusalReason:
+        RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_SOURCE_AMBIGUOUS,
+    },
+  });
+  const stub = installFetch({
+    "GET /api/admin/compliance-rule-sets": ambiguous,
+  });
+  try {
+    const rendered = page();
+    await settle();
+    const entry = rendered.querySelector(
+      '[data-testid="rule-set-preparation-entry-point"]',
+    );
+    const prepare = byText<HTMLButtonElement>(
+      rendered,
+      "button",
+      "Prepare rule set",
+    );
+    assert.ok(entry);
+    assert.ok(prepare);
+    assert.equal(prepare.disabled, true);
+    assert.match(entry.textContent ?? "", /More than one Legal Source Version/);
+    assert.match(
+      entry.textContent ?? "",
+      /vn-ai-official-2026\.v3.*lcsp-360-official-eight-document-acceptance-corpus\.v1/,
+    );
+    assert.match(entry.textContent ?? "", /diagnostic only; not selected/);
+    assert.match(
+      entry.textContent ?? "",
+      /Required source evidence is incomplete/,
+    );
+    assert.match(
+      entry.textContent ?? "",
+      /authorized Legal Source administrator/,
+    );
+    click(prepare);
+    await settle();
+    assert.equal(stub.calls.filter((call) => call.method === "POST").length, 0);
+  } finally {
+    stub.restore();
+  }
+});
+
+test("Preparation blocker is localized in Vietnamese", async () => {
+  const unavailable = complianceRuleSetHistorySchema.parse({
+    ...clean,
+    preparation: {
+      ...clean.preparation,
+      canStart: false,
+      refusalReason:
+        RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ELIGIBLE,
+    },
+  });
+  const stub = installFetch({
+    "GET /api/admin/compliance-rule-sets": unavailable,
+  });
+  setAppLocale("vi");
+  try {
+    const rendered = page();
+    await settle();
+    const prepare = buttons(rendered).find((button) => button.disabled);
+    assert.ok(prepare);
+    assert.match(rendered.textContent ?? "", /Chưa thể Chuẩn bị/);
+    assert.match(
+      rendered.textContent ?? "",
+      /Không có Phiên bản nguồn pháp lý ACTIVE/,
+    );
+  } finally {
+    setAppLocale("en");
+    stub.restore();
+  }
+});
+
+test("SUCCEEDED without a persisted draft or Rule Set is not presented as ready", async () => {
+  const historicalWithoutArtifact = complianceRuleSetHistorySchema.parse({
+    ...clean,
+    preparations: [
+      {
+        preparationRunId: RUN_OK,
+        legalSourceVersionId: SOURCE_V1,
+        legalSourceVersion:
+          "lcsp-360-official-eight-document-acceptance-corpus.v1",
+        executionState: AGENT_EXECUTION_STATES.SUCCEEDED,
+        ruleSetVersionId: null,
+        failureReason: null,
+        attempt: 1,
+        requestedBy: "legacy-import",
+        createdAt: "2026-10-25T23:33:10.531Z",
+        completedAt: "2026-10-25T23:33:37.593Z",
+        retryable: false,
+        persistedDraftAvailable: false,
+        persistedCoverageAvailable: false,
+        draft: {
+          stage: RULE_SET_PREPARATION_STAGES.SUCCEEDED_WITHOUT_ARTIFACT,
+          sourceDocuments: [],
+          coverage: { total: 0, completed: 0, blocked: 0 },
+          requirementCount: 0,
+          assessmentRuleCount: 0,
+          requirements: [],
+          assessmentRules: [],
+          unresolvedReferences: [],
+          validation: { outcome: "PASSED", failures: [] },
+          assessmentsCanUseRuleSet: false,
+        },
+      },
+    ],
+  });
+  const stub = installFetch({
+    "GET /api/admin/compliance-rule-sets": historicalWithoutArtifact,
+  });
+  try {
+    const rendered = page();
+    await settle();
+    assert.match(
+      rendered.textContent ?? "",
+      /Preparation succeeded without an artifact/,
+    );
+    assert.match(
+      rendered.textContent ?? "",
+      /no persisted draft or Rule Set Version/,
+    );
+    assert.doesNotMatch(rendered.textContent ?? "", /Rule Set Ready/);
+    assert.equal(
+      rendered.querySelector(
+        `a[href='/admin/compliance-rule-sets/${RULE_SET_V1}']`,
+      ),
+      null,
+    );
+  } finally {
     stub.restore();
   }
 });
@@ -475,14 +632,14 @@ test("a RUNNING preparation disables a second start", async () => {
   }
 });
 
-test("a compatible ACTIVE rule set shows success metadata and hides Prepare", async () => {
+test("an ACTIVE rule set shows readiness and exposes explicit replacement", async () => {
   const state = {
     ...history,
     preparation: {
       ...clean.preparation,
-      activeRuleSetVersionId: null,
+      activeRuleSetVersionId: RULE_SET_V1,
       canStart: false,
-      canReplace: false,
+      canReplace: true,
       refusalReason:
         RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
     },
@@ -492,7 +649,18 @@ test("a compatible ACTIVE rule set shows success metadata and hides Prepare", as
   try {
     const rendered = page();
     await settle();
-    assert.equal(byText(rendered, "button", "Prepare rule set"), null);
+    const replace = byText<HTMLButtonElement>(
+      rendered,
+      "button",
+      "Prepare new version",
+    );
+    assert.ok(replace);
+    assert.equal(replace.disabled, false);
+    assert.match(
+      rendered.querySelector('[data-testid="rule-set-preparation-entry-point"]')
+        ?.textContent ?? "",
+      new RegExp(RULE_SET_V1),
+    );
     assert.match(rendered.textContent ?? "", /2026\.10\.p1/);
     assert.match(rendered.textContent ?? "", /37/);
     assert.match(rendered.textContent ?? "", /62/);
@@ -519,7 +687,9 @@ test("an unavailable source cannot start preparation", async () => {
   try {
     const rendered = page();
     await settle();
-    assert.equal(byText(rendered, "button", "Prepare rule set"), null);
+    const prepareButton = byText(rendered, "button", "Prepare rule set");
+    assert.ok(prepareButton);
+    assert.equal(prepareButton.hasAttribute("disabled"), true);
   } finally {
     stub.restore();
   }
@@ -758,6 +928,7 @@ test("an explicit replacement sends replaceActive, keeps the active version in u
     assert.deepEqual(JSON.parse(String(posts[0].body)), {
       replaceActive: true,
       legalSourceVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
     });
     const text = rendered.textContent ?? "";
     assert.match(text, /2026\.10\.p1/); // the active version is still shown as ACTIVE

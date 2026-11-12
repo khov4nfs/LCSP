@@ -1,0 +1,1 @@
+KHI DÙNG: accepted evidence chứng minh fact vĩnh viễn không thể có. ĐỌC: fact cụ thể và rào cản không thể khắc phục. TIẾP: ghi nhận lý do có nguồn. LỖI: chưa trả lời hoặc timeout không phải không thể thu thập.

@@ -1,0 +1,161 @@
+{
+  "documentType": "DEVELOPMENT_ONLY_REVIEW_VIEW",
+  "status": "REVIEW_ONLY_NOT_ACTIVATABLE",
+  "targetScope": "DEVELOPMENT_ONLY",
+  "activationEligible": false,
+  "counts": {
+    "totalSourceUnitsInSeparateFullSourceLedger": 171,
+    "developmentCandidates": 5,
+    "mixedNeedsAtomization": 15,
+    "nonDevelopmentUnitsSuppressed": 99,
+    "unrelatedContextSuppressed": 31,
+    "unresolvedUnitsSuppressed": 21,
+    "approvedMaterialContext": 0
+  },
+  "developmentCandidates": [
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-11::cl-1",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-11::cl-1",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-11::cl-2",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-11::cl-2",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-14::cl-1::pt-a",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-14::cl-1::pt-a",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-14::cl-1::pt-b",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-14::cl-1::pt-b",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-14::cl-1::pt-d",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-14::cl-1::pt-d",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    }
+  ],
+  "mixedNeedsAtomization": [
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-10::cl-1",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-10::cl-1",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-10::cl-2",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-10::cl-2",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-11::cl-5",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-11::cl-5",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-12::cl-1",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-12::cl-1",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-12::cl-2::pt-a",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-12::cl-2::pt-a",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-14::cl-1::pt-đ",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-14::cl-1::pt-đ",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-14::cl-1::pt-c",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-14::cl-1::pt-c",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-14::cl-1::pt-e",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-14::cl-1::pt-e",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-14::cl-1::pt-g",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-14::cl-1::pt-g",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-7::cl-2",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-7::cl-2",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-7::cl-2::pt-a",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-7::cl-2::pt-a",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-7::cl-4",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-7::cl-4",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-7::cl-5",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-7::cl-5",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-134-2025-QH15::art-7::cl-6",
+      "documentNumber": "134/2025/QH15",
+      "canonicalLocator": "art-7::cl-6",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    },
+    {
+      "legalUnitId": "LAW-71-2025-QH15::art-26::cl-2",
+      "documentNumber": "71/2025/QH15",
+      "canonicalLocator": "art-26::cl-2",
+      "sourceQuoteRequiredFromPinnedVersion": true,
+      "humanReviewRequired": true
+    }
+  ],
+  "retainedMaterialContext": [],
+  "provenanceNote": "Review only. No raw source quotations from excluded deployment law units; authoritative full-source accounting is unchanged."
+}

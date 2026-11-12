@@ -272,20 +272,22 @@ class RunAdmission:
         """
         policy = next((p for p in self.budget.policies if (p.route_id, p.credential_fingerprint)
                        == (identity.get("route_id"), identity.get("credential_fingerprint"))), None)
-        now = time.time()
-        if now < self.budget.valid_from or (self.budget.expires_at is not None and now >= self.budget.expires_at):
-            reason = "BUDGET_EXPIRED"
-        if policy is None:
-            reason = reason or ("UNKNOWN_TOKEN_POLICY" if isinstance(self.budget, TokenRunBudget) else "UNKNOWN_TARIFF")
-        elif any(identity.get(k) != getattr(policy, k) for k in (
-            "route_id", "route_fingerprint", "credential_fingerprint", "endpoint_fingerprint", "sdk_fingerprint", "provider", "protocol", "model"
-        )) or not policy.valid_from <= now < policy.expires_at:
-            reason = reason or "UNVERIFIED_POLICY"
         if not isinstance(attempt_id, str) or not 1 <= len(attempt_id) <= 200:
             raise PaidAdmissionError("ATTEMPT_IDENTITY", self.run_id)
         failure = None
         with self._transaction() as db:
             envelope = self._check_identity(db)
+            # Lock acquisition may wait behind another process. Evaluate both authorization
+            # windows after that wait, at the serialized reservation boundary.
+            now = time.time()
+            if now < self.budget.valid_from or (self.budget.expires_at is not None and now >= self.budget.expires_at):
+                reason = "BUDGET_EXPIRED"
+            if policy is None:
+                reason = reason or ("UNKNOWN_TOKEN_POLICY" if isinstance(self.budget, TokenRunBudget) else "UNKNOWN_TARIFF")
+            elif any(identity.get(k) != getattr(policy, k) for k in (
+                "route_id", "route_fingerprint", "credential_fingerprint", "endpoint_fingerprint", "sdk_fingerprint", "provider", "protocol", "model"
+            )) or not policy.valid_from <= now < policy.expires_at:
+                reason = reason or "UNVERIFIED_POLICY"
             if db.execute("SELECT 1 FROM inference_attempts WHERE run_id=? AND attempt_id=?", (self.run_id, attempt_id)).fetchone():
                 db.execute("UPDATE inference_budgets SET stopped=coalesce(stopped,'DUPLICATE_ATTEMPT') WHERE run_id=?", (self.run_id,))
                 db.commit()
@@ -339,6 +341,23 @@ class RunAdmission:
                 raise PaidAdmissionError("ATTEMPT_IDENTITY", self.run_id, attempt_id)
             if row["state"] not in allowed[state]:
                 return  # Late settlement must never be reverted to unknown.
+            if state == "IN_FLIGHT":
+                now = time.time()
+                identity = json.loads(row["identity"])
+                policy = next((p for p in self.budget.policies if
+                               (p.route_id, p.credential_fingerprint) ==
+                               (identity.get("route_id"), identity.get("credential_fingerprint"))), None)
+                # An already-reserved attempt owns its allowance even if another contender
+                # exhausts the aggregate ceiling. Its time window must still be valid.
+                reason = None
+                if now < self.budget.valid_from or (self.budget.expires_at is not None and now >= self.budget.expires_at):
+                    reason = reason or "BUDGET_EXPIRED"
+                if policy is None or not policy.valid_from <= now < policy.expires_at:
+                    reason = reason or "UNVERIFIED_POLICY"
+                if reason:
+                    db.execute("UPDATE inference_budgets SET stopped=coalesce(stopped,?) WHERE run_id=?", (reason, self.run_id))
+                    db.commit()
+                    raise PaidAdmissionError(reason, self.run_id, attempt_id)
             history = json.loads(row["history"]) + [{"state": state, "at": time.time()}]
             db.execute("UPDATE inference_attempts SET state=?,history=? WHERE run_id=? AND attempt_id=?",
                        (state, json.dumps(history), self.run_id, attempt_id))

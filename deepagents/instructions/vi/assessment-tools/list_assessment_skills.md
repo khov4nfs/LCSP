@@ -1,0 +1,1 @@
+KHI DÙNG: đã khảo sát hệ thống và có bài toán điều tra cụ thể. ĐỌC: catalog phương pháp, không phải luật. TIẾP: chọn tối thiểu skill phù hợp hoặc không chọn. LỖI: skill tồn tại không chứng minh repo có công nghệ đó.

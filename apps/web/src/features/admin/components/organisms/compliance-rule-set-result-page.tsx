@@ -2,6 +2,8 @@
 
 import type { MessageKey } from "@lcsp/i18n";
 import Link from "next/link";
+import { RuleGroupingReview } from "./rule-grouping-review";
+import { LocalizationScopeReview } from "./localization-scope-review";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   LEGAL_CONTEXT_RELATION_KINDS,
@@ -132,6 +134,8 @@ export function ComplianceRuleSetResultPage({
         </p>
       </header>
 
+      <RuleGroupingReview ruleSetVersionId={ruleSetVersionId} />
+      <LocalizationScopeReview scopeId={ruleSetVersionId} />
       <Card>
         <CardHeader>
           <CardTitle>{t("pages.complianceRuleSets.state")}</CardTitle>

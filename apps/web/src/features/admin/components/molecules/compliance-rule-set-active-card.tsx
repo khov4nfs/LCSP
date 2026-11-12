@@ -16,14 +16,12 @@ import {
 import { resolveAppMessage } from "@/lib/i18n";
 import { formatLocaleTimestamp } from "@/features/workspace/utils/assessment-runtime-formatter";
 import type { ComplianceRuleSetActiveCardProps } from "../../types/compliance-rule-sets.types";
-import { RuleSetPreparationAction } from "./rule-set-preparation-action";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
 /** The one shared rule set every new assessment pins: observability only, never an action. */
 export function ComplianceRuleSetActiveCard({
   ruleSet,
-  availability,
 }: ComplianceRuleSetActiveCardProps) {
   const facts = ruleSet
     ? [
@@ -93,10 +91,6 @@ export function ComplianceRuleSetActiveCard({
             >
               {t("pages.complianceRuleSets.viewResult")}
             </Link>
-            <RuleSetPreparationAction
-              availability={availability}
-              replaceActive
-            />
           </div>
         </CardContent>
       ) : null}

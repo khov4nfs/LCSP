@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "task": "LCSP-347 DATA-04.1",
+  "executionPolicyClassification": "COMMAND_EXECUTION_AUTHORIZATION",
+  "capturedRefusalText": "NOT_CAPTURED_IN_DURABLE_EVIDENCE",
+  "agentServerStarted": false,
+  "priorUnauthenticatedStartup": "FAILED_CLOSED_MISSING_OPENAI_CREDENTIALS",
+  "priorLocalOnlyLaunch": "REJECTED_BY_EXECUTION_COMMAND_POLICY",
+  "alternateLauncherAttempted": false,
+  "approvedProviderFreeRuntimeStrategy": "NOT_ESTABLISHED",
+  "deterministicInProcessGraphTest": {
+    "status": "PASS",
+    "test": "test_managed_document_system_event_dispatches_without_model_inference",
+    "fakeModelPromptCount": 0,
+    "realAgentServer": false
+  },
+  "modelRoutes": {
+    "defaultHasRemoteProviderRoutesOrFallbacks": true,
+    "liveResolvedModelClient": "NOT_RUN",
+    "allFallbacksLoopbackOnly": "NOT_PROVEN"
+  },
+  "externalModelEgress": "NOT_PROVEN",
+  "workerStarted": false,
+  "paidModelCalls": 0,
+  "sourceCreated": false,
+  "draftCreated": false,
+  "ingestionEventsPublished": 0,
+  "activationPreparationAssessment": "NOT_RUN",
+  "operatorAction": "Authorize normal Agent Server entrypoint under isolated local-only egress policy or provide sanctioned provider-free integration harness; do not send credentials in chat."
+}
