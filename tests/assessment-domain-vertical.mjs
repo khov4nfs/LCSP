@@ -1576,16 +1576,17 @@ try {
     const referencedFacts = new Set();
     if (isV3) {
       for (const detail of reportArtifact.ruleDetails) {
-        for (const reference of [
+        for (const entry of [
           ...detail.decisionReferences,
           ...detail.criteriaDecisions.flatMap((c) => c.references),
         ]) {
-          if (
-            reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+          const ref = entry.reference ?? entry;
+          if (ref.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
+            referencedEvidence.add(ref.evidenceId);
+          } else if (
+            ref.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_FACT
           ) {
-            referencedEvidence.add(reference.evidenceId);
-          } else {
-            referencedFacts.add(reference.factId);
+            referencedFacts.add(ref.factId);
           }
         }
       }
