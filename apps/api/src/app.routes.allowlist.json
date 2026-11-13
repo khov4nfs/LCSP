@@ -1,6 +1,7 @@
 [
   "DELETE /admin/legal-source-versions/:versionId",
   "DELETE /admin/legal-source-versions/:versionId/documents/:documentRowId",
+  "DELETE /admin/legal-sources/:sourceId",
   "DELETE /assessments/:assessmentId",
   "DELETE /auth/mfa",
   "DELETE /auth/sessions/:sessionId",
@@ -25,6 +26,7 @@
   "GET /admin/legal-source-versions/:versionId/documents/:documentRowId/original",
   "GET /admin/legal-sources",
   "GET /admin/legal-sources/:sourceId",
+  "GET /admin/legal-sources/:sourceId/deletion-impact",
   "GET /admin/localization",
   "GET /admin/localization/:scopeId",
   "GET /admin/overview",

@@ -439,6 +439,24 @@ class TestBoundary:
         }
         assert client.posted == []
 
+    def test_a_deleted_documents_404_fetch_is_settled_without_retry(self):
+        client = FakeClient(fetch_error=IngestionApiError(404, "LEGAL_SOURCE_DOCUMENT_NOT_FOUND"))
+
+        assert boundary(client).handle(MESSAGE, "corr") == {
+            "state": "SKIPPED",
+            "reason": "LEGAL_SOURCE_DOCUMENT_NOT_FOUND",
+        }
+        assert client.posted == []
+
+    def test_a_deleted_documents_404_callback_is_settled_without_retry(self):
+        client = FakeClient(post_errors=[IngestionApiError(404, "LEGAL_SOURCE_DOCUMENT_NOT_FOUND")])
+
+        assert boundary(client).handle(MESSAGE, "corr") == {
+            "state": "SKIPPED",
+            "reason": "LEGAL_SOURCE_DOCUMENT_NOT_FOUND",
+        }
+        assert len(client.posted) == 1
+
     def test_a_server_error_is_left_to_the_queue_to_redeliver(self):
         with pytest.raises(RetryableAgentBoundaryError):
             boundary(FakeClient(fetch_error=IngestionApiError(503, "HTTP_503"))).handle(MESSAGE, "corr")

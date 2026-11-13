@@ -113,7 +113,11 @@ database("reference-only document mutation on disposable PostgreSQL", () => {
     const { version, document } = await seed();
     expect(document.corpusRole).toBe(LegalSourceDocumentCorpusRole.OPERATIVE);
     const correlationId = randomUUID();
-    const controller = new LegalSourceAdminController(management, documents);
+    const controller = new LegalSourceAdminController(
+      management,
+      documents,
+      {} as never,
+    );
     const req = {
       rbacContext: { userId: actorId },
       correlationId,

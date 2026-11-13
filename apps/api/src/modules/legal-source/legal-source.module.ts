@@ -11,6 +11,7 @@ import { GetActiveLegalSourceHandler } from "./application/queries/get-active-le
 import { CitationLocatorValidatorService } from "./application/services/citation-locator-validator.service.js";
 import { LegalSourceDocumentService } from "./application/services/legal-source-document.service.js";
 import { LegalSourceManagementService } from "./application/services/legal-source-management.service.js";
+import { LegalSourceDeletionService } from "./application/services/legal-source-deletion.service.js";
 import { LegalSourceService } from "./application/services/legal-source.service.js";
 import { OfficialSourceSnapshotService } from "./application/services/official-source-snapshot.service.js";
 import {
@@ -37,6 +38,7 @@ const Handlers = [GetActiveLegalSourceHandler];
     LegalSourceService,
     LegalSourceDocumentService,
     LegalSourceManagementService,
+    LegalSourceDeletionService,
     NodeSafeFetchTransport,
     OfficialSourceSnapshotService,
     SafeUrlFetcherService,

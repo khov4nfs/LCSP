@@ -20,6 +20,7 @@ import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.com
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
+import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 
 /**
  * Claims a run for exactly one worker: QUEUED -> RUNNING. A duplicated or redelivered command
@@ -59,85 +60,88 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
   async execute(
     input: ClaimRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationLegalSourceBundle> {
-    const run = await this.prisma.ruleSetPreparationRun.findUnique({
-      where: { id: input.request.preparationRunId },
-      include: { ruleSet: { select: { id: true } } },
-    });
-    if (!run) {
-      throw problemException(
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunNotFound,
+    const admission = await this.prisma.$transaction(async (tx) => {
+      await acquireLegalSourceLifecycleLock(tx);
+      const run = await tx.ruleSetPreparationRun.findUnique({
+        where: { id: input.request.preparationRunId },
+        include: { ruleSet: { select: { id: true } } },
+      });
+      if (!run) {
+        throw problemException(
+          COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunNotFound,
+          input.correlationId,
+          { status: HttpStatus.NOT_FOUND },
+        );
+      }
+      const supported = input.request.supportedExecutionContracts ?? [
+        PreparationExecutionContract.CLAIM_INVENTORY_V1,
+      ];
+      if (!supported.includes(run.executionContract))
+        throw problemException(
+          COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+          input.correlationId,
+          {
+            status: HttpStatus.CONFLICT,
+            meta: { reason: "WORKER_EXECUTION_CONTRACT_UNSUPPORTED" },
+          },
+        );
+      // Verify the approved, pinned source BEFORE claiming and spending tokens.
+      const approvedScope = await requireApprovedDevelopmentScope(
+        tx,
+        run.id,
+        run.claimInventoryRevision,
+        run.legalSourceVersionId,
+        run.targetActivityScope,
         input.correlationId,
-        { status: HttpStatus.NOT_FOUND },
       );
-    }
-    const supported = input.request.supportedExecutionContracts ?? [
-      PreparationExecutionContract.CLAIM_INVENTORY_V1,
-    ];
-    if (!supported.includes(run.executionContract))
-      throw problemException(
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
-        input.correlationId,
-        {
-          status: HttpStatus.CONFLICT,
-          meta: { reason: "WORKER_EXECUTION_CONTRACT_UNSUPPORTED" },
-        },
+      const now = new Date();
+      const leaseCutoff = new Date(
+        now.getTime() - RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS * 1000,
       );
-    // Verify the approved, pinned source BEFORE claiming and spending tokens.
-    const approvedScope = await requireApprovedDevelopmentScope(
-      this.prisma,
-      run.id,
-      run.claimInventoryRevision,
-      run.legalSourceVersionId,
-      run.targetActivityScope,
-      input.correlationId,
-    );
-    const now = new Date();
-    const leaseCutoff = new Date(
-      now.getTime() - RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS * 1000,
-    );
-    // Both transitions are compare-and-set, so concurrent deliveries cannot both win.
-    const claimed = run.ruleSet
-      ? { count: 0 }
-      : run.executionState === PrismaAgentExecutionState.QUEUED
-        ? await this.prisma.ruleSetPreparationRun.updateMany({
-            where: {
-              id: run.id,
-              executionState: PrismaAgentExecutionState.QUEUED,
-            },
-            data: {
-              executionState: PrismaAgentExecutionState.RUNNING,
-              startedAt: now,
-              reviewOperationId: null,
-            },
-          })
-        : run.executionState === PrismaAgentExecutionState.RUNNING &&
-            run.startedAt &&
-            run.startedAt <= leaseCutoff
-          ? await this.prisma.ruleSetPreparationRun.updateMany({
+      // Both transitions are compare-and-set, serialized with invalidation.
+      const claimed = run.ruleSet
+        ? { count: 0 }
+        : run.executionState === PrismaAgentExecutionState.QUEUED
+          ? await tx.ruleSetPreparationRun.updateMany({
               where: {
                 id: run.id,
-                executionState: PrismaAgentExecutionState.RUNNING,
-                startedAt: run.startedAt,
+                executionState: PrismaAgentExecutionState.QUEUED,
               },
-              data: { startedAt: now, reviewOperationId: null },
+              data: {
+                executionState: PrismaAgentExecutionState.RUNNING,
+                startedAt: now,
+                reviewOperationId: null,
+              },
             })
-          : { count: 0 };
-    if (claimed.count !== 1) {
-      throw problemException(
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
-        input.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
-    await this.prisma.ruleSetPreparationSourceReview.updateMany({
-      where: {
-        preparationRunId: run.id,
-        state: SourceReviewState.IN_REVIEW,
-      },
-      data: {
-        leaseExpiresAt: now,
-      },
+          : run.executionState === PrismaAgentExecutionState.RUNNING &&
+              run.startedAt &&
+              run.startedAt <= leaseCutoff
+            ? await tx.ruleSetPreparationRun.updateMany({
+                where: {
+                  id: run.id,
+                  executionState: PrismaAgentExecutionState.RUNNING,
+                  startedAt: run.startedAt,
+                },
+                data: { startedAt: now, reviewOperationId: null },
+              })
+            : { count: 0 };
+      if (claimed.count !== 1) {
+        throw problemException(
+          COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      await tx.ruleSetPreparationSourceReview.updateMany({
+        where: {
+          preparationRunId: run.id,
+          state: SourceReviewState.IN_REVIEW,
+        },
+        data: { leaseExpiresAt: now },
+      });
+      return { run, approvedScope };
     });
+    const { run, approvedScope } = admission;
     const state = PrismaAgentExecutionState.RUNNING;
 
     const legalSource = await this.prisma.legalSourceVersion.findUniqueOrThrow({

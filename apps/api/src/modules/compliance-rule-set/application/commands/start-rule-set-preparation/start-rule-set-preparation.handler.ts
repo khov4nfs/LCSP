@@ -19,9 +19,11 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   AgentExecutionState as PrismaAgentExecutionState,
   PreparationExecutionContract,
+  Prisma,
 } from "@prisma/client";
 
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
@@ -71,85 +73,93 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     const reviewRequested =
       input.request.targetActivityScope === "DEVELOPMENT_ONLY";
 
-    const existing = await this.findByKey(idempotencyKey);
-    if (existing) {
-      return this.replayPreparation(
-        existing,
-        legalSourceVersionId,
-        input.correlationId,
-        reviewRequested,
-      );
-    }
-
-    const source = await this.prisma.legalSourceVersion.findUnique({
-      where: { id: legalSourceVersionId },
-      select: { id: true, status: true },
-    });
-    if (!source) {
-      throw problemException(
-        COMPLIANCE_RULE_SET_ERROR_CODES.sourceVersionNotFound,
-        input.correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
-    // A superseded or draft source never produces a shared rule set.
-    if (
-      source.status !==
-      toPrismaLegalSourceLifecycleStatus(LEGAL_SOURCE_LIFECYCLE_STATUSES.active)
-    ) {
-      throw problemException(
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
-        input.correlationId,
-        {
-          status: HttpStatus.CONFLICT,
-          meta: {
-            reason:
-              RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
-          },
-        },
-      );
-    }
-
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const run = await tx.ruleSetPreparationRun.create({
-          data: {
-            idempotencyKey,
-            executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
-            targetDate: new Date(),
-            scopeReviewRequested: reviewRequested,
-            legalSourceVersionId: source.id,
-            requestedBy: input.requestedBy,
-            correlationId: input.correlationId,
-            executionState: PrismaAgentExecutionState.QUEUED,
-          },
-        });
-        const outboxEventId = await this.outboxRepository.enqueue(
-          buildOutboxMessageInput({
-            aggregateType: OUTBOX_AGGREGATE_TYPES.legalSourceVersion,
-            aggregateId: source.id,
-            eventType: COMPLIANCE_RULE_SET_EVENT_TYPES.preparationRequested,
-            correlationId: input.correlationId,
-            causationId: run.id,
-            actor: { id: input.requestedBy, type: AUDIT_ACTOR_TYPES.service },
-            result: AGENTIC_TOOL_STATUSES.ready,
-            redactionStatus: AUDIT_REDACTION_STATUSES.none,
-            idempotencyKey: `${run.id}:preparation`,
-            payload: {
-              preparationRunId: run.id,
+      return await this.prisma.$transaction(
+        async (tx) => {
+          await acquireLegalSourceLifecycleLock(tx);
+          const existing = await tx.ruleSetPreparationRun.findUnique({
+            where: { idempotencyKey },
+            include: { ruleSet: { select: { id: true } } },
+          });
+          if (existing) {
+            return this.replayPreparation(
+              existing,
+              legalSourceVersionId,
+              input.correlationId,
+              reviewRequested,
+            );
+          }
+
+          const source = await tx.legalSourceVersion.findUnique({
+            where: { id: legalSourceVersionId },
+            select: { id: true, status: true },
+          });
+          if (!source) {
+            throw problemException(
+              COMPLIANCE_RULE_SET_ERROR_CODES.sourceVersionNotFound,
+              input.correlationId,
+              { status: HttpStatus.NOT_FOUND },
+            );
+          }
+          // A superseded or draft source never starts a new shared Rule Set.
+          if (
+            source.status !==
+            toPrismaLegalSourceLifecycleStatus(
+              LEGAL_SOURCE_LIFECYCLE_STATUSES.active,
+            )
+          ) {
+            throw problemException(
+              COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+              input.correlationId,
+              {
+                status: HttpStatus.CONFLICT,
+                meta: {
+                  reason:
+                    RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
+                },
+              },
+            );
+          }
+          const run = await tx.ruleSetPreparationRun.create({
+            data: {
+              idempotencyKey,
+              executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
+              targetDate: new Date(),
+              scopeReviewRequested: reviewRequested,
               legalSourceVersionId: source.id,
-              preparationRunRef: `rule-set-preparation-run:${run.id}`,
-              legalSourceVersionRef: `legal-source-version:${source.id}`,
+              requestedBy: input.requestedBy,
+              correlationId: input.correlationId,
+              executionState: PrismaAgentExecutionState.QUEUED,
             },
-          }),
-          tx,
-        );
-        await tx.ruleSetPreparationRun.update({
-          where: { id: run.id },
-          data: { outboxEventId },
-        });
-        return toRun(run, null);
-      });
+          });
+          const outboxEventId = await this.outboxRepository.enqueue(
+            buildOutboxMessageInput({
+              aggregateType: OUTBOX_AGGREGATE_TYPES.legalSourceVersion,
+              aggregateId: source.id,
+              eventType: COMPLIANCE_RULE_SET_EVENT_TYPES.preparationRequested,
+              correlationId: input.correlationId,
+              causationId: run.id,
+              actor: { id: input.requestedBy, type: AUDIT_ACTOR_TYPES.service },
+              result: AGENTIC_TOOL_STATUSES.ready,
+              redactionStatus: AUDIT_REDACTION_STATUSES.none,
+              idempotencyKey: `${run.id}:preparation`,
+              payload: {
+                preparationRunId: run.id,
+                legalSourceVersionId: source.id,
+                preparationRunRef: `rule-set-preparation-run:${run.id}`,
+                legalSourceVersionRef: `legal-source-version:${source.id}`,
+              },
+            }),
+            tx,
+          );
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: { outboxEventId },
+          });
+          return toRun(run, null);
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error) {
       if (isUniqueViolation(error)) {
         const raced = await this.findByKey(idempotencyKey);

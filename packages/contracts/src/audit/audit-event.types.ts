@@ -55,6 +55,7 @@ export const AUDIT_RESOURCE_TYPES = {
   complianceRuleSetVersion: "COMPLIANCE_RULE_SET_VERSION",
   legalRequirement: "LEGAL_REQUIREMENT",
   legalSourceVersion: "LEGAL_SOURCE_VERSION",
+  legalSource: "LEGAL_SOURCE",
   outbox: "OUTBOX",
   repositoryConnection: "REPOSITORY_CONNECTION",
   repositoryScanJob: "REPOSITORY_SCAN_JOB",

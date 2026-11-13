@@ -30,7 +30,13 @@ function build(executionState: State, failureReason: string | null) {
     } as unknown,
   };
   const tx = {
-    $queryRaw: jest.fn(() => Promise.resolve([{ id }])),
+    $queryRaw: jest.fn((query: Prisma.Sql) =>
+      Promise.resolve(
+        query.sql.includes("pg_try_advisory_xact_lock")
+          ? [{ acquired: true }]
+          : [{ id }],
+      ),
+    ),
     ruleSetPreparationRun: {
       findUnique: jest.fn(() => Promise.resolve(row)),
       update: jest.fn(({ data }: { data: object }) =>
@@ -71,7 +77,7 @@ describe("explicit preparation recovery", () => {
       expect(row.claimInventoryRevision).toBe(3);
       expect(row.failureReason).toBeNull();
       expect(row.draftValidation).toBe(Prisma.DbNull);
-      expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
       expect(outbox.enqueue).toHaveBeenCalledTimes(1);
       expect(await handler.execute(command())).toMatchObject({
         preparationRunId: id,

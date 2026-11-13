@@ -2276,6 +2276,33 @@ export type PagesMessages = {
     submittingDocument: string;
     copySha256: string;
     copySuccess: string;
+    permanentDelete: string;
+    permanentDeleteTitle: string;
+    permanentDeleteDescription: string;
+    loadingDeletionImpact: string;
+    deletionImpactFailed: string;
+    deletionCascadeSummary: string;
+    deletionBlockers: string;
+    confirmSourceSlug: string;
+    deleteSlugMismatch: string;
+    deletionReason: string;
+    deletionReasonText: string;
+    deletionReasonRequired: string;
+    deletingSource: string;
+    confirmPermanentDelete: string;
+    deletionReasons: {
+      duplicateSource: string;
+      sourceScopeRetired: string;
+      developmentDataCleanup: string;
+      other: string;
+    };
+    deletionBlockerLabels: {
+      PROTECTED_REFERENCE_EXISTS: string;
+      NONTERMINAL_WORK_EXISTS: string;
+      UNSETTLED_INGESTION_EXISTS: string;
+      UNSETTLED_OUTBOX_EXISTS: string;
+      RETENTION_HOLD_EXISTS: string;
+    };
     statuses: {
       DRAFT: string;
       ACTIVE: string;
@@ -2361,6 +2388,10 @@ export type PagesMessages = {
       documentNotRetryable: string;
       documentNotFound: string;
       importFetchFailed: string;
+      deletionBlocked: string;
+      deletionImpactStale: string;
+      deletionConfirmationMismatch: string;
+      deletionIdempotencyConflict: string;
       importUrlRejected: {
         generic: string;
         INVALID_URL: string;
