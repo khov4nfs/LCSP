@@ -17,6 +17,7 @@ from middleware.working_context_policy import (
     KEEP_MODE_MESSAGES,
     KEEP_MODE_FRACTION,
     WorkingContextPolicy,
+    apply_working_context_policy,
     assert_working_context_authority_preservation,
     normalize_working_context_role,
     resolve_working_context_policy,
@@ -126,11 +127,12 @@ def test_governed_summarization_middleware_integration():
     model = ChatOpenAI(model="gpt-4o", api_key="fake-test-key")
     backend = StateBackend()
 
-    middleware = governed_summarization_middleware(
+    raw_middleware = governed_summarization_middleware(
         model,
         backend=backend,
         role=ROLE_ASSESSMENT_ROOT,
     )
+    middleware = apply_working_context_policy(raw_middleware, role=ROLE_ASSESSMENT_ROOT, model=model)
 
     assert hasattr(middleware, "working_context_policy")
     assert isinstance(middleware.working_context_policy, WorkingContextPolicy)

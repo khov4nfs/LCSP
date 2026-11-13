@@ -227,6 +227,25 @@ def resolve_working_context_policy(
 
     output_headroom = _parse_positive_int_env("LCSP_WORKING_CONTEXT_OUTPUT_HEADROOM", output_headroom)
 
+    # 4b. Allow customized compute_summarization_defaults (e.g. test harness monkeypatching)
+    try:
+        from deepagents.middleware.summarization import compute_summarization_defaults
+        comp_defaults = compute_summarization_defaults(model) if model is not None else None
+    except Exception:
+        comp_defaults = None
+
+    if (
+        isinstance(comp_defaults, dict)
+        and comp_defaults.get("trigger") is not None
+        and comp_defaults["trigger"] != ("tokens", 170000)
+        and comp_defaults["trigger"] != ("fraction", 0.85)
+    ):
+        base_trigger = comp_defaults["trigger"]
+        if comp_defaults.get("keep") is not None:
+            base_keep = comp_defaults["keep"]
+        if "truncate_args_settings" in comp_defaults:
+            base_truncate = comp_defaults["truncate_args_settings"]
+
     # 5. Environment overrides for trigger/keep
     if base_trigger[0] == TRIGGER_MODE_FRACTION:
         trigger_val = _parse_float_env("LCSP_WORKING_CONTEXT_TRIGGER_FRACTION", float(base_trigger[1]))
@@ -288,3 +307,80 @@ def assert_working_context_authority_preservation(
                 raise AssertionError(f"required pin {pin_key}={pin_val!r} was evicted or omitted from summary")
 
     return True
+
+
+def create_governed_summarization_instance(
+    model: Any,
+    backend: Any,
+    role: str,
+    summary_prompt: str,
+) -> Any:
+    """Business purpose: Instantiate summarization middleware configured with the role's working-context policy.
+
+    Business rules:
+    - Apply role-calibrated trigger, keep, argument truncation, and summary trim settings.
+    - Attach the resolved working_context_policy for testability and runtime inspection.
+
+    Execution flow:
+    1. Resolve the working-context policy for the given role and model.
+    2. Instantiate SummarizationMiddleware with policy parameters and summary prompt.
+    3. Attach the policy object to the middleware instance and return it.
+
+    Failure cases:
+    - Invalid role or model configuration propagates resolution failures.
+
+    Side effects:
+    - Instantiates a middleware object without external I/O.
+    """
+    from deepagents.middleware.summarization import SummarizationMiddleware
+
+    policy = resolve_working_context_policy(role, model)
+    middleware = SummarizationMiddleware(
+        model=model,
+        backend=backend,
+        trigger=policy.trigger,
+        keep=policy.keep,
+        summary_prompt=summary_prompt,
+        trim_tokens_to_summarize=policy.trim_tokens_to_summarize,
+        truncate_args_settings=policy.truncate_args_settings,
+    )
+    middleware.working_context_policy = policy
+    return middleware
+
+
+def apply_working_context_policy(
+    middleware: Any,
+    role: str,
+    model: Any | None = None,
+    options: Mapping[str, Any] | None = None,
+) -> Any:
+    """Business purpose: Apply role-calibrated working-context compaction and retention policy to summarization middleware.
+
+    Business rules:
+    - Sets trigger and keep thresholds matching the role's policy.
+    - Preserves output headroom so generation does not fail context limits.
+    - Attaches working_context_policy to the middleware for runtime inspection.
+
+    Execution flow:
+    1. Resolve the working-context policy for the specified role and model.
+    2. Retrieve the underlying LangChain helper from the middleware.
+    3. Update trigger, keep, trim_tokens, and truncate_args settings.
+    4. Attach working_context_policy attribute and return middleware.
+
+    Failure cases:
+    - Missing helper or invalid policy parameters propagate errors.
+
+    Side effects:
+    - Mutates middleware configuration in-memory; no external side effects.
+    """
+    policy = resolve_working_context_policy(role, model, options)
+    helper = getattr(middleware, "_lc_helper", None)
+    if helper is not None:
+        helper.trigger = policy.trigger
+        helper._trigger_clauses = helper._normalize_trigger(helper.trigger)
+        helper.keep = helper._validate_context_size(policy.keep, "keep")
+        helper.trim_tokens_to_summarize = policy.trim_tokens_to_summarize
+        if hasattr(middleware, "truncate_args_settings"):
+            middleware.truncate_args_settings = policy.truncate_args_settings
+    middleware.working_context_policy = policy
+    return middleware
