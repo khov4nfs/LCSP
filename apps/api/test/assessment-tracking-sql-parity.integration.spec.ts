@@ -150,6 +150,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
   }
 
   beforeAll(async () => {
+    jest.setTimeout(120_000);
     prisma = new PrismaClient({
       adapter: new PrismaPg(dbUrl),
       log: [{ emit: "event", level: "query" }],
@@ -1310,7 +1311,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(result2.assessments[0].compliance.unresolvedCount).toBe(1);
     expect(result2.assessments[1].compliance.compliantCount).toBe(0);
     expect(result2.assessments[1].compliance.unresolvedCount).toBe(1);
-  });
+  }, 60_000);
 
   it("evaluates staleness across >100 pinned assessments without 100-cap truncation so assessment #105 receives REASSESSMENT_REQUIRED", async () => {
     const totalAssessments = 105;
