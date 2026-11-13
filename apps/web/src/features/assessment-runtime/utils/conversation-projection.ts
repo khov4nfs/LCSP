@@ -135,10 +135,27 @@ function finishWork(
 }
 
 /**
- * The one deterministic projection of canonical state into the conversation:
- * events + human requests + accepted answers + decisions + lifecycle/runtime + usage -> turns.
- * Live updates and reloads render the SAME function over the SAME inputs. It reads no clock,
- * so equal inputs always give equal turns.
+ * Business purpose:
+ * Project canonical assessment state into an ordered, coherent timeline of conversation turns.
+ *
+ * Business rules:
+ * - Deterministic: given identical inputs, produces identical turns without reading the system clock.
+ * - Collapses consecutive activities into aggregated work turns.
+ * - Respects strict ordering: questions appear before answers, and work turns pause during human interrupts.
+ *
+ * Execution flow:
+ * 1. Normalize events and determine active runtime state.
+ * 2. Initialize work tracking and sort pending human answers.
+ * 3. Process events chronologically, flushing answers and creating question, work, notice, and decision turns.
+ * 4. Append opening, completion, and outstanding question turns as needed.
+ * 5. Return immutable ConversationProjection with followKey and openRequestId.
+ *
+ * Failure cases:
+ * - Missing or malformed events are handled gracefully via fallback turns.
+ * - Stale or out-of-order events do not corrupt chronological display.
+ *
+ * Side effects:
+ * - Pure projection function; produces no mutations, network calls, or side effects.
  */
 export function projectConversation(
   input: ConversationInput,
@@ -228,6 +245,26 @@ export function projectConversation(
       blockerReason,
     });
   };
+  /**
+   * Business purpose:
+   * Drain pending customer answers into chronological conversation turns up to a given timestamp.
+   *
+   * Business rules:
+   * - An answer turn must never precede its corresponding question turn.
+   * - Resolves matching choice label from request options to support typed human answers.
+   *
+   * Execution flow:
+   * 1. Check if pending answer has a corresponding rendered question turn.
+   * 2. Close active work up to answer timestamp.
+   * 3. Resolve matching choice label from request metadata.
+   * 4. Append ANSWER turn to turns array.
+   *
+   * Failure cases:
+   * - If question turn is not yet in conversation, defers flushing until question appears.
+   *
+   * Side effects:
+   * - Mutates local turns and pendingAnswers arrays; no external state modified.
+   */
   const flushAnswers = (until: string | null) => {
     while (
       pendingAnswers.length > 0 &&
@@ -246,6 +283,13 @@ export function projectConversation(
         return;
       }
       closeWork(answer.answeredAt);
+      const matchingRequest = input.requests.find(
+        (request) => request.requestId === answer.requestId,
+      );
+      const matchingChoice =
+        !answer.doesNotKnow && answer.answer && matchingRequest?.choices
+          ? matchingRequest.choices.find((c) => c.value === answer.answer)
+          : null;
       turns.push({
         kind: CONVERSATION_TURN_KINDS.ANSWER,
         id: `answer:${answer.requestId}:${answer.index}`,
@@ -253,6 +297,7 @@ export function projectConversation(
         at: answer.answeredAt,
         requestId: answer.requestId,
         answer: answer.doesNotKnow ? null : answer.answer,
+        selectedLabel: matchingChoice?.label ?? null,
         doesNotKnow: answer.doesNotKnow,
       });
     }
