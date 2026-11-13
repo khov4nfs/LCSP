@@ -142,3 +142,4 @@ describe("RepositoryProfile contract", () => {
     expect(result.success).toBe(false);
   });
 });
+

@@ -236,3 +236,4 @@ def test_ensure_repository_profile_cache_reuse_and_invalidation(tmp_path: Path) 
         workspace_path=tmp_path,
     )
     assert profile3["commitSha"] == "e" * 40
+
