@@ -774,7 +774,6 @@ describe("AssessmentPdfRenderer", () => {
       {
         evidenceId,
         type: "REPOSITORY_SOURCE",
-        state: "ACCEPTED",
         repositoryCommit: "a".repeat(40),
         contentSha256: `sha256:${"e".repeat(64)}`,
         safeLocator: locator,
