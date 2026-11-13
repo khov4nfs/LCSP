@@ -27,6 +27,7 @@ export type StructuredAnswerControlProps = {
   disabled?: boolean;
   pending?: boolean;
   failed?: boolean;
+  staleConflict?: boolean;
   onSubmit: (answer: StructuredAnswer) => void;
 };
 

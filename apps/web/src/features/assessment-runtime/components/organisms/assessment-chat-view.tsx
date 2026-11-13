@@ -121,8 +121,10 @@ export function AssessmentChatView({
         targetRequestId={targetRequestId}
         answerPending={answer.pending}
         answerFailed={answer.failed}
+        answerStaleConflict={answer.staleConflict}
         submittingRequestId={answer.submittingRequestId}
         failedRequestId={answer.failedRequestId}
+        staleConflictRequestId={answer.staleConflictRequestId}
         onAnswer={(value, req) => void answer.submit(value, req)}
         footer={
           requests.isError || events.isError ? (
