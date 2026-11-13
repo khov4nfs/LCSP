@@ -19,6 +19,7 @@ export const AUDIT_ERROR_CODES = {
 export const AUDIT_EVENT_TYPES = {
   exportGenerated: "AUDIT_EXPORT_GENERATED",
   sessionExported: "ASSESSMENT_SESSION_EXPORTED",
+  legalSourceDeleted: "LEGAL_SOURCE_DELETED",
 } as const;
 
 /** Published audit export formats recorded in the audit ledger. */

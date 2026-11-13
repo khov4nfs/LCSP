@@ -2624,6 +2624,40 @@ export const viPages = {
     submittingDocument: "Đang thêm tài liệu…",
     copySha256: "Sao chép SHA-256",
     copySuccess: "Đã sao chép SHA-256.",
+    permanentDelete: "Xóa vĩnh viễn nguồn",
+    permanentDeleteTitle: "Xóa vĩnh viễn Nguồn pháp lý này?",
+    permanentDeleteDescription:
+      "Thao tác này sẽ xóa vĩnh viễn {name}, tất cả phiên bản, lịch sử chuẩn bị liên quan và Bộ quy tắc được tạo. Tham chiếu Đánh giá hoặc Báo cáo cuối cùng sẽ chặn việc xóa. Không thể hoàn tác.",
+    loadingDeletionImpact: "Đang kiểm tra ảnh hưởng của việc xóa…",
+    deletionImpactFailed:
+      "Không thể tải ảnh hưởng của việc xóa. Hãy thử lại trước khi xóa.",
+    deletionCascadeSummary:
+      "Thao tác sẽ xóa {versions} phiên bản, {preparations} lượt chuẩn bị và {ruleSets} phiên bản Bộ quy tắc được tạo, cùng tài liệu và dữ liệu dẫn xuất thuộc nguồn.",
+    deletionBlockers: "Các điều kiện đang chặn xóa",
+    confirmSourceSlug: "Nhập mã định danh của Nguồn pháp lý để xác nhận",
+    deleteSlugMismatch: "Nhập chính xác mã định danh nguồn được hiển thị.",
+    deletionReason: "Lý do",
+    deletionReasonText: "Chi tiết lý do",
+    deletionReasonRequired: "Cần cung cấp lý do xóa.",
+    deletingSource: "Đang xóa nguồn…",
+    confirmPermanentDelete: "Xóa vĩnh viễn",
+    deletionReasons: {
+      duplicateSource: "Nguồn trùng lặp",
+      sourceScopeRetired: "Phạm vi nguồn đã ngừng",
+      developmentDataCleanup: "Dọn dữ liệu phát triển",
+      other: "Khác",
+    },
+    deletionBlockerLabels: {
+      PROTECTED_REFERENCE_EXISTS:
+        "Có Đánh giá, báo cáo hoặc lịch sử bên ngoài được bảo vệ tham chiếu đến nguồn này.",
+      NONTERMINAL_WORK_EXISTS:
+        "Lượt chuẩn bị hoặc Đánh giá vẫn đang chạy hoặc có thể tiếp tục.",
+      UNSETTLED_INGESTION_EXISTS:
+        "Tài liệu đang chờ xử lý hoặc đang được xử lý.",
+      UNSETTLED_OUTBOX_EXISTS:
+        "Worker hiện đang sở hữu công việc chưa hoàn tất của nguồn.",
+      RETENTION_HOLD_EXISTS: "Có yêu cầu lưu giữ dữ liệu nên không thể xóa.",
+    },
     statuses: {
       DRAFT: "Bản nháp",
       ACTIVE: "Đang hoạt động",
@@ -2713,6 +2747,14 @@ export const viPages = {
       documentNotRetryable: "Không thể xử lý lại tài liệu này.",
       documentNotFound: "Không tìm thấy tài liệu này.",
       importFetchFailed: "Không thể tải tài liệu từ URL đó.",
+      deletionBlocked:
+        "Nguồn pháp lý có tham chiếu được bảo vệ hoặc công việc chưa hoàn tất nên không thể xóa.",
+      deletionImpactStale:
+        "Tác động xóa đã thay đổi. Hãy xem lại thông tin mới rồi thử lại.",
+      deletionConfirmationMismatch:
+        "Nội dung xác nhận không khớp với Nguồn pháp lý này.",
+      deletionIdempotencyConflict:
+        "Yêu cầu xóa này xung đột với yêu cầu trước đó. Hãy tải lại và xem lại tác động xóa.",
       importUrlRejected: {
         generic: "Không thể nhập từ URL này.",
         INVALID_URL: "Hãy nhập URL hợp lệ.",

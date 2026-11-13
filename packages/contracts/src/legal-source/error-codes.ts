@@ -1,4 +1,5 @@
 export const LEGAL_SOURCE_ERROR_CODES = {
+  sourceNotFound: "LEGAL_SOURCE_NOT_FOUND",
   citationUnresolved: "RULE_CITATION_UNRESOLVED",
   citationRepealed: "RULE_CITATION_REPEALED",
   sourceSnapshotNotFound: "SOURCE_SNAPSHOT_NOT_FOUND",

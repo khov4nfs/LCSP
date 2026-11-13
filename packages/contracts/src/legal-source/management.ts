@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "./statuses.ts";
+import { LEGAL_SOURCE_ERROR_CODES } from "./error-codes.ts";
 
 /** Where a managed document's original bytes came from. MIGRATED rows predate managed ingestion. */
 export const LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES = {
@@ -133,7 +134,7 @@ export type LegalSourceVersionBlocker =
 
 export const LEGAL_SOURCE_MANAGEMENT_ERROR_CODES = {
   requestInvalid: "LEGAL_SOURCE_REQUEST_INVALID",
-  sourceNotFound: "LEGAL_SOURCE_NOT_FOUND",
+  sourceNotFound: LEGAL_SOURCE_ERROR_CODES.sourceNotFound,
   slugTaken: "LEGAL_SOURCE_SLUG_TAKEN",
   documentNotFound: "LEGAL_SOURCE_DOCUMENT_NOT_FOUND",
   versionImmutable: "LEGAL_SOURCE_VERSION_IMMUTABLE",

@@ -39,6 +39,9 @@ import {
   type UpdateLegalSourceRequest,
   type UpdateLegalSourceDocumentEffect,
   type UploadLegalSourceDocumentMetadata,
+  deleteLegalSourceRequestSchema,
+  type DeleteLegalSourceRequest,
+  legalSourceDeletionImpactResponseSchema,
 } from "@lcsp/contracts/legal-source";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
@@ -49,6 +52,7 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { LegalSourceDocumentService } from "../../application/services/legal-source-document.service.js";
 import { LegalSourceManagementService } from "../../application/services/legal-source-management.service.js";
+import { LegalSourceDeletionService } from "../../application/services/legal-source-deletion.service.js";
 
 const validated = (schema: z.ZodTypeAny) =>
   new ZodValidationPipe(
@@ -70,6 +74,7 @@ export class LegalSourceAdminController {
   constructor(
     private readonly management: LegalSourceManagementService,
     private readonly documents: LegalSourceDocumentService,
+    private readonly deletion: LegalSourceDeletionService,
   ) {}
 
   private correlation(req: AuthenticatedRequest): string {
@@ -104,6 +109,37 @@ export class LegalSourceAdminController {
   ) {
     return this.management
       .getSource(sourceId, this.correlation(req))
+      .then(resultEnvelope);
+  }
+
+  @Get("legal-sources/:sourceId/deletion-impact")
+  async deletionImpact(
+    @Param("sourceId", uuid()) sourceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const impact = await this.deletion.getImpact(
+      sourceId,
+      this.correlation(req),
+    );
+    return resultEnvelope(
+      legalSourceDeletionImpactResponseSchema.parse(impact),
+    );
+  }
+
+  @Delete("legal-sources/:sourceId")
+  async deleteSource(
+    @Param("sourceId", uuid()) sourceId: string,
+    @Body(validated(deleteLegalSourceRequestSchema))
+    request: DeleteLegalSourceRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.deletion
+      .deleteSource({
+        sourceId,
+        actorId: req.rbacContext.userId,
+        correlationId: this.correlation(req),
+        request,
+      })
       .then(resultEnvelope);
   }
 
