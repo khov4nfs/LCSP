@@ -173,3 +173,67 @@ def test_run_assessment_root_pauses_on_budget_exhaustion(tmp_path):
     assert metadata.get("reason") == CALL_LIMIT_EXCEEDED
     assert metadata.get("checkpoint_id") is not None
 
+
+def test_rule_set_preparation_pauses_on_call_limit_exhaustion(tmp_path, monkeypatch):
+    from middleware import usage_metering
+    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda model, response=None: None)
+    monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "1")
+    monkeypatch.delenv("LCSP_RSP_MAX_INPUT_TOKENS", raising=False)
+    from rule_set_preparation.runner import run_rule_set_preparation
+    from test_rule_set_preparation_agent import FakeApi, _packet, _call, _model, RUN_ID, INDEX_PATH
+    from langchain_core.messages import AIMessage
+
+    class BudgetAwareFakeApi(FakeApi):
+        def source_review_operation(self, *args, **kwargs):
+            return {"outcome": "PASSED", "frontierRevision": 1, "frontierFingerprint": "a" * 64,
+                "frontierStateFingerprint": "b" * 64, "progress": {}, "records": [], "nextOffset": None}
+
+        def fail_rule_set_preparation(self, run_id: str, reason: str) -> dict:
+            self.calls.append(("fail", (run_id, reason)))
+            is_budget = reason in {"AGENT_BUDGET_REACHED", "CALL_LIMIT_EXCEEDED", "TOKEN_LIMIT_EXCEEDED", "NO_PROGRESS_LIMIT_EXCEEDED", "BUDGET_EXHAUSTED"}
+            return {"preparationRunId": run_id, "executionState": "PAUSED" if is_budget else "FAILED"}
+
+    packet = _packet()
+    model = _model([
+        _call("read_file", {"file_path": INDEX_PATH}, "read-index"),
+        _call("validate_compliance_rule_set", {"packet": packet}, "validate-1"),
+        AIMessage(content="DONE"),
+    ])
+    api = BudgetAwareFakeApi()
+    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+    assert result["state"] == "PAUSED"
+    fail_calls = [c for c in api.calls if c[0] == "fail"]
+    assert len(fail_calls) == 1
+    assert fail_calls[0][1][1] == CALL_LIMIT_EXCEEDED
+
+
+def test_rule_set_preparation_pauses_on_token_limit_exhaustion(tmp_path, monkeypatch):
+    monkeypatch.delenv("LCSP_RSP_MAX_MODEL_CALLS", raising=False)
+    monkeypatch.setenv("LCSP_RSP_MAX_INPUT_TOKENS", "10")
+    from rule_set_preparation.runner import run_rule_set_preparation
+    from test_rule_set_preparation_agent import FakeApi, _packet, _call, _model, RUN_ID, INDEX_PATH
+    from langchain_core.messages import AIMessage
+
+    class BudgetAwareFakeApi(FakeApi):
+        def source_review_operation(self, *args, **kwargs):
+            return {"outcome": "PASSED", "frontierRevision": 1, "frontierFingerprint": "a" * 64,
+                "frontierStateFingerprint": "b" * 64, "progress": {}, "records": [], "nextOffset": None}
+
+        def fail_rule_set_preparation(self, run_id: str, reason: str) -> dict:
+            self.calls.append(("fail", (run_id, reason)))
+            is_budget = reason in {"AGENT_BUDGET_REACHED", "CALL_LIMIT_EXCEEDED", "TOKEN_LIMIT_EXCEEDED", "NO_PROGRESS_LIMIT_EXCEEDED", "BUDGET_EXHAUSTED"}
+            return {"preparationRunId": run_id, "executionState": "PAUSED" if is_budget else "FAILED"}
+
+    packet = _packet()
+    model = _model([
+        _call("read_file", {"file_path": INDEX_PATH}, "read-index"),
+        AIMessage(content="DONE"),
+    ])
+    api = BudgetAwareFakeApi()
+    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+    assert result["state"] == "PAUSED"
+    fail_calls = [c for c in api.calls if c[0] == "fail"]
+    assert len(fail_calls) == 1
+    assert fail_calls[0][1][1] == TOKEN_LIMIT_EXCEEDED
+
+
