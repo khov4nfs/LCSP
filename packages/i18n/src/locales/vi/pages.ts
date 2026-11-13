@@ -554,6 +554,8 @@ export const viPages = {
       textLabel: "Câu trả lời của bạn",
       required: "Hãy nhập câu trả lời trước.",
       failed: "Không thể gửi câu trả lời. Vui lòng thử lại.",
+      staleConflict:
+        "Đã có phiên bản mới hơn. Bản nháp của bạn đã được giữ lại; vui lòng kiểm tra và gửi lại.",
     },
     decision: {
       ruleFallback: "Quy tắc đánh giá {id}",

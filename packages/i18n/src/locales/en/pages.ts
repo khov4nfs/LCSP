@@ -556,6 +556,8 @@ export const enPages = {
       textLabel: "Your answer",
       required: "Enter an answer first.",
       failed: "Your answer could not be sent. Try again.",
+      staleConflict:
+        "A newer revision is available. Your draft was saved; review and submit again.",
     },
     decision: {
       ruleFallback: "Assessment rule {id}",

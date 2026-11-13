@@ -265,6 +265,20 @@ export type OpenAssessmentHumanRequestResult = z.infer<
   typeof openAssessmentHumanRequestResultSchema
 >;
 
+export const openAssessmentHumanRequestsBatchSchema = z.strictObject({
+  requests: z.array(openAssessmentHumanRequestSchema).min(1).max(20),
+});
+export type OpenAssessmentHumanRequestsBatch = z.infer<
+  typeof openAssessmentHumanRequestsBatchSchema
+>;
+
+export const openAssessmentHumanRequestsBatchResultSchema = z.strictObject({
+  requests: z.array(openAssessmentHumanRequestResultSchema),
+});
+export type OpenAssessmentHumanRequestsBatchResult = z.infer<
+  typeof openAssessmentHumanRequestsBatchResultSchema
+>;
+
 /** Root-authored dependency claim. Shape/provenance validation does not judge obtainability. */
 export const reportUnresolvableHumanFactRequestSchema = z.strictObject({
   humanResolutionRequestId: uuidSchema,
@@ -314,6 +328,13 @@ export const humanAnswerAuditSchema = z.strictObject({
   requestRevision: revisionSchema,
   doesNotKnow: z.boolean(),
   answer: privateTextSchema.nullable(),
+  selectedChoice: z
+    .strictObject({
+      value: identifierSchema,
+      label: privateTextSchema,
+    })
+    .nullable()
+    .optional(),
   checkpointId: uuidSchema.optional(),
 });
 export type HumanAnswerAudit = z.infer<typeof humanAnswerAuditSchema>;

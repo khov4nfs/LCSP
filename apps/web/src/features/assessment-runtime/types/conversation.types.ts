@@ -113,6 +113,7 @@ export type AnswerTurn = TurnBase & {
   kind: typeof CONVERSATION_TURN_KINDS.ANSWER;
   requestId: string;
   answer: string | null;
+  selectedLabel?: string | null;
   doesNotKnow: boolean;
 };
 type DecisionRecord = NonNullable<

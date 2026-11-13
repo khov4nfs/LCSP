@@ -161,6 +161,7 @@
   "POST /internal/assessment-runtime/:assessmentId/heartbeat",
   "POST /internal/assessment-runtime/:assessmentId/human-fact-unresolvable",
   "POST /internal/assessment-runtime/:assessmentId/human-requests",
+  "POST /internal/assessment-runtime/:assessmentId/human-requests/batch",
   "POST /internal/assessment-runtime/:assessmentId/investigations",
   "POST /internal/assessment-runtime/agent-stream-events",
   "POST /internal/billing/usage",
