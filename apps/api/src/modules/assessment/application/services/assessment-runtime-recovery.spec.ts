@@ -82,7 +82,14 @@ function fixture(
       ),
     },
     assessment: {
-      update: jest.fn<() => Promise<unknown>>().mockResolvedValue({}),
+      update: jest
+        .fn<
+          (args?: {
+            where?: Record<string, unknown>;
+            data?: Record<string, unknown>;
+          }) => Promise<unknown>
+        >()
+        .mockResolvedValue({}),
     },
     assessmentRuntimeTurn: {
       findUnique: jest.fn<() => Promise<typeof turn>>().mockResolvedValue(turn),
@@ -1320,15 +1327,14 @@ describe("unknown response review on the existing native thread", () => {
       reason: ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED,
     });
     expect(result.executionState).toBe(Execution.PAUSED);
-    expect(f.tx.assessment.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: f.assessmentId },
-        data: expect.objectContaining({
-          blockerReference: expect.objectContaining({
-            reason: ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED,
-          }),
-        }),
-      }),
-    );
+    const updateCall = f.tx.assessment.update.mock.calls[0]?.[0];
+    expect(updateCall).toMatchObject({
+      where: { id: f.assessmentId },
+      data: {
+        blockerReference: {
+          reason: ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED,
+        },
+      },
+    });
   });
 });

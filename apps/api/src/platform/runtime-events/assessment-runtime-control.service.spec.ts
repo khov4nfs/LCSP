@@ -265,7 +265,10 @@ describe("runtime control registration", () => {
           id: "assessment",
           lifecycleState: "PAUSED",
           runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
-          blockerReference: { reason: "AGENT_BUDGET_REACHED", budgetExtended: false },
+          blockerReference: {
+            reason: "AGENT_BUDGET_REACHED",
+            budgetExtended: false,
+          },
           domainCase: {
             repositorySnapshotId: "snap-1",
             ruleSetVersionId: "ver-1",
@@ -282,11 +285,14 @@ describe("runtime control registration", () => {
           commitSha: "sha-1",
         }),
       },
-      assessmentHumanRequest: { count: jest.fn<() => Promise<number>>().mockResolvedValue(0) },
+      assessmentHumanRequest: {
+        count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+      },
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) => work(tx),
+        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+          work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
       {} as AssessmentLifecycleCoordinator,
@@ -313,9 +319,15 @@ describe("runtime control registration", () => {
   });
 
   it("permits resume and clears blockerReference when budget was extended", async () => {
-    const updateMany = jest.fn<(args?: any) => Promise<{ count: number }>>().mockResolvedValue({ count: 1 });
-    const updateAssessment = jest.fn<(args?: any) => Promise<any>>().mockResolvedValue({});
-    const enqueue = jest.fn<(args?: any) => Promise<any>>().mockResolvedValue({});
+    const updateMany = jest
+      .fn<(args?: any) => Promise<{ count: number }>>()
+      .mockResolvedValue({ count: 1 });
+    const updateAssessment = jest
+      .fn<(args?: any) => Promise<any>>()
+      .mockResolvedValue({});
+    const enqueue = jest
+      .fn<(args?: any) => Promise<any>>()
+      .mockResolvedValue({});
     const queryRaw = jest.fn<() => Promise<unknown[]>>();
     queryRaw.mockResolvedValue([
       { id: "assessment", ownerId: "actor" },
@@ -348,7 +360,10 @@ describe("runtime control registration", () => {
           id: "assessment",
           lifecycleState: "PAUSED",
           runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
-          blockerReference: { reason: "AGENT_BUDGET_REACHED", budgetExtended: true },
+          blockerReference: {
+            reason: "AGENT_BUDGET_REACHED",
+            budgetExtended: true,
+          },
           domainCase: {
             repositorySnapshotId: "snap-1",
             ruleSetVersionId: "ver-1",
@@ -366,11 +381,14 @@ describe("runtime control registration", () => {
           commitSha: "sha-1",
         }),
       },
-      assessmentHumanRequest: { count: jest.fn<() => Promise<number>>().mockResolvedValue(0) },
+      assessmentHumanRequest: {
+        count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+      },
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) => work(tx),
+        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+          work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
       {} as AssessmentLifecycleCoordinator,

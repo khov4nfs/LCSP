@@ -925,8 +925,7 @@ export class AssessmentRuntimeAuthority {
           input.reason === ASSESSMENT_BUDGET_REASONS.BUDGET_EXHAUSTED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED ||
-          input.reason ===
-            ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
+          input.reason === ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
 
         if (
           !input.checkpointId ||
