@@ -827,7 +827,11 @@ describe("applicability basis (structure only, whatever the legal source calls i
 
     it("accepts older accepted fact where fact.caseRevision <= decision.caseRevision and rejects future fact", () => {
       const requirement = "LR-FACT-REV";
-      const declared = { applicabilityConditions: 1, qualifiers: 0, exceptions: 0 };
+      const declared = {
+        applicabilityConditions: 1,
+        qualifiers: 0,
+        exceptions: 0,
+      };
       const ctx = contextFor(requirement, declared);
 
       // Case revision of decision is 3. Fact was accepted at revision 1.

@@ -3570,7 +3570,9 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(result.complianceSummary.compliantCount).toBe(1);
     expect(result.complianceSummary.unresolvedCount).toBe(0);
 
-    const asmt = result.assessments.find((a) => a.assessmentId === assessmentId);
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
     expect(asmt).toBeDefined();
     expect(asmt?.compliance.compliantCount).toBe(1);
     expect(asmt?.compliance.unresolvedCount).toBe(0);
@@ -3698,7 +3700,9 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(result.complianceSummary.compliantCount).toBe(0);
     expect(result.complianceSummary.unresolvedCount).toBe(1);
 
-    const asmt = result.assessments.find((a) => a.assessmentId === assessmentId);
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
     expect(asmt).toBeDefined();
     expect(asmt?.compliance.compliantCount).toBe(0);
     expect(asmt?.compliance.unresolvedCount).toBe(1);
@@ -3814,7 +3818,9 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(result.complianceSummary.compliantCount).toBe(1);
     expect(result.complianceSummary.unresolvedCount).toBe(0);
 
-    const asmt = result.assessments.find((a) => a.assessmentId === assessmentId);
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
     expect(asmt).toBeDefined();
     expect(asmt?.compliance.compliantCount).toBe(1);
     expect(asmt?.compliance.unresolvedCount).toBe(0);
