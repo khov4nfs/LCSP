@@ -458,7 +458,7 @@ function createV2HistoricalFixture(): AssessmentFinalReportV2 {
 // 1. Versioning and compatibility
 // ---------------------------------------------------------------------------
 
-test("versioning: V1 and V2 historical fixtures remain valid and production union stays V1/V2 only", () => {
+test("versioning: V1 and V2 historical fixtures remain valid and production union accepts V1, V2, and V3", () => {
   const v2 = createV2HistoricalFixture();
   const v1 = {
     schemaVersion: ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
@@ -507,10 +507,14 @@ test("versioning: V1 and V2 historical fixtures remain valid and production unio
     assessmentFinalReportV3Schema.parse(v3).schemaVersion,
     ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
   );
-  // Critical C1 invariant: production union must still reject V3 until C2 reader rollout.
+  // C2 invariant: production union now accepts V1, V2, and V3 across reader rollout.
   assert.equal(
     assessmentFinalReportArtifactVersionedSchema.safeParse(v3).success,
-    false,
+    true,
+  );
+  assert.equal(
+    assessmentFinalReportArtifactVersionedSchema.parse(v3).schemaVersion,
+    ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
   );
 });
 
