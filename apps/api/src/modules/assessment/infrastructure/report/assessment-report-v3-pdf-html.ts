@@ -237,6 +237,48 @@ export function assessmentReportV3Html(
     inline(actionItem.action),
   ]);
 
+  const detailBlocks = model.obligationDetails
+    .map((rule) => {
+      const ruleRef = refs.ruleReference(rule.assessmentRuleId);
+      const ruleHeader = ruleRef ? `[${inline(ruleRef)}] ` : "";
+      const title =
+        rule.legalRequirements.map((r) => r.title).join("; ") ||
+        rule.assessmentRuleId;
+      const reqs = rule.legalRequirements
+        .map(
+          (r) =>
+            `<div style="margin-top:2mm"><strong>${inline(r.id)}:</strong> ${inline(r.title)} — ${inline(r.proposition)}</div>`,
+        )
+        .join("");
+      const legalRefs = rule.legalReferences.length
+        ? `<div style="margin-top:1mm"><small class="muted">Căn cứ pháp lý: ${rule.legalReferences
+            .map(
+              (s) =>
+                `${inline(s.documentTitle ?? s.documentId)}${s.locator ? ` (${inline(s.locator)})` : ""}`,
+            )
+            .join("; ")}</small></div>`
+        : "";
+      const rationale = rule.rationale
+        ? `<div style="margin-top:2mm"><strong>Giải thích kết quả:</strong> ${inline(rule.rationale)}</div>`
+        : "";
+      const recs = rule.recommendations.length
+        ? `<div style="margin-top:2mm"><strong>Kiến nghị khắc phục:</strong> ${rule.recommendations
+            .map((rec) => inline(rec))
+            .join("; ")}</div>`
+        : "";
+      return `<div class="obligation-detail-card" style="margin-bottom:4mm;border-bottom:1px solid #cbd9e0;padding-bottom:3mm"><h3>${ruleHeader}${inline(rule.assessmentRuleId)} · ${inline(title)}</h3>${reqs}${legalRefs}${rationale}${recs}</div>`;
+    })
+    .join("");
+
+  const legalSourceRows = model.obligationDetails.flatMap((rule) =>
+    rule.legalReferences.map((source) => [
+      inline(rule.assessmentRuleId),
+      inline(source.documentTitle ?? source.documentId),
+      inline(source.locator),
+      `<code>${inline(source.contentSha256)}</code>`,
+    ]),
+  );
+
   const publicationText = options.preview
     ? "Bản xem trước; chưa phát hành"
     : "Đã phát hành";
@@ -269,7 +311,7 @@ export function assessmentReportV3Html(
     model.summary.applicableNonCompliant
   }</strong><span>Áp dụng · Chưa đáp ứng</span></div><div class="kpi"><strong>${
     model.summary.notApplicable
-  }</strong><span>Không áp dụng</span></div></div><h2>01 — KẾT QUẢ ĐÁNH GIÁ VÀ CÁC NGHĨA VỤ ƯU TIÊN</h2><p>${inline(
+  }</strong><span>Không áp dụng</span></div></div><h2>01 — KẾT QUẢ ĐÁNH GIÁ</h2><p>${inline(
     model.summary.applicableNonCompliant
       ? "Danh sách các nghĩa vụ chưa đáp ứng được xếp theo độ ưu tiên giải quyết."
       : "Chưa ghi nhận nghĩa vụ không đáp ứng trong phạm vi khảo sát.",
@@ -277,7 +319,7 @@ export function assessmentReportV3Html(
     issueRows.length
       ? table(["Nghĩa vụ", "Kết quả đã ghi nhận", "Kiến nghị"], issueRows)
       : '<p class="note">Không có phát hiện chưa đáp ứng.</p>'
-  }<h2>02 — DỮ KIỆN VÀ CĂN CỨ ÁP DỤNG</h2>${table(
+  }<h2>02 — DỮ KIỆN LIÊN QUAN ĐIỀU KIỆN ÁP DỤNG</h2>${table(
     [
       "Nghĩa vụ",
       "Khả năng áp dụng",
@@ -288,14 +330,14 @@ export function assessmentReportV3Html(
   )}<h2>03 — DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ</h2>${table(
     ["Nghĩa vụ và bối cảnh", "Khả năng áp dụng", "Kết quả", "Giải thích"],
     catalogRows,
-  )}<h2>04 — KẾ HOẠCH HÀNH ĐỘNG CÓ RÀNG BUỘC (ACTION PLAN)</h2>${
+  )}<h2>04 — CHI TIẾT TỪNG NGHĨA VỤ</h2>${detailBlocks}<h2>05 — KẾ HOẠCH HÀNH ĐỘNG</h2>${
     actionPlanRows.length
       ? table(
           ["Mức độ", "Nghĩa vụ liên quan", "Hành động khắc phục"],
           actionPlanRows,
         )
       : '<p class="note">Chưa ghi nhận hành động khắc phục nào.</p>'
-  }<h2>05 — PHẠM VI, GIỚI HẠN VÀ TRUY VẾT KỸ THUẬT</h2><p>Hồ sơ đánh giá được ghim với phiên bản nguồn và kho mã cụ thể.</p>${list(
+  }<h2>06 — PHẠM VI, GIỚI HẠN VÀ NGUỒN TRUY VẾT</h2><p>Hồ sơ đánh giá được ghim với phiên bản nguồn và kho mã cụ thể.</p>${list(
     model.scopeTraceability.scopeLimitations,
   )}<section class="appendix"><h3>Ghim dữ liệu và nguồn gốc</h3>${table(
     ["Trường", "Giá trị"],
@@ -333,5 +375,13 @@ export function assessmentReportV3Html(
       ],
     ],
     "compact",
-  )}</section></body></html>`;
+  )}${
+    legalSourceRows.length
+      ? `<h3>Nguồn pháp lý và vị trí căn cứ</h3>${table(
+          ["Nghĩa vụ", "Văn bản nguồn", "Vị trí quy định", "Mã băm nội dung"],
+          legalSourceRows,
+          "compact",
+        )}`
+      : ""
+  }</section></body></html>`;
 }
