@@ -12,6 +12,7 @@ type QuestionTurnProps = {
   turn: QuestionTurn;
   pending: boolean;
   failed: boolean;
+  staleConflict?: boolean;
   onAnswer: (answer: StructuredAnswer) => void;
 };
 
@@ -23,6 +24,7 @@ export function ConversationQuestionTurn({
   turn,
   pending,
   failed,
+  staleConflict,
   onAnswer,
 }: QuestionTurnProps) {
   const { request } = turn;
@@ -74,6 +76,7 @@ export function ConversationQuestionTurn({
               idBase={`answer-${request.requestId}`}
               pending={pending}
               failed={failed}
+              staleConflict={staleConflict}
               onSubmit={onAnswer}
             />
           </div>
