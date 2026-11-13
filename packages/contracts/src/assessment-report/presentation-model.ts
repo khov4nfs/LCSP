@@ -461,13 +461,17 @@ function buildV2Presentation(
       (item) => item.applicabilityConditions,
     );
     const factIds = rule.factIds.filter((id) => facts.has(id));
-    const evidenceIds = rule.evidenceIds.filter((id) => evidence.has(id));
+    const directEvidenceIds = rule.evidenceIds.filter((id) => evidence.has(id));
     const observedFacts = factIds
       .map((id) => facts.get(id))
       .filter((item): item is AssessmentFinalReportV2["factIndex"][number] =>
         Boolean(item),
       );
-    const evidenceDetails = evidenceIds
+    const factEvidenceIds = observedFacts.flatMap((item) => item.evidenceIds);
+    const allRuleEvidenceIds = [
+      ...new Set([...directEvidenceIds, ...factEvidenceIds]),
+    ].filter((id) => evidence.has(id));
+    const evidenceDetails = allRuleEvidenceIds
       .map((id) =>
         artifact.evidenceIndex.find((item) => item.evidenceId === id),
       )
@@ -493,7 +497,7 @@ function buildV2Presentation(
       exceptions: linkedRequirements.flatMap((item) => item.exceptions),
       applicabilityGuidance: rule.applicabilityGuidance,
       observedFactIds: factIds,
-      evidenceIds,
+      evidenceIds: allRuleEvidenceIds,
       observedFacts,
       evidence: evidenceDetails,
       concept: rule.concept,
