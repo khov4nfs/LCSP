@@ -87,9 +87,12 @@ class AgentRunBudgetExceeded(RuntimeError):
     run would walk the same unbounded loop and spend the same budget again.
     """
 
+    reason: str | None = None
+
     def __init__(self, message: str, reason: str | None = None) -> None:
         super().__init__(message)
-        self.reason = reason
+        if reason is not None:
+            self.reason = reason
 
 
 class PaidAdmissionError(AgentRunBudgetExceeded):

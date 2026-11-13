@@ -283,7 +283,7 @@ class PreparationCompletionMiddleware(AgentMiddleware):
         Side effects:
         - None: reads run state and returns middleware routing metadata.
         """
-        if (self.context.discovery_only and self.context.inventory and self.context.inventory.phase == "CLAIM_INVENTORY_READY") or self.context.submission is not None or self.context.source_blocked is not None or self.context.concluded is not None or getattr(self.context, "budget_paused", False) or getattr(self.context, "scope_review_paused", False):
+        if (self.context.discovery_only and self.context.inventory and self.context.inventory.phase == "CLAIM_INVENTORY_READY") or self.context.submission is not None or self.context.source_blocked is not None or self.context.concluded is not None:
             return {"jump_to": "end"}
         return None
 
@@ -310,7 +310,7 @@ class PreparationCompletionMiddleware(AgentMiddleware):
         if not isinstance(response, AIMessage) or response.tool_calls:
             return None
         context = self.context
-        if (context.discovery_only and context.inventory and context.inventory.phase == "CLAIM_INVENTORY_READY") or context.submission is not None or context.source_blocked is not None or context.concluded is not None or getattr(context, "budget_paused", False) or getattr(context, "scope_review_paused", False):
+        if (context.discovery_only and context.inventory and context.inventory.phase == "CLAIM_INVENTORY_READY") or context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return None
         outcome = (context.last_validation or {}).get("outcome")
         context.trace.append({
@@ -663,7 +663,7 @@ def create_rule_set_preparation_agent(
     observation_middleware = PreparationObservationMiddleware(context)
     read_only = preparation_filesystem(backend, files=not context.direct_draft)
     budget = AgentRunBudgetMiddleware(run_quotas={name: _positive_env(env, 1) for name, env in
-        [("model_calls", "LCSP_RSP_MAX_MODEL_CALLS"), ("input_tokens", "LCSP_RSP_MAX_INPUT_TOKENS"), ("output_tokens", "LCSP_RSP_MAX_OUTPUT_TOKENS"), ("total_tokens", "LCSP_RSP_MAX_TOTAL_TOKENS")] if os.environ.get(env)})
+        [("model_calls", "LCSP_RSP_MAX_MODEL_CALLS"), ("input_tokens", "LCSP_RSP_MAX_INPUT_TOKENS")] if os.environ.get(env)})
     with _without_general_purpose_subagent(_lookup_profile_key(model)), _without_general_purpose_subagent(_lookup_profile_key(author_model)):
         return create_deep_agent(
             name="lcsp-rule-set-preparation",
