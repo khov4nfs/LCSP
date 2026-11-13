@@ -29,9 +29,13 @@ import { problemException } from "../../../../../platform/http/filters/error.fac
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import {
   isUniqueViolation,
+  isRetryable,
   toRun,
 } from "../../../infrastructure/persistence/compliance-rule-set.mappers.js";
 import { StartRuleSetPreparationCommand } from "./start-rule-set-preparation.command.js";
+
+const MAX_START_TRANSACTION_ATTEMPTS = 4;
+const START_TRANSACTION_RETRY_BASE_DELAY_MS = 25;
 
 /**
  * Starts (idempotently) one Rule Set Preparation run for the ACTIVE Legal Source Version.
@@ -54,14 +58,14 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
    * - Run creation and its outbox request are one transaction, preventing an unqueued or duplicate preparation.
    *
    * Execution flow:
-   * 1. Return an existing matching idempotent run if the key has already been used.
-   * 2. Load and verify the requested source is active.
-   * 3. Create a QUEUED DIRECT_DRAFT_V1 run and enqueue its preparation request atomically.
-   * 4. If a unique-key race occurs, reload and return the winning same-source run.
+   * 1. Open a SERIALIZABLE transaction, acquire the global source lifecycle lock, and reload the idempotency record.
+   * 2. If no run exists, read the source lifecycle and reject missing or non-ACTIVE versions.
+   * 3. Create the run and its outbox event atomically, then return the persisted run identity.
+   * 4. On a unique-key race, replay the matching winner; on P2034/40001, back off and retry the entire transaction.
    *
    * Failure cases:
-   * - Missing sources return not found; inactive sources return preparation-not-allowed.
-   * - Reusing a key for another source returns idempotency conflict; other persistence/outbox failures propagate.
+   * - Missing sources return not found; inactive sources return preparation-not-allowed; changed key payloads return idempotency conflict.
+   * - Permanent persistence/outbox failures propagate immediately; bounded retry exhaustion returns the last serialization conflict.
    *
    * Side effects:
    * - Creates the preparation run and outbox event and stores their linked IDs in one transaction.
@@ -73,106 +77,116 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     const reviewRequested =
       input.request.targetActivityScope === "DEVELOPMENT_ONLY";
 
-    try {
-      return await this.prisma.$transaction(
-        async (tx) => {
-          await acquireLegalSourceLifecycleLock(tx);
-          const existing = await tx.ruleSetPreparationRun.findUnique({
-            where: { idempotencyKey },
-            include: { ruleSet: { select: { id: true } } },
-          });
-          if (existing) {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            await acquireLegalSourceLifecycleLock(tx);
+            const existing = await tx.ruleSetPreparationRun.findUnique({
+              where: { idempotencyKey },
+              include: { ruleSet: { select: { id: true } } },
+            });
+            if (existing) {
+              return this.replayPreparation(
+                existing,
+                legalSourceVersionId,
+                input.correlationId,
+                reviewRequested,
+              );
+            }
+
+            const source = await tx.legalSourceVersion.findUnique({
+              where: { id: legalSourceVersionId },
+              select: { id: true, status: true },
+            });
+            if (!source) {
+              throw problemException(
+                COMPLIANCE_RULE_SET_ERROR_CODES.sourceVersionNotFound,
+                input.correlationId,
+                { status: HttpStatus.NOT_FOUND },
+              );
+            }
+            // A superseded or draft source never starts a new shared Rule Set.
+            if (
+              source.status !==
+              toPrismaLegalSourceLifecycleStatus(
+                LEGAL_SOURCE_LIFECYCLE_STATUSES.active,
+              )
+            ) {
+              throw problemException(
+                COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+                input.correlationId,
+                {
+                  status: HttpStatus.CONFLICT,
+                  meta: {
+                    reason:
+                      RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
+                  },
+                },
+              );
+            }
+            const run = await tx.ruleSetPreparationRun.create({
+              data: {
+                idempotencyKey,
+                executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
+                targetDate: new Date(),
+                scopeReviewRequested: reviewRequested,
+                legalSourceVersionId: source.id,
+                requestedBy: input.requestedBy,
+                correlationId: input.correlationId,
+                executionState: PrismaAgentExecutionState.QUEUED,
+              },
+            });
+            const outboxEventId = await this.outboxRepository.enqueue(
+              buildOutboxMessageInput({
+                aggregateType: OUTBOX_AGGREGATE_TYPES.legalSourceVersion,
+                aggregateId: source.id,
+                eventType: COMPLIANCE_RULE_SET_EVENT_TYPES.preparationRequested,
+                correlationId: input.correlationId,
+                causationId: run.id,
+                actor: {
+                  id: input.requestedBy,
+                  type: AUDIT_ACTOR_TYPES.service,
+                },
+                result: AGENTIC_TOOL_STATUSES.ready,
+                redactionStatus: AUDIT_REDACTION_STATUSES.none,
+                idempotencyKey: `${run.id}:preparation`,
+                payload: {
+                  preparationRunId: run.id,
+                  legalSourceVersionId: source.id,
+                  preparationRunRef: `rule-set-preparation-run:${run.id}`,
+                  legalSourceVersionRef: `legal-source-version:${source.id}`,
+                },
+              }),
+              tx,
+            );
+            await tx.ruleSetPreparationRun.update({
+              where: { id: run.id },
+              data: { outboxEventId },
+            });
+            return toRun(run, null);
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          const raced = await this.findByKey(idempotencyKey);
+          if (raced) {
             return this.replayPreparation(
-              existing,
+              raced,
               legalSourceVersionId,
               input.correlationId,
               reviewRequested,
             );
           }
-
-          const source = await tx.legalSourceVersion.findUnique({
-            where: { id: legalSourceVersionId },
-            select: { id: true, status: true },
-          });
-          if (!source) {
-            throw problemException(
-              COMPLIANCE_RULE_SET_ERROR_CODES.sourceVersionNotFound,
-              input.correlationId,
-              { status: HttpStatus.NOT_FOUND },
-            );
-          }
-          // A superseded or draft source never starts a new shared Rule Set.
-          if (
-            source.status !==
-            toPrismaLegalSourceLifecycleStatus(
-              LEGAL_SOURCE_LIFECYCLE_STATUSES.active,
-            )
-          ) {
-            throw problemException(
-              COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
-              input.correlationId,
-              {
-                status: HttpStatus.CONFLICT,
-                meta: {
-                  reason:
-                    RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
-                },
-              },
-            );
-          }
-          const run = await tx.ruleSetPreparationRun.create({
-            data: {
-              idempotencyKey,
-              executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
-              targetDate: new Date(),
-              scopeReviewRequested: reviewRequested,
-              legalSourceVersionId: source.id,
-              requestedBy: input.requestedBy,
-              correlationId: input.correlationId,
-              executionState: PrismaAgentExecutionState.QUEUED,
-            },
-          });
-          const outboxEventId = await this.outboxRepository.enqueue(
-            buildOutboxMessageInput({
-              aggregateType: OUTBOX_AGGREGATE_TYPES.legalSourceVersion,
-              aggregateId: source.id,
-              eventType: COMPLIANCE_RULE_SET_EVENT_TYPES.preparationRequested,
-              correlationId: input.correlationId,
-              causationId: run.id,
-              actor: { id: input.requestedBy, type: AUDIT_ACTOR_TYPES.service },
-              result: AGENTIC_TOOL_STATUSES.ready,
-              redactionStatus: AUDIT_REDACTION_STATUSES.none,
-              idempotencyKey: `${run.id}:preparation`,
-              payload: {
-                preparationRunId: run.id,
-                legalSourceVersionId: source.id,
-                preparationRunRef: `rule-set-preparation-run:${run.id}`,
-                legalSourceVersionRef: `legal-source-version:${source.id}`,
-              },
-            }),
-            tx,
-          );
-          await tx.ruleSetPreparationRun.update({
-            where: { id: run.id },
-            data: { outboxEventId },
-          });
-          return toRun(run, null);
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        const raced = await this.findByKey(idempotencyKey);
-        if (raced) {
-          return this.replayPreparation(
-            raced,
-            legalSourceVersionId,
-            input.correlationId,
-            reviewRequested,
-          );
         }
+        if (!isRetryable(error) || attempt >= MAX_START_TRANSACTION_ATTEMPTS) {
+          throw error;
+        }
+        const backoffMs =
+          START_TRANSACTION_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
       }
-      throw error;
     }
   }
 
