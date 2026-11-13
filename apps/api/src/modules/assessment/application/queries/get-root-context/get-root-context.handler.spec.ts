@@ -106,6 +106,9 @@ describe("GetRootContextHandler locale authority", () => {
               : null,
           ),
       },
+      llmUsageEvent: {
+        aggregate: jest.fn<() => Promise<any>>().mockResolvedValue(null),
+      },
     };
 
     const prisma = {
@@ -357,5 +360,29 @@ describe("GetRootContextHandler locale authority", () => {
     expect(result.humanRequests?.map((row) => row.requestId)).toEqual([
       sharedRequest.requestId,
     ]);
+  });
+
+  it("computes durable cumulative budget state from llmUsageEvent", async () => {
+    const f = createFixture();
+    f.tx.llmUsageEvent = {
+      aggregate: jest.fn<() => Promise<any>>().mockResolvedValue({
+        _count: { id: 5 },
+        _sum: {
+          inputTokens: 50_000n,
+          outputTokens: 2_500n,
+          totalTokens: 52_500n,
+        },
+      }),
+    };
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.budgetState).toBeDefined();
+    expect(result.budgetState?.workloadScope).toBe("ASSESSMENT_ROOT");
+    expect(result.budgetState?.cumulativeUsage.modelCalls).toBe(5);
+    expect(result.budgetState?.cumulativeUsage.inputTokens).toBe(50_000);
+    expect(result.budgetState?.cumulativeUsage.outputTokens).toBe(2_500);
+    expect(result.budgetState?.cumulativeUsage.totalTokens).toBe(52_500);
+    expect(result.budgetState?.status).toBe("ADMITTED");
   });
 });

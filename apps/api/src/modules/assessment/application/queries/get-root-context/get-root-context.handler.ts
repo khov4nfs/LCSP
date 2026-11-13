@@ -5,6 +5,8 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   assessmentRootContextSchema,
   type AssessmentRootContext,
+  WORKLOAD_SCOPES,
+  evaluateBudgetAdmission,
 } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
@@ -174,6 +176,61 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
       const scopedHumanRequests = humanRequests.filter((request) =>
         humanRequestHasRuleInScope(request, ruleScope),
       );
+
+      const usageAggregate = tx.llmUsageEvent?.aggregate
+        ? await tx.llmUsageEvent.aggregate({
+            where: { assessmentId: input.assessmentId },
+            _sum: {
+              inputTokens: true,
+              outputTokens: true,
+              totalTokens: true,
+            },
+            _count: {
+              id: true,
+            },
+          })
+        : null;
+
+      const limits = {
+        maxModelCalls:
+          Number(process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS) > 0
+            ? Number(process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS)
+            : 100,
+        maxInputTokens:
+          Number(process.env.LCSP_ASSESSMENT_MAX_INPUT_TOKENS) > 0
+            ? Number(process.env.LCSP_ASSESSMENT_MAX_INPUT_TOKENS)
+            : 4_000_000,
+        maxOutputTokens:
+          Number(process.env.LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS) > 0
+            ? Number(process.env.LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS)
+            : 200_000,
+        maxTotalTokens:
+          Number(process.env.LCSP_ASSESSMENT_MAX_TOTAL_TOKENS) > 0
+            ? Number(process.env.LCSP_ASSESSMENT_MAX_TOTAL_TOKENS)
+            : 4_200_000,
+        noProgressLimit:
+          Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT) > 0
+            ? Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT)
+            : 15,
+      };
+
+      const cumulativeUsage = {
+        modelCalls: usageAggregate?._count?.id ?? 0,
+        inputTokens: Number(usageAggregate?._sum?.inputTokens ?? 0),
+        outputTokens: Number(usageAggregate?._sum?.outputTokens ?? 0),
+        totalTokens: Number(usageAggregate?._sum?.totalTokens ?? 0),
+        consecutiveTurnsWithoutProgress: 0,
+      };
+
+      const admission = evaluateBudgetAdmission(limits, cumulativeUsage);
+
+      const budgetState = {
+        workloadScope: WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+        limits,
+        cumulativeUsage,
+        status: admission.status,
+      };
+
       return assessmentRootContextSchema.parse({
         assessmentId: input.assessmentId,
         threadId: run.threadId,
@@ -252,6 +309,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           dependencies: humanRequestDependenciesOf(row),
         })),
         responseLanguage,
+        budgetState,
       });
     });
   }

@@ -964,6 +964,7 @@ export const executionStateChangedPayloadSchema = z
   .strictObject({
     fromState: agentExecutionStateSchema,
     toState: agentExecutionStateSchema,
+    reason: z.string().max(100).optional(),
   })
   .refine(
     (value) =>

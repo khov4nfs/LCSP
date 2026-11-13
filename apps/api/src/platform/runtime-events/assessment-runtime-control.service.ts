@@ -9,6 +9,7 @@ import {
   ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  ASSESSMENT_BUDGET_REASONS,
 } from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
@@ -92,7 +93,26 @@ export class AssessmentRuntimeControlService {
     return result(row);
   }
 
-  /** CAS and outbox enqueue are atomic. Every retry stays bound to one run. */
+  /**
+   * Business purpose: Request a cooperative stop or resume of an Assessment Root execution turn on its server-owned thread.
+   *
+   * Business rules:
+   * - Stop is accepted only when the current execution turn is running, and will pause at the next native checkpoint boundary.
+   * - Resume is accepted only when the current execution is stopped and paused with valid snapshot and pins.
+   * - If paused due to budget exhaustion, resume requires an explicit budget extension; unextended resumes fail closed.
+   *
+   * Execution flow:
+   * 1. Authorize the caller and load the canonical target runtime and current execution turn under transaction.
+   * 2. Verify turn state, boundary invariants, and pause/resume authority guards.
+   * 3. For resume, validate budget constraints, clear blocker references, and enqueue the ROOT_REQUESTED outbox command.
+   * 4. Transition the turn state to stopRequested or resumeRequested atomically and return the control outcome.
+   *
+   * Failure cases:
+   * - Stale target runs, invalid states, mismatched pins, open human blockers, or unextended budget exhaustion reject with 409 Conflict.
+   *
+   * Side effects:
+   * - Updates turn state, clears blocker references on resume, and enqueues transactional outbox messages.
+   */
   async request(input: {
     assessmentId: string;
     actor: RbacRequestContext;
@@ -198,6 +218,48 @@ export class AssessmentRuntimeControlService {
             input.correlationId,
             { status: HttpStatus.CONFLICT },
           );
+        }
+
+        const blockerRef = (assessment.blockerReference ?? null) as Record<
+          string,
+          unknown
+        > | null;
+        if (
+          blockerRef &&
+          (blockerRef.reason ===
+            ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED ||
+            blockerRef.reason === ASSESSMENT_BUDGET_REASONS.BUDGET_EXHAUSTED ||
+            blockerRef.reason ===
+              ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
+            blockerRef.reason ===
+              ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED)
+        ) {
+          if (!blockerRef.budgetExtended) {
+            throw problemException(
+              ASSESSMENT_DOMAIN_ERROR_CODES.BUDGET_EXHAUSTED,
+              input.correlationId,
+              { status: HttpStatus.CONFLICT },
+            );
+          }
+        }
+        if (
+          blockerRef &&
+          blockerRef.reason ===
+            ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED
+        ) {
+          if (!blockerRef.overrideNoProgress) {
+            throw problemException(
+              ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+              input.correlationId,
+              { status: HttpStatus.CONFLICT },
+            );
+          }
+        }
+        if (blockerRef) {
+          await tx.assessment.update({
+            where: { id: input.assessmentId },
+            data: { blockerReference: Prisma.DbNull },
+          });
         }
       }
       const requestId = randomUUID();

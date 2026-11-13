@@ -27,6 +27,7 @@ export class FinishAssessmentRootHandler implements ICommandHandler<FinishAssess
       requestIds: command.requestIds,
       controlRequestId: command.controlRequestId,
       recoveryRequired: command.recoveryRequired,
+      reason: command.reason,
     });
   }
 }
