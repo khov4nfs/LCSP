@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
 import { Prisma } from "@prisma/client";
 import {
@@ -207,4 +208,68 @@ describe("AssessmentCaseSupport immutable source pins", () => {
       });
     },
   );
+
+  describe("advanceCoverageToResolved", () => {
+    it("rejects transition from WAITING_FOR_INPUT with DECISION_REVISION_STALE", async () => {
+      const update = jest.fn();
+      const tx = {
+        assessmentDecisionCoverage: { update },
+      } as unknown as Prisma.TransactionClient;
+
+      await expect(
+        new AssessmentCaseSupport().advanceCoverageToResolved(tx, {
+          assessmentId,
+          assessmentRuleId: "ER-1",
+          from: "WAITING_FOR_INPUT",
+          decisionId: randomUUID(),
+          decisionRevision: 1,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("steps through INVESTIGATING and advances to RESOLVED when from INVALIDATED", async () => {
+      const update = jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({});
+      const tx = {
+        assessmentDecisionCoverage: { update },
+      } as unknown as Prisma.TransactionClient;
+      const decisionId = randomUUID();
+
+      await new AssessmentCaseSupport().advanceCoverageToResolved(tx, {
+        assessmentId,
+        assessmentRuleId: "ER-1",
+        from: "INVALIDATED",
+        decisionId,
+        decisionRevision: 2,
+      });
+
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(update).toHaveBeenNthCalledWith(1, {
+        where: {
+          assessmentId_assessmentRuleId: {
+            assessmentId,
+            assessmentRuleId: "ER-1",
+          },
+        },
+        data: { resolutionState: "INVESTIGATING" },
+      });
+      expect(update).toHaveBeenNthCalledWith(2, {
+        where: {
+          assessmentId_assessmentRuleId: {
+            assessmentId,
+            assessmentRuleId: "ER-1",
+          },
+        },
+        data: {
+          resolutionState: "RESOLVED",
+          currentDecisionId: decisionId,
+          decisionRevision: 2,
+        },
+      });
+    });
+  });
 });
