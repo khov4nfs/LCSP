@@ -8,6 +8,7 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   AgentExecutionState as PrismaAgentExecutionState,
   Prisma,
+  RuleSetPreparationFailureReason as PrismaRuleSetPreparationFailureReason,
 } from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -26,7 +27,7 @@ export class FailRuleSetPreparationHandler implements ICommandHandler<FailRuleSe
    * Business rules:
    * - The run-row lock serializes failure settlement with cancellation and Rule Set publication.
    * - QUEUED and RUNNING unpublished runs may be settled; duplicate failure reports for FAILED, CANCELLED, or already budget-paused runs are idempotent.
-   * - AGENT_BUDGET_REACHED pauses the run for later resumption; other reasons make it FAILED.
+   * - AGENT_BUDGET_REACHED, CALL_LIMIT_EXCEEDED, TOKEN_LIMIT_EXCEEDED, NO_PROGRESS_LIMIT_EXCEEDED, and BUDGET_EXHAUSTED pause the run for later resumption; other reasons make it FAILED.
    *
    * Execution flow:
    * 1. Lock and load the run with its publication link.
@@ -59,9 +60,16 @@ export class FailRuleSetPreparationHandler implements ICommandHandler<FailRuleSe
           { status: HttpStatus.NOT_FOUND },
         );
       }
+      const isBudgetPause =
+        input.request.reason === R.AGENT_BUDGET_REACHED ||
+        input.request.reason === R.CALL_LIMIT_EXCEEDED ||
+        input.request.reason === R.TOKEN_LIMIT_EXCEEDED ||
+        input.request.reason === R.NO_PROGRESS_LIMIT_EXCEEDED ||
+        input.request.reason === R.BUDGET_EXHAUSTED;
+
       if (
         (run.executionState === PrismaAgentExecutionState.PAUSED &&
-          input.request.reason === R.AGENT_BUDGET_REACHED) ||
+          isBudgetPause) ||
         run.executionState === PrismaAgentExecutionState.FAILED ||
         run.executionState === PrismaAgentExecutionState.CANCELLED
       ) {
@@ -77,17 +85,18 @@ export class FailRuleSetPreparationHandler implements ICommandHandler<FailRuleSe
           { status: HttpStatus.CONFLICT },
         );
       }
-      const state =
-        input.request.reason === R.AGENT_BUDGET_REACHED
-          ? PrismaAgentExecutionState.PAUSED
-          : PrismaAgentExecutionState.FAILED;
+      const state = isBudgetPause
+        ? PrismaAgentExecutionState.PAUSED
+        : PrismaAgentExecutionState.FAILED;
       const completedAt =
         state === PrismaAgentExecutionState.PAUSED ? null : new Date();
       const failed = await tx.ruleSetPreparationRun.updateMany({
         where: { id: run.id, executionState: run.executionState },
         data: {
           executionState: state,
-          failureReason: input.request.reason,
+          failureReason: isBudgetPause
+            ? PrismaRuleSetPreparationFailureReason.AGENT_BUDGET_REACHED
+            : (input.request.reason as PrismaRuleSetPreparationFailureReason),
           completedAt,
         },
       });
