@@ -59,6 +59,7 @@ The system uses deterministic orchestration, state machines, evidence gates, and
 | ADR-024          | Real configured LLM provider mandatory for A-to-Z acceptance; mock test/offline only                                       | Accepted — Superseding                                                                                  |
 | ADR-025          | Provenance-preserving official-source legal corpus with internal approval and immutable versioning                         | Accepted — Superseding                                                                                  |
 | ADR-026          | ChromaDB structure-first vectorless legal retrieval with legal hierarchy, xref expansion and citation allowlist validation | Accepted — Superseding                                                                                  |
+| ADR-027          | GitHub App repository onboarding — minimum permissions, token lifecycle, migration from credentials (LCSP-476)             | Proposed — Awaiting Owner Approval                                                                      |
 
 ## Clarified ADR-002 Runtime Boundary
 
