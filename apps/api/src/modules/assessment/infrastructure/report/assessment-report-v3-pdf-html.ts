@@ -199,7 +199,13 @@ export function assessmentReportV3Html(
             (ctx) =>
               `${inline(ctx.kind)}: ${inline(ctx.toLegalRequirementId)}${
                 ctx.sourceRefs.length
-                  ? ` (${ctx.sourceRefs.map((s) => inline(s.documentTitle ?? s.documentId)).join(", ")})`
+                  ? ` (${ctx.sourceRefs
+                      .map((s) =>
+                        s.documentTitle && s.documentTitle !== s.documentId
+                          ? `${inline(s.documentTitle)} [${inline(s.documentId)}]`
+                          : inline(s.documentId),
+                      )
+                      .join(", ")})`
                   : ""
               }`,
           )
@@ -254,7 +260,7 @@ export function assessmentReportV3Html(
         ? `<div style="margin-top:1mm"><small class="muted">Căn cứ pháp lý: ${rule.legalReferences
             .map(
               (s) =>
-                `${inline(s.documentTitle ?? s.documentId)}${s.locator ? ` (${inline(s.locator)})` : ""}`,
+                `${inline(s.documentTitle ?? s.documentId)}${s.documentTitle && s.documentTitle !== s.documentId ? ` [${inline(s.documentId)}]` : ""}${s.locator ? ` (${inline(s.locator)})` : ""}`,
             )
             .join("; ")}</small></div>`
         : "";
@@ -273,7 +279,9 @@ export function assessmentReportV3Html(
   const legalSourceRows = model.obligationDetails.flatMap((rule) =>
     rule.legalReferences.map((source) => [
       inline(rule.assessmentRuleId),
-      inline(source.documentTitle ?? source.documentId),
+      source.documentTitle && source.documentTitle !== source.documentId
+        ? `${inline(source.documentTitle)}<br><small><code>${inline(source.documentId)}</code></small>`
+        : `<code>${inline(source.documentId)}</code>`,
       inline(source.locator),
       `<code>${inline(source.contentSha256)}</code>`,
     ]),
