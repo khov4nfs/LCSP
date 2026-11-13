@@ -452,10 +452,21 @@ def governed_summarization_middleware(model, *, backend, role: str,
     Side effects:
     - Mutates the newly constructed middleware's summary-model configuration; future summarization invokes the governed model stack.
     """
-    from deepagents.middleware.summarization import create_summarization_middleware
-
+    from deepagents.middleware.summarization import SummarizationMiddleware
+    from middleware.working_context_policy import resolve_working_context_policy
     from runtime_instruction_bundle import runtime_instruction
-    middleware = create_summarization_middleware(model, backend, summary_prompt=runtime_instruction("framework.injected-policy", "summary_prompt"))
+
+    policy = resolve_working_context_policy(role, model)
+    middleware = SummarizationMiddleware(
+        model=model,
+        backend=backend,
+        trigger=policy.trigger,
+        keep=policy.keep,
+        summary_prompt=runtime_instruction("framework.injected-policy", "summary_prompt"),
+        trim_tokens_to_summarize=policy.trim_tokens_to_summarize,
+        truncate_args_settings=policy.truncate_args_settings,
+    )
+    middleware.working_context_policy = policy
     helper = getattr(middleware, "_lc_helper", None)
     if helper is None or not hasattr(helper, "_summary_model"):
         raise RuntimeError(
