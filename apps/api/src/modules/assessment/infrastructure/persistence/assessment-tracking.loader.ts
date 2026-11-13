@@ -15,6 +15,7 @@ import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_COMPLIANCE_OUTCOMES,
   RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
   ruleDecisionSchema,
 } from "@lcsp/contracts/assessment";
 import {
@@ -188,7 +189,43 @@ function ownerCanonicalDecisionEvaluationCte(
                   AND ard."decision"->>'compliance' = ard."compliance"::text
                 )
               )
-              AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance']) = '{}'::jsonb
+              AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance', 'applicabilityBasis']) = '{}'::jsonb
+              AND (
+                (ard."decision"::jsonb)->'applicabilityBasis' IS NULL
+                OR jsonb_typeof((ard."decision"::jsonb)->'applicabilityBasis') = 'null'
+                OR (
+                  jsonb_typeof((ard."decision"::jsonb)->'applicabilityBasis') = 'array'
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements((ard."decision"::jsonb)->'applicabilityBasis') basis
+                    WHERE jsonb_typeof(basis) <> 'object'
+                      OR (basis - ARRAY['legalRequirementId', 'kind', 'index', 'finding', 'rationale', 'references']) <> '{}'::jsonb
+                      OR jsonb_typeof(basis->'legalRequirementId') <> 'string'
+                      OR basis->>'legalRequirementId' IS NULL
+                      OR length(btrim(basis->>'legalRequirementId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(basis->>'legalRequirementId', ${CANONICAL_SQL_WHITESPACE})) > 200
+                      OR jsonb_typeof(basis->'kind') <> 'string'
+                      OR basis->>'kind' NOT IN ('OPERATIVE_SCOPE', 'APPLICABILITY_CONDITION', 'QUALIFIER', 'EXCEPTION')
+                      OR jsonb_typeof(basis->'index') <> 'number'
+                      OR (basis->>'index')::int < 0
+                      OR jsonb_typeof(basis->'finding') <> 'string'
+                      OR basis->>'finding' NOT IN ('ESTABLISHED', 'REFUTED', 'NOT_ESTABLISHED')
+                      OR jsonb_typeof(basis->'rationale') <> 'string'
+                      OR basis->>'rationale' IS NULL
+                      OR length(btrim(basis->>'rationale', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(basis->>'rationale', ${CANONICAL_SQL_WHITESPACE})) > 10000
+                      OR jsonb_typeof(basis->'references') <> 'array'
+                      OR (
+                        basis->>'finding' <> 'NOT_ESTABLISHED'
+                        AND jsonb_array_length(basis->'references') < 1
+                      )
+                  )
+                  AND (
+                    SELECT count(DISTINCT concat_ws('|', btrim(basis->>'legalRequirementId', ${CANONICAL_SQL_WHITESPACE}), basis->>'kind', basis->>'index'))
+                    FROM jsonb_array_elements((ard."decision"::jsonb)->'applicabilityBasis') basis
+                  ) = jsonb_array_length((ard."decision"::jsonb)->'applicabilityBasis')
+                )
+              )
               AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
               AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
               AND NOT EXISTS (
@@ -282,6 +319,17 @@ function ownerCanonicalDecisionEvaluationCte(
                       THEN (ard."decision"::jsonb)->'criteria'
                       ELSE '[]'::jsonb END
                   ) crit
+                  UNION ALL
+                  SELECT jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(basis->'references') = 'array'
+                      THEN basis->'references'
+                      ELSE '[]'::jsonb END
+                  ) AS ref
+                  FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'applicabilityBasis') = 'array'
+                      THEN (ard."decision"::jsonb)->'applicabilityBasis'
+                      ELSE '[]'::jsonb END
+                  ) basis
                 ) all_refs
                 WHERE (
                   jsonb_typeof(all_refs.ref) <> 'object'
@@ -323,7 +371,33 @@ function ownerCanonicalDecisionEvaluationCte(
                           AND af."assessmentId" = adc."assessmentId"
                           AND af."state" = 'ACCEPTED'
                           AND af."invalidatedAt" IS NULL
-                          AND af."caseRevision" = ac."caseRevision"
+                          AND af."caseRevision" <= (ard."decision"->>'caseRevision')::int
+                          AND (
+                            af."authority" <> 'EVIDENCE_CITED'
+                            OR (
+                              EXISTS (
+                                SELECT 1
+                                FROM "AssessmentCaseFactEvidence" acfe
+                                WHERE acfe."factId" = af."factId"
+                                  AND acfe."assessmentId" = af."assessmentId"
+                              )
+                              AND NOT EXISTS (
+                                SELECT 1
+                                FROM "AssessmentCaseFactEvidence" acfe
+                                LEFT JOIN "AssessmentEvidence" ae
+                                  ON ae."evidenceId" = acfe."evidenceId"
+                                  AND ae."assessmentId" = af."assessmentId"
+                                WHERE acfe."factId" = af."factId"
+                                  AND acfe."assessmentId" = af."assessmentId"
+                                  AND (
+                                    ae."evidenceId" IS NULL
+                                    OR ae."state" <> 'ACCEPTED'
+                                    OR ae."invalidatedAt" IS NOT NULL
+                                    OR LOWER(ae."repositoryCommit") <> LOWER(ac."repositoryCommit")
+                                  )
+                              )
+                            )
+                          )
                       )
                     )
                   )
@@ -530,10 +604,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
     }
 
     if (params.evidenceById || params.factsById) {
-      const allRefs = [
-        ...d.references,
-        ...d.criteria.flatMap((c) => c.references),
-      ];
+      const allRefs = ruleDecisionReferences(d);
       let refsValid = true;
       for (const ref of allRefs) {
         if (
@@ -545,7 +616,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
             !fact ||
             fact.assessmentId !== params.assessmentId ||
             (fact.state && fact.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) ||
-            fact.caseRevision !== params.domainCase.caseRevision
+            fact.caseRevision > params.domainCase.caseRevision
           ) {
             refsValid = false;
             break;
