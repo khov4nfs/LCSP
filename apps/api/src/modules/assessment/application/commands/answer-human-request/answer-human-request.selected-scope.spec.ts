@@ -8,6 +8,7 @@ import {
 } from "@lcsp/contracts/assessment";
 import { HUMAN_RESOLUTION_CONTROL_TYPES } from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { AnswerHumanRequestCommand } from "./answer-human-request.command.js";
 import { AnswerHumanRequestHandler } from "./answer-human-request.handler.js";
 
 function fixture(selectedRules = ["RULE-SELECTED"]) {
@@ -30,8 +31,8 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
     ],
     requestRevision: 0,
     status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-    controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT,
-    choices: [],
+    controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT as string,
+    choices: [] as Array<{ value: string; label: string }>,
     question: "Which entity operates this deployment?",
     answers: [] as Array<Record<string, unknown>>,
     resolvedFactId: null,
@@ -110,10 +111,26 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
           ),
       ),
     },
-    assessmentCase: { update: jest.fn(() => Promise.resolve({})) },
-    assessmentEvidence: { create: jest.fn(() => Promise.resolve({})) },
-    assessmentCaseFact: { create: jest.fn(() => Promise.resolve({})) },
-    assessmentCaseFactEvidence: { create: jest.fn(() => Promise.resolve({})) },
+    assessmentCase: {
+      update: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
+    assessmentEvidence: {
+      create: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
+    assessmentCaseFact: {
+      create: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
+    assessmentCaseFactEvidence: {
+      create: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
     assessmentDecisionCoverage: {
       updateMany: jest
         .fn<
@@ -160,22 +177,30 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
     outbox as never,
     { writeInTx: () => Promise.resolve(undefined) } as never,
   );
-  const input = (doesNotKnow: boolean) =>
-    ({
+  const input = (doesNotKnow: boolean, answerText?: string) =>
+    new AnswerHumanRequestCommand(
       assessmentId,
       requestId,
-      correlationId: randomUUID(),
-      actor: { userId: ownerId, role: AUTH_USER_ROLES.customer },
-      request: {
+      {
+        userId: ownerId,
+        role: AUTH_USER_ROLES.customer,
+        sessionId: randomUUID(),
+        scope: "all",
+      },
+      {
         expectedRequestRevision: 0,
         expectedCaseRevision: 3,
         idempotencyKey: randomUUID(),
-        doesNotKnow,
-        answer: doesNotKnow
-          ? null
-          : "The deployment is operated by Example Ltd.",
+        ...(doesNotKnow
+          ? { doesNotKnow: true as const }
+          : {
+              doesNotKnow: false as const,
+              answer:
+                answerText ?? "The deployment is operated by Example Ltd.",
+            }),
       },
-    }) as never;
+      randomUUID(),
+    );
   return { handler, input, tx, outbox, coordinator, request, unrelatedRequest };
 }
 
@@ -220,5 +245,40 @@ describe("shared human answers inside a selected audit", () => {
     expect(f.tx.assessmentHumanRequest.update).not.toHaveBeenCalled();
     expect(f.tx.assessmentCaseFact.create).not.toHaveBeenCalled();
     expect(f.outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("preserves typed choice value and canonical label in evidence payload and fact statement", async () => {
+    const f = fixture();
+    f.request.controlType = HUMAN_RESOLUTION_CONTROL_TYPES.SINGLE_SELECT;
+    f.request.choices = [
+      { value: "DEV_ONLY", label: "Development environment only" },
+      { value: "PROD", label: "Production environment" },
+    ];
+    const result = await f.handler.execute(f.input(false, "DEV_ONLY"));
+
+    expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED);
+    expect(f.tx.assessmentEvidence.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            answer: "DEV_ONLY",
+            selectedChoice: {
+              value: "DEV_ONLY",
+              label: "Development environment only",
+            },
+            controlType: HUMAN_RESOLUTION_CONTROL_TYPES.SINGLE_SELECT,
+          }),
+        }),
+      }),
+    );
+    expect(f.tx.assessmentCaseFact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          statement: expect.stringContaining(
+            "Customer answer: Development environment only (DEV_ONLY)",
+          ),
+        }),
+      }),
+    );
   });
 });

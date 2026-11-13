@@ -55,6 +55,7 @@ import { DeleteAssessmentHandler } from "./application/commands/delete-assessmen
 import { FinishAssessmentRootHandler } from "./application/commands/finish-assessment-root/finish-assessment-root.handler.js";
 import { HeartbeatAssessmentRootHandler } from "./application/commands/heartbeat-assessment-root/heartbeat-assessment-root.handler.js";
 import { OpenHumanRequestHandler } from "./application/commands/open-human-request/open-human-request.handler.js";
+import { OpenHumanRequestsBatchHandler } from "./application/commands/open-human-request/open-human-requests-batch.handler.js";
 import { RecordRootActivityHandler } from "./application/commands/record-root-activity/record-root-activity.handler.js";
 import { RenameAssessmentHandler } from "./application/commands/rename-assessment/rename-assessment.handler.js";
 import { ReportUnresolvableHumanFactHandler } from "./application/commands/report-unresolvable-human-fact/report-unresolvable-human-fact.handler.js";
@@ -148,6 +149,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     SubmitAssessmentFinalReportHandler,
     HeartbeatAssessmentRootHandler,
     OpenHumanRequestHandler,
+    OpenHumanRequestsBatchHandler,
     ReportUnresolvableHumanFactHandler,
     RecordRootActivityHandler,
     StartRuleInvestigationHandler,

@@ -784,6 +784,7 @@ export type PagesMessages = {
       textLabel: string;
       required: string;
       failed: string;
+      staleConflict: string;
     };
     decision: {
       ruleFallback: string;

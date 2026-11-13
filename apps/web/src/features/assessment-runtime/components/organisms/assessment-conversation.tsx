@@ -20,12 +20,14 @@ type AssessmentConversationProps = {
   projection: ConversationProjection;
   answerPending: boolean;
   answerFailed: boolean;
+  answerStaleConflict?: boolean;
   onAnswer: (
     answer: StructuredAnswer,
     request: AssessmentHumanRequestView,
   ) => void;
   submittingRequestId?: string | null;
   failedRequestId?: string | null;
+  staleConflictRequestId?: string | null;
   /** Rendered after the last turn inside the scroll area (e.g. a load error). */
   footer?: ReactNode;
   intro?: ReactNode;
@@ -41,9 +43,11 @@ export function AssessmentConversation({
   projection,
   answerPending,
   answerFailed,
+  answerStaleConflict,
   onAnswer,
   submittingRequestId,
   failedRequestId,
+  staleConflictRequestId,
   footer,
   intro,
   targetRequestId,
@@ -60,8 +64,10 @@ export function AssessmentConversation({
           {renderTurn(turn, {
             answerPending,
             answerFailed,
+            answerStaleConflict,
             submittingRequestId,
             failedRequestId,
+            staleConflictRequestId,
             onAnswer,
           })}
         </div>
@@ -76,8 +82,10 @@ function renderTurn(
   context: {
     answerPending: boolean;
     answerFailed: boolean;
+    answerStaleConflict?: boolean;
     submittingRequestId?: string | null;
     failedRequestId?: string | null;
+    staleConflictRequestId?: string | null;
     onAnswer: (
       answer: StructuredAnswer,
       request: AssessmentHumanRequestView,
@@ -102,6 +110,11 @@ function renderTurn(
             context.failedRequestId
               ? context.failedRequestId === turn.request.requestId
               : context.answerFailed
+          }
+          staleConflict={
+            context.staleConflictRequestId
+              ? context.staleConflictRequestId === turn.request.requestId
+              : context.answerStaleConflict
           }
           onAnswer={(answer) => context.onAnswer(answer, turn.request)}
         />
