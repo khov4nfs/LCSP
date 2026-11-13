@@ -14,6 +14,7 @@ import supertest from "supertest";
 import { isProblemResult } from "../../../../platform/http/filters/error.factory.js";
 import { AssessmentDomainController } from "./assessment-domain.controller.js";
 import { ReportUnresolvableHumanFactCommand } from "../../application/commands/report-unresolvable-human-fact/report-unresolvable-human-fact.command.js";
+import { OpenHumanRequestsBatchCommand } from "../../application/commands/open-human-request/open-human-requests-batch.command.js";
 import { GetRuleDecisionQuery } from "../../application/queries/get-rule-decision/get-rule-decision.query.js";
 
 describe("AssessmentDomainController transport validation", () => {
@@ -151,6 +152,40 @@ describe("AssessmentDomainController transport validation", () => {
       assessmentRuleId: "RULE-1",
       revision: 2,
     });
+  });
+
+  it("dispatches a valid batch human request to OpenHumanRequestsBatchCommand", async () => {
+    execute.mockClear();
+    execute.mockResolvedValue({ requests: [] });
+    const assessmentId = randomUUID();
+    const lease = randomUUID();
+    const body = {
+      requests: [
+        {
+          assessmentRuleId: "RULE-1",
+          criterionIds: ["C-1"],
+          question: "Who operates this system?",
+          unresolvedFact: "Operator of system.",
+          decisionImpact: ["Applicability condition."],
+          resolutionAttempts: ["Inspected docs."],
+          controlType: "FREE_TEXT",
+          choices: [],
+          expectedCaseRevision: 1,
+          idempotencyKey: "batch-idem-1",
+        },
+      ],
+    };
+    const response = await supertest(app.getHttpServer())
+      .post(`/internal/assessment-runtime/${assessmentId}/human-requests/batch`)
+      .set("x-worker-api-key", workerKey)
+      .set("x-assessment-lease", lease)
+      .send(body);
+
+    expect(response.status).toBe(200);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledWith(
+      expect.any(OpenHumanRequestsBatchCommand),
+    );
   });
 
   it("rejects an invalid decision revision before query dispatch", async () => {
