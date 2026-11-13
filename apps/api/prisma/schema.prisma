@@ -602,6 +602,7 @@ enum AuditResourceType {
   LEGAL_REQUIREMENT
   COMPLIANCE_RULE_SET_VERSION
   LEGAL_SOURCE_VERSION
+  LEGAL_SOURCE
   OUTBOX
   REPOSITORY_CONNECTION
   REPOSITORY_SCAN_JOB
@@ -615,6 +616,7 @@ enum OutboxAggregateType {
   ASSESSMENT
   AUTH_USER
   LEGAL_SOURCE_VERSION
+  LEGAL_SOURCE
   COMPLIANCE_RULE_SET_VERSION
   REPOSITORY_SCAN_JOB
   REPOSITORY_SNAPSHOT
@@ -945,6 +947,29 @@ model LegalSourceSnapshot {
   @@index([contentSha256])
 }
 
+/// Durable proof of a completed source deletion; intentionally has no FK to the deleted source.
+model LegalSourceDeletionReceipt {
+  id                                String                         @id @default(uuid())
+  sourceId                          String
+  sourceSlug                        String
+  idempotencyKey                    String                         @unique
+  requestDigest                     String
+  reasonCode                        LegalSourceDeletionReasonCode
+  reasonText                        String
+  actorId                           String
+  correlationId                     String
+  auditEventId                      String                         @unique
+  outboxEventId                     String                         @unique
+  deletedVersionIds                 Json
+  deletedDocumentRowIds             Json
+  deletedPreparationRunIds          Json
+  deletedRuleSetVersionIds          Json
+  retainedIndependentSnapshotCount Int                            @default(0)
+  deletedAt                         DateTime                       @default(now())
+
+  @@index([sourceId, deletedAt])
+}
+
 model LegalDocumentChunk {
   id                      String                            @id
   legalSourceVersionId    String
@@ -1195,6 +1220,13 @@ enum LegalSourceLifecycleStatus {
   ACTIVE
   INVALID
   SUPERSEDED
+}
+
+enum LegalSourceDeletionReasonCode {
+  DUPLICATE_SOURCE
+  SOURCE_SCOPE_RETIRED
+  DEVELOPMENT_DATA_CLEANUP
+  OTHER
 }
 
 enum LegalSourceDocumentOrigin {

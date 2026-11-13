@@ -2626,6 +2626,39 @@ export const enPages = {
     submittingDocument: "Adding document…",
     copySha256: "Copy SHA-256",
     copySuccess: "SHA-256 copied.",
+    permanentDelete: "Permanently delete source",
+    permanentDeleteTitle: "Permanently delete this Legal Source?",
+    permanentDeleteDescription:
+      "This permanently deletes {name}, all of its versions, associated preparation history, and generated Rule Sets. Assessment or Final Report references will block deletion. This action cannot be undone.",
+    loadingDeletionImpact: "Checking deletion impact…",
+    deletionImpactFailed:
+      "Deletion impact could not be loaded. Try again before deleting.",
+    deletionCascadeSummary:
+      "This will delete {versions} version(s), {preparations} preparation run(s), and {ruleSets} generated Rule Set version(s), along with owned documents and derived data.",
+    deletionBlockers: "Deletion blockers",
+    confirmSourceSlug: "Type the Legal Source slug to confirm",
+    deleteSlugMismatch: "Enter the exact source slug shown above.",
+    deletionReason: "Reason",
+    deletionReasonText: "Reason details",
+    deletionReasonRequired: "A deletion reason is required.",
+    deletingSource: "Deleting source…",
+    confirmPermanentDelete: "Permanently delete",
+    deletionReasons: {
+      duplicateSource: "Duplicate source",
+      sourceScopeRetired: "Source scope retired",
+      developmentDataCleanup: "Development data cleanup",
+      other: "Other",
+    },
+    deletionBlockerLabels: {
+      PROTECTED_REFERENCE_EXISTS:
+        "Protected Assessment, report, or external history references this source.",
+      NONTERMINAL_WORK_EXISTS:
+        "Preparation or Assessment work is still active or resumable.",
+      UNSETTLED_INGESTION_EXISTS:
+        "Document ingestion is pending or processing.",
+      UNSETTLED_OUTBOX_EXISTS: "A worker currently owns unsettled source work.",
+      RETENTION_HOLD_EXISTS: "A retention hold prevents deletion.",
+    },
     statuses: {
       DRAFT: "Draft",
       ACTIVE: "Active",
@@ -2715,6 +2748,14 @@ export const enPages = {
       documentNotRetryable: "This document cannot be retried.",
       documentNotFound: "This document could not be found.",
       importFetchFailed: "The document could not be fetched from that URL.",
+      deletionBlocked:
+        "This Legal Source has protected references or unsettled work and cannot be deleted.",
+      deletionImpactStale:
+        "The deletion impact changed. Review the updated details and try again.",
+      deletionConfirmationMismatch:
+        "The confirmation did not match this Legal Source.",
+      deletionIdempotencyConflict:
+        "This deletion request conflicts with a previous request. Refresh and review the impact again.",
       importUrlRejected: {
         generic: "This URL cannot be imported.",
         INVALID_URL: "Enter a valid URL.",

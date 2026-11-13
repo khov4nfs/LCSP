@@ -61,9 +61,47 @@ describe("Rule Set Preparation ownership", () => {
 
   it("is never invoked directly by the Legal Source lifecycle, only through its outbox event", () => {
     const catalog = sourceFiles(join(SRC, "modules", "legal-source"));
+    const ownedCleanupPath =
+      "modules/legal-source/application/services/legal-source-deletion.service.ts";
     expect(
       withMatch(catalog, /compliance-rule-set|RuleSetPreparation/u),
+    ).toEqual([ownedCleanupPath]);
+    expect(
+      withMatch(
+        catalog,
+        /StartRuleSetPreparationCommand|RetryRuleSetPreparationCommand|StartRuleSetPreparationHandler|RetryRuleSetPreparationHandler/u,
+      ),
     ).toEqual([]);
+    const cleanup = readFileSync(
+      join(
+        SRC,
+        "modules",
+        "legal-source",
+        "application",
+        "services",
+        "legal-source-deletion.service.ts",
+      ),
+      "utf8",
+    );
+    expect(cleanup).toMatch(/ruleSetPreparationRun\.deleteMany/u);
+    expect(cleanup).not.toMatch(
+      /ruleSetPreparationRun\.(?:create|update|upsert)|new StartRuleSetPreparationCommand/u,
+    );
+    const activation = readFileSync(
+      join(
+        SRC,
+        "modules",
+        "legal-source",
+        "application",
+        "services",
+        "legal-source.service.ts",
+      ),
+      "utf8",
+    );
+    expect(activation).toMatch(
+      /LEGAL_SOURCE_EVENT_TYPES\.legalSourceVersionActivated/u,
+    );
+    expect(activation).toMatch(/outboxRepository\.enqueue/u);
   });
 
   it("keeps HTTP transport free of low-level preparation orchestration", () => {

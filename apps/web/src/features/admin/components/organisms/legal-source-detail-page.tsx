@@ -12,6 +12,7 @@ import { resolveAppMessage } from "@/lib/i18n";
 import { AdminPageHeader } from "../molecules/admin-page-header";
 import { LegalSourceEditForm } from "../molecules/legal-source-edit-form";
 import { LegalSourceStartVersionDialog } from "../molecules/legal-source-start-version-dialog";
+import { LegalSourceDeleteDialog } from "../molecules/legal-source-delete-dialog";
 import { LegalSourceVersionsTable } from "./legal-source-versions-table";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
@@ -60,6 +61,9 @@ export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
             {source.slug}
           </p>
           <LegalSourceEditForm source={source} />
+          <div className="flex justify-end border-t pt-4">
+            <LegalSourceDeleteDialog source={source} />
+          </div>
         </CardContent>
       </Card>
       <section className="flex flex-col gap-4">

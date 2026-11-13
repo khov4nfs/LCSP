@@ -43,6 +43,7 @@ export const OUTBOX_AGGREGATE_TYPES = {
   assessment: "ASSESSMENT",
   authUser: "AUTH_USER",
   legalSourceVersion: "LEGAL_SOURCE_VERSION",
+  legalSource: "LEGAL_SOURCE",
   complianceRuleSetVersion: "COMPLIANCE_RULE_SET_VERSION",
   repositoryScanJob: "REPOSITORY_SCAN_JOB",
   repositorySnapshot: "REPOSITORY_SNAPSHOT",

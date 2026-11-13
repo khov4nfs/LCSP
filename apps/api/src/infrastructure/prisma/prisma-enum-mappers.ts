@@ -151,6 +151,7 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
     PrismaAuditResourceType.LEGAL_REQUIREMENT,
   [AUDIT_RESOURCE_TYPES.legalSourceVersion]:
     PrismaAuditResourceType.LEGAL_SOURCE_VERSION,
+  [AUDIT_RESOURCE_TYPES.legalSource]: PrismaAuditResourceType.LEGAL_SOURCE,
   [AUDIT_RESOURCE_TYPES.outbox]: PrismaAuditResourceType.OUTBOX,
   [AUDIT_RESOURCE_TYPES.repositoryConnection]:
     PrismaAuditResourceType.REPOSITORY_CONNECTION,
@@ -169,6 +170,7 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
   [OUTBOX_AGGREGATE_TYPES.authUser]: PrismaOutboxAggregateType.AUTH_USER,
   [OUTBOX_AGGREGATE_TYPES.legalSourceVersion]:
     PrismaOutboxAggregateType.LEGAL_SOURCE_VERSION,
+  [OUTBOX_AGGREGATE_TYPES.legalSource]: PrismaOutboxAggregateType.LEGAL_SOURCE,
   [OUTBOX_AGGREGATE_TYPES.complianceRuleSetVersion]:
     PrismaOutboxAggregateType.COMPLIANCE_RULE_SET_VERSION,
   [OUTBOX_AGGREGATE_TYPES.repositoryScanJob]:
@@ -184,6 +186,7 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
   [PrismaOutboxAggregateType.AUTH_USER]: OUTBOX_AGGREGATE_TYPES.authUser,
   [PrismaOutboxAggregateType.LEGAL_SOURCE_VERSION]:
     OUTBOX_AGGREGATE_TYPES.legalSourceVersion,
+  [PrismaOutboxAggregateType.LEGAL_SOURCE]: OUTBOX_AGGREGATE_TYPES.legalSource,
   [PrismaOutboxAggregateType.COMPLIANCE_RULE_SET_VERSION]:
     OUTBOX_AGGREGATE_TYPES.complianceRuleSetVersion,
   [PrismaOutboxAggregateType.REPOSITORY_SCAN_JOB]:

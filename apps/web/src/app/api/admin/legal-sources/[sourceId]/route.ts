@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import {
+  deleteLegalSourceRequestSchema,
+  deleteLegalSourceResponseSchema,
   legalSourceDetailSchema,
   updateLegalSourceRequestSchema,
 } from "@lcsp/contracts/legal-source";
@@ -69,5 +71,32 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     method: "PATCH",
     bodySchema: updateLegalSourceRequestSchema,
     responseSchema: legalSourceDetailSchema,
+  });
+}
+
+/**
+ * Business purpose: Forward the confirmed permanent deletion request for one Legal Source through the authenticated Admin BFF.
+ *
+ * Business rules:
+ * - The route validates the resource identifier and shared request/response contracts; the API remains authoritative for RBAC and transactional eligibility.
+ *
+ * Execution flow:
+ * 1. Resolve and validate the dynamic source ID.
+ * 2. Proxy the deletion request with the canonical request and receipt schemas.
+ *
+ * Failure cases:
+ * - Invalid IDs, session failures, protected-dependency blockers, and upstream errors retain their shared problem contracts.
+ *
+ * Side effects:
+ * - Issues one upstream DELETE; source-owned database changes occur only in the API transaction.
+ */
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const { sourceId } = await context.params;
+  const id = parseLegalSourceRouteId(sourceId);
+  if (!id) return invalidLegalSourceRouteId();
+  return proxyLegalSourceJson(request, `/admin/legal-sources/${id}`, {
+    method: "DELETE",
+    bodySchema: deleteLegalSourceRequestSchema,
+    responseSchema: deleteLegalSourceResponseSchema,
   });
 }

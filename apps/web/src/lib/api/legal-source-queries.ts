@@ -10,6 +10,9 @@ import {
   legalSourceDetailSchema,
   legalSourceListSchema,
   legalSourceVersionDetailSchema,
+  legalSourceDeletionImpactResponseSchema,
+  deleteLegalSourceRequestSchema,
+  deleteLegalSourceResponseSchema,
   type ActiveLegalLibrary,
   type CreateLegalSourceRequest,
   type CreateLegalSourceVersionRequest,
@@ -19,6 +22,8 @@ import {
   type LegalSourceDocumentView,
   type LegalSourceList,
   type LegalSourceVersionDetail,
+  type DeleteLegalSourceRequest,
+  type DeleteLegalSourceResponse,
   type UpdateLegalSourceRequest,
   type UpdateLegalSourceDocumentEffect,
 } from "@lcsp/contracts/legal-source";
@@ -181,6 +186,132 @@ export function useLegalSourceQuery(sourceId: string) {
         legalSourceDetailSchema,
       ),
     enabled: Boolean(sourceId),
+  });
+}
+
+/**
+ * Business purpose: Load the current server-derived impact preview while the Admin deletion dialog is open.
+ *
+ * Business rules:
+ * - Do not fetch for an empty source ID or closed dialog; zero stale time ensures reopening requests a fresh preflight.
+ *
+ * Execution flow:
+ * 1. Key the query by source identity and deletion-impact role.
+ * 2. Validate the shared API response before exposing it to the dialog.
+ *
+ * Failure cases:
+ * - API, authentication, and schema errors remain query errors for the UI to present.
+ *
+ * Side effects:
+ * - Reads and caches impact data only; it never authorizes or performs deletion.
+ */
+export function useLegalSourceDeletionImpactQuery(
+  sourceId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [...LEGAL_SOURCE_QUERY_KEYS.source(sourceId), "deletion-impact"],
+    /**
+     * Business purpose: Retrieve the current deletion-impact preview for the active source dialog.
+     *
+     * Business rules:
+     * - The request uses the shared authenticated client and validates the canonical impact contract.
+     *
+     * Execution flow:
+     * 1. Request the source-scoped deletion-impact BFF route.
+     * 2. Parse the response before placing it in query cache.
+     *
+     * Failure cases:
+     * - Authentication, network, upstream, and schema failures remain query errors for the dialog.
+     *
+     * Side effects:
+     * - Reads and caches preview data; does not mutate source state or grant deletion authority.
+     */
+    queryFn: () =>
+      apiValidated(
+        `/api/admin/legal-sources/${encodeURIComponent(sourceId)}/deletion-impact`,
+        legalSourceDeletionImpactResponseSchema,
+      ),
+    enabled: Boolean(sourceId) && enabled,
+    staleTime: 0,
+  });
+}
+
+/**
+ * Business purpose: Submit a confirmed Legal Source deletion and reconcile the affected client cache after server success.
+ *
+ * Business rules:
+ * - Shared schemas validate request and receipt; server-side RBAC and transactional checks remain authoritative.
+ *
+ * Execution flow:
+ * 1. Send the validated DELETE request through the shared API client.
+ * 2. On success, refresh the Admin list and remove the deleted source's cached query subtree.
+ *
+ * Failure cases:
+ * - Request, server blocker, transport, or response-contract errors remain mutation errors and preserve the existing cache.
+ *
+ * Side effects:
+ * - Performs one API deletion request; on confirmed success invalidates list data and removes only the deleted source cache.
+ */
+export function useDeleteLegalSourceMutation(sourceId: string) {
+  const client = useQueryClient();
+  return useMutation<
+    DeleteLegalSourceResponse,
+    Error,
+    DeleteLegalSourceRequest
+  >({
+    /**
+     * Business purpose: Submit the Admin's explicit deletion confirmation to the server.
+     *
+     * Business rules:
+     * - Validate the request against the shared schema and rely on server RBAC, stale-snapshot, and dependency enforcement.
+     *
+     * Execution flow:
+     * 1. Serialize the confirmed request and send DELETE through the shared API client.
+     * 2. Validate the returned durable deletion receipt.
+     *
+     * Failure cases:
+     * - Invalid input, blocked dependencies, stale impact, authorization, transport, and response errors reject the mutation.
+     *
+     * Side effects:
+     * - Sends one request; it does not optimistically remove cached source data.
+     */
+    mutationFn: (request) =>
+      apiValidated(
+        `/api/admin/legal-sources/${encodeURIComponent(sourceId)}`,
+        deleteLegalSourceResponseSchema,
+        {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(deleteLegalSourceRequestSchema.parse(request)),
+        },
+      ),
+    /**
+     * Business purpose: Reconcile client navigation data after the API confirms permanent source deletion.
+     *
+     * Business rules:
+     * - Cache cleanup runs only on successful mutation; failed deletion preserves list and detail data for review.
+     *
+     * Execution flow:
+     * 1. Invalidate the Admin Legal Source list so deleted membership is fetched again.
+     * 2. Remove only the deleted source's detail query subtree.
+     *
+     * Failure cases:
+     * - Cache invalidation errors are surfaced by TanStack Query and do not imply the server transaction rolled back.
+     *
+     * Side effects:
+     * - Updates client cache state; performs no additional backend mutation.
+     */
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({
+          queryKey: LEGAL_SOURCE_QUERY_KEYS.adminList,
+        }),
+        client.removeQueries({
+          queryKey: LEGAL_SOURCE_QUERY_KEYS.source(sourceId),
+        }),
+      ]);
+    },
   });
 }
 

@@ -31,6 +31,7 @@ import {
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
+import { acquireLegalSourceLifecycleLock } from "../../../legal-source/application/services/legal-source.service.js";
 
 export const PREPARATION_RESULTS = {
   ACTIVATED: "ACTIVATED",
@@ -81,8 +82,11 @@ export class AssessmentRuntimePreparation {
     tx: Prisma.TransactionClient,
     assessmentId: string,
   ): Promise<{ ruleSetVersionId: string | null }> {
+    await acquireLegalSourceLifecycleLock(tx);
     const ruleSet = await tx.complianceRuleSetVersion.findFirst({
-      where: { lifecycleState: ArtifactLifecycleState.ACTIVE },
+      where: {
+        lifecycleState: ArtifactLifecycleState.ACTIVE,
+      },
       select: { id: true },
     });
     await tx.assessmentCase.create({
@@ -116,6 +120,7 @@ export class AssessmentRuntimePreparation {
       correlationId: string;
     },
   ): Promise<{ result: PinResult }> {
+    await acquireLegalSourceLifecycleLock(tx);
     let assessmentCase = await tx.assessmentCase.findUnique({
       where: { assessmentId: input.assessmentId },
     });
@@ -130,7 +135,9 @@ export class AssessmentRuntimePreparation {
       // The assessment has not started reasoning, so a late pin of the then-ACTIVE
       // rule set is the same decision creation would have made.
       const active = await tx.complianceRuleSetVersion.findFirst({
-        where: { lifecycleState: ArtifactLifecycleState.ACTIVE },
+        where: {
+          lifecycleState: ArtifactLifecycleState.ACTIVE,
+        },
         select: { id: true },
       });
       if (!active)
