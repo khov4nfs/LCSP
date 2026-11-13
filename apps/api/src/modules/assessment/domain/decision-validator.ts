@@ -323,7 +323,8 @@ function validateApplicabilityBasis(
     const operativeScopeCount = counts.operativeScopes ?? 0;
     const exceptionCount = counts.exceptions;
     totalConditionCount += conditionCount;
-    totalElementCount += conditionCount + exceptionCount + operativeScopeCount;
+    totalElementCount +=
+      conditionCount + exceptionCount + operativeScopeCount;
 
     // Check operative scopes
     for (let index = 0; index < operativeScopeCount; index++) {
@@ -394,7 +395,8 @@ function validateApplicabilityBasis(
         if (refutedIndices.size === conditionCount) {
           hasValidConditionRefutation = true;
           if (
-            decision.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE
+            decision.applicability ===
+            RULE_DECISION_APPLICABILITIES.APPLICABLE
           ) {
             hasConditionContradiction = true;
           }
@@ -409,7 +411,8 @@ function validateApplicabilityBasis(
         if (refutedIndices.size > 0) {
           hasValidConditionRefutation = true;
           if (
-            decision.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE
+            decision.applicability ===
+            RULE_DECISION_APPLICABILITIES.APPLICABLE
           ) {
             hasConditionContradiction = true;
           }
@@ -426,7 +429,8 @@ function validateApplicabilityBasis(
         if (refutedIndices.size > 0) {
           hasValidConditionRefutation = true;
           if (
-            decision.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE
+            decision.applicability ===
+            RULE_DECISION_APPLICABILITIES.APPLICABLE
           ) {
             hasConditionContradiction = true;
           }
@@ -435,9 +439,10 @@ function validateApplicabilityBasis(
           counts.materialConditionIndices &&
           counts.materialConditionIndices.length > 0
         ) {
-          const allMaterialEstablished = counts.materialConditionIndices.every(
-            (idx) => establishedIndices.has(idx),
-          );
+          const allMaterialEstablished =
+            counts.materialConditionIndices.every((idx) =>
+              establishedIndices.has(idx),
+            );
           if (allMaterialEstablished) {
             hasValidConditionEstablishment = true;
           } else {

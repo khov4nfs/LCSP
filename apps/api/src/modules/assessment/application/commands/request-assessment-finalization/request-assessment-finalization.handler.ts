@@ -21,6 +21,7 @@ import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecy
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../../domain/decision-validator.js";
+import { humanRequestScopeWhere } from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import { RequestAssessmentFinalizationCommand } from "./request-assessment-finalization.command.js";
 
 const ORCHESTRATOR = {
@@ -76,21 +77,28 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
           code: (typeof ASSESSMENT_COMPLETION_BLOCKER_CODES)[keyof typeof ASSESSMENT_COMPLETION_BLOCKER_CODES];
           reference?: string;
         }> = [];
+        const ruleIds = auditRequest.rules.map((item) => item.assessmentRuleId);
+        const ruleIdSet = new Set(ruleIds);
         const open = await tx.assessmentHumanRequest.findMany({
           where: {
-            assessmentId: command.assessmentId,
+            ...humanRequestScopeWhere(command.assessmentId, ruleIds),
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-            assessmentRuleId: {
-              in: auditRequest.rules.map((item) => item.assessmentRuleId),
-            },
           },
-          select: { assessmentRuleId: true },
+          select: {
+            assessmentRuleId: true,
+            dependencies: { select: { assessmentRuleId: true } },
+          },
         });
-        for (const request of open)
+        for (const request of open) {
+          const matchingRule = ruleIdSet.has(request.assessmentRuleId)
+            ? request.assessmentRuleId
+            : request.dependencies.find((d) => ruleIdSet.has(d.assessmentRuleId))
+                ?.assessmentRuleId ?? request.assessmentRuleId;
           blockers.push({
             code: ASSESSMENT_COMPLETION_BLOCKER_CODES.OPEN_HUMAN_REQUEST,
-            reference: request.assessmentRuleId,
+            reference: matchingRule,
           });
+        }
         for (const item of auditRequest.rules) {
           const coverage = await tx.assessmentDecisionCoverage.findUnique({
             where: {
