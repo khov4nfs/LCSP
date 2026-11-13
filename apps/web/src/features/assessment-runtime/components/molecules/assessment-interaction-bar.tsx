@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ChatInteractionBar } from "@/components/molecules/chat-interaction-bar";
 import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
 import { useReconcileOrphanedAssessment } from "@/lib/api/assessment-domain-queries";
+import { useWorkspaceRuntime } from "@/features/workspace/components/organisms/workspace-runtime-provider";
 import {
   CUSTOMER_ASSESSMENT_STATES,
   type CustomerAssessmentState,
@@ -35,12 +36,21 @@ export function AssessmentInteractionBar({
   state,
   onRefresh,
 }: AssessmentInteractionBarProps) {
-  const { control, stop, resume } = useAssessmentRuntimeControl(
-    assessment.assessment_id,
-  );
-  const reconcile = useReconcileOrphanedAssessment(assessment.assessment_id);
+  const workspace = useWorkspaceRuntime();
   const runtime = assessment.runtime;
   const executionId = runtime?.currentExecutionId ?? undefined;
+  const { control, stop, resume } = useAssessmentRuntimeControl(
+    assessment.assessment_id,
+    {
+      lifecycleState: assessment.lifecycle?.state,
+      executionState: runtime?.executionState,
+      customerState: state,
+      auditMode: assessment.case?.auditMode,
+      targetRunId: executionId,
+      connectionState: workspace.connectionState,
+    },
+  );
+  const reconcile = useReconcileOrphanedAssessment(assessment.assessment_id);
   const requested =
     executionId !== undefined &&
     control.data?.targetRunId === executionId &&
