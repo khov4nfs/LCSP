@@ -48,7 +48,9 @@ function build(executionState: State, failureReason: string | null = null) {
   return {
     row,
     tx,
-    handler: new FailRuleSetPreparationHandler(prisma as unknown as PrismaService),
+    handler: new FailRuleSetPreparationHandler(
+      prisma as unknown as PrismaService,
+    ),
   };
 }
 
@@ -59,15 +61,21 @@ describe("FailRuleSetPreparationHandler", () => {
     [R.TOKEN_LIMIT_EXCEEDED],
     [R.NO_PROGRESS_LIMIT_EXCEEDED],
     [R.BUDGET_EXHAUSTED],
-  ] as const)("pauses open run for budget reason %s without terminal completion time", async (reason) => {
-    const { handler, row } = build(State.RUNNING);
-    const result = await handler.execute(
-      new FailRuleSetPreparationCommand({ preparationRunId: id, reason }, "corr-1"),
-    );
-    expect(result.executionState).toBe(State.PAUSED);
-    expect(row.failureReason).toBe(R.AGENT_BUDGET_REACHED);
-    expect(row.completedAt).toBeNull();
-  });
+  ] as const)(
+    "pauses open run for budget reason %s without terminal completion time",
+    async (reason) => {
+      const { handler, row } = build(State.RUNNING);
+      const result = await handler.execute(
+        new FailRuleSetPreparationCommand(
+          { preparationRunId: id, reason },
+          "corr-1",
+        ),
+      );
+      expect(result.executionState).toBe(State.PAUSED);
+      expect(row.failureReason).toBe(R.AGENT_BUDGET_REACHED);
+      expect(row.completedAt).toBeNull();
+    },
+  );
 
   it("fails open run for non-budget reasons with completion time", async () => {
     const { handler, row } = build(State.RUNNING);
