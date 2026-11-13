@@ -330,15 +330,31 @@ export async function buildAssessmentFinalReportV2(input: {
   const referencedEvidenceIds = new Set<string>();
   const referencedFactIds = new Set<string>();
   for (const item of snapshot.decisions) {
+    const basisReferences = (
+      (
+        item.decision as {
+          applicabilityBasis?: Array<{
+            references: Array<{
+              type: string;
+              evidenceId?: string;
+              factId?: string;
+            }>;
+          }>;
+        }
+      ).applicabilityBasis ?? []
+    ).flatMap((basis) => basis.references);
     for (const reference of [
       ...item.decision.references,
       ...item.decision.criteria.flatMap((criterion) => criterion.references),
+      ...basisReferences,
     ]) {
       if (
-        reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+        reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE &&
+        "evidenceId" in reference &&
+        reference.evidenceId
       ) {
         referencedEvidenceIds.add(reference.evidenceId);
-      } else {
+      } else if ("factId" in reference && reference.factId) {
         referencedFactIds.add(reference.factId);
       }
     }
@@ -427,15 +443,33 @@ export async function buildAssessmentFinalReportV2(input: {
     }));
     const factIds = new Set<string>();
     const evidenceIds = new Set<string>();
+    const basisReferences = (
+      (
+        decision.decision as {
+          applicabilityBasis?: Array<{
+            references: Array<{
+              type: string;
+              evidenceId?: string;
+              factId?: string;
+            }>;
+          }>;
+        }
+      ).applicabilityBasis ?? []
+    ).flatMap((basis) => basis.references);
     for (const reference of [
       ...decision.decision.references,
       ...decision.decision.criteria.flatMap(
         (criterion) => criterion.references,
       ),
+      ...basisReferences,
     ]) {
-      if (reference.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT) {
+      if (
+        reference.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT &&
+        "factId" in reference &&
+        reference.factId
+      ) {
         factIds.add(reference.factId);
-      } else {
+      } else if ("evidenceId" in reference && reference.evidenceId) {
         evidenceIds.add(reference.evidenceId);
       }
     }
