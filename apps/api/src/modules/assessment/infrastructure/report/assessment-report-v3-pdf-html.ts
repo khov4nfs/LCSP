@@ -45,13 +45,12 @@ const list = (values: readonly string[]) =>
     : `<span class="muted">Chưa có thông tin được ghi nhận.</span>`;
 const table = (headers: string[], rows: string[][], className = "") =>
   `<table class="${className}"><thead><tr>${headers.map((item) => `<th>${inline(item)}</th>`).join("")}</tr></thead><tbody>${rows
-    .map(
-      (row) =>
-        `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`,
-    )
+    .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
     .join("")}</tbody></table>`;
-const badge = (label: string, variant: "positive" | "negative" | "neutral" | "warning") =>
-  `<span class="badge ${variant}">${inline(label)}</span>`;
+const badge = (
+  label: string,
+  variant: "positive" | "negative" | "neutral" | "warning",
+) => `<span class="badge ${variant}">${inline(label)}</span>`;
 
 const priorityBadge = (priority: string) => {
   if (priority === ASSESSMENT_REPORT_ACTION_PRIORITIES.HIGH)
@@ -91,7 +90,8 @@ export function assessmentReportV3Html(
 
   const scope = model.header.sourceScope;
   const isLimited =
-    scope.visibility !== ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL ||
+    scope.visibility !==
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL ||
     scope.limitationReasons.length > 0;
 
   const scopeBanner = isLimited
@@ -182,9 +182,11 @@ export function assessmentReportV3Html(
     );
     const compBadge = catalogItem.compliance
       ? badge(
-          localizedCompliance(catalogItem.applicability, catalogItem.compliance),
-          catalogItem.compliance ===
-            RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT
+          localizedCompliance(
+            catalogItem.applicability,
+            catalogItem.compliance,
+          ),
+          catalogItem.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT
             ? "positive"
             : "negative",
         )
@@ -245,14 +247,22 @@ export function assessmentReportV3Html(
       ? table(["Nghĩa vụ", "Kết quả đã ghi nhận", "Kiến nghị"], issueRows)
       : '<p class="note">Không có phát hiện chưa đáp ứng.</p>'
   }<h2>02 — DỮ KIỆN VÀ CĂN CỨ ÁP DỤNG</h2>${table(
-    ["Nghĩa vụ", "Khả năng áp dụng", "Dữ kiện được ghi nhận", "Bằng chứng kiểm chứng"],
+    [
+      "Nghĩa vụ",
+      "Khả năng áp dụng",
+      "Dữ kiện được ghi nhận",
+      "Bằng chứng kiểm chứng",
+    ],
     factsRows,
   )}<h2>03 — DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ</h2>${table(
     ["Nghĩa vụ và bối cảnh", "Khả năng áp dụng", "Kết quả", "Giải thích"],
     catalogRows,
   )}<h2>04 — KẾ HOẠCH HÀNH ĐỘNG CÓ RÀNG BUỘC (ACTION PLAN)</h2>${
     actionPlanRows.length
-      ? table(["Mức độ", "Nghĩa vụ liên quan", "Hành động khắc phục"], actionPlanRows)
+      ? table(
+          ["Mức độ", "Nghĩa vụ liên quan", "Hành động khắc phục"],
+          actionPlanRows,
+        )
       : '<p class="note">Chưa ghi nhận hành động khắc phục nào.</p>'
   }<h2>05 — PHẠM VI, GIỚI HẠN VÀ TRUY VẾT KỸ THUẬT</h2><p>Hồ sơ đánh giá được ghim với phiên bản nguồn và kho mã cụ thể.</p>${list(
     model.scopeTraceability.scopeLimitations,
@@ -263,13 +273,33 @@ export function assessmentReportV3Html(
       ["Mã artifact", inline(model.scopeTraceability.artifactId)],
       ["Phiên bản báo cáo", inline(model.scopeTraceability.schemaVersion)],
       ["Lần hiệu chỉnh", inline(String(model.scopeTraceability.caseRevision))],
-      ["Phiên bản nguồn pháp lý", `${inline(model.scopeTraceability.legalSourceVersion)} (${inline(model.scopeTraceability.legalSourceVersionId)})`],
-      ["Phiên bản bộ quy tắc", `${inline(model.scopeTraceability.ruleSetVersion)} (${inline(model.scopeTraceability.ruleSetVersionId)})`],
-      ["Bản chụp kho mã nguồn", inline(model.scopeTraceability.repositorySnapshotId)],
+      [
+        "Phiên bản nguồn pháp lý",
+        `${inline(model.scopeTraceability.legalSourceVersion)} (${inline(model.scopeTraceability.legalSourceVersionId)})`,
+      ],
+      [
+        "Phiên bản bộ quy tắc",
+        `${inline(model.scopeTraceability.ruleSetVersion)} (${inline(model.scopeTraceability.ruleSetVersionId)})`,
+      ],
+      [
+        "Bản chụp kho mã nguồn",
+        inline(model.scopeTraceability.repositorySnapshotId),
+      ],
       ["Commit kho mã", inline(model.scopeTraceability.repositoryCommit)],
-      ["Tiền tố thư mục con (sourcePathPrefix)", inline(model.scopeTraceability.sourcePathPrefix ?? "Toàn bộ kho mã (null)")],
-      ["Chế độ phạm vi (Mode)", inline(model.scopeTraceability.sourceScope.mode)],
-      ["Độ khả kiến (Visibility)", inline(model.scopeTraceability.sourceScope.visibility)],
+      [
+        "Tiền tố thư mục con (sourcePathPrefix)",
+        inline(
+          model.scopeTraceability.sourcePathPrefix ?? "Toàn bộ kho mã (null)",
+        ),
+      ],
+      [
+        "Chế độ phạm vi (Mode)",
+        inline(model.scopeTraceability.sourceScope.mode),
+      ],
+      [
+        "Độ khả kiến (Visibility)",
+        inline(model.scopeTraceability.sourceScope.visibility),
+      ],
     ],
     "compact",
   )}</section></body></html>`;
