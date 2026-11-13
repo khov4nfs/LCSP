@@ -37,6 +37,9 @@ export function AssessmentChatView({
       ?.eventSequence;
   useEffect(() => {
     void client.invalidateQueries({ queryKey: ["assessment", assessmentId] });
+    void client.invalidateQueries({
+      queryKey: ["assessment-runtime-control", assessmentId],
+    });
   }, [client, assessmentId, sequence]);
 
   useEffect(() => {
