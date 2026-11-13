@@ -1,6 +1,10 @@
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import { AgentExecutionState as State, Prisma } from "@prisma/client";
+import {
+  AgentExecutionState as State,
+  Prisma,
+  RuleSetPreparationFailureReason as PrismaRuleSetPreparationFailureReason,
+} from "@prisma/client";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
@@ -35,7 +39,8 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
    *
    * Business rules:
    * - A QUEUED or RUNNING unpublished run is an idempotent replay and is not enqueued again.
-   * - Only a budget-paused run or a FAILED run caused by a model/runtime error may resume.
+   * - Only a budget-paused run (by AGENT_BUDGET_REACHED or specific quota reason), a paused run with eligible scope review, or a FAILED run caused by a model/runtime error may resume.
+   * - Resuming a budget-paused run preserves open scope-review requests without approving them.
    * - Published or otherwise terminal runs cannot be resumed through this command.
    *
    * Execution flow:
@@ -71,9 +76,12 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
           run.executionState === State.RUNNING)
       )
         return toRun(run, null);
+      const isBudgetPause =
+        run.failureReason ===
+        PrismaRuleSetPreparationFailureReason.AGENT_BUDGET_REACHED;
       const resumable =
         (run.executionState === State.PAUSED &&
-          (run.failureReason === R.AGENT_BUDGET_REACHED ||
+          (isBudgetPause ||
             (run.scopeReviewRequested &&
               run.targetActivityScope === "DEVELOPMENT_ONLY" &&
               run.claimPhase === "CLAIM_INVENTORY_READY"))) ||

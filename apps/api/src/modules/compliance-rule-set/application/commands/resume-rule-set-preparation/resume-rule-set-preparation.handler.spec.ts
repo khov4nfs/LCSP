@@ -104,6 +104,14 @@ describe("explicit preparation recovery", () => {
     expect(outbox.enqueue).not.toHaveBeenCalled();
   });
 
+  it("preserves open scope-review request when resuming from budget pause without approving it", async () => {
+    const { handler, row } = build(State.PAUSED, R.AGENT_BUDGET_REACHED);
+    row.scopeReviewRequested = true;
+    const result = await handler.execute(command());
+    expect(result.executionState).toBe(State.QUEUED);
+    expect(row.scopeReviewRequested).toBe(true);
+  });
+
   it("resumes approved development scope only after server transition from the review hold", async () => {
     const { handler, row, outbox } = build(State.PAUSED, null);
     row.scopeReviewRequested = true;
