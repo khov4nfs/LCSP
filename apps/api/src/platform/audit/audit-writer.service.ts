@@ -53,6 +53,29 @@ export class AuditWriterService {
   }
 
   /**
+   * Business purpose: Persist required audit evidence in the source-deletion transaction and expose its durable identity to the receipt.
+   *
+   * Business rules:
+   * - The supplied Prisma transaction owns both the audit write and rollback; this method never commits independently.
+   *
+   * Execution flow:
+   * 1. Delegate to the canonical sanitizer and persistence path using the caller transaction.
+   * 2. Return the created AuditEvent identifier for receipt linkage.
+   *
+   * Failure cases:
+   * - Sanitization or database persistence failures propagate and force the caller transaction to roll back.
+   *
+   * Side effects:
+   * - Inserts one sanitized AuditEvent row in the caller's transaction.
+   */
+  async writeInTxReturningId(
+    event: AuditEventInput,
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
+    return this.persist(tx, event);
+  }
+
+  /**
    * Binds the audit sink to an existing transaction without creating or
    * committing another transaction. Application callers receive only a writer.
    */
@@ -63,16 +86,26 @@ export class AuditWriterService {
   }
 
   /**
-   * Sanitizes an audit event, enriches its payload envelope, and writes it using the supplied client.
+   * Business purpose: Store a normalized audit event while enforcing payload sanitization and actor attribution.
    *
-   * @param client - Prisma transaction-compatible client used to persist the canonical AuditEvent record.
-   * @param event - Audit event to normalize and persist.
-   * @returns A promise that resolves when persistence completes.
+   * Business rules:
+   * - Sensitive payload fields are removed by the canonical sanitizer; a supplied transaction client controls commit or rollback.
+   *
+   * Execution flow:
+   * 1. Sanitize payload fields and derive redaction, actor, schema-version, and result metadata.
+   * 2. Insert the normalized AuditEvent row through the supplied Prisma client.
+   * 3. Return its row identifier to transactional callers.
+   *
+   * Failure cases:
+   * - Persistence errors are logged without payload content and rethrown so required audit cannot be silently omitted.
+   *
+   * Side effects:
+   * - Writes one AuditEvent row and emits redaction warnings containing removed field names only.
    */
   private async persist(
     client: Prisma.TransactionClient,
     event: AuditEventInput,
-  ): Promise<void> {
+  ): Promise<string> {
     const { payload, removedKeys } = AuditSanitizer.sanitize(event.payload);
     const redactionStatus =
       removedKeys.length > 0
@@ -99,9 +132,10 @@ export class AuditWriterService {
     }
 
     try {
+      const id = crypto.randomUUID();
       await client.auditEvent.create({
         data: {
-          id: crypto.randomUUID(),
+          id,
           eventType: event.eventType,
           actorId: event.actorId,
           resourceType: event.resourceType
@@ -118,6 +152,7 @@ export class AuditWriterService {
           createdAt: new Date(),
         },
       });
+      return id;
     } catch (error) {
       this.logger.error(
         `Failed to write audit event (eventType=${event.eventType}): ${(error as Error).message}`,

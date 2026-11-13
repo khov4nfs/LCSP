@@ -1,4 +1,5 @@
 import {
+  LEGAL_SOURCE_DELETION_ERROR_CODES,
   LEGAL_SOURCE_IMPORT_REJECTION_REASONS,
   LEGAL_SOURCE_MANAGEMENT_ERROR_CODES,
 } from "@lcsp/contracts/legal-source";
@@ -34,6 +35,14 @@ const errorMessageKeys: Record<string, string> = {
     "pages.legalSources.errors.documentNotFound",
   [LEGAL_SOURCE_MANAGEMENT_ERROR_CODES.importFetchFailed]:
     "pages.legalSources.errors.importFetchFailed",
+  [LEGAL_SOURCE_DELETION_ERROR_CODES.deletionBlocked]:
+    "pages.legalSources.errors.deletionBlocked",
+  [LEGAL_SOURCE_DELETION_ERROR_CODES.impactStale]:
+    "pages.legalSources.errors.deletionImpactStale",
+  [LEGAL_SOURCE_DELETION_ERROR_CODES.confirmationMismatch]:
+    "pages.legalSources.errors.deletionConfirmationMismatch",
+  [LEGAL_SOURCE_DELETION_ERROR_CODES.idempotencyConflict]:
+    "pages.legalSources.errors.deletionIdempotencyConflict",
 };
 
 export function legalSourceErrorMessageKey(error: unknown): string {

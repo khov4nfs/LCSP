@@ -20,6 +20,7 @@ import { OutboxRepository } from "../../../../../platform/outbox/outbox.reposito
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { toRun } from "../../../infrastructure/persistence/compliance-rule-set.mappers.js";
 import { ResumeRuleSetPreparationCommand } from "./resume-rule-set-preparation.command.js";
+import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 
 /** Explicitly resume an interrupted run without discarding its pinned source reviews or draft. */
 @CommandHandler(ResumeRuleSetPreparationCommand)
@@ -51,6 +52,7 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
    */
   async execute(input: ResumeRuleSetPreparationCommand) {
     return this.prisma.$transaction(async (tx) => {
+      await acquireLegalSourceLifecycleLock(tx);
       await tx.$queryRaw(
         Prisma.sql`SELECT id FROM "RuleSetPreparationRun" WHERE id=${input.preparationRunId} FOR UPDATE`,
       );
