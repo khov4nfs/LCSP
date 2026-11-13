@@ -20,6 +20,7 @@ import os
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.tools import RootRun, SearchTrace
 from assessment_root.runtime_control import RootRuntimeControl
+from middleware.failure_policy import AgentRunBudgetExceeded
 from middleware.usage_metering import active_agent_run_state, activate_agent_run_state
 from orchestration.agent_stream import (
     active_agent_stream, AgentStreamSession, BufferedAgentStreamEmitter,
@@ -354,6 +355,7 @@ def run_assessment_root(
     blocked_tool_replay = False
     request_ids: list[str] | None = None
     control_request_id: str | None = None
+    pause_reason: str | None = None
     try:
         context = client.context()
         audit_request_id = (context.get("auditRequest") or {}).get("requestId")
@@ -422,6 +424,17 @@ def run_assessment_root(
                     raise RuntimeError("native Root checkpoint audit scope does not match the assessment")
                 pending = [item for task in saved.tasks for item in task.interrupts]
                 control_wait = [item for item in pending if "controlRequestId" in item.value]
+                budget_wait = [
+                    item for item in pending
+                    if item.value.get("budgetDenial")
+                    or item.value.get("reason") in {
+                        "AGENT_BUDGET_REACHED",
+                        "BUDGET_EXHAUSTED",
+                        "CALL_LIMIT_EXCEEDED",
+                        "TOKEN_LIMIT_EXCEEDED",
+                        "NO_PROGRESS_LIMIT_EXCEEDED",
+                    }
+                ]
                 recovered = claim.get("recoveredExecution", False)
                 human_wait_recovery = (
                     claim.get("lifecycleState", context.get("lifecycleState"))
@@ -433,7 +446,7 @@ def run_assessment_root(
                 review_origin = claim.get("humanAnswerReviewCheckpointId")
                 if review_origin and (actual != expected or expected != review_origin) and not review_checkpoint_recovery:
                     raise RuntimeError("review recovery checkpoint lacks server-bound ancestry proof")
-                if expected and actual != expected and (not recovered or (pending and not control_wait)) and not review_checkpoint_recovery:
+                if expected and actual != expected and (not recovered or (pending and not control_wait and not budget_wait)) and not review_checkpoint_recovery:
                     raise RuntimeError("server checkpoint binding does not match native Root checkpoint")
                 if actual and expected is None and not recovered and not human_wait_recovery:
                     raise RuntimeError("native Root checkpoint has no server checkpoint authorization")
@@ -466,6 +479,14 @@ def run_assessment_root(
                         raise RuntimeError("native Stop checkpoint does not match server execution")
                     checkpoint_id = actual
                     control_request_id = control_wait[0].value["controlRequestId"]
+                    final_state = EXECUTION_PAUSED
+                elif budget_wait and (not expected or recovered):
+                    if not checkpoint_authorized:
+                        raise RuntimeError("native budget pause checkpoint lacks server authorization")
+                    if len(budget_wait) != 1 or budget_wait[0].value.get("targetExecutionId") != run.execution_id:
+                        raise RuntimeError("native budget pause checkpoint does not match server execution")
+                    checkpoint_id = actual
+                    pause_reason = budget_wait[0].value["reason"]
                     final_state = EXECUTION_PAUSED
                 elif pending and context["openHumanRequestIds"]:
                     if not checkpoint_authorized:
@@ -508,10 +529,24 @@ def run_assessment_root(
                     saved = agent.get_state(graph_config)
                     checkpoint_id = saved.config["configurable"]["checkpoint_id"]
                     controls = [item for item in interrupts if "controlRequestId" in item.value]
+                    budget_pauses = [
+                        item for item in interrupts
+                        if item.value.get("budgetDenial")
+                        or item.value.get("reason") in {
+                            "AGENT_BUDGET_REACHED",
+                            "BUDGET_EXHAUSTED",
+                            "CALL_LIMIT_EXCEEDED",
+                            "TOKEN_LIMIT_EXCEEDED",
+                            "NO_PROGRESS_LIMIT_EXCEEDED",
+                        }
+                    ]
                     if controls:
                         if len(controls) != 1 or controls[0].value["targetExecutionId"] != run.execution_id:
                             raise RuntimeError("native Stop checkpoint does not match server execution")
                         control_request_id = controls[0].value["controlRequestId"]
+                        final_state = EXECUTION_PAUSED
+                    elif budget_pauses:
+                        pause_reason = budget_pauses[0].value["reason"]
                         final_state = EXECUTION_PAUSED
                     else:
                         request_ids = sorted({request_id for item in interrupts for request_id in item.value["requestIds"]})
@@ -524,6 +559,34 @@ def run_assessment_root(
                     if terminal["lifecycleState"] != "COMPLETE" and not selected_done:
                         raise RuntimeError("Root graph ended before authoritative audit completion")
                     final_state = EXECUTION_SUCCEEDED
+    except AgentRunBudgetExceeded as budget_error:
+        final_state = EXECUTION_PAUSED
+        pause_reason = "AGENT_BUDGET_REACHED"
+        if (
+            checkpointer is not None
+            and agent is not None
+            and graph_config is not None
+            and (checkpoint_authorized or graph_invoke_started)
+        ):
+            try:
+                saved = agent.get_state(graph_config)
+                current = (
+                    saved.config.get("configurable", {}).get("checkpoint_id")
+                    if saved.config
+                    else None
+                )
+                if isinstance(current, str) and current and (
+                    checkpoint_authorized
+                    or current != starting_checkpoint_id
+                ):
+                    checkpoint_id = current
+            except Exception:
+                pass
+        logger.info(
+            "ASSESSMENT_ROOT_BUDGET_EXCEEDED",
+            assessment_id=assessment_id,
+            error=str(budget_error),
+        )
     except Exception as error:  # noqa: BLE001 - settled as an execution failure below
         final_state = EXECUTION_FAILED
         error_type = type(error).__name__
@@ -564,7 +627,12 @@ def run_assessment_root(
     if final_state == EXECUTION_INTERRUPTED:
         client.finish(final_state, checkpoint_id=checkpoint_id, request_ids=request_ids)
     elif final_state == EXECUTION_PAUSED:
-        client.finish(final_state, checkpoint_id=checkpoint_id, control_request_id=control_request_id)
+        client.finish(
+            final_state,
+            checkpoint_id=checkpoint_id,
+            control_request_id=control_request_id,
+            reason=pause_reason,
+        )
     elif error_type == NativeRootRecoveryRequired.__name__:
         client.finish(EXECUTION_FAILED, checkpoint_id=checkpoint_id, recovery_required=True)
     elif final_state == EXECUTION_FAILED and checkpoint_id:
