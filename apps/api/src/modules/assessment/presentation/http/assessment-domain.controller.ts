@@ -207,6 +207,7 @@ export class AssessmentDomainController {
           body.requestIds,
           body.controlRequestId,
           body.recoveryRequired,
+          body.reason,
         ),
       ),
     );
