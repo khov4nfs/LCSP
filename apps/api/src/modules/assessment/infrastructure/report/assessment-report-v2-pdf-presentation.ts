@@ -337,7 +337,11 @@ export function buildReportReferenceIndex(
   const rawTextLabels = new Map<string, string>();
   const technicalTexts: ReportTechnicalText[] = [];
 
-  const retainOriginal = (ruleId: string, field: string, text: string | undefined | null) => {
+  const retainOriginal = (
+    ruleId: string,
+    field: string,
+    text: string | undefined | null,
+  ) => {
     if (!text) return;
     const value = text.trim();
     // This field is a machine-readable rendering of legal source objects; the
