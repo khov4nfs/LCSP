@@ -367,6 +367,20 @@ class TestPdfGaps:
         declared = dict(re.findall(r"(\w+): \"(\w+)\"", block))
         assert declared == {GAP_NO_TEXT_LAYER: GAP_NO_TEXT_LAYER, GAP_UNSUPPORTED_NUMBERING: GAP_UNSUPPORTED_NUMBERING}
 
+    def test_failure_codes_match_the_api_contract(self):
+        source = (ROOT / "packages/contracts/src/legal-source/management.ts").read_text(encoding="utf-8")
+        block = re.search(r"LEGAL_SOURCE_DOCUMENT_FAILURE_CODES = \{(.*?)\} as const", source, re.S).group(1)
+        declared = dict(re.findall(r"(\w+): \"(\w+)\"", block))
+        from tools.legal.managed_documents.ingest import (
+            FAILURE_CHUNK_LIMIT_EXCEEDED,
+            FAILURE_EXTRACTION,
+            FAILURE_NO_CHUNKS,
+            FAILURE_UNSUPPORTED,
+        )
+        for code in (FAILURE_UNSUPPORTED, FAILURE_EXTRACTION, FAILURE_NO_CHUNKS, FAILURE_CHUNK_LIMIT_EXCEEDED):
+            assert code in declared
+            assert declared[code] == code
+
 
 # ------------------------------------------------------------------- E1: extraction honesty (DOCX)
 
