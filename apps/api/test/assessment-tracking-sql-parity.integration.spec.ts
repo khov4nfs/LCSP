@@ -3725,11 +3725,11 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
 
     const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
 
-    // Case is at revision 2
+    // Case starts at revision 1 when the fact is accepted
     await prisma.assessmentCase.create({
       data: {
         assessmentId,
-        caseRevision: 2,
+        caseRevision: 1,
         ruleSetVersionId,
         repositoryCommit: commitSha,
         repositorySnapshotId: snapshotId,
@@ -3749,6 +3749,12 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
         state: "ACCEPTED",
         statement: "Customer confirmed organization scope",
       },
+    });
+
+    // Case advances to revision 2
+    await prisma.assessmentCase.update({
+      where: { assessmentId },
+      data: { caseRevision: 2 },
     });
 
     const decisionCitingOlderFact = {
