@@ -151,7 +151,7 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
         - Reads API context and may end native graph execution; no decision is written.
         """
         context = self.run.client.context()
-        if context["lifecycleState"] == "COMPLETE" or (context.get("auditRequest") or {}).get("status") == "COMPLETED":
+        if context["lifecycleState"] in {"COMPLETE", "PAUSED", "FAILED"} or (context.get("auditRequest") or {}).get("status") == "COMPLETED":
             return {"jump_to": "end"}
         return None
 
@@ -174,7 +174,7 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
         if not isinstance(response, AIMessage) or response.tool_calls:
             return None
         context = self.run.client.context()
-        if context["lifecycleState"] == "COMPLETE" or (context.get("auditRequest") or {}).get("status") == "COMPLETED":
+        if context["lifecycleState"] in {"COMPLETE", "PAUSED", "FAILED"} or (context.get("auditRequest") or {}).get("status") == "COMPLETED":
             return None
         if context["openHumanRequestIds"]:
             raise RuntimeError("open human blockers without a native interrupt")

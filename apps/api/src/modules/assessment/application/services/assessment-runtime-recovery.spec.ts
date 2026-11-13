@@ -13,6 +13,7 @@ import {
   RULE_AUDIT_STATUSES,
   claimAssessmentRootExecutionRequestSchema,
   assessmentRootClaimSchema,
+  ASSESSMENT_BUDGET_REASONS,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import {
@@ -80,6 +81,16 @@ function fixture(
         Promise.resolve(Object.assign(row, data)),
       ),
     },
+    assessment: {
+      update: jest
+        .fn<
+          (args?: {
+            where?: Record<string, unknown>;
+            data?: Record<string, unknown>;
+          }) => Promise<unknown>
+        >()
+        .mockResolvedValue({}),
+    },
     assessmentRuntimeTurn: {
       findUnique: jest.fn<() => Promise<typeof turn>>().mockResolvedValue(turn),
       findFirst: jest.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -124,7 +135,11 @@ function fixture(
   const authority = new AssessmentRuntimeAuthority(
     { $transaction: (fn: (tx: unknown) => unknown) => fn(tx) } as never,
     { appendInTx } as never,
-    {} as never,
+    {
+      transitionFromRuntimeAcknowledgementInTx: jest
+        .fn<() => Promise<void>>()
+        .mockResolvedValue(undefined),
+    } as never,
     { bindInTx: () => Promise.resolve(undefined) } as never,
   );
   return {
@@ -1288,5 +1303,38 @@ describe("unknown response review on the existing native thread", () => {
       }),
     ).rejects.toMatchObject({ status: 403 });
     expect(f.tx.assessmentRuntime.update).not.toHaveBeenCalled();
+  });
+
+  it("allows pausing with durable budget reason and sets blockerReference on assessment", async () => {
+    const f = fixture(Lifecycle.ACTIVE);
+    Object.assign(f.row, {
+      leaseToken: null,
+      leaseExpiresAt: null,
+      executionState: Execution.INTERRUPTED,
+    });
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    const cp = randomUUID();
+    const result = await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: claim.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.PAUSED,
+      checkpointId: cp,
+      reason: ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED,
+    });
+    expect(result.executionState).toBe(Execution.PAUSED);
+    const updateCall = f.tx.assessment.update.mock.calls[0]?.[0];
+    expect(updateCall).toMatchObject({
+      where: { id: f.assessmentId },
+      data: {
+        blockerReference: {
+          reason: ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED,
+        },
+      },
+    });
   });
 });
