@@ -1,24 +1,16 @@
 import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_COMPLIANCE_OUTCOMES,
-  RULE_DECISION_CRITERION_OUTCOMES,
 } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_FACT_AUTHORITIES } from "@lcsp/contracts/assessment-domain";
 import type { AssessmentReportV3Presentation } from "@lcsp/contracts/assessment-report";
 import {
   ASSESSMENT_REPORT_ACTION_PRIORITIES,
-  ASSESSMENT_REPORT_SOURCE_SCOPE_MODES,
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES,
 } from "@lcsp/contracts/assessment-report";
 import {
-  buildReportReferenceIndex,
-  criterionPresentation,
-  localizeReportText,
   localizedApplicability,
   localizedCompliance,
-  localizedCriterionOutcome,
   localizedEvidenceType,
-  ruleTitleInVietnamese,
   type ReportTranslationCatalog,
 } from "./assessment-report-v2-pdf-presentation.js";
 
@@ -26,9 +18,6 @@ type RenderOptions = {
   preview?: boolean;
   translations?: ReportTranslationCatalog;
 };
-
-type RulePresentation =
-  AssessmentReportV3Presentation["obligationDetails"][number];
 
 const text = (value: unknown) => (typeof value === "string" ? value : "");
 const escapeHtml = (value: unknown) =>
@@ -60,6 +49,49 @@ const priorityBadge = (priority: string) => {
   return badge("Ưu tiên thấp", "neutral");
 };
 
+function buildV3ReferenceIndex(model: AssessmentReportV3Presentation) {
+  const ruleIds = [
+    ...new Set(model.obligationDetails.map((item) => item.assessmentRuleId)),
+  ];
+  const factIds = [
+    ...new Set(
+      model.applicabilityFacts.flatMap((group) =>
+        group.facts.map((f) => f.factId),
+      ),
+    ),
+  ];
+  const evidenceIds = [
+    ...new Set(
+      model.applicabilityFacts.flatMap((group) =>
+        group.evidence.map((e) => e.evidenceId),
+      ),
+    ),
+  ];
+  const ruleLabels = new Map(
+    ruleIds.map((id, index) => [
+      id,
+      `QT-${String(index + 1).padStart(2, "0")}`,
+    ]),
+  );
+  const factLabels = new Map(
+    factIds.map((id, index) => [
+      id,
+      `DK-${String(index + 1).padStart(2, "0")}`,
+    ]),
+  );
+  const evidenceLabels = new Map(
+    evidenceIds.map((id, index) => [
+      id,
+      `BC-${String(index + 1).padStart(2, "0")}`,
+    ]),
+  );
+  return {
+    ruleReference: (id: string) => ruleLabels.get(id) ?? "",
+    factReference: (id: string) => factLabels.get(id) ?? "",
+    evidenceReference: (id: string) => evidenceLabels.get(id) ?? "",
+  };
+}
+
 /**
  * Business purpose: Produce valid, safe, and self-contained HTML for rendering Assessment Final Report V3 as PDF.
  *
@@ -85,8 +117,7 @@ export function assessmentReportV3Html(
   model: AssessmentReportV3Presentation,
   options: RenderOptions = {},
 ): string {
-  const translations = options.translations ?? {};
-  const refs = buildReportReferenceIndex(model, translations);
+  const refs = buildV3ReferenceIndex(model);
 
   const scope = model.header.sourceScope;
   const isLimited =

@@ -5,7 +5,6 @@ import { ArrowLeftIcon } from "lucide-react";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
-  ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
 } from "@lcsp/contracts/assessment-domain";
