@@ -138,13 +138,13 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
-        """Business purpose: Stop reasoning once the server has completed the authorized audit scope or paused execution.
+        """Business purpose: Stop reasoning once the server has completed the authorized audit scope.
 
         Business rules:
-        - Only a durable full assessment or selected request completion or paused state ends Root work.
+        - Only a durable full assessment or selected request completion can end Root work.
         Execution flow:
         1. Reload canonical context.
-        2. End the graph for a completed or paused scope.
+        2. End the graph for a completed scope.
         Failure cases:
         - API context failures propagate; incomplete work continues to the model.
         Side effects:
@@ -161,13 +161,12 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
 
         Business rules:
         - A model final message cannot substitute for selected-scope or full-report completion.
-        - Paused, failed, or stop-requested states must end reasoning without continuation loops or blocker exceptions.
         Execution flow:
         1. Inspect the model response.
-        2. Reload canonical status and check for pause or completion.
+        2. Reload canonical status.
         3. Request another tool-using turn if unfinished.
         Failure cases:
-        - Open human blockers without native interrupt reject completion when not paused.
+        - Open human blockers without native interrupt reject completion.
         Side effects:
         - Reads API context and adds a native continuation message; no legal decision is persisted.
         """
@@ -177,12 +176,6 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
         context = self.run.client.context()
         if context["lifecycleState"] in {"COMPLETE", "PAUSED", "FAILED"} or (context.get("auditRequest") or {}).get("status") == "COMPLETED":
             return None
-        try:
-            control = self.run.client.root_control()
-            if control and control.get("state") == "STOP_REQUESTED":
-                return None
-        except Exception:
-            pass
         if context["openHumanRequestIds"]:
             raise RuntimeError("open human blockers without a native interrupt")
         logger.info("ASSESSMENT_ROOT_CONTINUING", assessment_id=self.run.assessment_id,
