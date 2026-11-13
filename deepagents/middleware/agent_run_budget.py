@@ -95,8 +95,8 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         # File discovery shares this counter across Producer and native claim-author invocations.
         # Quota mode never edits context or withdraws governed tools.
         self.run_quotas = run_quotas
-        self.quota_calls = 0
-        self.quota_input_tokens = 0
+        self.quota_calls = 0; self.quota_input_tokens = 0
+        self.quota_output_tokens = 0; self.quota_total_tokens = 0
         self.quota_lock = threading.Lock()
         # Governed completion tools stay callable at finalize.
         self.finalize_tools = frozenset(finalize_tools)
@@ -203,14 +203,14 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         Side effects:
         - Mutates the in-memory shared quota input counter; no historical receipt or customer balance is rewritten.
         """
-        if self.run_quotas is None:
-            return
-        reported = [m.usage_metadata["input_tokens"] for m in getattr(response, "result", [])
-            if getattr(m, "usage_metadata", None) and "input_tokens" in m.usage_metadata]
-        if reported:
-            reserved = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
-            with self.quota_lock:
-                self.quota_input_tokens += sum(reported) - reserved
+        if self.run_quotas is None: return
+        results = [m for m in getattr(response, "result", []) if getattr(m, "usage_metadata", None)]
+        reported = [m.usage_metadata["input_tokens"] for m in results if "input_tokens" in m.usage_metadata]
+        out = [m.usage_metadata["output_tokens"] for m in results if "output_tokens" in m.usage_metadata]
+        with self.quota_lock:
+            if reported:
+                self.quota_input_tokens += sum(reported) - estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
+            if out: self.quota_output_tokens += sum(out); self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
 
     def _bounded_request(self, request):
         """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
@@ -233,15 +233,15 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         if self.run_quotas is not None:
             tokens = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
             with self.quota_lock:
-                calls_limit = self.run_quotas.get("model_calls")
-                tokens_limit = self.run_quotas.get("input_tokens")
-                if (calls_limit is not None and self.quota_calls >= calls_limit) or (tokens_limit is not None and self.quota_input_tokens + tokens > tokens_limit):
-                    publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={
-                        "required_state": "PAUSED", "model_calls": self.quota_calls,
-                        "input_tokens": self.quota_input_tokens, "limits": self.run_quotas})
-                    raise AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable")
+                cl = self.run_quotas.get("model_calls")
+                tl, totl = self.run_quotas.get("input_tokens"), self.run_quotas.get("total_tokens")
+                reason = "CALL_LIMIT_EXCEEDED" if cl is not None and self.quota_calls >= cl else ("TOKEN_LIMIT_EXCEEDED" if (tl is not None and self.quota_input_tokens + tokens > tl) or (totl is not None and self.quota_input_tokens + self.quota_output_tokens + tokens > totl) else None)
+                if reason is not None:
+                    publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={"required_state": "PAUSED", "model_calls": self.quota_calls, "input_tokens": self.quota_input_tokens, "output_tokens": self.quota_output_tokens, "limits": self.run_quotas, "reason": reason})
+                    err = AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable", reason=reason); err.reason = reason; raise err
                 self.quota_calls += 1
                 self.quota_input_tokens += tokens
+                self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
             return request
         calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:

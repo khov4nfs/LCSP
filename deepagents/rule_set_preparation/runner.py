@@ -372,21 +372,38 @@ def run_rule_set_preparation(
             _flush_draft(context)
             raise
         except AgentRunBudgetExceeded as error:
+            context.budget_paused = True
             _flush_draft(context)
+            if context.scope_review_paused:
+                return {"state": "PAUSED", "submission": None, "failureReason": None,
+                        "scopeReviewRequired": True, "trace": context.trace}
             # The API records PAUSED and retains LOAD payloads; no terminal failure callback follows.
             if context.submission is None and context.concluded is None:
-                paused = api.fail_rule_set_preparation(run_id, "AGENT_BUDGET_REACHED")
+                pause_reason = getattr(error, "reason", None) or "AGENT_BUDGET_REACHED"
+                paused = api.fail_rule_set_preparation(run_id, pause_reason)
                 if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
                     raise RuntimeError("Budget pause callback did not establish PAUSED") from error
                 publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
-                    "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": "AGENT_BUDGET_REACHED"})
+                    "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": pause_reason})
                 return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
         except Exception as error:  # noqa: BLE001 - classify only proven model failures
-            if context.scope_review_paused:
+            if context.scope_review_paused or getattr(context, "budget_paused", False):
                 # A concurrent/native completion guard may stop after the API
                 # already committed PAUSED; never rewrite it as failed.
                 return {"state": "PAUSED", "submission": None, "failureReason": None,
-                        "scopeReviewRequired": True, "trace": context.trace}
+                        "scopeReviewRequired": getattr(context, "scope_review_paused", False), "trace": context.trace}
+            budget_err = error if isinstance(error, AgentRunBudgetExceeded) else (error.__cause__ if isinstance(getattr(error, "__cause__", None), AgentRunBudgetExceeded) else None)
+            if budget_err is not None:
+                context.budget_paused = True
+                _flush_draft(context)
+                if context.submission is None and context.concluded is None:
+                    pause_reason = getattr(budget_err, "reason", None) or "AGENT_BUDGET_REACHED"
+                    paused = api.fail_rule_set_preparation(run_id, pause_reason)
+                    if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
+                        raise RuntimeError("Budget pause callback did not establish PAUSED") from budget_err
+                    publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                        "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": pause_reason})
+                    return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
             _flush_draft(context)
             # A conclusion the API already recorded is terminal; a later exception cannot turn it into a model/runtime failure.
             if context.submission is None and context.concluded is None:
