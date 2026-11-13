@@ -3448,4 +3448,387 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       }),
     ).rejects.toThrow(ServiceUnavailableException);
   }, 120_000);
+
+  it("proves SQL summary and per-assessment evaluation accept decision with valid applicabilityBasis on real Postgres", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Applicability Basis Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"2".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validDecisionWithBasis = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Applicable and compliant with explicit basis.",
+      references: [
+        {
+          type: "ASSESSMENT_EVIDENCE",
+          evidenceId,
+        },
+      ],
+      applicabilityBasis: [
+        {
+          legalRequirementId: "legal-1",
+          kind: "APPLICABILITY_CONDITION",
+          index: 0,
+          finding: "ESTABLISHED",
+          rationale: "Condition 0 verified satisfied.",
+          references: [
+            {
+              type: "ASSESSMENT_EVIDENCE",
+              evidenceId,
+            },
+          ],
+        },
+      ],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion 1 satisfied",
+          references: [
+            {
+              type: "ASSESSMENT_EVIDENCE",
+              evidenceId,
+            },
+          ],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest-basis",
+        decision: validDecisionWithBasis,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-parity-basis-${randomUUID()}`,
+    });
+
+    // Both SQL aggregate and per-assessment evaluation must agree on COMPLIANT
+    expect(result.complianceSummary.compliantCount).toBe(1);
+    expect(result.complianceSummary.unresolvedCount).toBe(0);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(1);
+    expect(asmt?.compliance.unresolvedCount).toBe(0);
+  });
+
+  it("proves SQL summary rejects decision with invalid reference in applicabilityBasis with 100% parity to ruleDecisionSchema", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+    const badEvidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Invalid Basis Reference Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"3".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const decisionWithBadBasisRef = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "All criteria verified met.",
+      references: [
+        {
+          type: "ASSESSMENT_EVIDENCE",
+          evidenceId,
+        },
+      ],
+      applicabilityBasis: [
+        {
+          legalRequirementId: "legal-1",
+          kind: "APPLICABILITY_CONDITION",
+          index: 0,
+          finding: "ESTABLISHED",
+          rationale: "Condition references nonexistent evidence",
+          references: [
+            {
+              type: "ASSESSMENT_EVIDENCE",
+              evidenceId: badEvidenceId,
+            },
+          ],
+        },
+      ],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion 1 satisfied",
+          references: [
+            {
+              type: "ASSESSMENT_EVIDENCE",
+              evidenceId,
+            },
+          ],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest-bad-ref",
+        decision: decisionWithBadBasisRef,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-parity-bad-basis-${randomUUID()}`,
+    });
+
+    // Fails closed to UNRESOLVED because applicabilityBasis reference does not exist
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
+
+  it("proves SQL summary and per-assessment evaluation accept decision referencing older accepted fact where fact.caseRevision <= decision.caseRevision", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const factId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Older Accepted Fact Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    // Case starts at revision 1 when the fact is accepted
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    // Fact was accepted in revision 1
+    await prisma.assessmentCaseFact.create({
+      data: {
+        factId,
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: "HUMAN_PROVIDED",
+        state: "ACCEPTED",
+        statement: "Customer confirmed organization scope",
+      },
+    });
+
+    // Case advances to revision 2
+    await prisma.assessmentCase.update({
+      where: { assessmentId },
+      data: { caseRevision: 2 },
+    });
+
+    const decisionCitingOlderFact = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 2,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Verified by earlier accepted customer fact.",
+      references: [
+        {
+          type: "CONFIRMED_FACT",
+          factId,
+          caseRevision: 2,
+        },
+      ],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion 1 satisfied",
+          references: [
+            {
+              type: "CONFIRMED_FACT",
+              factId,
+              caseRevision: 2,
+            },
+          ],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 2,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest-older-fact",
+        decision: decisionCitingOlderFact,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-parity-older-fact-${randomUUID()}`,
+    });
+
+    // Fact at revision 1 <= case revision 2 is VALID
+    expect(result.complianceSummary.compliantCount).toBe(1);
+    expect(result.complianceSummary.unresolvedCount).toBe(0);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(1);
+    expect(asmt?.compliance.unresolvedCount).toBe(0);
+  });
 });
