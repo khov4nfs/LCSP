@@ -150,7 +150,6 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
   }
 
   beforeAll(async () => {
-    jest.setTimeout(120_000);
     prisma = new PrismaClient({
       adapter: new PrismaPg(dbUrl),
       log: [{ emit: "event", level: "query" }],
