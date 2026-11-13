@@ -10,6 +10,7 @@ import {
   ruleDecisionSchema,
 } from "@lcsp/contracts/assessment";
 import {
+  ASSESSMENT_COMPLETION_BLOCKER_CODES,
   ASSESSMENT_DECISION_RECORD_STATES,
   ASSESSMENT_DECISION_SCOPE,
   ASSESSMENT_EVIDENCE_TYPES,
@@ -168,4 +169,149 @@ it("completes only one validated selected rule without invoking the full-report 
   expect(update?.data.completedAt).toBeInstanceOf(Date);
   expect(fullGate).not.toHaveBeenCalled();
   expect(transition).not.toHaveBeenCalled();
+});
+
+it("blocks selected finalization when an open human request covers a selected rule via shared dependency", async () => {
+  const assessmentId = randomUUID();
+  const requestId = randomUUID();
+  const ruleSetVersionId = randomUUID();
+  const repositorySnapshotId = randomUUID();
+  const repositoryCommit = "a".repeat(40);
+  const pins = {
+    ruleSetVersionId,
+    repositorySnapshotId,
+    repositoryCommit,
+    caseRevision: 1,
+  };
+
+  const evidenceId = randomUUID();
+  const reference = {
+    type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+    evidenceId,
+  };
+  const decision = ruleDecisionSchema.parse({
+    assessmentRuleId: "Rule-Selected",
+    assessmentRuleVersion: "v1",
+    scopeId: ASSESSMENT_DECISION_SCOPE,
+    ruleSetVersionId,
+    repositorySnapshotId,
+    repositoryCommit,
+    caseRevision: 1,
+    legalContextRefs: [{ legalContextId: "Legal-1" }],
+    applicability: RULE_DECISION_APPLICABILITIES.APPLICABLE,
+    rationale: "The requirement applies.",
+    references: [reference],
+    criteria: [
+      {
+        criterionId: "C-1",
+        outcome: RULE_DECISION_CRITERION_OUTCOMES.MET,
+        rationale: "Criterion satisfied.",
+        references: [reference],
+      },
+    ],
+    compliance: RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT,
+  });
+
+  const tx = {
+    assessmentRuleAuditRequest: {
+      findUnique: () =>
+        Promise.resolve({
+          requestId,
+          ruleSetVersionId,
+          scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
+          status: RULE_AUDIT_STATUSES.RUNNING,
+          rules: [
+            { assessmentRuleId: "Rule-Selected", assessmentRuleVersion: "v1" },
+          ],
+        }),
+      update: jest.fn(() => Promise.resolve({})),
+    },
+    // Open human request whose primary rule is Rule-Foreign, but has Rule-Selected as shared dependency
+    assessmentHumanRequest: {
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            assessmentRuleId: "Rule-Foreign",
+            dependencies: [{ assessmentRuleId: "Rule-Selected" }],
+          },
+        ]),
+      ),
+    },
+    assessmentDecisionCoverage: {
+      findUnique: () =>
+        Promise.resolve({
+          assessmentRuleVersion: "v1",
+          resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
+          currentDecision: {
+            state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+            caseRevision: 1,
+            repositoryCommit,
+            ruleSetVersionId,
+            decision,
+          },
+        }),
+    },
+  };
+
+  const handler = new RequestAssessmentFinalizationHandler(
+    {
+      $transaction: async (callback: (client: typeof tx) => Promise<unknown>) =>
+        callback(tx),
+    } as unknown as PrismaService,
+    {
+      authorizeInTx: () =>
+        Promise.resolve({
+          auditRequestId: requestId,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        }),
+    } as unknown as AssessmentRuntimeAuthority,
+    { inspectInTx: jest.fn() } as unknown as AssessmentCompletionGate,
+    {
+      transitionVerifiedInTx: jest.fn(),
+    } as unknown as AssessmentLifecycleCoordinator,
+    {
+      loadPins: () => Promise.resolve(pins),
+      buildValidationContext: () =>
+        Promise.resolve({
+          caseRevision: 1,
+          pins,
+          rule: {
+            assessmentRuleId: "Rule-Selected",
+            assessmentRuleVersion: "v1",
+            criterionIds: new Set(["C-1"]),
+            legalContextIds: new Set(["Legal-1"]),
+            declaredElements: new Map(),
+          },
+          evidence: new Map([
+            [
+              evidenceId,
+              {
+                state: "ACCEPTED",
+                repositoryCommit,
+                type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+                payload: {},
+              },
+            ],
+          ]),
+          facts: new Map(),
+        }),
+    } as unknown as AssessmentCaseSupport,
+  );
+
+  const result = await handler.execute(
+    new RequestAssessmentFinalizationCommand(
+      assessmentId,
+      randomUUID(),
+      {},
+      randomUUID(),
+    ),
+  );
+
+  expect(result.blockers).toEqual([
+    {
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.OPEN_HUMAN_REQUEST,
+      reference: "Rule-Selected",
+    },
+  ]);
+  expect(tx.assessmentRuleAuditRequest.update).not.toHaveBeenCalled();
 });
