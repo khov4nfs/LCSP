@@ -92,8 +92,9 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
         for (const request of open) {
           const matchingRule = ruleIdSet.has(request.assessmentRuleId)
             ? request.assessmentRuleId
-            : request.dependencies.find((d) => ruleIdSet.has(d.assessmentRuleId))
-                ?.assessmentRuleId ?? request.assessmentRuleId;
+            : (request.dependencies.find((d) =>
+                ruleIdSet.has(d.assessmentRuleId),
+              )?.assessmentRuleId ?? request.assessmentRuleId);
           blockers.push({
             code: ASSESSMENT_COMPLETION_BLOCKER_CODES.OPEN_HUMAN_REQUEST,
             reference: matchingRule,

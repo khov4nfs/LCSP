@@ -64,16 +64,18 @@ describe("SubmitRuleDecisionHandler", () => {
   const auditRequestId = randomUUID();
   const ruleId = "RULE-1";
 
-  function createFixture(overrides: {
-    authorityThrows?: boolean;
-    coverageState?: string;
-    openHumanRequest?: boolean;
-    reusedDecisionId?: string | null;
-    reusedDecisionState?: string;
-    replayDecision?: Record<string, unknown> | null;
-    previousDecisionRevision?: number;
-    previousDecisionState?: string;
-  } = {}) {
+  function createFixture(
+    overrides: {
+      authorityThrows?: boolean;
+      coverageState?: string;
+      openHumanRequest?: boolean;
+      reusedDecisionId?: string | null;
+      reusedDecisionState?: string;
+      replayDecision?: Record<string, unknown> | null;
+      previousDecisionRevision?: number;
+      previousDecisionState?: string;
+    } = {},
+  ) {
     const evidenceId = randomUUID();
     const decision = buildDecision({
       assessmentRuleId: ruleId,

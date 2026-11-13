@@ -220,7 +220,9 @@ it("blocks selected finalization when an open human request covers a selected ru
           ruleSetVersionId,
           scopeMode: RULE_AUDIT_SCOPE_MODES.SELECTED_RULES,
           status: RULE_AUDIT_STATUSES.RUNNING,
-          rules: [{ assessmentRuleId: "Rule-Selected", assessmentRuleVersion: "v1" }],
+          rules: [
+            { assessmentRuleId: "Rule-Selected", assessmentRuleVersion: "v1" },
+          ],
         }),
       update: jest.fn(() => Promise.resolve({})),
     },
@@ -264,7 +266,9 @@ it("blocks selected finalization when an open human request covers a selected ru
         }),
     } as unknown as AssessmentRuntimeAuthority,
     { inspectInTx: jest.fn() } as unknown as AssessmentCompletionGate,
-    { transitionVerifiedInTx: jest.fn() } as unknown as AssessmentLifecycleCoordinator,
+    {
+      transitionVerifiedInTx: jest.fn(),
+    } as unknown as AssessmentLifecycleCoordinator,
     {
       loadPins: () => Promise.resolve(pins),
       buildValidationContext: () =>
