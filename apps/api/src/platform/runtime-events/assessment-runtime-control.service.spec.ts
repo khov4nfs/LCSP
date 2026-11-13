@@ -1,6 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
+  ASSESSMENT_ROOT_BOUNDARY,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+} from "@lcsp/contracts/assessment-domain";
+import { Prisma } from "@prisma/client";
+import {
   ASSESSMENT_RUNTIME_CONTROL_ACTIONS as Actions,
   ASSESSMENT_RUNTIME_CONTROL_PROBLEM_CODES as Problems,
   ASSESSMENT_RUNTIME_CONTROL_STATES as States,
@@ -223,5 +228,168 @@ describe("runtime control registration", () => {
     expect(updateMany).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("rejects resume with BUDGET_EXHAUSTED when budget was reached and not extended", async () => {
+    const updateMany = jest.fn();
+    const enqueue = jest.fn();
+    const queryRaw = jest.fn<() => Promise<unknown[]>>();
+    queryRaw.mockResolvedValue([
+      { id: "assessment", ownerId: "actor" },
+      { assessmentId: "assessment" },
+    ]);
+    const runtimeFindUnique = jest.fn<() => Promise<unknown>>();
+    runtimeFindUnique.mockResolvedValue({
+      assessmentId: "assessment",
+      threadId: "root-thread",
+      checkpointNamespace: "assessment",
+      currentExecutionId: "stopped-run",
+    });
+    const turnFindUnique = jest.fn<() => Promise<unknown>>();
+    turnFindUnique.mockResolvedValue({
+      id: "stopped-run",
+      assessmentId: "assessment",
+      threadId: "root-thread",
+      boundary: ASSESSMENT_ROOT_BOUNDARY,
+      logicalRunId: "logical-run",
+      state: States.stopped,
+      requestId: "stop-request",
+      checkpointJson: { checkpointId: "cp-1" },
+    });
+    const tx = {
+      $queryRaw: queryRaw,
+      assessmentRuntime: { findUnique: runtimeFindUnique },
+      assessmentRuntimeTurn: { findUnique: turnFindUnique, updateMany },
+      assessment: {
+        findUniqueOrThrow: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "assessment",
+          lifecycleState: "PAUSED",
+          runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
+          blockerReference: { reason: "AGENT_BUDGET_REACHED", budgetExtended: false },
+          domainCase: {
+            repositorySnapshotId: "snap-1",
+            ruleSetVersionId: "ver-1",
+            repositoryScanJobId: "job-1",
+            repositoryCommit: "sha-1",
+            ruleSet: { lifecycleState: "ACTIVE" },
+          },
+        }),
+      },
+      repositorySnapshot: {
+        findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "snap-1",
+          assessmentId: "assessment",
+          commitSha: "sha-1",
+        }),
+      },
+      assessmentHumanRequest: { count: jest.fn<() => Promise<number>>().mockResolvedValue(0) },
+    };
+    const controls = new AssessmentRuntimeControlService(
+      {
+        $transaction: async (work: (value: typeof tx) => Promise<unknown>) => work(tx),
+      } as unknown as PrismaService,
+      { enqueue } as unknown as OutboxRepository,
+      {} as AssessmentLifecycleCoordinator,
+    );
+
+    await expect(
+      controls.request({
+        assessmentId: "assessment",
+        actor,
+        correlationId: "corr",
+        action: Actions.resume,
+        targetRunId: "stopped-run",
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.BUDGET_EXHAUSTED,
+        }),
+      }),
+    });
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("permits resume and clears blockerReference when budget was extended", async () => {
+    const updateMany = jest.fn<(args?: any) => Promise<{ count: number }>>().mockResolvedValue({ count: 1 });
+    const updateAssessment = jest.fn<(args?: any) => Promise<any>>().mockResolvedValue({});
+    const enqueue = jest.fn<(args?: any) => Promise<any>>().mockResolvedValue({});
+    const queryRaw = jest.fn<() => Promise<unknown[]>>();
+    queryRaw.mockResolvedValue([
+      { id: "assessment", ownerId: "actor" },
+      { assessmentId: "assessment" },
+    ]);
+    const runtimeFindUnique = jest.fn<() => Promise<unknown>>();
+    runtimeFindUnique.mockResolvedValue({
+      assessmentId: "assessment",
+      threadId: "root-thread",
+      checkpointNamespace: "assessment",
+      currentExecutionId: "stopped-run",
+    });
+    const turnFindUnique = jest.fn<() => Promise<unknown>>();
+    turnFindUnique.mockResolvedValue({
+      id: "stopped-run",
+      assessmentId: "assessment",
+      threadId: "root-thread",
+      boundary: ASSESSMENT_ROOT_BOUNDARY,
+      logicalRunId: "logical-run",
+      state: States.stopped,
+      requestId: "stop-request",
+      checkpointJson: { checkpointId: "cp-1" },
+    });
+    const tx = {
+      $queryRaw: queryRaw,
+      assessmentRuntime: { findUnique: runtimeFindUnique },
+      assessmentRuntimeTurn: { findUnique: turnFindUnique, updateMany },
+      assessment: {
+        findUniqueOrThrow: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "assessment",
+          lifecycleState: "PAUSED",
+          runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
+          blockerReference: { reason: "AGENT_BUDGET_REACHED", budgetExtended: true },
+          domainCase: {
+            repositorySnapshotId: "snap-1",
+            ruleSetVersionId: "ver-1",
+            repositoryScanJobId: "job-1",
+            repositoryCommit: "sha-1",
+            ruleSet: { lifecycleState: "ACTIVE" },
+          },
+        }),
+        update: updateAssessment,
+      },
+      repositorySnapshot: {
+        findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "snap-1",
+          assessmentId: "assessment",
+          commitSha: "sha-1",
+        }),
+      },
+      assessmentHumanRequest: { count: jest.fn<() => Promise<number>>().mockResolvedValue(0) },
+    };
+    const controls = new AssessmentRuntimeControlService(
+      {
+        $transaction: async (work: (value: typeof tx) => Promise<unknown>) => work(tx),
+      } as unknown as PrismaService,
+      { enqueue } as unknown as OutboxRepository,
+      {} as AssessmentLifecycleCoordinator,
+    );
+
+    const result = await controls.request({
+      assessmentId: "assessment",
+      actor,
+      correlationId: "corr",
+      action: Actions.resume,
+      targetRunId: "stopped-run",
+    });
+
+    expect(updateAssessment).toHaveBeenCalledWith({
+      where: { id: "assessment" },
+      data: { blockerReference: Prisma.DbNull },
+    });
+    expect(updateMany).toHaveBeenCalled();
+    expect(enqueue).toHaveBeenCalled();
+    expect(result.state).toBe(States.resumeRequested);
   });
 });

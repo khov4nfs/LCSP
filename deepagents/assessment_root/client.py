@@ -145,7 +145,7 @@ class AssessmentRuntimeClient:
     def heartbeat(self) -> dict[str, Any]:
         return self._call("POST", "/heartbeat")
 
-    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None, recovery_required: bool = False) -> dict[str, Any]:
+    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None, recovery_required: bool = False, reason: str | None = None) -> dict[str, Any]:
         """Business purpose: Settle one leased Root segment, retaining uncertain work for operator recovery.
 
         Business rules:
@@ -167,6 +167,8 @@ class AssessmentRuntimeClient:
             body["requestIds"] = request_ids
         if control_request_id is not None:
             body["controlRequestId"] = control_request_id
+        if reason is not None:
+            body["reason"] = reason
         result = self._call("POST", "/finish", body)
         self.lease_token = None
         return result
