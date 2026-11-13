@@ -11,12 +11,18 @@ import {
 import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
-  ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_DECISION_SCOPE,
   assessmentFinalReportArtifactSchema,
 } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_REPORT_SOURCE_SCOPE_MODES,
+  ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS,
+  ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES,
+  ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS,
+} from "@lcsp/contracts/assessment-report";
 import { describe, expect, it, jest } from "@jest/globals";
 import { ArtifactLifecycleState, AssessmentArtifactKind } from "@prisma/client";
 
@@ -73,6 +79,7 @@ function buildHandler(
     existingArtifact?: unknown;
     storedContent?: string;
     storageFailure?: boolean;
+    repositorySnapshot?: { sourcePathPrefix: string | null } | null;
   } = {},
 ) {
   const snapshot = {
@@ -121,6 +128,9 @@ function buildHandler(
         void _payload;
         return Promise.resolve({});
       }),
+    },
+    repositorySnapshot: {
+      findUnique: () => Promise.resolve(options.repositorySnapshot ?? null),
     },
     complianceRuleSetVersion: {
       findUnique: () =>
@@ -353,7 +363,7 @@ describe("SubmitAssessmentFinalReportHandler", () => {
     },
   );
 
-  it("persists a V2 artifact only after canonical assembly", async () => {
+  it("persists a V3 artifact only after canonical assembly", async () => {
     const { handler, writeImmutableArtifact, tx } = buildHandler();
     const result = await handler.execute(
       new SubmitAssessmentFinalReportCommand(
@@ -370,7 +380,7 @@ describe("SubmitAssessmentFinalReportHandler", () => {
     expect(tx.assessmentArtifact.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          schemaVersion: ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
+          schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
         }),
       }),
     );
@@ -474,5 +484,195 @@ describe("SubmitAssessmentFinalReportHandler", () => {
       },
     });
     expect(writeImmutableArtifact).not.toHaveBeenCalled();
+  });
+
+  it("rejects V3 report replay when persisted sourcePathPrefix pin mismatches repository snapshot", async () => {
+    const request = requestFor({});
+    const artifactId = randomUUID();
+    const decisionId = randomUUID();
+    const v3Report = {
+      schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+      artifactId,
+      assessmentId,
+      kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+      identity: {
+        repositorySnapshotId: snapshotId,
+        repositoryCommit: "a".repeat(40),
+      },
+      pins: {
+        ruleSetVersionId: ruleSetId,
+        ruleSetVersion: "rules-v1",
+        ruleSetDigest: "d".repeat(64),
+        legalSourceVersionId: legalSourceId,
+        legalSourceVersion: "source-v1",
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: "scan-1",
+        repositoryCommit: "a".repeat(40),
+        sourcePathPrefix: "services/core",
+      },
+      caseRevision: 1,
+      decisionFingerprint: `sha256:${sha256Hex(
+        canonicalJson([{ decisionId, decisionRevision: 1, decision }]),
+      )}`,
+      sourceScope: {
+        mode: ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE,
+        visibility: ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED,
+        sourcePathPrefix: "services/core",
+        excludedPaths: [],
+        limitationReasons: [
+          ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.PARTIAL_COVERAGE_RECORDED,
+        ],
+        searchCoverageEvidenceIds: [],
+      },
+      legalRequirements: [
+        {
+          legalRequirementId: "LR-1",
+          title: "Retention mandate",
+          proposition: "Records must be retained.",
+          applicabilityConditions: [],
+          qualifiers: [],
+          exceptions: [],
+          nonRepositoryDuty: false,
+          coverageState: "COVERED_BY_ASSESSMENT_RULES",
+          sourceRefs: [
+            {
+              legalSourceVersionId: legalSourceId,
+              legalSourceVersion: "source-v1",
+              documentId: "DOC-1",
+              locator: "article-1",
+              contentSha256: `sha256:${"c".repeat(64)}`,
+            },
+          ],
+        },
+      ],
+      ruleDetails: [
+        {
+          assessmentRuleId: "ER-1",
+          assessmentRuleVersion: "v1",
+          legalRequirementIds: ["LR-1"],
+          relatedLegalContexts: [],
+          concept: "Retention",
+          legalIntent: "Records are retained.",
+          applicabilityGuidance: "Applies to system.",
+          criteria: [{ criterionId: "C-1", statement: "Retention exists." }],
+          decisionId,
+          decisionRevision: 1,
+          decision,
+          decisionReferences: [
+            {
+              origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.decision,
+              reference: {
+                type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+                evidenceId,
+              },
+            },
+          ],
+          applicabilityBasisReferences: [],
+          factEvidenceReferences: [],
+          criteriaDecisions: [
+            {
+              criterionId: "C-1",
+              outcome: RULE_DECISION_CRITERION_OUTCOMES.MET,
+              rationale: "The cited evidence supports the criterion.",
+              references: [
+                {
+                  origin: ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.criterion,
+                  reference: {
+                    type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+                    evidenceId,
+                  },
+                },
+              ],
+            },
+          ],
+          narrative: {
+            summary: "Rule summary.",
+            recommendations: [],
+          },
+          factIds: [],
+          evidenceIds: [evidenceId],
+          sourceRefs: [
+            {
+              legalSourceVersionId: legalSourceId,
+              legalSourceVersion: "source-v1",
+              documentId: "DOC-1",
+              locator: "article-1",
+              contentSha256: `sha256:${"c".repeat(64)}`,
+            },
+          ],
+        },
+      ],
+      factIndex: [],
+      evidenceIndex: [
+        {
+          evidenceId,
+          type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+          contentSha256: `sha256:${"b".repeat(64)}`,
+          repositoryCommit: "a".repeat(40),
+          safeLocator: "services/core/retention.ts:1-2",
+        },
+      ],
+      outcomeSummary: {
+        totalRules: 1,
+        applicableCompliant: 1,
+        applicableNonCompliant: 0,
+        notApplicable: 0,
+      },
+      boundedNarrative: {
+        summary: "The assessment is complete.",
+        scopeLimitations: ["PARTIAL_COVERAGE_RECORDED"],
+      },
+      boundedActionPlan: {
+        maxHighlightItems: 200,
+        totalRecommendations: 0,
+        omittedCount: 0,
+        truncated: false,
+        items: [],
+      },
+      publicationProvenance: {
+        sourceManifestDigest: null,
+        publishedAt: null,
+      },
+    };
+    const storedContent = canonicalJson(v3Report);
+    const contentHash = sha256Hex(storedContent);
+    const manifest = {
+      artifact_id: artifactId,
+      total_size: Buffer.byteLength(storedContent, "utf8"),
+      hash: contentHash,
+      chunks: ["artifact.chunk"],
+    };
+    const existingArtifact = {
+      artifactId,
+      assessmentId,
+      kind: AssessmentArtifactKind.FINAL_REPORT,
+      lifecycleState: ArtifactLifecycleState.ACTIVE,
+      ruleSetVersionId: ruleSetId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: "a".repeat(40),
+      caseRevision: 1,
+      schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+      reportRequestDigest: sha256Hex(canonicalJson(request)),
+      contentSha256: `sha256:${contentHash}`,
+      sizeBytes: Buffer.byteLength(storedContent, "utf8"),
+      storageRef: JSON.stringify(manifest),
+    };
+
+    const { handler } = buildHandler({
+      existingArtifact,
+      storedContent,
+      repositorySnapshot: { sourcePathPrefix: "different/path" },
+    });
+
+    await expect(
+      handler.execute(
+        new SubmitAssessmentFinalReportCommand(
+          assessmentId,
+          randomUUID(),
+          request,
+          randomUUID(),
+        ),
+      ),
+    ).rejects.toThrow("Persisted final report sourcePathPrefix pin mismatch");
   });
 });
