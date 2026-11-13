@@ -6,7 +6,10 @@ import {
   ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
-import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
+import {
+  ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  assessmentFinalReportArtifactVersionedSchema,
+} from "@lcsp/contracts/assessment-report";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
@@ -98,6 +101,24 @@ export class AssessmentReportLoader {
             pinnedRuleSet.legalSourceVersion.version
         ) {
           throw new Error("Final report pinned rule-set integrity mismatch");
+        }
+      }
+      if (
+        report.schemaVersion === ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION &&
+        "sourcePathPrefix" in report.pins
+      ) {
+        const snapshot = await this.prisma.repositorySnapshot.findUnique({
+          where: { id: report.pins.repositorySnapshotId },
+          select: { id: true, sourcePathPrefix: true },
+        });
+        if (!snapshot) {
+          throw new Error("Final report pinned repository snapshot not found");
+        }
+        const authoritativePrefix = snapshot.sourcePathPrefix ?? null;
+        if (report.pins.sourcePathPrefix !== authoritativePrefix) {
+          throw new Error(
+            "Final report source path prefix does not match authoritative repository snapshot",
+          );
         }
       }
       const reportDecisions =
