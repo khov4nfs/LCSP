@@ -231,7 +231,9 @@ describe("AssessmentCaseSupport immutable source pins", () => {
     });
 
     it("steps through INVESTIGATING and advances to RESOLVED when from INVALIDATED", async () => {
-      const update = jest.fn((_args?: unknown) => Promise.resolve({}));
+      const update = jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({});
       const tx = {
         assessmentDecisionCoverage: { update },
       } as unknown as Prisma.TransactionClient;
