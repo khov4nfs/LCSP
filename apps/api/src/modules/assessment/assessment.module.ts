@@ -77,6 +77,7 @@ import { ListAssessmentsHandler } from "./application/queries/list-assessments/l
 import { AssessmentCompletionGate } from "./application/services/assessment-completion-gate.service.js";
 import { AssessmentEventAppender } from "./application/services/assessment-event-appender.service.js";
 import { AssessmentEvidenceInvalidation } from "./application/services/assessment-evidence-invalidation.service.js";
+import { AssessmentRepositoryProfileService } from "./application/services/assessment-repository-profile.service.js";
 import { AssessmentLifecycleCoordinator } from "./application/services/assessment-lifecycle-coordinator.service.js";
 import { AssessmentRuntimeAuthority } from "./application/services/assessment-runtime-authority.service.js";
 import { AssessmentRuntimePreparation } from "./application/services/assessment-runtime-preparation.service.js";
@@ -136,6 +137,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentRuleAuditService,
     AssessmentCaseSupport,
     AssessmentEvidenceInvalidation,
+    AssessmentRepositoryProfileService,
     AssessmentCompletionGate,
     LocalePresentationProjectionService,
     AssessmentHumanRequestSupport,
@@ -190,6 +192,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
       useExisting: PrismaAssessmentRepository,
     },
     PrismaAssessmentBillingRetention,
+    AssessmentRepositoryProfileService,
     {
       provide: ASSESSMENT_BILLING_RETENTION,
       useExisting: PrismaAssessmentBillingRetention,

@@ -64,6 +64,13 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
     # The Root's graph tools query the Codebase Memory index of the hydrated snapshot; index it
     # before the Root starts (reused when current) so a run never silently lacks the graph.
     ensure_codebase_memory_index(thread_backend)
+    from tools.common.capabilities.platform.repository_scanner import ensure_repository_profile
+    ensure_repository_profile(
+        thread_backend,
+        repository_id=context.get("repositoryId") or context.get("repositoryFullName") or context["assessmentId"],
+        commit_sha=context["repositoryCommit"],
+        source_path_prefix=context.get("sourcePathPrefix"),
+    )
     return RuntimeRepositoryFilesystemBackend(read_only_repository=True), activate_repository_backend(thread_backend)
 
 
