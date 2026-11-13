@@ -190,6 +190,24 @@ export class AssessmentCaseSupport {
     return row;
   }
 
+  /**
+   * Business purpose: Advance rule decision coverage to RESOLVED along the canonical state transition table.
+   *
+   * Business rules:
+   * - Coverage may transition to RESOLVED from PENDING, INVALIDATED, or INVESTIGATING.
+   * - Direct transition from WAITING_FOR_INPUT to RESOLVED without resolving human dependencies is rejected.
+   *
+   * Execution flow:
+   * 1. Reject illegal transitions from WAITING_FOR_INPUT.
+   * 2. Step through INVESTIGATING for initial or recovering transitions from PENDING or INVALIDATED.
+   * 3. Record the new resolved decision ID, revision, and RESOLVED status under the caller's transaction.
+   *
+   * Failure cases:
+   * - Transition from WAITING_FOR_INPUT throws DECISION_REVISION_STALE with HTTP 409 Conflict.
+   *
+   * Side effects:
+   * - Updates AssessmentDecisionCoverage row in the database.
+   */
   async advanceCoverageToResolved(
     tx: Prisma.TransactionClient,
     input: {
@@ -200,6 +218,13 @@ export class AssessmentCaseSupport {
       decisionRevision: number;
     },
   ) {
+    if (input.from === DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
+        "",
+        { status: HttpStatus.CONFLICT },
+      );
+    }
     const key = {
       assessmentId_assessmentRuleId: {
         assessmentId: input.assessmentId,

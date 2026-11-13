@@ -171,7 +171,10 @@ export class AssessmentRuleAuditService {
               assessmentId,
               status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
             },
-            select: { assessmentRuleId: true },
+            select: {
+              assessmentRuleId: true,
+              dependencies: { select: { assessmentRuleId: true } },
+            },
           }),
           tx.assessmentRuleAuditRequest.findFirst({
             where: { assessmentId },
@@ -234,7 +237,12 @@ export class AssessmentRuleAuditService {
       const covered = new Map(
         coverage.map((row) => [row.assessmentRuleId, row]),
       );
-      const waiting = new Set(openRequests.map((row) => row.assessmentRuleId));
+      const waiting = new Set(
+        openRequests.flatMap((row) => [
+          row.assessmentRuleId,
+          ...(row.dependencies?.map((d) => d.assessmentRuleId) ?? []),
+        ]),
+      );
       const localizedRules = await Promise.all(
         visibleRules.map(async (rule) => {
           if (!locale) return rule;
@@ -725,7 +733,10 @@ export class AssessmentRuleAuditService {
             assessmentId,
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
           },
-          select: { assessmentRuleId: true },
+          select: {
+            assessmentRuleId: true,
+            dependencies: { select: { assessmentRuleId: true } },
+          },
         }),
         this.prisma.assessmentRuleDecision.findMany({
           where: { auditRequestId: requestId },
@@ -738,7 +749,12 @@ export class AssessmentRuleAuditService {
     for (const decision of requestDecisions)
       if (!decided.has(decision.assessmentRuleId))
         decided.set(decision.assessmentRuleId, decision);
-    const waiting = new Set(openRequests.map((item) => item.assessmentRuleId));
+    const waiting = new Set(
+      openRequests.flatMap((item) => [
+        item.assessmentRuleId,
+        ...(item.dependencies?.map((d) => d.assessmentRuleId) ?? []),
+      ]),
+    );
     const rules = row.rules.map((item) => {
       const current = byId.get(item.assessmentRuleId);
       const own = decided.get(item.assessmentRuleId);
