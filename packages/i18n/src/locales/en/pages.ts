@@ -2701,6 +2701,8 @@ export const enPages = {
       EXTRACTION_FAILED: "Text could not be extracted from this document.",
       NO_EXTRACTABLE_TEXT: "No readable text was found.",
       NO_CHUNKS: "No provisions could be created.",
+      CHUNK_LIMIT_EXCEEDED:
+        "The document exceeded the 20,000 provision limit. Please split the document by chapters or legal parts.",
       DUPLICATE_LOCATOR: "The document contains duplicate provision locations.",
       RUNTIME_UNAVAILABLE: "Document processing is temporarily unavailable.",
     },

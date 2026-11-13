@@ -2344,6 +2344,7 @@ export type PagesMessages = {
       EXTRACTION_FAILED: string;
       NO_EXTRACTABLE_TEXT: string;
       NO_CHUNKS: string;
+      CHUNK_LIMIT_EXCEEDED: string;
       DUPLICATE_LOCATOR: string;
       RUNTIME_UNAVAILABLE: string;
     };

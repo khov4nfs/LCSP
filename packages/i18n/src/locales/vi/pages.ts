@@ -2700,6 +2700,8 @@ export const viPages = {
       EXTRACTION_FAILED: "Không thể trích xuất văn bản từ tài liệu.",
       NO_EXTRACTABLE_TEXT: "Không tìm thấy văn bản có thể đọc.",
       NO_CHUNKS: "Không thể tạo điều khoản.",
+      CHUNK_LIMIT_EXCEEDED:
+        "Tài liệu vượt quá giới hạn 20.000 điều khoản. Vui lòng chia nhỏ tài liệu theo chương hoặc phần pháp lý.",
       DUPLICATE_LOCATOR: "Tài liệu có vị trí điều khoản bị trùng.",
       RUNTIME_UNAVAILABLE: "Tạm thời không thể xử lý tài liệu.",
     },

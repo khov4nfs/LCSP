@@ -56,6 +56,7 @@ export const LEGAL_SOURCE_DOCUMENT_FAILURE_CODES = {
   EXTRACTION_FAILED: "EXTRACTION_FAILED",
   NO_EXTRACTABLE_TEXT: "NO_EXTRACTABLE_TEXT",
   NO_CHUNKS: "NO_CHUNKS",
+  CHUNK_LIMIT_EXCEEDED: "CHUNK_LIMIT_EXCEEDED",
   DUPLICATE_LOCATOR: "DUPLICATE_LOCATOR",
   RUNTIME_UNAVAILABLE: "RUNTIME_UNAVAILABLE",
 } as const;
@@ -114,6 +115,7 @@ export type LegalSourceStructureProfile =
 export const LEGAL_SOURCE_LIMITS = {
   maxDocumentBytes: 25 * 1024 * 1024,
   maxDocumentsPerVersion: 100,
+  maxChunksPerDocument: 20000,
   maxNameLength: 120,
   maxDescriptionLength: 500,
   maxTitleLength: 240,
