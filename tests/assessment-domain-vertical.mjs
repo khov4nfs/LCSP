@@ -1581,16 +1581,26 @@ try {
           ...detail.criteriaDecisions.flatMap((c) => c.references),
         ]) {
           const ref = entry.reference ?? entry;
-          if (ref.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
+          if (
+            ref.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+          ) {
             referencedEvidence.add(ref.evidenceId);
           } else if (
-            ref.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_FACT
+            ref.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT ||
+            ref.factId
           ) {
             referencedFacts.add(ref.factId);
           }
         }
+        for (const id of detail.evidenceIds) {
+          referencedEvidence.add(id);
+        }
+        for (const id of detail.factIds) {
+          referencedFacts.add(id);
+        }
       }
       for (const fact of reportArtifact.factIndex) {
+        referencedFacts.add(fact.factId);
         for (const evidenceId of fact.evidenceIds) {
           referencedEvidence.add(evidenceId);
         }
