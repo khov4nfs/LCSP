@@ -24,6 +24,8 @@ from tools.legal.managed_documents.boundary import (
 )
 from tools.legal.managed_documents.chunker import (
     CONFIG_PATH,
+    MAX_CHUNKS,
+    ChunkingResult,
     UnknownStructureProfile,
     chunk_document,
     load_profiles,
@@ -38,7 +40,11 @@ from tools.legal.managed_documents.extract import (
     ExtractionError,
     extract_document,
 )
-from tools.legal.managed_documents.ingest import ingest_document
+from tools.legal.managed_documents.ingest import (
+    FAILURE_CHUNK_LIMIT_EXCEEDED,
+    FAILURE_NO_CHUNKS,
+    ingest_document,
+)
 
 STATUTE = """\
 QUỐC HỘI
@@ -275,6 +281,40 @@ class TestExtraction:
         result = ingest_document(data=b"original", media_type=MEDIA_PDF, structure_profile="AUTO", attempt=2)
         assert result == {"outcome": "FAILED", "attempt": 2, "failureCode": "EXTRACTION_FAILED"}
 
+    def test_mixed_pdf_matrix_native_scanned_blank_and_ocr_gap(self, monkeypatch):
+        from tools.legal.sources.scripts.ocr_legal_pdf import LegalPdfOcr, OcrPage
+
+        source = b"mixed-pdf-source-bytes"
+        pages = [
+            SimpleNamespace(extract_text=lambda: "Article 1. Scope of the instrument.", images=[]),
+            SimpleNamespace(extract_text=lambda: "", images=[object()]),
+            SimpleNamespace(extract_text=lambda: "", images=[]),
+            SimpleNamespace(extract_text=lambda: "Điều 3. Hiệu lực thi hành từ ngày ký.", images=[]),
+        ]
+        monkeypatch.setattr("pypdf.PdfReader", lambda _: SimpleNamespace(is_encrypted=False, pages=pages))
+
+        def recognize(self, *, pdf_path, page_numbers):
+            assert page_numbers == [2]
+            return [OcrPage(2, "Điều 2. Nội dung được nhận dạng qua OCR.", "sha256:ocr2")]
+
+        monkeypatch.setattr(LegalPdfOcr, "extract_pages", recognize)
+        document = extract_document(MEDIA_PDF, source)
+
+        assert document.page_count == 4
+        assert document.pages[0] == "Article 1. Scope of the instrument."
+        assert document.pages[1] == "Điều 2. Nội dung được nhận dạng qua OCR."
+        assert document.pages[2] == ""
+        assert document.pages[3] == "Điều 3. Hiệu lực thi hành từ ngày ký."
+        assert document.gaps == [{"page": 3, "kind": "NO_TEXT_LAYER"}]
+        assert "pypdf+tesseract:vie+eng@300dpi" in document.tool
+
+        # Verify through ingest_document
+        result = ingest_document(data=source, media_type=MEDIA_PDF, structure_profile="AUTO", attempt=1)
+        assert result["outcome"] == "READY"
+        assert result["extraction"]["pageCount"] == 4
+        assert result["extraction"]["gaps"] == [{"page": 3, "kind": "NO_TEXT_LAYER"}]
+        assert result["extraction"]["pages"] == document.pages
+
     def test_pdf_text_layer_is_read(self):
         pdf = minimal_pdf(["Article 1. Scope", "This Act applies to samples.", "Article 2. Duties", "Keep records."])
         document = extract_document(MEDIA_PDF, pdf)
@@ -385,6 +425,91 @@ class TestIngestResult:
         assert set(load_profiles()["profiles"]) == {"ARTICLES", "NUMBERED_SECTIONS", "PARAGRAPHS"}
         assert CONFIG_PATH.exists()
 
+    def test_chunk_boundary_matrix_zero_19999_20000_20001(self, monkeypatch):
+        # Synthetic boundary harness isolating the 0, 19999, 20000, 20001 chunk threshold
+        import tools.legal.managed_documents.ingest as ingest_mod
+
+        def synthetic_chunk(i: int) -> dict:
+            content = f"Article {i}. Rule text."
+            return {
+                "locator": f"art-{i}",
+                "content": content,
+                "contentSha256": sha256_ref(content),
+                "hierarchy": {"articleNumber": str(i)},
+                "pageStart": 1,
+                "pageEnd": 1,
+            }
+
+        # 0 chunks -> NO_CHUNKS failure
+        monkeypatch.setattr(
+            ingest_mod,
+            "chunk_document",
+            lambda *_, **__: ChunkingResult(profile="ARTICLES", chunks=[], front_matter_characters=0),
+        )
+        res_zero = ingest_document(data=STATUTE.encode(), media_type=MEDIA_TEXT, structure_profile="AUTO", attempt=1)
+        assert res_zero == {
+            "outcome": "FAILED",
+            "attempt": 1,
+            "failureCode": FAILURE_NO_CHUNKS,
+        }
+
+        # 19,999 chunks -> READY
+        chunks_19999 = [synthetic_chunk(i) for i in range(1, 20000)]
+        monkeypatch.setattr(
+            ingest_mod,
+            "chunk_document",
+            lambda *_, **__: ChunkingResult(profile="ARTICLES", chunks=chunks_19999, front_matter_characters=0),
+        )
+        res_19999 = ingest_document(data=STATUTE.encode(), media_type=MEDIA_TEXT, structure_profile="AUTO", attempt=2)
+        assert res_19999["outcome"] == "READY"
+        assert res_19999["attempt"] == 2
+        assert len(res_19999["chunks"]) == 19999
+
+        # 20,000 chunks (exact boundary limit) -> READY
+        chunks_20000 = [synthetic_chunk(i) for i in range(1, 20001)]
+        monkeypatch.setattr(
+            ingest_mod,
+            "chunk_document",
+            lambda *_, **__: ChunkingResult(profile="ARTICLES", chunks=chunks_20000, front_matter_characters=0),
+        )
+        res_20000 = ingest_document(data=STATUTE.encode(), media_type=MEDIA_TEXT, structure_profile="AUTO", attempt=3)
+        assert res_20000["outcome"] == "READY"
+        assert res_20000["attempt"] == 3
+        assert len(res_20000["chunks"]) == 20000
+
+        # 20,001 chunks (exceeds limit by 1) -> CHUNK_LIMIT_EXCEEDED failure
+        chunks_20001 = [synthetic_chunk(i) for i in range(1, 20002)]
+        monkeypatch.setattr(
+            ingest_mod,
+            "chunk_document",
+            lambda *_, **__: ChunkingResult(profile="ARTICLES", chunks=chunks_20001, front_matter_characters=0),
+        )
+        res_20001 = ingest_document(data=STATUTE.encode(), media_type=MEDIA_TEXT, structure_profile="AUTO", attempt=4)
+        assert res_20001 == {
+            "outcome": "FAILED",
+            "attempt": 4,
+            "failureCode": FAILURE_CHUNK_LIMIT_EXCEEDED,
+        }
+        # Fail-closed: ensure no partial chunk list is emitted
+        assert "chunks" not in res_20001
+
+    def test_over_limit_refuses_partial_chunk_list(self, monkeypatch):
+        import tools.legal.managed_documents.ingest as ingest_mod
+
+        overflow = [
+            {"locator": f"art-{i}", "content": "x", "contentSha256": sha256_ref("x"), "hierarchy": {}, "pageStart": 1, "pageEnd": 1}
+            for i in range(MAX_CHUNKS + 10)
+        ]
+        monkeypatch.setattr(
+            ingest_mod,
+            "chunk_document",
+            lambda *_, **__: ChunkingResult(profile="ARTICLES", chunks=overflow, front_matter_characters=0),
+        )
+        result = ingest_document(data=STATUTE.encode(), media_type=MEDIA_TEXT, structure_profile="AUTO", attempt=1)
+        assert result["outcome"] == "FAILED"
+        assert result["failureCode"] == "CHUNK_LIMIT_EXCEEDED"
+        assert "chunks" not in result
+
 
 MESSAGE = {"documentRowId": "5e3a4a0c-0a3e-4a86-9b88-1f0c3b9a8e11", "attempt": 2}
 
@@ -480,6 +605,19 @@ class TestBoundary:
         client = FakeClient()
         boundary(client).handle(MESSAGE, "corr")
         assert client.posted[0]["failureCode"] == "EXTRACTION_FAILED"
+
+    def test_chunk_limit_exceeded_settles_as_failed_document(self, monkeypatch):
+        import tools.legal.managed_documents.boundary as module
+
+        monkeypatch.setattr(
+            module,
+            "ingest_document",
+            lambda **kwargs: {"outcome": "FAILED", "attempt": kwargs["attempt"], "failureCode": "CHUNK_LIMIT_EXCEEDED"},
+        )
+        client = FakeClient()
+        outcome = boundary(client).handle(MESSAGE, "corr")
+        assert outcome == {"state": "FAILED", "applied": True}
+        assert client.posted == [{"outcome": "FAILED", "attempt": 2, "failureCode": "CHUNK_LIMIT_EXCEEDED"}]
 
 
 class TestLawAgnostic:

@@ -636,6 +636,78 @@ database("Legal Source management on PostgreSQL", () => {
       });
     });
 
+    it("records CHUNK_LIMIT_EXCEEDED failure when document exceeds 20,000 chunks, blocks activation, and permits idempotent retry", async () => {
+      const source = await newSource();
+      const draft = await newDraft(source.id);
+      const document = await upload(
+        draft.id,
+        "oversized.txt",
+        `body ${randomUUID()}`,
+      );
+
+      const recordResult = await documents.recordIngestionResult({
+        documentRowId: document.id,
+        result: {
+          outcome: "FAILED",
+          attempt: 1,
+          failureCode: "CHUNK_LIMIT_EXCEEDED",
+        },
+        correlationId: correlation(),
+      });
+      expect(recordResult.applied).toBe(true);
+
+      const failedVersion = await management.getVersion(
+        draft.id,
+        correlation(),
+      );
+      expect(failedVersion.documents[0]).toMatchObject({
+        ingestionState: States.FAILED,
+        failureCode: "CHUNK_LIMIT_EXCEEDED",
+        canRetry: true,
+      });
+      expect(failedVersion.blockers).toContain(Blockers.DOCUMENT_NOT_READY);
+
+      // Activation must be blocked
+      await expect(
+        management.activate({
+          versionId: draft.id,
+          actorId: ADMIN,
+          correlationId: correlation(),
+        }),
+      ).rejects.toMatchObject({
+        response: { problem: { code: Errors.versionNotReady } },
+      });
+
+      // Retrying resets state to PENDING and clears failureCode
+      const retried = await documents.retry({
+        versionId: draft.id,
+        documentRowId: document.id,
+        actorId: ADMIN,
+        correlationId: correlation(),
+      });
+      expect(retried.attempt).toBe(2);
+      expect(retried.ingestionState).toBe(States.PENDING);
+      expect(retried.failureCode).toBeNull();
+
+      // Late stale attempt 1 with CHUNK_LIMIT_EXCEEDED is ignored idempotently
+      const stale = await documents.recordIngestionResult({
+        documentRowId: document.id,
+        result: {
+          outcome: "FAILED",
+          attempt: 1,
+          failureCode: "CHUNK_LIMIT_EXCEEDED",
+        },
+        correlationId: correlation(),
+      });
+      expect(stale.applied).toBe(false);
+
+      // Valid attempt 2 succeeds and clears blockers
+      await ingest(document.id, 2, ["bounded-rule-1", "bounded-rule-2"]);
+      const readyVersion = await management.getVersion(draft.id, correlation());
+      expect(readyVersion.documents[0].ingestionState).toBe(States.READY);
+      expect(readyVersion.blockers).not.toContain(Blockers.DOCUMENT_NOT_READY);
+    });
+
     it("rejects a result whose chunk hash does not match its text", async () => {
       const source = await newSource();
       const draft = await newDraft(source.id);
