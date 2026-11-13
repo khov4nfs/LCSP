@@ -48,6 +48,7 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
         "logging_config.py",
         "logging_path.py",
         "repository_sandbox.py",
+        "repository_scanner.py",
         "rbac_client.py",
         "repository_snapshot_client.py",
         "repository_workspace.py",
