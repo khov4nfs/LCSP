@@ -9,7 +9,7 @@ import {
 import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_DOMAIN_ERROR_CODES,
-  ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
   RULE_AUDIT_STATUSES,
   assessmentFinalReportResultSchema,
   type AssessmentFinalReportResult,
@@ -33,10 +33,10 @@ import { ROOT_AUDIT_ACTOR } from "../../../infrastructure/persistence/assessment
 import { canonicalJson, sha256Hex } from "../../../domain/domain-ids.js";
 import { decisionFingerprint } from "../../../domain/decision-fingerprint.js";
 import { SubmitAssessmentFinalReportCommand } from "./submit-assessment-final-report.command.js";
-import { buildAssessmentFinalReportV2 } from "./assessment-final-report-v2.builder.js";
+import { buildAssessmentFinalReportV3 } from "./assessment-final-report-v3.builder.js";
 import {
   assessmentFinalReportArtifactVersionedSchema,
-  type AssessmentFinalReportV2,
+  type AssessmentFinalReportV3,
 } from "@lcsp/contracts/assessment-report";
 
 const ORCHESTRATOR = {
@@ -91,9 +91,15 @@ function rejectUnresolvedLanguage(
   const value = report as {
     summary?: unknown;
     findings?: Array<{ summary?: unknown; recommendations?: unknown[] }>;
-    boundedNarrative?: { summary?: unknown; actionPlan?: unknown[] };
+    boundedNarrative?: {
+      summary?: unknown;
+      actionPlan?: unknown[];
+      scopeLimitations?: unknown[];
+    };
     ruleDetails?: Array<{
       narrative?: { summary?: unknown; recommendations?: unknown[] };
+      criteriaDecisions?: Array<{ rationale?: unknown }>;
+      decision?: { rationale?: unknown };
     }>;
   };
   const text = [
@@ -117,6 +123,12 @@ function rejectUnresolvedLanguage(
       ...(rule.narrative?.recommendations?.filter(
         (item): item is string => typeof item === "string",
       ) ?? []),
+      ...(typeof rule.decision?.rationale === "string"
+        ? [rule.decision.rationale]
+        : []),
+      ...(rule.criteriaDecisions ?? []).flatMap((crit) =>
+        typeof crit.rationale === "string" ? [crit.rationale] : [],
+      ),
     ]),
   ];
   if (
@@ -275,6 +287,24 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
             throw new Error("Persisted final report pin mismatch");
           }
         }
+        if (
+          report.schemaVersion === ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION &&
+          "pins" in report &&
+          "sourcePathPrefix" in report.pins
+        ) {
+          const snapshotRecord = await tx.repositorySnapshot.findUnique({
+            where: { id: existing.repositorySnapshotId },
+            select: { sourcePathPrefix: true },
+          });
+          if (
+            (snapshotRecord?.sourcePathPrefix ?? null) !==
+            (report.pins.sourcePathPrefix ?? null)
+          ) {
+            throw new Error(
+              "Persisted final report sourcePathPrefix pin mismatch",
+            );
+          }
+        }
         const expectedFingerprint = decisionFingerprintForReport(report);
         if (
           manifest.artifact_id !== existing.artifactId ||
@@ -361,9 +391,9 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         `${command.assessmentId}:${requestDigest}`,
       );
       rejectUnresolvedLanguage(command.request, command.correlationId);
-      let report: AssessmentFinalReportV2;
+      let report: AssessmentFinalReportV3;
       try {
-        report = await buildAssessmentFinalReportV2({
+        report = await buildAssessmentFinalReportV3({
           tx,
           assessmentId: command.assessmentId,
           artifactId,
@@ -399,7 +429,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           repositorySnapshotId: snapshot.pins.repositorySnapshotId,
           repositoryCommit: snapshot.pins.repositoryCommit,
           caseRevision: snapshot.caseRevision,
-          schemaVersion: ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
+          schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
           reportRequestDigest: requestDigest,
         },
       });
