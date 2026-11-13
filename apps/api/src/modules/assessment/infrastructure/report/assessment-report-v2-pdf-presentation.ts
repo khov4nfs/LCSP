@@ -121,49 +121,31 @@ const hasVietnameseDiacritics = (text: string) =>
     text,
   );
 
-function removeEnglishTranslationParentheticals(text: string): {
-  text: string;
-  removed: boolean;
-} {
-  let output = "";
-  let removed = false;
-  for (let index = 0; index < text.length; index += 1) {
-    if (text[index] !== "(") {
-      output += text[index];
-      continue;
-    }
-    let depth = 1;
-    let end = index + 1;
-    while (end < text.length && depth > 0) {
-      if (text[end] === "(") depth += 1;
-      if (text[end] === ")") depth -= 1;
-      end += 1;
-    }
-    if (depth !== 0) {
-      output += text[index];
-      continue;
-    }
-    const content = text.slice(index + 1, end - 1).trim();
-    const isEnglishTranslation =
-      /^[A-Z][A-Za-z]+(?:[\s,;:-]+[A-Za-z]+){3,}/u.test(content) &&
-      !hasVietnameseDiacritics(content);
-    if (isEnglishTranslation) {
-      output += " ";
-      removed = true;
-      index = end - 1;
-    } else {
-      output += text.slice(index, end);
-      index = end - 1;
-    }
-  }
-  return { text: output.trim(), removed };
-}
-
 const containsInternalNarrativeLabels = (text: string) =>
   /\b(?:LegalRequirement|Applicability mode|Repository proof boundary|External fulfillment|Operative proposition|Source binding|Source binding|UNCONDITIONAL|CONDITIONAL|NOT_APPLICABLE|NON_COMPLIANT|COMPLIANT|NOT_MET|HUMAN_PROVIDED|REPOSITORY_SOURCE)\b/u.test(
     text,
   );
 
+/**
+ * Business purpose: Select the appropriate Vietnamese text projection for report narrative strings without mutating or destroying substantive content.
+ *
+ * Business rules:
+ * - Prefer explicit user-supplied translations from the translation catalog, then known canonical translations, and preserve substantive Vietnamese text with diacritics.
+ * - Never strip parenthetical English clauses, legal exceptions, or qualifications via heuristic regexes; substantive content must remain intact.
+ *
+ * Execution flow:
+ * 1. Trim the input value and return undefined for empty strings.
+ * 2. Look up the value in the translation catalog and return the non-empty translation if found.
+ * 3. Check for an exact canonical translation in KNOWN_TRANSLATIONS.
+ * 4. If the text contains Vietnamese diacritics and no internal narrative labels, preserve the substantive text as-is.
+ * 5. Return undefined if no suitable translation is available so the caller can fall back to the truthful original in the appendix.
+ *
+ * Failure cases:
+ * - Empty text returns undefined; unrecognized untranslated text returns undefined for truthful fallback rather than corrupted output.
+ *
+ * Side effects:
+ * - Pure function; no external or persistent state changes.
+ */
 export function localizeReportText(
   text: string,
   translations: ReportTranslationCatalog = {},
@@ -178,10 +160,7 @@ export function localizeReportText(
     hasVietnameseDiacritics(value) &&
     !containsInternalNarrativeLabels(value)
   ) {
-    const projected = removeEnglishTranslationParentheticals(value);
-    return projected.removed
-      ? `${projected.text} (nguyên văn song ngữ được lưu trong phụ lục)`
-      : value;
+    return value;
   }
   return undefined;
 }
@@ -341,7 +320,7 @@ export function buildReportReferenceIndex(
     if (value.startsWith("LegalRequirement:")) return;
     if (
       !value ||
-      (localizeReportText(value) &&
+      (localizeReportText(value, translations) &&
         (!translations[value] || hasVietnameseDiacritics(value)))
     )
       return;
