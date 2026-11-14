@@ -207,6 +207,30 @@ def isolated_legal_storage_root(
             os.environ["LEGAL_SOURCE_STORAGE_ROOT"] = previous
 
 
+@pytest.fixture(autouse=True)
+def isolated_usage_recovery_store(
+    tmp_path_factory: pytest.TempPathFactory,
+    isolated_process_environment: None,
+) -> Generator[None, None, None]:
+    """Keep usage telemetry recovery journal isolated to an ephemeral path per test.
+
+    Without this isolation, tests that trigger usage recovery or attempt recording write to
+    the shared repository store (`tmp/lcsp-storage/usage-recovery.sqlite3`). When a later test
+    attaches an API client and triggers a drain, pending records from earlier tests leak into
+    its callback queue.
+    """
+    previous = os.environ.get("USAGE_RECOVERY_STORE_PATH")
+    tmp_db = tmp_path_factory.mktemp("usage-recovery") / "usage-recovery.sqlite3"
+    os.environ["USAGE_RECOVERY_STORE_PATH"] = str(tmp_db)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("USAGE_RECOVERY_STORE_PATH", None)
+        else:
+            os.environ["USAGE_RECOVERY_STORE_PATH"] = previous
+
+
 @pytest.fixture
 def workspace_dir() -> Generator[Path, None, None]:
     """Ephemeral workspace directory — deleted after each test."""
