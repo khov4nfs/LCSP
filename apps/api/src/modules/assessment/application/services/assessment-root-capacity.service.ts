@@ -373,7 +373,8 @@ export class AssessmentRootCapacityService {
    * - Creates one reservation, or increments the operational admission-deferral counter.
    */
   async reserve(input: z.infer<typeof rootCapacityReserveSchema>) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(
+      async (tx) => {
       const row = await this.lock(tx);
       this.assertServer(row, input);
       const existing = await tx.assessmentRootExecutionSlot.findUnique({
@@ -490,7 +491,9 @@ export class AssessmentRootCapacityService {
         data: { version: { increment: 1 } },
       });
       return { admitted: true, reason: row.reason };
-    });
+    },
+    { timeout: 60_000, maxWait: 10_000 },
+  );
   }
 
   /**
