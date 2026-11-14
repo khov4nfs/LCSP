@@ -316,9 +316,12 @@ describe("Report V3 compatibility with B1 authoredFields localization extractor"
         .split(",")
         .map((p) => p.trim())
         .some((pattern) => {
-          const regexSource = `^${pattern
+          const escaped = pattern
+            .replace(/\\/gu, "\\\\")
+            .replace(/[.+?^${}()|[\]]/gu, "\\$&")
             .replace(/\*/gu, "[^/]+")
-            .replace(/\//gu, "\\/")}(?:\\/.*)?$`;
+            .replace(/\//gu, "\\/");
+          const regexSource = `^${escaped}(?:\\/.*)?$`;
           return new RegExp(regexSource, "u").test(concretePath);
         });
 
