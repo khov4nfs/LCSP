@@ -33,11 +33,11 @@ def test_resolve_workload_limits_defaults(monkeypatch):
     assert root_limits.no_progress_limit == 15
 
     rsp_limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
-    assert rsp_limits.max_model_calls == 50
-    assert rsp_limits.max_input_tokens == 2_000_000
-    assert rsp_limits.max_output_tokens == 100_000
-    assert rsp_limits.max_total_tokens == 2_100_000
-    assert rsp_limits.no_progress_limit == 10
+    assert rsp_limits.max_model_calls == 1000
+    assert rsp_limits.max_input_tokens == 100_000_000
+    assert rsp_limits.max_output_tokens == 5_000_000
+    assert rsp_limits.max_total_tokens == 105_000_000
+    assert rsp_limits.no_progress_limit == 20
 
 
 def test_evaluate_workload_admission():
@@ -330,11 +330,11 @@ def test_rule_set_preparation_quota_durability_and_defaults(monkeypatch):
 
     from middleware.agent_run_budget import AgentRunBudgetMiddleware
     limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
-    assert limits.max_model_calls == 50
-    assert limits.max_input_tokens == 2_000_000
-    assert limits.max_output_tokens == 100_000
-    assert limits.max_total_tokens == 2_100_000
-    assert limits.no_progress_limit == 10
+    assert limits.max_model_calls == 1000
+    assert limits.max_input_tokens == 100_000_000
+    assert limits.max_output_tokens == 5_000_000
+    assert limits.max_total_tokens == 105_000_000
+    assert limits.no_progress_limit == 20
 
     # Test configured overrides
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "25")
