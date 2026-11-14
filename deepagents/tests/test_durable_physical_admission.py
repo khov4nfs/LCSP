@@ -554,7 +554,10 @@ def test_12_rule_set_preparation_and_assessment_root_regressions(tmp_path: Path,
     ])
     api = RegressionApi()
     run_id = "22222222-2222-4222-8222-222222222222"
-    result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+    from middleware.paid_admission import isolated_test_scripted_models, register_test_scripted_model
+    with isolated_test_scripted_models():
+        register_test_scripted_model(model, "primary", credential_salt="0" * 64)
+        result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
     assert result["state"] == "PAUSED"
     fail_calls = [c for c in api.calls if c[0] == "fail"]
     assert len(fail_calls) == 1

@@ -39,9 +39,12 @@ from middleware.paid_admission import (
     TokenPolicy,
     TokenRunBudget,
     fingerprint,
+    isolated_test_scripted_models,
     prepare_admitted_request,
     recover_admission,
+    register_test_scripted_model,
     request_identity,
+    route_fingerprint,
 )
 from middleware.usage_metering import (
     AgentRunState,
@@ -163,13 +166,15 @@ def test_01_agent_runtime_boundary_preexisting_state_and_hard_ceiling(
         "rule_set_preparation.boundary.run_rule_set_preparation", custom_runner
     )
 
-    with offline_instruction_bundle():
-        result = invoke_boundary(
-            "rule_set_preparation_requested",
-            {"preparationRunId": run_id},
-            correlation_id="corr-1",
-        )
-        assert result["status"] == "COMPLETED"
+    with isolated_test_scripted_models():
+        register_test_scripted_model(model, "primary", credential_salt=SALT)
+        with offline_instruction_bundle():
+            result = invoke_boundary(
+                "rule_set_preparation_requested",
+                {"preparationRunId": run_id},
+                correlation_id="corr-1",
+            )
+            assert result["status"] == "COMPLETED"
 
     # Verify durable reservation was written to SQLite
     with sqlite3.connect(db_path) as db:
@@ -203,9 +208,11 @@ def test_02_direct_runner_no_preexisting_state(
     api = _make_test_api()
     run_id = "22222222-2222-4222-8222-222222222222"
 
-    with offline_instruction_bundle():
-        result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
-        assert result["state"] == "PAUSED" or result.get("submission") is not None
+    with isolated_test_scripted_models():
+        register_test_scripted_model(model, "primary", credential_salt=SALT)
+        with offline_instruction_bundle():
+            result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+            assert result["state"] == "PAUSED" or result.get("submission") is not None
 
     with sqlite3.connect(db_path) as db:
         rows = db.execute("SELECT count(*) FROM inference_attempts WHERE run_id=?", (run_id,)).fetchone()
@@ -247,8 +254,10 @@ def test_03_context_propagation_into_agent_invoke(
     # Set an outer runner runnable config to verify isolation
     var_child_runnable_config.set({"outer_saver": "postgres_checkpoint_saver"})
 
-    with offline_instruction_bundle():
-        run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+    with isolated_test_scripted_models():
+        register_test_scripted_model(model, "primary", credential_salt=SALT)
+        with offline_instruction_bundle():
+            run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
 
     st = captured_context.get("active_state")
     assert st is not None, "active_agent_run_state() was not propagated into agent.invoke"
@@ -291,9 +300,11 @@ def test_04_every_physical_attempt_receives_reservation_before_dispatch(
     api = _make_test_api()
     run_id = "44444444-4444-4444-8444-444444444444"
 
-    with offline_instruction_bundle():
-        result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
-        assert result["state"] == "PAUSED"
+    with isolated_test_scripted_models():
+        register_test_scripted_model(model, "primary", credential_salt=SALT)
+        with offline_instruction_bundle():
+            result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+            assert result["state"] == "PAUSED"
 
     # Only 1 call was dispatched because call 2 was prevented by the budget/reservation boundary
     assert len(dispatched_calls) == 1
@@ -457,24 +468,18 @@ roles:
     load_model_routes.cache_clear()
 
     model = _make_scripted_model([AIMessage(content="DONE")])
-    model._lcsp_route_identity = {
-        "route_id": "primary",
-        "route_fingerprint": "1" * 64,
-        "credential_fingerprint": "2" * 64,
-        "endpoint_fingerprint": "3" * 64,
-        "sdk_fingerprint": "4" * 64,
-        "provider": "apx",
-        "protocol": "anthropic",
-        "model": "model-alpha",
-        "input_upper_bound": 0,
-        "output_upper_bound": 0,
-    }
-
     api = _make_test_api()
     run_id = "66666666-6666-4666-8666-666666666666"
 
+    # 1. Registering test scripted model with non-positive bounds fails closed
+    with isolated_test_scripted_models():
+        with pytest.raises(PaidAdmissionError) as exc_info:
+            register_test_scripted_model(model, "primary", credential_salt=SALT)
+        assert exc_info.value.reason == "UNVERIFIED_PROVIDER_BOUNDS"
+
+    # 2. Production admission policies resolution fails closed when route bounds are non-positive
     with offline_instruction_bundle(), pytest.raises(PaidAdmissionError) as exc_info:
-        run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+        run_rule_set_preparation(api, run_id, work_dir=tmp_path)
     assert exc_info.value.reason == "UNVERIFIED_PROVIDER_BOUNDS"
 
 
@@ -695,3 +700,495 @@ def test_11_assessment_root_regression(
     assert control._evaluate_intra_execution_progress(state1) is None
     state2 = {"case_revision": 1, "messages": [SimpleNamespace(tool_calls=[{"name": "t2", "args": {}}])]}
     assert control._evaluate_intra_execution_progress(state2) is None
+
+
+# ==============================================================================
+# 12. Negative test: Unbound model rejected
+# ==============================================================================
+def test_12_unbound_model_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An injected model without genuine route binding or test registry fails closed."""
+    db_path = tmp_path / "recovery.sqlite3"
+    monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(db_path))
+    monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "3")
+
+    model = _make_scripted_model([AIMessage(content="DONE")])
+    api = _make_test_api()
+    run_id = "unbound-12-1212-1212-1212-121212121212"
+
+    # request_identity rejects unbound model directly
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        request_identity(model, SALT)
+    assert exc_info.value.reason == "UNBOUND_MODEL_ROUTE"
+
+    # run_rule_set_preparation under hard ceiling rejects unbound model
+    with offline_instruction_bundle(), pytest.raises(PaidAdmissionError) as exc_info:
+        run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+    assert exc_info.value.reason == "UNBOUND_MODEL_ROUTE"
+
+
+# ==============================================================================
+# 13. Negative test: Forged route identity rejected
+# ==============================================================================
+def test_13_forged_route_identity_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Arbitrary _lcsp_route_identity or tampered route configs are never trusted."""
+    model = _make_scripted_model([AIMessage(content="DONE")])
+    # Attacker injects synthetic route identity attribute
+    model._lcsp_route_identity = {
+        "route_id": "primary",
+        "route_fingerprint": "f" * 64,
+        "credential_fingerprint": "c" * 64,
+        "endpoint_fingerprint": "e" * 64,
+        "sdk_fingerprint": "s" * 64,
+        "provider": "apx",
+        "protocol": "anthropic",
+        "model": "model-alpha",
+        "input_upper_bound": 1000000,
+        "output_upper_bound": 65536,
+    }
+
+    # Production request_identity ignores attribute and fails closed
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        request_identity(model, SALT)
+    assert exc_info.value.reason == "UNBOUND_MODEL_ROUTE"
+
+    # Attacker attaches unregistered route config
+    forged_cfg = ResolvedModelConfig(
+        role="",
+        route_id="malicious-unregistered-route",
+        provider="openai",
+        protocol="openai",
+        model="mercury-3",
+        options={"context_window_tokens": 1000000, "max_output_tokens": 65536},
+    )
+    attach_model_route(model, forged_cfg)
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        request_identity(model, SALT)
+    assert exc_info.value.reason == "UNBOUND_MODEL_ROUTE"
+
+    # Attacker tampers with registered route options
+    routes_obj = load_model_routes()
+    prim_cfg = routes_obj.config("primary")
+    tampered_cfg = ResolvedModelConfig(
+        role="",
+        route_id="primary",
+        provider=prim_cfg.provider,
+        protocol=prim_cfg.protocol,
+        model=prim_cfg.model,
+        options={**prim_cfg.options, "max_output_tokens": 9999999},  # tampered options!
+    )
+    attach_model_route(model, tampered_cfg)
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        request_identity(model, SALT)
+    assert exc_info.value.reason == "FORGED_ROUTE_IDENTITY"
+
+
+# ==============================================================================
+# 14. Negative test: Forged credential fingerprint denied
+# ==============================================================================
+def test_14_forged_credential_fingerprint_denied(tmp_path: Path) -> None:
+    """Admission denies requests with tampered credential fingerprints."""
+    db_path = tmp_path / "recovery.sqlite3"
+    routes_obj = load_model_routes()
+    cfg = routes_obj.config("primary")
+
+    pol = TokenPolicy(
+        route_id="primary",
+        route_fingerprint=route_fingerprint(cfg),
+        credential_fingerprint="1" * 64,
+        endpoint_fingerprint="2" * 64,
+        sdk_fingerprint="3" * 64,
+        provider="apx",
+        protocol="anthropic",
+        model="model-alpha",
+        valid_from=1,
+        expires_at=2147483647,
+        input_upper_bound=1000000,
+        output_upper_bound=65536,
+    )
+    budget = TokenRunBudget(
+        schema_version=3,
+        run_id="run-forged-cred-14",
+        candidate_sha="0" * 40,
+        model_routes_sha256="0" * 64,
+        credential_salt=SALT,
+        valid_from=1,
+        expires_at=None,
+        maximum_calls=5,
+        policies=(pol,),
+    )
+    adm = RunAdmission(db_path, budget, fingerprint(budget.model_dump(mode="json")))
+
+    # Tampered credential fingerprint
+    forged_ident = {
+        "route_id": "primary",
+        "route_fingerprint": pol.route_fingerprint,
+        "credential_fingerprint": "9" * 64,  # tampered hex fingerprint!
+        "endpoint_fingerprint": pol.endpoint_fingerprint,
+        "sdk_fingerprint": pol.sdk_fingerprint,
+        "provider": "apx",
+        "protocol": "anthropic",
+        "model": "model-alpha",
+    }
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        adm.admit("att-forged-14", forged_ident)
+    assert exc_info.value.reason in ("POLICY_MISMATCH", "UNKNOWN_TOKEN_POLICY", "CREDENTIAL_UNVERIFIED")
+
+    with sqlite3.connect(db_path) as db:
+        row = db.execute("SELECT state FROM inference_attempts WHERE run_id='run-forged-cred-14' AND attempt_id='att-forged-14'").fetchone()
+        assert row[0] == "DENIED"
+
+
+# ==============================================================================
+# 15. Negative test: Unauthorized model_settings rejected
+# ==============================================================================
+def test_15_unauthorized_model_settings_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Request options that exceed policy bounds or introduce unknown parameters are rejected."""
+    from langchain_openai import ChatOpenAI
+    routes_file = tmp_path / "settings_routes.yaml"
+    routes_file.write_text(
+        """version: 1
+routes:
+  test-openai:
+    provider: openai
+    protocol: openai
+    model: mercury-3
+    options:
+      context_window_tokens: 1000000
+      max_output_tokens: 4096
+roles:
+  default: test-openai
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(routes_file))
+    load_model_routes.cache_clear()
+    routes_obj = load_model_routes()
+    cfg = routes_obj.config("test-openai")
+
+    model = ChatOpenAI(model="mercury-3", api_key="sk-test-fake-key", max_retries=0)
+    attach_model_route(model, cfg)
+    ident = request_identity(model, SALT)
+
+    pol = TokenPolicy(
+        route_id=ident["route_id"],
+        route_fingerprint=ident["route_fingerprint"],
+        credential_fingerprint=ident["credential_fingerprint"],
+        endpoint_fingerprint=ident["endpoint_fingerprint"],
+        sdk_fingerprint=ident["sdk_fingerprint"],
+        provider=ident["provider"],
+        protocol=ident["protocol"],
+        model=ident["model"],
+        valid_from=1,
+        expires_at=2147483647,
+        input_upper_bound=1000000,
+        output_upper_bound=4096,  # Upper bound is 4096
+    )
+    routes_sha = hashlib.sha256(routes_file.read_bytes()).hexdigest()
+
+    class FakeReq:
+        def __init__(self, m: Any, s: dict[str, Any] | None = None):
+            self.model = m
+            self.model_settings = s or {}
+
+        def override(self, **kwargs: Any) -> "FakeReq":
+            return FakeReq(self.model, {**self.model_settings, **kwargs.get("model_settings", {})})
+
+    # Case A: max_tokens exceeds output_upper_bound (4096)
+    budget_a = TokenRunBudget(
+        schema_version=3,
+        run_id="run-settings-15-a",
+        candidate_sha="0" * 40,
+        model_routes_sha256=routes_sha,
+        credential_salt=SALT,
+        valid_from=1,
+        expires_at=None,
+        maximum_calls=5,
+        policies=(pol,),
+    )
+    adm_a = RunAdmission(tmp_path / "rec_a.sqlite3", budget_a, fingerprint(budget_a.model_dump(mode="json")))
+    req_excess = FakeReq(model, {"max_tokens": 10000})
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        prepare_admitted_request(adm_a, req_excess, "att-15-a", "rule-set-preparation")
+    assert exc_info.value.reason == "OUTPUT_BOUND_UNVERIFIED"
+
+    # Case B: unauthorized extra parameter in model_settings
+    budget_b = TokenRunBudget(
+        schema_version=3,
+        run_id="run-settings-15-b",
+        candidate_sha="0" * 40,
+        model_routes_sha256=routes_sha,
+        credential_salt=SALT,
+        valid_from=1,
+        expires_at=None,
+        maximum_calls=5,
+        policies=(pol,),
+    )
+    adm_b = RunAdmission(tmp_path / "rec_b.sqlite3", budget_b, fingerprint(budget_b.model_dump(mode="json")))
+    req_unauth = FakeReq(model, {"max_tokens": 2048, "temperature": 0.7})
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        prepare_admitted_request(adm_b, req_unauth, "att-15-b", "rule-set-preparation")
+    assert exc_info.value.reason == "UNBOUNDED_REQUEST_OPTIONS"
+
+
+# ==============================================================================
+# 16. Positive test: Valid native model admitted
+# ==============================================================================
+def test_16_valid_native_model_admitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Authentic native ChatOpenAI model derives verified identity and admits cleanly."""
+    from langchain_openai import ChatOpenAI
+    routes_file = tmp_path / "native_routes.yaml"
+    routes_file.write_text(
+        """version: 1
+routes:
+  native-openai:
+    provider: openai
+    protocol: openai
+    model: mercury-3
+    options:
+      context_window_tokens: 1000000
+      max_output_tokens: 65536
+roles:
+  default: native-openai
+  rule-set-preparation: native-openai
+  claim-author: native-openai
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(routes_file))
+    load_model_routes.cache_clear()
+    routes_obj = load_model_routes()
+    cfg = routes_obj.config("native-openai")
+
+    model = ChatOpenAI(model="mercury-3", api_key="sk-test-fake-key", max_retries=0)
+    attach_model_route(model, cfg)
+    ident = request_identity(model, SALT)
+
+    assert ident["route_id"] == "native-openai"
+    assert ident["provider"] == "openai"
+    assert ident["protocol"] == "openai"
+    assert ident["model"] == "mercury-3"
+    assert isinstance(ident["credential_fingerprint"], str) and len(ident["credential_fingerprint"]) == 64
+
+    pol = TokenPolicy(
+        route_id=ident["route_id"],
+        route_fingerprint=ident["route_fingerprint"],
+        credential_fingerprint=ident["credential_fingerprint"],
+        endpoint_fingerprint=ident["endpoint_fingerprint"],
+        sdk_fingerprint=ident["sdk_fingerprint"],
+        provider=ident["provider"],
+        protocol=ident["protocol"],
+        model=ident["model"],
+        valid_from=1,
+        expires_at=2147483647,
+        input_upper_bound=1000000,
+        output_upper_bound=65536,
+    )
+    routes_sha = hashlib.sha256(routes_file.read_bytes()).hexdigest()
+    budget = TokenRunBudget(
+        schema_version=3,
+        run_id="run-native-16",
+        candidate_sha="0" * 40,
+        model_routes_sha256=routes_sha,
+        credential_salt=SALT,
+        valid_from=1,
+        expires_at=None,
+        maximum_calls=5,
+        policies=(pol,),
+    )
+    db_path = tmp_path / "recovery.sqlite3"
+    adm = RunAdmission(db_path, budget, fingerprint(budget.model_dump(mode="json")))
+
+    class FakeReq:
+        def __init__(self, m: Any, s: dict[str, Any] | None = None):
+            self.model = m
+            self.model_settings = s or {}
+
+        def override(self, **kwargs: Any) -> "FakeReq":
+            return FakeReq(self.model, {**self.model_settings, **kwargs.get("model_settings", {})})
+
+    req = FakeReq(model, {"max_tokens": 4096})
+    admitted_req = prepare_admitted_request(adm, req, "att-16", "rule-set-preparation")
+    assert admitted_req.model_settings["max_tokens"] == 4096
+    assert admitted_req.model_settings["n"] == 1  # provider cap pinned
+
+    with sqlite3.connect(db_path) as db:
+        row = db.execute("SELECT state, input_exposure, output_exposure FROM inference_attempts WHERE run_id='run-native-16' AND attempt_id='att-16'").fetchone()
+        assert row[0] == "ADMITTED"
+        assert row[1] == 1000000
+        assert row[2] == 65536
+
+
+# ==============================================================================
+# 17. Positive & isolation test: Legitimate test-only scripted model
+# ==============================================================================
+def test_17_legitimate_test_scripted_model_isolated(tmp_path: Path) -> None:
+    """Scripted model operates within isolated test registry but is completely unbound outside."""
+    model = _make_scripted_model([AIMessage(content="DONE")])
+
+    # Outside the context: request_identity fails closed
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        request_identity(model, SALT)
+    assert exc_info.value.reason == "UNBOUND_MODEL_ROUTE"
+
+    # Inside the context: registration succeeds and model is recognized
+    with isolated_test_scripted_models():
+        ident = register_test_scripted_model(model, "primary", credential_salt=SALT)
+        assert ident["route_id"] == "primary"
+        assert ident["model"] == "model-alpha"
+
+        resolved = request_identity(model, SALT)
+        assert resolved["route_id"] == "primary"
+        assert resolved["credential_fingerprint"] == ident["credential_fingerprint"]
+
+    # Outside the context again: test registry is cleanly reset, model is unbound
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        request_identity(model, SALT)
+    assert exc_info.value.reason == "UNBOUND_MODEL_ROUTE"
+
+
+# ==============================================================================
+# 18. Physical retry and fallback with real middleware composition
+# ==============================================================================
+def test_18_physical_retry_and_fallback_with_real_middleware_composition(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Primary attempt fails, unknown usage is preserved, secondary attempt is admitted and settled under distinct policy."""
+    db_path = tmp_path / "recovery.sqlite3"
+    routes_file = tmp_path / "fallback_routes.yaml"
+    routes_file.write_text(
+        """version: 1
+routes:
+  primary-route:
+    provider: openai
+    protocol: openai
+    model: gpt-4o
+    options:
+      context_window_tokens: 128000
+      max_output_tokens: 4096
+  secondary-route:
+    provider: anthropic
+    protocol: anthropic
+    model: claude-3-haiku
+    options:
+      context_window_tokens: 200000
+      max_output_tokens: 4096
+roles:
+  default: primary-route
+  rule-set-preparation: primary-route
+  claim-author: primary-route
+fallbacks:
+  primary-route: [secondary-route]
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(routes_file))
+    load_model_routes.cache_clear()
+    routes_obj = load_model_routes()
+
+    pol_prim = TokenPolicy(
+        route_id="primary-route",
+        route_fingerprint=route_fingerprint(routes_obj.config("primary-route")),
+        credential_fingerprint="1" * 64,
+        endpoint_fingerprint="e" * 64,
+        sdk_fingerprint="f" * 64,
+        provider="openai",
+        protocol="openai",
+        model="gpt-4o",
+        valid_from=1,
+        expires_at=2147483647,
+        input_upper_bound=128000,
+        output_upper_bound=4096,
+    )
+    pol_sec = TokenPolicy(
+        route_id="secondary-route",
+        route_fingerprint=route_fingerprint(routes_obj.config("secondary-route")),
+        credential_fingerprint="2" * 64,
+        endpoint_fingerprint="a" * 64,
+        sdk_fingerprint="b" * 64,
+        provider="anthropic",
+        protocol="anthropic",
+        model="claude-3-haiku",
+        valid_from=1,
+        expires_at=2147483647,
+        input_upper_bound=200000,
+        output_upper_bound=4096,
+    )
+    routes_sha = hashlib.sha256(routes_file.read_bytes()).hexdigest()
+    budget = TokenRunBudget(
+        schema_version=3,
+        run_id="run-fallback-18",
+        candidate_sha="0" * 40,
+        model_routes_sha256=routes_sha,
+        credential_salt=SALT,
+        valid_from=1,
+        expires_at=None,
+        maximum_calls=5,
+        policies=(pol_prim, pol_sec),
+    )
+    adm = RunAdmission(db_path, budget, fingerprint(budget.model_dump(mode="json")))
+
+    state = AgentRunState(
+        run_id="run-fallback-18",
+        agent_role="rule-set-preparation",
+        preparation_run_id="prep-18",
+        bounded=True,
+    )
+    state.admission = adm
+    state.store = db_path
+
+    with activate_agent_run_state(state):
+        # 1. Physical Attempt 1 on primary route fails with 503 error
+        inv_1 = "inv-18-primary-attempt"
+        ident_prim = {k: getattr(pol_prim, k) for k in ("route_id", "route_fingerprint", "credential_fingerprint", "endpoint_fingerprint", "sdk_fingerprint", "provider", "protocol", "model")}
+        adm.admit(inv_1, ident_prim)
+        adm.transition(inv_1, "IN_FLIGHT")
+        state.record_attempt(_make_scripted_model([]), inv_1, "STARTED")
+
+        # Simulate provider 503 failure
+        error_503 = Exception("HTTP 503 Service Unavailable")
+        setattr(error_503, "status_code", 503)
+        UsageMeteringMiddleware._unknown(inv_1, _make_scripted_model([]), error_503)
+
+        # 2. Physical Attempt 2 on fallback secondary route succeeds
+        inv_2 = "inv-18-secondary-attempt"
+        ident_sec = {k: getattr(pol_sec, k) for k in ("route_id", "route_fingerprint", "credential_fingerprint", "endpoint_fingerprint", "sdk_fingerprint", "provider", "protocol", "model")}
+        adm.admit(inv_2, ident_sec)
+        adm.transition(inv_2, "IN_FLIGHT")
+        state.record_attempt(_make_scripted_model([]), inv_2, "STARTED")
+
+        # Fallback attempt returns response with usage
+        resp = AIMessage(content="Fallback answer", usage_metadata={"input_tokens": 150, "output_tokens": 75, "total_tokens": 225})
+        UsageMeteringMiddleware()._record(resp, _make_scripted_model([]), inv_2)
+
+    # 3. Assert admission state in SQLite: Attempt 1 is OUTCOME_UNKNOWN (reserved), Attempt 2 is SETTLED (measured)
+    with sqlite3.connect(db_path) as db:
+        attempts = db.execute("SELECT attempt_id, state, input_exposure, output_exposure, usage FROM inference_attempts WHERE run_id='run-fallback-18' ORDER BY rowid").fetchall()
+        assert len(attempts) == 2
+        # Attempt 1 retained unknown exposure
+        assert attempts[0][0] == inv_1
+        assert attempts[0][1] == "OUTCOME_UNKNOWN"
+        assert attempts[0][2] == 128000
+        assert attempts[0][3] == 4096
+        # Attempt 2 settled with measured tokens
+        assert attempts[1][0] == inv_2
+        assert attempts[1][1] == "SETTLED"
+        usage_data = json.loads(attempts[1][4])
+        assert int(usage_data.get("inputTokensIncludingCache") or usage_data.get("inputTokens")) == 150
+        assert int(usage_data["outputTokens"]) == 75
+
+    # Recovery snapshot verifies both attempts accounted for truthfully
+    snap = recover_admission(db_path, "run-fallback-18")
+    assert snap["admittedAttempts"] == 2
+    assert snap["unresolvedAttempts"] == 1
+    assert sum(r["state"] == "SETTLED" for r in snap["attempts"]) == 1
+    assert snap["inputExposure"] == 128000 + 150
+    assert snap["outputExposure"] == 4096 + 75
+
