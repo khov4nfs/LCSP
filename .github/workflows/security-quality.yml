@@ -151,7 +151,7 @@ jobs:
         id: api-coverage
         env:
           NODE_OPTIONS: --experimental-vm-modules --max-old-space-size=5120
-        run: pnpm --filter @lcsp/api exec jest --config ./jest.config.ts --coverage --runInBand
+        run: pnpm --filter @lcsp/api exec jest --config ./jest.config.ts --coverage
 
       - name: Bind coverage artifact to the tested source
         if: always() && hashFiles('apps/coverage/lcov.info') != ''
