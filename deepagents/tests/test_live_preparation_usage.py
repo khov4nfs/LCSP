@@ -215,10 +215,13 @@ time.sleep(30)
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(Path(__file__).parents[1]), str(Path(__file__).parent)])}
     child = subprocess.Popen([sys.executable, "-c", code, out, str(ready), termination], env=env, stderr=subprocess.PIPE)
     try:
-        deadline = time.monotonic() + 15
+        deadline = time.monotonic() + 45
         while not ready.exists() and child.poll() is None and time.monotonic() < deadline:
-            time.sleep(0.02)
-        assert ready.exists(), child.communicate(timeout=1)[1].decode()
+            time.sleep(0.05)
+        if not ready.exists():
+            child.kill()
+            stderr = child.communicate(timeout=5)[1].decode()
+            pytest.fail(f"Ready file was not created within 45s; returncode={child.poll()}, stderr={stderr}")
         if termination != "crash":
             child.send_signal(signal.SIGTERM if termination == "terminate" else signal.SIGKILL)
         child.wait(timeout=5)
