@@ -118,6 +118,13 @@ def test_hidden_cgroup_ancestry_is_unknown_rather_than_unlimited(tmp_path):
 def test_snapshot_posts_one_comparison_version_and_does_not_retry_a_stale_handshake(monkeypatch, action):
     monkeypatch.setenv("NESTJS_API_BASE_URL", "http://capacity.fixture")
     monkeypatch.setenv("WORKER_API_KEY", "fixture-only-key")
+    if not Path("/etc/machine-id").exists():
+        orig_read_bytes = Path.read_bytes
+        monkeypatch.setattr(
+            Path,
+            "read_bytes",
+            lambda self: b"1234567890abcdef1234567890abcdef" if str(self) == "/etc/machine-id" else orig_read_bytes(self),
+        )
     calls = []
     monkeypatch.setattr(httpx, "get", lambda url, **kwargs: httpx.Response(200,
         json={"ok": True, "data": {"version": 7}}, request=httpx.Request("GET", url)))

@@ -92,6 +92,7 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         run_quotas: dict[str, int | None] | None = None,
         durable_usage: Any = None,
         workload_limits: Any = None,
+        persist_callback: Any = None,
     ) -> None:
         super().__init__()
         # File discovery shares this counter across Producer and native claim-author invocations.
@@ -99,6 +100,7 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         self.run_quotas = run_quotas
         self.durable_usage = durable_usage
         self.workload_limits = workload_limits
+        self.persist_callback = persist_callback
         if durable_usage is not None:
             self.quota_calls = getattr(durable_usage, "model_calls", 0)
             self.quota_input_tokens = getattr(durable_usage, "input_tokens", 0)
@@ -229,6 +231,11 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                 self.durable_usage.input_tokens = self.quota_input_tokens
                 self.durable_usage.output_tokens = self.quota_output_tokens
                 self.durable_usage.total_tokens = self.quota_total_tokens
+            if callable(self.persist_callback):
+                try:
+                    self.persist_callback()
+                except Exception:
+                    pass
 
     def _bounded_request(self, request):
         """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
@@ -265,6 +272,11 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                     self.durable_usage.input_tokens = self.quota_input_tokens
                     self.durable_usage.output_tokens = self.quota_output_tokens
                     self.durable_usage.total_tokens = self.quota_total_tokens
+                if callable(self.persist_callback):
+                    try:
+                        self.persist_callback()
+                    except Exception:
+                        pass
             return request
         calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:

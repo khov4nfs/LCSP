@@ -9,6 +9,8 @@ import {
   resolveConfiguredBudgetLimits,
   finishAssessmentRootRequestSchema,
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  assessmentBudgetExtensionSchema,
+  applyBudgetExtension,
 } from "../src/assessment-domain/index.ts";
 
 describe("assessment budget kernel contracts", () => {
@@ -202,14 +204,20 @@ describe("assessment budget kernel contracts", () => {
 
   describe("resolveConfiguredBudgetLimits", () => {
     it("resolves all null limits when environment variables are unset", () => {
-      const rootLimits = resolveConfiguredBudgetLimits({}, WORKLOAD_SCOPES.ASSESSMENT_ROOT);
+      const rootLimits = resolveConfiguredBudgetLimits(
+        {},
+        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+      );
       expect(rootLimits.maxModelCalls).toBeNull();
       expect(rootLimits.maxInputTokens).toBeNull();
       expect(rootLimits.maxOutputTokens).toBeNull();
       expect(rootLimits.maxTotalTokens).toBeNull();
       expect(rootLimits.noProgressLimit).toBeNull();
 
-      const rspLimits = resolveConfiguredBudgetLimits({}, WORKLOAD_SCOPES.RULE_SET_PREPARATION);
+      const rspLimits = resolveConfiguredBudgetLimits(
+        {},
+        WORKLOAD_SCOPES.RULE_SET_PREPARATION,
+      );
       expect(rspLimits.maxModelCalls).toBeNull();
       expect(rspLimits.maxInputTokens).toBeNull();
       expect(rspLimits.maxOutputTokens).toBeNull();
@@ -283,5 +291,82 @@ describe("assessment budget kernel contracts", () => {
       });
     expect(invalidPausedNoCheckpoint.success).toBe(false);
   });
-});
 
+  describe("assessmentBudgetExtension and applyBudgetExtension", () => {
+    it("validates a compliant assessmentBudgetExtension schema", () => {
+      const validExtension = {
+        version: 1,
+        authorizedBy: "admin-1",
+        authorizedAt: "2026-11-14T12:00:00.000Z",
+        auditReason: "Customer requested additional analysis turns",
+        additionalModelCalls: 50,
+        additionalInputTokens: 1_000_000,
+        additionalOutputTokens: 50_000,
+        additionalTotalTokens: 1_050_000,
+      };
+      const result = assessmentBudgetExtensionSchema.safeParse(validExtension);
+      expect(result.success).toBe(true);
+    });
+
+    it("applies budget extension to increase configured limits", () => {
+      const baseLimits = {
+        maxModelCalls: 100,
+        maxInputTokens: 2_000_000,
+        maxOutputTokens: 100_000,
+        maxTotalTokens: 2_100_000,
+        noProgressLimit: 15,
+      };
+      const extension = {
+        version: 1,
+        authorizedBy: "admin-1",
+        authorizedAt: "2026-11-14T12:00:00.000Z",
+        auditReason: "Approved expansion",
+        additionalModelCalls: 50,
+        additionalInputTokens: 500_000,
+        additionalOutputTokens: 25_000,
+        additionalTotalTokens: 525_000,
+      };
+
+      const extended = applyBudgetExtension(baseLimits, extension);
+      expect(extended.maxModelCalls).toBe(150);
+      expect(extended.maxInputTokens).toBe(2_500_000);
+      expect(extended.maxOutputTokens).toBe(125_000);
+      expect(extended.maxTotalTokens).toBe(2_625_000);
+      expect(extended.noProgressLimit).toBe(15);
+    });
+
+    it("leaves null/unbounded limits unchanged when extending", () => {
+      const unboundedBase = {
+        maxModelCalls: null,
+        maxInputTokens: null,
+        maxOutputTokens: null,
+        maxTotalTokens: null,
+        noProgressLimit: null,
+      };
+      const extension = {
+        version: 1,
+        authorizedBy: "admin-1",
+        authorizedAt: "2026-11-14T12:00:00.000Z",
+        auditReason: "Approved expansion",
+        additionalModelCalls: 50,
+      };
+
+      const extended = applyBudgetExtension(unboundedBase, extension);
+      expect(extended.maxModelCalls).toBeNull();
+      expect(extended.maxInputTokens).toBeNull();
+      expect(extended.maxTotalTokens).toBeNull();
+    });
+
+    it("returns identical base limits when extension is omitted", () => {
+      const baseLimits = {
+        maxModelCalls: 100,
+        maxInputTokens: 2_000_000,
+        maxOutputTokens: 100_000,
+        maxTotalTokens: 2_100_000,
+        noProgressLimit: 15,
+      };
+      const extended = applyBudgetExtension(baseLimits);
+      expect(extended).toEqual(baseLimits);
+    });
+  });
+});

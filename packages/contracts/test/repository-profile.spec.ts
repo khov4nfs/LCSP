@@ -141,5 +141,24 @@ describe("RepositoryProfile contract", () => {
     const result = repositoryProfileSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
-});
 
+  it("accepts workspaceNotFound and workspaceNotDirectory gap reasons", () => {
+    const profileWithWorkspaceGaps = {
+      ...validProfileInput,
+      knownGaps: [
+        {
+          path: "/workspace/repository",
+          reason: PRE_SCAN_GAP_REASONS.workspaceNotFound,
+          detail: "Workspace directory does not exist",
+        },
+        {
+          path: "/workspace/repository",
+          reason: PRE_SCAN_GAP_REASONS.workspaceNotDirectory,
+          detail: "Workspace path is not a directory",
+        },
+      ],
+    };
+    const result = repositoryProfileSchema.safeParse(profileWithWorkspaceGaps);
+    expect(result.success).toBe(true);
+  });
+});
