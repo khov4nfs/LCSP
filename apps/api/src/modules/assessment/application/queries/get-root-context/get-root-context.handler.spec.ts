@@ -630,4 +630,45 @@ describe("GetRootContextHandler locale authority", () => {
       }
     }
   });
+
+  it("applies multiple budget extensions in lineage order to calculate effective cumulative limits", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+    try {
+      process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = "100";
+      const f = createFixture({
+        blockerReference: {
+          budgetExtension: {
+            version: 2,
+            authorizedBy: "admin-2",
+            authorizedAt: "2026-11-14T12:00:00.000Z",
+            auditReason: "Second extension",
+            additionalModelCalls: 25,
+          },
+          budgetExtensionHistory: [
+            {
+              version: 1,
+              authorizedBy: "admin-1",
+              authorizedAt: "2026-11-14T10:00:00.000Z",
+              auditReason: "First extension",
+              additionalModelCalls: 50,
+            },
+          ],
+        },
+      });
+
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+
+      // Base 100 + version 1 (50) + version 2 (25) = 175
+      expect(result.budgetState?.limits.maxModelCalls).toBe(175);
+      expect(result.budgetState?.status).toBe("ADMITTED");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+      }
+    }
+  });
 });

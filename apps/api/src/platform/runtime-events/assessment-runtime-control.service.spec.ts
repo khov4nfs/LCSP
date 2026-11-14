@@ -557,6 +557,9 @@ describe("runtime control registration", () => {
           requestId: "stop-request",
           checkpointJson: { checkpointId: "cp-1" },
         }),
+        updateMany: jest
+          .fn<(args?: any) => Promise<{ count: number }>>()
+          .mockResolvedValue({ count: 1 }),
       },
       assessment: {
         findUniqueOrThrow: jest.fn<() => Promise<any>>().mockResolvedValue({
@@ -613,6 +616,242 @@ describe("runtime control registration", () => {
           code: SHARED_ERROR_CODES.forbidden,
         }),
       }),
+    });
+  });
+
+  it("rejects stale or duplicate budgetExtension with version <= existing version", async () => {
+    const adminActor = {
+      userId: "admin-user",
+      sessionId: "session-admin",
+      role: AUTH_USER_ROLES.admin,
+      scope: null,
+    };
+    const queryRaw = jest.fn<() => Promise<unknown[]>>();
+    queryRaw.mockResolvedValue([
+      { id: "assessment", ownerId: "cust-1" },
+      { assessmentId: "assessment" },
+    ]);
+    const tx = {
+      $queryRaw: queryRaw,
+      assessmentRuntime: {
+        findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+          assessmentId: "assessment",
+          threadId: "root-thread",
+          checkpointNamespace: "assessment",
+          currentExecutionId: "stopped-run",
+        }),
+      },
+      assessmentRuntimeTurn: {
+        findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+          id: "stopped-run",
+          assessmentId: "assessment",
+          threadId: "root-thread",
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: "logical-run",
+          state: States.stopped,
+          requestId: "stop-request",
+          checkpointJson: { checkpointId: "cp-1" },
+        }),
+        updateMany: jest
+          .fn<(args?: any) => Promise<{ count: number }>>()
+          .mockResolvedValue({ count: 1 }),
+      },
+      assessment: {
+        findUniqueOrThrow: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "assessment",
+          lifecycleState: "PAUSED",
+          runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
+          blockerReference: {
+            reason: "AGENT_BUDGET_REACHED",
+            budgetExtension: {
+              version: 2,
+              authorizedBy: "admin-1",
+              authorizedAt: "2026-11-14T10:00:00.000Z",
+              additionalModelCalls: 20,
+            },
+          },
+          domainCase: {
+            repositorySnapshotId: "snap-1",
+            ruleSetVersionId: "ver-1",
+            repositoryScanJobId: "job-1",
+            repositoryCommit: "sha-1",
+            ruleSet: { lifecycleState: "ACTIVE" },
+          },
+        }),
+      },
+      repositorySnapshot: {
+        findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "snap-1",
+          assessmentId: "assessment",
+          commitSha: "sha-1",
+        }),
+      },
+      assessmentHumanRequest: {
+        count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+      },
+    };
+    const controls = new AssessmentRuntimeControlService(
+      {
+        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+          work(tx),
+      } as unknown as PrismaService,
+      { enqueue: jest.fn() } as unknown as OutboxRepository,
+      {} as AssessmentLifecycleCoordinator,
+    );
+
+    // Stale/duplicate version 2 when version 2 already exists
+    await expect(
+      controls.request({
+        assessmentId: "assessment",
+        actor: adminActor,
+        correlationId: "corr-stale",
+        action: Actions.resume,
+        targetRunId: "stopped-run",
+        budgetExtension: {
+          version: 2,
+          additionalModelCalls: 30,
+          auditReason: "Duplicate version attempt",
+        },
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+    });
+
+    // Stale version 1 when version 2 already exists
+    await expect(
+      controls.request({
+        assessmentId: "assessment",
+        actor: adminActor,
+        correlationId: "corr-stale-lower",
+        action: Actions.resume,
+        targetRunId: "stopped-run",
+        budgetExtension: {
+          version: 1,
+          additionalModelCalls: 30,
+          auditReason: "Lower version attempt",
+        },
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("preserves version and authorization lineage across repeated valid extensions", async () => {
+    const adminActor = {
+      userId: "admin-user",
+      sessionId: "session-admin",
+      role: AUTH_USER_ROLES.admin,
+      scope: null,
+    };
+    const queryRaw = jest.fn<() => Promise<unknown[]>>();
+    queryRaw.mockResolvedValue([
+      { id: "assessment", ownerId: "cust-1" },
+      { assessmentId: "assessment" },
+    ]);
+    const updateAssessment = jest
+      .fn<(args?: any) => Promise<unknown>>()
+      .mockResolvedValue({});
+    const tx = {
+      $queryRaw: queryRaw,
+      assessmentRuntime: {
+        findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+          assessmentId: "assessment",
+          threadId: "root-thread",
+          checkpointNamespace: "assessment",
+          currentExecutionId: "stopped-run",
+        }),
+      },
+      assessmentRuntimeTurn: {
+        findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+          id: "stopped-run",
+          assessmentId: "assessment",
+          threadId: "root-thread",
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: "logical-run",
+          state: States.stopped,
+          requestId: "stop-request",
+          checkpointJson: { checkpointId: "cp-1" },
+        }),
+        updateMany: jest
+          .fn<(args?: any) => Promise<{ count: number }>>()
+          .mockResolvedValue({ count: 1 }),
+      },
+      assessment: {
+        findUniqueOrThrow: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "assessment",
+          lifecycleState: "PAUSED",
+          runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
+          blockerReference: {
+            reason: "AGENT_BUDGET_REACHED",
+            budgetExtension: {
+              version: 1,
+              authorizedBy: "admin-1",
+              authorizedAt: "2026-11-14T10:00:00.000Z",
+              additionalModelCalls: 20,
+            },
+          },
+          domainCase: {
+            repositorySnapshotId: "snap-1",
+            ruleSetVersionId: "ver-1",
+            repositoryScanJobId: "job-1",
+            repositoryCommit: "sha-1",
+            ruleSet: { lifecycleState: "ACTIVE" },
+          },
+        }),
+        update: updateAssessment,
+      },
+      repositorySnapshot: {
+        findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+          id: "snap-1",
+          assessmentId: "assessment",
+          commitSha: "sha-1",
+        }),
+      },
+      assessmentHumanRequest: {
+        count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+      },
+    };
+    const controls = new AssessmentRuntimeControlService(
+      {
+        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+          work(tx),
+      } as unknown as PrismaService,
+      { enqueue: jest.fn() } as unknown as OutboxRepository,
+      {} as AssessmentLifecycleCoordinator,
+    );
+
+    // Submit valid version 2 > version 1
+    const result = await controls.request({
+      assessmentId: "assessment",
+      actor: adminActor,
+      correlationId: "corr-v2",
+      action: Actions.resume,
+      targetRunId: "stopped-run",
+      budgetExtension: {
+        version: 2,
+        additionalModelCalls: 30,
+        auditReason: "Second extension",
+      },
+    });
+
+    expect(result.state).toBe(States.resumeRequested);
+    expect(updateAssessment).toHaveBeenCalledWith({
+      where: { id: "assessment" },
+      data: {
+        blockerReference: expect.objectContaining({
+          budgetExtension: expect.objectContaining({
+            version: 2,
+            previousVersion: 1,
+            additionalModelCalls: 30,
+          }),
+          budgetExtensionHistory: expect.arrayContaining([
+            expect.objectContaining({
+              version: 1,
+              additionalModelCalls: 20,
+            }),
+          ]),
+        }),
+      },
     });
   });
 });

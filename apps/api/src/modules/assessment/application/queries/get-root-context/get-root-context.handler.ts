@@ -10,6 +10,7 @@ import {
   resolveConfiguredBudgetLimits,
   applyBudgetExtension,
   assessmentBudgetExtensionSchema,
+  type AssessmentBudgetExtension,
   LEGACY_BUDGET_EXTENSION_ALLOWANCE,
 } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
@@ -61,14 +62,15 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
    * - Selected membership comes from the assessment's immutable request; a missing selected request never widens to full scope.
    * - The source prefix comes from the immutable snapshot, and open human blockers must have a dependency in this audit.
    * - Human answer history remains separate from accepted facts; UNKNOWN grants no fact or compliance authority.
+   * - Reconciles cumulative LLM usage against configured budget limits, evaluates admission, and applies versioned extensions in lineage order.
    * Execution flow:
    * 1. Authorize the Root and load immutable case pins and the exact selected request.
    * 2. Read authorized coverage, facts, evidence, scoped human dependencies and saved locale.
-   * 3. Return the validated context with explicit source scope and current human request revisions.
+   * 3. Calculate cumulative usage, evaluate budget admission against effective limits with extensions, and return validated context.
    * Failure cases:
    * - Invalid lease, foreign or missing request, missing pins or malformed persisted data rejects without granting authority.
    * Side effects:
-   * - Read-only transaction; creates no facts, changes no lifecycle and sends no continuation.
+   * - May persist migrated legacy budget extension to blockerReference for controlled migration; otherwise read-only transaction.
    */
   async execute(input: GetRootContextQuery): Promise<AssessmentRootContext> {
     return this.prisma.$transaction(async (tx) => {
@@ -233,12 +235,34 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         consecutiveTurnsWithoutProgress,
       };
 
-      // Apply authoritative versioned budget extension to effective limits
-      let limits = applyBudgetExtension(baseLimits, extension);
+      // Collect all authorized extensions from versioned history and active extension
+      const allExtensions: AssessmentBudgetExtension[] = [];
+      const seenVersions = new Set<number>();
+
+      if (Array.isArray(blockerRef.budgetExtensionHistory)) {
+        for (const item of blockerRef.budgetExtensionHistory) {
+          const parsed = assessmentBudgetExtensionSchema.safeParse(item);
+          if (parsed.success && !seenVersions.has(parsed.data.version)) {
+            seenVersions.add(parsed.data.version);
+            allExtensions.push(parsed.data);
+          }
+        }
+      }
+      if (extension && !seenVersions.has(extension.version)) {
+        seenVersions.add(extension.version);
+        allExtensions.push(extension);
+      }
+      allExtensions.sort((a, b) => a.version - b.version);
+
+      // Apply authoritative versioned budget extensions in version order
+      let limits = baseLimits;
+      for (const ext of allExtensions) {
+        limits = applyBudgetExtension(limits, ext);
+      }
 
       // Support legacy budgetExtended boolean by applying fixed auditable extension allowance
       // and persisting it to blockerReference for controlled migration (never dynamic usage+headroom)
-      if (budgetExtended && !extension) {
+      if (budgetExtended && allExtensions.length === 0) {
         limits = applyBudgetExtension(
           baseLimits,
           LEGACY_BUDGET_EXTENSION_ALLOWANCE,

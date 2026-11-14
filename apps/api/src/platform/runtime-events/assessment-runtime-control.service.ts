@@ -101,7 +101,7 @@ export class AssessmentRuntimeControlService {
    * Business rules:
    * - Stop is accepted only when the current execution turn is running, and will pause at the next native checkpoint boundary.
    * - Resume is accepted only when the current execution is stopped and paused with valid snapshot and pins.
-   * - If paused due to budget exhaustion, resume requires an explicit budget extension; unextended resumes fail closed.
+   * - If paused due to budget exhaustion, resume requires an explicit budget extension; repeated extensions must have strictly increasing version numbers and append historical extensions to an immutable lineage array.
    *
    * Execution flow:
    * 1. Authorize the caller and load the canonical target runtime and current execution turn under transaction.
@@ -110,7 +110,7 @@ export class AssessmentRuntimeControlService {
    * 4. Transition the turn state to stopRequested or resumeRequested atomically and return the control outcome.
    *
    * Failure cases:
-   * - Stale target runs, invalid states, mismatched pins, open human blockers, or unextended budget exhaustion reject with 409 Conflict.
+   * - Stale target runs, invalid states, mismatched pins, open human blockers, stale extension versions, or unextended budget exhaustion reject with 409 Conflict.
    *
    * Side effects:
    * - Updates turn state, clears blocker references on resume, and enqueues transactional outbox messages.
@@ -254,13 +254,43 @@ export class AssessmentRuntimeControlService {
           blockerRef.reason ===
             ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
 
-        // Existing extension on blockerReference or newly supplied extension
+        const existingExtension =
+          blockerRef?.budgetExtension &&
+          typeof blockerRef.budgetExtension === "object"
+            ? (blockerRef.budgetExtension as Record<string, unknown>)
+            : null;
+
+        const existingHistory = Array.isArray(
+          blockerRef?.budgetExtensionHistory,
+        )
+          ? (blockerRef.budgetExtensionHistory as Array<
+              Record<string, unknown>
+            >)
+          : existingExtension
+            ? [existingExtension]
+            : [];
+
         let activeExtension: Record<string, unknown> | null = null;
+        let updatedHistory = existingHistory;
+
         if (input.budgetExtension) {
+          if (existingExtension && existingExtension.version !== undefined) {
+            const existingVersion = Number(existingExtension.version);
+            if (input.budgetExtension.version <= existingVersion) {
+              throw problemException(
+                ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+                input.correlationId,
+                { status: HttpStatus.CONFLICT },
+              );
+            }
+          }
           activeExtension = {
             version: input.budgetExtension.version,
             authorizedBy: input.actor.userId,
             authorizedAt: new Date().toISOString(),
+            previousVersion: existingExtension
+              ? (existingExtension.version ?? null)
+              : null,
             ...(input.budgetExtension.auditReason
               ? { auditReason: input.budgetExtension.auditReason }
               : {}),
@@ -275,14 +305,16 @@ export class AssessmentRuntimeControlService {
             overrideNoProgress:
               input.budgetExtension.overrideNoProgress ?? false,
           };
-        } else if (
-          blockerRef?.budgetExtension &&
-          typeof blockerRef.budgetExtension === "object"
-        ) {
-          activeExtension = blockerRef.budgetExtension as Record<
-            string,
-            unknown
-          >;
+          if (
+            existingExtension &&
+            !existingHistory.some(
+              (h) => h.version === existingExtension.version,
+            )
+          ) {
+            updatedHistory = [...existingHistory, existingExtension];
+          }
+        } else if (existingExtension) {
+          activeExtension = existingExtension;
         }
 
         const activeOverride =
@@ -316,6 +348,12 @@ export class AssessmentRuntimeControlService {
             resumedAt: new Date().toISOString(),
             ...(activeExtension
               ? { budgetExtension: activeExtension as Prisma.InputJsonObject }
+              : {}),
+            ...(updatedHistory.length > 0
+              ? {
+                  budgetExtensionHistory:
+                    updatedHistory as unknown as Prisma.InputJsonValue,
+                }
               : {}),
             ...(activeOverride ? { overrideNoProgress: true } : {}),
             ...(blockerRef?.budgetExtended ? { budgetExtended: true } : {}),
