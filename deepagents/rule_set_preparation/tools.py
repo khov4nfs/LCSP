@@ -16,6 +16,7 @@ from uuid import uuid4
 from langchain_core.tools import tool
 
 from middleware.failure_policy import NoProgressDetected
+from middleware.durable_budget_kernel import WorkloadCumulativeUsage
 from orchestration.agent_stream import DURABLE, SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
@@ -200,6 +201,7 @@ class RuleSetPreparationContext:
     direct_state: Any = None
     target_date: str | None = None
     authored_claim_ids: set[str] = field(default_factory=set)
+    cumulative_usage: WorkloadCumulativeUsage = field(default_factory=WorkloadCumulativeUsage)
     inventory: ClaimInventory | None = None
     authoring: Any = None
     mutation_lock: Any = field(default_factory=threading.RLock, repr=False)

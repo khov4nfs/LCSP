@@ -89,14 +89,26 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         grace_calls: int | None = None,
         keep_tool_results: int = DEFAULT_KEEP_TOOL_RESULTS,
         finalize_tools: frozenset[str] = frozenset(),
-        run_quotas: dict[str, int] | None = None,
+        run_quotas: dict[str, int | None] | None = None,
+        durable_usage: Any = None,
+        workload_limits: Any = None,
     ) -> None:
         super().__init__()
         # File discovery shares this counter across Producer and native claim-author invocations.
         # Quota mode never edits context or withdraws governed tools.
         self.run_quotas = run_quotas
-        self.quota_calls = 0; self.quota_input_tokens = 0
-        self.quota_output_tokens = 0; self.quota_total_tokens = 0
+        self.durable_usage = durable_usage
+        self.workload_limits = workload_limits
+        if durable_usage is not None:
+            self.quota_calls = getattr(durable_usage, "model_calls", 0)
+            self.quota_input_tokens = getattr(durable_usage, "input_tokens", 0)
+            self.quota_output_tokens = getattr(durable_usage, "output_tokens", 0)
+            self.quota_total_tokens = getattr(durable_usage, "total_tokens", 0)
+        else:
+            self.quota_calls = 0
+            self.quota_input_tokens = 0
+            self.quota_output_tokens = 0
+            self.quota_total_tokens = 0
         self.quota_lock = threading.Lock()
         # Governed completion tools stay callable at finalize.
         self.finalize_tools = frozenset(finalize_tools)
@@ -210,7 +222,13 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         with self.quota_lock:
             if reported:
                 self.quota_input_tokens += sum(reported) - estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
-            if out: self.quota_output_tokens += sum(out); self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
+            if out:
+                self.quota_output_tokens += sum(out)
+            self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
+            if self.durable_usage is not None:
+                self.durable_usage.input_tokens = self.quota_input_tokens
+                self.durable_usage.output_tokens = self.quota_output_tokens
+                self.durable_usage.total_tokens = self.quota_total_tokens
 
     def _bounded_request(self, request):
         """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
@@ -242,6 +260,11 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                 self.quota_calls += 1
                 self.quota_input_tokens += tokens
                 self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
+                if self.durable_usage is not None:
+                    self.durable_usage.model_calls = self.quota_calls
+                    self.durable_usage.input_tokens = self.quota_input_tokens
+                    self.durable_usage.output_tokens = self.quota_output_tokens
+                    self.durable_usage.total_tokens = self.quota_total_tokens
             return request
         calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:
