@@ -1,6 +1,22 @@
 import { ASSESSMENT_ROOT_BOUNDARY } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 
+export interface AssessmentProgressDatabaseClient {
+  assessmentRuntimeTurn?: {
+    findMany: (args: unknown) => Promise<
+      Array<{
+        id: string;
+        contextJson?: unknown;
+        checkpointJson?: unknown;
+        createdAt: Date;
+      }>
+    >;
+  };
+  assessmentEvent?: {
+    count: (args: unknown) => Promise<number>;
+  };
+}
+
 /**
  * Business purpose: Calculate the authoritative number of consecutive completed turns without progress for an assessment.
  *
@@ -21,7 +37,7 @@ import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/e
  * - Read-only queries against database transaction; no mutations or external calls.
  */
 export async function calculateConsecutiveTurnsWithoutProgress(
-  tx: any,
+  tx: AssessmentProgressDatabaseClient,
   assessmentId: string,
 ): Promise<number> {
   if (!tx.assessmentRuntimeTurn?.findMany) {

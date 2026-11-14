@@ -646,8 +646,9 @@ export class AssessmentRuntimeAuthority {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
           contextJson: {
             ...((previousTurn?.contextJson as Prisma.JsonObject) ?? {}),
-            ...(typeof (previousTurn?.contextJson as any)?.startCaseRevision !==
-            "number"
+            ...(typeof (
+              previousTurn?.contextJson as Record<string, unknown> | null
+            )?.startCaseRevision !== "number"
               ? { startCaseRevision: caseRow?.caseRevision ?? 0 }
               : {}),
             ...(persistedLanguage
