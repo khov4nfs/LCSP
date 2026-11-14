@@ -16,7 +16,6 @@ CONTRACTS: dict[str, str] = {
     "accept_case_fact": "Record narrowly supported source claims, not assumed customer practices or deployment facts.",
     "submit_rule_decision": "Submit only supported current applicability and every criterion; unresolved material facts require investigation/HITL.",
     "open_human_request": "Ask fact not legal verdict; material selected-rule anchor, attempts and impact required; native interrupt.",
-    "open_human_requests_batch": "Ask multiple facts in one batch; validate rule anchors, attempts and impact; atomic native interrupt.",
     "report_human_fact_unresolvable": "Require affirmative accepted evidence of permanent unavailability, not merely an unanswered question.",
     "request_finalization": "Only when selected decisions are current; API gate controls lifecycle, selected audit is not a full final report.",
     "submit_final_report": "FULL_RULE_SET only after FINALIZING; use frozen accepted decisions, no invented facts or artifacts.",
@@ -44,7 +43,6 @@ CONTRACTS_VI: dict[str, str] = {
     "accept_case_fact": "Chỉ ghi fact hẹp có nguồn hỗ trợ, không suy ra thực tế vận hành hay chính sách khách hàng.",
     "submit_rule_decision": "Chỉ nộp khi applicability và toàn bộ criterion trọng yếu có căn cứ; fact còn thiếu phải điều tra/HITL.",
     "open_human_request": "Hỏi fact, không hỏi verdict; phải gắn criterion hoặc condition của rule, các lần xác minh và tác động; native interrupt.",
-    "open_human_requests_batch": "Hỏi nhiều fact trong một đợt; kiểm tra anchor, nỗ lực xác minh và tác động; ngắt native nguyên tử.",
     "report_human_fact_unresolvable": "Chỉ dùng khi evidence được chấp nhận chứng minh fact vĩnh viễn không thể thu thập, không phải chỉ vì chưa trả lời.",
     "request_finalization": "Chỉ gọi khi selected decisions hiện hành đầy đủ; API điều khiển lifecycle; selected audit không tự tạo full report.",
     "submit_final_report": "Chỉ FULL_RULE_SET ở trạng thái FINALIZING; dùng kết quả đã được chấp nhận, không tạo fact hoặc artifact giả.",
@@ -100,12 +98,6 @@ TOOL_PLAYBOOKS_EN = {
         "NEXT: invoke native interrupt; resume on same pinned case revision. "
         "FAILURE: do not ask the human to make the legal verdict or repeat an answered question."
     ),
-    "open_human_requests_batch": (
-        "WHEN: multiple off-repository facts are needed across rules or criteria. "
-        "READ: related selected rules, why code could not answer, exact facts, owner and decision impacts. "
-        "NEXT: invoke atomic native interrupt; resume on same pinned case revision. "
-        "FAILURE: do not ask the human to make legal verdicts or repeat answered questions."
-    ),
     "request_finalization": (
         "WHEN: accepted decisions cover the authorized scope with no unresolved material blockers. "
         "READ: API current coverage and request status. NEXT: API completion is authoritative. "
@@ -149,12 +141,6 @@ TOOL_PLAYBOOKS_VI = {
         "KHI DÙNG: fact ngoài repository làm thay đổi applicability, outcome hoặc evidence. "
         "ĐỌC: selected rule, lý do code không trả lời, câu hỏi fact, owner và tác động. "
         "TIẾP: native interrupt, resume cùng case pin. "
-        "LỖI: không hỏi người dùng phán quyết pháp lý hoặc lặp câu đã được trả lời."
-    ),
-    "open_human_requests_batch": (
-        "KHI DÙNG: nhiều fact ngoài repository cần thu thập qua nhiều rule hoặc criterion. "
-        "ĐỌC: các selected rule, lý do code không trả lời, từng câu hỏi fact, owner và tác động. "
-        "TIẾP: native interrupt nguyên tử cho cả đợt, resume cùng case pin. "
         "LỖI: không hỏi người dùng phán quyết pháp lý hoặc lặp câu đã được trả lời."
     ),
     "request_finalization": (
