@@ -14,6 +14,7 @@ from middleware.durable_budget_kernel import (
     resolve_workload_limits,
     evaluate_workload_admission,
     record_workload_progress,
+    apply_budget_extension,
 )
 from assessment_root.runtime_control import RootRuntimeControl
 
@@ -420,6 +421,114 @@ def test_rule_set_preparation_quota_durability_and_defaults(monkeypatch):
     assert child_middleware.quota_calls == 6
     child_middleware._bounded_request(mock_request)
     assert durable_usage.model_calls == 7
+
+
+def test_apply_budget_extension() -> None:
+    base = WorkloadBudgetLimits(
+        max_model_calls=100,
+        max_input_tokens=2_000_000,
+        max_output_tokens=100_000,
+        max_total_tokens=2_100_000,
+        no_progress_limit=15,
+    )
+    ext = {
+        "version": 1,
+        "additionalModelCalls": 50,
+        "additionalInputTokens": 1_000_000,
+        "additionalOutputTokens": 50_000,
+        "additionalTotalTokens": 1_050_000,
+    }
+    result = apply_budget_extension(base, ext)
+    assert result.max_model_calls == 150
+    assert result.max_input_tokens == 3_000_000
+    assert result.max_output_tokens == 150_000
+    assert result.max_total_tokens == 3_150_000
+    assert result.no_progress_limit == 15
+
+    # None extension leaves base unchanged
+    assert apply_budget_extension(base, None) == base
+
+    # Unbounded limits remain unbounded
+    unbounded = WorkloadBudgetLimits(
+        max_model_calls=None,
+        max_input_tokens=None,
+        max_output_tokens=None,
+        max_total_tokens=None,
+        no_progress_limit=None,
+    )
+    assert apply_budget_extension(unbounded, ext).max_model_calls is None
+
+
+def test_intra_execution_progress_tracking_resets_on_case_revision() -> None:
+    client = MagicMock()
+    control = RootRuntimeControl(
+        client,
+        "exec-1",
+        run=SimpleNamespace(assessment_id="test-asm"),
+    )
+    control._effective_context = {
+        "assessmentId": "test-asm",
+        "caseRevision": 2,
+        "budgetState": {
+            "limits": {"noProgressLimit": 5},
+            "cumulativeUsage": {"consecutiveTurnsWithoutProgress": 0},
+            "status": "ADMITTED",
+        },
+    }
+
+    # 1. Calling repeatedly with same case_revision increments ineffective turns
+    for _ in range(4):
+        decision = control._evaluate_intra_execution_progress({"case_revision": 2})
+        assert decision is None
+
+    # 5th ineffective turn triggers stall interruption
+    stall_decision = control._evaluate_intra_execution_progress({"case_revision": 2})
+    assert stall_decision is not None
+    assert stall_decision.get("reason") == NO_PROGRESS_LIMIT_EXCEEDED
+
+    # 2. When case_revision advances, ineffective counter resets to 0
+    progress_decision = control._evaluate_intra_execution_progress({"case_revision": 3})
+    assert progress_decision is None
+    assert control._consecutive_ineffective_calls == 0
+    assert control._last_case_revision == 3
+
+
+def test_rule_set_preparation_restores_usage_across_fresh_instances(tmp_path) -> None:
+    from rule_set_preparation.tools import RuleSetPreparationContext
+
+    mock_api = MagicMock()
+    # Instance 1: runs and records usage
+    ctx1 = RuleSetPreparationContext(run_id="run-1", api=mock_api, source_root=tmp_path)
+    ctx1.cumulative_usage.model_calls = 5
+    ctx1.cumulative_usage.input_tokens = 120_000
+    ctx1.cumulative_usage.output_tokens = 6_000
+    ctx1.cumulative_usage.total_tokens = 126_000
+    ctx1.persist_usage()
+
+    # Verify receipt was written to work/receipts/usage.json
+    usage_file = tmp_path / "work" / "receipts" / "usage.json"
+    assert usage_file.exists()
+
+    # Instance 2: completely new object, restores from disk
+    ctx2 = RuleSetPreparationContext(run_id="run-2", api=mock_api, source_root=tmp_path)
+    assert ctx2.cumulative_usage.model_calls == 0  # before restore
+    ctx2.restore_usage()
+    assert ctx2.cumulative_usage.model_calls == 5
+    assert ctx2.cumulative_usage.input_tokens == 120_000
+    assert ctx2.cumulative_usage.output_tokens == 6_000
+    assert ctx2.cumulative_usage.total_tokens == 126_000
+
+    # Instance 3: adopts usage from API bundle
+    ctx3 = RuleSetPreparationContext(run_id="run-3", api=mock_api, source_root=tmp_path)
+    ctx3.adopt_usage({
+        "modelCalls": 10,
+        "inputTokens": 250_000,
+        "outputTokens": 12_000,
+        "totalTokens": 262_000,
+    })
+    assert ctx3.cumulative_usage.model_calls == 10
+    assert ctx3.cumulative_usage.total_tokens == 262_000
+
 
 
 

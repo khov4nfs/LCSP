@@ -20,7 +20,10 @@ import {
   claimAssessmentRootRequestSchema,
   ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
-import { assessmentRuntimeControlRequestSchema } from "@lcsp/contracts/evidence";
+import {
+  assessmentRuntimeControlRequestSchema,
+  type AssessmentBudgetExtensionInput,
+} from "@lcsp/contracts/evidence";
 import { GetRuntimeControlQuery } from "../../application/queries/get-runtime-control/get-runtime-control.query.js";
 import { ControlAssessmentRuntimeCommand } from "../../application/commands/control-assessment-runtime/control-assessment-runtime.command.js";
 
@@ -82,7 +85,11 @@ export class AssessmentRuntimeControlController {
   async resume(
     @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() req: AuthenticatedRequest,
-    @Body(controlPipe()) body: { targetRunId: string },
+    @Body(controlPipe())
+    body: {
+      targetRunId: string;
+      budgetExtension?: AssessmentBudgetExtensionInput;
+    },
   ) {
     const locale =
       (req.headers?.["x-lcsp-locale"] as string | undefined) ?? null;
@@ -95,6 +102,7 @@ export class AssessmentRuntimeControlController {
           body.targetRunId,
           req.correlationId ?? assessmentId,
           locale,
+          body.budgetExtension,
         ),
       ),
     );

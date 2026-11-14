@@ -1,5 +1,6 @@
 import { Command } from "@nestjs/cqrs";
 import type {
+  AssessmentBudgetExtensionInput,
   AssessmentRuntimeControlAction,
   AssessmentRuntimeControlResult,
 } from "@lcsp/contracts/evidence";
@@ -12,6 +13,7 @@ export class ControlAssessmentRuntimeCommand extends Command<AssessmentRuntimeCo
     public readonly targetRunId: string,
     public readonly correlationId: string,
     public readonly responseLanguage?: string | null,
+    public readonly budgetExtension?: AssessmentBudgetExtensionInput,
   ) {
     super();
   }

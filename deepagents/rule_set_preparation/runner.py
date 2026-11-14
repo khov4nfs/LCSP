@@ -287,6 +287,8 @@ def run_rule_set_preparation(
         return {"state": "FAILED", "submission": None, "failureReason": SOURCE_VERSION_UNAVAILABLE}
 
     context = RuleSetPreparationContext(run_id=run_id, api=api, direct_draft=bundle.get("executionContract") == "DIRECT_DRAFT_V1", target_date=bundle.get("targetDate"), target_activity_scope=bundle.get("targetActivityScope", "FULL_SOURCE"), response_language=bundle.get("responseLanguage", "vi"), scope_review_requested=bundle.get("scopeReviewRequested", False), approved_scope_digest=bundle.get("approvedScopeDigest"))
+    if bundle.get("cumulativeUsage"):
+        context.adopt_usage(bundle["cumulativeUsage"])
     with tempfile.TemporaryDirectory(prefix="lcsp-rule-set-preparation-") as scratch:
         root = work_dir or Path(scratch)
         failure_stage = "SOURCE_MATERIALIZATION"
@@ -319,6 +321,7 @@ def run_rule_set_preparation(
                 }
             materialize_legal_source(bundle, root)
             context.source_root = root
+            context.restore_usage()
             context.pinned_source_version_id = bundle.get("legalSourceVersionId")
             from rule_set_preparation.claim_inventory import ClaimInventory
             from rule_set_preparation.claim_files import rebuild_claim_files

@@ -76,6 +76,8 @@ export const PRE_SCAN_GAP_REASONS = {
   unsupportedSyntax: "UNSUPPORTED_SYNTAX",
   traversalRejected: "TRAVERSAL_REJECTED",
   secretRedacted: "SECRET_REDACTED",
+  workspaceNotFound: "WORKSPACE_NOT_FOUND",
+  workspaceNotDirectory: "WORKSPACE_NOT_DIRECTORY",
 } as const;
 export type PreScanGapReason =
   (typeof PRE_SCAN_GAP_REASONS)[keyof typeof PRE_SCAN_GAP_REASONS];
@@ -241,7 +243,9 @@ export function computeRepositoryProfileDigest(
         a.path.localeCompare(b.path),
       ),
       frameworks: [...profile.frameworks].sort((a, b) =>
-        a.name === b.name ? a.path.localeCompare(b.path) : a.name.localeCompare(b.name),
+        a.name === b.name
+          ? a.path.localeCompare(b.path)
+          : a.name.localeCompare(b.name),
       ),
       buildSystems: [...profile.buildSystems].sort((a, b) =>
         a.name.localeCompare(b.name),
