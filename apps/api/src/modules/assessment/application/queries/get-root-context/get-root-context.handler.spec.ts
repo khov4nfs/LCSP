@@ -570,10 +570,16 @@ describe("GetRootContextHandler locale authority", () => {
       });
 
       // 1. Initial fetch at usage 100: limit is fixed at base 100 + legacy 50 = 150
-      f.tx.llmUsageEvent.aggregate = jest.fn<() => Promise<any>>().mockResolvedValue({
-        _count: { id: 100 },
-        _sum: { inputTokens: 100_000, outputTokens: 10_000, totalTokens: 110_000 },
-      });
+      f.tx.llmUsageEvent.aggregate = jest
+        .fn<() => Promise<any>>()
+        .mockResolvedValue({
+          _count: { id: 100 },
+          _sum: {
+            inputTokens: 100_000,
+            outputTokens: 10_000,
+            totalTokens: 110_000,
+          },
+        });
 
       const result1 = await f.handler.execute(
         new GetRootContextQuery(assessmentId, leaseToken, correlationId),
@@ -582,10 +588,16 @@ describe("GetRootContextHandler locale authority", () => {
       expect(result1.budgetState?.status).toBe("ADMITTED");
 
       // 2. Second fetch at usage 140: limit remains fixed at 150 (not 140 + 50 = 190)
-      f.tx.llmUsageEvent.aggregate = jest.fn<() => Promise<any>>().mockResolvedValue({
-        _count: { id: 140 },
-        _sum: { inputTokens: 140_000, outputTokens: 14_000, totalTokens: 154_000 },
-      });
+      f.tx.llmUsageEvent.aggregate = jest
+        .fn<() => Promise<any>>()
+        .mockResolvedValue({
+          _count: { id: 140 },
+          _sum: {
+            inputTokens: 140_000,
+            outputTokens: 14_000,
+            totalTokens: 154_000,
+          },
+        });
 
       const result2 = await f.handler.execute(
         new GetRootContextQuery(assessmentId, leaseToken, correlationId),
@@ -594,10 +606,16 @@ describe("GetRootContextHandler locale authority", () => {
       expect(result2.budgetState?.status).toBe("ADMITTED");
 
       // 3. Third fetch at usage 150: limit remains fixed at 150, hard ceiling enforced -> EXHAUSTED
-      f.tx.llmUsageEvent.aggregate = jest.fn<() => Promise<any>>().mockResolvedValue({
-        _count: { id: 150 },
-        _sum: { inputTokens: 150_000, outputTokens: 15_000, totalTokens: 165_000 },
-      });
+      f.tx.llmUsageEvent.aggregate = jest
+        .fn<() => Promise<any>>()
+        .mockResolvedValue({
+          _count: { id: 150 },
+          _sum: {
+            inputTokens: 150_000,
+            outputTokens: 15_000,
+            totalTokens: 165_000,
+          },
+        });
 
       const result3 = await f.handler.execute(
         new GetRootContextQuery(assessmentId, leaseToken, correlationId),
