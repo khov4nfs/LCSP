@@ -68,7 +68,7 @@ test("optional observability failure does not stop Agent Runtime services", () =
   );
 });
 
-test("docker worker env forwards every provider credential pool the worker rotates", async () => {
+test("docker worker env forwards provider credentials and the Anthropic endpoint", async () => {
   const credentials = await readFile(
     new URL("../deepagents/provider_credentials.py", import.meta.url),
     "utf8",
