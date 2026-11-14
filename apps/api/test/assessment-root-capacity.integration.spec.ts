@@ -57,6 +57,8 @@ const policy = rootCapacityPolicySchema.parse({
   enabled: false,
   initial: 2,
   maximum: 4,
+  metricTtlSeconds: 300,
+  evaluationSeconds: 10,
   providerConcurrentLimit: 8,
   providerRpmLimit: 1000,
   providerTpmLimit: 1000000,
@@ -1312,6 +1314,12 @@ integration(
             reason: Reasons.fairness,
           });
           expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
+          await report(a, {
+            hostId: host,
+            incarnationId,
+            liveRunIds: [],
+            metrics: metrics(),
+          });
           expect(
             await timed("reserve-head", 10_001, () => a.reserve(head)),
           ).toMatchObject({ admitted: true });

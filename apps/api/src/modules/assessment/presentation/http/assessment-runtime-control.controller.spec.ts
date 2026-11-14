@@ -123,8 +123,7 @@ describe("AssessmentRuntimeControl Controllers RBAC and Workflows", () => {
         `/assessments/${assessmentId}/runtime/control`,
       );
       expect(res.status).toBe(HttpStatus.OK);
-      expect(res.body.ok).toBe(true);
-      expect(res.body.data).toEqual(mockControlResult);
+      expect(res.body).toEqual({ ok: true, data: mockControlResult });
     });
 
     it("allows admin to read runtime control state", async () => {
@@ -134,7 +133,7 @@ describe("AssessmentRuntimeControl Controllers RBAC and Workflows", () => {
         `/assessments/${assessmentId}/runtime/control`,
       );
       expect(res.status).toBe(HttpStatus.OK);
-      expect(res.body.ok).toBe(true);
+      expect(res.body).toMatchObject({ ok: true });
     });
 
     it("rejects unauthenticated/unauthorized users", async () => {
