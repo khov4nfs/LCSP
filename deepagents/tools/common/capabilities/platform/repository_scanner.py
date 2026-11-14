@@ -40,6 +40,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -324,46 +325,59 @@ class RepositoryScanner:
         Side effects:
         - Traverses filesystem read-only; no file writes or network/model requests.
         """
-        for root, dirs, files in os.walk(self.workspace_path):
-            # Prune excluded directories
-            dirs[:] = [d for d in dirs if d not in EXCLUDED_DIR_NAMES]
+        if not self.workspace_path.exists():
+            self.known_gaps.append({
+                "path": str(self.workspace_path),
+                "reason": "WORKSPACE_NOT_FOUND",
+                "detail": f"Workspace directory does not exist: {self.workspace_path}",
+            })
+        elif not self.workspace_path.is_dir():
+            self.known_gaps.append({
+                "path": str(self.workspace_path),
+                "reason": "WORKSPACE_NOT_DIRECTORY",
+                "detail": f"Workspace path is not a directory: {self.workspace_path}",
+            })
+        else:
+            for root, dirs, files in os.walk(self.workspace_path):
+                # Prune excluded directories
+                dirs[:] = [d for d in dirs if d not in EXCLUDED_DIR_NAMES]
 
-            rel_root = Path(root).relative_to(self.workspace_path)
-            depth = len(rel_root.parts)
-            if depth > self.max_path_depth:
-                self.known_gaps.append({
-                    "path": rel_root.as_posix(),
-                    "reason": "FILE_COUNT_LIMIT_REACHED",
-                    "detail": f"Path depth {depth} exceeds limit {self.max_path_depth}",
-                })
-                dirs.clear()
-                continue
-
-            for filename in sorted(files):
-                if self.scanned_file_count >= self.max_scanned_files:
+                rel_root = Path(root).relative_to(self.workspace_path)
+                depth = len(rel_root.parts)
+                if depth > self.max_path_depth:
                     self.known_gaps.append({
-                        "path": (rel_root / filename).as_posix(),
+                        "path": rel_root.as_posix(),
                         "reason": "FILE_COUNT_LIMIT_REACHED",
-                        "detail": f"Exceeded maximum file scan limit of {self.max_scanned_files}",
+                        "detail": f"Path depth {depth} exceeds limit {self.max_path_depth}",
                     })
-                    break
-
-                rel_path = (rel_root / filename).as_posix()
-                if rel_path.startswith("./"):
-                    rel_path = rel_path[2:]
-
-                # Scope check
-                if self.source_path_prefix and not source_path_in_scope(
-                    rel_path, self.source_path_prefix
-                ):
+                    dirs.clear()
                     continue
 
-                full_path = Path(root) / filename
-                self.scanned_file_count += 1
-                self._inspect_file(full_path, rel_path)
+                for filename in sorted(files):
+                    if self.scanned_file_count >= self.max_scanned_files:
+                        self.known_gaps.append({
+                            "path": (rel_root / filename).as_posix(),
+                            "reason": "FILE_COUNT_LIMIT_REACHED",
+                            "detail": f"Exceeded maximum file scan limit of {self.max_scanned_files}",
+                        })
+                        break
 
-            if self.scanned_file_count >= self.max_scanned_files:
-                break
+                    rel_path = (rel_root / filename).as_posix()
+                    if rel_path.startswith("./"):
+                        rel_path = rel_path[2:]
+
+                    # Scope check
+                    if self.source_path_prefix and not source_path_in_scope(
+                        rel_path, self.source_path_prefix
+                    ):
+                        continue
+
+                    full_path = Path(root) / filename
+                    self.scanned_file_count += 1
+                    self._inspect_file(full_path, rel_path)
+
+                if self.scanned_file_count >= self.max_scanned_files:
+                    break
 
         languages_list = [
             {
@@ -1080,14 +1094,17 @@ def ensure_repository_profile(
     Business rules:
     - If an existing profile marker matches (repositoryId, commitSha, sourcePathPrefix, scannerVersion),
       reuse it directly without re-reading the filesystem.
-    - If missing or pins mismatch, scan the workspace and persist the new profile marker.
+    - If missing or pins mismatch, scan the workspace using sandbox execution when available
+      or the local filesystem adapter, and persist the new profile marker.
+    - A missing workspace must record an explicit known gap/error rather than a silent empty profile.
 
     Execution flow:
     1. Validate source path prefix.
     2. Attempt to read existing profile marker from REPOSITORY_PROFILE_PATH.
     3. If valid and matching pins, return cached profile.
-    4. Otherwise, execute full repository scan over workspace.
-    5. Write resulting profile to REPOSITORY_PROFILE_PATH and return.
+    4. If backend provides execution capability (Docker sandbox), run bounded scanner command inside sandbox.
+    5. Otherwise, run workspace scan using filesystem adapter.
+    6. Write resulting profile to REPOSITORY_PROFILE_PATH in backend and return.
 
     Failure cases:
     - Failed cache reads or writes fallback gracefully to in-memory scanned profile.
@@ -1098,6 +1115,7 @@ def ensure_repository_profile(
     source_path_prefix = validate_source_path_prefix(source_path_prefix)
     read = getattr(backend, "read", None)
     write = getattr(backend, "write", None)
+    execute = getattr(backend, "execute", None)
 
     # Check cached profile
     if callable(read):
@@ -1115,13 +1133,36 @@ def ensure_repository_profile(
         except Exception:
             pass
 
-    # Scan and save
-    profile = scan_repository_workspace(
-        workspace_path,
-        repository_id=repository_id,
-        commit_sha=commit_sha,
-        source_path_prefix=source_path_prefix,
-    )
+    profile: dict[str, Any] | None = None
+
+    # If backend supports execution, run scanner in sandbox container
+    if callable(execute):
+        try:
+            prefix_arg = f", source_path_prefix={repr(source_path_prefix)}" if source_path_prefix else ""
+            script = (
+                f"import json; from tools.common.capabilities.platform.repository_scanner import scan_repository_workspace; "
+                f"p = scan_repository_workspace({repr(str(workspace_path))}, repository_id={repr(repository_id)}, commit_sha={repr(commit_sha)}{prefix_arg}); "
+                f"print(json.dumps(p))"
+            )
+            res = execute(f"python3 -c {shlex.quote(script)}", timeout=300)
+            if getattr(res, "exit_code", 1) == 0:
+                out = str(getattr(res, "output", "") or "").strip()
+                lines = [line.strip() for line in out.splitlines() if line.strip()]
+                for line in reversed(lines):
+                    if line.startswith("{") and line.endswith("}"):
+                        profile = json.loads(line)
+                        break
+        except Exception:
+            profile = None
+
+    # Fallback to local filesystem scan if sandbox execution did not run or succeed
+    if profile is None:
+        profile = scan_repository_workspace(
+            workspace_path,
+            repository_id=repository_id,
+            commit_sha=commit_sha,
+            source_path_prefix=source_path_prefix,
+        )
 
     if callable(write):
         try:
