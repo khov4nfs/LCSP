@@ -1,5 +1,9 @@
 import { fromPrismaLegalSourceDocumentCorpusRole } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import {
+  resolveConfiguredBudgetLimits,
+  WORKLOAD_SCOPES,
+} from "@lcsp/contracts/assessment-domain";
+import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS,
   type RuleSetPreparationLegalSourceBundle,
@@ -217,16 +221,25 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         })
       : 0;
 
-    const CONSERVATIVE_UNMEASURED_INPUT_TOKENS = 500;
-    const CONSERVATIVE_UNMEASURED_OUTPUT_TOKENS = 100;
-    const CONSERVATIVE_UNMEASURED_TOTAL_TOKENS = 600;
+    const limits = resolveConfiguredBudgetLimits(
+      process.env,
+      WORKLOAD_SCOPES.RULE_SET_PREPARATION,
+    );
+    const hasHardCeiling =
+      limits.maxInputTokens !== null ||
+      limits.maxOutputTokens !== null ||
+      limits.maxTotalTokens !== null;
 
-    const estimatedInput =
-      unmeasuredEventsCount * CONSERVATIVE_UNMEASURED_INPUT_TOKENS;
-    const estimatedOutput =
-      unmeasuredEventsCount * CONSERVATIVE_UNMEASURED_OUTPUT_TOKENS;
-    const estimatedTotal =
-      unmeasuredEventsCount * CONSERVATIVE_UNMEASURED_TOTAL_TOKENS;
+    // For explicitly enforced hard ceilings, do not authorize calls on the assumption
+    // that unknown usage equals a minimal estimate. Apply verified upper-bound reservation.
+    const unmeasuredInputPerEvent = hasHardCeiling ? 4096 : 500;
+    const unmeasuredOutputPerEvent = hasHardCeiling ? 2048 : 100;
+    const unmeasuredTotalPerEvent =
+      unmeasuredInputPerEvent + unmeasuredOutputPerEvent;
+
+    const estimatedInput = unmeasuredEventsCount * unmeasuredInputPerEvent;
+    const estimatedOutput = unmeasuredEventsCount * unmeasuredOutputPerEvent;
+    const estimatedTotal = unmeasuredEventsCount * unmeasuredTotalPerEvent;
 
     const measuredInput = Number(usageAggregate?._sum?.inputTokens ?? 0);
     const measuredOutput = Number(usageAggregate?._sum?.outputTokens ?? 0);

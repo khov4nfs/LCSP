@@ -284,8 +284,25 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
             tokens = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
             with self.quota_lock:
                 cl = self.run_quotas.get("model_calls")
-                tl, totl = self.run_quotas.get("input_tokens"), self.run_quotas.get("total_tokens")
-                reason = "CALL_LIMIT_EXCEEDED" if cl is not None and self.quota_calls >= cl else ("TOKEN_LIMIT_EXCEEDED" if (tl is not None and self.quota_input_tokens + tokens > tl) or (totl is not None and self.quota_input_tokens + self.quota_output_tokens + tokens > totl) else None)
+                tl = self.run_quotas.get("input_tokens")
+                ol = self.run_quotas.get("output_tokens")
+                totl = self.run_quotas.get("total_tokens")
+                reason = (
+                    "CALL_LIMIT_EXCEEDED"
+                    if cl is not None and self.quota_calls >= cl
+                    else (
+                        "TOKEN_LIMIT_EXCEEDED"
+                        if (
+                            (tl is not None and self.quota_input_tokens + tokens > tl)
+                            or (ol is not None and self.quota_output_tokens >= ol)
+                            or (
+                                totl is not None
+                                and self.quota_input_tokens + self.quota_output_tokens + tokens > totl
+                            )
+                        )
+                        else None
+                    )
+                )
                 if reason is not None:
                     publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={"required_state": "PAUSED", "model_calls": self.quota_calls, "input_tokens": self.quota_input_tokens, "output_tokens": self.quota_output_tokens, "limits": self.run_quotas, "reason": reason})
                     err = AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable", reason=reason); err.reason = reason; raise err
