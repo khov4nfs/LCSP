@@ -47,7 +47,7 @@ def isolated_english_skill_bundle(tmp_path, monkeypatch):
 def test_critical_tool_workflow_has_two_locales_and_no_schema_change():
     assert TOOL_PLAYBOOKS_EN.keys() == TOOL_PLAYBOOKS_VI.keys()
     assert set(TOOL_PLAYBOOKS_EN) == set(CONTRACTS) | set(GRAPH_CONTRACTS)
-    assert len(TOOL_PLAYBOOKS_EN) == 22
+    assert len(TOOL_PLAYBOOKS_EN) == 21
     for name in TOOL_PLAYBOOKS_EN:
         for locale, keys in [("en", ("WHEN:", "READ:", "NEXT:", "FAILURE:")),
                              ("vi", ("KHI DÙNG:", "ĐỌC:", "TIẾP:", "LỖI:"))]:
