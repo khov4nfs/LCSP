@@ -45,6 +45,16 @@ def test_resolve_workload_limits_defaults(monkeypatch):
     assert rsp_limits.max_total_tokens is None
     assert rsp_limits.no_progress_limit is None
 
+    # Stale LCSP_RSP_MAX_OUTPUT_TOKENS in environment must have zero effect on RSP limits
+    monkeypatch.setenv("LCSP_RSP_MAX_OUTPUT_TOKENS", "50000")
+    rsp_limits_stale = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+    assert rsp_limits_stale.max_output_tokens is None
+
+    # Assessment Root preserves support for its configured output limit
+    monkeypatch.setenv("LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS", "75000")
+    root_limits_configured = resolve_workload_limits(ASSESSMENT_ROOT_SCOPE)
+    assert root_limits_configured.max_output_tokens == 75000
+
 
 def test_unconstrained_workload_admission_exceeds_historical_limits(monkeypatch):
     monkeypatch.delenv("LCSP_ASSESSMENT_MAX_MODEL_CALLS", raising=False)
@@ -664,34 +674,51 @@ def test_rule_set_preparation_restores_usage_across_fresh_instances(tmp_path) ->
     assert ctx4.cumulative_usage.total_tokens == 262_000
 
 
-def test_rule_set_preparation_output_only_quota_enforces_pause() -> None:
+def test_rule_set_preparation_has_no_cumulative_output_quota_even_with_stale_env(monkeypatch) -> None:
     from middleware.agent_run_budget import AgentRunBudgetMiddleware
-    from middleware.failure_policy import AgentRunBudgetExceeded
+    from middleware.durable_budget_kernel import (
+        RULE_SET_PREPARATION_SCOPE,
+        resolve_workload_limits,
+    )
+    from middleware.usage_metering import DEFAULT_MAX_OUTPUT_TOKENS
 
-    # Only output_tokens is configured; model_calls, input_tokens and total_tokens are unconstrained (None)
+    # Even if stale LCSP_RSP_MAX_OUTPUT_TOKENS is configured in environment, it has no effect
+    monkeypatch.setenv("LCSP_RSP_MAX_OUTPUT_TOKENS", "100")
+    limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+    assert limits.max_output_tokens is None
+
+    # Quotas resolved for RSP have output_tokens as None
     durable = WorkloadCumulativeUsage(model_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     quotas = {
-        "model_calls": None,
-        "input_tokens": None,
-        "output_tokens": 100,  # Explicit ceiling: 100 output tokens
-        "total_tokens": None,
+        "model_calls": limits.max_model_calls,
+        "input_tokens": limits.max_input_tokens,
+        "output_tokens": limits.max_output_tokens,
+        "total_tokens": limits.max_total_tokens,
     }
     mw = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable)
 
     req = SimpleNamespace(messages=[SimpleNamespace(content="Generate claims")], model="gpt-4")
-    # First call admitted: produces 120 output tokens
+    # First call produces 500 output tokens (exceeding historical 100 limit)
     mw.wrap_model_call(
         req,
         lambda r: SimpleNamespace(
-            result=[SimpleNamespace(content="Result", usage_metadata={"input_tokens": 500, "output_tokens": 120})],
+            result=[SimpleNamespace(content="Result 1", usage_metadata={"input_tokens": 500, "output_tokens": 500})],
         ),
     )
-    assert durable.output_tokens == 120
+    assert durable.output_tokens == 500
 
-    # Second call must be rejected immediately with TOKEN_LIMIT_EXCEEDED because 120 >= 100
-    with pytest.raises(AgentRunBudgetExceeded) as exc_info:
-        mw.wrap_model_call(req, lambda r: SimpleNamespace(result=[]))
-    assert exc_info.value.reason == "TOKEN_LIMIT_EXCEEDED"
+    # Second call produces another 800 output tokens: NOT paused, continues unconstrained
+    mw.wrap_model_call(
+        req,
+        lambda r: SimpleNamespace(
+            result=[SimpleNamespace(content="Result 2", usage_metadata={"input_tokens": 500, "output_tokens": 800})],
+        ),
+    )
+    assert durable.output_tokens == 1300
+    assert durable.total_tokens == 2300
+
+    # Per-request model limit constant remains preserved at 4096
+    assert DEFAULT_MAX_OUTPUT_TOKENS == 4096
 
 
 def test_unknown_usage_larger_than_hard_ceiling_fails_closed(monkeypatch) -> None:

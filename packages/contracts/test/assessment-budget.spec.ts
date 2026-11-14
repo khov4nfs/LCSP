@@ -243,6 +243,24 @@ describe("assessment budget kernel contracts", () => {
       expect(limits.noProgressLimit).toBe(25);
     });
 
+    it("ensures RULE_SET_PREPARATION maxOutputTokens is permanently null even if LCSP_RSP_MAX_OUTPUT_TOKENS is set", () => {
+      const limits = resolveConfiguredBudgetLimits(
+        {
+          LCSP_RSP_MAX_MODEL_CALLS: "50",
+          LCSP_RSP_MAX_INPUT_TOKENS: "1000000",
+          LCSP_RSP_MAX_OUTPUT_TOKENS: "50000",
+          LCSP_RSP_MAX_TOTAL_TOKENS: "1050000",
+          LCSP_RSP_NO_PROGRESS_LIMIT: "10",
+        },
+        WORKLOAD_SCOPES.RULE_SET_PREPARATION,
+      );
+      expect(limits.maxModelCalls).toBe(50);
+      expect(limits.maxInputTokens).toBe(1_000_000);
+      expect(limits.maxOutputTokens).toBeNull();
+      expect(limits.maxTotalTokens).toBe(1_050_000);
+      expect(limits.noProgressLimit).toBe(10);
+    });
+
     it("applies overrideNoProgress option to clear noProgressLimit", () => {
       const limits = resolveConfiguredBudgetLimits(
         { LCSP_ASSESSMENT_NO_PROGRESS_LIMIT: "15" },

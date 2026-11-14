@@ -271,12 +271,14 @@ export function parseConfiguredPositiveInt(
  *
  * Business rules:
  * - Default behavior is unconstrained (null) for all cumulative token and call dimensions when not explicitly configured.
+ * - Rule Set Preparation has no cumulative output-token ceiling; maxOutputTokens is permanently null for RULE_SET_PREPARATION.
+ * - Assessment Root preserves support for its explicitly configured LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS ceiling.
  * - Malformed configurations throw errors immediately to prevent silent permissive or restrictive execution.
  * - An explicitly passed overrideNoProgress flag sets noProgressLimit to null.
  *
  * Execution flow:
  * 1. Identify prefix based on workload scope (LCSP_RSP for RULE_SET_PREPARATION, LCSP_ASSESSMENT for ASSESSMENT_ROOT).
- * 2. Parse optional positive integer limits for model calls, input tokens, output tokens, total tokens, and no-progress turns.
+ * 2. Parse optional positive integer limits for model calls, input tokens, total tokens, and no-progress turns; maxOutputTokens is permanently null for RULE_SET_PREPARATION.
  * 3. Apply overrideNoProgress if requested.
  * 4. Return an AssessmentBudgetLimits object.
  *
@@ -311,10 +313,13 @@ export function resolveConfiguredBudgetLimits(
       `${prefix}_MAX_INPUT_TOKENS`,
       env[`${prefix}_MAX_INPUT_TOKENS`],
     ),
-    maxOutputTokens: parseConfiguredPositiveInt(
-      `${prefix}_MAX_OUTPUT_TOKENS`,
-      env[`${prefix}_MAX_OUTPUT_TOKENS`],
-    ),
+    maxOutputTokens:
+      scope === WORKLOAD_SCOPES.RULE_SET_PREPARATION
+        ? null
+        : parseConfiguredPositiveInt(
+            "LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS",
+            env.LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS,
+          ),
     maxTotalTokens: parseConfiguredPositiveInt(
       `${prefix}_MAX_TOTAL_TOKENS`,
       env[`${prefix}_MAX_TOTAL_TOKENS`],
