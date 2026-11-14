@@ -75,6 +75,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    * - Only the Assessment owner may answer an open request at the current request and case revisions and its bound native checkpoint.
    * - Exact idempotent replays preserve the original result; a conflicting payload or actor is rejected.
    * - A known answer supplies human-owned text, while the agent-authored question remains explicitly labelled context rather than a customer assertion.
+   * - Typed choice answers snapshot their canonical value and label in immutable evidence while preserving raw answer value.
    * - Unknown answers keep the request open and create no accepted fact or case revision.
    * - Once every open dependency has an unknown response at the current checkpoint, enqueue one review-only continuation while preserving WAITING_FOR_HUMAN.
    * - A shared request resolves one fact; only dependencies in the current audit return to investigation after their other open requests resolve.
@@ -82,7 +83,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    *
    * Execution flow:
    * 1. Lock the owned Assessment, validate replay identity, revisions, checkpoint and any selected choice.
-   * 2. For a known answer, advance the case revision, invalidate affected current decisions, and persist answer evidence and a provenance-labelled fact.
+   * 2. For a known answer, advance the case revision, invalidate affected current decisions, snapshot choice meaning, and persist answer evidence and a provenance-labelled fact.
    * 3. Append checkpoint-bound answer history, update each dependent rule's coverage, and enqueue normal resume after all blockers resolve or a review-only continuation after all open dependencies have replied UNKNOWN.
    *
    * Failure cases:
@@ -201,6 +202,13 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
       let factId: string | null = null;
       let caseRevision = pins.caseRevision;
       const requestRevision = row.requestRevision + 1;
+      const choicesList = Array.isArray(row.choices)
+        ? (row.choices as Array<{ value: string; label: string }>)
+        : [];
+      const selectedChoice =
+        answer !== null
+          ? (choicesList.find((choice) => choice.value === answer) ?? null)
+          : null;
       if (answer !== null) {
         caseRevision += 1;
         await tx.assessmentCase.update({
@@ -217,6 +225,10 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           requestId: row.requestId,
           actorId: actor.id,
           answer,
+          selectedChoice: selectedChoice
+            ? { value: selectedChoice.value, label: selectedChoice.label }
+            : null,
+          controlType: row.controlType,
           caseRevision,
           requestRevision,
         };
@@ -231,6 +243,9 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           },
         });
         factId = randomUUID();
+        const answerDisplay = selectedChoice
+          ? `${selectedChoice.label} (${selectedChoice.value})`
+          : answer;
         await tx.assessmentCaseFact.create({
           data: {
             factId,
@@ -238,7 +253,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
             caseRevision,
             kind: ASSESSMENT_FACT_KINDS.FACT,
             authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
-            statement: `Customer answer: ${answer}\nAgent-authored question (context only): ${row.question}`,
+            statement: `Customer answer: ${answerDisplay}\nAgent-authored question (context only): ${row.question}`,
           },
         });
         await tx.assessmentCaseFactEvidence.create({
@@ -276,6 +291,9 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
               requestRevision,
               doesNotKnow: answer === null,
               answer,
+              selectedChoice: selectedChoice
+                ? { value: selectedChoice.value, label: selectedChoice.label }
+                : null,
               checkpointId: row.checkpointId,
             },
           ],

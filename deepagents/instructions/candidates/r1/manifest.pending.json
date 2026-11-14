@@ -2,8 +2,8 @@
   "bundleSchemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
   "bundleId": "lcsp-347-vi-draft-r1",
   "approvalStatus": "PENDING",
-  "vietnameseInventorySha256": "c35680943500c68a0b713f5ecf3c4e69c6bed1d2d50138994f3db656c037ba3e",
-  "englishBundleSha256": "74ce5eee8e7c6a3d5e26e6f9c8762b8896890f761f5aabd399891cfd78c0cf6a",
+  "vietnameseInventorySha256": "e2067a65a8045a2c480b3c364d5d9e65fdaf772341fda857b7dfb0bb841579af",
+  "englishBundleSha256": "f260bb565026b06f111919ed40fa9970b16f9825aede9679329896e5eb3e53c2",
   "entries": [
     {
       "sourceId": "assessment-root.continuation",
@@ -209,9 +209,9 @@
       "sourceId": "assessment-tools.upstream",
       "vietnameseSourcePath": "instructions/vi/upstream-assessment-tools.json",
       "vietnameseSourceRevision": "lcsp-347-upstream-r1",
-      "vietnameseSourceSha256": "df986400eaaf4d0713b4fb9b2ad3946eb49961e7608bd6376fb19842b9f67d4c",
+      "vietnameseSourceSha256": "1d9ed0a92c67b2e5a7fe142a57fe65adc865d76a1bf4e33743e835afd42d3ba5",
       "englishRuntimePath": "instructions/candidates/r1/assessment-tools.upstream.txt",
-      "englishRuntimeSha256": "407271bc18b53776123863ab245d301704e714cf5dc058c9b2940831d805ab38"
+      "englishRuntimeSha256": "94a7b02583fd211571faa376272cdf5ea01d9e37f7b22a2f667db88ab9a4ba3f"
     },
     {
       "sourceId": "claim-author.system",
@@ -473,9 +473,9 @@
       "sourceId": "tools.schema-guidance",
       "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
       "vietnameseSourceRevision": "lcsp-347-draft-r2",
-      "vietnameseSourceSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
+      "vietnameseSourceSha256": "3d65f60bfa35a770eeb8ede662e27cbd77a8508abdff6ca778db14de743dc530",
       "englishRuntimePath": "instructions/candidates/r2/tools.schema-guidance.txt",
-      "englishRuntimeSha256": "566d7fc6b5f74409e56b379656eb460c2d81b87afc58dba3a950b42cc7fde3fd"
+      "englishRuntimeSha256": "de8dfb834eabcef9e0da3caa8ea912b5047b372fe4fda806c9747e78b73ac06e"
     }
   ]
 }

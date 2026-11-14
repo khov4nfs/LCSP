@@ -131,9 +131,28 @@ class DockerSandboxBackend(SandboxBackendProtocol):
         self._docker(["rm", "-f", self.spec.container_name], check=False)
 
     def ls(self, path: str) -> LsResult:
+        """Business purpose:
+        List directories and files within the isolated sandbox container.
+
+        Business rules:
+        - Must confine operations to permitted sandbox roots without escaping.
+        - Runs in isolated Python mode to prevent untrusted repo module shadowing.
+
+        Execution flow:
+        1. Resolve and validate container-scoped target path.
+        2. Execute isolated directory listing inside container.
+        3. Parse JSON entries and return LsResult.
+
+        Failure cases:
+        - Non-existent path returns LsResult with error "file_not_found".
+        - Execution failures return LsResult with container error output.
+
+        Side effects:
+        - Read-only container inspection.
+        """
         target = _sandbox_path(path)
         script = (
-            "python - <<'PY'\n"
+            "python3 -I - <<'PY'\n"
             "import json, os, sys\n"
             f"path={target!r}\n"
             "if not os.path.exists(path):\n"
@@ -154,12 +173,31 @@ class DockerSandboxBackend(SandboxBackendProtocol):
         return LsResult(entries=payload.get("entries") or [])
 
     def read(self, file_path: str, offset: int = 0, limit: int = 2000):
+        """Business purpose:
+        Read bounded line ranges from files within the sandbox container.
+
+        Business rules:
+        - Uses 1-indexed line offset and limit according to Filesystem tool contract.
+        - Runs in isolated Python mode to eliminate untrusted import shadowing.
+
+        Execution flow:
+        1. Resolve container path and line bounds.
+        2. Execute isolated reader script inside container.
+        3. Decode content or base64 binary and return ReadResult with window metadata.
+
+        Failure cases:
+        - Missing file returns file_not_found error.
+        - Directory target returns is_directory error.
+
+        Side effects:
+        - Read-only container file access.
+        """
         # offset/limit are LINE counts in the Filesystem tool contract (a byte window cut files mid-word
         # and exhausted the Root's budget). Content stays exact and errors stay plain codes; the window
         # metadata lets the tool tell the model where to continue. ponytail: no byte cap on one page.
         path = _sandbox_path(file_path)
         script = (
-            "python - <<'PY'\n"
+            "python3 -I - <<'PY'\n"
             "import base64, io, json, os\n"
             f"path={path!r}; offset=max({offset!r},0); limit={limit!r}\n"
             "if not os.path.exists(path):\n"
@@ -199,10 +237,29 @@ class DockerSandboxBackend(SandboxBackendProtocol):
         return ReadResult(file_data=payload.get("file_data"), **window)
 
     def write(self, file_path: str, content: str) -> WriteResult:
+        """Business purpose:
+        Write content to a file inside the isolated sandbox container.
+
+        Business rules:
+        - Automatically creates parent directories when writing.
+        - Confined to authorized sandbox roots (/workspace/repository, /workspace/runtime, /tmp).
+        - Executes with isolated Python to prevent malicious repository module shadowing.
+
+        Execution flow:
+        1. Validate and resolve container target path.
+        2. Base64-encode content and transmit via isolated container script.
+        3. Write file and verify completion.
+
+        Failure cases:
+        - Path escapes return ValueError; write failures return WriteResult with error.
+
+        Side effects:
+        - Creates or overwrites container file at specified path.
+        """
         path = _sandbox_path(file_path)
         encoded = base64.b64encode(content.encode("utf-8"))
         script = (
-            "python - <<'PY'\n"
+            "python3 -I - <<'PY'\n"
             "import base64, os\n"
             f"path={path!r}; data={encoded!r}\n"
             "os.makedirs(os.path.dirname(path), exist_ok=True)\n"
@@ -222,9 +279,27 @@ class DockerSandboxBackend(SandboxBackendProtocol):
         new_string: str,
         replace_all: bool = False,
     ) -> EditResult:
+        """Business purpose:
+        Perform targeted string replacement inside a sandbox file.
+
+        Business rules:
+        - Validates existence of target string before modifying.
+        - Runs with isolated Python to prevent repository import shadowing.
+
+        Execution flow:
+        1. Resolve target file path in sandbox.
+        2. Read file content and verify old_string exists.
+        3. Perform replacement and write updated content back.
+
+        Failure cases:
+        - Target string not found returns old_string_not_found error.
+
+        Side effects:
+        - Modifies target file content in container.
+        """
         path = _sandbox_path(file_path)
         script = (
-            "python - <<'PY'\n"
+            "python3 -I - <<'PY'\n"
             "import json, pathlib\n"
             f"path=pathlib.Path({path!r}); old={old_string!r}; new={new_string!r}; replace_all={replace_all!r}\n"
             "text=path.read_text(encoding='utf-8')\n"
@@ -252,9 +327,27 @@ class DockerSandboxBackend(SandboxBackendProtocol):
         *,
         max_count: int | None = None,
     ) -> GrepResult:
+        """Business purpose:
+        Search for text patterns across files in the sandbox container.
+
+        Business rules:
+        - Excludes .git directory and obeys max_count match limit.
+        - Runs in isolated Python mode to prevent repo module shadowing.
+
+        Execution flow:
+        1. Resolve target search root in container.
+        2. Walk files matching glob pattern and search lines for pattern.
+        3. Collect matching line numbers and text up to max_count.
+
+        Failure cases:
+        - Non-zero execution exit code returns GrepResult with error.
+
+        Side effects:
+        - Read-only search across container files.
+        """
         target = _sandbox_path(path or "/")
         script = (
-            "python - <<'PY'\n"
+            "python3 -I - <<'PY'\n"
             "import fnmatch, json, os\n"
             f"needle={pattern!r}; root={target!r}; glob_pat={glob!r}; max_count={max_count!r}\n"
             "matches=[]\n"
@@ -287,9 +380,27 @@ class DockerSandboxBackend(SandboxBackendProtocol):
         )
 
     def glob(self, pattern: str, path: str | None = None) -> GlobResult:
+        """Business purpose:
+        Find files matching a glob pattern inside the sandbox container.
+
+        Business rules:
+        - Enforces maximum match limit of 10,000 files.
+        - Runs in isolated Python mode to prevent untrusted repo code shadowing.
+
+        Execution flow:
+        1. Resolve search root in container.
+        2. Evaluate glob pattern and collect matching paths.
+        3. Return GlobResult with path and directory entries.
+
+        Failure cases:
+        - Execution failures return GlobResult with error output.
+
+        Side effects:
+        - Read-only search within container filesystem.
+        """
         target = _sandbox_path(path or "/")
         script = (
-            "python - <<'PY'\n"
+            "python3 -I - <<'PY'\n"
             "import glob, json, os\n"
             f"root={target!r}; pattern={pattern!r}\n"
             "matches=[]\n"

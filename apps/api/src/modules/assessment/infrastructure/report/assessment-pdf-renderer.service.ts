@@ -8,13 +8,16 @@ import {
 import {
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
   type AssessmentFinalReportArtifact,
 } from "@lcsp/contracts/assessment-domain";
 import {
   buildAssessmentReportPresentation,
   type AssessmentFinalReportV2,
+  type AssessmentFinalReportV3,
 } from "@lcsp/contracts/assessment-report";
 import { assessmentReportV2Html } from "./assessment-report-v2-pdf-html.js";
+import { assessmentReportV3Html } from "./assessment-report-v3-pdf-html.js";
 import type { ReportTranslationCatalog } from "./assessment-report-v2-pdf-presentation.js";
 
 /**
@@ -278,6 +281,86 @@ export class AssessmentPdfRenderer implements OnModuleDestroy {
   }
 
   /**
+   * Business purpose: Produce a downloadable V3 PDF from the immutable report projection supplied by the authorized caller.
+   *
+   * Business rules:
+   * - Require the V3 version discriminator, enforce input/output size and render concurrency limits, and block external page requests; callers validate the full artifact contract.
+   * - Render the shared V3 presentation model without changing accepted decisions or source references.
+   *
+   * Execution flow:
+   * 1. Validate the artifact version, projection, size, and available render capacity.
+   * 2. Render the V3 HTML in an isolated JavaScript-disabled Chromium context.
+   * 3. Return the complete PDF bytes after enforcing timeout and output-size bounds.
+   *
+   * Failure cases:
+   * - A non-V3 version, invalid projection, exhausted concurrency, browser failure, timeout, empty output, or oversized input/output rejects the request.
+   *
+   * Side effects:
+   * - Launches or reuses the local Chromium process and allocates a temporary browser context; no assessment or artifact records are written.
+   */
+  async renderV3(
+    report: AssessmentFinalReportV3,
+    options: {
+      preview?: boolean;
+      translations?: ReportTranslationCatalog;
+    } = {},
+  ): Promise<Buffer> {
+    if (report.schemaVersion !== ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION)
+      throw new Error("PDF rendering requires an Assessment Final Report V3");
+    const model = buildAssessmentReportPresentation(report);
+    if (!("summary" in model)) throw new Error("Invalid V3 presentation model");
+    if (Buffer.byteLength(JSON.stringify(report), "utf8") > MAX_BYTES)
+      throw new Error("Assessment report exceeds PDF input limit");
+    if (this.activeRenders >= this.maxConcurrent)
+      throw new Error("PDF renderer concurrency limit reached");
+    this.activeRenders += 1;
+    let context: Awaited<ReturnType<Browser["newContext"]>> | undefined;
+    try {
+      const browser = await this.browser();
+      context = await browser.newContext({ javaScriptEnabled: false });
+      const page = await context.newPage();
+      await page.route("**/*", (route) =>
+        route.request().url() === "about:blank" ||
+        route.request().url().startsWith("data:")
+          ? route.continue()
+          : route.abort("blockedbyclient"),
+      );
+      const document = assessmentReportV3Html(model, options);
+      await page.setContent(document, {
+        waitUntil: "domcontentloaded",
+        timeout: TIMEOUT,
+      });
+      const pdfPromise = page.pdf({
+        format: "A4",
+        printBackground: true,
+        preferCSSPageSize: true,
+        displayHeaderFooter: true,
+        headerTemplate: "<span></span>",
+        footerTemplate:
+          '<div style="width:100%;font:8px Arial;color:#557080;text-align:center">LCSP · Trang <span class="pageNumber"></span> trên <span class="totalPages"></span></div>',
+        margin: { top: "12mm", bottom: "14mm", left: "0mm", right: "0mm" },
+      });
+      let timer: NodeJS.Timeout | undefined;
+      const deadline = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          void context?.close().catch(() => undefined);
+          reject(new Error("PDF rendering timed out"));
+        }, TIMEOUT);
+      });
+      const pdf = await Promise.race([pdfPromise, deadline]).finally(() => {
+        if (timer) clearTimeout(timer);
+      });
+      if (!pdf.length) throw new Error("Chromium returned an empty PDF");
+      if (pdf.length > MAX_BYTES)
+        throw new Error("Rendered PDF exceeds output limit");
+      return pdf;
+    } finally {
+      await context?.close().catch(() => undefined);
+      this.activeRenders -= 1;
+    }
+  }
+
+  /**
    * Business purpose: Keep authorized downloads of previously stored V1 report artifacts available as PDF.
    *
    * Business rules:
@@ -348,6 +431,7 @@ export class AssessmentPdfRenderer implements OnModuleDestroy {
       this.activeRenders -= 1;
     }
   }
+
   /**
    * Business purpose: Release the renderer's Chromium resource when the API module shuts down.
    *

@@ -5,12 +5,20 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   assessmentRootContextSchema,
   type AssessmentRootContext,
+  WORKLOAD_SCOPES,
+  evaluateBudgetAdmission,
+  resolveConfiguredBudgetLimits,
+  applyBudgetExtension,
+  assessmentBudgetExtensionSchema,
+  type AssessmentBudgetExtension,
+  LEGACY_BUDGET_EXTENSION_ALLOWANCE,
 } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
 import { HttpStatus } from "@nestjs/common";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { humanRequestDependenciesOf } from "../../../infrastructure/persistence/assessment-human-request-dependencies.js";
@@ -19,6 +27,7 @@ import {
   humanRequestScopeWhere,
 } from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
+import { calculateConsecutiveTurnsWithoutProgress } from "../../services/assessment-progress-tracker.js";
 import { GetRootContextQuery } from "./get-root-context.query.js";
 
 function extractSavedLocale(data: unknown): string | undefined {
@@ -53,14 +62,15 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
    * - Selected membership comes from the assessment's immutable request; a missing selected request never widens to full scope.
    * - The source prefix comes from the immutable snapshot, and open human blockers must have a dependency in this audit.
    * - Human answer history remains separate from accepted facts; UNKNOWN grants no fact or compliance authority.
+   * - Reconciles cumulative LLM usage against configured budget limits, evaluates admission, and applies versioned extensions in lineage order.
    * Execution flow:
    * 1. Authorize the Root and load immutable case pins and the exact selected request.
    * 2. Read authorized coverage, facts, evidence, scoped human dependencies and saved locale.
-   * 3. Return the validated context with explicit source scope and current human request revisions.
+   * 3. Calculate cumulative usage, evaluate budget admission against effective limits with extensions, and return validated context.
    * Failure cases:
    * - Invalid lease, foreign or missing request, missing pins or malformed persisted data rejects without granting authority.
    * Side effects:
-   * - Read-only transaction; creates no facts, changes no lifecycle and sends no continuation.
+   * - May persist migrated legacy budget extension to blockerReference for controlled migration; otherwise read-only transaction.
    */
   async execute(input: GetRootContextQuery): Promise<AssessmentRootContext> {
     return this.prisma.$transaction(async (tx) => {
@@ -174,6 +184,109 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
       const scopedHumanRequests = humanRequests.filter((request) =>
         humanRequestHasRuleInScope(request, ruleScope),
       );
+
+      const usageAggregate = tx.llmUsageEvent?.aggregate
+        ? await tx.llmUsageEvent.aggregate({
+            where: { assessmentId: input.assessmentId },
+            _sum: {
+              inputTokens: true,
+              outputTokens: true,
+              totalTokens: true,
+            },
+            _count: {
+              id: true,
+            },
+          })
+        : null;
+
+      const consecutiveTurnsWithoutProgress =
+        await calculateConsecutiveTurnsWithoutProgress(tx, input.assessmentId);
+
+      const blockerRef =
+        run.blockerReference &&
+        typeof run.blockerReference === "object" &&
+        !Array.isArray(run.blockerReference)
+          ? (run.blockerReference as Record<string, unknown>)
+          : {};
+
+      const rawExt = blockerRef.budgetExtension;
+      const parsedExt =
+        rawExt && typeof rawExt === "object"
+          ? assessmentBudgetExtensionSchema.safeParse(rawExt)
+          : null;
+      const extension = parsedExt?.success ? parsedExt.data : null;
+
+      const overrideNoProgress =
+        blockerRef.overrideNoProgress === true ||
+        extension?.overrideNoProgress === true;
+      const budgetExtended = blockerRef.budgetExtended === true;
+
+      const baseLimits = resolveConfiguredBudgetLimits(
+        process.env,
+        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+        { overrideNoProgress },
+      );
+
+      const cumulativeUsage = {
+        modelCalls: usageAggregate?._count?.id ?? 0,
+        inputTokens: Number(usageAggregate?._sum?.inputTokens ?? 0),
+        outputTokens: Number(usageAggregate?._sum?.outputTokens ?? 0),
+        totalTokens: Number(usageAggregate?._sum?.totalTokens ?? 0),
+        consecutiveTurnsWithoutProgress,
+      };
+
+      // Collect all authorized extensions from versioned history and active extension
+      const allExtensions: AssessmentBudgetExtension[] = [];
+      const seenVersions = new Set<number>();
+
+      if (Array.isArray(blockerRef.budgetExtensionHistory)) {
+        for (const item of blockerRef.budgetExtensionHistory) {
+          const parsed = assessmentBudgetExtensionSchema.safeParse(item);
+          if (parsed.success && !seenVersions.has(parsed.data.version)) {
+            seenVersions.add(parsed.data.version);
+            allExtensions.push(parsed.data);
+          }
+        }
+      }
+      if (extension && !seenVersions.has(extension.version)) {
+        seenVersions.add(extension.version);
+        allExtensions.push(extension);
+      }
+      allExtensions.sort((a, b) => a.version - b.version);
+
+      // Apply authoritative versioned budget extensions in version order
+      let limits = baseLimits;
+      for (const ext of allExtensions) {
+        limits = applyBudgetExtension(limits, ext);
+      }
+
+      // Support legacy budgetExtended boolean by applying fixed auditable extension allowance
+      // and persisting it to blockerReference for controlled migration (never dynamic usage+headroom)
+      if (budgetExtended && allExtensions.length === 0) {
+        limits = applyBudgetExtension(
+          baseLimits,
+          LEGACY_BUDGET_EXTENSION_ALLOWANCE,
+        );
+        const migratedBlocker: Prisma.InputJsonValue = {
+          ...blockerRef,
+          budgetExtension:
+            LEGACY_BUDGET_EXTENSION_ALLOWANCE as unknown as Prisma.InputJsonObject,
+        };
+        await tx.assessment.update({
+          where: { id: input.assessmentId },
+          data: { blockerReference: migratedBlocker },
+        });
+      }
+
+      const admission = evaluateBudgetAdmission(limits, cumulativeUsage);
+
+      const budgetState = {
+        workloadScope: WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+        limits,
+        cumulativeUsage,
+        status: admission.status,
+      };
+
       return assessmentRootContextSchema.parse({
         assessmentId: input.assessmentId,
         threadId: run.threadId,
@@ -252,6 +365,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           dependencies: humanRequestDependenciesOf(row),
         })),
         responseLanguage,
+        budgetState,
       });
     });
   }

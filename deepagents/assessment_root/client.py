@@ -145,7 +145,7 @@ class AssessmentRuntimeClient:
     def heartbeat(self) -> dict[str, Any]:
         return self._call("POST", "/heartbeat")
 
-    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None, recovery_required: bool = False) -> dict[str, Any]:
+    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None, recovery_required: bool = False, reason: str | None = None) -> dict[str, Any]:
         """Business purpose: Settle one leased Root segment, retaining uncertain work for operator recovery.
 
         Business rules:
@@ -167,6 +167,8 @@ class AssessmentRuntimeClient:
             body["requestIds"] = request_ids
         if control_request_id is not None:
             body["controlRequestId"] = control_request_id
+        if reason is not None:
+            body["reason"] = reason
         result = self._call("POST", "/finish", body)
         self.lease_token = None
         return result
@@ -256,6 +258,25 @@ class AssessmentRuntimeClient:
 
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/human-requests", body)
+
+    def post_human_requests_batch(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Business purpose: Transport an atomic batch of human resolution requests to the governed API.
+
+        Business rules:
+        - The batch must contain between 1 and 20 requests anchored to valid criteria or conditions.
+        - The request is a mutation sent with current execution lease and case revision authority.
+
+        Execution flow:
+        1. Dispatch POST /human-requests/batch with worker auth and lease headers.
+        2. Unmarshal the server response envelope and return created or replayed request records.
+
+        Failure cases:
+        - Validation errors, revision conflicts, or lease expiration raise AssessmentApiError.
+
+        Side effects:
+        - Persists human requests in the API database and triggers state transitions.
+        """
+        return self._call("POST", "/human-requests/batch", body)
 
     def report_unresolvable_human_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/human-fact-unresolvable", body)

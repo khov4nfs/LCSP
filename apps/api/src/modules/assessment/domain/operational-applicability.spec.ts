@@ -129,6 +129,9 @@ describe.each(fixture.historicalCases)(
     it("native idempotent replay cannot bypass the current applicability guard", async () => {
       const write = jest.fn();
       const transaction = {
+        assessmentHumanRequest: {
+          findFirst: () => Promise.resolve(null),
+        },
         assessmentRuleDecision: {
           findUnique: () =>
             Promise.resolve({

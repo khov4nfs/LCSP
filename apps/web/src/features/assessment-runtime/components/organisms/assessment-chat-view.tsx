@@ -37,6 +37,9 @@ export function AssessmentChatView({
       ?.eventSequence;
   useEffect(() => {
     void client.invalidateQueries({ queryKey: ["assessment", assessmentId] });
+    void client.invalidateQueries({
+      queryKey: ["assessment-runtime-control", assessmentId],
+    });
   }, [client, assessmentId, sequence]);
 
   useEffect(() => {
@@ -121,8 +124,10 @@ export function AssessmentChatView({
         targetRequestId={targetRequestId}
         answerPending={answer.pending}
         answerFailed={answer.failed}
+        answerStaleConflict={answer.staleConflict}
         submittingRequestId={answer.submittingRequestId}
         failedRequestId={answer.failedRequestId}
+        staleConflictRequestId={answer.staleConflictRequestId}
         onAnswer={(value, req) => void answer.submit(value, req)}
         footer={
           requests.isError || events.isError ? (

@@ -373,124 +373,127 @@ export class AssessmentRootCapacityService {
    * - Creates one reservation, or increments the operational admission-deferral counter.
    */
   async reserve(input: z.infer<typeof rootCapacityReserveSchema>) {
-    return this.prisma.$transaction(async (tx) => {
-      const row = await this.lock(tx);
-      this.assertServer(row, input);
-      const existing = await tx.assessmentRootExecutionSlot.findUnique({
-        where: { runId: input.runId },
-      });
-      if (existing) {
-        return {
-          admitted:
-            existing.releasedAt === null &&
-            existing.assessmentId === input.assessmentId &&
-            existing.incarnationId === input.incarnationId,
-          obsolete: existing.releasedAt !== null,
-          reason: Reasons.held,
-        };
-      }
-      const command = await tx.outboxMessage.findFirst({
-        where: {
-          aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
-          aggregateId: input.assessmentId,
-          eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
-        },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      });
-      if (
-        !command ||
-        (command.payload as Prisma.JsonObject)?.idempotencyKey !==
-          input.commandKey
-      ) {
-        return { admitted: false, obsolete: true, reason: Reasons.held };
-      }
-      // Materialize only a real delivered pre-cutover command; new commands
-      // already created this bookkeeping in their canonical outbox transaction.
-      const demand = await tx.assessmentRootAdmissionRequest.upsert({
-        where: { commandId: command.id },
-        update: {},
-        create: {
-          commandId: command.id,
-          assessmentId: input.assessmentId,
-          requestedAt: command.createdAt,
-        },
-      });
-      await tx.assessmentRootAdmissionRequest.updateMany({
-        where: { commandId: command.id, deliveredAt: null },
-        data: { deliveredAt: new Date() },
-      });
-      const now = new Date();
-      const policy = rootCapacityPolicySchema.parse(row.policy);
-      const metrics = rootCapacityRuntimeMetricsSchema.safeParse(
-        row.runtimeMetrics,
-      );
-      const active = await tx.assessmentRootExecutionSlot.count({
-        where: { releasedAt: null },
-      });
-      const held = await tx.assessmentRootExecutionSlot.count({
-        where: { assessmentId: input.assessmentId, releasedAt: null },
-      });
-      const target = held
-        ? undefined
-        : (await this.waiting(tx, input.assessmentId, 1))[0];
-      if (!held && (!target || target.commandKey !== input.commandKey))
-        return { admitted: false, obsolete: true, reason: Reasons.held };
-      let reason: RootCapacityReason | null = held ? Reasons.held : null;
-      if (
-        !reason &&
-        (!metrics.success ||
-          !row.reportedAt ||
-          !row.evaluatedAt ||
-          now.getTime() - row.evaluatedAt.getTime() >
-            policy.metricTtlSeconds * 1000 ||
-          now.getTime() - Date.parse(metrics.data.sampledAt) < -5000 ||
-          now.getTime() - Date.parse(metrics.data.sampledAt) >
-            policy.metricTtlSeconds * 1000 ||
-          now.getTime() - row.reportedAt.getTime() >
-            policy.metricTtlSeconds * 1000)
-      )
-        reason = Reasons.stale;
-      if (
-        !reason &&
-        (policy.emergencyDisabled ||
-          metrics.data?.draining ||
-          active >= row.effective)
-      )
-        reason = Reasons.full;
-      if (!reason) {
-        const [head] = await this.waiting(tx, undefined, 1);
+    return this.prisma.$transaction(
+      async (tx) => {
+        const row = await this.lock(tx);
+        this.assertServer(row, input);
+        const existing = await tx.assessmentRootExecutionSlot.findUnique({
+          where: { runId: input.runId },
+        });
+        if (existing) {
+          return {
+            admitted:
+              existing.releasedAt === null &&
+              existing.assessmentId === input.assessmentId &&
+              existing.incarnationId === input.incarnationId,
+            obsolete: existing.releasedAt !== null,
+            reason: Reasons.held,
+          };
+        }
+        const command = await tx.outboxMessage.findFirst({
+          where: {
+            aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+            aggregateId: input.assessmentId,
+            eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        });
         if (
-          head?.assessmentId !== input.assessmentId ||
-          head?.commandKey !== input.commandKey
+          !command ||
+          (command.payload as Prisma.JsonObject)?.idempotencyKey !==
+            input.commandKey
+        ) {
+          return { admitted: false, obsolete: true, reason: Reasons.held };
+        }
+        // Materialize only a real delivered pre-cutover command; new commands
+        // already created this bookkeeping in their canonical outbox transaction.
+        const demand = await tx.assessmentRootAdmissionRequest.upsert({
+          where: { commandId: command.id },
+          update: {},
+          create: {
+            commandId: command.id,
+            assessmentId: input.assessmentId,
+            requestedAt: command.createdAt,
+          },
+        });
+        await tx.assessmentRootAdmissionRequest.updateMany({
+          where: { commandId: command.id, deliveredAt: null },
+          data: { deliveredAt: new Date() },
+        });
+        const now = new Date();
+        const policy = rootCapacityPolicySchema.parse(row.policy);
+        const metrics = rootCapacityRuntimeMetricsSchema.safeParse(
+          row.runtimeMetrics,
+        );
+        const active = await tx.assessmentRootExecutionSlot.count({
+          where: { releasedAt: null },
+        });
+        const held = await tx.assessmentRootExecutionSlot.count({
+          where: { assessmentId: input.assessmentId, releasedAt: null },
+        });
+        const target = held
+          ? undefined
+          : (await this.waiting(tx, input.assessmentId, 1))[0];
+        if (!held && (!target || target.commandKey !== input.commandKey))
+          return { admitted: false, obsolete: true, reason: Reasons.held };
+        let reason: RootCapacityReason | null = held ? Reasons.held : null;
+        if (
+          !reason &&
+          (!metrics.success ||
+            !row.reportedAt ||
+            !row.evaluatedAt ||
+            now.getTime() - row.evaluatedAt.getTime() >
+              policy.metricTtlSeconds * 1000 ||
+            now.getTime() - Date.parse(metrics.data.sampledAt) < -5000 ||
+            now.getTime() - Date.parse(metrics.data.sampledAt) >
+              policy.metricTtlSeconds * 1000 ||
+            now.getTime() - row.reportedAt.getTime() >
+              policy.metricTtlSeconds * 1000)
         )
-          reason = Reasons.fairness;
-      }
-      if (reason) {
+          reason = Reasons.stale;
+        if (
+          !reason &&
+          (policy.emergencyDisabled ||
+            metrics.data?.draining ||
+            active >= row.effective)
+        )
+          reason = Reasons.full;
+        if (!reason) {
+          const [head] = await this.waiting(tx, undefined, 1);
+          if (
+            head?.assessmentId !== input.assessmentId ||
+            head?.commandKey !== input.commandKey
+          )
+            reason = Reasons.fairness;
+        }
+        if (reason) {
+          await tx.assessmentRootCapacity.update({
+            where: { id: row.id },
+            data: { admissionDeferrals: { increment: 1 } },
+          });
+          return { admitted: false, reason };
+        }
+        await tx.assessmentRootExecutionSlot.create({
+          data: {
+            runId: input.runId,
+            assessmentId: input.assessmentId,
+            incarnationId: input.incarnationId,
+            requestedAt: demand.requestedAt,
+            commandId: command.id,
+          },
+        });
+        await tx.assessmentRootAdmissionRequest.update({
+          where: { commandId: command.id },
+          data: { admittedRunId: input.runId },
+        });
         await tx.assessmentRootCapacity.update({
           where: { id: row.id },
-          data: { admissionDeferrals: { increment: 1 } },
+          data: { version: { increment: 1 } },
         });
-        return { admitted: false, reason };
-      }
-      await tx.assessmentRootExecutionSlot.create({
-        data: {
-          runId: input.runId,
-          assessmentId: input.assessmentId,
-          incarnationId: input.incarnationId,
-          requestedAt: demand.requestedAt,
-          commandId: command.id,
-        },
-      });
-      await tx.assessmentRootAdmissionRequest.update({
-        where: { commandId: command.id },
-        data: { admittedRunId: input.runId },
-      });
-      await tx.assessmentRootCapacity.update({
-        where: { id: row.id },
-        data: { version: { increment: 1 } },
-      });
-      return { admitted: true, reason: row.reason };
-    });
+        return { admitted: true, reason: row.reason };
+      },
+      { timeout: 60_000, maxWait: 10_000 },
+    );
   }
 
   /**

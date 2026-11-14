@@ -43,12 +43,14 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
    * - QUEUED runs transition to RUNNING once, while RUNNING runs can be taken over only after the claim lease expires.
    * - Compare-and-set state checks prevent concurrent deliveries from claiming the same live run.
    * - Reuse the materialization pinned by an existing inventory frontier when available; otherwise materialize the source graph.
+   * - Aggregate durable LLM usage events and report authoritative measured usage alongside unmeasured attempt count, without fabricating arbitrary token estimates.
    *
    * Execution flow:
    * 1. Load the run and reject a missing run or unsupported worker contract.
    * 2. Claim a queued run or refresh an expired running lease, clearing the prior review operation as part of the transition.
    * 3. Expire prior leases for in-review units, load the run's Legal Source documents and frozen inventory, and export the pinned graph.
-   * 4. Map the pinned source and run state into the validated worker bundle.
+   * 4. Aggregate durable LLM usage into measured token totals and count unmeasured physical attempts into cumulativeUsage.
+   * 5. Map the pinned source and run state into the validated worker bundle.
    *
    * Failure cases:
    * - A missing run returns not found; an unsupported contract, active competing claim, or already-published run returns a preparation conflict.
@@ -192,6 +194,33 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
           identities: true,
         },
       });
+    const usageAggregate = this.prisma.llmUsageEvent?.aggregate
+      ? await this.prisma.llmUsageEvent.aggregate({
+          where: { runId: run.id },
+          _sum: {
+            inputTokens: true,
+            outputTokens: true,
+            totalTokens: true,
+          },
+          _count: {
+            id: true,
+          },
+        })
+      : null;
+
+    const unmeasuredEventsCount = this.prisma.llmUsageEvent?.count
+      ? await this.prisma.llmUsageEvent.count({
+          where: {
+            runId: run.id,
+            OR: [{ totalTokens: null }, { totalTokens: 0n }],
+          },
+        })
+      : 0;
+
+    const measuredInput = Number(usageAggregate?._sum?.inputTokens ?? 0);
+    const measuredOutput = Number(usageAggregate?._sum?.outputTokens ?? 0);
+    const measuredTotal = Number(usageAggregate?._sum?.totalTokens ?? 0);
+    const modelCalls = usageAggregate?._count?.id ?? 0;
     return ruleSetPreparationLegalSourceBundleSchema.parse({
       documentGraph: pinned
         ? (await this.graph.export(legalSource.id, pinned))!
@@ -218,6 +247,14 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
       frozenInventory: frozen,
       legalSourceVersionId: legalSource.id,
       legalSourceVersion: legalSource.version,
+      cumulativeUsage: {
+        modelCalls,
+        inputTokens: measuredInput,
+        outputTokens: measuredOutput,
+        totalTokens: measuredTotal,
+        consecutiveTurnsWithoutProgress: 0,
+        unmeasuredModelCalls: unmeasuredEventsCount,
+      },
       documents: legalSource.documents.map((document) => ({
         ...document,
         corpusRole: fromPrismaLegalSourceDocumentCorpusRole(

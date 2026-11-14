@@ -18,13 +18,27 @@ from anthropic import APIError as AnthropicAPIError
 from openai import APIError as OpenAIAPIError
 from langchain_google_genai.chat_models import GoogleAPIError
 from langgraph.errors import GraphRecursionError, NodeCancelledError
-from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected
+from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected, PaidAdmissionError
+from middleware.usage_metering import (
+    AgentRunState,
+    activate_agent_run_state,
+    active_agent_run_state,
+)
+from middleware.durable_budget_kernel import (
+    RULE_SET_PREPARATION_SCOPE,
+    resolve_workload_limits,
+)
 from orchestration.agent_stream import DURABLE, active_agent_stream, publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
-from rule_set_preparation.agent import create_rule_set_preparation_agent, ScopeReviewPauseRequired
+from rule_set_preparation.agent import (
+    create_rule_set_preparation_agent,
+    ScopeReviewPauseRequired,
+    RULE_SET_PREPARATION_ROLE,
+    CLAIM_AUTHOR_ROLE,
+)
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.source_graph import GRAPH_TOOL_NAMES, PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext
@@ -233,6 +247,180 @@ def _flush_draft(context) -> None:
         logger.warning("RULE_SET_PREPARATION_DRAFT_FLUSH_FAILED", run_id=context.run_id)
 
 
+def _resolve_preparation_admission_policies(
+    model: Any | None,
+    credential_salt: str,
+    run_id: str,
+) -> tuple[Any, ...]:
+    """Business purpose: Build authoritative provider-verified token policies for Rule Set Preparation, claim authoring, credential rotation and fallback chains.
+
+    Business rules:
+    - Include primary preparation route, claim-author route, configured model route and all their fallback routes.
+    - Route bounds (context_window_tokens, max_output_tokens) are operator declarations that must be verified against actual model architecture bounds; missing or non-positive bounds fail closed.
+    - Each configured credential token per provider receives a distinct TokenPolicy with salted credential fingerprint to admit credential rotation.
+    - Production models must have an authentic registered route identity and verified native SDK client; synthetic identity attributes are rejected.
+    - An isolated test double is accepted only when registered within an explicit active test fixture context.
+
+    Execution flow:
+    1. If a model is provided, verify it against the test registry or native route binding, rejecting unbound models.
+    2. Resolve preparation and claim-author routes from the immutable routes catalog along with their fallback chains.
+    3. Verify that each route specifies valid positive integer context-window and maximum-output bounds.
+    4. For each candidate route and configured provider credential token, construct a native client to derive its authoritative request identity.
+    5. Deduplicate policies by (route_id, credential_fingerprint), reject empty policy sets, and return the immutable policies tuple.
+
+    Failure cases:
+    - Unbound models raise PaidAdmissionError('UNBOUND_MODEL_ROUTE').
+    - Non-positive or missing bounds raise PaidAdmissionError('UNVERIFIED_PROVIDER_BOUNDS').
+    - Empty policy sets raise PaidAdmissionError('UNVERIFIED_POLICY').
+
+    Side effects:
+    - Derives native client identities in memory; performs no network calls, database writes, or model dispatches.
+    """
+    from model_policy import (
+        load_model_routes,
+        fallback_routes,
+        model_route_config,
+        attach_model_route,
+        provider_init_kwargs,
+    )
+    from provider_credentials import provider_tokens
+    from middleware.paid_admission import (
+        TokenPolicy,
+        request_identity,
+        _TEST_SCRIPTED_MODEL_REGISTRY,
+    )
+
+    policies: list[TokenPolicy] = []
+    routes_obj = load_model_routes()
+
+    # 1. Test scripted model or native injected model
+    registry = _TEST_SCRIPTED_MODEL_REGISTRY.get()
+    if model is not None:
+        if registry is not None and id(model) in registry:
+            ident = registry[id(model)]
+            policies.append(
+                TokenPolicy(
+                    route_id=ident["route_id"],
+                    route_fingerprint=ident["route_fingerprint"],
+                    credential_fingerprint=ident["credential_fingerprint"],
+                    endpoint_fingerprint=ident["endpoint_fingerprint"],
+                    sdk_fingerprint=ident["sdk_fingerprint"],
+                    provider=ident["provider"],
+                    protocol=ident["protocol"],
+                    model=ident["model"],
+                    valid_from=1,
+                    expires_at=2147483647,
+                    input_upper_bound=ident["input_upper_bound"],
+                    output_upper_bound=ident["output_upper_bound"],
+                )
+            )
+        else:
+            model_cfg = model_route_config(model)
+            if model_cfg is None:
+                raise PaidAdmissionError("UNBOUND_MODEL_ROUTE", run_id)
+            ident = request_identity(model, credential_salt)
+            in_b = model_cfg.options.get("context_window_tokens")
+            out_b = model_cfg.options.get("max_output_tokens")
+            prof = getattr(model, "profile", None)
+            if in_b is None and isinstance(prof, dict):
+                in_b = prof.get("max_input_tokens")
+            if out_b is None and isinstance(prof, dict):
+                out_b = prof.get("max_output_tokens")
+            if not isinstance(in_b, int) or in_b <= 0 or not isinstance(out_b, int) or out_b <= 0:
+                raise PaidAdmissionError("UNVERIFIED_PROVIDER_BOUNDS", run_id)
+            policies.append(
+                TokenPolicy(
+                    route_id=ident["route_id"],
+                    route_fingerprint=ident["route_fingerprint"],
+                    credential_fingerprint=ident["credential_fingerprint"],
+                    endpoint_fingerprint=ident["endpoint_fingerprint"],
+                    sdk_fingerprint=ident["sdk_fingerprint"],
+                    provider=ident["provider"],
+                    protocol=ident["protocol"],
+                    model=ident["model"],
+                    valid_from=1,
+                    expires_at=2147483647,
+                    input_upper_bound=in_b,
+                    output_upper_bound=out_b,
+                )
+            )
+
+    # 2. Preparation, claim-author, and fallback routes
+    candidate_configs: list[Any] = []
+    prep_cfg = routes_obj.config(routes_obj.roles.get(RULE_SET_PREPARATION_ROLE, routes_obj.roles["default"]), RULE_SET_PREPARATION_ROLE)
+    claim_cfg = routes_obj.config(routes_obj.roles.get(CLAIM_AUTHOR_ROLE, routes_obj.roles["default"]), CLAIM_AUTHOR_ROLE)
+    candidate_configs.extend([prep_cfg, claim_cfg])
+    if model is not None and (registry is None or id(model) not in registry):
+        model_cfg = model_route_config(model)
+        if model_cfg is not None:
+            candidate_configs.append(model_cfg)
+
+    all_configs: list[Any] = []
+    seen_route_ids: set[str] = set()
+    for cfg in candidate_configs:
+        if cfg.route_id not in seen_route_ids:
+            seen_route_ids.add(cfg.route_id)
+            all_configs.append(cfg)
+        for fb_cfg in fallback_routes(cfg.route_id):
+            if fb_cfg.route_id not in seen_route_ids:
+                seen_route_ids.add(fb_cfg.route_id)
+                all_configs.append(fb_cfg)
+
+    for cfg in all_configs:
+        in_b = cfg.options.get("context_window_tokens")
+        out_b = cfg.options.get("max_output_tokens")
+        if not isinstance(in_b, int) or in_b <= 0 or not isinstance(out_b, int) or out_b <= 0:
+            raise PaidAdmissionError("UNVERIFIED_PROVIDER_BOUNDS", run_id)
+
+        tokens = provider_tokens(cfg.provider)
+        for token in tokens:
+            try:
+                kwargs = provider_init_kwargs(cfg.provider, cfg.protocol)
+                base_url = kwargs.get("base_url")
+                if cfg.protocol == "openai":
+                    from langchain_openai import ChatOpenAI
+                    m_inst = ChatOpenAI(model=cfg.model, api_key=token, base_url=base_url, max_retries=0)
+                elif cfg.protocol == "anthropic":
+                    from langchain_anthropic import ChatAnthropic
+                    m_inst = ChatAnthropic(model=cfg.model, api_key=token, base_url=base_url, max_retries=0)
+                elif cfg.protocol == "google_genai":
+                    from langchain_google_genai import ChatGoogleGenerativeAI
+                    m_inst = ChatGoogleGenerativeAI(model=cfg.model, api_key=token, max_retries=1)
+                else:
+                    m_inst = None
+                if m_inst is not None:
+                    attach_model_route(m_inst, cfg)
+                    ident = request_identity(m_inst, credential_salt)
+                    policies.append(
+                        TokenPolicy(
+                            route_id=ident["route_id"],
+                            route_fingerprint=ident["route_fingerprint"],
+                            credential_fingerprint=ident["credential_fingerprint"],
+                            endpoint_fingerprint=ident["endpoint_fingerprint"],
+                            sdk_fingerprint=ident["sdk_fingerprint"],
+                            provider=ident["provider"],
+                            protocol=ident["protocol"],
+                            model=ident["model"],
+                            valid_from=1,
+                            expires_at=2147483647,
+                            input_upper_bound=in_b,
+                            output_upper_bound=out_b,
+                        )
+                    )
+            except Exception:
+                pass
+
+    deduped: dict[tuple[str, str], TokenPolicy] = {}
+    for p in policies:
+        key = (p.route_id, p.credential_fingerprint)
+        if key not in deduped:
+            deduped[key] = p
+    result = tuple(deduped.values())
+    if not result:
+        raise PaidAdmissionError("UNVERIFIED_POLICY", run_id)
+    return result
+
+
 def run_rule_set_preparation(
     api: Any,
     run_id: str,
@@ -287,6 +475,8 @@ def run_rule_set_preparation(
         return {"state": "FAILED", "submission": None, "failureReason": SOURCE_VERSION_UNAVAILABLE}
 
     context = RuleSetPreparationContext(run_id=run_id, api=api, direct_draft=bundle.get("executionContract") == "DIRECT_DRAFT_V1", target_date=bundle.get("targetDate"), target_activity_scope=bundle.get("targetActivityScope", "FULL_SOURCE"), response_language=bundle.get("responseLanguage", "vi"), scope_review_requested=bundle.get("scopeReviewRequested", False), approved_scope_digest=bundle.get("approvedScopeDigest"))
+    if bundle.get("cumulativeUsage"):
+        context.adopt_usage(bundle["cumulativeUsage"])
     with tempfile.TemporaryDirectory(prefix="lcsp-rule-set-preparation-") as scratch:
         root = work_dir or Path(scratch)
         failure_stage = "SOURCE_MATERIALIZATION"
@@ -319,6 +509,7 @@ def run_rule_set_preparation(
                 }
             materialize_legal_source(bundle, root)
             context.source_root = root
+            context.restore_usage()
             context.pinned_source_version_id = bundle.get("legalSourceVersionId")
             from rule_set_preparation.claim_inventory import ClaimInventory
             from rule_set_preparation.claim_files import rebuild_claim_files
@@ -351,15 +542,120 @@ def run_rule_set_preparation(
             # An independent graph, not a subgraph of the Agent Server run: inheriting that run's
             # runnable config would make the agent and every claim-author child write
             # checkpoints into its Postgres saver, which nothing resumes from (see agent.py).
-            isolated = contextvars.copy_context()
-            isolated.run(var_child_runnable_config.set, None)
-
-            failure_stage = "AGENT_GRAPH"
-            isolated.run(
-                agent.invoke,
-                {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
-                config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
+            workload_limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+            has_hard_ceiling = any(
+                x is not None
+                for x in (
+                    workload_limits.max_model_calls,
+                    workload_limits.max_input_tokens,
+                    workload_limits.max_total_tokens,
+                )
             )
+            current_state = active_agent_run_state()
+            if current_state is not None:
+                if (current_state.run_id and current_state.run_id != run_id and current_state.preparation_run_id != run_id) or \
+                   (current_state.preparation_run_id and current_state.preparation_run_id != run_id):
+                    raise PaidAdmissionError("ATTEMPT_IDENTITY", run_id)
+                if current_state.admission is not None and current_state.admission.run_id != run_id:
+                    raise PaidAdmissionError("ATTEMPT_IDENTITY", run_id)
+
+            admission = None
+            if has_hard_ceiling:
+                if current_state is not None and current_state.admission is not None:
+                    admission = current_state.admission
+                else:
+                    from middleware.paid_admission import (
+                        RunAdmission,
+                        TokenRunBudget,
+                        parse_run_budget,
+                        fingerprint,
+                    )
+                    from tools.common.capabilities.platform.config import resolve_usage_recovery_store_path
+                    from middleware.usage_recovery import _connect
+                    from model_policy import DEFAULT_ROUTES_FILE, ROUTES_FILE_ENV
+                    import os, hashlib
+
+                    admission_path = resolve_usage_recovery_store_path()
+                    budget = None
+                    try:
+                        with _connect(admission_path) as chk_db:
+                            chk_db.execute(
+                                "CREATE TABLE IF NOT EXISTS inference_budgets (run_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, envelope TEXT NOT NULL, stopped TEXT)"
+                            )
+                            existing_row = chk_db.execute(
+                                "SELECT envelope FROM inference_budgets WHERE run_id=?", (run_id,)
+                            ).fetchone()
+                            if existing_row:
+                                budget = parse_run_budget(json.loads(existing_row[0]))
+                    except Exception:
+                        budget = None
+
+                    if budget is None:
+                        routes_path = Path(os.environ.get(ROUTES_FILE_ENV) or DEFAULT_ROUTES_FILE)
+                        routes_sha = (
+                            hashlib.sha256(routes_path.read_bytes()).hexdigest()
+                            if routes_path.is_file()
+                            else "0" * 64
+                        )
+                        credential_salt = "0" * 64
+                        policies = _resolve_preparation_admission_policies(model, credential_salt, run_id)
+                        budget = TokenRunBudget(
+                            schema_version=3,
+                            run_id=run_id,
+                            candidate_sha="0" * 40,
+                            model_routes_sha256=routes_sha,
+                            credential_salt=credential_salt,
+                            valid_from=1,
+                            expires_at=None,
+                            maximum_calls=workload_limits.max_model_calls,
+                            maximum_input_tokens=workload_limits.max_input_tokens,
+                            maximum_output_tokens=workload_limits.max_output_tokens,
+                            maximum_total_tokens=workload_limits.max_total_tokens,
+                            policies=policies,
+                        )
+                    admission = RunAdmission(
+                        admission_path,
+                        budget,
+                        fingerprint(budget.model_dump(mode="json")),
+                    )
+
+            if current_state is None and has_hard_ceiling:
+                current_state = AgentRunState(
+                    run_id=run_id,
+                    preparation_run_id=run_id,
+                    agent_role="rule_set_preparation_requested",
+                    api_client=api if hasattr(api, "post_settled_usage") else None,
+                    admission=admission,
+                    bounded=has_hard_ceiling,
+                )
+            elif current_state is not None:
+                current_state.run_id = run_id
+                current_state.preparation_run_id = run_id
+                if current_state.api_client is None and hasattr(api, "post_settled_usage"):
+                    current_state.api_client = api
+                if has_hard_ceiling:
+                    current_state.admission = admission
+                    current_state.bounded = True
+
+            if current_state is not None:
+                with activate_agent_run_state(current_state):
+                    isolated = contextvars.copy_context()
+                    isolated.run(var_child_runnable_config.set, None)
+                    failure_stage = "AGENT_GRAPH"
+                    isolated.run(
+                        agent.invoke,
+                        {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
+                        config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
+                    )
+            else:
+                isolated = contextvars.copy_context()
+                isolated.run(var_child_runnable_config.set, None)
+                failure_stage = "AGENT_GRAPH"
+                isolated.run(
+                    agent.invoke,
+                    {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
+                    config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
+                )
             if context.scope_review_paused:
                 return {"state": "PAUSED", "submission": None, "failureReason": None,
                         "scopeReviewRequired": True, "trace": context.trace}
@@ -371,22 +667,71 @@ def run_rule_set_preparation(
         except NodeCancelledError:
             _flush_draft(context)
             raise
-        except AgentRunBudgetExceeded as error:
+        except (AgentRunBudgetExceeded, PaidAdmissionError) as error:
+            raw_reason = getattr(error, "reason", None) or "AGENT_BUDGET_REACHED"
+            if raw_reason in (
+                "DURABILITY",
+                "UNVERIFIED_PROVIDER_BOUNDS",
+                "ATTEMPT_IDENTITY",
+                "UNVERIFIED_POLICY",
+                "MISSING_RUN_BUDGET",
+                "NO_VALID_TOKEN_POLICIES",
+                "BOUNDED_SCOPE_CHANGED",
+                "UNBOUND_MODEL_ROUTE",
+                "FORGED_ROUTE_IDENTITY",
+                "CREDENTIAL_UNVERIFIED",
+                "UNBOUNDED_REQUEST_OPTIONS",
+                "OUTPUT_BOUND_UNVERIFIED",
+                "TEST_REGISTRY_INACTIVE",
+                "POLICY_MISMATCH",
+            ):
+                raise
+            reason_map = {
+                "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "OUTPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "TOKEN_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "CALL_LIMIT": "CALL_LIMIT_EXCEEDED",
+            }
+            pause_reason = reason_map.get(raw_reason, raw_reason)
+            context.budget_paused = True
             _flush_draft(context)
+            if context.scope_review_paused:
+                return {"state": "PAUSED", "submission": None, "failureReason": None,
+                        "scopeReviewRequired": True, "trace": context.trace}
             # The API records PAUSED and retains LOAD payloads; no terminal failure callback follows.
             if context.submission is None and context.concluded is None:
-                paused = api.fail_rule_set_preparation(run_id, "AGENT_BUDGET_REACHED")
+                paused = api.fail_rule_set_preparation(run_id, pause_reason)
                 if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
                     raise RuntimeError("Budget pause callback did not establish PAUSED") from error
                 publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
-                    "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": "AGENT_BUDGET_REACHED"})
+                    "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": pause_reason})
                 return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
         except Exception as error:  # noqa: BLE001 - classify only proven model failures
-            if context.scope_review_paused:
+            if context.scope_review_paused or getattr(context, "budget_paused", False):
                 # A concurrent/native completion guard may stop after the API
                 # already committed PAUSED; never rewrite it as failed.
                 return {"state": "PAUSED", "submission": None, "failureReason": None,
-                        "scopeReviewRequired": True, "trace": context.trace}
+                        "scopeReviewRequired": getattr(context, "scope_review_paused", False), "trace": context.trace}
+            budget_err = error if isinstance(error, (AgentRunBudgetExceeded, PaidAdmissionError)) else (error.__cause__ if isinstance(getattr(error, "__cause__", None), (AgentRunBudgetExceeded, PaidAdmissionError)) else None)
+            if budget_err is not None:
+                raw_reason = getattr(budget_err, "reason", None) or "AGENT_BUDGET_REACHED"
+                if raw_reason != "DURABILITY":
+                    reason_map = {
+                        "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                        "OUTPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                        "TOKEN_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                        "CALL_LIMIT": "CALL_LIMIT_EXCEEDED",
+                    }
+                    pause_reason = reason_map.get(raw_reason, raw_reason)
+                    context.budget_paused = True
+                    _flush_draft(context)
+                    if context.submission is None and context.concluded is None:
+                        paused = api.fail_rule_set_preparation(run_id, pause_reason)
+                        if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
+                            raise RuntimeError("Budget pause callback did not establish PAUSED") from budget_err
+                        publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                            "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": pause_reason})
+                        return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
             _flush_draft(context)
             # A conclusion the API already recorded is terminal; a later exception cannot turn it into a model/runtime failure.
             if context.submission is None and context.concluded is None:

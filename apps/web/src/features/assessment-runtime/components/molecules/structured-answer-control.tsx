@@ -59,7 +59,11 @@ export function StructuredAnswerControl(props: StructuredAnswerControlProps) {
       ) : (
         <TextAnswer {...props} unknown={unknown} />
       )}
-      {props.failed ? (
+      {props.staleConflict ? (
+        <p role="alert" className="text-xs text-amber-600 dark:text-amber-400">
+          {t("pages.assessmentConversation.answer.staleConflict")}
+        </p>
+      ) : props.failed ? (
         <p role="alert" className="text-xs text-destructive">
           {t("pages.assessmentConversation.answer.failed")}
         </p>

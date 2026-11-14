@@ -662,8 +662,24 @@ def create_rule_set_preparation_agent(
     backend = FilesystemBackend(root_dir=legal_source_root, virtual_mode=True)
     observation_middleware = PreparationObservationMiddleware(context)
     read_only = preparation_filesystem(backend, files=not context.direct_draft)
-    budget = AgentRunBudgetMiddleware(run_quotas={name: _positive_env(env, 1) for name, env in
-        [("model_calls", "LCSP_RSP_MAX_MODEL_CALLS"), ("input_tokens", "LCSP_RSP_MAX_INPUT_TOKENS")] if os.environ.get(env)})
+    from middleware.durable_budget_kernel import (
+        RULE_SET_PREPARATION_SCOPE,
+        resolve_workload_limits,
+    )
+    workload_limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+    run_quotas = {
+        "model_calls": workload_limits.max_model_calls,
+        "input_tokens": workload_limits.max_input_tokens,
+        "output_tokens": workload_limits.max_output_tokens,
+        "total_tokens": workload_limits.max_total_tokens,
+        "no_progress_limit": workload_limits.no_progress_limit,
+    }
+    budget = AgentRunBudgetMiddleware(
+        run_quotas=run_quotas,
+        durable_usage=context.cumulative_usage,
+        workload_limits=workload_limits,
+        persist_callback=context.persist_usage,
+    )
     with _without_general_purpose_subagent(_lookup_profile_key(model)), _without_general_purpose_subagent(_lookup_profile_key(author_model)):
         return create_deep_agent(
             name="lcsp-rule-set-preparation",

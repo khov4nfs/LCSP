@@ -45,6 +45,7 @@ import {
   TRACKING_UNTRUSTED_REASONS,
 } from "./constants.ts";
 import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
+import { assessmentBudgetStateSchema } from "./budget.ts";
 import {
   ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_NAME_MAX_LENGTH,
@@ -265,6 +266,20 @@ export type OpenAssessmentHumanRequestResult = z.infer<
   typeof openAssessmentHumanRequestResultSchema
 >;
 
+export const openAssessmentHumanRequestsBatchSchema = z.strictObject({
+  requests: z.array(openAssessmentHumanRequestSchema).min(1).max(20),
+});
+export type OpenAssessmentHumanRequestsBatch = z.infer<
+  typeof openAssessmentHumanRequestsBatchSchema
+>;
+
+export const openAssessmentHumanRequestsBatchResultSchema = z.strictObject({
+  requests: z.array(openAssessmentHumanRequestResultSchema),
+});
+export type OpenAssessmentHumanRequestsBatchResult = z.infer<
+  typeof openAssessmentHumanRequestsBatchResultSchema
+>;
+
 /** Root-authored dependency claim. Shape/provenance validation does not judge obtainability. */
 export const reportUnresolvableHumanFactRequestSchema = z.strictObject({
   humanResolutionRequestId: uuidSchema,
@@ -314,6 +329,13 @@ export const humanAnswerAuditSchema = z.strictObject({
   requestRevision: revisionSchema,
   doesNotKnow: z.boolean(),
   answer: privateTextSchema.nullable(),
+  selectedChoice: z
+    .strictObject({
+      value: identifierSchema,
+      label: privateTextSchema,
+    })
+    .nullable()
+    .optional(),
   checkpointId: uuidSchema.optional(),
 });
 export type HumanAnswerAudit = z.infer<typeof humanAnswerAuditSchema>;
@@ -383,6 +405,7 @@ export const finishAssessmentRootRequestSchema = z
     controlRequestId: uuidSchema.optional(),
     requestIds: z.array(uuidSchema).min(1).max(100).optional(),
     recoveryRequired: z.boolean().optional(),
+    reason: z.string().max(100).optional(),
   })
   .superRefine((value, ctx) => {
     if (
@@ -406,12 +429,23 @@ export const finishAssessmentRootRequestSchema = z
     }
     if (
       value.state === AGENT_EXECUTION_STATES.PAUSED &&
-      (!value.checkpointId || !value.controlRequestId)
+      !value.checkpointId
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Safe pause requires its native checkpoint and authorized Stop request",
+          "Safe pause requires its native checkpoint",
+      });
+    }
+    if (
+      value.state === AGENT_EXECUTION_STATES.PAUSED &&
+      !value.controlRequestId &&
+      !value.reason
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Safe pause requires either an authorized Stop request or a pause reason",
       });
     }
   });
@@ -461,6 +495,7 @@ export const assessmentRootContextSchema = z.strictObject({
   openHumanRequestIds: z.array(uuidSchema),
   humanRequests: z.array(assessmentHumanRequestViewSchema).default([]),
   responseLanguage: z.enum(LOCALES).default(DEFAULT_RESPONSE_LANGUAGE),
+  budgetState: assessmentBudgetStateSchema.optional(),
 });
 export type AssessmentRootContext = z.infer<typeof assessmentRootContextSchema>;
 

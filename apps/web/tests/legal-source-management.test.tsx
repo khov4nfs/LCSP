@@ -619,3 +619,32 @@ test("Legal Library and document reader render active API data and the empty sta
     emptyStub.restore();
   }
 });
+
+test("Legal Source version page renders CHUNK_LIMIT_EXCEEDED failure with guidance to split", async () => {
+  const versionWithOverlimitDoc = {
+    ...fixtures.versionDraft,
+    documents: [
+      {
+        ...fixtures.versionDraft.documents[0],
+        ingestionState: "FAILED" as const,
+        failureCode: "CHUNK_LIMIT_EXCEEDED",
+      },
+    ],
+  };
+  const stub = installFetch({
+    [`GET /api/admin/legal-source-versions/${fixtures.versionDraft.id}`]:
+      versionWithOverlimitDoc,
+  });
+  try {
+    const { container } = renderWithClient(
+      <LegalSourceVersionPage versionId={fixtures.versionDraft.id} />,
+    );
+    await settle();
+    assert.match(
+      container.textContent ?? "",
+      /The document exceeded the 20,000 provision limit\. Please split the document by chapters or legal parts\./,
+    );
+  } finally {
+    stub.restore();
+  }
+});

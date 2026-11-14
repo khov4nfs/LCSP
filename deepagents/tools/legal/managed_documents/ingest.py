@@ -18,6 +18,7 @@ INGEST_TOOL_VERSION = "1.1.0"  # 1.1: lossless chunk partition, table/footnote/n
 FAILURE_UNSUPPORTED = "UNSUPPORTED_MEDIA_TYPE"
 FAILURE_EXTRACTION = "EXTRACTION_FAILED"
 FAILURE_NO_CHUNKS = "NO_CHUNKS"
+FAILURE_CHUNK_LIMIT_EXCEEDED = "CHUNK_LIMIT_EXCEEDED"
 
 
 def failed(attempt: int, code: str) -> dict[str, Any]:
@@ -46,17 +47,17 @@ def ingest_document(*, data: bytes, media_type: str, structure_profile: str, att
 
     Business rules:
     - The caller-provided media type and structure profile determine the extraction and chunking path; Markdown marker handling is enabled only for Markdown input.
-    - Extraction errors, unknown profiles, and zero or over-limit chunk results become FAILED outcomes rather than accepted partial documents.
+    - Extraction errors, unknown profiles, zero-chunk results, and over-limit chunk counts (>MAX_CHUNKS 20,000) become typed FAILED outcomes rather than accepted partial documents.
     - Unexpected implementation or system errors may still propagate to the boundary, which records an extraction failure there.
 
     Execution flow:
     1. Extract the document into page text and recorded extraction gaps.
     2. Chunk the extracted pages using the requested profile, falling back only through the chunker's established AUTO/profile behavior.
-    3. Convert typed extraction/profile failures or invalid chunk counts into a failure result.
-    4. For a valid result, hash the joined text and return tool/version, profile, page, gap, front-matter, and chunk provenance.
+    3. Convert typed extraction/profile failures into a failure result; distinguish empty chunk lists (NO_CHUNKS) from chunk counts exceeding MAX_CHUNKS (CHUNK_LIMIT_EXCEEDED).
+    4. For a valid result within chunk limits, hash the joined text and return tool/version, profile, page, gap, front-matter, and chunk provenance.
 
     Failure cases:
-    - ExtractionError preserves its code; UnknownStructureProfile maps to EXTRACTION_FAILED; empty or over-limit chunks map to NO_CHUNKS.
+    - ExtractionError preserves its code; UnknownStructureProfile maps to EXTRACTION_FAILED; zero chunks maps to NO_CHUNKS; chunk count > MAX_CHUNKS maps to CHUNK_LIMIT_EXCEEDED.
     - Other unexpected exceptions propagate and are not represented as a fabricated READY result.
 
     Side effects:
@@ -71,8 +72,10 @@ def ingest_document(*, data: bytes, media_type: str, structure_profile: str, att
         return failed(attempt, error.code)
     except UnknownStructureProfile:
         return failed(attempt, FAILURE_EXTRACTION)
-    if not result.chunks or len(result.chunks) > MAX_CHUNKS:
+    if not result.chunks:
         return failed(attempt, FAILURE_NO_CHUNKS)
+    if len(result.chunks) > MAX_CHUNKS:
+        return failed(attempt, FAILURE_CHUNK_LIMIT_EXCEEDED)
 
     text = "\n".join(extracted.pages)
     return {

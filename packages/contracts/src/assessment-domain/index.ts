@@ -4,3 +4,6 @@ export * from "./capacity.ts";
 export * from "./rule-audits.ts";
 export * from "./localization.ts";
 export * from "./rule-groups.ts";
+export * from "./budget.ts";
+export * from "./working-context.ts";
+export * from "./repository-profile.ts";

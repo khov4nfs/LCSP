@@ -16,6 +16,7 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_AUDIT_MODES,
+  ASSESSMENT_BUDGET_REASONS,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   RULE_AUDIT_STATUSES,
   ASSESSMENT_DOMAIN_LIMITS,
@@ -23,10 +24,13 @@ import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ROOT_CAPACITY_REASONS,
   type AssessmentRootClaim,
+  WORKLOAD_SCOPES,
+  resolveConfiguredBudgetLimits,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { Prisma, OutboxStatus } from "@prisma/client";
+import { calculateConsecutiveTurnsWithoutProgress } from "./assessment-progress-tracker.js";
 
 function extractSavedLocale(data: unknown): string | undefined {
   if (typeof data === "string") {
@@ -308,6 +312,7 @@ export class AssessmentRuntimeAuthority {
               ruleSetVersionId: true,
               repositorySnapshotId: true,
               repositoryCommit: true,
+              caseRevision: true,
             },
           })
         : null;
@@ -492,6 +497,45 @@ export class AssessmentRuntimeAuthority {
           { status: HttpStatus.CONFLICT },
         );
       }
+      const blockerRef =
+        row.blockerReference &&
+        typeof row.blockerReference === "object" &&
+        !Array.isArray(row.blockerReference)
+          ? (row.blockerReference as Record<string, unknown>)
+          : {};
+      const overrideNoProgress = blockerRef.overrideNoProgress === true;
+      const configuredNoProgressLimit = resolveConfiguredBudgetLimits(
+        process.env,
+        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+      ).noProgressLimit;
+      if (
+        configuredNoProgressLimit !== null &&
+        !overrideNoProgress &&
+        !safePauseResume &&
+        !recoveringHumanInterrupt &&
+        !humanAnswerReview &&
+        !failedHumanAnswerReview &&
+        !recoveredExecution
+      ) {
+        const consecutiveTurnsWithoutProgress =
+          await calculateConsecutiveTurnsWithoutProgress(
+            tx,
+            input.assessmentId,
+          );
+        if (consecutiveTurnsWithoutProgress >= configuredNoProgressLimit) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+            input.correlationId,
+            {
+              status: HttpStatus.CONFLICT,
+              meta: {
+                consecutiveTurnsWithoutProgress,
+                noProgressLimit: configuredNoProgressLimit,
+              },
+            },
+          );
+        }
+      }
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
       await this.capacity.bindInTx(
@@ -576,6 +620,7 @@ export class AssessmentRuntimeAuthority {
           correlationId: input.correlationId,
           state: Controls.running,
           contextJson: {
+            startCaseRevision: caseRow?.caseRevision ?? 0,
             ...(persistedLanguage
               ? { responseLanguage: persistedLanguage }
               : {}),
@@ -604,6 +649,11 @@ export class AssessmentRuntimeAuthority {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
           contextJson: {
             ...((previousTurn?.contextJson as Prisma.JsonObject) ?? {}),
+            ...(typeof (
+              previousTurn?.contextJson as Record<string, unknown> | null
+            )?.startCaseRevision !== "number"
+              ? { startCaseRevision: caseRow?.caseRevision ?? 0 }
+              : {}),
             ...(persistedLanguage
               ? { responseLanguage: persistedLanguage }
               : {}),
@@ -851,6 +901,7 @@ export class AssessmentRuntimeAuthority {
     requestIds?: string[];
     controlRequestId?: string;
     recoveryRequired?: boolean;
+    reason?: string;
   }): Promise<{ executionState: AgentExecutionState }> {
     return this.prisma.$transaction(async (tx) => {
       const run = await this.authorizeInTx(tx, {
@@ -909,16 +960,30 @@ export class AssessmentRuntimeAuthority {
         const turn = await tx.assessmentRuntimeTurn.findUnique({
           where: { id: run.executionId },
         });
+        const isStopRequested =
+          turn &&
+          turn.threadId === run.threadId &&
+          turn.assessmentId === input.assessmentId &&
+          turn.boundary === ASSESSMENT_ROOT_BOUNDARY &&
+          turn.state === Controls.stopRequested &&
+          input.controlRequestId &&
+          turn.requestId === input.controlRequestId;
+
+        const isBudgetPause =
+          input.reason === ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED ||
+          input.reason === ASSESSMENT_BUDGET_REASONS.BUDGET_EXHAUSTED ||
+          input.reason === ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
+          input.reason === ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED ||
+          input.reason === ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
+
         if (
           !input.checkpointId ||
-          !input.controlRequestId ||
           !turn ||
           turn.threadId !== run.threadId ||
           turn.assessmentId !== input.assessmentId ||
           turn.boundary !== ASSESSMENT_ROOT_BOUNDARY ||
-          turn.state !== Controls.stopRequested ||
-          turn.requestId !== input.controlRequestId ||
-          run.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE
+          run.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE ||
+          (!isStopRequested && !isBudgetPause)
         ) {
           throw problemException(
             ASSESSMENT_DOMAIN_ERROR_CODES.CHECKPOINT_INVALID,
@@ -926,7 +991,8 @@ export class AssessmentRuntimeAuthority {
             { status: HttpStatus.CONFLICT },
           );
         }
-        pauseRequestId = turn.requestId;
+        pauseRequestId =
+          turn.requestId ?? input.controlRequestId ?? randomUUID();
       }
       if (input.toState === AGENT_EXECUTION_STATES.INTERRUPTED) {
         const ruleScope = await loadHumanRequestRuleScopeInTx(tx, {
@@ -1036,6 +1102,47 @@ export class AssessmentRuntimeAuthority {
           });
         }
       }
+      const turn = await tx.assessmentRuntimeTurn.findUnique({
+        where: { id: run.executionId },
+        select: { contextJson: true },
+      });
+      const previousCtx =
+        turn?.contextJson &&
+        typeof turn.contextJson === "object" &&
+        !Array.isArray(turn.contextJson)
+          ? (turn.contextJson as Record<string, unknown>)
+          : {};
+      const startCaseRevision =
+        typeof previousCtx.startCaseRevision === "number"
+          ? previousCtx.startCaseRevision
+          : null;
+      const caseRow = tx.assessmentCase
+        ? await tx.assessmentCase.findUnique({
+            where: { assessmentId: input.assessmentId },
+            select: { caseRevision: true },
+          })
+        : null;
+      const endCaseRevision = caseRow?.caseRevision ?? startCaseRevision ?? 0;
+      const domainEventsCount = tx.assessmentEvent
+        ? await tx.assessmentEvent.count({
+            where: {
+              assessmentId: input.assessmentId,
+              executionId: run.executionId,
+              eventType: {
+                in: [
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.EVIDENCE_ACCEPTED,
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.DECISION_ACCEPTED,
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.HUMAN_RESOLUTION_CHANGED,
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.ARTIFACT_CHANGED,
+                ],
+              },
+            },
+          })
+        : 0;
+      const progressMade =
+        (startCaseRevision !== null && endCaseRevision > startCaseRevision) ||
+        domainEventsCount > 0;
+
       await tx.assessmentRuntimeTurn.update({
         where: { id: run.executionId },
         data: {
@@ -1043,12 +1150,32 @@ export class AssessmentRuntimeAuthority {
             input.toState === AGENT_EXECUTION_STATES.PAUSED
               ? Controls.stopped
               : Controls.completed,
+          ...(input.toState === AGENT_EXECUTION_STATES.PAUSED && pauseRequestId
+            ? { requestId: pauseRequestId }
+            : {}),
           ...(input.checkpointId
             ? { checkpointJson: { checkpointId: input.checkpointId } }
             : {}),
+          contextJson: {
+            ...previousCtx,
+            ...(startCaseRevision !== null ? { startCaseRevision } : {}),
+            endCaseRevision,
+            progressMade,
+          },
         },
       });
       if (input.toState === AGENT_EXECUTION_STATES.PAUSED) {
+        if (input.reason) {
+          await tx.assessment.update({
+            where: { id: input.assessmentId },
+            data: {
+              blockerReference: {
+                reason: input.reason,
+                pausedAt: new Date().toISOString(),
+              },
+            },
+          });
+        }
         await this.coordinator.transitionFromRuntimeAcknowledgementInTx(
           {
             assessmentId: input.assessmentId,
@@ -1069,6 +1196,7 @@ export class AssessmentRuntimeAuthority {
         payload: {
           fromState: AGENT_EXECUTION_STATES.RUNNING,
           toState: input.toState,
+          ...(input.reason ? { reason: input.reason } : {}),
         },
         auditActor: ROOT_ACTOR,
       });

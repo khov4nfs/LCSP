@@ -43,6 +43,7 @@ describe("GetRootContextHandler locale authority", () => {
       latestTurnContext?: Record<string, unknown> | null;
       outboxPayload?: Record<string, unknown> | null;
       eventPayload?: Record<string, unknown> | null;
+      blockerReference?: Record<string, unknown> | null;
     } = {},
   ) {
     const executionId = options.executionId ?? randomUUID();
@@ -65,6 +66,7 @@ describe("GetRootContextHandler locale authority", () => {
         findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       assessmentRuntimeTurn: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
         findUnique: jest
           .fn<() => Promise<{ contextJson: any } | null>>()
           .mockResolvedValue(
@@ -96,6 +98,7 @@ describe("GetRootContextHandler locale authority", () => {
           ),
       },
       assessmentEvent: {
+        count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
         findFirst: jest
           .fn<() => Promise<{ payload: any } | null>>()
           .mockResolvedValue(
@@ -105,6 +108,12 @@ describe("GetRootContextHandler locale authority", () => {
                 : null
               : null,
           ),
+      },
+      llmUsageEvent: {
+        aggregate: jest.fn<() => Promise<any>>().mockResolvedValue(null),
+      },
+      assessment: {
+        update: jest.fn<() => Promise<any>>().mockResolvedValue({}),
       },
     };
 
@@ -124,7 +133,7 @@ describe("GetRootContextHandler locale authority", () => {
           lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
           lifecycleRevision: 1,
           blockerReason: null,
-          blockerReference: null,
+          blockerReference: options.blockerReference ?? null,
         }),
       ),
     } as unknown as AssessmentRuntimeAuthority;
@@ -357,5 +366,309 @@ describe("GetRootContextHandler locale authority", () => {
     expect(result.humanRequests?.map((row) => row.requestId)).toEqual([
       sharedRequest.requestId,
     ]);
+  });
+
+  it("computes durable cumulative budget state from llmUsageEvent", async () => {
+    const f = createFixture();
+    f.tx.llmUsageEvent = {
+      aggregate: jest.fn<() => Promise<any>>().mockResolvedValue({
+        _count: { id: 5 },
+        _sum: {
+          inputTokens: 50_000n,
+          outputTokens: 2_500n,
+          totalTokens: 52_500n,
+        },
+      }),
+    };
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.budgetState).toBeDefined();
+    expect(result.budgetState?.workloadScope).toBe("ASSESSMENT_ROOT");
+    expect(result.budgetState?.cumulativeUsage.modelCalls).toBe(5);
+    expect(result.budgetState?.cumulativeUsage.inputTokens).toBe(50_000);
+    expect(result.budgetState?.cumulativeUsage.outputTokens).toBe(2_500);
+    expect(result.budgetState?.cumulativeUsage.totalTokens).toBe(52_500);
+    expect(result.budgetState?.status).toBe("ADMITTED");
+  });
+
+  it("evaluates NO_PROGRESS status when configured limit (15) is reached", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = "15";
+    try {
+      const f = createFixture();
+      const turns = Array.from({ length: 15 }, (_, i) => ({
+        id: `turn-${i}`,
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - i * 1000),
+      }));
+      f.tx.assessmentRuntimeTurn.findMany = jest
+        .fn<() => Promise<any[]>>()
+        .mockResolvedValue(turns);
+
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+      expect(result.budgetState).toBeDefined();
+      expect(
+        result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+      ).toBe(15);
+      expect(result.budgetState?.limits.noProgressLimit).toBe(15);
+      expect(result.budgetState?.status).toBe("NO_PROGRESS");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+      }
+    }
+  });
+
+  it("admits ordinary execution when no explicit limits are configured even with 15 turns without progress", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    delete process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    try {
+      const f = createFixture();
+      const turns = Array.from({ length: 15 }, (_, i) => ({
+        id: `turn-${i}`,
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - i * 1000),
+      }));
+      f.tx.assessmentRuntimeTurn.findMany = jest
+        .fn<() => Promise<any[]>>()
+        .mockResolvedValue(turns);
+
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+      expect(result.budgetState).toBeDefined();
+      expect(result.budgetState?.limits.noProgressLimit).toBeNull();
+      expect(result.budgetState?.limits.maxModelCalls).toBeNull();
+      expect(result.budgetState?.status).toBe("ADMITTED");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;
+      }
+    }
+  });
+
+  it("resets consecutiveTurnsWithoutProgress to 0 when recent completed turn made progress", async () => {
+    const f = createFixture();
+    const turns = [
+      {
+        id: "turn-latest",
+        contextJson: { progressMade: true },
+        createdAt: new Date(),
+      },
+      {
+        id: "turn-old-1",
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - 1000),
+      },
+      {
+        id: "turn-old-2",
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - 2000),
+      },
+    ];
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
+
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(
+      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+    ).toBe(0);
+    expect(result.budgetState?.status).toBe("ADMITTED");
+  });
+
+  it("admits execution when blockerReference sets overrideNoProgress: true despite 15 consecutive turns without progress", async () => {
+    const f = createFixture({
+      blockerReference: { overrideNoProgress: true },
+    });
+    const turns = Array.from({ length: 15 }, (_, i) => ({
+      id: `turn-${i}`,
+      contextJson: { progressMade: false },
+      createdAt: new Date(Date.now() - i * 1000),
+    }));
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
+
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(
+      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+    ).toBe(15);
+    expect(result.budgetState?.limits.noProgressLimit).toBeNull();
+    expect(result.budgetState?.status).toBe("ADMITTED");
+  });
+
+  it("falls back to domain events when progressMade flag is absent on turn context", async () => {
+    const f = createFixture();
+    const turns = [
+      { id: "turn-no-flag", contextJson: {}, createdAt: new Date() },
+    ];
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
+    f.tx.assessmentEvent.count = jest
+      .fn<() => Promise<number>>()
+      .mockResolvedValue(1);
+
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(
+      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+    ).toBe(0);
+    expect(result.budgetState?.status).toBe("ADMITTED");
+  });
+
+  it("applies budgetExtension from blockerReference to calculate effective limits matching Python", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+    try {
+      process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = "100";
+      const f = createFixture({
+        blockerReference: {
+          budgetExtension: {
+            version: 1,
+            authorizedBy: "admin-1",
+            authorizedAt: "2026-11-14T10:00:00.000Z",
+            auditReason: "Customer requested extension",
+            additionalModelCalls: 50,
+          },
+        },
+      });
+
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+
+      expect(result.budgetState?.limits.maxModelCalls).toBe(150);
+      expect(result.budgetState?.status).toBe("ADMITTED");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+      }
+    }
+  });
+
+  it("resolves legacy budgetExtended to a fixed auditable ceiling that does not move with usage", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+    try {
+      process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = "100";
+      const f = createFixture({
+        blockerReference: {
+          budgetExtended: true,
+        },
+      });
+
+      // 1. Initial fetch at usage 100: limit is fixed at base 100 + legacy 50 = 150
+      f.tx.llmUsageEvent.aggregate = jest
+        .fn<() => Promise<any>>()
+        .mockResolvedValue({
+          _count: { id: 100 },
+          _sum: {
+            inputTokens: 100_000,
+            outputTokens: 10_000,
+            totalTokens: 110_000,
+          },
+        });
+
+      const result1 = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+      expect(result1.budgetState?.limits.maxModelCalls).toBe(150);
+      expect(result1.budgetState?.status).toBe("ADMITTED");
+
+      // 2. Second fetch at usage 140: limit remains fixed at 150 (not 140 + 50 = 190)
+      f.tx.llmUsageEvent.aggregate = jest
+        .fn<() => Promise<any>>()
+        .mockResolvedValue({
+          _count: { id: 140 },
+          _sum: {
+            inputTokens: 140_000,
+            outputTokens: 14_000,
+            totalTokens: 154_000,
+          },
+        });
+
+      const result2 = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+      expect(result2.budgetState?.limits.maxModelCalls).toBe(150);
+      expect(result2.budgetState?.status).toBe("ADMITTED");
+
+      // 3. Third fetch at usage 150: limit remains fixed at 150, hard ceiling enforced -> EXHAUSTED
+      f.tx.llmUsageEvent.aggregate = jest
+        .fn<() => Promise<any>>()
+        .mockResolvedValue({
+          _count: { id: 150 },
+          _sum: {
+            inputTokens: 150_000,
+            outputTokens: 15_000,
+            totalTokens: 165_000,
+          },
+        });
+
+      const result3 = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+      expect(result3.budgetState?.limits.maxModelCalls).toBe(150);
+      expect(result3.budgetState?.status).toBe("EXHAUSTED");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+      }
+    }
+  });
+
+  it("applies multiple budget extensions in lineage order to calculate effective cumulative limits", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+    try {
+      process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = "100";
+      const f = createFixture({
+        blockerReference: {
+          budgetExtension: {
+            version: 2,
+            authorizedBy: "admin-2",
+            authorizedAt: "2026-11-14T12:00:00.000Z",
+            auditReason: "Second extension",
+            additionalModelCalls: 25,
+          },
+          budgetExtensionHistory: [
+            {
+              version: 1,
+              authorizedBy: "admin-1",
+              authorizedAt: "2026-11-14T10:00:00.000Z",
+              auditReason: "First extension",
+              additionalModelCalls: 50,
+            },
+          ],
+        },
+      });
+
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+
+      // Base 100 + version 1 (50) + version 2 (25) = 175
+      expect(result.budgetState?.limits.maxModelCalls).toBe(175);
+      expect(result.budgetState?.status).toBe("ADMITTED");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+      }
+    }
   });
 });
