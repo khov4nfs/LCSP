@@ -625,8 +625,8 @@ def test_rule_set_preparation_restores_usage_across_fresh_instances(tmp_path) ->
     usage_file = tmp_path / "work" / "receipts" / "usage.json"
     assert usage_file.exists()
 
-    # Instance 2: completely new object, restores from disk
-    ctx2 = RuleSetPreparationContext(run_id="run-2", api=mock_api, source_root=tmp_path)
+    # Instance 2: completely new object for the SAME run (e.g. restart / takeover), restores from disk
+    ctx2 = RuleSetPreparationContext(run_id="run-1", api=mock_api, source_root=tmp_path)
     assert ctx2.cumulative_usage.model_calls == 0  # before restore
     ctx2.restore_usage()
     assert ctx2.cumulative_usage.model_calls == 5
@@ -634,16 +634,126 @@ def test_rule_set_preparation_restores_usage_across_fresh_instances(tmp_path) ->
     assert ctx2.cumulative_usage.output_tokens == 6_000
     assert ctx2.cumulative_usage.total_tokens == 126_000
 
-    # Instance 3: adopts usage from API bundle
-    ctx3 = RuleSetPreparationContext(run_id="run-3", api=mock_api, source_root=tmp_path)
-    ctx3.adopt_usage({
+    # Instance 3: foreign run_id must reject disk receipt mismatch to prevent cross-run pollution
+    ctx_foreign = RuleSetPreparationContext(run_id="run-foreign", api=mock_api, source_root=tmp_path)
+    ctx_foreign.restore_usage()
+    assert ctx_foreign.cumulative_usage.model_calls == 0
+    assert ctx_foreign.cumulative_usage.total_tokens == 0
+
+    # Instance 4: adopts usage from API bundle matching runId
+    ctx4 = RuleSetPreparationContext(run_id="run-4", api=mock_api, source_root=tmp_path)
+    # Rejects mismatched runId
+    ctx4.adopt_usage({
+        "runId": "different-run",
         "modelCalls": 10,
         "inputTokens": 250_000,
         "outputTokens": 12_000,
         "totalTokens": 262_000,
     })
-    assert ctx3.cumulative_usage.model_calls == 10
-    assert ctx3.cumulative_usage.total_tokens == 262_000
+    assert ctx4.cumulative_usage.model_calls == 0
+
+    # Accepts matching runId
+    ctx4.adopt_usage({
+        "runId": "run-4",
+        "modelCalls": 10,
+        "inputTokens": 250_000,
+        "outputTokens": 12_000,
+        "totalTokens": 262_000,
+    })
+    assert ctx4.cumulative_usage.model_calls == 10
+    assert ctx4.cumulative_usage.total_tokens == 262_000
+
+
+def test_rule_set_preparation_output_only_quota_enforces_pause() -> None:
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+    from middleware.failure_policy import AgentRunBudgetExceeded
+
+    # Only output_tokens is configured; model_calls, input_tokens and total_tokens are unconstrained (None)
+    durable = WorkloadCumulativeUsage(model_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
+    quotas = {
+        "model_calls": None,
+        "input_tokens": None,
+        "output_tokens": 100,  # Explicit ceiling: 100 output tokens
+        "total_tokens": None,
+    }
+    mw = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable)
+
+    req = SimpleNamespace(messages=[SimpleNamespace(content="Generate claims")], model="gpt-4")
+    # First call admitted: produces 120 output tokens
+    mw.wrap_model_call(
+        req,
+        lambda r: SimpleNamespace(
+            result=[SimpleNamespace(content="Result", usage_metadata={"input_tokens": 500, "output_tokens": 120})],
+        ),
+    )
+    assert durable.output_tokens == 120
+
+    # Second call must be rejected immediately with TOKEN_LIMIT_EXCEEDED because 120 >= 100
+    with pytest.raises(AgentRunBudgetExceeded) as exc_info:
+        mw.wrap_model_call(req, lambda r: SimpleNamespace(result=[]))
+    assert exc_info.value.reason == "TOKEN_LIMIT_EXCEEDED"
+
+
+def test_unknown_usage_larger_than_hard_ceiling_fails_closed(monkeypatch) -> None:
+    from rule_set_preparation.tools import RuleSetPreparationContext
+
+    # Configure explicit hard ceiling on total tokens: 5000 tokens
+    monkeypatch.setenv("LCSP_RSP_MAX_TOTAL_TOKENS", "5000")
+
+    mock_api = MagicMock()
+    ctx = RuleSetPreparationContext(run_id="run-hard-ceiling", api=mock_api)
+
+    # 1 unmeasured model call (totalTokens is 0/unmeasured)
+    # Upper-bound reservation is 4096 in + 2048 out = 6144 total tokens
+    # Because 6144 > 5000, this exceeds the configured hard ceiling!
+    ctx.restore_usage({"modelCalls": 1, "totalTokens": 0})
+
+    assert ctx.cumulative_usage.total_tokens >= 6144
+
+    from middleware.durable_budget_kernel import (
+        RULE_SET_PREPARATION_SCOPE,
+        evaluate_workload_admission,
+        resolve_workload_limits,
+    )
+    limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+    admitted, reason = evaluate_workload_admission(limits, ctx.cumulative_usage)
+    assert not admitted
+    assert reason == "TOKEN_LIMIT_EXCEEDED"
+
+
+def test_restart_with_in_flight_usage_retains_conservative_reservation(tmp_path) -> None:
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+    from rule_set_preparation.tools import RuleSetPreparationContext
+
+    mock_api = MagicMock()
+    # Instance 1: prepares request and begins dispatch
+    ctx1 = RuleSetPreparationContext(run_id="run-inflight", api=mock_api, source_root=tmp_path)
+    quotas = {"model_calls": 10, "input_tokens": 50_000, "total_tokens": 60_000}
+    mw1 = AgentRunBudgetMiddleware(
+        run_quotas=quotas,
+        durable_usage=ctx1.cumulative_usage,
+        persist_callback=ctx1.persist_usage,
+    )
+
+    req = SimpleNamespace(
+        messages=[SimpleNamespace(content="Long prompt input to verify reservation " * 50)],
+        model="gpt-4",
+    )
+    # Bounded request is evaluated before dispatch: reserves in-flight input and updates disk receipt
+    bounded_req = mw1._bounded_request(req)
+    assert bounded_req is not None
+    assert ctx1.cumulative_usage.model_calls == 1
+    assert ctx1.cumulative_usage.input_tokens > 0
+
+    # Simulate crash before provider responds (handler never returned, _settle_quota never ran)
+    # Instance 2 resumes from disk receipt
+    ctx2 = RuleSetPreparationContext(run_id="run-inflight", api=mock_api, source_root=tmp_path)
+    ctx2.restore_usage()
+
+    # The in-flight reservation must NOT be lost or reset to zero
+    assert ctx2.cumulative_usage.model_calls == 1
+    assert ctx2.cumulative_usage.input_tokens == ctx1.cumulative_usage.input_tokens
+    assert ctx2.cumulative_usage.total_tokens == ctx1.cumulative_usage.total_tokens
 
 
 def test_settle_quota_estimates_conservative_output_when_metadata_missing() -> None:
