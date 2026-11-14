@@ -304,15 +304,14 @@ class RuleSetPreparationContext:
         Business rules:
         - Persisted run receipts and server-reported attempt totals must not be discarded or reset to zero.
         - Rejects foreign receipts whose run_id does not match the active run_id to prevent cross-run pollution.
-        - When hard limits are configured and tokens are unmeasured, applies verified upper-bound reservations instead of minimal estimates.
+        - Preserves authentic measured token totals and unmeasured attempt counts without arbitrary static estimates.
         - Updates the in-memory cumulative_usage so agent construction and quota middleware inherit prior usage.
 
         Execution flow:
         1. If usage_data is provided, validate run_id match, parse and take maximum with current cumulative usage.
         2. If source_root is present, validate run_id in work/receipts/usage.json before merging disk totals.
         3. If api client provides preparation usage or receipts, merge those totals.
-        4. Apply verified upper-bound reservation under active hard limits, or conservative fallback under unconstrained limits.
-        5. Return the updated WorkloadCumulativeUsage instance.
+        4. Return the updated WorkloadCumulativeUsage instance.
 
         Failure cases:
         - Unreadable, mismatched or missing receipt files fall back safely to available in-memory/API usage without crashing.
@@ -330,15 +329,18 @@ class RuleSetPreparationContext:
                 in_tok = usage_data.get("inputTokens") or usage_data.get("input_tokens") or 0
                 out_tok = usage_data.get("outputTokens") or usage_data.get("output_tokens") or 0
                 tot_tok = usage_data.get("totalTokens") or usage_data.get("total_tokens") or 0
+                unmeasured = usage_data.get("unmeasuredModelCalls") or usage_data.get("unmeasured_model_calls") or 0
                 self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, int(calls))
                 self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, int(in_tok))
                 self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, int(out_tok))
                 self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, int(tot_tok))
+                self.cumulative_usage.unmeasured_model_calls = max(self.cumulative_usage.unmeasured_model_calls, int(unmeasured))
             elif isinstance(usage_data, WorkloadCumulativeUsage):
                 self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, usage_data.model_calls)
                 self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, usage_data.input_tokens)
                 self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, usage_data.output_tokens)
                 self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, usage_data.total_tokens)
+                self.cumulative_usage.unmeasured_model_calls = max(self.cumulative_usage.unmeasured_model_calls, usage_data.unmeasured_model_calls)
 
             # 2. Check disk-persisted usage receipts in source_root / work/receipts
             if self.source_root:
@@ -355,10 +357,12 @@ class RuleSetPreparationContext:
                                 in_tok = raw.get("input_tokens") or raw.get("inputTokens") or 0
                                 out_tok = raw.get("output_tokens") or raw.get("outputTokens") or 0
                                 tot_tok = raw.get("total_tokens") or raw.get("totalTokens") or 0
+                                unmeasured = raw.get("unmeasured_model_calls") or raw.get("unmeasuredModelCalls") or 0
                                 self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, int(calls))
                                 self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, int(in_tok))
                                 self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, int(out_tok))
                                 self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, int(tot_tok))
+                                self.cumulative_usage.unmeasured_model_calls = max(self.cumulative_usage.unmeasured_model_calls, int(unmeasured))
                     except Exception:
                         pass
 
@@ -372,40 +376,14 @@ class RuleSetPreparationContext:
                         in_tok = api_usage.get("inputTokens") or api_usage.get("input_tokens") or 0
                         out_tok = api_usage.get("outputTokens") or api_usage.get("output_tokens") or 0
                         tot_tok = api_usage.get("totalTokens") or api_usage.get("total_tokens") or 0
+                        unmeasured = api_usage.get("unmeasuredModelCalls") or api_usage.get("unmeasured_model_calls") or 0
                         self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, int(calls))
                         self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, int(in_tok))
                         self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, int(out_tok))
                         self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, int(tot_tok))
+                        self.cumulative_usage.unmeasured_model_calls = max(self.cumulative_usage.unmeasured_model_calls, int(unmeasured))
                 except Exception:
                     pass
-
-            # 4. Conservative fallback if model calls exist but total tokens is unmeasured/zero
-            if self.cumulative_usage.model_calls > 0 and self.cumulative_usage.total_tokens == 0:
-                has_hard_ceiling = False
-                try:
-                    from middleware.durable_budget_kernel import (
-                        RULE_SET_PREPARATION_SCOPE,
-                        resolve_workload_limits,
-                    )
-                    limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
-                    has_hard_ceiling = (
-                        limits.max_input_tokens is not None
-                        or limits.max_output_tokens is not None
-                        or limits.max_total_tokens is not None
-                    )
-                except Exception:
-                    pass
-
-                if has_hard_ceiling:
-                    upper_in = 4096
-                    upper_out = 2048
-                    self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, self.cumulative_usage.model_calls * upper_in)
-                    self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, self.cumulative_usage.model_calls * upper_out)
-                    self.cumulative_usage.total_tokens = self.cumulative_usage.input_tokens + self.cumulative_usage.output_tokens
-                else:
-                    self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, self.cumulative_usage.model_calls * 500)
-                    self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, self.cumulative_usage.model_calls * 100)
-                    self.cumulative_usage.total_tokens = self.cumulative_usage.input_tokens + self.cumulative_usage.output_tokens
 
             return self.cumulative_usage
 
@@ -457,6 +435,7 @@ class RuleSetPreparationContext:
                 "input_tokens": self.cumulative_usage.input_tokens,
                 "output_tokens": self.cumulative_usage.output_tokens,
                 "total_tokens": self.cumulative_usage.total_tokens,
+                "unmeasured_model_calls": self.cumulative_usage.unmeasured_model_calls,
             }
             receipt_file.write_text(json.dumps(receipt_data, indent=2), encoding="utf-8")
         except Exception:
