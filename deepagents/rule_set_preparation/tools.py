@@ -385,6 +385,33 @@ class RuleSetPreparationContext:
                 except Exception:
                     pass
 
+            # 4. Check durable SQLite store (survives temporary workspace recreation)
+            from tools.common.capabilities.platform.config import resolve_usage_recovery_store_path
+            recovery_path = getattr(self, "store_path", None) or resolve_usage_recovery_store_path()
+            if Path(recovery_path).is_file():
+                try:
+                    from middleware.paid_admission import recover_admission
+                    snapshot = recover_admission(recovery_path, self.run_id)
+                    if snapshot.get("state") not in ("LEGACY_UNBOUNDED", None):
+                        self.cumulative_usage.model_calls = max(
+                            self.cumulative_usage.model_calls,
+                            int(snapshot.get("admittedAttempts", 0) or 0),
+                        )
+                        in_exp = int(snapshot.get("inputExposure", 0) or 0)
+                        out_exp = int(snapshot.get("outputExposure", 0) or 0)
+                        unresolved = int(snapshot.get("unresolvedAttempts", 0) or 0)
+                        if unresolved > 0:
+                            self.cumulative_usage.in_flight_exposure = max(
+                                getattr(self.cumulative_usage, "in_flight_exposure", 0),
+                                max(0, in_exp - self.cumulative_usage.input_tokens),
+                            )
+                            self.cumulative_usage.outcome_unknown_exposure = max(
+                                getattr(self.cumulative_usage, "outcome_unknown_exposure", 0),
+                                max(0, out_exp - self.cumulative_usage.output_tokens),
+                            )
+                except Exception:
+                    pass
+
             return self.cumulative_usage
 
     def adopt_usage(self, usage_data: Any) -> None:
@@ -411,35 +438,33 @@ class RuleSetPreparationContext:
 
         Business rules:
         - Writes atomically to work/receipts/usage.json under source_root.
+        - Failures propagate when hard ceiling is active, never silently masked.
 
         Execution flow:
         1. Check presence of source_root.
         2. Write JSON receipt with model_calls, input_tokens, output_tokens, total_tokens.
 
         Failure cases:
-        - Filesystem errors are logged or swallowed; does not fail execution.
+        - Filesystem errors propagate to fail closed when persistence cannot be guaranteed.
 
         Side effects:
         - Writes/updates usage.json on disk.
         """
         if not self.source_root:
             return
-        try:
-            receipt_dir = Path(self.source_root) / "work" / "receipts"
-            receipt_dir.mkdir(parents=True, exist_ok=True)
-            receipt_file = receipt_dir / "usage.json"
-            receipt_data = {
-                "runId": self.run_id,
-                "run_id": self.run_id,
-                "model_calls": self.cumulative_usage.model_calls,
-                "input_tokens": self.cumulative_usage.input_tokens,
-                "output_tokens": self.cumulative_usage.output_tokens,
-                "total_tokens": self.cumulative_usage.total_tokens,
-                "unmeasured_model_calls": self.cumulative_usage.unmeasured_model_calls,
-            }
-            receipt_file.write_text(json.dumps(receipt_data, indent=2), encoding="utf-8")
-        except Exception:
-            pass
+        receipt_dir = Path(self.source_root) / "work" / "receipts"
+        receipt_dir.mkdir(parents=True, exist_ok=True)
+        receipt_file = receipt_dir / "usage.json"
+        receipt_data = {
+            "runId": self.run_id,
+            "run_id": self.run_id,
+            "model_calls": self.cumulative_usage.model_calls,
+            "input_tokens": self.cumulative_usage.input_tokens,
+            "output_tokens": self.cumulative_usage.output_tokens,
+            "total_tokens": self.cumulative_usage.total_tokens,
+            "unmeasured_model_calls": self.cumulative_usage.unmeasured_model_calls,
+        }
+        receipt_file.write_text(json.dumps(receipt_data, indent=2), encoding="utf-8")
 
 
 def _as_packet(packet: Any) -> dict:
