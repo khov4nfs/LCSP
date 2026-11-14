@@ -5308,9 +5308,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/agent_run_budget.py::_bounded_request::MESSAGE_HUMANMESSAGE::388:7abe892c237458ff",
+      "siteId": "ast:middleware/agent_run_budget.py::_bounded_request::MESSAGE_HUMANMESSAGE::386:7abe892c237458ff",
       "filePath": "middleware/agent_run_budget.py",
-      "lineNumber": 388,
+      "lineNumber": 386,
       "symbolName": "_bounded_request",
       "constructionSha256": "7abe892c237458ffa0236c9b1948fe97e7a801800c57b89715f3b21e6ea34d60",
       "evidence": "self._finalize_instruction()",
@@ -8230,7 +8230,7 @@
     {
       "siteId": "middleware/agent_run_budget.py::_bounded_request::651ea321eb8525e8::1",
       "filePath": "middleware/agent_run_budget.py",
-      "lineNumber": 388,
+      "lineNumber": 386,
       "symbolName": "_bounded_request",
       "constructionSha256": "651ea321eb8525e807621b5cce00afd785d4b22d70eb038d5c3dd98103a5bd07",
       "evidence": "messages=[*messages, HumanMessage(content=self._finalize_instruction())],",
@@ -8249,7 +8249,7 @@
     {
       "siteId": "middleware/agent_run_budget.py::_prompt_overhead_tokens::99743a97bb76d614::1",
       "filePath": "middleware/agent_run_budget.py",
-      "lineNumber": 431,
+      "lineNumber": 429,
       "symbolName": "_prompt_overhead_tokens",
       "constructionSha256": "99743a97bb76d61434134c01f71d19e56e795410c822420b31226c94881e57a7",
       "evidence": "def _prompt_overhead_tokens(request: Any) -> int:",

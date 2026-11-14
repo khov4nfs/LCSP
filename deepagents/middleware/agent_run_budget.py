@@ -285,7 +285,6 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
             with self.quota_lock:
                 cl = self.run_quotas.get("model_calls")
                 tl = self.run_quotas.get("input_tokens")
-                ol = self.run_quotas.get("output_tokens")
                 totl = self.run_quotas.get("total_tokens")
                 reason = (
                     "CALL_LIMIT_EXCEEDED"
@@ -294,7 +293,6 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                         "TOKEN_LIMIT_EXCEEDED"
                         if (
                             (tl is not None and self.quota_input_tokens + tokens > tl)
-                            or (ol is not None and self.quota_output_tokens >= ol)
                             or (
                                 totl is not None
                                 and self.quota_input_tokens + self.quota_output_tokens + tokens > totl
