@@ -205,23 +205,23 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return response
 
     def _settle_quota(self, request, response):
-        """Business purpose: Replace the shared quota's estimated input reservation with reported model input usage and account for output tokens.
+        """Business purpose: Reconcile shared quota reservations against reported provider tokens while preserving unmeasured exposure.
 
         Business rules:
-        - Reconcile only in explicit quota mode; hold the shared lock for the adjustment.
-        - When provider omits output tokens or returns empty usage metadata, do not treat output tokens as measured zero; estimate conservative output tokens from response messages.
+        - Reconcile only in explicit quota mode under lock.
+        - When provider omits output tokens, reserved output exposure must not be released based on heuristic text estimation; estimated tokens remain diagnostic telemetry.
 
         Execution flow:
         1. Extract reported usage metadata from response messages.
-        2. Adjust input quota by reported minus reserved input tokens if reported, keeping reserved estimate if omitted.
-        3. Add reported output tokens or conservative estimate from response content if missing.
-        4. Update total tokens and sync to durable usage and persistence callback.
+        2. Adjust input quota by reported minus reserved tokens if reported.
+        3. Adjust output quota by reported output tokens if present; if omitted, preserve reserved output exposure and record heuristic estimate as diagnostic telemetry.
+        4. Sync total tokens to durable usage and execute persistence callback.
 
         Failure cases:
-        - Absent quota configuration leaves counters unchanged; missing usage metadata falls back to conservative estimation without crashing.
+        - Persistence callback errors propagate to enforce durable state; absent quota leaves counters unchanged.
 
         Side effects:
-        - Mutates in-memory quota counters and durable usage object; triggers persist_callback if set.
+        - Mutates in-memory quota counters and durable usage object; triggers persist_callback.
         """
         if self.run_quotas is None:
             return
@@ -247,7 +247,6 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                         estimated_output += max(1, len(part) // 4)
                     elif isinstance(part, dict) and "text" in part:
                         estimated_output += max(1, len(str(part.get("text", ""))) // 4)
-        conservative_output = sum(out) if out else max(10, estimated_output)
 
         with self.quota_lock:
             model = getattr(request, "model", None)
@@ -258,35 +257,46 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                 reserved_in = estimate_request_metrics(request, model).estimated_input_tokens
             if reported:
                 self.quota_input_tokens += sum(reported) - reserved_in
-            self.quota_output_tokens += conservative_output - reserved_out
+            if out:
+                self.quota_output_tokens += sum(out) - reserved_out
+            else:
+                if reserved_out == 0:
+                    reserved_out = output_token_limit(model)
+                    self.quota_output_tokens += reserved_out
+                # P1-03: Do not release reserved output exposure merely because response text allows a heuristic token estimate.
+                # When provider omits output tokens, the reserved output exposure is preserved in full.
+                # Heuristic estimation from text length is recorded strictly as diagnostic telemetry.
+                if self.durable_usage is not None:
+                    self.durable_usage.estimated_diagnostic_output_tokens = (
+                        getattr(self.durable_usage, "estimated_diagnostic_output_tokens", 0) + max(10, estimated_output)
+                    )
             self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
             if self.durable_usage is not None:
                 self.durable_usage.input_tokens = self.quota_input_tokens
                 self.durable_usage.output_tokens = self.quota_output_tokens
                 self.durable_usage.total_tokens = self.quota_total_tokens
             if callable(self.persist_callback):
-                try:
-                    self.persist_callback()
-                except Exception:
-                    pass
+                self.persist_callback()
 
     def _bounded_request(self, request):
         """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
 
         Business rules:
         - Shared-quota mode reserves call/input estimates and route output bounds atomically before dispatch; neither edits context nor withdraws tools.
+        - Reservation persistence failure must prevent dispatch (fail-closed); errors are never swallowed.
         - Standard mode stops at the hard call limit, trims older tool results near context capacity, and restricts late calls to configured finalization tools.
 
         Execution flow:
         1. In quota mode reject an exceeded configured threshold or reserve the next request including route output exposure.
-        2. Otherwise enforce the hard call count and trim old tool results when context warrants it.
-        3. Return the original/trimmed request or a finalization-only request with an unresolved-work instruction.
+        2. Execute persistence callback synchronously and fail closed if persistence fails.
+        3. Otherwise enforce the hard call count and trim old tool results when context warrants it.
+        4. Return the original/trimmed request or a finalization-only request with an unresolved-work instruction.
 
         Failure cases:
-        - Quota or hard-limit exhaustion raises AgentRunBudgetExceeded; context limits request finalization without inventing completed work.
+        - Quota or hard-limit exhaustion raises AgentRunBudgetExceeded; persistence failure propagates to block dispatch; context limits request finalization without inventing completed work.
 
         Side effects:
-        - Updates in-memory quota reservations and emits budget/trim telemetry; may return a modified message/tool request without calling the provider.
+        - Updates in-memory quota reservations and emits budget/trim telemetry; invokes persist_callback; may return a modified message/tool request without calling the provider.
         """
         if self.run_quotas is not None:
             model = getattr(request, "model", None)
@@ -325,10 +335,7 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                     self.durable_usage.output_tokens = self.quota_output_tokens
                     self.durable_usage.total_tokens = self.quota_total_tokens
                 if callable(self.persist_callback):
-                    try:
-                        self.persist_callback()
-                    except Exception:
-                        pass
+                    self.persist_callback()
             return request
         calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:

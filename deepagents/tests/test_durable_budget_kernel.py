@@ -321,6 +321,7 @@ def test_run_assessment_root_pauses_on_budget_exhaustion(tmp_path):
 
 
 def test_rule_set_preparation_pauses_on_call_limit_exhaustion(tmp_path, monkeypatch):
+    monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(tmp_path / "recovery.sqlite3"))
     from middleware import usage_metering
     monkeypatch.setattr(usage_metering, "assert_model_identity", lambda model, response=None: None)
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "1")
@@ -354,6 +355,7 @@ def test_rule_set_preparation_pauses_on_call_limit_exhaustion(tmp_path, monkeypa
 
 
 def test_rule_set_preparation_pauses_on_token_limit_exhaustion(tmp_path, monkeypatch):
+    monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(tmp_path / "recovery.sqlite3"))
     monkeypatch.delenv("LCSP_RSP_MAX_MODEL_CALLS", raising=False)
     monkeypatch.setenv("LCSP_RSP_MAX_INPUT_TOKENS", "10")
     from rule_set_preparation.runner import run_rule_set_preparation
