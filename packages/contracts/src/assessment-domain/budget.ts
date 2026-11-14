@@ -29,6 +29,21 @@ export type AssessmentBudgetLimits = z.infer<
   typeof assessmentBudgetLimitsSchema
 >;
 
+export const assessmentBudgetExtensionSchema = z.strictObject({
+  version: z.number().int().positive(),
+  authorizedBy: z.string().min(1),
+  authorizedAt: z.string().datetime(),
+  auditReason: z.string().min(1).optional(),
+  additionalModelCalls: z.number().int().positive().nullable().optional(),
+  additionalInputTokens: z.number().int().positive().nullable().optional(),
+  additionalOutputTokens: z.number().int().positive().nullable().optional(),
+  additionalTotalTokens: z.number().int().positive().nullable().optional(),
+  overrideNoProgress: z.boolean().nullable().optional(),
+});
+export type AssessmentBudgetExtension = z.infer<
+  typeof assessmentBudgetExtensionSchema
+>;
+
 export const assessmentCumulativeUsageSchema = z.strictObject({
   modelCalls: z.number().int().nonnegative(),
   inputTokens: z.number().int().nonnegative(),
@@ -63,9 +78,7 @@ export const assessmentBudgetStateSchema = z.strictObject({
   cumulativeUsage: assessmentCumulativeUsageSchema,
   status: assessmentBudgetStatusSchema,
 });
-export type AssessmentBudgetState = z.infer<
-  typeof assessmentBudgetStateSchema
->;
+export type AssessmentBudgetState = z.infer<typeof assessmentBudgetStateSchema>;
 
 export interface BudgetAdmissionEvaluation {
   admitted: boolean;
@@ -97,28 +110,40 @@ export function evaluateBudgetAdmission(
   limits: AssessmentBudgetLimits,
   usage: AssessmentCumulativeUsage,
 ): BudgetAdmissionEvaluation {
-  if (limits.maxModelCalls !== null && usage.modelCalls >= limits.maxModelCalls) {
+  if (
+    limits.maxModelCalls !== null &&
+    usage.modelCalls >= limits.maxModelCalls
+  ) {
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED,
       status: "EXHAUSTED",
     };
   }
-  if (limits.maxInputTokens !== null && usage.inputTokens >= limits.maxInputTokens) {
+  if (
+    limits.maxInputTokens !== null &&
+    usage.inputTokens >= limits.maxInputTokens
+  ) {
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED,
       status: "EXHAUSTED",
     };
   }
-  if (limits.maxOutputTokens !== null && usage.outputTokens >= limits.maxOutputTokens) {
+  if (
+    limits.maxOutputTokens !== null &&
+    usage.outputTokens >= limits.maxOutputTokens
+  ) {
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED,
       status: "EXHAUSTED",
     };
   }
-  if (limits.maxTotalTokens !== null && usage.totalTokens >= limits.maxTotalTokens) {
+  if (
+    limits.maxTotalTokens !== null &&
+    usage.totalTokens >= limits.maxTotalTokens
+  ) {
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED,
@@ -139,6 +164,55 @@ export function evaluateBudgetAdmission(
     admitted: true,
     reason: null,
     status: "ADMITTED",
+  };
+}
+
+/**
+ * Business purpose: Calculate effective budget limits by applying an authoritative versioned extension to base limits.
+ *
+ * Business rules:
+ * - If no extension is present, returns base limits unmodified.
+ * - Additional model calls and tokens are added to configured base limits; unconfigured (null) base limits remain null.
+ * - When overrideNoProgress is true in the extension, noProgressLimit is cleared to null.
+ *
+ * Execution flow:
+ * 1. Check if extension exists; if not, return base limits.
+ * 2. Calculate effective call and token limits by summing base and additional amounts where configured.
+ * 3. Clear noProgressLimit if overrideNoProgress is true; otherwise keep base limit.
+ * 4. Return new AssessmentBudgetLimits object.
+ *
+ * Failure cases:
+ * - Pure calculation; does not throw.
+ *
+ * Side effects:
+ * - Pure function without external mutations.
+ */
+export function applyBudgetExtension(
+  baseLimits: AssessmentBudgetLimits,
+  extension: AssessmentBudgetExtension | null | undefined,
+): AssessmentBudgetLimits {
+  if (!extension) {
+    return baseLimits;
+  }
+  return {
+    maxModelCalls:
+      baseLimits.maxModelCalls !== null
+        ? baseLimits.maxModelCalls + (extension.additionalModelCalls ?? 0)
+        : null,
+    maxInputTokens:
+      baseLimits.maxInputTokens !== null
+        ? baseLimits.maxInputTokens + (extension.additionalInputTokens ?? 0)
+        : null,
+    maxOutputTokens:
+      baseLimits.maxOutputTokens !== null
+        ? baseLimits.maxOutputTokens + (extension.additionalOutputTokens ?? 0)
+        : null,
+    maxTotalTokens:
+      baseLimits.maxTotalTokens !== null
+        ? baseLimits.maxTotalTokens + (extension.additionalTotalTokens ?? 0)
+        : null,
+    noProgressLimit:
+      extension.overrideNoProgress === true ? null : baseLimits.noProgressLimit,
   };
 }
 

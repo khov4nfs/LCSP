@@ -678,6 +678,7 @@ def create_rule_set_preparation_agent(
         run_quotas=run_quotas,
         durable_usage=context.cumulative_usage,
         workload_limits=workload_limits,
+        persist_callback=context.persist_usage,
     )
     with _without_general_purpose_subagent(_lookup_profile_key(model)), _without_general_purpose_subagent(_lookup_profile_key(author_model)):
         return create_deep_agent(

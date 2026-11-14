@@ -29,7 +29,7 @@ def classify(site):
     role = "assessment-root" if path.startswith("assessment_root/") else "rule-set-preparation" if path.startswith("rule_set_preparation/") else "shared-runtime"
     category = "DUPLICATE_REFERENCE"
     authority = "LCSP_MAINTAINED"
-    if "argparse.ArgumentParser" in text or path.endswith("tracing.py") or symbol == "_prompt_overhead_tokens" or "MANIFEST_MISSING" in text:
+    if "argparse.ArgumentParser" in text or path.endswith(("tracing.py", "repository_scanner.py")) or symbol == "_prompt_overhead_tokens" or "MANIFEST_MISSING" in text:
         category, authority = "NON_MODEL_FACING", "IMPLEMENTATION"
     elif "HumanMessage(content=text)" in text or "HumanMessage(content=json_payload)" in text or "description=t.get" in text:
         category, authority = "RUNTIME_DATA", "RUNTIME_DATA"

@@ -387,7 +387,7 @@ def run_assessment_root(
             checkpointer=checkpointer,
             store=store,
             governance=governance,
-            middleware=[RootRuntimeControl(client, run.execution_id)],
+            middleware=[RootRuntimeControl(client, run.execution_id, run=run)],
         )
         graph_config = agent_graph_config({
             # Selected requests use their immutable request UUID as an isolated native root thread.

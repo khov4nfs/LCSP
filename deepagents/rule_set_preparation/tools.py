@@ -298,6 +298,132 @@ class RuleSetPreparationContext:
     def idempotency_key(self) -> str:
         return f"{SUBMISSION_IDEMPOTENCY_PREFIX}{self.run_id}"
 
+    def restore_usage(self, usage_data: Any = None) -> WorkloadCumulativeUsage:
+        """Business purpose: Restore authoritative cumulative model calls and tokens from persisted attempt receipts.
+
+        Business rules:
+        - Persisted run receipts and server-reported attempt totals must not be discarded or reset to zero.
+        - Missing or unknown provider usage counts are not treated as zero; higher known totals are preserved.
+        - Updates the in-memory cumulative_usage so agent construction and quota middleware inherit prior usage.
+
+        Execution flow:
+        1. If usage_data is provided, parse and take maximum with current cumulative usage.
+        2. If source_root is present, check for persisted usage receipts under work/receipts/usage.json.
+        3. If api client provides preparation usage or receipts, merge those totals.
+        4. Return the updated WorkloadCumulativeUsage instance.
+
+        Failure cases:
+        - Unreadable or missing receipt files fall back safely to available in-memory/API usage without crashing.
+
+        Side effects:
+        - Mutates self.cumulative_usage in place.
+        """
+        with self.mutation_lock:
+            # 1. Merge explicitly supplied usage data (e.g. from claim bundle)
+            if isinstance(usage_data, dict):
+                calls = usage_data.get("modelCalls") or usage_data.get("model_calls") or 0
+                in_tok = usage_data.get("inputTokens") or usage_data.get("input_tokens") or 0
+                out_tok = usage_data.get("outputTokens") or usage_data.get("output_tokens") or 0
+                tot_tok = usage_data.get("totalTokens") or usage_data.get("total_tokens") or 0
+                self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, int(calls))
+                self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, int(in_tok))
+                self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, int(out_tok))
+                self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, int(tot_tok))
+            elif isinstance(usage_data, WorkloadCumulativeUsage):
+                self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, usage_data.model_calls)
+                self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, usage_data.input_tokens)
+                self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, usage_data.output_tokens)
+                self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, usage_data.total_tokens)
+
+            # 2. Check disk-persisted usage receipts in source_root / work/receipts
+            if self.source_root:
+                receipt_path = Path(self.source_root) / "work" / "receipts" / "usage.json"
+                if receipt_path.is_file():
+                    try:
+                        raw = json.loads(receipt_path.read_text(encoding="utf-8"))
+                        if isinstance(raw, dict):
+                            calls = raw.get("model_calls") or raw.get("modelCalls") or 0
+                            in_tok = raw.get("input_tokens") or raw.get("inputTokens") or 0
+                            out_tok = raw.get("output_tokens") or raw.get("outputTokens") or 0
+                            tot_tok = raw.get("total_tokens") or raw.get("totalTokens") or 0
+                            self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, int(calls))
+                            self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, int(in_tok))
+                            self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, int(out_tok))
+                            self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, int(tot_tok))
+                    except Exception:
+                        pass
+
+            # 3. Check API if api client supports get_preparation_usage
+            get_usage = getattr(self.api, "get_preparation_usage", None)
+            if callable(get_usage):
+                try:
+                    api_usage = get_usage(self.run_id)
+                    if isinstance(api_usage, dict):
+                        calls = api_usage.get("modelCalls") or api_usage.get("model_calls") or 0
+                        in_tok = api_usage.get("inputTokens") or api_usage.get("input_tokens") or 0
+                        out_tok = api_usage.get("outputTokens") or api_usage.get("output_tokens") or 0
+                        tot_tok = api_usage.get("totalTokens") or api_usage.get("total_tokens") or 0
+                        self.cumulative_usage.model_calls = max(self.cumulative_usage.model_calls, int(calls))
+                        self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, int(in_tok))
+                        self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, int(out_tok))
+                        self.cumulative_usage.total_tokens = max(self.cumulative_usage.total_tokens, int(tot_tok))
+                except Exception:
+                    pass
+
+            return self.cumulative_usage
+
+    def adopt_usage(self, usage_data: Any) -> None:
+        """Business purpose: Adopt server-issued cumulative usage from claim bundle.
+
+        Business rules:
+        - Overwrites or max-merges in-memory counters with authoritative server receipts.
+
+        Execution flow:
+        1. Delegate to restore_usage with supplied data.
+        2. Persist to disk if source_root exists.
+
+        Failure cases:
+        - None: safe update.
+
+        Side effects:
+        - Updates in-memory counters and may persist receipt to disk.
+        """
+        self.restore_usage(usage_data)
+        self.persist_usage()
+
+    def persist_usage(self) -> None:
+        """Business purpose: Persist durable usage receipt on disk so subsequent workers or restarts resume with accurate counters.
+
+        Business rules:
+        - Writes atomically to work/receipts/usage.json under source_root.
+
+        Execution flow:
+        1. Check presence of source_root.
+        2. Write JSON receipt with model_calls, input_tokens, output_tokens, total_tokens.
+
+        Failure cases:
+        - Filesystem errors are logged or swallowed; does not fail execution.
+
+        Side effects:
+        - Writes/updates usage.json on disk.
+        """
+        if not self.source_root:
+            return
+        try:
+            receipt_dir = Path(self.source_root) / "work" / "receipts"
+            receipt_dir.mkdir(parents=True, exist_ok=True)
+            receipt_file = receipt_dir / "usage.json"
+            receipt_data = {
+                "runId": self.run_id,
+                "model_calls": self.cumulative_usage.model_calls,
+                "input_tokens": self.cumulative_usage.input_tokens,
+                "output_tokens": self.cumulative_usage.output_tokens,
+                "total_tokens": self.cumulative_usage.total_tokens,
+            }
+            receipt_file.write_text(json.dumps(receipt_data, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
 
 def _as_packet(packet: Any) -> dict:
     if isinstance(packet, str):

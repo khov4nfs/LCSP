@@ -8,6 +8,8 @@ import {
   WORKLOAD_SCOPES,
   evaluateBudgetAdmission,
   resolveConfiguredBudgetLimits,
+  applyBudgetExtension,
+  assessmentBudgetExtensionSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
@@ -202,10 +204,20 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         !Array.isArray(run.blockerReference)
           ? (run.blockerReference as Record<string, unknown>)
           : {};
-      const overrideNoProgress = blockerRef.overrideNoProgress === true;
+
+      const rawExt = blockerRef.budgetExtension;
+      const parsedExt =
+        rawExt && typeof rawExt === "object"
+          ? assessmentBudgetExtensionSchema.safeParse(rawExt)
+          : null;
+      const extension = parsedExt?.success ? parsedExt.data : null;
+
+      const overrideNoProgress =
+        blockerRef.overrideNoProgress === true ||
+        extension?.overrideNoProgress === true;
       const budgetExtended = blockerRef.budgetExtended === true;
 
-      const limits = resolveConfiguredBudgetLimits(
+      const baseLimits = resolveConfiguredBudgetLimits(
         process.env,
         WORKLOAD_SCOPES.ASSESSMENT_ROOT,
         { overrideNoProgress },
@@ -219,14 +231,43 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         consecutiveTurnsWithoutProgress,
       };
 
-      let admission = evaluateBudgetAdmission(limits, cumulativeUsage);
-      if (budgetExtended && !admission.admitted) {
-        admission = {
-          admitted: true,
-          reason: null,
-          status: "ADMITTED",
+      // Apply authoritative versioned budget extension to effective limits
+      let limits = applyBudgetExtension(baseLimits, extension);
+
+      // Support legacy budgetExtended boolean by expanding effective limits with headroom
+      // so API and Python evaluate the exact same admitted state without boolean bypass
+      if (budgetExtended && !extension) {
+        limits = {
+          maxModelCalls:
+            limits.maxModelCalls !== null
+              ? Math.max(limits.maxModelCalls, cumulativeUsage.modelCalls + 50)
+              : null,
+          maxInputTokens:
+            limits.maxInputTokens !== null
+              ? Math.max(
+                  limits.maxInputTokens,
+                  cumulativeUsage.inputTokens + 1_000_000,
+                )
+              : null,
+          maxOutputTokens:
+            limits.maxOutputTokens !== null
+              ? Math.max(
+                  limits.maxOutputTokens,
+                  cumulativeUsage.outputTokens + 50_000,
+                )
+              : null,
+          maxTotalTokens:
+            limits.maxTotalTokens !== null
+              ? Math.max(
+                  limits.maxTotalTokens,
+                  cumulativeUsage.totalTokens + 1_050_000,
+                )
+              : null,
+          noProgressLimit: limits.noProgressLimit,
         };
       }
+
+      const admission = evaluateBudgetAdmission(limits, cumulativeUsage);
 
       const budgetState = {
         workloadScope: WORKLOAD_SCOPES.ASSESSMENT_ROOT,

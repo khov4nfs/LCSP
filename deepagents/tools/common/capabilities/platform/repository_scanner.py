@@ -46,16 +46,128 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
-from tools.common.capabilities.platform.repository_sandbox import (
-    source_path_in_scope,
-    validate_source_path_prefix,
-)
-
 SCANNER_VERSION = "LCSP_PRE_SCAN_V1"
 DEFAULT_MAX_SCANNED_FILES = 10_000
 DEFAULT_MAX_MANIFEST_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
 DEFAULT_MAX_PATH_DEPTH = 25
 REPOSITORY_PROFILE_PATH = "/workspace/runtime/repository_profile.json"
+_TMP_SCANNER_PATH = "/tmp/.lcsp_scanner.py"
+
+_SOURCE_PATH_EDGE_WHITESPACE = " \t\n\v\f\r\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+
+
+def _canonical_source_path(value: object, *, maximum_length: int | None = None) -> bool:
+    """Business purpose:
+    Recognize an unambiguous repository-relative source path.
+
+    Business rules:
+    - Preserve literal interior spaces and Unicode; never trim or normalize.
+    - Reject empty, absolute, traversal, repeated-separator and cross-platform ambiguous forms.
+
+    Execution flow:
+    1. Verify string type and canonical characters.
+    2. Ensure segments do not include empty, '.', or '..'.
+
+    Failure cases:
+    - Non-canonical strings return False.
+
+    Side effects:
+    - Pure validation.
+    """
+    if not isinstance(value, str) or not value or value != value.strip(_SOURCE_PATH_EDGE_WHITESPACE):
+        return False
+    if maximum_length is not None and len(value.encode("utf-16-le", errors="surrogatepass")) // 2 > maximum_length:
+        return False
+    if re.search(r"[\x00-\x1f\x7f\\\\:%]", value):
+        return False
+    return all(segment not in {"", ".", ".."} for segment in value.split("/"))
+
+
+def validate_source_path_prefix(value: object) -> str | None:
+    """Business purpose:
+    Validate source path prefix selection for repository scoping.
+
+    Business rules:
+    - None indicates the entire repository is selected.
+    - Non-empty prefix must be a canonical relative repository path <= 1024 UTF-16 code units.
+
+    Execution flow:
+    1. If None, return None.
+    2. Validate path canonical structure; raise ValueError if invalid.
+
+    Failure cases:
+    - Invalid path types or traversal syntax raise ValueError.
+
+    Side effects:
+    - Pure validation.
+    """
+    if value is None:
+        return None
+    if not _canonical_source_path(value, maximum_length=1024):
+        raise ValueError("sourcePathPrefix must be a canonical repository-relative path")
+    return value
+
+
+def source_path_in_scope(path: str, source_path_prefix: str | None) -> bool:
+    """Business purpose:
+    Determine if a candidate path is within the designated source prefix scope.
+
+    Business rules:
+    - Prefix matches itself or descendants at path boundary.
+    - Full repository matches everything.
+
+    Execution flow:
+    1. Check path validity.
+    2. Check prefix prefixing or equality.
+
+    Failure cases:
+    - Malformed paths return False.
+
+    Side effects:
+    - Pure validation.
+    """
+    if path == ".":
+        return source_path_prefix is None
+    if not _canonical_source_path(path):
+        return False
+    return source_path_prefix is None or path == source_path_prefix or path.startswith(source_path_prefix + "/")
+
+
+class WorkspaceNotFoundError(FileNotFoundError):
+    """Business purpose:
+    Typed exception raised when repository workspace path does not exist.
+
+    Business rules:
+    - Inherits from FileNotFoundError for standard filesystem exception handling.
+
+    Execution flow:
+    1. Instantiated when workspace directory is absent.
+
+    Failure cases:
+    - None.
+
+    Side effects:
+    - Pure exception type.
+    """
+
+
+class WorkspaceNotDirectoryError(NotADirectoryError):
+    """Business purpose:
+    Typed exception raised when repository workspace path exists but is not a directory.
+
+    Business rules:
+    - Inherits from NotADirectoryError for standard filesystem exception handling.
+
+    Execution flow:
+    1. Instantiated when workspace path points to a non-directory entry.
+
+    Failure cases:
+    - None.
+
+    Side effects:
+    - Pure exception type.
+    """
+
 
 EXCLUDED_DIR_NAMES = frozenset({
     ".git",
@@ -1080,6 +1192,101 @@ def scan_repository_workspace(
     return scanner.scan()
 
 
+def validate_repository_profile_error(
+    profile: Any,
+    *,
+    repository_id: str,
+    commit_sha: str,
+    source_path_prefix: str | None,
+) -> str | None:
+    """Business purpose:
+    Validate that a repository profile matches expected coordinates, required schema, and digest.
+
+    Business rules:
+    - Verifies repositoryId, commitSha (case-insensitive), sourcePathPrefix, and scannerVersion.
+    - Requires all observation collections to be lists and scannedFileCount to be a non-negative int.
+    - Asserts contentDigest matches the calculated deterministic SHA-256 digest.
+
+    Execution flow:
+    1. Check top-level type is a dictionary.
+    2. Check coordinates match expected arguments.
+    3. Verify required collection keys exist and are lists.
+    4. Compute expected content digest and compare against profile contentDigest.
+    5. Return None if valid, or an error string describing the mismatch.
+
+    Failure cases:
+    - Any missing field, wrong type, pin mismatch, or digest discrepancy returns an error string.
+
+    Side effects:
+    - Pure computation without I/O or state modification.
+    """
+    if not isinstance(profile, dict):
+        return "profile must be a dictionary"
+    if profile.get("repositoryId") != repository_id:
+        return f"repositoryId mismatch: expected {repository_id}, got {profile.get('repositoryId')}"
+    if str(profile.get("commitSha", "")).lower() != commit_sha.lower():
+        return f"commitSha mismatch: expected {commit_sha.lower()}, got {profile.get('commitSha')}"
+    if validate_source_path_prefix(profile.get("sourcePathPrefix")) != source_path_prefix:
+        return f"sourcePathPrefix mismatch: expected {source_path_prefix}, got {profile.get('sourcePathPrefix')}"
+    if profile.get("scannerVersion") != SCANNER_VERSION:
+        return f"scannerVersion mismatch: expected {SCANNER_VERSION}, got {profile.get('scannerVersion')}"
+    if not isinstance(profile.get("scannedFileCount"), int) or profile["scannedFileCount"] < 0:
+        return "scannedFileCount must be a non-negative integer"
+    for key in (
+        "languages",
+        "manifests",
+        "frameworks",
+        "buildSystems",
+        "ciWorkflows",
+        "containerization",
+        "candidateFacts",
+        "knownGaps",
+    ):
+        if not isinstance(profile.get(key), list):
+            return f"field '{key}' must be a list"
+
+    digest = profile.get("contentDigest")
+    if not isinstance(digest, str) or not digest.startswith("sha256:"):
+        return f"invalid contentDigest format: {digest}"
+
+    expected_digest = compute_profile_digest(profile)
+    if digest != expected_digest:
+        return f"contentDigest mismatch: expected {expected_digest}, got {digest}"
+
+    return None
+
+
+def is_valid_repository_profile(
+    profile: Any,
+    *,
+    repository_id: str,
+    commit_sha: str,
+    source_path_prefix: str | None,
+) -> bool:
+    """Business purpose:
+    Boolean predicate verifying repository profile validity.
+
+    Business rules:
+    - Returns True if and only if validate_repository_profile_error returns None.
+
+    Execution flow:
+    1. Delegate to validate_repository_profile_error.
+    2. Return boolean result.
+
+    Failure cases:
+    - Returns False for invalid profiles.
+
+    Side effects:
+    - Pure computation without I/O or state modification.
+    """
+    return validate_repository_profile_error(
+        profile,
+        repository_id=repository_id,
+        commit_sha=commit_sha,
+        source_path_prefix=source_path_prefix,
+    ) is None
+
+
 def ensure_repository_profile(
     backend: object,
     *,
@@ -1092,22 +1299,28 @@ def ensure_repository_profile(
     Load or generate the cached deterministic repository profile in the sandbox environment.
 
     Business rules:
-    - If an existing profile marker matches (repositoryId, commitSha, sourcePathPrefix, scannerVersion),
-      reuse it directly without re-reading the filesystem.
-    - If missing or pins mismatch, scan the workspace using sandbox execution when available
-      or the local filesystem adapter, and persist the new profile marker.
+    - If an existing profile marker matches (repositoryId, commitSha, sourcePathPrefix, scannerVersion)
+      and has a valid schema and content digest, reuse it directly without rescanning.
+    - If missing or invalid, scan the workspace.
+    - When backend provides execution capability (Docker sandbox backend), run bounded scanner command
+      inside the sandbox using isolated Python (`python3 -I`) and scrubbed sys.path.
+    - If sandbox execution fails, raise an explicit RuntimeError; NEVER fall back to the host filesystem.
+    - Validate returned profile schema and verify content digest integrity before returning or caching.
     - A missing workspace must record an explicit known gap/error rather than a silent empty profile.
 
     Execution flow:
     1. Validate source path prefix.
     2. Attempt to read existing profile marker from REPOSITORY_PROFILE_PATH.
-    3. If valid and matching pins, return cached profile.
-    4. If backend provides execution capability (Docker sandbox), run bounded scanner command inside sandbox.
-    5. Otherwise, run workspace scan using filesystem adapter.
-    6. Write resulting profile to REPOSITORY_PROFILE_PATH in backend and return.
+    3. If valid and matching pins and content digest, return cached profile.
+    4. If backend provides execution capability (callable `execute`), run bounded scanner inside sandbox.
+    5. If execution fails or output is invalid, raise RuntimeError without fallback.
+    6. If backend lacks execution capability, run scan using local filesystem adapter.
+    7. Validate profile schema and content digest.
+    8. Write valid profile to REPOSITORY_PROFILE_PATH in backend and return.
 
     Failure cases:
-    - Failed cache reads or writes fallback gracefully to in-memory scanned profile.
+    - Sandbox execution failure or malformed output raises RuntimeError.
+    - Profile validation failure raises RuntimeError.
 
     Side effects:
     - Writes the profile marker JSON to the runtime directory in the backend.
@@ -1121,48 +1334,100 @@ def ensure_repository_profile(
     if callable(read):
         try:
             cached_raw = read(REPOSITORY_PROFILE_PATH)
-            if cached_raw and not getattr(cached_raw, "error", None):
-                cached = json.loads(str(cached_raw))
-                if (
-                    cached.get("repositoryId") == repository_id
-                    and cached.get("commitSha", "").lower() == commit_sha.lower()
-                    and validate_source_path_prefix(cached.get("sourcePathPrefix")) == source_path_prefix
-                    and cached.get("scannerVersion") == SCANNER_VERSION
+            cached_str: str | None = None
+            if isinstance(cached_raw, str):
+                cached_str = cached_raw
+            elif hasattr(cached_raw, "file_data") and isinstance(cached_raw.file_data, dict):
+                cached_str = cached_raw.file_data.get("content")
+            elif not getattr(cached_raw, "error", None) and hasattr(cached_raw, "content"):
+                cached_str = cached_raw.content
+            elif hasattr(cached_raw, "read"):
+                cached_str = cached_raw.read()
+
+            if cached_str:
+                cached = json.loads(str(cached_str))
+                if is_valid_repository_profile(
+                    cached,
+                    repository_id=repository_id,
+                    commit_sha=commit_sha,
+                    source_path_prefix=source_path_prefix,
                 ):
                     return cached
         except Exception:
             pass
 
-    profile: dict[str, Any] | None = None
+    profile: dict[str, Any]
 
-    # If backend supports execution, run scanner in sandbox container
+    # If backend supports execution, run scanner in sandbox container with isolated Python
     if callable(execute):
-        try:
-            prefix_arg = f", source_path_prefix={repr(source_path_prefix)}" if source_path_prefix else ""
-            script = (
-                f"import json; from tools.common.capabilities.platform.repository_scanner import scan_repository_workspace; "
-                f"p = scan_repository_workspace({repr(str(workspace_path))}, repository_id={repr(repository_id)}, commit_sha={repr(commit_sha)}{prefix_arg}); "
-                f"print(json.dumps(p))"
-            )
-            res = execute(f"python3 -c {shlex.quote(script)}", timeout=300)
-            if getattr(res, "exit_code", 1) == 0:
-                out = str(getattr(res, "output", "") or "").strip()
-                lines = [line.strip() for line in out.splitlines() if line.strip()]
-                for line in reversed(lines):
-                    if line.startswith("{") and line.endswith("}"):
-                        profile = json.loads(line)
-                        break
-        except Exception:
-            profile = None
+        # Stage the trusted, self-contained scanner into /tmp in the sandbox backend
+        scanner_source = Path(__file__).read_text(encoding="utf-8")
+        if callable(write):
+            try:
+                write(_TMP_SCANNER_PATH, scanner_source)
+            except Exception as err:
+                raise RuntimeError(f"Failed to stage pre-scan tool into sandbox: {err}") from err
 
-    # Fallback to local filesystem scan if sandbox execution did not run or succeed
-    if profile is None:
+        prefix_flag = f" --source-path-prefix {shlex.quote(source_path_prefix)}" if source_path_prefix else ""
+        cmd = (
+            f"python3 -I {_TMP_SCANNER_PATH} "
+            f"--workspace {shlex.quote(str(workspace_path))} "
+            f"--repository-id {shlex.quote(repository_id)} "
+            f"--commit-sha {shlex.quote(commit_sha)}"
+            f"{prefix_flag}"
+        )
+        try:
+            res = execute(cmd, timeout=300)
+        except Exception as err:
+            raise RuntimeError(f"Docker sandbox repository pre-scan execution failed: {err}") from err
+
+        exit_code = getattr(res, "exit_code", None)
+        if exit_code is None and hasattr(res, "returncode"):
+            exit_code = res.returncode
+        if exit_code != 0:
+            out_err = getattr(res, "output", "") or getattr(res, "stderr", "")
+            raise RuntimeError(f"Docker sandbox repository pre-scan failed with exit code {exit_code}: {out_err}")
+
+        out = str(getattr(res, "output", "") or "").strip()
+        lines = [line.strip() for line in out.splitlines() if line.strip()]
+        scanned_profile = None
+        for line in reversed(lines):
+            if line.startswith("{") and line.endswith("}"):
+                try:
+                    scanned_profile = json.loads(line)
+                    break
+                except Exception:
+                    continue
+
+        if not scanned_profile:
+            raise RuntimeError("Docker sandbox repository pre-scan produced no valid JSON profile output")
+
+        validation_error = validate_repository_profile_error(
+            scanned_profile,
+            repository_id=repository_id,
+            commit_sha=commit_sha,
+            source_path_prefix=source_path_prefix,
+        )
+        if validation_error:
+            raise RuntimeError(f"Docker sandbox repository pre-scan produced invalid profile: {validation_error}")
+
+        profile = scanned_profile
+    else:
+        # Fallback to local filesystem scan only when backend has no execution capability (e.g. offline tests)
         profile = scan_repository_workspace(
             workspace_path,
             repository_id=repository_id,
             commit_sha=commit_sha,
             source_path_prefix=source_path_prefix,
         )
+        validation_error = validate_repository_profile_error(
+            profile,
+            repository_id=repository_id,
+            commit_sha=commit_sha,
+            source_path_prefix=source_path_prefix,
+        )
+        if validation_error:
+            raise RuntimeError(f"Repository pre-scan produced invalid profile: {validation_error}")
 
     if callable(write):
         try:
@@ -1171,3 +1436,23 @@ def ensure_repository_profile(
             pass
 
     return profile
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Deterministic offline repository pre-scan")
+    parser.add_argument("--workspace", required=True, help="Workspace directory to scan")
+    parser.add_argument("--repository-id", required=True, help="Repository ID")
+    parser.add_argument("--commit-sha", required=True, help="Commit SHA")
+    parser.add_argument("--source-path-prefix", default=None, help="Optional source path prefix")
+    parsed_args = parser.parse_args()
+
+    scanned = scan_repository_workspace(
+        parsed_args.workspace,
+        repository_id=parsed_args.repository_id,
+        commit_sha=parsed_args.commit_sha,
+        source_path_prefix=parsed_args.source_path_prefix or None,
+    )
+    print(json.dumps(scanned, separators=(",", ":"), sort_keys=True))
+

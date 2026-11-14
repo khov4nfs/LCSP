@@ -5308,9 +5308,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/agent_run_budget.py::_bounded_request::MESSAGE_HUMANMESSAGE::334:7abe892c237458ff",
+      "siteId": "ast:middleware/agent_run_budget.py::_bounded_request::MESSAGE_HUMANMESSAGE::346:7abe892c237458ff",
       "filePath": "middleware/agent_run_budget.py",
-      "lineNumber": 334,
+      "lineNumber": 346,
       "symbolName": "_bounded_request",
       "constructionSha256": "7abe892c237458ffa0236c9b1948fe97e7a801800c57b89715f3b21e6ea34d60",
       "evidence": "self._finalize_instruction()",
@@ -5328,9 +5328,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/agent_run_budget.py::_finalize_instruction::INSTRUCTION_BUILDER::129:2d4ff72c063a0031",
+      "siteId": "ast:middleware/agent_run_budget.py::_finalize_instruction::INSTRUCTION_BUILDER::131:2d4ff72c063a0031",
       "filePath": "middleware/agent_run_budget.py",
-      "lineNumber": 129,
+      "lineNumber": 131,
       "symbolName": "_finalize_instruction",
       "constructionSha256": "2d4ff72c063a0031b8cf446c9644751f1d4b61e298772f435f7bc924adc25f11",
       "evidence": "def _finalize_instruction(self) -> str:\n        if not self.finalize_tools:\n            return FINALIZE_INSTRUCTION\n        names = \", \".join(sorted(self.finalize_tools))\n        return (\n            \"The investigation budget for this run is used up. Do not investigate further. \"\n            f\"Call {names} now with only what you have already verified; report anything \"\n            \"you could not establish as unresolved with a limitation instead of guessing.\"\n        )",
@@ -6188,9 +6188,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::687:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::688:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 687,
+      "lineNumber": 688,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -6208,9 +6208,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::691:da8c167e6be927c3",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::692:da8c167e6be927c3",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 691,
+      "lineNumber": 692,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "da8c167e6be927c367a7491977e201da219d6d9375c07da18aff7fc1ea9e84bf",
       "evidence": "json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"]",
@@ -6228,9 +6228,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::701:bbbad78faba59c09",
+      "siteId": "ast:rule_set_preparation/agent.py::create_rule_set_preparation_agent::KEYWORD_SYSTEM_PROMPT::702:bbbad78faba59c09",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 701,
+      "lineNumber": 702,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "bbbad78faba59c0928e3408eb97f5fecca393eacf1c331e0e323ffc7d9420400",
       "evidence": "instructions",
@@ -7648,9 +7648,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::add_to_packet_draft::PROMOTED_TOOL_DOCSTRING::817:6ed48ab08e3eac7d",
+      "siteId": "ast:rule_set_preparation/tools.py::add_to_packet_draft::PROMOTED_TOOL_DOCSTRING::943:6ed48ab08e3eac7d",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 817,
+      "lineNumber": 943,
       "symbolName": "add_to_packet_draft",
       "constructionSha256": "6ed48ab08e3eac7d0f08e84d80e342ca255beaa6168b1e42503da7a83afda931",
       "evidence": "\"\"\"Add one PART of the rule set packet to the draft, so a large source is authored in\n        several small calls instead of one huge packet. Each item is identified by its label\n        (legalRequirementId, assessmentRuleId, relationId): an item with a label that is already\n        in the draft REPLACES it, which is how you correct an item. Nothing is checked here; call\n        validate_compliance_rule_set with no arguments to validate the whole draft.\n\n        Business purpose: Add or replace labeled parts of the legacy Rule Set packet draft before the whole packet is validated.\n\n        Business rules:\n        - Terminal runs reject mutation; frozen-inventory runs must use typed authoring tools; every submitted item needs its canonical identity label, and an existing label replaces that item.\n        - Any changed draft invalidates previous validation; the tool never interprets or validates legal meaning as part of the add.\n\n        Execution flow:\n        1. Reject terminal or frozen-inventory usage.\n        2. Verify labels for all supplied packet sections before changing anything.\n        3. Add/replace labeled items, advance progress when content changes and clear stale validation.\n        4. Return counts and automatically attach a dry-run validation after the configured number of add calls.\n\n        Failure cases:\n        - Missing labels reject the entire add; terminal/frozen phases return repair feedback; validation failures remain attached rather than accepting a pass.\n\n        Side effects:\n        - Mutates the run-local packet draft, trace and progress revision and may publish progress/validation events.\n        \"\"\"",
@@ -7668,9 +7668,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1288:1aaa82b576c8228a",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1414:1aaa82b576c8228a",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1288,
+      "lineNumber": 1414,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "1aaa82b576c8228ab951dd5b11b221526b6e4687539a7241c2fd2d0055733f57",
       "evidence": "\"Validate current Rule candidates against the frozen inventory revision, returning grouped claim/provenance/fidelity gaps. No arguments or replacement packet. A pass enters SUBMISSION_READY without publishing authority.\"",
@@ -7688,9 +7688,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1289:6a68eb9793ebb48b",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1415:6a68eb9793ebb48b",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1289,
+      "lineNumber": 1415,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "6a68eb9793ebb48be8d44daf5f073c5cb5403b21726a4a13dfc1e25075e27792",
       "evidence": "\"Explicitly submit the exact validated frozen-inventory draft once through the Completion Gate. No arguments or replacement packet.\"",
@@ -7708,9 +7708,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1326:80369ba4167fc5bf",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1452:80369ba4167fc5bf",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1326,
+      "lineNumber": 1452,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "80369ba4167fc5bfe0be68be096aa41f3945d28392ad25c1fae6c8fdd139e71c",
       "evidence": "\"Validate the persisted Rule Set Draft, exact source support, source coverage, references, legal effects and rule bindings. Returns specific errors. No arguments.\"",
@@ -7728,9 +7728,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1327:476821dc1348d828",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::DESCRIPTION_OVERRIDE::1453:476821dc1348d828",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1327,
+      "lineNumber": 1453,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "476821dc1348d828af9f47123ab7bf543885396f524ce2cc35794b997e513404",
       "evidence": "\"Activate the exact validated Rule Set Draft through the governed API. Validation must pass first. No arguments.\"",
@@ -7748,9 +7748,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::SCHEMA_DESCRIPTION::1220:34ef0b818a22e07a",
+      "siteId": "ast:rule_set_preparation/tools.py::build_rule_set_tools::SCHEMA_DESCRIPTION::1346:34ef0b818a22e07a",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1220,
+      "lineNumber": 1346,
       "symbolName": "build_rule_set_tools",
       "constructionSha256": "34ef0b818a22e07ab2a63a816aae392c059c043320fdd1270b7c1a6b66b0b607",
       "evidence": "\"Affected absolute path inside /legal-source.\"",
@@ -7768,9 +7768,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::record_preparation_progress::PROMOTED_TOOL_DOCSTRING::633:53e13cd45ddce285",
+      "siteId": "ast:rule_set_preparation/tools.py::record_preparation_progress::PROMOTED_TOOL_DOCSTRING::759:53e13cd45ddce285",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 633,
+      "lineNumber": 759,
       "symbolName": "record_preparation_progress",
       "constructionSha256": "53e13cd45ddce285f6a3f45d8b12d29868913b08c385123f01e46c2d56991582",
       "evidence": "\"\"\"Record concise source-grounded findings, unresolved work and the next factual investigation action.\n\n        This is an execution-local working ledger, not legal output or chain-of-thought. Do not include\n        private reasoning; cite source identifiers/locators when useful.\n\n        Business purpose: Maintain a concise execution-local ledger of source-grounded findings, unresolved work and the next factual investigation action.\n\n        Business rules:\n        - Omitted fields preserve their current values; this ledger is not legal output or chain-of-thought and must not contain private reasoning.\n\n        Execution flow:\n        1. Merge supplied fields with current progress state.\n        2. Under the observation lock, increment progress revision when established findings or unresolved work change.\n        3. Save the new progress state and return it with its revision.\n\n        Failure cases:\n        - Schema-invalid values are rejected by the tool contract; internal state update errors propagate.\n\n        Side effects:\n        - Updates only run-local progress state and may advance progress revision.\n        \"\"\"",
@@ -7788,9 +7788,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::remove_from_packet_draft::PROMOTED_TOOL_DOCSTRING::997:c93e39e1bec5dc90",
+      "siteId": "ast:rule_set_preparation/tools.py::remove_from_packet_draft::PROMOTED_TOOL_DOCSTRING::1123:c93e39e1bec5dc90",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 997,
+      "lineNumber": 1123,
       "symbolName": "remove_from_packet_draft",
       "constructionSha256": "c93e39e1bec5dc901f832fd4a7701662aba5362b5635b88fd01dc218fbbe55d1",
       "evidence": "\"\"\"Remove items from the packet draft by label. Only items named by the latest validation\n        failures can be removed; to change any other item send it again with the same label.\n\n        Business purpose: Remove only packet items that the most recent validation failure explicitly identifies as removable.\n\n        Business rules:\n        - Terminal runs cannot change; unknown labels and items not named by the latest validation failure are retained and reported.\n        - Every invocation requires a valid structured ToolInvocationExplanation claim justifying the repair action before mutation.\n        - The most restrictive decision wins: valid claim never overrides snapshot binding or removable allowlist.\n\n        Execution flow:\n        1. Reject terminal state and frozen-inventory runs.\n        2. Validate the structured ToolInvocationExplanation claim against latest validation failures and requested arguments.\n        3. Reject with fail-closed outcome if claim is missing, mismatched, forged or unacceptable risk.\n        4. Validate draft snapshot authority against context.draft_packet(); invalidate allowlist if snapshot is stale.\n        5. Process requested Requirement, AssessmentRule and relation labels against current draft and removable allowlist.\n        6. Record removal trace with claimMediation outcome and return repair guidance.\n\n        Failure cases:\n        - Missing or invalid claim is denied without mutating draft; labels absent from the draft or not named by latest validation failure are refused.\n\n        Side effects:\n        - Mutates local draft/removable state and records trace; it does not persist or activate the packet.\n        \"\"\"",
@@ -7808,9 +7808,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::report_rule_set_source_blocked::PROMOTED_TOOL_DOCSTRING::1226:ed1a381fce087133",
+      "siteId": "ast:rule_set_preparation/tools.py::report_rule_set_source_blocked::PROMOTED_TOOL_DOCSTRING::1352:ed1a381fce087133",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1226,
+      "lineNumber": 1352,
       "symbolName": "report_rule_set_source_blocked",
       "constructionSha256": "ed1a381fce087133e326d6b7eefe5366a3666b7d9f6478ae21317c8d6b824730",
       "evidence": "\"\"\"End WITHOUT submission only when the pinned source cannot be read or its pins\n        are inconsistent. Do not use for unfinished work, ambiguous provisions or validation\n        feedback that can be corrected. Name the affected pinned source path and reason.\n\n        Business purpose: End Preparation without submission only when the pinned source cannot be read or its recorded pins are inconsistent.\n\n        Business rules:\n        - Reasons and paths are constrained to declared source-blocking cases under `/legal-source`; an intact readable source refutes the claim and requires work to continue.\n\n        Execution flow:\n        1. Reject already submitted runs, unsupported reasons and paths outside the pinned source tree.\n        2. Verify readability or immutable index hashes when a local source root exists.\n        3. Return a refutation when evidence contradicts the block claim; otherwise retain the reported blocker as terminal context.\n\n        Failure cases:\n        - Invalid reason/path or a concrete refutation returns repair guidance; a missing/unreadable source index or mismatched hash does not count as a refutation and leaves the blocker report recorded.\n\n        Side effects:\n        - A retained blocker updates run-local terminal/progress/trace state and logging; it does not submit, validate or activate a Rule Set.\n        \"\"\"",
@@ -7828,9 +7828,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::submit_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::1135:5935ea1913f7f2b5",
+      "siteId": "ast:rule_set_preparation/tools.py::submit_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::1261:5935ea1913f7f2b5",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1135,
+      "lineNumber": 1261,
       "symbolName": "submit_compliance_rule_set",
       "constructionSha256": "5935ea1913f7f2b5cb17634532ebd21e3d33735154fb97e816d6d93167034cf3",
       "evidence": "\"\"\"Claim completion for a packet, run the deterministic integrity gate, then submit once.\n\n        A rejected gate returns its exact mechanical gaps to this same agent for repair. The gate\n        checks structure and provenance only; this agent owns legal interpretation and completeness.\n        A passing claim is submitted through the canonical atomic activation operation.\n\n        Business purpose: Submit the exact mechanically validated Rule Set candidate once through the canonical governed API.\n\n        Business rules:\n        - Frozen-inventory calls accept no replacement packet; only a passing exact candidate may be submitted, and existing submission/source-blocked/concluded states are terminal.\n        - The deterministic gate checks structure and provenance; legal interpretation and completeness remain agent responsibilities.\n\n        Execution flow:\n        1. Return the existing terminal result when already submitted or blocked/concluded.\n        2. Restore/flush the current draft, select the exact validated candidate and run or reuse its validation gate.\n        3. Return repair gaps for a failed gate, tracking repeated unchanged completion attempts.\n        4. Submit a passing packet with the run's idempotency key, transition inventory and record completion provenance.\n\n        Failure cases:\n        - Gate failures remain rejected; callback/value errors are returned as errors; repeated same candidate/gaps/progress raises NoProgressDetected.\n\n        Side effects:\n        - Calls the governed submission API and may transition inventory, update run trace/revision and publish durable completion events.\n        \"\"\"",
@@ -7848,9 +7848,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/tools.py::validate_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::1103:e121cb89777d870d",
+      "siteId": "ast:rule_set_preparation/tools.py::validate_compliance_rule_set::PROMOTED_TOOL_DOCSTRING::1229:e121cb89777d870d",
       "filePath": "rule_set_preparation/tools.py",
-      "lineNumber": 1103,
+      "lineNumber": 1229,
       "symbolName": "validate_compliance_rule_set",
       "constructionSha256": "e121cb89777d870dc8f61ed991ab36a06a09125a78ce3a78ba340eefd27fe343",
       "evidence": "\"\"\"Dry-run the mechanical integrity validation of a COMPLETE rule set packet.\n\n        Call it with no arguments to validate the draft built with add_to_packet_draft, or pass\n        a complete packet. Nothing is persisted. Returns {\"outcome\": \"PASSED\"|\"FAILED\",\n        \"failures\": [...]}; each failure has a code, the packet-local ref it concerns and a short\n        detail, and uncovered source provisions are listed under \"uncoveredProvisions\". Fix every\n        failure and validate again before the single submission.\n\n        Business purpose: Expose a dry-run validation of the current Rule Set draft or a complete packet in legacy mode.\n\n        Business rules:\n        - Frozen-inventory calls accept no packet replacement and validate the current persisted authoring draft; passing a gate does not submit or activate the Rule Set.\n\n        Execution flow:\n        1. Reject packet arguments when a frozen inventory owns the draft.\n        2. Flush the current authoring draft when applicable.\n        3. Run the shared validator and serialize its mechanical findings.\n\n        Failure cases:\n        - Wrong phase, malformed packet or failed validation returns explicit repair gaps; no passing result is fabricated.\n\n        Side effects:\n        - May flush the current authoring draft and update validation/phase telemetry; no submission or activation occurs.\n        \"\"\"",
@@ -7886,6 +7886,26 @@
       "placeholderSchema": {},
       "migrationStatus": "SHARED_SOURCE_CONSUMER",
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:tools/common/capabilities/platform/repository_scanner.py::<module>::KEYWORD_DESCRIPTION::1444:1f44fa73cce7637e",
+      "filePath": "tools/common/capabilities/platform/repository_scanner.py",
+      "lineNumber": 1444,
+      "symbolName": "<module>",
+      "constructionSha256": "1f44fa73cce7637ebd70b5dc86cdeaa4c9cdbb93f81e9084b9c1d7db8da18d31",
+      "evidence": "\"Deterministic offline repository pre-scan\"",
+      "astKind": "KEYWORD_DESCRIPTION",
+      "constructionType": "NON_MODEL_FACING",
+      "modelFacingConsumer": "tools/common/capabilities/platform/repository_scanner.py::<module>",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "IMPLEMENTATION",
+      "migrationDecision": "NON_MODEL_FACING",
+      "viSourceId": null,
+      "existingSourcePath": "tools/common/capabilities/platform/repository_scanner.py",
+      "placeholderSchema": {},
+      "migrationStatus": "NON_MODEL_FACING",
+      "dispositionEvidence": "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
     },
     {
       "siteId": "ast:tools/common/capabilities/platform/tracing.py::_set_common_span_attributes::INSTRUCTION_COMPOSITION::184:c42c6d1a7e3c22f2",
@@ -8210,7 +8230,7 @@
     {
       "siteId": "middleware/agent_run_budget.py::_bounded_request::651ea321eb8525e8::1",
       "filePath": "middleware/agent_run_budget.py",
-      "lineNumber": 334,
+      "lineNumber": 346,
       "symbolName": "_bounded_request",
       "constructionSha256": "651ea321eb8525e807621b5cce00afd785d4b22d70eb038d5c3dd98103a5bd07",
       "evidence": "messages=[*messages, HumanMessage(content=self._finalize_instruction())],",
@@ -8229,7 +8249,7 @@
     {
       "siteId": "middleware/agent_run_budget.py::_prompt_overhead_tokens::99743a97bb76d614::1",
       "filePath": "middleware/agent_run_budget.py",
-      "lineNumber": 377,
+      "lineNumber": 389,
       "symbolName": "_prompt_overhead_tokens",
       "constructionSha256": "99743a97bb76d61434134c01f71d19e56e795410c822420b31226c94881e57a7",
       "evidence": "def _prompt_overhead_tokens(request: Any) -> int:",
@@ -8723,7 +8743,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::844e8679a414eb1c::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 691,
+      "lineNumber": 692,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "844e8679a414eb1caacfa3a4e0fdcc8052cc3f56dd9912c262bbc1ab4c8ddb72",
       "evidence": "TodoListMiddleware(system_prompt=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"todo_system\"], tool_description=json.loads(bundle.instruction(\"framework.injected-policy\"))[\"tool.write_todos\"]), PreparationPhaseMiddleware(context, model=model), budget,",
@@ -8742,7 +8762,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::1",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 687,
+      "lineNumber": 688,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -8761,7 +8781,7 @@
     {
       "siteId": "rule_set_preparation/agent.py::create_rule_set_preparation_agent::d3b2c0982714791d::2",
       "filePath": "rule_set_preparation/agent.py",
-      "lineNumber": 701,
+      "lineNumber": 702,
       "symbolName": "create_rule_set_preparation_agent",
       "constructionSha256": "d3b2c0982714791dd4d16a7d161beb410c813ec8ff6b7254d01c743aa76f38b9",
       "evidence": "system_prompt=instructions,",
@@ -9120,6 +9140,25 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
+      "siteId": "tools/common/capabilities/platform/repository_scanner.py::<module>::685d9c993d7675b9::1",
+      "filePath": "tools/common/capabilities/platform/repository_scanner.py",
+      "lineNumber": 1444,
+      "symbolName": "<module>",
+      "constructionSha256": "685d9c993d7675b9058d6aaf3e454ed4aeb4f6ecff20fbc0a7bf77208c8f3fc7",
+      "evidence": "parser = argparse.ArgumentParser(description=\"Deterministic offline repository pre-scan\")",
+      "constructionType": "NON_MODEL_FACING",
+      "modelFacingConsumer": "tools/common/capabilities/platform/repository_scanner.py::<module>",
+      "runtimeRole": "shared-runtime",
+      "runtimePhase": "SHARED",
+      "contentAuthority": "IMPLEMENTATION",
+      "migrationDecision": "NON_MODEL_FACING",
+      "viSourceId": null,
+      "existingSourcePath": "tools/common/capabilities/platform/repository_scanner.py",
+      "placeholderSchema": {},
+      "migrationStatus": "NON_MODEL_FACING",
+      "dispositionEvidence": "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
+    },
+    {
       "siteId": "tools/common/capabilities/platform/tracing.py::_extract_prompt::51d0dead420cc351::1",
       "filePath": "tools/common/capabilities/platform/tracing.py",
       "lineNumber": 193,
@@ -9443,7 +9482,7 @@
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
-        "rule_set_preparation/agent.py": "5166b89560a4d32142bec3d20fbe3616934b246bbe44c09fb5fd2262e22f9ff4",
+        "rule_set_preparation/agent.py": "53c5b7833a8013901e6f8319e2530000b395581ebc90e41aa50a8649e9f25f18",
         "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f"
       },
       "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
@@ -9463,7 +9502,7 @@
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
-        "rule_set_preparation/agent.py": "5166b89560a4d32142bec3d20fbe3616934b246bbe44c09fb5fd2262e22f9ff4",
+        "rule_set_preparation/agent.py": "53c5b7833a8013901e6f8319e2530000b395581ebc90e41aa50a8649e9f25f18",
         "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f"
       },
       "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
@@ -9665,7 +9704,7 @@
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
-        "rule_set_preparation/agent.py": "5166b89560a4d32142bec3d20fbe3616934b246bbe44c09fb5fd2262e22f9ff4",
+        "rule_set_preparation/agent.py": "53c5b7833a8013901e6f8319e2530000b395581ebc90e41aa50a8649e9f25f18",
         "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f",
         "agent.py": "574d5e1cfc1ed9963fab056a51adf746519a69f77793be67186e27a9780f2b12",
         "middleware/system_event_dispatch.py": "73948536f61e1e98f5e30d8879b80e72014fbf7ad7c5fda91c4b606271512814"

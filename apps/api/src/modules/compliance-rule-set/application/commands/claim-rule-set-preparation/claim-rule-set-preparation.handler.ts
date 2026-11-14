@@ -192,6 +192,17 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
           identities: true,
         },
       });
+    const usageAggregate = await this.prisma.llmUsageEvent.aggregate({
+      where: { runId: run.id },
+      _sum: {
+        inputTokens: true,
+        outputTokens: true,
+        totalTokens: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
     return ruleSetPreparationLegalSourceBundleSchema.parse({
       documentGraph: pinned
         ? (await this.graph.export(legalSource.id, pinned))!
@@ -218,6 +229,13 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
       frozenInventory: frozen,
       legalSourceVersionId: legalSource.id,
       legalSourceVersion: legalSource.version,
+      cumulativeUsage: {
+        modelCalls: usageAggregate._count.id,
+        inputTokens: Number(usageAggregate._sum.inputTokens ?? 0),
+        outputTokens: Number(usageAggregate._sum.outputTokens ?? 0),
+        totalTokens: Number(usageAggregate._sum.totalTokens ?? 0),
+        consecutiveTurnsWithoutProgress: 0,
+      },
       documents: legalSource.documents.map((document) => ({
         ...document,
         corpusRole: fromPrismaLegalSourceDocumentCorpusRole(

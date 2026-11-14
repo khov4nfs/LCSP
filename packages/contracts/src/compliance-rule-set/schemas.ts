@@ -6,6 +6,7 @@ import {
 } from "./direct-draft.ts";
 import { z } from "zod";
 import { authoredLocalizationStatusSchema } from "../assessment-domain/localization.ts";
+import { assessmentCumulativeUsageSchema } from "../assessment-domain/budget.ts";
 import {
   claimInventoryBindingSchema,
   type ClaimInventoryBinding,
@@ -895,6 +896,7 @@ export const ruleSetPreparationLegalSourceBundleSchema = z
         })
         .strict(),
     ),
+    cumulativeUsage: assessmentCumulativeUsageSchema.partial().optional(),
   })
   .strict();
 export type RuleSetPreparationLegalSourceBundle = z.infer<

@@ -176,3 +176,45 @@ def record_workload_progress(
         usage.consecutive_turns_without_progress = 0
     else:
         usage.consecutive_turns_without_progress += 1
+
+
+def apply_budget_extension(
+    base_limits: WorkloadBudgetLimits,
+    extension: dict[str, Any] | None,
+) -> WorkloadBudgetLimits:
+    """Business purpose: Calculate effective budget limits by applying an authoritative versioned extension to base limits.
+
+    Business rules:
+    - If no extension is present, returns base limits unmodified.
+    - Additional model calls and tokens are added to configured base limits; unconfigured (None) base limits remain None.
+    - When override_no_progress is true in the extension, no_progress_limit is cleared to None.
+
+    Execution flow:
+    1. Check if extension exists; if not, return base limits.
+    2. Calculate effective call and token limits by summing base and additional amounts where configured.
+    3. Clear no_progress_limit if override_no_progress is true; otherwise keep base limit.
+    4. Return new WorkloadBudgetLimits object.
+
+    Failure cases:
+    - Pure calculation; does not throw.
+
+    Side effects:
+    - Pure function without external mutations.
+    """
+    if not extension:
+        return base_limits
+
+    add_calls = extension.get("additionalModelCalls") or extension.get("additional_model_calls") or 0
+    add_in = extension.get("additionalInputTokens") or extension.get("additional_input_tokens") or 0
+    add_out = extension.get("additionalOutputTokens") or extension.get("additional_output_tokens") or 0
+    add_tot = extension.get("additionalTotalTokens") or extension.get("additional_total_tokens") or 0
+    override_prog = extension.get("overrideNoProgress") or extension.get("override_no_progress")
+
+    return WorkloadBudgetLimits(
+        max_model_calls=base_limits.max_model_calls + add_calls if base_limits.max_model_calls is not None else None,
+        max_input_tokens=base_limits.max_input_tokens + add_in if base_limits.max_input_tokens is not None else None,
+        max_output_tokens=base_limits.max_output_tokens + add_out if base_limits.max_output_tokens is not None else None,
+        max_total_tokens=base_limits.max_total_tokens + add_tot if base_limits.max_total_tokens is not None else None,
+        no_progress_limit=None if override_prog else base_limits.no_progress_limit,
+    )
+

@@ -524,4 +524,35 @@ describe("GetRootContextHandler locale authority", () => {
     ).toBe(0);
     expect(result.budgetState?.status).toBe("ADMITTED");
   });
+
+  it("applies budgetExtension from blockerReference to calculate effective limits matching Python", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+    try {
+      process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = "100";
+      const f = createFixture({
+        blockerReference: {
+          budgetExtension: {
+            version: 1,
+            authorizedBy: "admin-1",
+            authorizedAt: "2026-11-14T10:00:00.000Z",
+            auditReason: "Customer requested extension",
+            additionalModelCalls: 50,
+          },
+        },
+      });
+
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+
+      expect(result.budgetState?.limits.maxModelCalls).toBe(150);
+      expect(result.budgetState?.status).toBe("ADMITTED");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS;
+      }
+    }
+  });
 });

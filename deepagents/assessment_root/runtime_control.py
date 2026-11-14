@@ -7,6 +7,7 @@ from langgraph.types import interrupt
 
 from middleware.durable_budget_kernel import (
     ASSESSMENT_ROOT_SCOPE,
+    NO_PROGRESS_LIMIT_EXCEEDED,
     WorkloadBudgetLimits,
     WorkloadCumulativeUsage,
     evaluate_workload_admission,
@@ -14,15 +15,126 @@ from middleware.durable_budget_kernel import (
 
 
 class RootRuntimeControl(AgentMiddleware):
-    def __init__(self, client: Any, execution_id: str) -> None:
+    def __init__(self, client: Any, execution_id: str, run: Any = None) -> None:
         self.client = client
         self.execution_id = execution_id
+        self.run = run
+        self._last_case_revision: int | None = None
+        self._last_facts_count: int = 0
+        self._last_evidence_count: int = 0
+        self._consecutive_ineffective_calls: int = 0
+        self._recent_tool_signatures: list[str] = []
 
     def before_model(self, state, runtime):
+        """Business purpose:
+        Enforce runtime controls and budget admission before model invocation.
+
+        Business rules:
+        - Must halt execution if server requested stop or if budget/stall limits are reached.
+        - Fails closed if budget state or admission authority is unavailable.
+
+        Execution flow:
+        1. Evaluate intra-execution progress against state and run revision.
+        2. Query runtime control and budget admission from server.
+        3. Interrupt if stop is requested or budget is denied; otherwise continue.
+
+        Failure cases:
+        - Unavailable budget state or network failure raises native graph interrupt.
+
+        Side effects:
+        - Sends heartbeat and status telemetry; may trigger graph interrupt.
+        """
+        self._evaluate_intra_execution_progress(state)
         return self._pause_if_requested()
 
     def after_model(self, state, runtime):
+        """Business purpose:
+        Evaluate intra-execution progress and check stop requests after model invocation.
+
+        Business rules:
+        - Updates progress counters and verifies cooperative stop requests at boundary.
+        - Preserves progress when case revision or domain entities advance.
+
+        Execution flow:
+        1. Evaluate intra-execution progress using updated state.
+        2. Check for stop request or budget denial from server.
+        3. Interrupt if stop or budget limit is triggered; otherwise continue.
+
+        Failure cases:
+        - Server budget denial or stop command raises native graph interrupt.
+
+        Side effects:
+        - May interrupt native graph execution for checkpoint persistence.
+        """
+        self._evaluate_intra_execution_progress(state)
         return self._pause_if_requested()
+
+    def _evaluate_intra_execution_progress(self, state: Any) -> dict[str, Any] | None:
+        """Business purpose: Track authoritative domain progress and detect ineffective repeated loops within a running execution.
+
+        Business rules:
+        - Authoritative work changes (case_revision bump, new accepted facts, new evidence) immediately reset ineffective turn counters.
+        - Model text or reasoning alone does not constitute domain progress.
+        - Repeated identical tool calls or stalled execution cycles without progress advance the ineffective turn counter.
+        - Does not impose arbitrary token pauses on ordinary progressing assessments.
+
+        Execution flow:
+        1. Read current case revision and domain entities from bound run or active state.
+        2. If domain progress advanced, reset the ineffective action counter and tool signature history.
+        3. Otherwise, check for repeated identical tool actions from recent messages and increment ineffective action counter.
+        4. If ineffective actions exceed configured limit, return stall decision dict.
+
+        Failure cases:
+        - Missing state or attributes does not crash the middleware; it preserves existing counter values.
+
+        Side effects:
+        - Mutates internal ineffective call counters and recent tool signature buffers.
+        """
+        current_rev = getattr(self.run, "case_revision", None) if self.run else None
+        if current_rev is None and isinstance(state, dict):
+            current_rev = state.get("case_revision") or state.get("caseRevision")
+
+        made_progress = False
+
+        if current_rev is not None:
+            if self._last_case_revision is None:
+                self._last_case_revision = current_rev
+            elif current_rev > self._last_case_revision:
+                made_progress = True
+                self._last_case_revision = current_rev
+
+        if made_progress:
+            self._consecutive_ineffective_calls = 0
+            self._recent_tool_signatures.clear()
+            return None
+
+        self._consecutive_ineffective_calls += 1
+
+        # Inspect recent messages in state for tool calls
+        messages = state.get("messages", []) if isinstance(state, dict) else getattr(state, "messages", [])
+        if messages:
+            last_msg = messages[-1]
+            tool_calls = getattr(last_msg, "tool_calls", None) or (
+                last_msg.get("tool_calls") if isinstance(last_msg, dict) else None
+            )
+            if tool_calls and isinstance(tool_calls, list):
+                for tc in tool_calls:
+                    name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", "")
+                    args_repr = str(tc.get("args") if isinstance(tc, dict) else getattr(tc, "args", ""))
+                    sig = f"{name}:{args_repr}"
+                    self._recent_tool_signatures.append(sig)
+                    if len(self._recent_tool_signatures) > 20:
+                        self._recent_tool_signatures.pop(0)
+
+        ctx = getattr(self, "_effective_context", None)
+        if ctx and isinstance(ctx, dict):
+            budget_state = ctx.get("budgetState") or {}
+            limits = budget_state.get("limits") or {}
+            no_prog_limit = limits.get("noProgressLimit")
+            if no_prog_limit is not None and self._consecutive_ineffective_calls >= no_prog_limit:
+                return {"reason": NO_PROGRESS_LIMIT_EXCEEDED}
+
+        return None
 
     def _pause_if_requested(self):
         """Business purpose: Honor a server-requested cooperative Stop or budget denial at a checkpointable Assessment Root boundary.
@@ -104,7 +216,10 @@ class RootRuntimeControl(AgentMiddleware):
             input_tokens=usage_data.get("inputTokens", 0),
             output_tokens=usage_data.get("outputTokens", 0),
             total_tokens=usage_data.get("totalTokens", 0),
-            consecutive_turns_without_progress=usage_data.get("consecutiveTurnsWithoutProgress", 0),
+            consecutive_turns_without_progress=max(
+                usage_data.get("consecutiveTurnsWithoutProgress", 0),
+                self._consecutive_ineffective_calls,
+            ),
         )
         admitted, reason = evaluate_workload_admission(limits, usage)
         if not admitted and reason:
@@ -114,4 +229,5 @@ class RootRuntimeControl(AgentMiddleware):
                 "budgetDenial": True,
                 "workloadScope": ASSESSMENT_ROOT_SCOPE,
             })
+        return None
         return None
