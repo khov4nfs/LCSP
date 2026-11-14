@@ -10,6 +10,7 @@ import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_BUDGET_REASONS,
+  type AssessmentBudgetExtension,
 } from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
@@ -21,6 +22,7 @@ import {
   isAssessmentRuntimeControlState,
   ASSESSMENT_RUNTIME_CONTROL_PROBLEM_CODES as Problems,
   ASSESSMENT_RUNTIME_CONTROL_STATES as States,
+  type AssessmentBudgetExtensionInput,
   type AssessmentRuntimeControlAction,
   type AssessmentRuntimeControlResult,
   type AssessmentRuntimeControlState,
@@ -29,6 +31,7 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
@@ -120,6 +123,7 @@ export class AssessmentRuntimeControlService {
     action: AssessmentRuntimeControlAction;
     targetRunId?: string;
     responseLanguage?: string | null;
+    budgetExtension?: AssessmentBudgetExtensionInput;
   }): Promise<AssessmentRuntimeControlResult> {
     const outcome = await this.prisma.$transaction(async (tx) => {
       const { runtime, row } = await this.loadCanonicalTarget(
@@ -224,7 +228,19 @@ export class AssessmentRuntimeControlService {
           string,
           unknown
         > | null;
-        if (
+
+        // Verify authority: only administrators can provide budget extensions or overrides
+        if (input.budgetExtension) {
+          if (input.actor.role !== AUTH_USER_ROLES.admin) {
+            throw problemException(
+              SHARED_ERROR_CODES.forbidden,
+              input.correlationId,
+              { status: HttpStatus.FORBIDDEN },
+            );
+          }
+        }
+
+        const isBudgetExhausted =
           blockerRef &&
           (blockerRef.reason ===
             ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED ||
@@ -232,33 +248,84 @@ export class AssessmentRuntimeControlService {
             blockerRef.reason ===
               ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
             blockerRef.reason ===
-              ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED)
-        ) {
-          if (!blockerRef.budgetExtended) {
-            throw problemException(
-              ASSESSMENT_DOMAIN_ERROR_CODES.BUDGET_EXHAUSTED,
-              input.correlationId,
-              { status: HttpStatus.CONFLICT },
-            );
-          }
-        }
-        if (
+              ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED);
+
+        const isNoProgressStall =
           blockerRef &&
           blockerRef.reason ===
-            ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED
+            ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
+
+        // Existing extension on blockerReference or newly supplied extension
+        let activeExtension: Record<string, unknown> | null = null;
+        if (input.budgetExtension) {
+          activeExtension = {
+            version: input.budgetExtension.version,
+            authorizedBy: input.actor.userId,
+            authorizedAt: new Date().toISOString(),
+            ...(input.budgetExtension.auditReason
+              ? { auditReason: input.budgetExtension.auditReason }
+              : {}),
+            additionalModelCalls:
+              input.budgetExtension.additionalModelCalls ?? null,
+            additionalInputTokens:
+              input.budgetExtension.additionalInputTokens ?? null,
+            additionalOutputTokens:
+              input.budgetExtension.additionalOutputTokens ?? null,
+            additionalTotalTokens:
+              input.budgetExtension.additionalTotalTokens ?? null,
+            overrideNoProgress:
+              input.budgetExtension.overrideNoProgress ?? false,
+          };
+        } else if (
+          blockerRef?.budgetExtension &&
+          typeof blockerRef.budgetExtension === "object"
         ) {
-          if (!blockerRef.overrideNoProgress) {
-            throw problemException(
-              ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
-              input.correlationId,
-              { status: HttpStatus.CONFLICT },
-            );
-          }
+          activeExtension = blockerRef.budgetExtension as Record<
+            string,
+            unknown
+          >;
         }
-        if (blockerRef) {
+
+        const activeOverride =
+          input.budgetExtension?.overrideNoProgress === true ||
+          blockerRef?.overrideNoProgress === true ||
+          activeExtension?.overrideNoProgress === true;
+
+        if (
+          isBudgetExhausted &&
+          !activeExtension &&
+          !blockerRef?.budgetExtended
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.BUDGET_EXHAUSTED,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        if (isNoProgressStall && !activeOverride) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        if (blockerRef || activeExtension || activeOverride) {
+          const updatedBlocker: Prisma.InputJsonValue = {
+            reason: null,
+            resumedAt: new Date().toISOString(),
+            ...(activeExtension
+              ? { budgetExtension: activeExtension as Prisma.InputJsonObject }
+              : {}),
+            ...(activeOverride ? { overrideNoProgress: true } : {}),
+            ...(blockerRef?.budgetExtended ? { budgetExtended: true } : {}),
+          };
           await tx.assessment.update({
             where: { id: input.assessmentId },
-            data: { blockerReference: Prisma.DbNull },
+            data: {
+              blockerReference: updatedBlocker,
+            },
           });
         }
       }

@@ -308,12 +308,12 @@ def test_ensure_repository_profile_executes_in_sandbox_when_supported(tmp_path: 
                 "manifests": [],
                 "frameworks": [],
                 "buildSystems": [],
-                "ciSystems": [],
+                "ciWorkflows": [],
                 "containerization": [],
                 "candidateFacts": [],
                 "knownGaps": [],
-                "contentDigest": "sha256:mockdigest",
             }
+            mock_profile["contentDigest"] = compute_profile_digest(mock_profile)
             return SimpleNamespace(exit_code=0, output=json.dumps(mock_profile))
 
     backend = SandboxExecutionBackend()
@@ -326,9 +326,10 @@ def test_ensure_repository_profile_executes_in_sandbox_when_supported(tmp_path: 
     )
 
     assert len(backend.commands) == 1
-    assert "scan_repository_workspace" in backend.commands[0]
+    assert "python3 -I" in backend.commands[0]
+    assert "/tmp/.lcsp_scanner.py" in backend.commands[0]
     assert profile["scannedFileCount"] == 3
-    assert profile["contentDigest"] == "sha256:mockdigest"
+    assert profile["contentDigest"].startswith("sha256:")
     assert "/workspace/runtime/repository_profile.json" in backend.storage
 
     # Second call with same pins reuses cache without calling execute again
@@ -341,5 +342,115 @@ def test_ensure_repository_profile_executes_in_sandbox_when_supported(tmp_path: 
     )
     assert len(backend.commands) == 1
     assert profile2["contentDigest"] == profile["contentDigest"]
+
+
+def test_ensure_repository_profile_fails_closed_without_host_fallback() -> None:
+    class FailingSandboxBackend:
+        def __init__(self):
+            self.executed = False
+
+        def read(self, _path: str):
+            return SimpleNamespace(error="NOT_FOUND")
+
+        def write(self, _path: str, _content: str):
+            return SimpleNamespace(error=None)
+
+        def execute(self, _cmd: str, timeout: int | None = None):
+            self.executed = True
+            return SimpleNamespace(exit_code=1, output="sandbox crashed", stderr="segmentation fault")
+
+    backend = FailingSandboxBackend()
+    with pytest.raises(RuntimeError) as exc_info:
+        ensure_repository_profile(
+            backend,
+            repository_id="repo-fail-1",
+            commit_sha="2" * 40,
+            source_path_prefix=None,
+            workspace_path="/workspace/repository",
+        )
+    assert backend.executed is True
+    assert "Docker sandbox repository pre-scan failed with exit code 1" in str(exc_info.value)
+
+
+def test_ensure_repository_profile_rejects_corrupted_digest() -> None:
+    class CorruptedDigestBackend:
+        def __init__(self):
+            self.commands: list[str] = []
+
+        def read(self, _path: str):
+            return SimpleNamespace(error="NOT_FOUND")
+
+        def write(self, _path: str, _content: str):
+            return SimpleNamespace(error=None)
+
+        def execute(self, cmd: str, timeout: int | None = None):
+            self.commands.append(cmd)
+            mock_profile = {
+                "repositoryId": "repo-corrupt-1",
+                "commitSha": "3" * 40,
+                "scannerVersion": SCANNER_VERSION,
+                "sourcePathPrefix": None,
+                "scannedFileCount": 1,
+                "languages": [],
+                "manifests": [],
+                "frameworks": [],
+                "buildSystems": [],
+                "ciWorkflows": [],
+                "containerization": [],
+                "candidateFacts": [],
+                "knownGaps": [],
+                "contentDigest": "sha256:" + "f" * 64,  # Intentionally fraudulent digest
+            }
+            return SimpleNamespace(exit_code=0, output=json.dumps(mock_profile))
+
+    backend = CorruptedDigestBackend()
+    with pytest.raises(RuntimeError) as exc_info:
+        ensure_repository_profile(
+            backend,
+            repository_id="repo-corrupt-1",
+            commit_sha="3" * 40,
+            source_path_prefix=None,
+            workspace_path="/workspace/repository",
+        )
+    assert "contentDigest mismatch" in str(exc_info.value)
+
+
+def test_ensure_repository_profile_invalidates_corrupted_cache(tmp_path: Path) -> None:
+    (tmp_path / "index.js").write_text("console.log('hello');\n", encoding="utf-8")
+    backend = FakeSandboxBackend(tmp_path)
+    # Put corrupted cache marker
+    corrupted_cached = {
+        "repositoryId": "repo-cache-inv",
+        "commitSha": "4" * 40,
+        "scannerVersion": SCANNER_VERSION,
+        "sourcePathPrefix": None,
+        "scannedFileCount": 1,
+        "languages": [],
+        "manifests": [],
+        "frameworks": [],
+        "buildSystems": [],
+        "ciWorkflows": [],
+        "containerization": [],
+        "candidateFacts": [],
+        "knownGaps": [],
+        "contentDigest": "sha256:corrupted",
+    }
+    backend.write(
+        "/workspace/runtime/repository_profile.json",
+        json.dumps(corrupted_cached),
+    )
+
+    # Calling ensure_repository_profile should detect invalid cached digest, ignore cache, and re-scan
+    profile = ensure_repository_profile(
+        backend,
+        repository_id="repo-cache-inv",
+        commit_sha="4" * 40,
+        source_path_prefix=None,
+        workspace_path=tmp_path,
+    )
+    assert profile["contentDigest"] != "sha256:corrupted"
+    assert profile["contentDigest"].startswith("sha256:")
+    assert profile["scannedFileCount"] == 1
+
 
 
