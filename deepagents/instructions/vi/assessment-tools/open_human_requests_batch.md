@@ -1,1 +1,0 @@
-KHI DÙNG: nhiều fact ngoài repository cần thu thập qua nhiều rule hoặc criterion. ĐỌC: các selected rule, lý do code không trả lời, từng câu hỏi fact, owner và tác động. TIẾP: native interrupt nguyên tử cho cả đợt, resume cùng case pin. LỖI: không hỏi người dùng phán quyết pháp lý hoặc lặp câu đã được trả lời.

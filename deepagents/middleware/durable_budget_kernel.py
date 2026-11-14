@@ -30,6 +30,12 @@ DEFAULT_ASSESSMENT_MAX_OUTPUT_TOKENS = 200_000
 DEFAULT_ASSESSMENT_MAX_TOTAL_TOKENS = 4_200_000
 DEFAULT_ASSESSMENT_NO_PROGRESS_LIMIT = 15
 
+DEFAULT_RSP_MAX_CALLS = 1000
+DEFAULT_RSP_MAX_INPUT_TOKENS = 100_000_000
+DEFAULT_RSP_MAX_OUTPUT_TOKENS = 5_000_000
+DEFAULT_RSP_MAX_TOTAL_TOKENS = 105_000_000
+DEFAULT_RSP_NO_PROGRESS_LIMIT = 20
+
 
 def _parse_positive_int(env_name: str, fallback: int | None) -> int | None:
     """Business purpose: Parse a positive integer limit from an environment variable.
@@ -98,11 +104,11 @@ def resolve_workload_limits(scope: str) -> WorkloadBudgetLimits:
     """
     if scope == RULE_SET_PREPARATION_SCOPE:
         return WorkloadBudgetLimits(
-            max_model_calls=_parse_positive_int("LCSP_RSP_MAX_MODEL_CALLS", 50),
-            max_input_tokens=_parse_positive_int("LCSP_RSP_MAX_INPUT_TOKENS", 2_000_000),
-            max_output_tokens=_parse_positive_int("LCSP_RSP_MAX_OUTPUT_TOKENS", 100_000),
-            max_total_tokens=_parse_positive_int("LCSP_RSP_MAX_TOTAL_TOKENS", 2_100_000),
-            no_progress_limit=_parse_positive_int("LCSP_RSP_NO_PROGRESS_LIMIT", 10),
+            max_model_calls=_parse_positive_int("LCSP_RSP_MAX_MODEL_CALLS", DEFAULT_RSP_MAX_CALLS),
+            max_input_tokens=_parse_positive_int("LCSP_RSP_MAX_INPUT_TOKENS", DEFAULT_RSP_MAX_INPUT_TOKENS),
+            max_output_tokens=_parse_positive_int("LCSP_RSP_MAX_OUTPUT_TOKENS", DEFAULT_RSP_MAX_OUTPUT_TOKENS),
+            max_total_tokens=_parse_positive_int("LCSP_RSP_MAX_TOTAL_TOKENS", DEFAULT_RSP_MAX_TOTAL_TOKENS),
+            no_progress_limit=_parse_positive_int("LCSP_RSP_NO_PROGRESS_LIMIT", DEFAULT_RSP_NO_PROGRESS_LIMIT),
         )
     return WorkloadBudgetLimits(
         max_model_calls=_parse_positive_int("LCSP_ASSESSMENT_MAX_MODEL_CALLS", DEFAULT_ASSESSMENT_MAX_CALLS),

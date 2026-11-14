@@ -1,2 +1,0 @@
-WHEN: multiple off-repository facts are needed across rules or criteria. READ: related selected rules, why code could not answer, exact facts, owner and decision impacts. NEXT: invoke atomic native interrupt; resume on same pinned case revision. FAILURE: do not ask the human to make legal verdicts or repeat answered questions.
-
