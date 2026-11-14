@@ -722,30 +722,22 @@ def test_rule_set_preparation_has_no_cumulative_output_quota_even_with_stale_env
 
 
 def test_unknown_usage_larger_than_hard_ceiling_fails_closed(monkeypatch) -> None:
-    from rule_set_preparation.tools import RuleSetPreparationContext
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+    from middleware.failure_policy import AgentRunBudgetExceeded
+    from types import SimpleNamespace
 
-    # Configure explicit hard ceiling on total tokens: 5000 tokens
-    monkeypatch.setenv("LCSP_RSP_MAX_TOTAL_TOKENS", "5000")
+    # Configure explicit hard ceiling on total tokens: 50,000 tokens
+    quotas = {"model_calls": 10, "input_tokens": 100_000, "total_tokens": 50_000}
+    mw = AgentRunBudgetMiddleware(run_quotas=quotas)
 
-    mock_api = MagicMock()
-    ctx = RuleSetPreparationContext(run_id="run-hard-ceiling", api=mock_api)
+    # Model on a route with max_output_tokens = 65,536 (larger than 50,000 ceiling)
+    model = SimpleNamespace(profile={"max_output_tokens": 65536})
+    req = SimpleNamespace(messages=[SimpleNamespace(content="Analyze legal obligations")], model=model)
 
-    # 1 unmeasured model call (totalTokens is 0/unmeasured)
-    # Upper-bound reservation is 4096 in + 2048 out = 6144 total tokens
-    # Because 6144 > 5000, this exceeds the configured hard ceiling!
-    ctx.restore_usage({"modelCalls": 1, "totalTokens": 0})
-
-    assert ctx.cumulative_usage.total_tokens >= 6144
-
-    from middleware.durable_budget_kernel import (
-        RULE_SET_PREPARATION_SCOPE,
-        evaluate_workload_admission,
-        resolve_workload_limits,
-    )
-    limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
-    admitted, reason = evaluate_workload_admission(limits, ctx.cumulative_usage)
-    assert not admitted
-    assert reason == "TOKEN_LIMIT_EXCEEDED"
+    # Must fail closed with TOKEN_LIMIT_EXCEEDED before dispatch because route exposure exceeds hard ceiling
+    with pytest.raises(AgentRunBudgetExceeded) as exc_info:
+        mw._bounded_request(req)
+    assert exc_info.value.reason == "TOKEN_LIMIT_EXCEEDED"
 
 
 def test_restart_with_in_flight_usage_retains_conservative_reservation(tmp_path) -> None:
@@ -808,14 +800,16 @@ def test_rule_set_preparation_restores_usage_with_unmeasured_tokens_fallback() -
 
     mock_api = MagicMock()
     ctx = RuleSetPreparationContext(run_id="run-unmeasured", api=mock_api)
-    # Bundle reports 3 model calls but 0 total tokens (unmeasured provider)
-    ctx.restore_usage({"modelCalls": 3, "totalTokens": 0})
+    # Bundle reports 3 model calls with unmeasuredModelCalls=3 but 0 measured total tokens
+    ctx.restore_usage({"modelCalls": 3, "totalTokens": 0, "unmeasuredModelCalls": 3})
 
     assert ctx.cumulative_usage.model_calls == 3
-    # Must NOT be zero; conservative estimation applied
-    assert ctx.cumulative_usage.input_tokens >= 3 * 500
-    assert ctx.cumulative_usage.output_tokens >= 3 * 100
-    assert ctx.cumulative_usage.total_tokens >= 3 * 600
+    # Authoritative measured tokens remain faithfully 0 without arbitrary static inflation
+    assert ctx.cumulative_usage.input_tokens == 0
+    assert ctx.cumulative_usage.output_tokens == 0
+    assert ctx.cumulative_usage.total_tokens == 0
+    # Unmeasured attempts are faithfully tracked as telemetry
+    assert ctx.cumulative_usage.unmeasured_model_calls == 3
 
 
 def test_middleware_preserves_cumulative_counters_across_restarts() -> None:
@@ -862,6 +856,119 @@ def test_middleware_preserves_cumulative_counters_across_restarts() -> None:
     assert durable2.input_tokens == 5000
     assert durable2.output_tokens == 1300
     assert durable2.total_tokens == 6300
+
+
+def test_input_prompt_much_larger_than_4096_tokens_accurately_accounted() -> None:
+    """Verifies that large prompts (e.g. 35,000 tokens) are reserved at full size, not truncated to 4096."""
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+
+    durable = WorkloadCumulativeUsage()
+    quotas = {"model_calls": 5, "input_tokens": 100_000, "total_tokens": 150_000}
+    mw = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable)
+
+    # Prompt with ~35,000 tokens (approx 140,000 chars)
+    large_text = "Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân " * 2800
+    req = SimpleNamespace(
+        messages=[SimpleNamespace(content=large_text)],
+        model=SimpleNamespace(profile={"max_output_tokens": 4096}),
+    )
+
+    bounded = mw._bounded_request(req)
+    assert bounded is not None
+    # Reserved input must accurately reflect the large prompt (> 20,000 tokens), not 4096
+    assert durable.input_tokens > 20_000
+    assert durable.output_tokens == 4096
+
+    # Response reports actual measured tokens
+    resp = SimpleNamespace(
+        result=[SimpleNamespace(
+            content="Summary",
+            usage_metadata={"input_tokens": 34850, "output_tokens": 820},
+        )],
+    )
+    mw._settle_quota(req, resp)
+    assert durable.input_tokens == 34850
+    assert durable.output_tokens == 820
+    assert durable.total_tokens == 35670
+
+
+def test_route_output_caps_of_32768_and_65536_applied_as_exposure() -> None:
+    """Verifies that route-specific output caps (32k, 65k) are reserved as physical exposure."""
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+    from middleware.failure_policy import AgentRunBudgetExceeded
+
+    # Route 1: Assessment / Mercury-3 with 32,768 output tokens
+    # Hard ceiling: 30,000 tokens. Total exposure = prompt (100) + out_cap (32,768) = 32,868 > 30,000
+    mw_32k = AgentRunBudgetMiddleware(
+        run_quotas={"model_calls": 5, "total_tokens": 30_000},
+        durable_usage=WorkloadCumulativeUsage(),
+    )
+    req_32k = SimpleNamespace(
+        messages=[SimpleNamespace(content="Audit checklist")],
+        model=SimpleNamespace(profile={"max_output_tokens": 32768}),
+    )
+    with pytest.raises(AgentRunBudgetExceeded) as exc_32k:
+        mw_32k._bounded_request(req_32k)
+    assert exc_32k.value.reason == "TOKEN_LIMIT_EXCEEDED"
+
+    # Route 2: Preparation / Inception with 65,536 output tokens
+    # Hard ceiling: 60,000 tokens. Total exposure = prompt (100) + out_cap (65,536) = 65,636 > 60,000
+    mw_65k = AgentRunBudgetMiddleware(
+        run_quotas={"model_calls": 5, "total_tokens": 60_000},
+        durable_usage=WorkloadCumulativeUsage(),
+    )
+    req_65k = SimpleNamespace(
+        messages=[SimpleNamespace(content="Rule set authoring")],
+        model=SimpleNamespace(profile={"max_output_tokens": 65536}),
+    )
+    with pytest.raises(AgentRunBudgetExceeded) as exc_65k:
+        mw_65k._bounded_request(req_65k)
+    assert exc_65k.value.reason == "TOKEN_LIMIT_EXCEEDED"
+
+    # Route 2 under sufficient ceiling (80,000 tokens) admits successfully and reserves full 65,536
+    mw_admitted = AgentRunBudgetMiddleware(
+        run_quotas={"model_calls": 5, "total_tokens": 80_000},
+        durable_usage=WorkloadCumulativeUsage(),
+    )
+    admitted = mw_admitted._bounded_request(req_65k)
+    assert admitted is not None
+    assert mw_admitted.durable_usage.output_tokens == 65536
+
+
+def test_concurrent_threads_competing_for_final_reservation() -> None:
+    """Two concurrent threads attempting the final reservation under a hard ceiling."""
+    import concurrent.futures
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+    from middleware.failure_policy import AgentRunBudgetExceeded
+
+    durable = WorkloadCumulativeUsage()
+    # Total ceiling only allows 1 request of ~5,000 tokens (out_cap 4096 + prompt)
+    quotas = {"model_calls": 10, "total_tokens": 6_000}
+    mw = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable)
+
+    req1 = SimpleNamespace(messages=[SimpleNamespace(content="Thread 1")], model=SimpleNamespace(profile={"max_output_tokens": 4096}))
+    req2 = SimpleNamespace(messages=[SimpleNamespace(content="Thread 2")], model=SimpleNamespace(profile={"max_output_tokens": 4096}))
+
+    successes = 0
+    denials = 0
+
+    def attempt(req):
+        nonlocal successes, denials
+        try:
+            mw._bounded_request(req)
+            successes += 1
+        except AgentRunBudgetExceeded:
+            denials += 1
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        f1 = executor.submit(attempt, req1)
+        f2 = executor.submit(attempt, req2)
+        concurrent.futures.wait([f1, f2])
+
+    # Exactly one thread is admitted, and the second is rejected atomically
+    assert successes == 1
+    assert denials == 1
+    assert durable.model_calls == 1
 
 
 

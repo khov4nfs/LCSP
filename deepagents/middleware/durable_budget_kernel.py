@@ -90,6 +90,7 @@ class WorkloadCumulativeUsage:
     output_tokens: int = 0
     total_tokens: int = 0
     consecutive_turns_without_progress: int = 0
+    unmeasured_model_calls: int = 0
 
 
 def resolve_workload_limits(scope: str) -> WorkloadBudgetLimits:
