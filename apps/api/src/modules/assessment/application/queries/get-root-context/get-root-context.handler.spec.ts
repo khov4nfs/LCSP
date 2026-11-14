@@ -396,29 +396,49 @@ describe("GetRootContextHandler locale authority", () => {
       contextJson: { progressMade: false },
       createdAt: new Date(Date.now() - i * 1000),
     }));
-    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
 
     const result = await f.handler.execute(
       new GetRootContextQuery(assessmentId, leaseToken, correlationId),
     );
     expect(result.budgetState).toBeDefined();
-    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(15);
+    expect(
+      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+    ).toBe(15);
     expect(result.budgetState?.status).toBe("NO_PROGRESS");
   });
 
   it("resets consecutiveTurnsWithoutProgress to 0 when recent completed turn made progress", async () => {
     const f = createFixture();
     const turns = [
-      { id: "turn-latest", contextJson: { progressMade: true }, createdAt: new Date() },
-      { id: "turn-old-1", contextJson: { progressMade: false }, createdAt: new Date(Date.now() - 1000) },
-      { id: "turn-old-2", contextJson: { progressMade: false }, createdAt: new Date(Date.now() - 2000) },
+      {
+        id: "turn-latest",
+        contextJson: { progressMade: true },
+        createdAt: new Date(),
+      },
+      {
+        id: "turn-old-1",
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - 1000),
+      },
+      {
+        id: "turn-old-2",
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - 2000),
+      },
     ];
-    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
 
     const result = await f.handler.execute(
       new GetRootContextQuery(assessmentId, leaseToken, correlationId),
     );
-    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(0);
+    expect(
+      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+    ).toBe(0);
     expect(result.budgetState?.status).toBe("ADMITTED");
   });
 
@@ -431,12 +451,16 @@ describe("GetRootContextHandler locale authority", () => {
       contextJson: { progressMade: false },
       createdAt: new Date(Date.now() - i * 1000),
     }));
-    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
 
     const result = await f.handler.execute(
       new GetRootContextQuery(assessmentId, leaseToken, correlationId),
     );
-    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(15);
+    expect(
+      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+    ).toBe(15);
     expect(result.budgetState?.limits.noProgressLimit).toBeNull();
     expect(result.budgetState?.status).toBe("ADMITTED");
   });
@@ -446,13 +470,19 @@ describe("GetRootContextHandler locale authority", () => {
     const turns = [
       { id: "turn-no-flag", contextJson: {}, createdAt: new Date() },
     ];
-    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
-    f.tx.assessmentEvent.count = jest.fn<() => Promise<number>>().mockResolvedValue(1);
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
+    f.tx.assessmentEvent.count = jest
+      .fn<() => Promise<number>>()
+      .mockResolvedValue(1);
 
     const result = await f.handler.execute(
       new GetRootContextQuery(assessmentId, leaseToken, correlationId),
     );
-    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(0);
+    expect(
+      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+    ).toBe(0);
     expect(result.budgetState?.status).toBe("ADMITTED");
   });
 });

@@ -100,4 +100,3 @@ export async function calculateConsecutiveTurnsWithoutProgress(
 
   return count;
 }
-
