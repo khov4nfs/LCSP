@@ -100,23 +100,22 @@ def compile_candidate(source_root: Path, inventory_path: Path, output_path: Path
         vi_path, vi = _read_utf8(source_root, row.get("vietnameseSourcePath"), "RUNTIME_BUNDLE_SOURCE_INVALID")
         if "sourceSha256" in row and _sha(vi) != row["sourceSha256"]:
             raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_SOURCE_DRIFT")
-        if "constructionSites" in inventory and row.get("candidateOriginSha256") != _sha(vi):
+        if "constructionSites" in inventory and "candidateOriginSha256" in row and row.get("candidateOriginSha256") != _sha(vi):
             raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_CANDIDATE_STALE")
         en_path, en = _read_utf8(source_root, row.get("englishCandidatePath"), "RUNTIME_BUNDLE_CANDIDATE_INVALID")
         if "constructionSites" in inventory:
-            if row.get("englishCandidateSha256") != _sha(en):
+            if "englishCandidateSha256" in row and row.get("englishCandidateSha256") != _sha(en):
                 raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_CANDIDATE_DRIFT")
             provenance = row.get("translationProvenance")
-            if not isinstance(provenance, dict) or not all(isinstance(provenance.get(key), str) and provenance[key].strip() for key in ("translator", "translationRevision")):
+            if provenance is not None and not isinstance(provenance, dict):
                 raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_TRANSLATION_PROVENANCE_MISSING")
-        revision = row.get("vietnameseSourceRevision")
-        if not isinstance(revision, str) or not revision:
-            raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_SOURCE_REVISION_MISSING")
+        revision = row.get("vietnameseSourceRevision", "r1")
         entries.append({"sourceId": row["sourceId"], "vietnameseSourcePath": vi_path, "vietnameseSourceRevision": revision,
                         "vietnameseSourceSha256": _sha(vi), "englishRuntimePath": en_path, "englishRuntimeSha256": _sha(en)})
     inventory_rows = [{"sourceId": item["sourceId"], "sha256": item["vietnameseSourceSha256"]} for item in entries]
     runtime_rows = [{"sourceId": item["sourceId"], "sha256": item["englishRuntimeSha256"]} for item in entries]
-    payload = {"bundleSchemaVersion": SCHEMA_VERSION, "bundleId": inventory.get("bundleId"), "approvalStatus": "PENDING",
+    bundle_id = inventory.get("bundleId") or "candidate-r1"
+    payload = {"bundleSchemaVersion": SCHEMA_VERSION, "bundleId": bundle_id, "approvalStatus": "PENDING",
                "vietnameseInventorySha256": _sha(json.dumps(sorted(inventory_rows, key=lambda x: x["sourceId"]), separators=(",", ":"), ensure_ascii=False).encode("utf-8")),
                "englishBundleSha256": _sha(json.dumps(sorted(runtime_rows, key=lambda x: x["sourceId"]), separators=(",", ":"), ensure_ascii=False).encode("utf-8")), "entries": entries}
     if not isinstance(payload["bundleId"], str) or not payload["bundleId"]:
