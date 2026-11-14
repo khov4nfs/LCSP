@@ -91,6 +91,9 @@ class WorkloadCumulativeUsage:
     total_tokens: int = 0
     consecutive_turns_without_progress: int = 0
     unmeasured_model_calls: int = 0
+    in_flight_exposure: int = 0
+    outcome_unknown_exposure: int = 0
+    estimated_diagnostic_output_tokens: int = 0
 
 
 def resolve_workload_limits(scope: str) -> WorkloadBudgetLimits:
@@ -135,29 +138,38 @@ def evaluate_workload_admission(
 
     Business rules:
     - When cumulative model calls meet or exceed max_model_calls, deny dispatch.
-    - When cumulative tokens meet or exceed token bounds, deny dispatch.
+    - When effective tokens (measured tokens plus outstanding in-flight and outcome-unknown exposure) meet or exceed bounds, deny dispatch.
     - When consecutive turns without progress meet or exceed no_progress_limit, deny dispatch.
-    - Missing limits are treated as unconstrained for that dimension.
+    - Missing limits are treated as unconstrained for that dimension; unmeasured attempts are counted in exposure without fabricating static totals.
 
     Execution flow:
     1. Check call count against max_model_calls.
-    2. Check input, output, and total tokens against respective limits.
-    3. Check consecutive turns without progress against no_progress_limit.
-    4. Return admission boolean and specific denial reason.
+    2. Compute effective token exposure including outstanding in-flight and outcome-unknown bounds.
+    3. Check effective input, output, and total tokens against respective configured limits.
+    4. Check consecutive turns without progress against no_progress_limit.
+    5. Return admission boolean and specific denial reason.
 
     Failure cases:
-    - Returns (False, reason) when any limit is reached.
+    - Returns (False, reason) when any configured limit is reached or exceeded.
 
     Side effects:
     - Pure function; does not mutate input records or perform network calls.
     """
+    effective_input = usage.input_tokens + getattr(usage, "in_flight_exposure", 0)
+    effective_output = usage.output_tokens + getattr(usage, "outcome_unknown_exposure", 0)
+    effective_total = (
+        usage.total_tokens
+        + getattr(usage, "in_flight_exposure", 0)
+        + getattr(usage, "outcome_unknown_exposure", 0)
+    )
+
     if limits.max_model_calls is not None and usage.model_calls >= limits.max_model_calls:
         return False, REASON_CALL_LIMIT
-    if limits.max_input_tokens is not None and usage.input_tokens >= limits.max_input_tokens:
+    if limits.max_input_tokens is not None and effective_input >= limits.max_input_tokens:
         return False, REASON_TOKEN_LIMIT
-    if limits.max_output_tokens is not None and usage.output_tokens >= limits.max_output_tokens:
+    if limits.max_output_tokens is not None and effective_output >= limits.max_output_tokens:
         return False, REASON_TOKEN_LIMIT
-    if limits.max_total_tokens is not None and usage.total_tokens >= limits.max_total_tokens:
+    if limits.max_total_tokens is not None and effective_total >= limits.max_total_tokens:
         return False, REASON_TOKEN_LIMIT
     if (
         limits.no_progress_limit is not None
