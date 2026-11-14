@@ -57,8 +57,6 @@ const policy = rootCapacityPolicySchema.parse({
   enabled: false,
   initial: 2,
   maximum: 4,
-  metricTtlSeconds: 300,
-  evaluationSeconds: 10,
   providerConcurrentLimit: 8,
   providerRpmLimit: 1000,
   providerTpmLimit: 1000000,
