@@ -390,35 +390,6 @@
       }
     },
     {
-      "sourceId": "assessment-tool.open_human_requests_batch.guidance",
-      "runtimeRole": "assessment-root",
-      "instructionKind": "TOOL_PLAYBOOK",
-      "vietnameseSourcePath": "instructions/vi/assessment-tools/open_human_requests_batch.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
-      "runtimeEntryId": "assessment-tool.open_human_requests_batch.guidance",
-      "required": true,
-      "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r1/assessment-tool.open_human_requests_batch.guidance.txt",
-      "migrationReferences": [
-        "assessment_root/tool_contracts.py"
-      ],
-      "placeholderSchema": {},
-      "consumers": [
-        {
-          "filePath": "assessment_root/tool_contracts.py",
-          "symbolName": "describe_tool",
-          "integrationStatus": "PENDING_RUNTIME_CUTOVER"
-        }
-      ],
-      "sourceSha256": "68327468d70bd3190f58f9fae6fc144a7a80839fba482afb7253ef6db846fba7",
-      "englishCandidateSha256": "25ba59d68e9a8ac3c179fbaab2229d38efc9d20375cd6d8c6f76ead00ee883dd",
-      "candidateOriginSha256": "68327468d70bd3190f58f9fae6fc144a7a80839fba482afb7253ef6db846fba7",
-      "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
-      }
-    },
-    {
       "sourceId": "assessment-tool.read_legal_source.guidance",
       "runtimeRole": "assessment-root",
       "instructionKind": "TOOL_PLAYBOOK",
@@ -9391,7 +9362,6 @@
     "assessment-tool.list_assessment_skills.guidance",
     "assessment-tool.load_assessment_skill.guidance",
     "assessment-tool.open_human_request.guidance",
-    "assessment-tool.open_human_requests_batch.guidance",
     "assessment-tool.read_legal_source.guidance",
     "assessment-tool.record_search_coverage.guidance",
     "assessment-tool.report_human_fact_unresolvable.guidance",

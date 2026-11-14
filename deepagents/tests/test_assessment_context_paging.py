@@ -651,7 +651,7 @@ def test_native_root_keeps_registered_todos_grep_and_full_catalog_with_compact_m
     registered = [registered_by_name[name] for name in model.bound_tool_names[0]]
     assert governed.requests
     for request in governed.requests:
-        assert len(request.tools) == len(registered) == 38
+        assert len(request.tools) == len(registered) == 39
         assert {tool.name for tool in registered} == set(ROOT_TOOL_NAMES) | {"ls", "read_file", "write_file", "edit_file", "delete", "glob", "grep", "task", "write_todos", "search_code_graph", "search_code_text", "get_repository_architecture", "trace_call_path"}
         assert [tool.name for tool in request.tools] == [tool.name for tool in registered]
         for shown in request.tools:
