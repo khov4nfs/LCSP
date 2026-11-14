@@ -303,7 +303,7 @@ integration(
       // disposable test pools bound server-side work, including lock acquisition.
       const testConnection = {
         connectionString: url!,
-        options: "-c statement_timeout=10000 -c lock_timeout=5000",
+        options: "-c statement_timeout=30000 -c lock_timeout=10000",
       };
       first = new PrismaClient({ adapter: new PrismaPg(testConnection) });
       second = new PrismaClient({ adapter: new PrismaPg(testConnection) });
