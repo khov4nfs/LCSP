@@ -10,7 +10,6 @@ import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_BUDGET_REASONS,
-  type AssessmentBudgetExtension,
 } from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
