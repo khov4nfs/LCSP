@@ -28,7 +28,7 @@ describe("calculateConsecutiveTurnsWithoutProgress", () => {
     };
 
     const count = await calculateConsecutiveTurnsWithoutProgress(
-      tx as any,
+      tx,
       "assessment-1",
     );
     expect(count).toBe(0);
@@ -60,7 +60,7 @@ describe("calculateConsecutiveTurnsWithoutProgress", () => {
     };
 
     const count = await calculateConsecutiveTurnsWithoutProgress(
-      tx as any,
+      tx,
       "assessment-1",
     );
     expect(count).toBe(0);
@@ -92,7 +92,7 @@ describe("calculateConsecutiveTurnsWithoutProgress", () => {
     };
 
     const count = await calculateConsecutiveTurnsWithoutProgress(
-      tx as any,
+      tx,
       "assessment-1",
     );
     expect(count).toBe(2);
@@ -109,7 +109,7 @@ describe("calculateConsecutiveTurnsWithoutProgress", () => {
     };
 
     const count = await calculateConsecutiveTurnsWithoutProgress(
-      tx as any,
+      tx,
       "assessment-1",
     );
     expect(count).toBe(0);
