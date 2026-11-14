@@ -433,6 +433,7 @@ def run_assessment_root(
                         "CALL_LIMIT_EXCEEDED",
                         "TOKEN_LIMIT_EXCEEDED",
                         "NO_PROGRESS_LIMIT_EXCEEDED",
+                        "BUDGET_UNAVAILABLE",
                     }
                 ]
                 recovered = claim.get("recoveredExecution", False)
@@ -538,6 +539,7 @@ def run_assessment_root(
                             "CALL_LIMIT_EXCEEDED",
                             "TOKEN_LIMIT_EXCEEDED",
                             "NO_PROGRESS_LIMIT_EXCEEDED",
+                            "BUDGET_UNAVAILABLE",
                         }
                     ]
                     if controls:

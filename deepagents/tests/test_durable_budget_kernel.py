@@ -120,6 +120,90 @@ def test_root_runtime_control_budget_denial(monkeypatch):
     }
 
 
+def test_root_runtime_control_fails_safe_on_network_error(monkeypatch):
+    client = MagicMock()
+    client.heartbeat.return_value = {}
+    client.root_control.return_value = None
+    client.context.side_effect = RuntimeError("network unreachable")
+
+    control = RootRuntimeControl(client, "exec-failsafe")
+    interrupted_payload = []
+    monkeypatch.setattr("assessment_root.runtime_control.interrupt", lambda payload: interrupted_payload.append(payload))
+
+    result = control.before_model({}, None)
+    assert result is None
+    assert len(interrupted_payload) == 1
+    assert interrupted_payload[0] == {
+        "reason": "BUDGET_UNAVAILABLE",
+        "targetExecutionId": "exec-failsafe",
+        "budgetDenial": True,
+        "workloadScope": ASSESSMENT_ROOT_SCOPE,
+    }
+
+
+def test_root_runtime_control_fails_safe_on_missing_budget_state(monkeypatch):
+    client = MagicMock()
+    client.heartbeat.return_value = {}
+    client.root_control.return_value = None
+    client.context.return_value = {"otherField": "present"}
+
+    control = RootRuntimeControl(client, "exec-failsafe-2")
+    interrupted_payload = []
+    monkeypatch.setattr("assessment_root.runtime_control.interrupt", lambda payload: interrupted_payload.append(payload))
+
+    result = control.before_model({}, None)
+    assert result is None
+    assert len(interrupted_payload) == 1
+    assert interrupted_payload[0]["reason"] == "BUDGET_UNAVAILABLE"
+    assert interrupted_payload[0]["budgetDenial"] is True
+
+
+def test_root_runtime_control_server_status_no_progress(monkeypatch):
+    client = MagicMock()
+    client.heartbeat.return_value = {}
+    client.root_control.return_value = None
+    client.context.return_value = {
+        "budgetState": {
+            "status": "NO_PROGRESS",
+            "limits": {"maxModelCalls": 100},
+            "cumulativeUsage": {"modelCalls": 10, "consecutiveTurnsWithoutProgress": 15},
+        }
+    }
+
+    control = RootRuntimeControl(client, "exec-no-prog")
+    interrupted_payload = []
+    monkeypatch.setattr("assessment_root.runtime_control.interrupt", lambda payload: interrupted_payload.append(payload))
+
+    result = control.before_model({}, None)
+    assert result is None
+    assert len(interrupted_payload) == 1
+    assert interrupted_payload[0]["reason"] == "NO_PROGRESS_LIMIT_EXCEEDED"
+    assert interrupted_payload[0]["budgetDenial"] is True
+
+
+def test_root_runtime_control_server_status_exhausted(monkeypatch):
+    client = MagicMock()
+    client.heartbeat.return_value = {}
+    client.root_control.return_value = None
+    client.context.return_value = {
+        "budgetState": {
+            "status": "EXHAUSTED",
+            "limits": {"maxModelCalls": 100},
+            "cumulativeUsage": {"modelCalls": 100},
+        }
+    }
+
+    control = RootRuntimeControl(client, "exec-exhausted")
+    interrupted_payload = []
+    monkeypatch.setattr("assessment_root.runtime_control.interrupt", lambda payload: interrupted_payload.append(payload))
+
+    result = control.before_model({}, None)
+    assert result is None
+    assert len(interrupted_payload) == 1
+    assert interrupted_payload[0]["reason"] == "AGENT_BUDGET_REACHED"
+    assert interrupted_payload[0]["budgetDenial"] is True
+
+
 def test_run_assessment_root_pauses_on_budget_exhaustion(tmp_path):
     from pathlib import Path
     from langgraph.checkpoint.memory import InMemorySaver
@@ -235,5 +319,56 @@ def test_rule_set_preparation_pauses_on_token_limit_exhaustion(tmp_path, monkeyp
     fail_calls = [c for c in api.calls if c[0] == "fail"]
     assert len(fail_calls) == 1
     assert fail_calls[0][1][1] == TOKEN_LIMIT_EXCEEDED
+
+
+def test_rule_set_preparation_quota_durability_and_defaults(monkeypatch):
+    monkeypatch.delenv("LCSP_RSP_MAX_MODEL_CALLS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_MAX_INPUT_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_MAX_TOTAL_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_NO_PROGRESS_LIMIT", raising=False)
+
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+    limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+    assert limits.max_model_calls == 50
+    assert limits.max_input_tokens == 2_000_000
+    assert limits.max_output_tokens == 100_000
+    assert limits.max_total_tokens == 2_100_000
+    assert limits.no_progress_limit == 10
+
+    # Test configured overrides
+    monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "25")
+    monkeypatch.setenv("LCSP_RSP_MAX_INPUT_TOKENS", "500000")
+    configured_limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+    assert configured_limits.max_model_calls == 25
+    assert configured_limits.max_input_tokens == 500_000
+
+    # Test durable usage updates and preservation across instances
+    durable_usage = WorkloadCumulativeUsage(model_calls=5, input_tokens=1000, total_tokens=1000)
+    middleware = AgentRunBudgetMiddleware(
+        run_quotas={"model_calls": limits.max_model_calls, "input_tokens": limits.max_input_tokens},
+        durable_usage=durable_usage,
+        workload_limits=limits,
+    )
+    assert middleware.quota_calls == 5
+    assert middleware.quota_input_tokens == 1000
+
+    mock_request = MagicMock()
+    mock_request.model = None
+    mock_request.messages = []
+    middleware._bounded_request(mock_request)
+    assert durable_usage.model_calls == 6
+    assert durable_usage.input_tokens >= 1000
+
+    # Child middleware sharing the same durable usage inherits updated counters
+    child_middleware = AgentRunBudgetMiddleware(
+        run_quotas={"model_calls": limits.max_model_calls, "input_tokens": limits.max_input_tokens},
+        durable_usage=durable_usage,
+        workload_limits=limits,
+    )
+    assert child_middleware.quota_calls == 6
+    child_middleware._bounded_request(mock_request)
+    assert durable_usage.model_calls == 7
+
 
 

@@ -30,14 +30,16 @@ class RootRuntimeControl(AgentMiddleware):
         Business rules:
         - Only STOP_REQUESTED targeting this execution or an exhausted cumulative budget may interrupt it.
         - Foreign controls or unexhausted budgets must not pause this Root execution.
+        - If context or budget state is unavailable from the server, fail closed immediately with BUDGET_UNAVAILABLE.
 
         Execution flow:
         1. Attempt a heartbeat and fetch the current Root control, interrupting if stop was requested for this execution.
-        2. Inspect cumulative budget state and limits, interrupting with budget denial reason if limits are exceeded.
-        3. Return None to allow model execution when admission is granted.
+        2. Read authoritative context and cumulative budget state from server; if unavailable or error occurs, fail closed by interrupting with BUDGET_UNAVAILABLE.
+        3. Check server-evaluated budget admission status (EXHAUSTED or NO_PROGRESS) and evaluate local limits, interrupting with budget denial reason if limits are exceeded.
+        4. Return None to allow model execution when admission is granted.
 
         Failure cases:
-        - Heartbeat and context-read network errors are tolerated locally; native graph interrupts suspend execution durably.
+        - Network failures, server errors, or missing budget state fail safely by interrupting with BUDGET_UNAVAILABLE instead of executing without limits.
 
         Side effects:
         - Calls heartbeat/control/context endpoints and may create a native graph interrupt for checkpoint persistence.
@@ -60,30 +62,56 @@ class RootRuntimeControl(AgentMiddleware):
         except Exception:
             ctx = None
 
-        if ctx and ctx.get("budgetState"):
-            budget_state = ctx["budgetState"]
-            limits_data = budget_state.get("limits") or {}
-            usage_data = budget_state.get("cumulativeUsage") or {}
-            limits = WorkloadBudgetLimits(
-                max_model_calls=limits_data.get("maxModelCalls"),
-                max_input_tokens=limits_data.get("maxInputTokens"),
-                max_output_tokens=limits_data.get("maxOutputTokens"),
-                max_total_tokens=limits_data.get("maxTotalTokens"),
-                no_progress_limit=limits_data.get("noProgressLimit"),
-            )
-            usage = WorkloadCumulativeUsage(
-                model_calls=usage_data.get("modelCalls", 0),
-                input_tokens=usage_data.get("inputTokens", 0),
-                output_tokens=usage_data.get("outputTokens", 0),
-                total_tokens=usage_data.get("totalTokens", 0),
-                consecutive_turns_without_progress=usage_data.get("consecutiveTurnsWithoutProgress", 0),
-            )
-            admitted, reason = evaluate_workload_admission(limits, usage)
-            if not admitted and reason:
-                interrupt({
-                    "reason": reason,
-                    "targetExecutionId": self.execution_id,
-                    "budgetDenial": True,
-                    "workloadScope": ASSESSMENT_ROOT_SCOPE,
-                })
+        if not ctx or not ctx.get("budgetState"):
+            interrupt({
+                "reason": "BUDGET_UNAVAILABLE",
+                "targetExecutionId": self.execution_id,
+                "budgetDenial": True,
+                "workloadScope": ASSESSMENT_ROOT_SCOPE,
+            })
+            return None
+
+        budget_state = ctx["budgetState"]
+        status = budget_state.get("status")
+        if status == "NO_PROGRESS":
+            interrupt({
+                "reason": "NO_PROGRESS_LIMIT_EXCEEDED",
+                "targetExecutionId": self.execution_id,
+                "budgetDenial": True,
+                "workloadScope": ASSESSMENT_ROOT_SCOPE,
+            })
+            return None
+        if status == "EXHAUSTED":
+            interrupt({
+                "reason": "AGENT_BUDGET_REACHED",
+                "targetExecutionId": self.execution_id,
+                "budgetDenial": True,
+                "workloadScope": ASSESSMENT_ROOT_SCOPE,
+            })
+            return None
+
+        limits_data = budget_state.get("limits") or {}
+        usage_data = budget_state.get("cumulativeUsage") or {}
+        limits = WorkloadBudgetLimits(
+            max_model_calls=limits_data.get("maxModelCalls"),
+            max_input_tokens=limits_data.get("maxInputTokens"),
+            max_output_tokens=limits_data.get("maxOutputTokens"),
+            max_total_tokens=limits_data.get("maxTotalTokens"),
+            no_progress_limit=limits_data.get("noProgressLimit"),
+        )
+        usage = WorkloadCumulativeUsage(
+            model_calls=usage_data.get("modelCalls", 0),
+            input_tokens=usage_data.get("inputTokens", 0),
+            output_tokens=usage_data.get("outputTokens", 0),
+            total_tokens=usage_data.get("totalTokens", 0),
+            consecutive_turns_without_progress=usage_data.get("consecutiveTurnsWithoutProgress", 0),
+        )
+        admitted, reason = evaluate_workload_admission(limits, usage)
+        if not admitted and reason:
+            interrupt({
+                "reason": reason,
+                "targetExecutionId": self.execution_id,
+                "budgetDenial": True,
+                "workloadScope": ASSESSMENT_ROOT_SCOPE,
+            })
         return None
