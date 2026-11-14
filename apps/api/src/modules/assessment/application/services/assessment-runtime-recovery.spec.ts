@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { jest } from "@jest/globals";
 import {
   AGENT_EXECUTION_STATES as Execution,
+  type AgentExecutionState,
   ASSESSMENT_LIFECYCLE_STATES as Lifecycle,
   type AssessmentLifecycleState,
   HUMAN_RESOLUTION_REQUEST_STATUSES,
@@ -34,18 +35,20 @@ function fixture(
   const ruleSetVersionId = randomUUID();
   const repositorySnapshotId = randomUUID();
   const repositoryCommit = "a".repeat(40);
-  const row: Record<string, any> = {
+  const row = {
     lifecycleState,
     lifecycleRevision: 3,
-    blockerReason: null,
-    blockerReference: null,
+    blockerReason: null as string | null,
+    blockerReference: null as Record<string, unknown> | null,
     threadId: randomUUID(),
     checkpointNamespace: assessmentId,
     checkpointId: randomUUID(),
     currentExecutionId: randomUUID(),
-    executionState: Execution.RUNNING,
-    leaseToken: randomUUID(),
-    leaseExpiresAt: new Date(Date.now() + (expired ? -60000 : 600000)),
+    executionState: Execution.RUNNING as AgentExecutionState,
+    leaseToken: randomUUID() as string | null,
+    leaseExpiresAt: new Date(
+      Date.now() + (expired ? -60000 : 600000),
+    ) as Date | null,
   };
   const turn = {
     id: row.currentExecutionId,
@@ -182,7 +185,7 @@ describe("persisted Agent Server run recovery", () => {
       await expect(
         f.authority.authorize({
           assessmentId: f.assessmentId,
-          leaseToken: oldLease,
+          leaseToken: oldLease ?? undefined,
           correlationId: randomUUID(),
         }),
       ).rejects.toMatchObject({ status: 403 });
@@ -1351,21 +1354,29 @@ describe("unknown response review on the existing native thread", () => {
       createdAt: new Date(Date.now() - i * 1000),
     }));
     f.tx.assessmentRuntimeTurn.findMany = jest
-      .fn<() => Promise<any[]>>()
+      .fn<() => Promise<typeof turns>>()
       .mockResolvedValue(turns);
 
-    let error: any;
+    let error:
+      | {
+          getStatus?: () => number;
+          getResponse?: () => { problem?: { code?: string } };
+        }
+      | undefined;
     try {
       await f.authority.claimRoot({
         assessmentId: f.assessmentId,
         correlationId: randomUUID(),
       });
-    } catch (err) {
-      error = err;
+    } catch (err: unknown) {
+      error = err as {
+        getStatus?: () => number;
+        getResponse?: () => { problem?: { code?: string } };
+      };
     }
     expect(error).toBeDefined();
-    expect(error.status).toBe(409);
-    expect(error.getResponse?.().problem?.code).toBe(
+    expect(error?.getStatus?.()).toBe(409);
+    expect(error?.getResponse?.()?.problem?.code).toBe(
       ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
     );
   });
@@ -1382,7 +1393,7 @@ describe("unknown response review on the existing native thread", () => {
       createdAt: new Date(Date.now() - i * 1000),
     }));
     f.tx.assessmentRuntimeTurn.findMany = jest
-      .fn<() => Promise<any[]>>()
+      .fn<() => Promise<typeof turns>>()
       .mockResolvedValue(turns);
 
     const claim = await f.authority.claimRoot({
