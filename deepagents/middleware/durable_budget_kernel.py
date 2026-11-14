@@ -24,45 +24,43 @@ NO_PROGRESS_LIMIT_EXCEEDED = REASON_NO_PROGRESS
 AGENT_BUDGET_REACHED = REASON_BUDGET_REACHED
 BUDGET_UNAVAILABLE = REASON_BUDGET_UNAVAILABLE
 
-DEFAULT_ASSESSMENT_MAX_CALLS = 100
-DEFAULT_ASSESSMENT_MAX_INPUT_TOKENS = 4_000_000
-DEFAULT_ASSESSMENT_MAX_OUTPUT_TOKENS = 200_000
-DEFAULT_ASSESSMENT_MAX_TOTAL_TOKENS = 4_200_000
-DEFAULT_ASSESSMENT_NO_PROGRESS_LIMIT = 15
 
-DEFAULT_RSP_MAX_CALLS = 1000
-DEFAULT_RSP_MAX_INPUT_TOKENS = 100_000_000
-DEFAULT_RSP_MAX_OUTPUT_TOKENS = 5_000_000
-DEFAULT_RSP_MAX_TOTAL_TOKENS = 105_000_000
-DEFAULT_RSP_NO_PROGRESS_LIMIT = 20
-
-
-def _parse_positive_int(env_name: str, fallback: int | None) -> int | None:
-    """Business purpose: Parse a positive integer limit from an environment variable.
+def _parse_positive_int(env_name: str, fallback: int | None = None) -> int | None:
+    """Business purpose: Parse and validate an optional positive integer budget limit from environment.
 
     Business rules:
-    - Return positive integer when set and valid, otherwise fallback.
-    - Zero or negative values return fallback.
+    - If unset, None, or empty whitespace, return fallback (default None, representing unconstrained limit).
+    - If present and a valid positive integer string, return the integer.
+    - If present but malformed (non-integer, <= 0), raise ValueError to fail closed.
 
     Execution flow:
     1. Check presence of environment variable.
-    2. Convert to integer.
-    3. Return valid value or fallback.
+    2. If missing or empty whitespace, return fallback.
+    3. Trim and parse as integer.
+    4. If parsing fails or value <= 0, raise ValueError.
+    5. Return parsed integer.
 
     Failure cases:
-    - ValueError or TypeError falls back to the default.
+    - Raises ValueError if the configured variable is not a valid positive integer.
 
     Side effects:
     - Pure function reading os.environ; no filesystem or network mutation.
     """
     raw = os.environ.get(env_name)
-    if not raw:
+    if raw is None or not raw.strip():
         return fallback
+    trimmed = raw.strip()
     try:
-        val = int(raw.strip())
-        return val if val > 0 else fallback
-    except (ValueError, TypeError):
-        return fallback
+        val = int(trimmed)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            f"Invalid configuration for {env_name}: expected a positive integer, got {raw!r}"
+        ) from exc
+    if val <= 0:
+        raise ValueError(
+            f"Invalid configuration for {env_name}: expected a positive integer, got {val}"
+        )
+    return val
 
 
 @dataclass(frozen=True)
@@ -87,35 +85,29 @@ def resolve_workload_limits(scope: str) -> WorkloadBudgetLimits:
     """Business purpose: Resolve authoritative budget limits for a canonical workload scope.
 
     Business rules:
-    - Assessment Root limits are drawn from LCSP_ASSESSMENT_MAX_* environment variables.
-    - Rule Set Preparation limits are drawn from LCSP_RSP_MAX_* environment variables.
-    - Missing environment variables fall back to safe canonical defaults.
+    - Assessment Root limits are drawn from LCSP_ASSESSMENT_MAX_* and LCSP_ASSESSMENT_NO_PROGRESS_LIMIT.
+    - Rule Set Preparation limits are drawn from LCSP_RSP_MAX_* and LCSP_RSP_NO_PROGRESS_LIMIT.
+    - Unconfigured limits resolve to None (unconstrained cumulative quota), eliminating arbitrary default pauses.
+    - Malformed configurations raise ValueError to prevent silent permissive or restrictive execution.
 
     Execution flow:
-    1. Determine workload scope.
-    2. Read configured limits from environment with fallback defaults.
+    1. Determine workload scope prefix (LCSP_RSP for RULE_SET_PREPARATION, LCSP_ASSESSMENT otherwise).
+    2. Read configured limits from environment with None fallback.
     3. Return immutable WorkloadBudgetLimits.
 
     Failure cases:
-    - Unrecognized workload scope identifiers fall back safely to standard Assessment Root limits.
+    - Raises ValueError if any configured variable contains non-integer or non-positive value.
 
     Side effects:
     - Pure function; reads process environment without state changes.
     """
-    if scope == RULE_SET_PREPARATION_SCOPE:
-        return WorkloadBudgetLimits(
-            max_model_calls=_parse_positive_int("LCSP_RSP_MAX_MODEL_CALLS", DEFAULT_RSP_MAX_CALLS),
-            max_input_tokens=_parse_positive_int("LCSP_RSP_MAX_INPUT_TOKENS", DEFAULT_RSP_MAX_INPUT_TOKENS),
-            max_output_tokens=_parse_positive_int("LCSP_RSP_MAX_OUTPUT_TOKENS", DEFAULT_RSP_MAX_OUTPUT_TOKENS),
-            max_total_tokens=_parse_positive_int("LCSP_RSP_MAX_TOTAL_TOKENS", DEFAULT_RSP_MAX_TOTAL_TOKENS),
-            no_progress_limit=_parse_positive_int("LCSP_RSP_NO_PROGRESS_LIMIT", DEFAULT_RSP_NO_PROGRESS_LIMIT),
-        )
+    prefix = "LCSP_RSP" if scope == RULE_SET_PREPARATION_SCOPE else "LCSP_ASSESSMENT"
     return WorkloadBudgetLimits(
-        max_model_calls=_parse_positive_int("LCSP_ASSESSMENT_MAX_MODEL_CALLS", DEFAULT_ASSESSMENT_MAX_CALLS),
-        max_input_tokens=_parse_positive_int("LCSP_ASSESSMENT_MAX_INPUT_TOKENS", DEFAULT_ASSESSMENT_MAX_INPUT_TOKENS),
-        max_output_tokens=_parse_positive_int("LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS", DEFAULT_ASSESSMENT_MAX_OUTPUT_TOKENS),
-        max_total_tokens=_parse_positive_int("LCSP_ASSESSMENT_MAX_TOTAL_TOKENS", DEFAULT_ASSESSMENT_MAX_TOTAL_TOKENS),
-        no_progress_limit=_parse_positive_int("LCSP_ASSESSMENT_NO_PROGRESS_LIMIT", DEFAULT_ASSESSMENT_NO_PROGRESS_LIMIT),
+        max_model_calls=_parse_positive_int(f"{prefix}_MAX_MODEL_CALLS", None),
+        max_input_tokens=_parse_positive_int(f"{prefix}_MAX_INPUT_TOKENS", None),
+        max_output_tokens=_parse_positive_int(f"{prefix}_MAX_OUTPUT_TOKENS", None),
+        max_total_tokens=_parse_positive_int(f"{prefix}_MAX_TOTAL_TOKENS", None),
+        no_progress_limit=_parse_positive_int(f"{prefix}_NO_PROGRESS_LIMIT", None),
     )
 
 

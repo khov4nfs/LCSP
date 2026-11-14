@@ -7,6 +7,7 @@ import {
   type AssessmentRootContext,
   WORKLOAD_SCOPES,
   evaluateBudgetAdmission,
+  resolveConfiguredBudgetLimits,
 } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
@@ -204,30 +205,11 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
       const overrideNoProgress = blockerRef.overrideNoProgress === true;
       const budgetExtended = blockerRef.budgetExtended === true;
 
-      const configuredNoProgressLimit =
-        Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT) > 0
-          ? Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT)
-          : 15;
-
-      const limits = {
-        maxModelCalls:
-          Number(process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS) > 0
-            ? Number(process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS)
-            : 100,
-        maxInputTokens:
-          Number(process.env.LCSP_ASSESSMENT_MAX_INPUT_TOKENS) > 0
-            ? Number(process.env.LCSP_ASSESSMENT_MAX_INPUT_TOKENS)
-            : 4_000_000,
-        maxOutputTokens:
-          Number(process.env.LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS) > 0
-            ? Number(process.env.LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS)
-            : 200_000,
-        maxTotalTokens:
-          Number(process.env.LCSP_ASSESSMENT_MAX_TOTAL_TOKENS) > 0
-            ? Number(process.env.LCSP_ASSESSMENT_MAX_TOTAL_TOKENS)
-            : 4_200_000,
-        noProgressLimit: overrideNoProgress ? null : configuredNoProgressLimit,
-      };
+      const limits = resolveConfiguredBudgetLimits(
+        process.env,
+        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+        { overrideNoProgress },
+      );
 
       const cumulativeUsage = {
         modelCalls: usageAggregate?._count?.id ?? 0,
