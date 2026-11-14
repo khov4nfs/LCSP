@@ -259,6 +259,25 @@ class AssessmentRuntimeClient:
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/human-requests", body)
 
+    def post_human_requests_batch(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Business purpose: Transport an atomic batch of human resolution requests to the governed API.
+
+        Business rules:
+        - The batch must contain between 1 and 20 requests anchored to valid criteria or conditions.
+        - The request is a mutation sent with current execution lease and case revision authority.
+
+        Execution flow:
+        1. Dispatch POST /human-requests/batch with worker auth and lease headers.
+        2. Unmarshal the server response envelope and return created or replayed request records.
+
+        Failure cases:
+        - Validation errors, revision conflicts, or lease expiration raise AssessmentApiError.
+
+        Side effects:
+        - Persists human requests in the API database and triggers state transitions.
+        """
+        return self._call("POST", "/human-requests/batch", body)
+
     def report_unresolvable_human_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/human-fact-unresolvable", body)
 

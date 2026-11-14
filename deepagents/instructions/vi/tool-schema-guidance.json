@@ -58,5 +58,6 @@
   "ReportExistingUnresolvableHumanFactArgs.unavailability_rationale": "Lý do bằng chứng đã chấp nhận chứng minh không thể thu thập fact vĩnh viễn; UNKNOWN đơn thuần chưa đủ.",
   "ReportExistingUnresolvableHumanFactArgs.evidence_ids": "Các evidence ID đã được chấp nhận chứng minh sự không thể thu thập vĩnh viễn.",
   "OpenHumanRequestArgs.dependencies": "Các rule/criterion khác phụ thuộc cùng material fact này; không mở rộng selected scope.",
-  "OpenHumanRequestArgs.source_request_id": "Identity request có sẵn để server xác thực việc chia sẻ đúng cùng fact."
+  "OpenHumanRequestArgs.source_request_id": "Identity request có sẵn để server xác thực việc chia sẻ đúng cùng fact.",
+  "OpenHumanRequestsBatchArgs.requests": "Tập hợp từ 1 đến 20 câu hỏi về fact trọng yếu còn thiếu cần mở đồng thời theo cách nguyên tử."
 }
