@@ -89,6 +89,7 @@ test("docker worker env forwards every provider credential pool the worker rotat
   for (const name of keyEnvNames) {
     assert.match(workerEnv, new RegExp(`"${name}"`, "u"), `${name} is not forwarded`);
   }
+  assert.match(workerEnv, /"ANTHROPIC_BASE_URL"/u);
   assert.match(workerEnv, /"INCEPTION_BASE_URL"/u);
   assert.match(workerEnv, /"APX_BASE_URL"/u);
   assert.match(workerEnv, /"LLM_PROVIDER_TIMEOUT_SECONDS"/u);
