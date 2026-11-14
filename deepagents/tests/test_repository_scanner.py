@@ -327,7 +327,7 @@ def test_ensure_repository_profile_executes_in_sandbox_when_supported(tmp_path: 
 
     assert len(backend.commands) == 1
     assert "python3 -I" in backend.commands[0]
-    assert "/tmp/.lcsp_scanner.py" in backend.commands[0]
+    assert "/tmp/.lcsp_scanner_" in backend.commands[0]
     assert profile["scannedFileCount"] == 3
     assert profile["contentDigest"].startswith("sha256:")
     assert "/workspace/runtime/repository_profile.json" in backend.storage
@@ -451,6 +451,115 @@ def test_ensure_repository_profile_invalidates_corrupted_cache(tmp_path: Path) -
     assert profile["contentDigest"] != "sha256:corrupted"
     assert profile["contentDigest"].startswith("sha256:")
     assert profile["scannedFileCount"] == 1
+
+
+def test_ensure_repository_profile_fails_closed_on_write_staging_failure() -> None:
+    class FailingWriteBackend:
+        def __init__(self):
+            self.execute_called = False
+
+        def read(self, _path: str):
+            return SimpleNamespace(error="NOT_FOUND")
+
+        def write(self, _path: str, _content: str):
+            return SimpleNamespace(error="Permission denied writing /tmp staged file")
+
+        def execute(self, _cmd: str, timeout: int | None = None):
+            self.execute_called = True
+            return SimpleNamespace(exit_code=0, output="{}")
+
+    backend = FailingWriteBackend()
+    with pytest.raises(RuntimeError) as exc_info:
+        ensure_repository_profile(
+            backend,
+            repository_id="repo-write-fail-1",
+            commit_sha="5" * 40,
+            source_path_prefix=None,
+            workspace_path="/workspace/repository",
+        )
+    assert "Failed to stage pre-scan tool into sandbox" in str(exc_info.value)
+    assert "Permission denied writing /tmp staged file" in str(exc_info.value)
+    assert backend.execute_called is False, "Execution must not be attempted if staging write failed"
+
+
+def test_ensure_repository_profile_binds_execution_to_versioned_digest_and_prevents_stale_script() -> None:
+    executed_commands = []
+    written_paths = []
+
+    class CapturingBackend:
+        def read(self, _path: str):
+            return SimpleNamespace(error="NOT_FOUND")
+
+        def write(self, path: str, _content: str):
+            written_paths.append(path)
+            return SimpleNamespace(error=None)
+
+        def execute(self, cmd: str, timeout: int | None = None):
+            executed_commands.append(cmd)
+            mock_profile = {
+                "repositoryId": "repo-digest-bind-1",
+                "commitSha": "6" * 40,
+                "scannerVersion": SCANNER_VERSION,
+                "sourcePathPrefix": None,
+                "scannedFileCount": 0,
+                "languages": [],
+                "manifests": [],
+                "frameworks": [],
+                "buildSystems": [],
+                "ciWorkflows": [],
+                "containerization": [],
+                "candidateFacts": [],
+                "knownGaps": [],
+            }
+            mock_profile["contentDigest"] = compute_profile_digest(mock_profile)
+            return SimpleNamespace(exit_code=0, output=json.dumps(mock_profile))
+
+    backend = CapturingBackend()
+    profile = ensure_repository_profile(
+        backend,
+        repository_id="repo-digest-bind-1",
+        commit_sha="6" * 40,
+        source_path_prefix=None,
+        workspace_path="/workspace/repository",
+    )
+    assert profile["repositoryId"] == "repo-digest-bind-1"
+    assert len(written_paths) >= 1
+    staged_path = written_paths[0]
+    assert staged_path.startswith("/tmp/.lcsp_scanner_")
+    assert staged_path.endswith(".py")
+    assert any(staged_path in cmd for cmd in executed_commands)
+    # Ensure execution called isolated python with the exact staged path
+    assert any(f"python3 -I {staged_path}" in cmd for cmd in executed_commands)
+
+
+def test_ensure_repository_profile_fails_on_invalid_profile_schema() -> None:
+    class MalformedSchemaBackend:
+        def read(self, _path: str):
+            return SimpleNamespace(error="NOT_FOUND")
+
+        def write(self, _path: str, _content: str):
+            return SimpleNamespace(error=None)
+
+        def execute(self, _cmd: str, timeout: int | None = None):
+            # Missing required fields like languages, manifests, frameworks
+            bad_profile = {
+                "repositoryId": "repo-bad-schema-1",
+                "commitSha": "7" * 40,
+                "scannerVersion": SCANNER_VERSION,
+            }
+            return SimpleNamespace(exit_code=0, output=json.dumps(bad_profile))
+
+    backend = MalformedSchemaBackend()
+    with pytest.raises(RuntimeError) as exc_info:
+        ensure_repository_profile(
+            backend,
+            repository_id="repo-bad-schema-1",
+            commit_sha="7" * 40,
+            source_path_prefix=None,
+            workspace_path="/workspace/repository",
+        )
+    assert "Docker sandbox repository pre-scan produced invalid profile" in str(exc_info.value)
+
 
 
 

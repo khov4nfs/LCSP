@@ -24,6 +24,17 @@ NO_PROGRESS_LIMIT_EXCEEDED = REASON_NO_PROGRESS
 AGENT_BUDGET_REACHED = REASON_BUDGET_REACHED
 BUDGET_UNAVAILABLE = REASON_BUDGET_UNAVAILABLE
 
+LEGACY_BUDGET_EXTENSION_ALLOWANCE: dict[str, Any] = {
+    "version": 1,
+    "authorizedBy": "system:legacy_budget_extended_migration",
+    "auditReason": "Legacy budgetExtended flag migration to fixed effective ceiling",
+    "additionalModelCalls": 50,
+    "additionalInputTokens": 1_000_000,
+    "additionalOutputTokens": 50_000,
+    "additionalTotalTokens": 1_050_000,
+    "overrideNoProgress": False,
+}
+
 
 def _parse_positive_int(env_name: str, fallback: int | None = None) -> int | None:
     """Business purpose: Parse and validate an optional positive integer budget limit from environment.

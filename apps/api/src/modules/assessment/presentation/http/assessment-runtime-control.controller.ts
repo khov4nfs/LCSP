@@ -21,8 +21,10 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import {
-  assessmentRuntimeControlRequestSchema,
-  type AssessmentBudgetExtensionInput,
+  customerRuntimeControlRequestSchema,
+  adminBudgetExtensionRequestSchema,
+  type CustomerRuntimeControlRequest,
+  type AdminBudgetExtensionRequest,
 } from "@lcsp/contracts/evidence";
 import { GetRuntimeControlQuery } from "../../application/queries/get-runtime-control/get-runtime-control.query.js";
 import { ControlAssessmentRuntimeCommand } from "../../application/commands/control-assessment-runtime/control-assessment-runtime.command.js";
@@ -33,22 +35,29 @@ const idPipe = () =>
     ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
     422,
   );
-const controlPipe = () =>
+const customerControlPipe = () =>
   new ZodValidationPipe(
-    assessmentRuntimeControlRequestSchema,
+    customerRuntimeControlRequestSchema,
+    ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    422,
+  );
+const adminExtensionPipe = () =>
+  new ZodValidationPipe(
+    adminBudgetExtensionRequestSchema,
     ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
     422,
   );
 
 @Controller("assessments/:assessmentId/runtime")
 @UseGuards(RbacGuard)
-@RequireRoles(AUTH_USER_ROLES.customer)
 export class AssessmentRuntimeControlController {
   constructor(
     private readonly commands: CommandBus,
     private readonly queries: QueryBus,
   ) {}
+
   @Get("control")
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
   async current(
     @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() req: AuthenticatedRequest,
@@ -63,11 +72,13 @@ export class AssessmentRuntimeControlController {
       ),
     );
   }
+
   @Post("stop")
+  @RequireRoles(AUTH_USER_ROLES.customer)
   async stop(
     @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() req: AuthenticatedRequest,
-    @Body(controlPipe()) body: { targetRunId: string },
+    @Body(customerControlPipe()) body: CustomerRuntimeControlRequest,
   ) {
     return resultEnvelope(
       await this.commands.execute(
@@ -81,15 +92,36 @@ export class AssessmentRuntimeControlController {
       ),
     );
   }
+
   @Post("continue")
+  @RequireRoles(AUTH_USER_ROLES.customer)
   async resume(
     @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() req: AuthenticatedRequest,
-    @Body(controlPipe())
-    body: {
-      targetRunId: string;
-      budgetExtension?: AssessmentBudgetExtensionInput;
-    },
+    @Body(customerControlPipe()) body: CustomerRuntimeControlRequest,
+  ) {
+    const locale =
+      (req.headers?.["x-lcsp-locale"] as string | undefined) ?? null;
+    return resultEnvelope(
+      await this.commands.execute(
+        new ControlAssessmentRuntimeCommand(
+          assessmentId,
+          req.rbacContext,
+          ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
+          body.targetRunId,
+          req.correlationId ?? assessmentId,
+          locale,
+        ),
+      ),
+    );
+  }
+
+  @Post("extend-budget")
+  @RequireRoles(AUTH_USER_ROLES.admin)
+  async extendBudget(
+    @Param("assessmentId", idPipe()) assessmentId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(adminExtensionPipe()) body: AdminBudgetExtensionRequest,
   ) {
     const locale =
       (req.headers?.["x-lcsp-locale"] as string | undefined) ?? null;

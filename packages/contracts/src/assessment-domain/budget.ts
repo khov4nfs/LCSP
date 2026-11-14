@@ -44,6 +44,19 @@ export type AssessmentBudgetExtension = z.infer<
   typeof assessmentBudgetExtensionSchema
 >;
 
+export const LEGACY_BUDGET_EXTENSION_ALLOWANCE = {
+  version: 1,
+  authorizedBy: "system:legacy_budget_extended_migration",
+  authorizedAt: "2026-01-01T00:00:00.000Z",
+  auditReason:
+    "Legacy budgetExtended flag migration to fixed effective ceiling",
+  additionalModelCalls: 50,
+  additionalInputTokens: 1_000_000,
+  additionalOutputTokens: 50_000,
+  additionalTotalTokens: 1_050_000,
+  overrideNoProgress: false,
+} as const satisfies AssessmentBudgetExtension;
+
 export const assessmentCumulativeUsageSchema = z.strictObject({
   modelCalls: z.number().int().nonnegative(),
   inputTokens: z.number().int().nonnegative(),

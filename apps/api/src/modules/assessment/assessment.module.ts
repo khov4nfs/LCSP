@@ -86,6 +86,7 @@ import { AssessmentCaseSupport } from "./infrastructure/persistence/assessment-c
 import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-assessment.repository.js";
 import { AssessmentDomainController } from "./presentation/http/assessment-domain.controller.js";
 import { AssessmentRuntimeControlController } from "./presentation/http/assessment-runtime-control.controller.js";
+import { AdminAssessmentBudgetController } from "./presentation/http/admin-assessment-budget.controller.js";
 import { AssessmentController } from "./presentation/http/assessment.controller.js";
 import { AssessmentRuleAuditController } from "./presentation/http/assessment-rule-audit.controller.js";
 import { AssessmentRuleAuditService } from "./application/services/assessment-rule-audit.service.js";
@@ -110,6 +111,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AdminAssessmentRootCapacityController,
     InternalAgentStreamController,
     AssessmentRuntimeControlController,
+    AdminAssessmentBudgetController,
     AssessmentController,
     AssessmentRuleAuditController,
     WorkspaceRuntimeEventsController,

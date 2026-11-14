@@ -370,6 +370,12 @@ class RuleSetPreparationContext:
                 except Exception:
                     pass
 
+            # 4. Conservative fallback if model calls exist but total tokens is unmeasured/zero
+            if self.cumulative_usage.model_calls > 0 and self.cumulative_usage.total_tokens == 0:
+                self.cumulative_usage.input_tokens = max(self.cumulative_usage.input_tokens, self.cumulative_usage.model_calls * 500)
+                self.cumulative_usage.output_tokens = max(self.cumulative_usage.output_tokens, self.cumulative_usage.model_calls * 100)
+                self.cumulative_usage.total_tokens = self.cumulative_usage.input_tokens + self.cumulative_usage.output_tokens
+
             return self.cumulative_usage
 
     def adopt_usage(self, usage_data: Any) -> None:
