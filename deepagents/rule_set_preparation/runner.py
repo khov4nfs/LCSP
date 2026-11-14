@@ -18,7 +18,16 @@ from anthropic import APIError as AnthropicAPIError
 from openai import APIError as OpenAIAPIError
 from langchain_google_genai.chat_models import GoogleAPIError
 from langgraph.errors import GraphRecursionError, NodeCancelledError
-from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected
+from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected, PaidAdmissionError
+from middleware.usage_metering import (
+    AgentRunState,
+    activate_agent_run_state,
+    active_agent_run_state,
+)
+from middleware.durable_budget_kernel import (
+    RULE_SET_PREPARATION_SCOPE,
+    resolve_workload_limits,
+)
 from orchestration.agent_stream import DURABLE, active_agent_stream, publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
@@ -357,12 +366,107 @@ def run_rule_set_preparation(
             isolated = contextvars.copy_context()
             isolated.run(var_child_runnable_config.set, None)
 
-            failure_stage = "AGENT_GRAPH"
-            isolated.run(
-                agent.invoke,
-                {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
-                config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
+            workload_limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+            has_hard_ceiling = any(
+                x is not None
+                for x in (
+                    workload_limits.max_model_calls,
+                    workload_limits.max_input_tokens,
+                    workload_limits.max_total_tokens,
+                )
             )
+            current_state = active_agent_run_state()
+            if current_state is None:
+                admission = None
+                if has_hard_ceiling:
+                    from middleware.paid_admission import (
+                        RunAdmission,
+                        TokenRunBudget,
+                        TokenPolicy,
+                        parse_run_budget,
+                        fingerprint,
+                    )
+                    from tools.common.capabilities.platform.config import resolve_usage_recovery_store_path
+                    from middleware.usage_recovery import _connect
+                    from model_policy import DEFAULT_ROUTES_FILE, ROUTES_FILE_ENV
+                    import os, hashlib
+
+                    admission_path = resolve_usage_recovery_store_path()
+                    budget = None
+                    try:
+                        with _connect(admission_path) as chk_db:
+                            chk_db.execute(
+                                "CREATE TABLE IF NOT EXISTS inference_budgets (run_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, envelope TEXT NOT NULL, stopped TEXT)"
+                            )
+                            existing_row = chk_db.execute(
+                                "SELECT envelope FROM inference_budgets WHERE run_id=?", (run_id,)
+                            ).fetchone()
+                            if existing_row:
+                                budget = parse_run_budget(json.loads(existing_row[0]))
+                    except Exception:
+                        budget = None
+
+                    if budget is None:
+                        routes_path = Path(os.environ.get(ROUTES_FILE_ENV) or DEFAULT_ROUTES_FILE)
+                        routes_sha = (
+                            hashlib.sha256(routes_path.read_bytes()).hexdigest()
+                            if routes_path.is_file()
+                            else "0" * 64
+                        )
+                        policies = []
+                        if model is not None and hasattr(model, "_lcsp_route_identity"):
+                            p_ident = model._lcsp_route_identity
+                            policies.append(
+                                TokenPolicy(
+                                    route_id=p_ident["route_id"],
+                                    route_fingerprint=p_ident["route_fingerprint"],
+                                    credential_fingerprint=p_ident["credential_fingerprint"],
+                                    endpoint_fingerprint=p_ident["endpoint_fingerprint"],
+                                    sdk_fingerprint=p_ident["sdk_fingerprint"],
+                                    provider=p_ident["provider"],
+                                    protocol=p_ident["protocol"],
+                                    model=p_ident["model"],
+                                    valid_from=1,
+                                    expires_at=2147483647,
+                                    input_upper_bound=100000,
+                                    output_upper_bound=65536,
+                                )
+                            )
+                        budget = TokenRunBudget(
+                            schema_version=3,
+                            run_id=run_id,
+                            candidate_sha="0" * 40,
+                            model_routes_sha256=routes_sha,
+                            credential_salt="0" * 64,
+                            valid_from=1,
+                            expires_at=None,
+                            maximum_calls=workload_limits.max_model_calls,
+                            maximum_input_tokens=workload_limits.max_input_tokens,
+                            maximum_output_tokens=workload_limits.max_output_tokens,
+                            maximum_total_tokens=workload_limits.max_total_tokens,
+                            policies=tuple(policies),
+                        )
+                    admission = RunAdmission(
+                        admission_path,
+                        budget,
+                        fingerprint(budget.model_dump(mode="json")),
+                    )
+                current_state = AgentRunState(
+                    run_id=run_id,
+                    preparation_run_id=run_id,
+                    agent_role="rule_set_preparation_requested",
+                    api_client=api if hasattr(api, "post_settled_usage") else None,
+                    admission=admission,
+                    bounded=has_hard_ceiling,
+                )
+
+            with activate_agent_run_state(current_state):
+                failure_stage = "AGENT_GRAPH"
+                isolated.run(
+                    agent.invoke,
+                    {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
+                    config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
+                )
             if context.scope_review_paused:
                 return {"state": "PAUSED", "submission": None, "failureReason": None,
                         "scopeReviewRequired": True, "trace": context.trace}
@@ -374,7 +478,17 @@ def run_rule_set_preparation(
         except NodeCancelledError:
             _flush_draft(context)
             raise
-        except AgentRunBudgetExceeded as error:
+        except (AgentRunBudgetExceeded, PaidAdmissionError) as error:
+            raw_reason = getattr(error, "reason", None) or "AGENT_BUDGET_REACHED"
+            if raw_reason == "DURABILITY":
+                raise
+            reason_map = {
+                "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "OUTPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "TOKEN_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "CALL_LIMIT": "CALL_LIMIT_EXCEEDED",
+            }
+            pause_reason = reason_map.get(raw_reason, raw_reason)
             context.budget_paused = True
             _flush_draft(context)
             if context.scope_review_paused:
@@ -382,7 +496,6 @@ def run_rule_set_preparation(
                         "scopeReviewRequired": True, "trace": context.trace}
             # The API records PAUSED and retains LOAD payloads; no terminal failure callback follows.
             if context.submission is None and context.concluded is None:
-                pause_reason = getattr(error, "reason", None) or "AGENT_BUDGET_REACHED"
                 paused = api.fail_rule_set_preparation(run_id, pause_reason)
                 if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
                     raise RuntimeError("Budget pause callback did not establish PAUSED") from error
@@ -395,18 +508,26 @@ def run_rule_set_preparation(
                 # already committed PAUSED; never rewrite it as failed.
                 return {"state": "PAUSED", "submission": None, "failureReason": None,
                         "scopeReviewRequired": getattr(context, "scope_review_paused", False), "trace": context.trace}
-            budget_err = error if isinstance(error, AgentRunBudgetExceeded) else (error.__cause__ if isinstance(getattr(error, "__cause__", None), AgentRunBudgetExceeded) else None)
+            budget_err = error if isinstance(error, (AgentRunBudgetExceeded, PaidAdmissionError)) else (error.__cause__ if isinstance(getattr(error, "__cause__", None), (AgentRunBudgetExceeded, PaidAdmissionError)) else None)
             if budget_err is not None:
-                context.budget_paused = True
-                _flush_draft(context)
-                if context.submission is None and context.concluded is None:
-                    pause_reason = getattr(budget_err, "reason", None) or "AGENT_BUDGET_REACHED"
-                    paused = api.fail_rule_set_preparation(run_id, pause_reason)
-                    if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
-                        raise RuntimeError("Budget pause callback did not establish PAUSED") from budget_err
-                    publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
-                        "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": pause_reason})
-                    return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
+                raw_reason = getattr(budget_err, "reason", None) or "AGENT_BUDGET_REACHED"
+                if raw_reason != "DURABILITY":
+                    reason_map = {
+                        "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                        "OUTPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                        "TOKEN_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                        "CALL_LIMIT": "CALL_LIMIT_EXCEEDED",
+                    }
+                    pause_reason = reason_map.get(raw_reason, raw_reason)
+                    context.budget_paused = True
+                    _flush_draft(context)
+                    if context.submission is None and context.concluded is None:
+                        paused = api.fail_rule_set_preparation(run_id, pause_reason)
+                        if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":
+                            raise RuntimeError("Budget pause callback did not establish PAUSED") from budget_err
+                        publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                            "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": pause_reason})
+                        return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
             _flush_draft(context)
             # A conclusion the API already recorded is terminal; a later exception cannot turn it into a model/runtime failure.
             if context.submission is None and context.concluded is None:

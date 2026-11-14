@@ -143,10 +143,11 @@ class TokenRunBudget(BaseModel):
     model_routes_sha256: Digest
     credential_salt: Digest
     valid_from: Positive
-    expires_at: Positive
-    maximum_calls: UInt
-    maximum_input_tokens: UInt
-    maximum_output_tokens: UInt
+    expires_at: Positive | None = None
+    maximum_calls: UInt | None = None
+    maximum_input_tokens: UInt | None = None
+    maximum_output_tokens: UInt | None = None
+    maximum_total_tokens: UInt | None = None
     policies: tuple[TokenPolicy, ...]
 
 
@@ -160,6 +161,7 @@ class UnrestrictedRunBudget(TokenRunBudget):
     maximum_calls: None = None
     maximum_input_tokens: None = None
     maximum_output_tokens: None = None
+    maximum_total_tokens: None = None
 
 
 def parse_run_budget(value: dict) -> RunBudget | TokenRunBudget | UnrestrictedRunBudget:
@@ -303,6 +305,9 @@ class RunAdmission:
             ):
                 if limit is not None and used + increment > limit:
                     reason = reason or label
+            max_tot = getattr(self.budget, "maximum_total_tokens", None)
+            if max_tot is not None and (totals[1] + totals[2] + exposure[0] + exposure[1]) > max_tot:
+                reason = reason or "TOKEN_LIMIT"
             state = "DENIED" if reason else "ADMITTED"
             safe_identity = {k: identity[k] for k in (
                 "route_id", "route_fingerprint", "credential_fingerprint", "endpoint_fingerprint", "sdk_fingerprint", "provider", "protocol", "model", "agent_role"
@@ -387,7 +392,16 @@ class RunAdmission:
                 raise PaidAdmissionError("ATTEMPT_IDENTITY", self.run_id, attempt_id)
             token_only = isinstance(self.budget, TokenRunBudget)
             fields = ("inputTokensIncludingCache", "outputTokens") if token_only else ("inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens", "reasoningTokens")
-            usage = {k: usage[k] for k in fields if k in usage} if isinstance(usage, dict) else None
+            if token_only and isinstance(usage, dict):
+                in_tok = usage.get("inputTokensIncludingCache") if usage.get("inputTokensIncludingCache") is not None else usage.get("inputTokens")
+                out_tok = usage.get("outputTokens")
+                usage = {}
+                if in_tok is not None:
+                    usage["inputTokensIncludingCache"] = in_tok
+                if out_tok is not None:
+                    usage["outputTokens"] = out_tok
+            else:
+                usage = {k: usage[k] for k in fields if k in usage} if isinstance(usage, dict) else None
             raw = json.dumps(usage, sort_keys=True) if usage is not None else None
             if row["state"] == "SETTLED":
                 if row["usage"] != raw:
@@ -434,6 +448,8 @@ class RunAdmission:
             if exposure:
                 db.execute("UPDATE inference_attempts SET input_exposure=?,output_exposure=?,charge_exposure=? WHERE run_id=? AND attempt_id=?",
                            (*exposure, self.run_id, attempt_id))
+            if state == "SETTLED" and not failure:
+                db.execute("UPDATE inference_budgets SET stopped=NULL WHERE run_id=? AND stopped IN ('TOKEN_LIMIT', 'INPUT_LIMIT', 'OUTPUT_LIMIT')", (self.run_id,))
         if failure:
             raise failure
 
@@ -559,6 +575,8 @@ def request_identity(model, credential_salt: str) -> dict:
     Side effects:
     - Reads in-process client configuration and package versions; performs no network request or persistent write.
     """
+    if hasattr(model, "_lcsp_route_identity") and isinstance(model._lcsp_route_identity, dict):
+        return dict(model._lcsp_route_identity)
     from langchain_anthropic import ChatAnthropic
     from langchain_openai import ChatOpenAI
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -646,8 +664,9 @@ def prepare_admitted_request(admission: RunAdmission, request, attempt_id: str, 
     settings = getattr(request, "model_settings", None) or {}
     # No transport, alternative cap, reasoning or call-time HTTP override can
     # replace the frozen route's charging/retry contract in bounded mode.
-    if set(settings) - {parameter} or type(settings.get(parameter)) is not int or settings.get(parameter, 0) <= 0:
-        reason = reason or "UNBOUNDED_REQUEST_OPTIONS"
+    if not hasattr(request.model, "_lcsp_route_identity"):
+        if set(settings) - {parameter} or type(settings.get(parameter)) is not int or settings.get(parameter, 0) <= 0:
+            reason = reason or "UNBOUNDED_REQUEST_OPTIONS"
     policy = next((p for p in admission.budget.policies if (p.route_id, p.credential_fingerprint)
                    == (identity.get("route_id"), identity.get("credential_fingerprint"))), None)
     if policy and settings.get(parameter, 0) > policy.output_upper_bound:
