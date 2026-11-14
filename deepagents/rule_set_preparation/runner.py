@@ -665,7 +665,7 @@ def run_rule_set_preparation(
                         fingerprint(budget.model_dump(mode="json")),
                     )
 
-            if current_state is None:
+            if current_state is None and has_hard_ceiling:
                 current_state = AgentRunState(
                     run_id=run_id,
                     preparation_run_id=run_id,
@@ -674,7 +674,7 @@ def run_rule_set_preparation(
                     admission=admission,
                     bounded=has_hard_ceiling,
                 )
-            else:
+            elif current_state is not None:
                 current_state.run_id = run_id
                 current_state.preparation_run_id = run_id
                 if current_state.api_client is None and hasattr(api, "post_settled_usage"):
@@ -683,7 +683,17 @@ def run_rule_set_preparation(
                     current_state.admission = admission
                     current_state.bounded = True
 
-            with activate_agent_run_state(current_state):
+            if current_state is not None:
+                with activate_agent_run_state(current_state):
+                    isolated = contextvars.copy_context()
+                    isolated.run(var_child_runnable_config.set, None)
+                    failure_stage = "AGENT_GRAPH"
+                    isolated.run(
+                        agent.invoke,
+                        {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
+                        config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
+                    )
+            else:
                 isolated = contextvars.copy_context()
                 isolated.run(var_child_runnable_config.set, None)
                 failure_stage = "AGENT_GRAPH"
