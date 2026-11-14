@@ -10,12 +10,14 @@ import {
   resolveConfiguredBudgetLimits,
   applyBudgetExtension,
   assessmentBudgetExtensionSchema,
+  LEGACY_BUDGET_EXTENSION_ALLOWANCE,
 } from "@lcsp/contracts/assessment-domain";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
 import { HttpStatus } from "@nestjs/common";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { humanRequestDependenciesOf } from "../../../infrastructure/persistence/assessment-human-request-dependencies.js";
@@ -234,37 +236,22 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
       // Apply authoritative versioned budget extension to effective limits
       let limits = applyBudgetExtension(baseLimits, extension);
 
-      // Support legacy budgetExtended boolean by expanding effective limits with headroom
-      // so API and Python evaluate the exact same admitted state without boolean bypass
+      // Support legacy budgetExtended boolean by applying fixed auditable extension allowance
+      // and persisting it to blockerReference for controlled migration (never dynamic usage+headroom)
       if (budgetExtended && !extension) {
-        limits = {
-          maxModelCalls:
-            limits.maxModelCalls !== null
-              ? Math.max(limits.maxModelCalls, cumulativeUsage.modelCalls + 50)
-              : null,
-          maxInputTokens:
-            limits.maxInputTokens !== null
-              ? Math.max(
-                  limits.maxInputTokens,
-                  cumulativeUsage.inputTokens + 1_000_000,
-                )
-              : null,
-          maxOutputTokens:
-            limits.maxOutputTokens !== null
-              ? Math.max(
-                  limits.maxOutputTokens,
-                  cumulativeUsage.outputTokens + 50_000,
-                )
-              : null,
-          maxTotalTokens:
-            limits.maxTotalTokens !== null
-              ? Math.max(
-                  limits.maxTotalTokens,
-                  cumulativeUsage.totalTokens + 1_050_000,
-                )
-              : null,
-          noProgressLimit: limits.noProgressLimit,
+        limits = applyBudgetExtension(
+          baseLimits,
+          LEGACY_BUDGET_EXTENSION_ALLOWANCE,
+        );
+        const migratedBlocker: Prisma.InputJsonValue = {
+          ...blockerRef,
+          budgetExtension:
+            LEGACY_BUDGET_EXTENSION_ALLOWANCE as unknown as Prisma.InputJsonObject,
         };
+        await tx.assessment.update({
+          where: { id: input.assessmentId },
+          data: { blockerReference: migratedBlocker },
+        });
       }
 
       const admission = evaluateBudgetAdmission(limits, cumulativeUsage);
