@@ -389,25 +389,64 @@ describe("GetRootContextHandler locale authority", () => {
     expect(result.budgetState?.status).toBe("ADMITTED");
   });
 
-  it("evaluates NO_PROGRESS status when consecutive turns without progress reach limit (15)", async () => {
-    const f = createFixture();
-    const turns = Array.from({ length: 15 }, (_, i) => ({
-      id: `turn-${i}`,
-      contextJson: { progressMade: false },
-      createdAt: new Date(Date.now() - i * 1000),
-    }));
-    f.tx.assessmentRuntimeTurn.findMany = jest
-      .fn<() => Promise<any[]>>()
-      .mockResolvedValue(turns);
+  it("evaluates NO_PROGRESS status when configured limit (15) is reached", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = "15";
+    try {
+      const f = createFixture();
+      const turns = Array.from({ length: 15 }, (_, i) => ({
+        id: `turn-${i}`,
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - i * 1000),
+      }));
+      f.tx.assessmentRuntimeTurn.findMany = jest
+        .fn<() => Promise<any[]>>()
+        .mockResolvedValue(turns);
 
-    const result = await f.handler.execute(
-      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
-    );
-    expect(result.budgetState).toBeDefined();
-    expect(
-      result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
-    ).toBe(15);
-    expect(result.budgetState?.status).toBe("NO_PROGRESS");
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+      expect(result.budgetState).toBeDefined();
+      expect(
+        result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
+      ).toBe(15);
+      expect(result.budgetState?.limits.noProgressLimit).toBe(15);
+      expect(result.budgetState?.status).toBe("NO_PROGRESS");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+      }
+    }
+  });
+
+  it("admits ordinary execution when no explicit limits are configured even with 15 turns without progress", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    delete process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    try {
+      const f = createFixture();
+      const turns = Array.from({ length: 15 }, (_, i) => ({
+        id: `turn-${i}`,
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - i * 1000),
+      }));
+      f.tx.assessmentRuntimeTurn.findMany = jest
+        .fn<() => Promise<any[]>>()
+        .mockResolvedValue(turns);
+
+      const result = await f.handler.execute(
+        new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+      );
+      expect(result.budgetState).toBeDefined();
+      expect(result.budgetState?.limits.noProgressLimit).toBeNull();
+      expect(result.budgetState?.limits.maxModelCalls).toBeNull();
+      expect(result.budgetState?.status).toBe("ADMITTED");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;
+      }
+    }
   });
 
   it("resets consecutiveTurnsWithoutProgress to 0 when recent completed turn made progress", async () => {
