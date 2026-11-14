@@ -9,6 +9,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -27,6 +28,8 @@ import {
   type PreparationScopeReviewSubmit,
   type PreparationScopeReviewApproval,
   type PreparationScopeReviewActivate,
+  preparationSourceUnitsRequestSchema,
+  type PreparationSourceUnitsRequest,
 } from "@lcsp/contracts/compliance-rule-set";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
@@ -47,6 +50,7 @@ import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/lis
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
+import { PreparationSourceAnalysisReadService } from "../../infrastructure/persistence/preparation-source-analysis-read.service.js";
 
 /**
  * Operations view of the shared Compliance Rule Sets. Preparation starts automatically with a
@@ -63,6 +67,7 @@ export class ComplianceRuleSetAdminController {
     private readonly queries: QueryBus,
     private readonly scopeReviews: PreparationScopeReviewService,
     private readonly catalogGroups: RuleCatalogGroupsService,
+    private readonly sourceAnalysis: PreparationSourceAnalysisReadService,
   ) {}
 
   /**
@@ -187,6 +192,44 @@ export class ComplianceRuleSetAdminController {
     @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
   ) {
     return resultEnvelope(await this.scopeReviews.get(preparationRunId));
+  }
+
+  /**
+   * Business purpose: Provide Admin with a paginated view of canonical persisted Source Review units for one Preparation snapshot.
+   *
+   * Business rules:
+   * - Controller-wide Admin authorization applies; the run, inventory revision and pinned frontier determine all returned data.
+   * - Query filters only narrow the page and never alter authoritative frontier coverage totals.
+   *
+   * Execution flow:
+   * 1. Validate the Preparation run UUID and bounded query contract.
+   * 2. Delegate the consistent pinned read to the source-analysis service and return the standard success envelope.
+   *
+   * Failure cases:
+   * - Invalid input, missing runs, missing frontiers and stale cursors use the shared typed problem boundary.
+   *
+   * Side effects:
+   * - Read-only; no Preparation, Source Review, graph materialization or worker state is changed.
+   */
+  @Get("preparations/:preparationRunId/source-units")
+  async sourceUnits(
+    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
+    @Query(
+      new ZodValidationPipe(
+        preparationSourceUnitsRequestSchema,
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+      ),
+    )
+    request: PreparationSourceUnitsRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.sourceAnalysis.list(
+        preparationRunId,
+        request,
+        req.correlationId || randomUUID(),
+      ),
+    );
   }
 
   @Post("preparations/:preparationRunId/scope-reviews")
