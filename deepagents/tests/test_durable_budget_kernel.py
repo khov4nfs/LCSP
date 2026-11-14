@@ -493,6 +493,122 @@ def test_intra_execution_progress_tracking_resets_on_case_revision() -> None:
     assert control._last_case_revision == 3
 
 
+def test_intra_execution_detects_repeated_identical_tool_loop() -> None:
+    client = MagicMock()
+    control = RootRuntimeControl(
+        client,
+        "exec-loop-1",
+        run=SimpleNamespace(assessment_id="test-asm"),
+    )
+    control._effective_context = {
+        "assessmentId": "test-asm",
+        "caseRevision": 1,
+        "budgetState": {
+            "limits": {"noProgressLimit": None},
+            "status": "ADMITTED",
+        },
+    }
+
+    identical_tool_state = {
+        "case_revision": 1,
+        "messages": [
+            SimpleNamespace(
+                tool_calls=[{"name": "read_file", "args": {"path": "/workspace/src/index.ts"}}]
+            )
+        ],
+    }
+
+    # 4 identical calls do not trip the threshold yet
+    for _ in range(4):
+        decision = control._evaluate_intra_execution_progress(identical_tool_state)
+        assert decision is None
+
+    # 5th identical tool invocation triggers runaway loop detection
+    stall_decision = control._evaluate_intra_execution_progress(identical_tool_state)
+    assert stall_decision is not None
+    assert stall_decision["reason"] == NO_PROGRESS_LIMIT_EXCEEDED
+    assert stall_decision["detection"] == "identical_tool_loop"
+
+
+def test_intra_execution_detects_cyclic_tool_loop() -> None:
+    client = MagicMock()
+    control = RootRuntimeControl(
+        client,
+        "exec-cyclic-1",
+        run=SimpleNamespace(assessment_id="test-asm"),
+    )
+    control._effective_context = {
+        "assessmentId": "test-asm",
+        "caseRevision": 1,
+        "budgetState": {
+            "limits": {"noProgressLimit": None},
+            "status": "ADMITTED",
+        },
+    }
+
+    state_a = {
+        "case_revision": 1,
+        "messages": [SimpleNamespace(tool_calls=[{"name": "tool_a", "args": {"query": "x"}}])],
+    }
+    state_b = {
+        "case_revision": 1,
+        "messages": [SimpleNamespace(tool_calls=[{"name": "tool_b", "args": {"query": "y"}}])],
+    }
+
+    # A -> B -> A -> B -> A (5 calls, no trip yet)
+    for s in [state_a, state_b, state_a, state_b, state_a]:
+        decision = control._evaluate_intra_execution_progress(s)
+        assert decision is None
+
+    # 6th call completes 3 cycles of A-B -> cyclic runaway loop detected!
+    stall_decision = control._evaluate_intra_execution_progress(state_b)
+    assert stall_decision is not None
+    assert stall_decision["reason"] == NO_PROGRESS_LIMIT_EXCEEDED
+    assert stall_decision["detection"] == "cyclic_tool_loop_period_2"
+
+
+def test_intra_execution_factual_progress_resets_loop_detector() -> None:
+    client = MagicMock()
+    control = RootRuntimeControl(
+        client,
+        "exec-facts-1",
+        run=SimpleNamespace(assessment_id="test-asm"),
+    )
+    control._effective_context = {
+        "assessmentId": "test-asm",
+        "caseRevision": 1,
+        "budgetState": {
+            "limits": {"noProgressLimit": 10},
+            "status": "ADMITTED",
+        },
+    }
+    control._last_case_revision = 1
+    control._last_facts_count = 1
+
+    state_idle = {
+        "case_revision": 1,
+        "facts": ["fact-1"],
+        "messages": [SimpleNamespace(tool_calls=[{"name": "grep", "args": {"pattern": "foo"}}])],
+    }
+
+    # 3 identical calls accumulate
+    for _ in range(3):
+        control._evaluate_intra_execution_progress(state_idle)
+    assert len(control._recent_tool_signatures) == 3
+
+    # New fact established -> progress made!
+    state_progress = {
+        "case_revision": 1,
+        "facts": ["fact-1", "fact-2"],
+        "messages": [SimpleNamespace(tool_calls=[{"name": "grep", "args": {"pattern": "foo"}}])],
+    }
+    decision = control._evaluate_intra_execution_progress(state_progress)
+    assert decision is None
+    assert len(control._recent_tool_signatures) == 0
+    assert control._consecutive_ineffective_calls == 0
+
+
+
 def test_rule_set_preparation_restores_usage_across_fresh_instances(tmp_path) -> None:
     from rule_set_preparation.tools import RuleSetPreparationContext
 
@@ -528,6 +644,88 @@ def test_rule_set_preparation_restores_usage_across_fresh_instances(tmp_path) ->
     })
     assert ctx3.cumulative_usage.model_calls == 10
     assert ctx3.cumulative_usage.total_tokens == 262_000
+
+
+def test_settle_quota_estimates_conservative_output_when_metadata_missing() -> None:
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+
+    durable = WorkloadCumulativeUsage(model_calls=1, input_tokens=1000, output_tokens=0, total_tokens=1000)
+    quotas = {"model_calls": 10, "input_tokens": 100_000, "total_tokens": 150_000}
+    mw = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable)
+
+    req = SimpleNamespace(messages=[SimpleNamespace(content="Analyze legal sources")], model="gpt-4")
+    # Response with NO usage_metadata
+    resp_no_metadata = SimpleNamespace(
+        result=[SimpleNamespace(content="Here is a detailed legal analysis with fifty characters!")],
+    )
+
+    mw._settle_quota(req, resp_no_metadata)
+    # Output tokens must NOT be zero
+    assert mw.quota_output_tokens > 0
+    assert durable.output_tokens > 0
+    assert durable.total_tokens == durable.input_tokens + durable.output_tokens
+
+
+def test_rule_set_preparation_restores_usage_with_unmeasured_tokens_fallback() -> None:
+    from rule_set_preparation.tools import RuleSetPreparationContext
+
+    mock_api = MagicMock()
+    ctx = RuleSetPreparationContext(run_id="run-unmeasured", api=mock_api)
+    # Bundle reports 3 model calls but 0 total tokens (unmeasured provider)
+    ctx.restore_usage({"modelCalls": 3, "totalTokens": 0})
+
+    assert ctx.cumulative_usage.model_calls == 3
+    # Must NOT be zero; conservative estimation applied
+    assert ctx.cumulative_usage.input_tokens >= 3 * 500
+    assert ctx.cumulative_usage.output_tokens >= 3 * 100
+    assert ctx.cumulative_usage.total_tokens >= 3 * 600
+
+
+def test_middleware_preserves_cumulative_counters_across_restarts() -> None:
+    from middleware.agent_run_budget import AgentRunBudgetMiddleware
+
+    # Worker 1 runs and exhausts part of the budget
+    durable1 = WorkloadCumulativeUsage()
+    quotas = {"model_calls": 5, "total_tokens": 10_000}
+    mw1 = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable1)
+
+    req1 = SimpleNamespace(messages=[SimpleNamespace(content="Step 1")], model="gpt-4")
+    mw1.wrap_model_call(
+        req1,
+        lambda r: SimpleNamespace(
+            result=[SimpleNamespace(content="Done step 1", usage_metadata={"input_tokens": 2000, "output_tokens": 500})],
+        ),
+    )
+    assert durable1.model_calls == 1
+    assert durable1.total_tokens == 2500
+
+    # Worker 2: Fresh instance simulating worker crash / resume with restored durable_usage
+    durable2 = WorkloadCumulativeUsage(
+        model_calls=durable1.model_calls,
+        input_tokens=durable1.input_tokens,
+        output_tokens=durable1.output_tokens,
+        total_tokens=durable1.total_tokens,
+    )
+    mw2 = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable2)
+
+    assert mw2.quota_calls == 1
+    assert mw2.quota_total_tokens == 2500
+
+    # Execute step 2 on new instance
+    req2 = SimpleNamespace(messages=[SimpleNamespace(content="Step 2")], model="gpt-4")
+    mw2.wrap_model_call(
+        req2,
+        lambda r: SimpleNamespace(
+            result=[SimpleNamespace(content="Done step 2", usage_metadata={"input_tokens": 3000, "output_tokens": 800})],
+        ),
+    )
+
+    # Cumulative total must reflect both steps
+    assert durable2.model_calls == 2
+    assert durable2.input_tokens == 5000
+    assert durable2.output_tokens == 1300
+    assert durable2.total_tokens == 6300
+
 
 
 

@@ -48,6 +48,21 @@ export const assessmentRuntimeControlRequestSchema = z.strictObject({
   budgetExtension: assessmentBudgetExtensionInputSchema.optional(),
 });
 
+export const customerRuntimeControlRequestSchema = z.strictObject({
+  targetRunId: z.uuid(),
+});
+export type CustomerRuntimeControlRequest = z.infer<
+  typeof customerRuntimeControlRequestSchema
+>;
+
+export const adminBudgetExtensionRequestSchema = z.strictObject({
+  targetRunId: z.uuid(),
+  budgetExtension: assessmentBudgetExtensionInputSchema,
+});
+export type AdminBudgetExtensionRequest = z.infer<
+  typeof adminBudgetExtensionRequestSchema
+>;
+
 export function isAssessmentRuntimeControlState(
   value: unknown,
 ): value is AssessmentRuntimeControlState {

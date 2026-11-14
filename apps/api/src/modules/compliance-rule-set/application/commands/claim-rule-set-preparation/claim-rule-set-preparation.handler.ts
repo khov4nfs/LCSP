@@ -43,12 +43,14 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
    * - QUEUED runs transition to RUNNING once, while RUNNING runs can be taken over only after the claim lease expires.
    * - Compare-and-set state checks prevent concurrent deliveries from claiming the same live run.
    * - Reuse the materialization pinned by an existing inventory frontier when available; otherwise materialize the source graph.
+   * - Aggregate durable LLM usage events and conservatively estimate unmeasured events so unknown token usage is not treated as zero across retries or restarts.
    *
    * Execution flow:
    * 1. Load the run and reject a missing run or unsupported worker contract.
    * 2. Claim a queued run or refresh an expired running lease, clearing the prior review operation as part of the transition.
    * 3. Expire prior leases for in-review units, load the run's Legal Source documents and frozen inventory, and export the pinned graph.
-   * 4. Map the pinned source and run state into the validated worker bundle.
+   * 4. Aggregate durable LLM usage and add conservative estimates for unmeasured events into cumulativeUsage.
+   * 5. Map the pinned source and run state into the validated worker bundle.
    *
    * Failure cases:
    * - A missing run returns not found; an unsupported contract, active competing claim, or already-published run returns a preparation conflict.
@@ -192,17 +194,48 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
           identities: true,
         },
       });
-    const usageAggregate = await this.prisma.llmUsageEvent.aggregate({
-      where: { runId: run.id },
-      _sum: {
-        inputTokens: true,
-        outputTokens: true,
-        totalTokens: true,
-      },
-      _count: {
-        id: true,
-      },
-    });
+    const usageAggregate = this.prisma.llmUsageEvent?.aggregate
+      ? await this.prisma.llmUsageEvent.aggregate({
+          where: { runId: run.id },
+          _sum: {
+            inputTokens: true,
+            outputTokens: true,
+            totalTokens: true,
+          },
+          _count: {
+            id: true,
+          },
+        })
+      : null;
+
+    const unmeasuredEventsCount = this.prisma.llmUsageEvent?.count
+      ? await this.prisma.llmUsageEvent.count({
+          where: {
+            runId: run.id,
+            OR: [{ totalTokens: null }, { totalTokens: 0n }],
+          },
+        })
+      : 0;
+
+    const CONSERVATIVE_UNMEASURED_INPUT_TOKENS = 500;
+    const CONSERVATIVE_UNMEASURED_OUTPUT_TOKENS = 100;
+    const CONSERVATIVE_UNMEASURED_TOTAL_TOKENS = 600;
+
+    const estimatedInput =
+      unmeasuredEventsCount * CONSERVATIVE_UNMEASURED_INPUT_TOKENS;
+    const estimatedOutput =
+      unmeasuredEventsCount * CONSERVATIVE_UNMEASURED_OUTPUT_TOKENS;
+    const estimatedTotal =
+      unmeasuredEventsCount * CONSERVATIVE_UNMEASURED_TOTAL_TOKENS;
+
+    const measuredInput = Number(usageAggregate?._sum?.inputTokens ?? 0);
+    const measuredOutput = Number(usageAggregate?._sum?.outputTokens ?? 0);
+    const measuredTotal = Number(usageAggregate?._sum?.totalTokens ?? 0);
+
+    const modelCalls = usageAggregate?._count?.id ?? 0;
+    const inputTokens = measuredInput + estimatedInput;
+    const outputTokens = measuredOutput + estimatedOutput;
+    const totalTokens = measuredTotal + estimatedTotal;
     return ruleSetPreparationLegalSourceBundleSchema.parse({
       documentGraph: pinned
         ? (await this.graph.export(legalSource.id, pinned))!
@@ -230,10 +263,10 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
       legalSourceVersionId: legalSource.id,
       legalSourceVersion: legalSource.version,
       cumulativeUsage: {
-        modelCalls: usageAggregate._count.id,
-        inputTokens: Number(usageAggregate._sum.inputTokens ?? 0),
-        outputTokens: Number(usageAggregate._sum.outputTokens ?? 0),
-        totalTokens: Number(usageAggregate._sum.totalTokens ?? 0),
+        modelCalls,
+        inputTokens,
+        outputTokens,
+        totalTokens,
         consecutiveTurnsWithoutProgress: 0,
       },
       documents: legalSource.documents.map((document) => ({

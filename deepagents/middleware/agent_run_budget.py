@@ -203,29 +203,54 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return response
 
     def _settle_quota(self, request, response):
-        """Business purpose: Replace the shared quota's estimated input reservation with reported model input usage when available.
+        """Business purpose: Replace the shared quota's estimated input reservation with reported model input usage and account for output tokens.
 
         Business rules:
-        - Reconcile only in explicit quota mode and only when response messages report input_tokens; hold the shared lock for the adjustment.
+        - Reconcile only in explicit quota mode; hold the shared lock for the adjustment.
+        - When provider omits output tokens or returns empty usage metadata, do not treat output tokens as measured zero; estimate conservative output tokens from response messages.
 
         Execution flow:
-        1. Sum available response input usage, recompute the original estimate, and adjust the quota by reported minus reserved input.
+        1. Extract reported usage metadata from response messages.
+        2. Adjust input quota by reported minus reserved input tokens if reported, keeping reserved estimate if omitted.
+        3. Add reported output tokens or conservative estimate from response content if missing.
+        4. Update total tokens and sync to durable usage and persistence callback.
 
         Failure cases:
-        - Absent quota configuration or reported usage leaves counters unchanged; malformed reported values are not silently converted to zero.
+        - Absent quota configuration leaves counters unchanged; missing usage metadata falls back to conservative estimation without crashing.
 
         Side effects:
-        - Mutates the in-memory shared quota input counter; no historical receipt or customer balance is rewritten.
+        - Mutates in-memory quota counters and durable usage object; triggers persist_callback if set.
         """
-        if self.run_quotas is None: return
+        if self.run_quotas is None:
+            return
         results = [m for m in getattr(response, "result", []) if getattr(m, "usage_metadata", None)]
+        if not results and getattr(response, "usage_metadata", None):
+            results = [response]
         reported = [m.usage_metadata["input_tokens"] for m in results if "input_tokens" in m.usage_metadata]
         out = [m.usage_metadata["output_tokens"] for m in results if "output_tokens" in m.usage_metadata]
+
+        all_messages = getattr(response, "result", [])
+        if not isinstance(all_messages, list):
+            all_messages = [all_messages] if all_messages else []
+        if not all_messages and hasattr(response, "content"):
+            all_messages = [response]
+        estimated_output = 0
+        for m in all_messages:
+            content = getattr(m, "content", "")
+            if isinstance(content, str) and content:
+                estimated_output += max(1, len(content) // 4)
+            elif isinstance(content, list):
+                for part in content:
+                    if isinstance(part, str):
+                        estimated_output += max(1, len(part) // 4)
+                    elif isinstance(part, dict) and "text" in part:
+                        estimated_output += max(1, len(str(part.get("text", ""))) // 4)
+        conservative_output = sum(out) if out else max(10, estimated_output)
+
         with self.quota_lock:
             if reported:
                 self.quota_input_tokens += sum(reported) - estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
-            if out:
-                self.quota_output_tokens += sum(out)
+            self.quota_output_tokens += conservative_output
             self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
             if self.durable_usage is not None:
                 self.durable_usage.input_tokens = self.quota_input_tokens

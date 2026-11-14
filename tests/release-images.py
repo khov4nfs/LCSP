@@ -32,6 +32,7 @@ INTEGRATIONS = [
     "test_docker_sandbox_e2e.py",
     "test_local_agent_runtime_e2e.py",
     "test_production_agent_server_image_e2e.py",
+    "test_repository_scanner_docker_e2e.py",
 ]
 INTEGRATION_NAMES = {
     "test_codebase_memory_indexes_searches_and_reports_coverage_for_repository",
@@ -41,6 +42,7 @@ INTEGRATION_NAMES = {
     "test_agent_server_dispatch_hydrates_docker_repository_sandbox[langgraph-dev]",
     "test_agent_server_dispatch_hydrates_docker_repository_sandbox[lcsp-local]",
     "test_production_agent_server_image_runs_without_license_and_persists_state",
+    "test_docker_sandbox_ensure_repository_profile_e2e",
 }
 EXCLUDED_SOURCE = re.compile(
     r"(^|/)(tests?|decision|node_modules|dist|\.venv|\.next|__pycache__|tmp)/"
@@ -200,7 +202,7 @@ def check_junit(path: Path) -> dict:
     cases = ET.parse(path).findall(".//testcase")
     counts = {kind: sum(case.find(kind) is not None for case in cases)
               for kind in ("failure", "error", "skipped")}
-    assert len(cases) == 7 and {case.attrib["name"] for case in cases} == INTEGRATION_NAMES and not any(counts.values()), "all seven named Docker integrations must execute and pass"
+    assert len(cases) == 8 and {case.attrib["name"] for case in cases} == INTEGRATION_NAMES and not any(counts.values()), "all eight named Docker integrations must execute and pass"
     return {"passed": len(cases), **counts, "tests": [case.attrib["name"] for case in cases]}
 
 
@@ -265,7 +267,7 @@ def self_check(rules: dict) -> None:
     with tempfile.TemporaryDirectory(prefix="lcsp-release-image-selfcheck-") as tmp:
         path = Path(tmp) / "junit.xml"
         path.write_text('<testsuites><testsuite>' + ''.join(f'<testcase name="{name}"/>' for name in INTEGRATION_NAMES) + '</testsuite></testsuites>')
-        assert check_junit(path)["passed"] == 7
+        assert check_junit(path)["passed"] == 8
         path.write_text('<testsuites><testsuite><testcase name="synthetic"><skipped/></testcase></testsuite></testsuites>')
         try:
             check_junit(path)
@@ -287,7 +289,7 @@ def main() -> int:
     unique = datetime.now(UTC).strftime("%Y%m%d%H%M%S") + "_" + uuid4().hex[:12]
     evidence = ROOT / "reports/release-images" / unique
     evidence.mkdir(parents=True)
-    report = {"scope": "RELEASE_CANDIDATE_BUILDS_MERGED_ROOTFS_AND_SEVEN_DOCKER_INTEGRATIONS",
+    report = {"scope": "RELEASE_CANDIDATE_BUILDS_MERGED_ROOTFS_AND_EIGHT_DOCKER_INTEGRATIONS",
               "status": "FAIL", "productionDeployment": False, "images": {}}
     stage = "source preflight"
     try:
@@ -349,7 +351,7 @@ def main() -> int:
         stage = "candidate source stability"
         assert sources() == frozen, "source changed during candidate build"
         assert all(digest((ROOT / p).read_bytes()) == sha for p, sha in inputs.items()), "build/policy input changed"
-        stage = "seven Docker integrations"
+        stage = "eight Docker integrations"
         # Do not inherit application DB/broker/provider settings or load the user's dotenv.
         env = {key: value for key, value in os.environ.items() if key in {
             "PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", "DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG", "XDG_RUNTIME_DIR"}}

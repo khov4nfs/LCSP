@@ -1360,17 +1360,29 @@ def ensure_repository_profile(
 
     # If backend supports execution, run scanner in sandbox container with isolated Python
     if callable(execute):
+        if not callable(write):
+            raise RuntimeError("Sandbox backend does not provide required write capability to stage trusted scanner")
+
         # Stage the trusted, self-contained scanner into /tmp in the sandbox backend
+        # Version the staged path with the scanner's content digest to prevent stale script execution
         scanner_source = Path(__file__).read_text(encoding="utf-8")
-        if callable(write):
-            try:
-                write(_TMP_SCANNER_PATH, scanner_source)
-            except Exception as err:
-                raise RuntimeError(f"Failed to stage pre-scan tool into sandbox: {err}") from err
+        scanner_digest = hashlib.sha256(scanner_source.encode("utf-8")).hexdigest()
+        staged_scanner_path = f"/tmp/.lcsp_scanner_{scanner_digest[:16]}.py"
+
+        try:
+            write_result = write(staged_scanner_path, scanner_source)
+        except Exception as err:
+            raise RuntimeError(f"Failed to stage pre-scan tool into sandbox: {err}") from err
+
+        write_err = getattr(write_result, "error", None) or (
+            write_result.get("error") if isinstance(write_result, dict) else None
+        )
+        if write_err:
+            raise RuntimeError(f"Failed to stage pre-scan tool into sandbox: {write_err}")
 
         prefix_flag = f" --source-path-prefix {shlex.quote(source_path_prefix)}" if source_path_prefix else ""
         cmd = (
-            f"python3 -I {_TMP_SCANNER_PATH} "
+            f"python3 -I {staged_scanner_path} "
             f"--workspace {shlex.quote(str(workspace_path))} "
             f"--repository-id {shlex.quote(repository_id)} "
             f"--commit-sha {shlex.quote(commit_sha)}"
