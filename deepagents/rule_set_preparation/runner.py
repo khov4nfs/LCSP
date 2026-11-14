@@ -252,25 +252,29 @@ def _resolve_preparation_admission_policies(
     credential_salt: str,
     run_id: str,
 ) -> tuple[Any, ...]:
-    """Business purpose: Build verified provider-bound token policies for all permitted preparation routes.
+    """Business purpose: Build authoritative provider-verified token policies for Rule Set Preparation, claim authoring, credential rotation and fallback chains.
 
     Business rules:
     - Include primary preparation route, claim-author route, configured model route and all their fallback routes.
-    - Validate provider input and output limits from declared route options or model profile; missing or non-positive bounds fail closed.
-    - Include all configured credentials per provider to support credential rotation; fail closed if policy set is empty.
+    - Route bounds (context_window_tokens, max_output_tokens) are operator declarations that must be verified against actual model architecture bounds; missing or non-positive bounds fail closed.
+    - Each configured credential token per provider receives a distinct TokenPolicy with salted credential fingerprint to admit credential rotation.
+    - Production models must have an authentic registered route identity and verified native SDK client; synthetic identity attributes are rejected.
+    - An isolated test double is accepted only when registered within an explicit active test fixture context.
 
     Execution flow:
-    1. Resolve candidate routes from the model, rule set preparation role, claim-author role and their fallback chains.
-    2. Extract verified provider context window and max output bounds, rejecting unverified or missing bounds.
-    3. Generate token policies for each valid route and configured provider credential slot.
-    4. Reject empty policy sets with PaidAdmissionError.
+    1. If a model is provided, verify it against the test registry or native route binding, rejecting unbound models.
+    2. Resolve preparation and claim-author routes from the immutable routes catalog along with their fallback chains.
+    3. Verify that each route specifies valid positive integer context-window and maximum-output bounds.
+    4. For each candidate route and configured provider credential token, construct a native client to derive its authoritative request identity.
+    5. Deduplicate policies by (route_id, credential_fingerprint), reject empty policy sets, and return the immutable policies tuple.
 
     Failure cases:
-    - Unverified or non-positive bounds raise PaidAdmissionError('UNVERIFIED_PROVIDER_BOUNDS').
-    - Empty policy set raises PaidAdmissionError('UNVERIFIED_POLICY').
+    - Unbound models raise PaidAdmissionError('UNBOUND_MODEL_ROUTE').
+    - Non-positive or missing bounds raise PaidAdmissionError('UNVERIFIED_PROVIDER_BOUNDS').
+    - Empty policy sets raise PaidAdmissionError('UNVERIFIED_POLICY').
 
     Side effects:
-    - Pure in-memory route inspection and policy construction; makes no provider calls or persistent writes.
+    - Derives native client identities in memory; performs no network calls, database writes, or model dispatches.
     """
     from model_policy import (
         load_model_routes,
@@ -283,86 +287,45 @@ def _resolve_preparation_admission_policies(
     from middleware.paid_admission import (
         TokenPolicy,
         request_identity,
+        _TEST_SCRIPTED_MODEL_REGISTRY,
     )
 
     policies: list[TokenPolicy] = []
+    routes_obj = load_model_routes()
 
-    # 1. Scripted mock model with _lcsp_route_identity
-    if model is not None and hasattr(model, "_lcsp_route_identity") and isinstance(model._lcsp_route_identity, dict):
-        ident = dict(model._lcsp_route_identity)
-        prof = getattr(model, "profile", None)
-        in_b = (prof.get("max_input_tokens") if isinstance(prof, dict) else getattr(prof, "max_input_tokens", None)) or ident.get("input_upper_bound")
-        out_b = (prof.get("max_output_tokens") if isinstance(prof, dict) else getattr(prof, "max_output_tokens", None)) or ident.get("output_upper_bound")
-        if not isinstance(in_b, int) or in_b <= 0 or not isinstance(out_b, int) or out_b <= 0:
-            raise PaidAdmissionError("UNVERIFIED_PROVIDER_BOUNDS", run_id)
-        policies.append(
-            TokenPolicy(
-                route_id=ident["route_id"],
-                route_fingerprint=ident["route_fingerprint"],
-                credential_fingerprint=ident["credential_fingerprint"],
-                endpoint_fingerprint=ident["endpoint_fingerprint"],
-                sdk_fingerprint=ident["sdk_fingerprint"],
-                provider=ident["provider"],
-                protocol=ident["protocol"],
-                model=ident["model"],
-                valid_from=1,
-                expires_at=2147483647,
-                input_upper_bound=in_b,
-                output_upper_bound=out_b,
+    # 1. Test scripted model or native injected model
+    registry = _TEST_SCRIPTED_MODEL_REGISTRY.get()
+    if model is not None:
+        if registry is not None and id(model) in registry:
+            ident = registry[id(model)]
+            policies.append(
+                TokenPolicy(
+                    route_id=ident["route_id"],
+                    route_fingerprint=ident["route_fingerprint"],
+                    credential_fingerprint=ident["credential_fingerprint"],
+                    endpoint_fingerprint=ident["endpoint_fingerprint"],
+                    sdk_fingerprint=ident["sdk_fingerprint"],
+                    provider=ident["provider"],
+                    protocol=ident["protocol"],
+                    model=ident["model"],
+                    valid_from=1,
+                    expires_at=2147483647,
+                    input_upper_bound=ident["input_upper_bound"],
+                    output_upper_bound=ident["output_upper_bound"],
+                )
             )
-        )
-    elif (
-        model is not None
-        and not hasattr(model, "_lcsp_route_identity")
-        and model_route_config(model) is None
-    ):
-        import hashlib
-        from middleware.paid_admission import route_fingerprint
-        routes_obj = load_model_routes()
-        prep_cfg = routes_obj.config(routes_obj.roles.get(RULE_SET_PREPARATION_ROLE, routes_obj.roles["default"]), RULE_SET_PREPARATION_ROLE)
-        prof = getattr(model, "profile", None)
-        in_b = (prof.get("max_input_tokens") if isinstance(prof, dict) else getattr(prof, "max_input_tokens", None)) or prep_cfg.options.get("context_window_tokens", 1000000)
-        out_b = (prof.get("max_output_tokens") if isinstance(prof, dict) else getattr(prof, "max_output_tokens", None)) or prep_cfg.options.get("max_output_tokens", 65536)
-        if not isinstance(in_b, int) or in_b <= 0 or not isinstance(out_b, int) or out_b <= 0:
-            raise PaidAdmissionError("UNVERIFIED_PROVIDER_BOUNDS", run_id)
-        ident = {
-            "route_id": prep_cfg.route_id,
-            "route_fingerprint": route_fingerprint(prep_cfg),
-            "credential_fingerprint": hashlib.pbkdf2_hmac("sha256", b"scripted-fixture-token", bytes.fromhex(credential_salt), 600000).hex(),
-            "endpoint_fingerprint": hashlib.sha256(b"http://localhost").hexdigest(),
-            "sdk_fingerprint": "0" * 64,
-            "provider": prep_cfg.provider,
-            "protocol": prep_cfg.protocol,
-            "model": prep_cfg.model,
-            "input_upper_bound": in_b,
-            "output_upper_bound": out_b,
-        }
-        model._lcsp_route_identity = ident
-        policies.append(
-            TokenPolicy(
-                route_id=ident["route_id"],
-                route_fingerprint=ident["route_fingerprint"],
-                credential_fingerprint=ident["credential_fingerprint"],
-                endpoint_fingerprint=ident["endpoint_fingerprint"],
-                sdk_fingerprint=ident["sdk_fingerprint"],
-                provider=ident["provider"],
-                protocol=ident["protocol"],
-                model=ident["model"],
-                valid_from=1,
-                expires_at=2147483647,
-                input_upper_bound=in_b,
-                output_upper_bound=out_b,
-            )
-        )
-
-    # 2. Production ChatModel with _lcsp_resolved_model_route
-    model_cfg = model_route_config(model) if model is not None else None
-    if model is not None and model_cfg is not None:
-        try:
+        else:
+            model_cfg = model_route_config(model)
+            if model_cfg is None:
+                raise PaidAdmissionError("UNBOUND_MODEL_ROUTE", run_id)
             ident = request_identity(model, credential_salt)
+            in_b = model_cfg.options.get("context_window_tokens")
+            out_b = model_cfg.options.get("max_output_tokens")
             prof = getattr(model, "profile", None)
-            in_b = model_cfg.options.get("context_window_tokens") or (prof.get("max_input_tokens") if isinstance(prof, dict) else getattr(prof, "max_input_tokens", None))
-            out_b = model_cfg.options.get("max_output_tokens") or (prof.get("max_output_tokens") if isinstance(prof, dict) else getattr(prof, "max_output_tokens", None))
+            if in_b is None and isinstance(prof, dict):
+                in_b = prof.get("max_input_tokens")
+            if out_b is None and isinstance(prof, dict):
+                out_b = prof.get("max_output_tokens")
             if not isinstance(in_b, int) or in_b <= 0 or not isinstance(out_b, int) or out_b <= 0:
                 raise PaidAdmissionError("UNVERIFIED_PROVIDER_BOUNDS", run_id)
             policies.append(
@@ -381,19 +344,16 @@ def _resolve_preparation_admission_policies(
                     output_upper_bound=out_b,
                 )
             )
-        except PaidAdmissionError:
-            raise
-        except Exception:
-            pass
 
-    # 3. Permitted routes from model_routes.yaml
-    routes_obj = load_model_routes()
+    # 2. Preparation, claim-author, and fallback routes
     candidate_configs: list[Any] = []
     prep_cfg = routes_obj.config(routes_obj.roles.get(RULE_SET_PREPARATION_ROLE, routes_obj.roles["default"]), RULE_SET_PREPARATION_ROLE)
     claim_cfg = routes_obj.config(routes_obj.roles.get(CLAIM_AUTHOR_ROLE, routes_obj.roles["default"]), CLAIM_AUTHOR_ROLE)
     candidate_configs.extend([prep_cfg, claim_cfg])
-    if model_cfg is not None:
-        candidate_configs.append(model_cfg)
+    if model is not None and (registry is None or id(model) not in registry):
+        model_cfg = model_route_config(model)
+        if model_cfg is not None:
+            candidate_configs.append(model_cfg)
 
     all_configs: list[Any] = []
     seen_route_ids: set[str] = set()
@@ -409,12 +369,6 @@ def _resolve_preparation_admission_policies(
     for cfg in all_configs:
         in_b = cfg.options.get("context_window_tokens")
         out_b = cfg.options.get("max_output_tokens")
-        if model is not None and model_cfg is not None and model_cfg.route_id == cfg.route_id:
-            prof = getattr(model, "profile", None)
-            if in_b is None:
-                in_b = prof.get("max_input_tokens") if isinstance(prof, dict) else getattr(prof, "max_input_tokens", None)
-            if out_b is None:
-                out_b = prof.get("max_output_tokens") if isinstance(prof, dict) else getattr(prof, "max_output_tokens", None)
         if not isinstance(in_b, int) or in_b <= 0 or not isinstance(out_b, int) or out_b <= 0:
             raise PaidAdmissionError("UNVERIFIED_PROVIDER_BOUNDS", run_id)
 
@@ -723,6 +677,13 @@ def run_rule_set_preparation(
                 "MISSING_RUN_BUDGET",
                 "NO_VALID_TOKEN_POLICIES",
                 "BOUNDED_SCOPE_CHANGED",
+                "UNBOUND_MODEL_ROUTE",
+                "FORGED_ROUTE_IDENTITY",
+                "CREDENTIAL_UNVERIFIED",
+                "UNBOUNDED_REQUEST_OPTIONS",
+                "OUTPUT_BOUND_UNVERIFIED",
+                "TEST_REGISTRY_INACTIVE",
+                "POLICY_MISMATCH",
             ):
                 raise
             reason_map = {
