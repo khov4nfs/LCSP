@@ -1350,7 +1350,9 @@ describe("unknown response review on the existing native thread", () => {
       contextJson: { progressMade: false },
       createdAt: new Date(Date.now() - i * 1000),
     }));
-    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
 
     let error: any;
     try {
@@ -1379,7 +1381,9 @@ describe("unknown response review on the existing native thread", () => {
       contextJson: { progressMade: false },
       createdAt: new Date(Date.now() - i * 1000),
     }));
-    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<any[]>>()
+      .mockResolvedValue(turns);
 
     const claim = await f.authority.claimRoot({
       assessmentId: f.assessmentId,

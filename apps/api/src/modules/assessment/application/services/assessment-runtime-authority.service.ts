@@ -515,7 +515,10 @@ export class AssessmentRuntimeAuthority {
         !recoveredExecution
       ) {
         const consecutiveTurnsWithoutProgress =
-          await calculateConsecutiveTurnsWithoutProgress(tx, input.assessmentId);
+          await calculateConsecutiveTurnsWithoutProgress(
+            tx,
+            input.assessmentId,
+          );
         if (consecutiveTurnsWithoutProgress >= configuredNoProgressLimit) {
           throw problemException(
             ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
@@ -643,7 +646,8 @@ export class AssessmentRuntimeAuthority {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
           contextJson: {
             ...((previousTurn?.contextJson as Prisma.JsonObject) ?? {}),
-            ...(typeof (previousTurn?.contextJson as any)?.startCaseRevision !== "number"
+            ...(typeof (previousTurn?.contextJson as any)?.startCaseRevision !==
+            "number"
               ? { startCaseRevision: caseRow?.caseRevision ?? 0 }
               : {}),
             ...(persistedLanguage
