@@ -63,6 +63,7 @@ export const assessmentCumulativeUsageSchema = z.strictObject({
   outputTokens: z.number().int().nonnegative(),
   totalTokens: z.number().int().nonnegative(),
   consecutiveTurnsWithoutProgress: z.number().int().nonnegative(),
+  unmeasuredModelCalls: z.number().int().nonnegative().optional(),
 });
 export type AssessmentCumulativeUsage = z.infer<
   typeof assessmentCumulativeUsageSchema

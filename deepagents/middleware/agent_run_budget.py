@@ -33,6 +33,7 @@ from middleware.failure_policy import AgentRunBudgetExceeded
 from middleware.usage_metering import (
     estimate_messages_input_tokens,
     estimate_request_metrics,
+    output_token_limit,
     provider_context_limit_tokens,
 )
 from orchestration.agent_stream import publish_agent_stream_event
@@ -101,6 +102,7 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         self.durable_usage = durable_usage
         self.workload_limits = workload_limits
         self.persist_callback = persist_callback
+        self._pending_reservations: dict[int, tuple[int, int]] = {}
         if durable_usage is not None:
             self.quota_calls = getattr(durable_usage, "model_calls", 0)
             self.quota_input_tokens = getattr(durable_usage, "input_tokens", 0)
@@ -248,9 +250,15 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         conservative_output = sum(out) if out else max(10, estimated_output)
 
         with self.quota_lock:
+            model = getattr(request, "model", None)
+            reserved_in, reserved_out = self._pending_reservations.pop(id(request), (None, 0))
+            if reserved_in is None:
+                reserved_in = getattr(request, "_lcsp_reserved_input", None)
+            if reserved_in is None:
+                reserved_in = estimate_request_metrics(request, model).estimated_input_tokens
             if reported:
-                self.quota_input_tokens += sum(reported) - estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
-            self.quota_output_tokens += conservative_output
+                self.quota_input_tokens += sum(reported) - reserved_in
+            self.quota_output_tokens += conservative_output - reserved_out
             self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
             if self.durable_usage is not None:
                 self.durable_usage.input_tokens = self.quota_input_tokens
@@ -266,11 +274,11 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
 
         Business rules:
-        - Shared-quota mode reserves call/input estimates atomically and neither edits context nor withdraws tools.
+        - Shared-quota mode reserves call/input estimates and route output bounds atomically before dispatch; neither edits context nor withdraws tools.
         - Standard mode stops at the hard call limit, trims older tool results near context capacity, and restricts late calls to configured finalization tools.
 
         Execution flow:
-        1. In quota mode reject an exceeded configured threshold or reserve the next request.
+        1. In quota mode reject an exceeded configured threshold or reserve the next request including route output exposure.
         2. Otherwise enforce the hard call count and trim old tool results when context warrants it.
         3. Return the original/trimmed request or a finalization-only request with an unresolved-work instruction.
 
@@ -281,7 +289,9 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         - Updates in-memory quota reservations and emits budget/trim telemetry; may return a modified message/tool request without calling the provider.
         """
         if self.run_quotas is not None:
-            tokens = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
+            model = getattr(request, "model", None)
+            tokens = estimate_request_metrics(request, model).estimated_input_tokens
+            out_cap = output_token_limit(model)
             with self.quota_lock:
                 cl = self.run_quotas.get("model_calls")
                 tl = self.run_quotas.get("input_tokens")
@@ -295,7 +305,7 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                             (tl is not None and self.quota_input_tokens + tokens > tl)
                             or (
                                 totl is not None
-                                and self.quota_input_tokens + self.quota_output_tokens + tokens > totl
+                                and self.quota_input_tokens + self.quota_output_tokens + tokens + out_cap > totl
                             )
                         )
                         else None
@@ -304,8 +314,10 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
                 if reason is not None:
                     publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={"required_state": "PAUSED", "model_calls": self.quota_calls, "input_tokens": self.quota_input_tokens, "output_tokens": self.quota_output_tokens, "limits": self.run_quotas, "reason": reason})
                     err = AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable", reason=reason); err.reason = reason; raise err
+                self._pending_reservations[id(request)] = (tokens, out_cap)
                 self.quota_calls += 1
                 self.quota_input_tokens += tokens
+                self.quota_output_tokens += out_cap
                 self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
                 if self.durable_usage is not None:
                     self.durable_usage.model_calls = self.quota_calls
