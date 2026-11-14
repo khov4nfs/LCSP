@@ -35,7 +35,7 @@ for _dotenv_key in _SESSION_DOTENV_KEYS:
 _DEFAULT_MODEL_ROUTES_YAML = """\
 version: 1
 routes:
-  primary: {provider: apx, model: model-alpha}
+  primary: {provider: apx, model: model-alpha, options: {context_window_tokens: 1000000, max_output_tokens: 65536}}
 roles:
   default: primary
 """
