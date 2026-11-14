@@ -106,6 +106,11 @@ class FakeClient:
             "facts": [],
             "evidence": [],
             "openHumanRequestIds": self.open_requests,
+            "budgetState": {
+                "status": "ADMITTED",
+                "limits": {"maxModelCalls": 100, "maxTotalTokens": 2000000},
+                "cumulativeUsage": {"modelCalls": 0, "totalTokens": 0, "consecutiveTurnsWithoutProgress": 0},
+            },
             **PINS,
         }
 
@@ -178,6 +183,18 @@ class FakeClient:
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("human", body))
         return {"requestId": "99999999-9999-4999-8999-999999999999", "caseRevision": self.case_revision, "requestRevision": 0}
+
+    def post_human_requests_batch(self, body: dict[str, Any]) -> dict[str, Any]:
+        self.calls.append(("human_batch", body))
+        requests = []
+        for i, req in enumerate(body.get("requests", [])):
+            req_id = req.get("sourceRequestId") or f"99999999-9999-4999-8999-{i:012d}"
+            requests.append({
+                "requestId": req_id,
+                "caseRevision": self.case_revision,
+                "requestRevision": 0,
+            })
+        return {"requests": requests}
 
     def post_activity(self, body: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("activity", body))
@@ -753,6 +770,194 @@ def test_root_human_tool_uses_native_interrupt_and_replays_the_same_request(tmp_
     calls = [body for kind, body in client.calls if kind == "human"]
     assert len(calls) == 2 and calls[0]["idempotencyKey"] == calls[1]["idempotencyKey"]
     assert run.case_revision == 1 and not agent.get_state(config).next
+
+
+def test_root_human_batch_tool_atomic_interrupt_and_replay(tmp_path) -> None:
+    from langgraph.types import Command
+
+    class BatchHumanClient(FakeClient):
+        def post_human_requests_batch(self, body):
+            result = super().post_human_requests_batch(body)
+            if self.case_revision == 0:
+                self.open_requests = [r["requestId"] for r in result["requests"]]
+            return result
+
+    client = BatchHumanClient()
+    run = _run(tmp_path, client)
+    saver = InMemorySaver()
+
+    batch_requests = [
+        {
+            "assessment_rule_id": "ER-1",
+            "criterion_ids": ["C-1"],
+            "question": "Who owns the operational policy?",
+            "unresolved_fact": "Operational policy owner",
+            "decision_impact": ["Determines responsibility"],
+            "resolution_attempts": ["Reviewed the repository documentation"],
+        },
+        {
+            "assessment_rule_id": "ER-1",
+            "criterion_ids": ["C-1"],
+            "question": "What is the retention duration?",
+            "unresolved_fact": "Data retention duration",
+            "decision_impact": ["Determines compliance with retention limits"],
+            "resolution_attempts": ["Searched codebase for retention constants"],
+            "dependencies": [
+                {"assessment_rule_id": "ER-1", "criterion_ids": ["C-1"]}
+            ],
+        },
+    ]
+
+    model = RootScriptedModel(responses=[
+        _call("open_human_requests_batch", {"requests": batch_requests}, "batch-call"),
+        *complete_root_messages(),
+    ])
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
+    config = {"configurable": {"thread_id": THREAD}}
+    result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
+
+    # Verifies atomic native interrupt containing all open request IDs
+    interrupt_reqs = result["__interrupt__"][0].value["requestIds"]
+    assert set(interrupt_reqs) == set(client.open_requests)
+    assert len(interrupt_reqs) == 2
+
+    # Resume once resolved
+    client.open_requests = []
+    client.case_revision = 1
+    agent.invoke(Command(resume={result["__interrupt__"][0].id: {"resolved": True}}), config)
+
+    # Verifies crash/replay idempotency: exact same idempotency keys generated
+    batch_calls = [body for kind, body in client.calls if kind == "human_batch"]
+    assert len(batch_calls) == 2
+    assert [r["idempotencyKey"] for r in batch_calls[0]["requests"]] == [r["idempotencyKey"] for r in batch_calls[1]["requests"]]
+    assert run.case_revision == 1 and not agent.get_state(config).next
+
+
+def test_root_human_batch_tool_validates_anchors_and_bounds(tmp_path) -> None:
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+
+    # Empty batch rejected
+    empty_res = json.loads(tools["open_human_requests_batch"].invoke({"requests": []}))
+    assert empty_res["code"] in {"INVALID_TOOL_ARGUMENTS", "HUMAN_REQUEST_INVALID"}
+
+    # Unanchored item in batch rejected before any API call
+    bad_batch = [
+        {
+            "assessment_rule_id": "ER-1",
+            "question": "Unanchored question?",
+            "unresolved_fact": "Unanchored fact",
+            "decision_impact": ["None"],
+            "resolution_attempts": ["None"],
+        }
+    ]
+    unanchored_res = json.loads(tools["open_human_requests_batch"].invoke({"requests": bad_batch}))
+    assert unanchored_res["code"] == "HUMAN_REQUEST_NOT_ANCHORED"
+    assert not any(kind == "human_batch" for kind, _ in client.calls)
+
+
+def test_root_human_batch_tool_stale_revision_conflict(tmp_path) -> None:
+    class StaleClient(FakeClient):
+        def post_human_requests_batch(self, body):
+            raise AssessmentApiError(409, "CASE_REVISION_STALE", {"currentCaseRevision": 5})
+
+    client = StaleClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+
+    res = json.loads(tools["open_human_requests_batch"].invoke({
+        "requests": [
+            {
+                "assessment_rule_id": "ER-1",
+                "criterion_ids": ["C-1"],
+                "question": "Who owns the policy?",
+                "unresolved_fact": "Policy owner",
+                "decision_impact": ["Owner"],
+                "resolution_attempts": ["Searched docs"],
+            }
+        ]
+    }))
+    assert res["ok"] is False
+    assert res["code"] == "CASE_REVISION_STALE"
+
+
+def test_root_human_batch_tool_unknown_response(tmp_path) -> None:
+    request_id_1 = "99999999-9999-4999-8999-000000000000"
+    request_id_2 = "99999999-9999-4999-8999-000000000001"
+
+    class UnknownBatchClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.requests = [
+                {
+                    "requestId": request_id_1,
+                    "requestRevision": 0,
+                    "status": "OPEN",
+                    "assessmentRuleId": "ER-1",
+                    "resolvedFactId": None,
+                    "checkpointId": "chk-1",
+                    "answers": [{"doesNotKnow": True, "answer": None, "checkpointId": "chk-1", "requestRevision": 0}],
+                },
+                {
+                    "requestId": request_id_2,
+                    "requestRevision": 0,
+                    "status": "RESOLVED",
+                    "assessmentRuleId": "ER-1",
+                    "resolvedFactId": "fact-2",
+                    "checkpointId": "chk-1",
+                    "answers": [{"doesNotKnow": False, "answer": "7 days", "checkpointId": "chk-1", "requestRevision": 0}],
+                },
+            ]
+            self.open_requests = []
+
+        def post_human_requests_batch(self, body):
+            super().post_human_requests_batch(body)
+            return {
+                "requests": [
+                    {"requestId": request_id_1, "caseRevision": self.case_revision, "requestRevision": 0},
+                    {"requestId": request_id_2, "caseRevision": self.case_revision, "requestRevision": 0},
+                ]
+            }
+
+        def context(self):
+            return {**super().context(), "humanRequests": self.requests}
+
+    client = UnknownBatchClient()
+    run = _run(tmp_path, client)
+    run.human_answer_review_checkpoint_id = "chk-1"
+    run.human_answer_review_request_ids = {request_id_1}
+
+    tools = _tools(run)
+    res = json.loads(tools["open_human_requests_batch"].invoke({
+        "requests": [
+            {
+                "assessment_rule_id": "ER-1",
+                "criterion_ids": ["C-1"],
+                "question": "Question 1?",
+                "unresolved_fact": "Fact 1",
+                "decision_impact": ["Impact 1"],
+                "resolution_attempts": ["Attempt 1"],
+                "source_request_id": request_id_1,
+            },
+            {
+                "assessment_rule_id": "ER-1",
+                "criterion_ids": ["C-1"],
+                "question": "Question 2?",
+                "unresolved_fact": "Fact 2",
+                "decision_impact": ["Impact 2"],
+                "resolution_attempts": ["Attempt 2"],
+                "source_request_id": request_id_2,
+            },
+        ]
+    }))
+
+    assert res["ok"] is True
+    assert res["allResolved"] is True
+    req1 = next(r for r in res["requests"] if r["requestId"] == request_id_1)
+    req2 = next(r for r in res["requests"] if r["requestId"] == request_id_2)
+    assert req1["resolved"] is True
+    assert req2["resolved"] is True
 
 
 @pytest.mark.parametrize("rejected", [False, True])
