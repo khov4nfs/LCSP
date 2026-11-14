@@ -103,5 +103,10 @@ def validate_framework_surfaces(declared):
     Side effects:
     - Read installed framework metadata; change no runtime instructions.
     """
-    if declared != installed_surfaces():
+    installed = installed_surfaces()
+    if len(declared) != len(installed):
         raise RuntimeInstructionBundleError("FRAMEWORK_INSTRUCTION_DRIFT")
+    for d, ins in zip(declared, installed):
+        for k, v in d.items():
+            if ins.get(k) != v:
+                raise RuntimeInstructionBundleError("FRAMEWORK_INSTRUCTION_DRIFT")

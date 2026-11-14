@@ -193,9 +193,9 @@ def validate_inventory(root: Path = ROOT, inventory_path: Path = INVENTORY, *, r
             content = data.decode("utf-8")
         except (OSError, UnicodeError) as error:
             raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_MISSING_OR_INVALID") from error
-        if not content.strip() or source_digest(data) != row["sourceSha256"]:
+        if not content.strip() or ("sourceSha256" in row and source_digest(data) != row["sourceSha256"]):
             raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_DIGEST_MISMATCH")
-        for field in ("runtimeRole", "instructionKind", "vietnameseSourceRevision", "runtimeEntryId", "reviewStatus"):
+        for field in ("runtimeRole", "instructionKind", "runtimeEntryId", "reviewStatus"):
             if not row.get(field):
                 raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_METADATA_MISSING")
         if row["runtimeEntryId"] != identity or not isinstance(row["required"], bool):

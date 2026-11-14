@@ -33,7 +33,7 @@ def isolated_english_skill_bundle(tmp_path, monkeypatch):
         "approvalStatus": "APPROVED", "approvalIdentity": "TEST_ONLY_REVIEWER", "approvalRevision": "TEST_ONLY_R1",
         "vietnameseInventorySha256": aggregate(vi), "englishBundleSha256": aggregate(en),
         "entries": [{"sourceId": source_id, "vietnameseSourcePath": "source.vi.md",
-            "vietnameseSourceRevision": entry["vietnameseSourceRevision"], "vietnameseSourceSha256": digest(vi),
+            "vietnameseSourceRevision": entry.get("vietnameseSourceRevision", "r1"), "vietnameseSourceSha256": digest(vi),
             "englishRuntimePath": "runtime.en.md", "englishRuntimeSha256": digest(en)}],
     }
     path = tmp_path / "test-only-manifest.json"

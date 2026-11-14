@@ -867,6 +867,7 @@ function dockerWorkerEnv() {
     "RBAC_PREFLIGHT_TIMEOUT_SECONDS",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
     "GEMINI_API_KEY",
     "GOOGLE_API_KEY",
     // Every provider key list is forwarded whole: the worker rotates across the

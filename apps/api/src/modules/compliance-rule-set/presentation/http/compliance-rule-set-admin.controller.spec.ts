@@ -30,10 +30,19 @@ import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
 import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
+import { PreparationSourceAnalysisReadService } from "../../infrastructure/persistence/preparation-source-analysis-read.service.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 
 describe("Admin preparation HTTP authorization and command boundary", () => {
   let app: INestApplication<Server>;
+  const listSourceUnits = jest.fn(
+    (runId: string, request: unknown, correlationId: string) => {
+      void runId;
+      void request;
+      void correlationId;
+      return Promise.resolve({ units: [] as unknown[] });
+    },
+  );
   const execute = jest.fn<CommandBus["execute"]>().mockResolvedValue({
     preparationRunId: "31e042e8-6b91-4bfd-8853-108bb4436efd",
     legalSourceVersionId: "5ae8f595-1ae6-44a4-b7c1-ef9d4da37598",
@@ -85,6 +94,10 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
             activate: jest.fn(),
           },
         },
+        {
+          provide: PreparationSourceAnalysisReadService,
+          useValue: { list: listSourceUnits },
+        },
       ],
     })
       .overrideGuard(RbacGuard)
@@ -95,6 +108,7 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
   });
   beforeEach(() => {
     execute.mockClear();
+    listSourceUnits.mockClear();
   });
   afterAll(async () => {
     await app.close();
@@ -130,6 +144,39 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
       .post("/admin/compliance-rule-sets/prepare")
       .expect(401);
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("serves the pinned source-unit read to Admin and rejects non-Admin access", async () => {
+    const runId = "31e042e8-6b91-4bfd-8853-108bb4436efd";
+    const response = await supertest(app.getHttpServer())
+      .get(
+        `/admin/compliance-rule-sets/preparations/${runId}/source-units?inventoryRevision=3&limit=20`,
+      )
+      .set("Authorization", "Bearer admin")
+      .expect(200);
+    expect(response.body).toMatchObject({ ok: true, data: { units: [] } });
+    expect(listSourceUnits).toHaveBeenCalledWith(
+      runId,
+      expect.objectContaining({ inventoryRevision: 3, limit: 20 }),
+      expect.any(String),
+    );
+
+    await supertest(app.getHttpServer())
+      .get(
+        `/admin/compliance-rule-sets/preparations/${runId}/source-units?inventoryRevision=3`,
+      )
+      .set("Authorization", "Bearer customer")
+      .expect(403);
+  });
+
+  it("rejects invalid Source Analysis query values", async () => {
+    await supertest(app.getHttpServer())
+      .get(
+        "/admin/compliance-rule-sets/preparations/31e042e8-6b91-4bfd-8853-108bb4436efd/source-units?inventoryRevision=0&limit=101",
+      )
+      .set("Authorization", "Bearer admin")
+      .expect(400);
+    expect(listSourceUnits).not.toHaveBeenCalled();
   });
 
   it("ADMIN resumes the same preparation through the canonical envelope", async () => {
