@@ -1,0 +1,301 @@
+{
+  "bundleSchemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
+  "approvalStatus": "PENDING",
+  "entries": [
+    {
+      "sourceId": "assessment-root.continuation",
+      "vietnameseSourcePath": "instructions/vi/assessment-continuation.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-root.continuation.txt"
+    },
+    {
+      "sourceId": "assessment-root.resume",
+      "vietnameseSourcePath": "instructions/vi/assessment-resume.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-root.resume.txt"
+    },
+    {
+      "sourceId": "assessment-root.system",
+      "vietnameseSourcePath": "assessment_root/instructions.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-root.system.txt"
+    },
+    {
+      "sourceId": "assessment-tool.accept_case_fact.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/accept_case_fact.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.accept_case_fact.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.cite_repository_source.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/cite_repository_source.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.cite_repository_source.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.get_assessment_context.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_assessment_context.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_assessment_context.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.get_assessment_rule.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_assessment_rule.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_assessment_rule.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.get_pinned_rule_set.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_pinned_rule_set.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_pinned_rule_set.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.get_repository_architecture.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_repository_architecture.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_repository_architecture.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.get_rule_decision.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/get_rule_decision.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.get_rule_decision.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.list_assessment_skills.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/list_assessment_skills.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.list_assessment_skills.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.load_assessment_skill.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/load_assessment_skill.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.load_assessment_skill.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.open_human_request.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/open_human_request.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.open_human_request.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.read_legal_source.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/read_legal_source.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.read_legal_source.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.record_search_coverage.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/record_search_coverage.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.record_search_coverage.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.report_human_fact_unresolvable.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/report_human_fact_unresolvable.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.report_human_fact_unresolvable.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.request_finalization.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/request_finalization.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.request_finalization.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.search_code_graph.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/search_code_graph.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.search_code_graph.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.search_code_text.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/search_code_text.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.search_code_text.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.search_legal_source.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/search_legal_source.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.search_legal_source.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.start_rule_investigation.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/start_rule_investigation.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.start_rule_investigation.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.submit_final_report.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/submit_final_report.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.submit_final_report.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.submit_rule_decision.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/submit_rule_decision.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.submit_rule_decision.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tool.trace_call_path.guidance",
+      "vietnameseSourcePath": "instructions/vi/assessment-tools/trace_call_path.md",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tool.trace_call_path.guidance.txt"
+    },
+    {
+      "sourceId": "assessment-tools.descriptions",
+      "vietnameseSourcePath": "instructions/vi/root-tool-descriptions.json",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tools.descriptions.txt"
+    },
+    {
+      "sourceId": "assessment-tools.upstream",
+      "vietnameseSourcePath": "instructions/vi/upstream-assessment-tools.json",
+      "englishRuntimePath": "instructions/candidates/r1/assessment-tools.upstream.txt"
+    },
+    {
+      "sourceId": "claim-author.system",
+      "vietnameseSourcePath": "instructions/vi/claim-author.md",
+      "englishRuntimePath": "instructions/candidates/r1/claim-author.system.txt"
+    },
+    {
+      "sourceId": "framework.file-deletion",
+      "vietnameseSourcePath": "instructions/vi/framework-file-deletion.md",
+      "englishRuntimePath": "instructions/candidates/r1/framework.file-deletion.txt"
+    },
+    {
+      "sourceId": "framework.injected-policy",
+      "vietnameseSourcePath": "instructions/vi/framework-guidance.md",
+      "englishRuntimePath": "instructions/candidates/r1/framework.injected-policy.txt"
+    },
+    {
+      "sourceId": "preparation-tools.descriptions",
+      "vietnameseSourcePath": "instructions/vi/preparation-tool-guidance.json",
+      "englishRuntimePath": "instructions/candidates/r1/preparation-tools.descriptions.txt"
+    },
+    {
+      "sourceId": "preparation.authoring",
+      "vietnameseSourcePath": "instructions/vi/preparation-authoring.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.authoring.txt"
+    },
+    {
+      "sourceId": "preparation.authoring-state",
+      "vietnameseSourcePath": "instructions/vi/authoring-state-guidance.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.authoring-state.txt"
+    },
+    {
+      "sourceId": "preparation.common",
+      "vietnameseSourcePath": "instructions/vi/preparation-common.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.common.txt"
+    },
+    {
+      "sourceId": "preparation.continuation",
+      "vietnameseSourcePath": "instructions/vi/preparation-continuation.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.continuation.txt"
+    },
+    {
+      "sourceId": "preparation.development-overlay",
+      "vietnameseSourcePath": "instructions/vi/preparation-development.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.development-overlay.txt"
+    },
+    {
+      "sourceId": "preparation.direct",
+      "vietnameseSourcePath": "instructions/vi/preparation-direct.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.direct.txt"
+    },
+    {
+      "sourceId": "preparation.discovery",
+      "vietnameseSourcePath": "instructions/vi/preparation-discovery.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.discovery.txt"
+    },
+    {
+      "sourceId": "preparation.history",
+      "vietnameseSourcePath": "instructions/vi/preparation-history.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.history.txt"
+    },
+    {
+      "sourceId": "preparation.history-counts",
+      "vietnameseSourcePath": "instructions/vi/preparation-history-counts.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.history-counts.txt"
+    },
+    {
+      "sourceId": "preparation.materialized-source-guidance",
+      "vietnameseSourcePath": "instructions/vi/materialized-source-guidance.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.materialized-source-guidance.txt"
+    },
+    {
+      "sourceId": "preparation.observation-errors",
+      "vietnameseSourcePath": "instructions/vi/observation-error-guidance.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.observation-errors.txt"
+    },
+    {
+      "sourceId": "preparation.presentation",
+      "vietnameseSourcePath": "instructions/vi/preparation-presentation.md",
+      "englishRuntimePath": "instructions/candidates/r1/preparation.presentation.txt"
+    },
+    {
+      "sourceId": "repository-researcher.system",
+      "vietnameseSourcePath": "assessment_root/researcher.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/repository-researcher.system.txt"
+    },
+    {
+      "sourceId": "runtime.budget-finalization",
+      "vietnameseSourcePath": "instructions/vi/budget-finalization.json",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.budget-finalization.txt"
+    },
+    {
+      "sourceId": "runtime.context-identifiers",
+      "vietnameseSourcePath": "instructions/vi/runtime-context.md",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.context-identifiers.txt"
+    },
+    {
+      "sourceId": "runtime.response-language",
+      "vietnameseSourcePath": "instructions/vi/response-language.md",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.response-language.txt"
+    },
+    {
+      "sourceId": "runtime.response-transform",
+      "vietnameseSourcePath": "instructions/vi/response-transform.md",
+      "englishRuntimePath": "instructions/candidates/r2/runtime.response-transform.txt"
+    },
+    {
+      "sourceId": "runtime.skill-catalogs",
+      "vietnameseSourcePath": "instructions/vi/skill-catalogs.json",
+      "englishRuntimePath": "instructions/candidates/r1/runtime.skill-catalogs.txt"
+    },
+    {
+      "sourceId": "runtime.structured-transform",
+      "vietnameseSourcePath": "instructions/vi/structured-transform.md",
+      "englishRuntimePath": "instructions/candidates/r2/runtime.structured-transform.txt"
+    },
+    {
+      "sourceId": "skill.assessment-automated-outcomes",
+      "vietnameseSourcePath": "skills/assessment-automated-outcomes/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-automated-outcomes.txt"
+    },
+    {
+      "sourceId": "skill.assessment-controls-and-claims",
+      "vietnameseSourcePath": "skills/assessment-controls-and-claims/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-controls-and-claims.txt"
+    },
+    {
+      "sourceId": "skill.assessment-data-lifecycle",
+      "vietnameseSourcePath": "skills/assessment-data-lifecycle/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-data-lifecycle.txt"
+    },
+    {
+      "sourceId": "skill.assessment-model-integrity",
+      "vietnameseSourcePath": "skills/assessment-model-integrity/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-model-integrity.txt"
+    },
+    {
+      "sourceId": "skill.assessment-system-boundaries",
+      "vietnameseSourcePath": "skills/assessment-system-boundaries/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.assessment-system-boundaries.txt"
+    },
+    {
+      "sourceId": "skill.rule-preparation-actor-stage",
+      "vietnameseSourcePath": "skills/rule-preparation-actor-stage/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-actor-stage.txt"
+    },
+    {
+      "sourceId": "skill.rule-preparation-material-context",
+      "vietnameseSourcePath": "skills/rule-preparation-material-context/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-material-context.txt"
+    },
+    {
+      "sourceId": "skill.rule-preparation-mixed-claims",
+      "vietnameseSourcePath": "skills/rule-preparation-mixed-claims/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-mixed-claims.txt"
+    },
+    {
+      "sourceId": "skill.rule-preparation-scope-quality",
+      "vietnameseSourcePath": "skills/rule-preparation-scope-quality/SKILL.vi.md",
+      "englishRuntimePath": "instructions/candidates/r1/skill.rule-preparation-scope-quality.txt"
+    },
+    {
+      "sourceId": "tools.schema-guidance",
+      "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
+      "englishRuntimePath": "instructions/candidates/r2/tools.schema-guidance.txt"
+    }
+  ]
+}

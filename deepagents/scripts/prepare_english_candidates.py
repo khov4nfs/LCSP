@@ -125,10 +125,10 @@ def main():
         if destination.exists() and destination.read_bytes() != encoded:
             raise ValueError("Immutable candidate exists; create a new translation revision: " + identity)
         destination.write_bytes(encoded)
-        row.update(englishCandidatePath=destination.relative_to(ROOT).as_posix(), englishCandidateSha256=sha256(encoded).hexdigest(),
-                   candidateOriginSha256=row["sourceSha256"], translationProvenance={"translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING", "translationRevision": "r1"})
+        row.update(englishCandidatePath=destination.relative_to(ROOT).as_posix(),
+                   translationProvenance={"translationRevision": "r1"})
     inventory_path.write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
-    compile_candidate(ROOT, inventory_path, ROOT / "instructions/candidates/r1/manifest.pending.json")
+    compile_candidate(ROOT, inventory_path, ROOT / "instructions/candidates/r1/manifest.json")
 
 
 if __name__ == "__main__": main()
