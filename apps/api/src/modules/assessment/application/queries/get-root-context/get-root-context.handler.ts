@@ -7,7 +7,9 @@ import {
   type AssessmentRootContext,
   WORKLOAD_SCOPES,
   evaluateBudgetAdmission,
+  ASSESSMENT_ROOT_BOUNDARY,
 } from "@lcsp/contracts/assessment-domain";
+import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
 import { HttpStatus } from "@nestjs/common";
@@ -21,6 +23,7 @@ import {
   humanRequestScopeWhere,
 } from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
+import { calculateConsecutiveTurnsWithoutProgress } from "../../services/assessment-progress-tracker.js";
 import { GetRootContextQuery } from "./get-root-context.query.js";
 
 function extractSavedLocale(data: unknown): string | undefined {
@@ -191,6 +194,23 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           })
         : null;
 
+      const consecutiveTurnsWithoutProgress =
+        await calculateConsecutiveTurnsWithoutProgress(tx, input.assessmentId);
+
+      const blockerRef =
+        run.blockerReference &&
+        typeof run.blockerReference === "object" &&
+        !Array.isArray(run.blockerReference)
+          ? (run.blockerReference as Record<string, unknown>)
+          : {};
+      const overrideNoProgress = blockerRef.overrideNoProgress === true;
+      const budgetExtended = blockerRef.budgetExtended === true;
+
+      const configuredNoProgressLimit =
+        Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT) > 0
+          ? Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT)
+          : 15;
+
       const limits = {
         maxModelCalls:
           Number(process.env.LCSP_ASSESSMENT_MAX_MODEL_CALLS) > 0
@@ -208,10 +228,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           Number(process.env.LCSP_ASSESSMENT_MAX_TOTAL_TOKENS) > 0
             ? Number(process.env.LCSP_ASSESSMENT_MAX_TOTAL_TOKENS)
             : 4_200_000,
-        noProgressLimit:
-          Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT) > 0
-            ? Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT)
-            : 15,
+        noProgressLimit: overrideNoProgress ? null : configuredNoProgressLimit,
       };
 
       const cumulativeUsage = {
@@ -219,10 +236,17 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         inputTokens: Number(usageAggregate?._sum?.inputTokens ?? 0),
         outputTokens: Number(usageAggregate?._sum?.outputTokens ?? 0),
         totalTokens: Number(usageAggregate?._sum?.totalTokens ?? 0),
-        consecutiveTurnsWithoutProgress: 0,
+        consecutiveTurnsWithoutProgress,
       };
 
-      const admission = evaluateBudgetAdmission(limits, cumulativeUsage);
+      let admission = evaluateBudgetAdmission(limits, cumulativeUsage);
+      if (budgetExtended && !admission.admitted) {
+        admission = {
+          admitted: true,
+          reason: null,
+          status: "ADMITTED",
+        };
+      }
 
       const budgetState = {
         workloadScope: WORKLOAD_SCOPES.ASSESSMENT_ROOT,

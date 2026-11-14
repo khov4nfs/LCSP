@@ -14,6 +14,7 @@ import {
   claimAssessmentRootExecutionRequestSchema,
   assessmentRootClaimSchema,
   ASSESSMENT_BUDGET_REASONS,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import {
@@ -33,7 +34,7 @@ function fixture(
   const ruleSetVersionId = randomUUID();
   const repositorySnapshotId = randomUUID();
   const repositoryCommit = "a".repeat(40);
-  const row = {
+  const row: Record<string, any> = {
     lifecycleState,
     lifecycleRevision: 3,
     blockerReason: null,
@@ -94,6 +95,7 @@ function fixture(
     assessmentRuntimeTurn: {
       findUnique: jest.fn<() => Promise<typeof turn>>().mockResolvedValue(turn),
       findFirst: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+      findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       upsert: jest.fn(
         ({
           update,
@@ -1336,5 +1338,54 @@ describe("unknown response review on the existing native thread", () => {
         },
       },
     });
+  });
+
+  it("denies claimRoot with NO_PROGRESS_LIMIT_REACHED when 15 consecutive turns lack progress and overrideNoProgress is not set", async () => {
+    const f = fixture(Lifecycle.ACTIVE, true);
+    f.row.executionState = Execution.QUEUED;
+    f.row.leaseToken = null;
+    f.row.leaseExpiresAt = null;
+    const turns = Array.from({ length: 15 }, (_, i) => ({
+      id: `turn-${i}`,
+      contextJson: { progressMade: false },
+      createdAt: new Date(Date.now() - i * 1000),
+    }));
+    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+
+    let error: any;
+    try {
+      await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+    } catch (err) {
+      error = err;
+    }
+    expect(error).toBeDefined();
+    expect(error.status).toBe(409);
+    expect(error.getResponse?.().problem?.code).toBe(
+      ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+    );
+  });
+
+  it("admits claimRoot when 15 consecutive turns lack progress but blockerReference specifies overrideNoProgress: true", async () => {
+    const f = fixture(Lifecycle.ACTIVE, true);
+    f.row.executionState = Execution.QUEUED;
+    f.row.leaseToken = null;
+    f.row.leaseExpiresAt = null;
+    f.row.blockerReference = { overrideNoProgress: true };
+    const turns = Array.from({ length: 15 }, (_, i) => ({
+      id: `turn-${i}`,
+      contextJson: { progressMade: false },
+      createdAt: new Date(Date.now() - i * 1000),
+    }));
+    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+    expect(claim).toBeDefined();
+    expect(claim.leaseToken).toBeDefined();
   });
 });

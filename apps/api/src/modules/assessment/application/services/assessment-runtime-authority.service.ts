@@ -28,6 +28,7 @@ import {
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { Prisma, OutboxStatus } from "@prisma/client";
+import { calculateConsecutiveTurnsWithoutProgress } from "./assessment-progress-tracker.js";
 
 function extractSavedLocale(data: unknown): string | undefined {
   if (typeof data === "string") {
@@ -309,6 +310,7 @@ export class AssessmentRuntimeAuthority {
               ruleSetVersionId: true,
               repositorySnapshotId: true,
               repositoryCommit: true,
+              caseRevision: true,
             },
           })
         : null;
@@ -493,6 +495,41 @@ export class AssessmentRuntimeAuthority {
           { status: HttpStatus.CONFLICT },
         );
       }
+      const blockerRef =
+        row.blockerReference &&
+        typeof row.blockerReference === "object" &&
+        !Array.isArray(row.blockerReference)
+          ? (row.blockerReference as Record<string, unknown>)
+          : {};
+      const overrideNoProgress = blockerRef.overrideNoProgress === true;
+      const configuredNoProgressLimit =
+        Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT) > 0
+          ? Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT)
+          : 15;
+      if (
+        !overrideNoProgress &&
+        !safePauseResume &&
+        !recoveringHumanInterrupt &&
+        !humanAnswerReview &&
+        !failedHumanAnswerReview &&
+        !recoveredExecution
+      ) {
+        const consecutiveTurnsWithoutProgress =
+          await calculateConsecutiveTurnsWithoutProgress(tx, input.assessmentId);
+        if (consecutiveTurnsWithoutProgress >= configuredNoProgressLimit) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+            input.correlationId,
+            {
+              status: HttpStatus.CONFLICT,
+              meta: {
+                consecutiveTurnsWithoutProgress,
+                noProgressLimit: configuredNoProgressLimit,
+              },
+            },
+          );
+        }
+      }
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
       await this.capacity.bindInTx(
@@ -577,6 +614,7 @@ export class AssessmentRuntimeAuthority {
           correlationId: input.correlationId,
           state: Controls.running,
           contextJson: {
+            startCaseRevision: caseRow?.caseRevision ?? 0,
             ...(persistedLanguage
               ? { responseLanguage: persistedLanguage }
               : {}),
@@ -605,6 +643,9 @@ export class AssessmentRuntimeAuthority {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
           contextJson: {
             ...((previousTurn?.contextJson as Prisma.JsonObject) ?? {}),
+            ...(typeof (previousTurn?.contextJson as any)?.startCaseRevision !== "number"
+              ? { startCaseRevision: caseRow?.caseRevision ?? 0 }
+              : {}),
             ...(persistedLanguage
               ? { responseLanguage: persistedLanguage }
               : {}),
@@ -1053,6 +1094,47 @@ export class AssessmentRuntimeAuthority {
           });
         }
       }
+      const turn = await tx.assessmentRuntimeTurn.findUnique({
+        where: { id: run.executionId },
+        select: { contextJson: true },
+      });
+      const previousCtx =
+        turn?.contextJson &&
+        typeof turn.contextJson === "object" &&
+        !Array.isArray(turn.contextJson)
+          ? (turn.contextJson as Record<string, unknown>)
+          : {};
+      const startCaseRevision =
+        typeof previousCtx.startCaseRevision === "number"
+          ? previousCtx.startCaseRevision
+          : null;
+      const caseRow = tx.assessmentCase
+        ? await tx.assessmentCase.findUnique({
+            where: { assessmentId: input.assessmentId },
+            select: { caseRevision: true },
+          })
+        : null;
+      const endCaseRevision = caseRow?.caseRevision ?? startCaseRevision ?? 0;
+      const domainEventsCount = tx.assessmentEvent
+        ? await tx.assessmentEvent.count({
+            where: {
+              assessmentId: input.assessmentId,
+              executionId: run.executionId,
+              eventType: {
+                in: [
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.EVIDENCE_ACCEPTED,
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.DECISION_ACCEPTED,
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.HUMAN_RESOLUTION_CHANGED,
+                  AGENTIC_ASSESSMENT_EVENT_TYPES.ARTIFACT_CHANGED,
+                ],
+              },
+            },
+          })
+        : 0;
+      const progressMade =
+        (startCaseRevision !== null && endCaseRevision > startCaseRevision) ||
+        domainEventsCount > 0;
+
       await tx.assessmentRuntimeTurn.update({
         where: { id: run.executionId },
         data: {
@@ -1066,6 +1148,12 @@ export class AssessmentRuntimeAuthority {
           ...(input.checkpointId
             ? { checkpointJson: { checkpointId: input.checkpointId } }
             : {}),
+          contextJson: {
+            ...previousCtx,
+            ...(startCaseRevision !== null ? { startCaseRevision } : {}),
+            endCaseRevision,
+            progressMade,
+          },
         },
       });
       if (input.toState === AGENT_EXECUTION_STATES.PAUSED) {
