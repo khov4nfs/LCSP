@@ -5,7 +5,6 @@ import {
   ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
-import { Prisma } from "@prisma/client";
 import {
   ASSESSMENT_RUNTIME_CONTROL_ACTIONS as Actions,
   ASSESSMENT_RUNTIME_CONTROL_PROBLEM_CODES as Problems,
