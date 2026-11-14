@@ -253,8 +253,10 @@ def main():
         scenarios['uncertainModelReplayRefused']='FAILED' if auto_replayed else 'PASS'
         assert not auto_replayed,'A running Root repeated an uncertain model step automatically after server crash'
         wait(lambda: not (directory/'fail-quiesce-once').exists(),'lost quiescence injection not reached',10)
+        wait(lambda: sum(s['releasedAt'] is None for s in slots() if s['assessmentId'] in [active,crash])==1,'lost quiescence did not settle to exactly one withheld slot',10)
         withheld=next(s for s in slots() if s['releasedAt'] is None and s['assessmentId'] in [active,crash])
-        assert replay(withheld['commandId'])==409,'Operator replay admitted work before physical release'
+        status=replay(withheld['commandId'])
+        assert status==409,f'Operator replay admitted work before physical release (status={status})'
         record('OPERATOR_REPLAY_REFUSED_BEFORE_QUIESCENCE',commandId=withheld['commandId'])
         (directory/'hold-capacity-reports').unlink()
         wait(lambda:complete('after-crash'),'queued independent Root did not progress after confirmed death',60)
