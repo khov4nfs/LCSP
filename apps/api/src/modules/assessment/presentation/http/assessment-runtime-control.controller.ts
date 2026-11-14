@@ -29,24 +29,27 @@ import {
 import { GetRuntimeControlQuery } from "../../application/queries/get-runtime-control/get-runtime-control.query.js";
 import { ControlAssessmentRuntimeCommand } from "../../application/commands/control-assessment-runtime/control-assessment-runtime.command.js";
 
-const idPipe = () =>
-  new ZodValidationPipe(
+function idPipe() {
+  return new ZodValidationPipe(
     claimAssessmentRootRequestSchema.shape.assessmentId,
     ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
     422,
   );
-const customerControlPipe = () =>
-  new ZodValidationPipe(
+}
+function customerControlPipe() {
+  return new ZodValidationPipe(
     customerRuntimeControlRequestSchema,
     ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
     422,
   );
-const adminExtensionPipe = () =>
-  new ZodValidationPipe(
+}
+function adminExtensionPipe() {
+  return new ZodValidationPipe(
     adminBudgetExtensionRequestSchema,
     ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
     422,
   );
+}
 
 @Controller("assessments/:assessmentId/runtime")
 @UseGuards(RbacGuard)
