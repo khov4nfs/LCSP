@@ -24,6 +24,8 @@ import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ROOT_CAPACITY_REASONS,
   type AssessmentRootClaim,
+  WORKLOAD_SCOPES,
+  resolveConfiguredBudgetLimits,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { HttpStatus, Injectable } from "@nestjs/common";
@@ -502,11 +504,12 @@ export class AssessmentRuntimeAuthority {
           ? (row.blockerReference as Record<string, unknown>)
           : {};
       const overrideNoProgress = blockerRef.overrideNoProgress === true;
-      const configuredNoProgressLimit =
-        Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT) > 0
-          ? Number(process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT)
-          : 15;
+      const configuredNoProgressLimit = resolveConfiguredBudgetLimits(
+        process.env,
+        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+      ).noProgressLimit;
       if (
+        configuredNoProgressLimit !== null &&
         !overrideNoProgress &&
         !safePauseResume &&
         !recoveringHumanInterrupt &&

@@ -5,6 +5,8 @@ import {
   assessmentCumulativeUsageSchema,
   assessmentBudgetStateSchema,
   evaluateBudgetAdmission,
+  parseConfiguredPositiveInt,
+  resolveConfiguredBudgetLimits,
   finishAssessmentRootRequestSchema,
   ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "../src/assessment-domain/index.ts";
@@ -145,6 +147,111 @@ describe("assessment budget kernel contracts", () => {
       ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED,
     );
     expect(result.status).toBe("NO_PROGRESS");
+  });
+
+  it("admits invocations when limits are unconstrained (all null) even for large usage", () => {
+    const limits = {
+      maxModelCalls: null,
+      maxInputTokens: null,
+      maxOutputTokens: null,
+      maxTotalTokens: null,
+      noProgressLimit: null,
+    };
+    const usage = {
+      modelCalls: 500,
+      inputTokens: 20_000_000,
+      outputTokens: 1_000_000,
+      totalTokens: 21_000_000,
+      consecutiveTurnsWithoutProgress: 50,
+    };
+    const result = evaluateBudgetAdmission(limits, usage);
+    expect(result.admitted).toBe(true);
+    expect(result.reason).toBeNull();
+    expect(result.status).toBe("ADMITTED");
+  });
+
+  describe("parseConfiguredPositiveInt", () => {
+    it("returns null for undefined, null, or empty string", () => {
+      expect(parseConfiguredPositiveInt("TEST_VAR", undefined)).toBeNull();
+      expect(parseConfiguredPositiveInt("TEST_VAR", null)).toBeNull();
+      expect(parseConfiguredPositiveInt("TEST_VAR", "")).toBeNull();
+      expect(parseConfiguredPositiveInt("TEST_VAR", "   ")).toBeNull();
+    });
+
+    it("parses valid positive integer strings", () => {
+      expect(parseConfiguredPositiveInt("TEST_VAR", "1")).toBe(1);
+      expect(parseConfiguredPositiveInt("TEST_VAR", " 42 ")).toBe(42);
+      expect(parseConfiguredPositiveInt("TEST_VAR", "1000000")).toBe(1_000_000);
+    });
+
+    it("throws error for malformed or non-positive values", () => {
+      expect(() => parseConfiguredPositiveInt("TEST_VAR", "0")).toThrow(
+        /expected a positive integer/,
+      );
+      expect(() => parseConfiguredPositiveInt("TEST_VAR", "-5")).toThrow(
+        /expected a positive integer/,
+      );
+      expect(() => parseConfiguredPositiveInt("TEST_VAR", "abc")).toThrow(
+        /expected a positive integer/,
+      );
+      expect(() => parseConfiguredPositiveInt("TEST_VAR", "1.5")).toThrow(
+        /expected a positive integer/,
+      );
+    });
+  });
+
+  describe("resolveConfiguredBudgetLimits", () => {
+    it("resolves all null limits when environment variables are unset", () => {
+      const rootLimits = resolveConfiguredBudgetLimits({}, WORKLOAD_SCOPES.ASSESSMENT_ROOT);
+      expect(rootLimits.maxModelCalls).toBeNull();
+      expect(rootLimits.maxInputTokens).toBeNull();
+      expect(rootLimits.maxOutputTokens).toBeNull();
+      expect(rootLimits.maxTotalTokens).toBeNull();
+      expect(rootLimits.noProgressLimit).toBeNull();
+
+      const rspLimits = resolveConfiguredBudgetLimits({}, WORKLOAD_SCOPES.RULE_SET_PREPARATION);
+      expect(rspLimits.maxModelCalls).toBeNull();
+      expect(rspLimits.maxInputTokens).toBeNull();
+      expect(rspLimits.maxOutputTokens).toBeNull();
+      expect(rspLimits.maxTotalTokens).toBeNull();
+      expect(rspLimits.noProgressLimit).toBeNull();
+    });
+
+    it("resolves configured environment variables for ASSESSMENT_ROOT", () => {
+      const limits = resolveConfiguredBudgetLimits(
+        {
+          LCSP_ASSESSMENT_MAX_MODEL_CALLS: "150",
+          LCSP_ASSESSMENT_MAX_INPUT_TOKENS: "5000000",
+          LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS: "250000",
+          LCSP_ASSESSMENT_MAX_TOTAL_TOKENS: "5250000",
+          LCSP_ASSESSMENT_NO_PROGRESS_LIMIT: "25",
+        },
+        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+      );
+      expect(limits.maxModelCalls).toBe(150);
+      expect(limits.maxInputTokens).toBe(5_000_000);
+      expect(limits.maxOutputTokens).toBe(250_000);
+      expect(limits.maxTotalTokens).toBe(5_250_000);
+      expect(limits.noProgressLimit).toBe(25);
+    });
+
+    it("applies overrideNoProgress option to clear noProgressLimit", () => {
+      const limits = resolveConfiguredBudgetLimits(
+        { LCSP_ASSESSMENT_NO_PROGRESS_LIMIT: "15" },
+        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+        { overrideNoProgress: true },
+      );
+      expect(limits.noProgressLimit).toBeNull();
+    });
+
+    it("throws error when environment variable is malformed", () => {
+      expect(() =>
+        resolveConfiguredBudgetLimits(
+          { LCSP_ASSESSMENT_MAX_MODEL_CALLS: "not_a_number" },
+          WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+        ),
+      ).toThrow(/Invalid configuration for LCSP_ASSESSMENT_MAX_MODEL_CALLS/);
+    });
   });
 
   it("validates finishAssessmentRootRequestSchema with reason for PAUSED state", () => {

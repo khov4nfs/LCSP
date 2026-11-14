@@ -24,20 +24,71 @@ def test_resolve_workload_limits_defaults(monkeypatch):
     monkeypatch.delenv("LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS", raising=False)
     monkeypatch.delenv("LCSP_ASSESSMENT_MAX_TOTAL_TOKENS", raising=False)
     monkeypatch.delenv("LCSP_ASSESSMENT_NO_PROGRESS_LIMIT", raising=False)
+    monkeypatch.delenv("LCSP_RSP_MAX_MODEL_CALLS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_MAX_INPUT_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_MAX_TOTAL_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_RSP_NO_PROGRESS_LIMIT", raising=False)
 
     root_limits = resolve_workload_limits(ASSESSMENT_ROOT_SCOPE)
-    assert root_limits.max_model_calls == 100
-    assert root_limits.max_input_tokens == 4_000_000
-    assert root_limits.max_output_tokens == 200_000
-    assert root_limits.max_total_tokens == 4_200_000
-    assert root_limits.no_progress_limit == 15
+    assert root_limits.max_model_calls is None
+    assert root_limits.max_input_tokens is None
+    assert root_limits.max_output_tokens is None
+    assert root_limits.max_total_tokens is None
+    assert root_limits.no_progress_limit is None
 
     rsp_limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
-    assert rsp_limits.max_model_calls == 1000
-    assert rsp_limits.max_input_tokens == 100_000_000
-    assert rsp_limits.max_output_tokens == 5_000_000
-    assert rsp_limits.max_total_tokens == 105_000_000
-    assert rsp_limits.no_progress_limit == 20
+    assert rsp_limits.max_model_calls is None
+    assert rsp_limits.max_input_tokens is None
+    assert rsp_limits.max_output_tokens is None
+    assert rsp_limits.max_total_tokens is None
+    assert rsp_limits.no_progress_limit is None
+
+
+def test_unconstrained_workload_admission_exceeds_historical_limits(monkeypatch):
+    monkeypatch.delenv("LCSP_ASSESSMENT_MAX_MODEL_CALLS", raising=False)
+    monkeypatch.delenv("LCSP_ASSESSMENT_MAX_INPUT_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_ASSESSMENT_MAX_TOTAL_TOKENS", raising=False)
+    monkeypatch.delenv("LCSP_ASSESSMENT_NO_PROGRESS_LIMIT", raising=False)
+
+    limits = resolve_workload_limits(ASSESSMENT_ROOT_SCOPE)
+    usage = WorkloadCumulativeUsage(
+        model_calls=150,
+        input_tokens=5_000_000,
+        output_tokens=300_000,
+        total_tokens=5_300_000,
+        consecutive_turns_without_progress=25,
+    )
+    admitted, reason = evaluate_workload_admission(limits, usage)
+    assert admitted is True
+    assert reason is None
+
+
+def test_malformed_configuration_fails_closed(monkeypatch):
+    monkeypatch.setenv("LCSP_ASSESSMENT_MAX_MODEL_CALLS", "invalid_number")
+    with pytest.raises(ValueError, match="Invalid configuration for LCSP_ASSESSMENT_MAX_MODEL_CALLS"):
+        resolve_workload_limits(ASSESSMENT_ROOT_SCOPE)
+
+    monkeypatch.setenv("LCSP_ASSESSMENT_MAX_MODEL_CALLS", "-5")
+    with pytest.raises(ValueError, match="Invalid configuration for LCSP_ASSESSMENT_MAX_MODEL_CALLS"):
+        resolve_workload_limits(ASSESSMENT_ROOT_SCOPE)
+
+    monkeypatch.delenv("LCSP_ASSESSMENT_MAX_MODEL_CALLS", raising=False)
+    monkeypatch.setenv("LCSP_RSP_MAX_INPUT_TOKENS", "0")
+    with pytest.raises(ValueError, match="Invalid configuration for LCSP_RSP_MAX_INPUT_TOKENS"):
+        resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
+
+
+def test_explicitly_configured_limits_enforce_boundaries(monkeypatch):
+    monkeypatch.setenv("LCSP_ASSESSMENT_MAX_MODEL_CALLS", "50")
+    limits = resolve_workload_limits(ASSESSMENT_ROOT_SCOPE)
+    assert limits.max_model_calls == 50
+
+    usage = WorkloadCumulativeUsage(model_calls=50)
+    admitted, reason = evaluate_workload_admission(limits, usage)
+    assert admitted is False
+    assert reason == CALL_LIMIT_EXCEEDED
 
 
 def test_evaluate_workload_admission():
@@ -330,11 +381,11 @@ def test_rule_set_preparation_quota_durability_and_defaults(monkeypatch):
 
     from middleware.agent_run_budget import AgentRunBudgetMiddleware
     limits = resolve_workload_limits(RULE_SET_PREPARATION_SCOPE)
-    assert limits.max_model_calls == 1000
-    assert limits.max_input_tokens == 100_000_000
-    assert limits.max_output_tokens == 5_000_000
-    assert limits.max_total_tokens == 105_000_000
-    assert limits.no_progress_limit == 20
+    assert limits.max_model_calls is None
+    assert limits.max_input_tokens is None
+    assert limits.max_output_tokens is None
+    assert limits.max_total_tokens is None
+    assert limits.no_progress_limit is None
 
     # Test configured overrides
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "25")

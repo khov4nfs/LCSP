@@ -141,3 +141,97 @@ export function evaluateBudgetAdmission(
     status: "ADMITTED",
   };
 }
+
+/**
+ * Business purpose: Parse and validate an optional positive integer budget limit from environment configuration.
+ *
+ * Business rules:
+ * - When the variable is undefined, null, or empty whitespace, return null (unconstrained cumulative limit).
+ * - When the variable is a valid string representation of a positive integer (e.g. "50"), return the parsed integer.
+ * - When the variable is non-empty but cannot be parsed as a strictly positive integer (e.g. "0", "-5", "abc", "1.5"), throw an error to fail closed.
+ *
+ * Execution flow:
+ * 1. Check if raw value is undefined or blank string. If so, return null.
+ * 2. Trim raw string and attempt strict integer parsing.
+ * 3. Validate that the parsed value is a safe positive integer and exact string roundtrip matches.
+ * 4. Return the parsed positive integer or throw Error on validation failure.
+ *
+ * Failure cases:
+ * - Throws Error if configured environment value is not a valid positive integer.
+ *
+ * Side effects:
+ * - Pure validation function without external state mutation.
+ */
+export function parseConfiguredPositiveInt(
+  envName: string,
+  raw: string | undefined | null,
+): number | null {
+  if (raw === undefined || raw === null || raw.trim() === "") {
+    return null;
+  }
+  const trimmed = raw.trim();
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed <= 0 || String(parsed) !== trimmed) {
+    throw new Error(
+      `Invalid configuration for ${envName}: expected a positive integer, got "${raw}"`,
+    );
+  }
+  return parsed;
+}
+
+/**
+ * Business purpose: Resolve authoritative budget limits for an assessment or preparation workload scope from environment variables.
+ *
+ * Business rules:
+ * - Default behavior is unconstrained (null) for all cumulative token and call dimensions when not explicitly configured.
+ * - Malformed configurations throw errors immediately to prevent silent permissive or restrictive execution.
+ * - An explicitly passed overrideNoProgress flag sets noProgressLimit to null.
+ *
+ * Execution flow:
+ * 1. Identify prefix based on workload scope (LCSP_RSP for RULE_SET_PREPARATION, LCSP_ASSESSMENT for ASSESSMENT_ROOT).
+ * 2. Parse optional positive integer limits for model calls, input tokens, output tokens, total tokens, and no-progress turns.
+ * 3. Apply overrideNoProgress if requested.
+ * 4. Return an AssessmentBudgetLimits object.
+ *
+ * Failure cases:
+ * - Throws Error if any present configuration variable fails positive integer validation.
+ *
+ * Side effects:
+ * - Pure configuration resolver; does not mutate environment or persist state.
+ */
+export function resolveConfiguredBudgetLimits(
+  env: Record<string, string | undefined>,
+  scope: WorkloadScope = WORKLOAD_SCOPES.ASSESSMENT_ROOT,
+  options?: { overrideNoProgress?: boolean },
+): AssessmentBudgetLimits {
+  const prefix =
+    scope === WORKLOAD_SCOPES.RULE_SET_PREPARATION
+      ? "LCSP_RSP"
+      : "LCSP_ASSESSMENT";
+  const noProgress = options?.overrideNoProgress
+    ? null
+    : parseConfiguredPositiveInt(
+        `${prefix}_NO_PROGRESS_LIMIT`,
+        env[`${prefix}_NO_PROGRESS_LIMIT`],
+      );
+
+  return {
+    maxModelCalls: parseConfiguredPositiveInt(
+      `${prefix}_MAX_MODEL_CALLS`,
+      env[`${prefix}_MAX_MODEL_CALLS`],
+    ),
+    maxInputTokens: parseConfiguredPositiveInt(
+      `${prefix}_MAX_INPUT_TOKENS`,
+      env[`${prefix}_MAX_INPUT_TOKENS`],
+    ),
+    maxOutputTokens: parseConfiguredPositiveInt(
+      `${prefix}_MAX_OUTPUT_TOKENS`,
+      env[`${prefix}_MAX_OUTPUT_TOKENS`],
+    ),
+    maxTotalTokens: parseConfiguredPositiveInt(
+      `${prefix}_MAX_TOTAL_TOKENS`,
+      env[`${prefix}_MAX_TOTAL_TOKENS`],
+    ),
+    noProgressLimit: noProgress,
+  };
+}

@@ -1344,41 +1344,51 @@ describe("unknown response review on the existing native thread", () => {
   });
 
   it("denies claimRoot with NO_PROGRESS_LIMIT_REACHED when 15 consecutive turns lack progress and overrideNoProgress is not set", async () => {
-    const f = fixture(Lifecycle.ACTIVE, true);
-    f.row.executionState = Execution.QUEUED;
-    f.row.leaseToken = null;
-    f.row.leaseExpiresAt = null;
-    const turns = Array.from({ length: 15 }, (_, i) => ({
-      id: `turn-${i}`,
-      contextJson: { progressMade: false },
-      createdAt: new Date(Date.now() - i * 1000),
-    }));
-    f.tx.assessmentRuntimeTurn.findMany = jest
-      .fn<() => Promise<typeof turns>>()
-      .mockResolvedValue(turns);
+    const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = "15";
+    try {
+      const f = fixture(Lifecycle.ACTIVE, true);
+      f.row.executionState = Execution.QUEUED;
+      f.row.leaseToken = null;
+      f.row.leaseExpiresAt = null;
+      const turns = Array.from({ length: 15 }, (_, i) => ({
+        id: `turn-${i}`,
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - i * 1000),
+      }));
+      f.tx.assessmentRuntimeTurn.findMany = jest
+        .fn<() => Promise<typeof turns>>()
+        .mockResolvedValue(turns);
 
-    let error:
-      | {
+      let error:
+        | {
+            getStatus?: () => number;
+            getResponse?: () => { problem?: { code?: string } };
+          }
+        | undefined;
+      try {
+        await f.authority.claimRoot({
+          assessmentId: f.assessmentId,
+          correlationId: randomUUID(),
+        });
+      } catch (err: unknown) {
+        error = err as {
           getStatus?: () => number;
           getResponse?: () => { problem?: { code?: string } };
-        }
-      | undefined;
-    try {
-      await f.authority.claimRoot({
-        assessmentId: f.assessmentId,
-        correlationId: randomUUID(),
-      });
-    } catch (err: unknown) {
-      error = err as {
-        getStatus?: () => number;
-        getResponse?: () => { problem?: { code?: string } };
-      };
+        };
+      }
+      expect(error).toBeDefined();
+      expect(error?.getStatus?.()).toBe(409);
+      expect(error?.getResponse?.()?.problem?.code).toBe(
+        ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+      );
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+      }
     }
-    expect(error).toBeDefined();
-    expect(error?.getStatus?.()).toBe(409);
-    expect(error?.getResponse?.()?.problem?.code).toBe(
-      ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
-    );
   });
 
   it("admits claimRoot when 15 consecutive turns lack progress but blockerReference specifies overrideNoProgress: true", async () => {
