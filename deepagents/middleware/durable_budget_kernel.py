@@ -97,13 +97,15 @@ def resolve_workload_limits(scope: str) -> WorkloadBudgetLimits:
 
     Business rules:
     - Assessment Root limits are drawn from LCSP_ASSESSMENT_MAX_* and LCSP_ASSESSMENT_NO_PROGRESS_LIMIT.
-    - Rule Set Preparation limits are drawn from LCSP_RSP_MAX_* and LCSP_RSP_NO_PROGRESS_LIMIT.
+    - Rule Set Preparation limits are drawn from LCSP_RSP_MAX_* (calls, input, total) and LCSP_RSP_NO_PROGRESS_LIMIT.
+    - Rule Set Preparation has no cumulative output-token quota; max_output_tokens is permanently None for RULE_SET_PREPARATION.
+    - Assessment Root preserves support for its explicitly configured LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS ceiling.
     - Unconfigured limits resolve to None (unconstrained cumulative quota), eliminating arbitrary default pauses.
     - Malformed configurations raise ValueError to prevent silent permissive or restrictive execution.
 
     Execution flow:
     1. Determine workload scope prefix (LCSP_RSP for RULE_SET_PREPARATION, LCSP_ASSESSMENT otherwise).
-    2. Read configured limits from environment with None fallback.
+    2. Read configured limits from environment with None fallback; max_output_tokens is permanently None for RULE_SET_PREPARATION.
     3. Return immutable WorkloadBudgetLimits.
 
     Failure cases:
@@ -116,7 +118,9 @@ def resolve_workload_limits(scope: str) -> WorkloadBudgetLimits:
     return WorkloadBudgetLimits(
         max_model_calls=_parse_positive_int(f"{prefix}_MAX_MODEL_CALLS", None),
         max_input_tokens=_parse_positive_int(f"{prefix}_MAX_INPUT_TOKENS", None),
-        max_output_tokens=_parse_positive_int(f"{prefix}_MAX_OUTPUT_TOKENS", None),
+        max_output_tokens=None
+        if scope == RULE_SET_PREPARATION_SCOPE
+        else _parse_positive_int("LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS", None),
         max_total_tokens=_parse_positive_int(f"{prefix}_MAX_TOTAL_TOKENS", None),
         no_progress_limit=_parse_positive_int(f"{prefix}_NO_PROGRESS_LIMIT", None),
     )
