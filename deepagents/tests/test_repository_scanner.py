@@ -237,3 +237,109 @@ def test_ensure_repository_profile_cache_reuse_and_invalidation(tmp_path: Path) 
     )
     assert profile3["commitSha"] == "e" * 40
 
+
+def test_missing_workspace_records_explicit_known_gap(tmp_path: Path) -> None:
+    non_existent = tmp_path / "does-not-exist"
+    scanner = RepositoryScanner(
+        non_existent,
+        repository_id="repo-missing-1",
+        commit_sha="f" * 40,
+    )
+    profile = scanner.scan()
+    assert profile["scannedFileCount"] == 0
+    assert len(profile["knownGaps"]) >= 1
+    gap = next((g for g in profile["knownGaps"] if g["reason"] == "WORKSPACE_NOT_FOUND"), None)
+    assert gap is not None
+    assert str(non_existent) in gap["detail"]
+
+    # When workspace path is a file, not a directory
+    file_path = tmp_path / "regular_file.txt"
+    file_path.write_text("hello", encoding="utf-8")
+    scanner_file = RepositoryScanner(
+        file_path,
+        repository_id="repo-file-1",
+        commit_sha="f" * 40,
+    )
+    file_profile = scanner_file.scan()
+    assert file_profile["scannedFileCount"] == 0
+    assert any(g["reason"] == "WORKSPACE_NOT_DIRECTORY" for g in file_profile["knownGaps"])
+
+
+def test_zero_file_scan_produces_valid_profile(tmp_path: Path) -> None:
+    empty_workspace = tmp_path / "empty_repo"
+    empty_workspace.mkdir(parents=True)
+    profile = scan_repository_workspace(
+        empty_workspace,
+        repository_id="repo-zero-1",
+        commit_sha="0" * 40,
+    )
+    assert profile["scannedFileCount"] == 0
+    assert profile["languages"] == []
+    assert profile["manifests"] == []
+    assert profile["knownGaps"] == []
+    assert profile["contentDigest"].startswith("sha256:")
+
+
+def test_ensure_repository_profile_executes_in_sandbox_when_supported(tmp_path: Path) -> None:
+    class SandboxExecutionBackend:
+        def __init__(self):
+            self.storage: dict[str, str] = {}
+            self.commands: list[str] = []
+
+        def read(self, path: str):
+            if path in self.storage:
+                return self.storage[path]
+            return SimpleNamespace(error="NOT_FOUND")
+
+        def write(self, path: str, content: str):
+            self.storage[path] = content
+            return SimpleNamespace(error=None)
+
+        def execute(self, cmd: str, timeout: int | None = None):
+            self.commands.append(cmd)
+            # Simulate running scanner inside sandbox returning a valid profile JSON
+            mock_profile = {
+                "repositoryId": "repo-sandbox-1",
+                "commitSha": "1" * 40,
+                "scannerVersion": SCANNER_VERSION,
+                "sourcePathPrefix": None,
+                "scannedFileCount": 3,
+                "languages": [{"language": "Python", "fileCount": 3, "estimatedLines": 100}],
+                "manifests": [],
+                "frameworks": [],
+                "buildSystems": [],
+                "ciSystems": [],
+                "containerization": [],
+                "candidateFacts": [],
+                "knownGaps": [],
+                "contentDigest": "sha256:mockdigest",
+            }
+            return SimpleNamespace(exit_code=0, output=json.dumps(mock_profile))
+
+    backend = SandboxExecutionBackend()
+    profile = ensure_repository_profile(
+        backend,
+        repository_id="repo-sandbox-1",
+        commit_sha="1" * 40,
+        source_path_prefix=None,
+        workspace_path="/workspace/repository",
+    )
+
+    assert len(backend.commands) == 1
+    assert "scan_repository_workspace" in backend.commands[0]
+    assert profile["scannedFileCount"] == 3
+    assert profile["contentDigest"] == "sha256:mockdigest"
+    assert "/workspace/runtime/repository_profile.json" in backend.storage
+
+    # Second call with same pins reuses cache without calling execute again
+    profile2 = ensure_repository_profile(
+        backend,
+        repository_id="repo-sandbox-1",
+        commit_sha="1" * 40,
+        source_path_prefix=None,
+        workspace_path="/workspace/repository",
+    )
+    assert len(backend.commands) == 1
+    assert profile2["contentDigest"] == profile["contentDigest"]
+
+
