@@ -43,6 +43,7 @@ describe("GetRootContextHandler locale authority", () => {
       latestTurnContext?: Record<string, unknown> | null;
       outboxPayload?: Record<string, unknown> | null;
       eventPayload?: Record<string, unknown> | null;
+      blockerReference?: Record<string, unknown> | null;
     } = {},
   ) {
     const executionId = options.executionId ?? randomUUID();
@@ -65,6 +66,7 @@ describe("GetRootContextHandler locale authority", () => {
         findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       assessmentRuntimeTurn: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
         findUnique: jest
           .fn<() => Promise<{ contextJson: any } | null>>()
           .mockResolvedValue(
@@ -96,6 +98,7 @@ describe("GetRootContextHandler locale authority", () => {
           ),
       },
       assessmentEvent: {
+        count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
         findFirst: jest
           .fn<() => Promise<{ payload: any } | null>>()
           .mockResolvedValue(
@@ -127,7 +130,7 @@ describe("GetRootContextHandler locale authority", () => {
           lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
           lifecycleRevision: 1,
           blockerReason: null,
-          blockerReference: null,
+          blockerReference: options.blockerReference ?? null,
         }),
       ),
     } as unknown as AssessmentRuntimeAuthority;
@@ -383,6 +386,73 @@ describe("GetRootContextHandler locale authority", () => {
     expect(result.budgetState?.cumulativeUsage.inputTokens).toBe(50_000);
     expect(result.budgetState?.cumulativeUsage.outputTokens).toBe(2_500);
     expect(result.budgetState?.cumulativeUsage.totalTokens).toBe(52_500);
+    expect(result.budgetState?.status).toBe("ADMITTED");
+  });
+
+  it("evaluates NO_PROGRESS status when consecutive turns without progress reach limit (15)", async () => {
+    const f = createFixture();
+    const turns = Array.from({ length: 15 }, (_, i) => ({
+      id: `turn-${i}`,
+      contextJson: { progressMade: false },
+      createdAt: new Date(Date.now() - i * 1000),
+    }));
+    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.budgetState).toBeDefined();
+    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(15);
+    expect(result.budgetState?.status).toBe("NO_PROGRESS");
+  });
+
+  it("resets consecutiveTurnsWithoutProgress to 0 when recent completed turn made progress", async () => {
+    const f = createFixture();
+    const turns = [
+      { id: "turn-latest", contextJson: { progressMade: true }, createdAt: new Date() },
+      { id: "turn-old-1", contextJson: { progressMade: false }, createdAt: new Date(Date.now() - 1000) },
+      { id: "turn-old-2", contextJson: { progressMade: false }, createdAt: new Date(Date.now() - 2000) },
+    ];
+    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(0);
+    expect(result.budgetState?.status).toBe("ADMITTED");
+  });
+
+  it("admits execution when blockerReference sets overrideNoProgress: true despite 15 consecutive turns without progress", async () => {
+    const f = createFixture({
+      blockerReference: { overrideNoProgress: true },
+    });
+    const turns = Array.from({ length: 15 }, (_, i) => ({
+      id: `turn-${i}`,
+      contextJson: { progressMade: false },
+      createdAt: new Date(Date.now() - i * 1000),
+    }));
+    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(15);
+    expect(result.budgetState?.limits.noProgressLimit).toBeNull();
+    expect(result.budgetState?.status).toBe("ADMITTED");
+  });
+
+  it("falls back to domain events when progressMade flag is absent on turn context", async () => {
+    const f = createFixture();
+    const turns = [
+      { id: "turn-no-flag", contextJson: {}, createdAt: new Date() },
+    ];
+    f.tx.assessmentRuntimeTurn.findMany = jest.fn<() => Promise<any[]>>().mockResolvedValue(turns);
+    f.tx.assessmentEvent.count = jest.fn<() => Promise<number>>().mockResolvedValue(1);
+
+    const result = await f.handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress).toBe(0);
     expect(result.budgetState?.status).toBe("ADMITTED");
   });
 });
