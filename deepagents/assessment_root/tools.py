@@ -508,6 +508,14 @@ class OpenHumanRequestArgs(_Args):
     )
 
 
+class OpenHumanRequestsBatchArgs(_Args):
+    requests: list[OpenHumanRequestArgs] = Field(
+        min_length=1,
+        max_length=20,
+        description="Batch of 1 to 20 material missing fact questions to open atomically.",
+    )
+
+
 class ReportUnresolvableHumanFactArgs(OpenHumanRequestArgs):
     unavailability_rationale: str = Field(min_length=1, description="Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.")
     evidence_ids: list[str] = Field(min_length=1, description="Accepted evidence IDs supporting the unavailability claim.")
@@ -2064,6 +2072,51 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             ),
         }
 
+    def _human_requests_batch_resume_payload(
+        context: dict[str, Any], results: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Business purpose: Return bounded HITL continuation metadata for a batch of questions.
+
+        Business rules:
+        - Share a single context snapshot token and bounded page tool metadata.
+        - Model-facing continuation never embeds complete facts, evidence or answer history.
+        - UNKNOWN answers require exact checkpoint-bound review authority without creating facts or verdicts.
+
+        Execution flow:
+        1. Bind the current context collections to a snapshot token.
+        2. Project each request through the bounded resume identity envelope.
+        3. Determine whether any open UNKNOWN review conditions exist.
+        4. Return compact aggregate continuation metadata.
+
+        Failure cases:
+        - Missing open request identity or unauthorized UNKNOWN review fails closed.
+
+        Side effects:
+        - Pure projection of already-loaded authoritative context.
+        """
+        _, context_snapshot_token = _context_snapshot(run, context)
+        projected = [
+            _human_request_resume_identity(context, res)
+            for res in results
+        ]
+        has_unknown = any(item.get("responseKind") == "UNKNOWN" for item in projected)
+        all_resolved = all(item.get("resolved") is True for item in projected)
+        instruction = (
+            "This UNKNOWN response is not a fact or verdict. Read accepted facts/evidence through the bounded context tools; report permanent unavailability only if supported, otherwise call wait_for_human_requests."
+            if has_unknown
+            else "Continue investigation using accepted facts from bounded context reads; re-evaluate stale decisions."
+        )
+        return {
+            "ok": True,
+            "caseRevision": run.case_revision,
+            "allResolved": all_resolved,
+            "contextSnapshotToken": context_snapshot_token,
+            "contextPageTool": "get_assessment_context_page",
+            "contextDetailTool": "get_assessment_context_detail",
+            "instruction": instruction,
+            "requests": projected,
+        }
+
     def _human_request_resume_page(
         context: dict[str, Any],
         request_ids: list[str],
@@ -2311,6 +2364,94 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         interrupt({"requestIds": [result["requestId"]]})
         return resolved_human_request(result)
 
+    def open_human_requests_batch(
+        requests: list[dict[str, Any] | OpenHumanRequestArgs],
+    ) -> dict[str, Any]:
+        """Business purpose: Ask the customer for multiple material missing facts atomically across rules or criteria.
+
+        Business rules:
+        - Every question must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
+        - All batch items must pass legal anchor validation before any server mutation.
+        - Batch size is bounded between 1 and 20 items.
+        - The native interrupt pauses atomically for all open requests in the batch.
+
+        Execution flow:
+        1. Validate anchors and build idempotent request payloads for all batch items.
+        2. Submit the batch to the governed API.
+        3. Check authoritative context for open requests and atomically interrupt if any remain open.
+        4. On resume, return bounded batch continuation metadata.
+
+        Failure cases:
+        - Any invalid anchor or empty/exceeded batch returns typed validation feedback before network calls.
+
+        Side effects:
+        - Persists human-resolution requests and a native checkpoint dependency for open items; creates no assumed customer facts.
+        """
+        if not requests or len(requests) > 20:
+            return {
+                "ok": False,
+                "code": "HUMAN_REQUEST_INVALID",
+                "hint": "Batch must contain between 1 and 20 requests.",
+            }
+        validated_items: list[OpenHumanRequestArgs] = []
+        for item in requests:
+            if isinstance(item, OpenHumanRequestArgs):
+                validated_items.append(item)
+            elif isinstance(item, dict):
+                validated_items.append(OpenHumanRequestArgs.model_validate(item))
+            else:
+                validated_items.append(OpenHumanRequestArgs.model_validate(item))
+
+        prepared_payloads: list[dict[str, Any]] = []
+        for item in validated_items:
+            impact = anchored_impact(
+                item.assessment_rule_id,
+                item.criterion_ids,
+                item.condition_ref,
+                item.decision_impact,
+            )
+            if isinstance(impact, dict):
+                return impact
+            content = {
+                "assessmentRuleId": item.assessment_rule_id,
+                "criterionIds": item.criterion_ids or [],
+                "question": item.question,
+                "unresolvedFact": item.unresolved_fact,
+                "decisionImpact": list(impact),
+                "resolutionAttempts": list(item.resolution_attempts),
+                "controlType": item.control_type,
+                "choices": item.choices or [],
+                **({"dependencies": [
+                    {"assessmentRuleId": dep.assessment_rule_id, "criterionIds": dep.criterion_ids}
+                    for dep in item.dependencies
+                ]} if item.dependencies else {}),
+                **({"sourceRequestId": item.source_request_id} if item.source_request_id else {}),
+            }
+            digest = hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()[:32]
+            prepared_payloads.append({
+                **content,
+                "expectedCaseRevision": run.case_revision,
+                "idempotencyKey": f"human:{run.thread_id}:{digest}",
+            })
+
+        batch_result = client.post_human_requests_batch({"requests": prepared_payloads})
+        results = batch_result.get("requests", [])
+
+        context = client.context()
+        run.adopt_context(context)
+
+        open_ids = [
+            r["requestId"]
+            for r in results
+            if r["requestId"] in context.get("openHumanRequestIds", [])
+        ]
+        if open_ids:
+            interrupt({"requestIds": sorted(set(open_ids))})
+            context = client.context()
+            run.adopt_context(context)
+
+        return _human_requests_batch_resume_payload(context, results)
+
     def report_human_fact_unresolvable(
         assessment_rule_id: str,
         question: str,
@@ -2468,6 +2609,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
              "Submit supported findings for one pinned rule at current revisions. Address every material applicability element; NOT_ESTABLISHED supports neither verdict. APPLICABLE needs every criterion and consistent compliance. The API validates pins, references and revisions without choosing the conclusion."),
         tool(open_human_request, OpenHumanRequestArgs, "open_human_request",
              "Ask for a material missing fact after investigating sources and accepted facts. Anchor it to a criterion or legal element, using customer-safe wording and no requested legal verdict. The governed request pauses natively; explicit source sharing needs server validation."),
+        tool(open_human_requests_batch, OpenHumanRequestsBatchArgs, "open_human_requests_batch",
+             "Ask for multiple material missing facts atomically across rules or criteria after investigating sources and accepted facts. Every request is anchored to a criterion or condition. The governed batch pauses natively until all open dependencies are resolved."),
         tool(report_human_fact_unresolvable, ReportUnresolvableHumanFactArgs, "report_human_fact_unresolvable",
              "Report accepted evidence proving a material anchored fact permanently unobtainable. An unknown answer is insufficient. Retain the native human dependency even if the API rejects the claim; never manufacture a fact or verdict."),
         tool(report_existing_human_fact_unresolvable, ReportExistingUnresolvableHumanFactArgs, "report_existing_human_fact_unresolvable",
@@ -2503,6 +2646,7 @@ ROOT_TOOL_NAMES = (
     "accept_case_fact",
     "submit_rule_decision",
     "open_human_request",
+    "open_human_requests_batch",
     "report_human_fact_unresolvable",
     "report_existing_human_fact_unresolvable",
     "get_human_request_resume_page",
