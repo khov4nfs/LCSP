@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import stat
+import subprocess
 import time
 from pathlib import Path
 
@@ -338,6 +339,36 @@ def isolated_routing_project(monkeypatch, tmp_path):
 
 
 @pytest.fixture
+def isolated_committed_routing_project(isolated_routing_project):
+    """Give budget tests a genuine Git HEAD inside their disposable project."""
+    source, directory = isolated_routing_project
+    project = source.parents[2]
+    subprocess.run(["git", "init", str(project)], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-C", str(project), "config", "user.name", "LCSP Test Fixture"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(project), "config", "user.email", "lcsp-test-fixture@example.invalid"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(project), "add", "--", str(source.relative_to(project))],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", str(project), "-c", "commit.gpgsign=false", "commit",
+            "--no-gpg-sign", "-m", "Create isolated T31 route fixture",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return source, directory
+
+
+@pytest.fixture
 def isolated_runtime_project(isolated_routing_project, monkeypatch):
     """Provide representative source/build bytes without requiring an API build for digest unit tests."""
     source, directory = isolated_routing_project
@@ -460,8 +491,21 @@ def test_existing_execution_cannot_select_new_profile_or_modify_previous_state(i
     assert {p.name: p.read_bytes() for p in directory.iterdir()} == before
 
 
-def test_selected_google_route_binds_real_native_models_and_frozen_budget(monkeypatch, isolated_routing_project):
-    source, directory = isolated_routing_project
+def test_build_budget_binds_real_head_from_disposable_git_project(isolated_committed_routing_project):
+    source, _ = isolated_committed_routing_project
+    expected_head = subprocess.check_output(
+        ["git", "-C", str(source.parents[2]), "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+
+    budget = build_budget("isolated-git-head")
+
+    assert len(expected_head) == 40
+    assert budget.candidate_sha == expected_head
+
+
+def test_selected_google_route_binds_real_native_models_and_frozen_budget(monkeypatch, isolated_committed_routing_project):
+    source, directory = isolated_committed_routing_project
     original = source.read_bytes()
     profile = select_pilot_routes(directory, "fallback-01")
     monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", profile["routesFile"])
@@ -479,6 +523,9 @@ def test_selected_google_route_binds_real_native_models_and_frozen_budget(monkey
             assert (identity["route_id"], identity["provider"], identity["model"]) == (
                 "fallback-01", "google_genai", "gemini-3.5-flash-lite")
         budget = build_budget("selected-route-offline")
+        assert budget.candidate_sha == subprocess.check_output(
+            ["git", "-C", str(source.parents[2]), "rev-parse", "HEAD"], text=True,
+        ).strip()
         assert budget.model_routes_sha256 == profile["routesSha256"]
         assert {(policy.route_id, policy.provider) for policy in budget.policies} == {
             ("fallback-01", "google_genai")}
