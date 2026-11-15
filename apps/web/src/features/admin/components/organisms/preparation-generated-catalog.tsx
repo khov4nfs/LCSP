@@ -224,18 +224,17 @@ export function PreparationGeneratedCatalog({
                 aria-expanded={selected?.id === entry.id}
                 aria-controls="preparation-catalog-entry-detail"
               >
-                <span className="font-medium">
+                <span className="wrap-break-word font-medium">
                   {"title" in entry.data
                     ? entry.data.title
                     : entry.data.concept}
                 </span>
-                <span className="line-clamp-2 text-sm text-muted-foreground">
+                <span className="line-clamp-2 wrap-break-word text-sm text-muted-foreground">
                   {"proposition" in entry.data
                     ? entry.data.proposition
                     : entry.data.legalIntent}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {entry.id} ·{" "}
                   {entry.ordinal === null
                     ? t("pages.complianceRuleSets.catalog.draftEntry")
                     : `${t("pages.complianceRuleSets.catalog.ordinal")} ${entry.ordinal + 1}`}
@@ -394,14 +393,13 @@ function CatalogEntryDetails({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold">{title}</h3>
-          <p className="text-xs text-muted-foreground">{entry.id}</p>
+          <h3 className="wrap-break-word font-semibold">{title}</h3>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           {t("pages.complianceRuleSets.catalog.closeDetails")}
         </Button>
       </div>
-      <p className="whitespace-pre-wrap text-sm">{summary}</p>
+      <p className="wrap-break-word whitespace-pre-wrap text-sm">{summary}</p>
       <dl className="grid gap-4 sm:grid-cols-2">
         {fields.map(([label, value]) => (
           <div key={label} className="space-y-1">
@@ -425,14 +423,25 @@ function CatalogEntryDetails({
               ? t("pages.complianceRuleSets.catalog.verifiedReferences")
               : t("pages.complianceRuleSets.catalog.notRecorded")}
         </p>
-        <ul className="list-inside list-disc text-sm text-muted-foreground">
+        <ul className="min-w-0 list-inside list-disc text-sm text-muted-foreground">
           {data.sourceReferences.map((reference, index) => (
-            <li key={`${reference.documentId}:${reference.locator}:${index}`}>
+            <li
+              key={`${reference.documentId}:${reference.locator}:${index}`}
+              className="wrap-break-word"
+            >
               {reference.documentId} · {reference.locator}
             </li>
           ))}
         </ul>
       </div>
+      <details className="rounded-md border border-border p-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          {t("pages.complianceRuleSets.catalog.identifierDetails")}
+        </summary>
+        <p className="mt-2 break-all text-xs text-muted-foreground">
+          <code>{entry.id}</code>
+        </p>
+      </details>
     </section>
   );
 }

@@ -243,6 +243,72 @@ export const enPages = {
     preparations: "Rule Set Preparation",
     emptyPreparations: "No Rule Set Preparation has run yet.",
     sourceAnalysis: {
+      sectionsLabel: "Preparation views",
+      sections: {
+        sourceAnalysis: "Source Analysis",
+        generatedCatalog: "Generated Catalog",
+        runActivity: "Run Activity",
+      },
+      sourceDocumentFallback: "Source document",
+      reviewReason: "Persisted review reason",
+      reasonTruncated: "The stored reason is truncated in this view.",
+      noClaimsOutcome:
+        "This Source Unit was reviewed and no relevant semantic Claims were persisted. This result applies only to this selected unit.",
+      technicalIdentity: "Technical identity",
+      copyIdentifier: "Copy",
+      identifierCopied: "Copied",
+      referenceDetails: "Reference identifiers",
+      referencesTruncated:
+        "Only the bounded reference identifier list is shown.",
+      claimIdsCount: "Show {count} Claim identifiers",
+      claimIdsUnavailable:
+        "Claims are recorded, but their identifiers are unavailable in this response.",
+      mappingNoDirectClaims:
+        "No direct Claim identifiers are persisted for this Source Unit, so no Requirement or Assessment Rule link can be shown.",
+      mappingNoSubmittedRuleSet:
+        "Claims are persisted, but no submitted Rule Set is available for verifying Requirement and Assessment Rule associations.",
+      mappingPinnedGraphUnavailable:
+        "Claims exist, but their Requirement and Assessment Rule associations could not be verified against the pinned semantic graph.",
+      mappingNoVerifiedAssociations:
+        "The persisted response contains no verified Requirement or Assessment Rule association for these Claim identifiers.",
+      mappingUnavailable:
+        "Requirement and Assessment Rule associations are unavailable for this Source Unit.",
+      requirementRuleLinks: "Requirement and Assessment Rule links",
+      submittedVerifiedMapping:
+        "These links come from the submitted Rule Set and are verified through persisted identifiers.",
+      noAssessmentRulesLinked:
+        "No Assessment Rule identifiers are linked to this Requirement in the persisted mapping.",
+      structuredOutput: "Persisted structured review output",
+      claimType: "Claim type",
+      claimState: "Claim state",
+      supportingSources: "Supporting source units",
+      technicalClaimDetails: "Technical Claim details",
+      semanticAuthority: "Semantic authority",
+      assessability: "Assessability",
+      relations: "Persisted Claim relations",
+      relationKind: "Relation type",
+      fromClaim: "From Claim",
+      toClaim: "To Claim",
+      referenceAccounting: "Reference accounting",
+      materialReference: "Recorded as material",
+      nonMaterialReference: "Recorded as non-material",
+      relationIds: "Related relation identifiers",
+      outputTruncated: "Some bounded fields are truncated in this view.",
+      emptyStructuredOutput:
+        "Persisted review output is valid and contains no structured Claims.",
+      runActivitySummary: "Run-level activity summary",
+      preparationRunId: "Preparation Run ID",
+      runStatus: "Preparation status",
+      observedModelCalls: "Model calls observed in loaded history",
+      observedTokenUsage: "Token usage observed",
+      activityHistoryMayBeIncomplete:
+        "Historical events may be incomplete. Figures shown cover the loaded run-level event history only.",
+      openRunActivity: "Open Run Activity",
+      runOverviewTitle: "Selected Preparation Run",
+      sourceVersionLabel: "Legal Source version",
+      currentStage: "Current stage",
+      attempt: "Attempt",
+      runIdentity: "Technical run identifier",
       title: "Source Analysis Explorer",
       description:
         "Browse persisted source review units for this Preparation. Coverage is the saved frontier total, independent of filters and pages.",
@@ -308,7 +374,7 @@ export const enPages = {
       relationshipsUnavailable:
         "Requirement and Assessment Rule relationships are not exposed by the current source-unit read API.",
       workerOutputIntro:
-        "This view contains persisted review metadata only. It does not include prompts, model reasoning, or raw worker responses.",
+        "This tab presents validated, persisted structured Source Review output for the selected unit when available. It is not a raw worker transcript.",
       persistedClaimIdentifiers:
         "Claim IDs are identifiers, not the full Claim content or a claim-to-rule mapping.",
       unitOutputUnavailable:
@@ -335,6 +401,7 @@ export const enPages = {
     },
     catalog: {
       title: "Generated Rule Set Catalog",
+      identifierDetails: "Technical identifier",
       description:
         "Browse persisted Legal Requirements and Assessment Rules for the selected Preparation.",
       collectionLabel: "Catalog collection",

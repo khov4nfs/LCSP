@@ -209,6 +209,7 @@ test("source detail selection is isolated across run and revision pins", async (
             key: `${run.preparationRunId}:${run.sourceAnalysisInventoryRevision ?? "unavailable"}`,
             run,
             activity,
+            onOpenRunActivity: () => undefined,
           }),
         ),
       );

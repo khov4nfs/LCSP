@@ -241,6 +241,73 @@ export const viPages = {
     preparations: "Chuẩn bị bộ quy tắc",
     emptyPreparations: "Chưa có lượt chuẩn bị bộ quy tắc nào.",
     sourceAnalysis: {
+      sectionsLabel: "Các mục chuẩn bị",
+      sections: {
+        sourceAnalysis: "Phân tích nguồn",
+        generatedCatalog: "Danh mục bộ quy tắc",
+        runActivity: "Hoạt động lượt chạy",
+      },
+      sourceDocumentFallback: "Tài liệu nguồn",
+      reviewReason: "Lý do rà soát đã lưu",
+      reasonTruncated: "Lý do đã lưu bị rút gọn trong giao diện này.",
+      noClaimsOutcome:
+        "Đơn vị nguồn này đã được rà soát và không có nhận định ngữ nghĩa liên quan nào được lưu. Kết quả chỉ áp dụng cho đơn vị đang chọn.",
+      technicalIdentity: "Thông tin định danh kỹ thuật",
+      copyIdentifier: "Sao chép",
+      identifierCopied: "Đã sao chép",
+      referenceDetails: "Định danh tham chiếu",
+      referencesTruncated:
+        "Chỉ hiển thị danh sách định danh tham chiếu trong giới hạn truy vấn.",
+      claimIdsCount: "Hiện {count} định danh nhận định",
+      claimIdsUnavailable:
+        "Đã ghi nhận nhận định nhưng các định danh không có trong phản hồi này.",
+      mappingNoDirectClaims:
+        "Không có định danh nhận định trực tiếp được lưu cho đơn vị nguồn này, vì vậy không thể hiển thị liên kết đến Yêu cầu pháp lý hoặc Quy tắc đánh giá.",
+      mappingNoSubmittedRuleSet:
+        "Nhận định đã được lưu, nhưng chưa có Bộ quy tắc đã gửi để xác minh liên kết với Yêu cầu pháp lý và Quy tắc đánh giá.",
+      mappingPinnedGraphUnavailable:
+        "Có nhận định, nhưng không thể xác minh liên kết với Yêu cầu pháp lý và Quy tắc đánh giá dựa trên đồ thị ngữ nghĩa đã ghim.",
+      mappingNoVerifiedAssociations:
+        "Phản hồi đã lưu không có liên kết đã xác minh giữa các định danh nhận định này với Yêu cầu pháp lý hoặc Quy tắc đánh giá.",
+      mappingUnavailable:
+        "Chưa có dữ liệu liên kết Yêu cầu pháp lý và Quy tắc đánh giá cho đơn vị nguồn này.",
+      requirementRuleLinks: "Liên kết Yêu cầu pháp lý và Quy tắc đánh giá",
+      submittedVerifiedMapping:
+        "Các liên kết này lấy từ Bộ quy tắc đã gửi và được xác minh bằng các định danh đã lưu.",
+      noAssessmentRulesLinked:
+        "Không có định danh Quy tắc đánh giá nào được liên kết với Yêu cầu pháp lý này trong dữ liệu đã lưu.",
+      structuredOutput: "Kết quả rà soát có cấu trúc đã lưu",
+      claimType: "Loại nhận định",
+      claimState: "Trạng thái nhận định",
+      supportingSources: "Đơn vị nguồn hỗ trợ",
+      technicalClaimDetails: "Chi tiết kỹ thuật của nhận định",
+      semanticAuthority: "Thẩm quyền ngữ nghĩa",
+      assessability: "Khả năng đánh giá",
+      relations: "Quan hệ nhận định đã lưu",
+      relationKind: "Loại quan hệ",
+      fromClaim: "Từ nhận định",
+      toClaim: "Đến nhận định",
+      referenceAccounting: "Thống kê tham chiếu",
+      materialReference: "Được ghi nhận là trọng yếu",
+      nonMaterialReference: "Được ghi nhận là không trọng yếu",
+      relationIds: "Định danh quan hệ liên quan",
+      outputTruncated:
+        "Một số trường có giới hạn đã bị rút gọn trong giao diện này.",
+      emptyStructuredOutput:
+        "Kết quả rà soát đã lưu hợp lệ và không chứa nhận định có cấu trúc.",
+      runActivitySummary: "Tóm tắt hoạt động cấp lượt chạy",
+      preparationRunId: "Định danh lượt chuẩn bị",
+      runStatus: "Trạng thái lượt chuẩn bị",
+      observedModelCalls: "Lượt gọi mô hình trong lịch sử đã tải",
+      observedTokenUsage: "Lượng token được ghi nhận",
+      activityHistoryMayBeIncomplete:
+        "Lịch sử sự kiện có thể chưa đầy đủ. Số liệu chỉ tính các sự kiện cấp lượt chạy đã tải.",
+      openRunActivity: "Mở Hoạt động lượt chạy",
+      runOverviewTitle: "Lượt Chuẩn bị đang chọn",
+      sourceVersionLabel: "Phiên bản Nguồn pháp lý",
+      currentStage: "Giai đoạn hiện tại",
+      attempt: "Lần thử",
+      runIdentity: "Định danh kỹ thuật của lượt chạy",
       title: "Khám phá phân tích nguồn",
       description:
         "Duyệt các đơn vị rà soát nguồn đã lưu cho lượt Chuẩn bị này. Tổng coverage lấy từ frontier đã lưu, độc lập với bộ lọc và trang hiện tại.",
@@ -307,7 +374,7 @@ export const viPages = {
       relationshipsUnavailable:
         "API đọc đơn vị nguồn hiện tại chưa cung cấp liên kết tới Requirement và Assessment Rule.",
       workerOutputIntro:
-        "Mục này chỉ hiển thị metadata rà soát đã lưu. Không bao gồm prompt, suy luận của model hoặc phản hồi thô của worker.",
+        "Tab này hiển thị kết quả Source Review có cấu trúc đã được xác thực và lưu cho đơn vị đang chọn khi dữ liệu sẵn có. Đây không phải bản ghi thô của worker.",
       persistedClaimIdentifiers:
         "Mã Claim chỉ là định danh, không phải nội dung Claim đầy đủ hoặc liên kết Claim với Rule.",
       unitOutputUnavailable:
@@ -334,6 +401,7 @@ export const viPages = {
     },
     catalog: {
       title: "Danh mục Bộ quy tắc đã tạo",
+      identifierDetails: "Định danh kỹ thuật",
       description:
         "Xem Legal Requirements và Assessment Rules đã lưu của lượt Chuẩn bị được chọn.",
       collectionLabel: "Bộ sưu tập danh mục",

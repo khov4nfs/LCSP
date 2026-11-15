@@ -25,6 +25,7 @@ type PreparationSourceUnit = PreparationSourceUnitsResponse["units"][number];
 type PreparationSourceAnalysisExplorerProps = {
   run: RuleSetPreparationRow;
   activity: SourceAnalysisActivityProps;
+  onOpenRunActivity: () => void;
 };
 
 type SourceAnalysisUnitGroup = {
@@ -45,7 +46,7 @@ type SourceAnalysisUnitGroup = {
  * 2. Append the original row to its hierarchy group in received order.
  *
  * Failure cases:
- * - Missing document titles or ancestors fall back to persisted document identity and a neutral hierarchy label.
+ * - Missing document titles use a localized neutral label; missing ancestors use a neutral hierarchy label without exposing IDs as headings.
  *
  * Side effects:
  * - Pure presentation projection; no coverage or source-review state is recalculated.
@@ -62,7 +63,8 @@ export function groupPreparationSourceUnits(
     );
     const key = `${unit.documentId}:${root?.sourceNodeId ?? unit.documentId}`;
     const title = [
-      document?.title ?? unit.documentId,
+      document?.title ||
+        t("pages.complianceRuleSets.sourceAnalysis.sourceDocumentFallback"),
       root?.label ||
         root?.title ||
         t("pages.complianceRuleSets.sourceAnalysis.documentGroup"),
@@ -96,6 +98,7 @@ export function groupPreparationSourceUnits(
 export function PreparationSourceAnalysisExplorer({
   run,
   activity,
+  onOpenRunActivity,
 }: PreparationSourceAnalysisExplorerProps) {
   useAppLocale();
   const [state, setState] = useState<SourceReviewState | undefined>();
@@ -138,6 +141,7 @@ export function PreparationSourceAnalysisExplorer({
           inventoryRevision: firstPage.inventoryRevision,
           materializationId: firstPage.materializationId,
           frontierRevision: firstPage.frontier.revision,
+          frontierCoverage: firstPage.frontier.coverage,
         }
       : null;
 
@@ -327,10 +331,10 @@ export function PreparationSourceAnalysisExplorer({
                 <li key={unit.sourceNodeId} className="py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 space-y-1">
-                      <h4 className="font-medium">
+                      <h4 className="wrap-break-word font-medium">
                         {unit.title || unit.label || unit.structuralPath}
                       </h4>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="wrap-break-word text-xs text-muted-foreground">
                         <span className="font-medium">
                           {t(
                             "pages.complianceRuleSets.sourceAnalysis.nodeType",
@@ -338,9 +342,6 @@ export function PreparationSourceAnalysisExplorer({
                           :{" "}
                         </span>
                         <code>{unit.nodeType}</code> · {unit.structuralPath}
-                      </p>
-                      <p className="break-all text-xs text-muted-foreground">
-                        {unit.sourceNodeId}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {t(
@@ -358,7 +359,7 @@ export function PreparationSourceAnalysisExplorer({
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                      <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium">
                         {t(
                           `pages.complianceRuleSets.sourceAnalysis.reviewStates.${unit.state}`,
                         )}
@@ -402,6 +403,7 @@ export function PreparationSourceAnalysisExplorer({
         unit={selectedUnit}
         context={context}
         activity={activity}
+        onOpenRunActivity={onOpenRunActivity}
         onOpenChange={(open) => {
           if (!open) setSelectedUnit(null);
         }}

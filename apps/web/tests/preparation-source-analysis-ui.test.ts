@@ -23,6 +23,7 @@ import {
 } from "../src/lib/api/compliance-rule-set-queries";
 import type { SourceAnalysisActivityProps } from "../src/features/admin/components/molecules/preparation-source-analysis-modal";
 import type { RuleSetPreparationRow } from "../src/features/admin/types/compliance-rule-sets.types";
+import { setAppLocale } from "../src/lib/locale.ts";
 
 type Unit = PreparationSourceUnitsResponse["units"][number];
 
@@ -173,6 +174,7 @@ test("hierarchy grouping keeps sibling review units independently addressable", 
 });
 
 test("source analysis modal exposes four keyboard-operable tabs without inline expansion", async () => {
+  setAppLocale("en");
   const dom = new JSDOM(
     "<!doctype html><html><body><div id='root'></div></body></html>",
     {
@@ -256,7 +258,7 @@ test("source analysis modal exposes four keyboard-operable tabs without inline e
     new Response(
       JSON.stringify({
         ok: true,
-        data: makeDetail("source-node-1"),
+        data: makeNoClaimsDetail("source-node-1"),
       }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
@@ -276,13 +278,34 @@ test("source analysis modal exposes four keyboard-operable tabs without inline e
               inventoryRevision: 4,
               materializationId: "materialization-4",
               frontierRevision: 3,
+              frontierCoverage: {
+                total: 1,
+                pending: 0,
+                inReview: 0,
+                reviewedWithClaims: 0,
+                reviewedNoClaims: 1,
+                blockedReferences: 0,
+                persistedClaims: 0,
+              },
             },
             activity,
+            onOpenRunActivity: () => undefined,
             onOpenChange: () => undefined,
           }),
         ),
       );
       await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    await act(async () => {
+      await waitForUiCondition(
+        () =>
+          dom.window.document
+            .querySelector("[role='dialog']")
+            ?.textContent?.includes(
+              "No relevant semantic claims were found",
+            ) === true,
+        "persisted reviewed-no-claims detail",
+      );
     });
     const tabs = [
       ...dom.window.document.querySelectorAll<HTMLButtonElement>(
@@ -291,19 +314,38 @@ test("source analysis modal exposes four keyboard-operable tabs without inline e
     ];
     assert.equal(tabs.length, 4);
     assert.equal(tabs[0].getAttribute("aria-selected"), "true");
+    for (const tab of tabs) {
+      assert(
+        dom.window.document.getElementById(
+          tab.getAttribute("aria-controls") ?? "",
+        ),
+      );
+    }
+    const activePanel = () =>
+      dom.window.document.querySelector<HTMLElement>(
+        "[role='tabpanel']:not([hidden])",
+      )?.textContent ?? "";
+    assert.match(activePanel(), /reviewed and no relevant semantic Claims/u);
+    assert.match(activePanel(), /No relevant semantic claims were found/u);
+    assert.match(activePanel(), /Persisted review reason/u);
     const provenanceTab = dom.window.document.getElementById(
       "source-analysis-tab-provenance",
     ) as HTMLButtonElement | null;
     assert.ok(provenanceTab);
     await act(async () => provenanceTab.click());
     assert.equal(provenanceTab.getAttribute("aria-selected"), "true");
-    const panel =
-      dom.window.document.querySelector<HTMLElement>("[role='tabpanel']");
+    const panel = dom.window.document.querySelector<HTMLElement>(
+      "[role='tabpanel']:not([hidden])",
+    );
     assert.match(
       dom.window.document.querySelector("[role='dialog']")?.textContent ?? "",
       /source-node-1/u,
     );
     assert.match(panel?.textContent ?? "", /article-parent/u);
+    assert.match(
+      panel?.textContent ?? "",
+      /No direct Claim identifiers are persisted/u,
+    );
     await act(async () => {
       provenanceTab.dispatchEvent(
         new dom.window.KeyboardEvent("keydown", {
@@ -316,7 +358,14 @@ test("source analysis modal exposes four keyboard-operable tabs without inline e
       "source-analysis-tab-workerOutput",
     );
     assert.equal(workerTab?.getAttribute("aria-selected"), "true");
-    assert.match(panel?.textContent ?? "", /A persisted semantic claim/iu);
+    assert.match(activePanel(), /reviewed and no relevant semantic Claims/u);
+    assert.match(
+      activePanel(),
+      /validated, persisted structured Source Review output/u,
+    );
+    assert.match(activePanel(), /not a raw worker transcript/iu);
+    assert.doesNotMatch(activePanel(), /A persisted semantic claim/iu);
+    assert.doesNotMatch(activePanel(), /claim-source-node-1/u);
   } finally {
     await act(async () => root.unmount());
     queryClient.clear();
@@ -366,6 +415,7 @@ test("source analysis modal exposes four keyboard-operable tabs without inline e
 });
 
 test("Explorer selection opens a modal, labels run events, and resets on run switch", async () => {
+  setAppLocale("en");
   const dom = new JSDOM(
     "<!doctype html><html><body><div id='root'></div></body></html>",
     {
@@ -525,6 +575,7 @@ test("Explorer selection opens a modal, labels run events, and resets on run swi
           key: run.preparationRunId,
           run,
           activity,
+          onOpenRunActivity: () => undefined,
         }),
       );
     }
@@ -576,6 +627,11 @@ test("Explorer selection opens a modal, labels run events, and resets on run swi
     assert.ok(provenance && technical);
     await act(async () => provenance.click());
     assert.equal(provenance.getAttribute("aria-selected"), "true");
+    const activePanel = () =>
+      dom.window.document.querySelector<HTMLElement>(
+        "[role='tabpanel']:not([hidden])",
+      )?.textContent ?? "";
+    assert.match(activePanel(), /no submitted Rule Set is available/iu);
     await act(async () => {
       provenance.dispatchEvent(
         new dom.window.KeyboardEvent("keydown", {
@@ -585,16 +641,15 @@ test("Explorer selection opens a modal, labels run events, and resets on run swi
       );
     });
     assert.equal(worker?.getAttribute("aria-selected"), "true");
-    const activePanel = () =>
-      dom.window.document.querySelector<HTMLElement>("[role='tabpanel']")
-        ?.textContent ?? "";
     assert.match(activePanel(), /A persisted semantic claim\./u);
     assert.doesNotMatch(
       activePanel(),
       /analysis complete|completed successfully/iu,
     );
     await act(async () => technical.click());
-    assert.match(activePanel(), /Preparation/iu);
+    assert.match(activePanel(), /Run-level activity summary/u);
+    assert.match(activePanel(), /belongs to the Preparation run/u);
+    assert.match(activePanel(), /not attributed to this source unit/u);
     await act(async () => {
       dom.window.document.dispatchEvent(
         new dom.window.KeyboardEvent("keydown", {
@@ -790,6 +845,48 @@ function makeDetail(
     },
     provenance: {
       directClaimIds: [claimId],
+      requirementRuleMapping: {
+        availability: SOURCE_UNIT_DETAIL_AVAILABILITY.UNAVAILABLE,
+        unavailableReason:
+          SOURCE_UNIT_DETAIL_MAPPING_REASONS.RULE_SET_NOT_SUBMITTED,
+        associations: [],
+        associationsTruncated: false,
+      },
+    },
+  };
+}
+
+function makeNoClaimsDetail(
+  sourceNodeId: string,
+): PreparationSourceUnitDetailResponse {
+  const detail = makeDetail(sourceNodeId);
+  return {
+    ...detail,
+    review: {
+      ...detail.review,
+      state: SOURCE_REVIEW_STATES.REVIEWED_NO_CLAIMS,
+      disposition: SOURCE_REVIEW_DISPOSITIONS.NO_RELEVANT_SEMANTIC_CLAIMS,
+      reason: "No relevant semantic claims were found in this clause.",
+      claimCount: 0,
+      claimIds: [],
+      referenceCount: 0,
+      referenceIds: [],
+      blockedReferenceCount: 0,
+      blockedReferenceIds: [],
+    },
+    output: {
+      availability: SOURCE_UNIT_DETAIL_AVAILABILITY.EMPTY,
+      claims: [],
+      claimsTruncated: false,
+      identities: {},
+      identitiesTruncated: false,
+      relations: [],
+      relationsTruncated: false,
+      referenceAccounting: [],
+      referenceAccountingTruncated: false,
+    },
+    provenance: {
+      directClaimIds: [],
       requirementRuleMapping: {
         availability: SOURCE_UNIT_DETAIL_AVAILABILITY.UNAVAILABLE,
         unavailableReason:
